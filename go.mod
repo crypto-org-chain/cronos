@@ -25,4 +25,4 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-replace github.com/tharsis/ethermint => ../ethermint
+replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.4.2-0.20210722103630-3a1e87019fd5
