@@ -34,10 +34,11 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
 	ethermintclient "github.com/tharsis/ethermint/client"
-	ethermintconfig "github.com/tharsis/ethermint/cmd/ethermintd/config"
 	"github.com/tharsis/ethermint/crypto/hd"
 	ethermintencoding "github.com/tharsis/ethermint/encoding"
 	ethermintserver "github.com/tharsis/ethermint/server"
+	servercfg "github.com/tharsis/ethermint/server/config"
+	ethermint "github.com/tharsis/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
 	// this line is used by starport scaffolding # stargate/root/import
@@ -191,7 +192,7 @@ func txCommand() *cobra.Command {
 // initAppConfig helps to override default appConfig template and configs.
 // return "", nil if no custom configuration is required for the application.
 func initAppConfig() (string, interface{}) {
-	return ethermintconfig.AppConfig()
+	return servercfg.AppConfig(ethermint.AttoPhoton)
 }
 
 type appCreator struct {

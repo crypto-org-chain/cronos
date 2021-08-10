@@ -90,7 +90,6 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/modules/core/keeper"
 	"github.com/crypto-org-chain/cronos/docs"
 	tmjson "github.com/tendermint/tendermint/libs/json"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	evmante "github.com/tharsis/ethermint/app/ante"
 	ethermint "github.com/tharsis/ethermint/types"
@@ -487,7 +486,7 @@ func New(
 	// use Ethermint's custom AnteHandler
 	app.SetAnteHandler(
 		evmante.NewAnteHandler(
-			app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.FeeGrantKeeper,
+			app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.FeeGrantKeeper, app.IBCKeeper.ChannelKeeper,
 			encodingConfig.TxConfig.SignModeHandler(),
 		),
 	)
@@ -498,16 +497,6 @@ func New(
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
 		}
-
-		// Initialize and seal the capability keeper so all persistent capabilities
-		// are loaded in-memory and prevent any further modules from creating scoped
-		// sub-keepers.
-		// This must be done during creation of baseapp rather than in InitChain so
-		// that in-memory capabilities get regenerated on app restart.
-		// Note that since this reads from the store, we can only perform it when
-		// `loadLatest` is set to true.
-		ctx := app.BaseApp.NewUncachedContext(true, tmproto.Header{})
-		app.CapabilityKeeper.InitializeAndSeal(ctx)
 	}
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
