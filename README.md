@@ -15,7 +15,6 @@ parent:
 - [3. License](#3-license)
 - [4. Documentation](#4-documentation)
 - [5. Build full node](#5-build-full-node)
-    - [1. Nix](#1-nix)
 - [6. Start a local Development Network and Node](#6-start-a-local-development-network-and-node)
 - [7. Send Your First Transaction](#7-send-your-first-transaction)
 - [8. Testing](#8-testing)
