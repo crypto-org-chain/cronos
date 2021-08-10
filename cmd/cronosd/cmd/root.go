@@ -44,6 +44,8 @@ import (
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
+const EnvPrefix = "CRONOS"
+
 var ChainID string
 
 // NewRootCmd creates a new root command for simd. It is called once in the
@@ -63,7 +65,7 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 		WithBroadcastMode(flags.BroadcastBlock).
 		WithHomeDir(app.DefaultNodeHome).
 		WithKeyringOptions(hd.EthSecp256k1Option()).
-		WithViper("CRONOS") // In simapp, we don't use any prefix for env variables.
+		WithViper(EnvPrefix)
 
 	rootCmd := &cobra.Command{
 		Use:   app.Name + "d",
@@ -100,6 +102,8 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 }
 
 func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
+	cfg := sdk.GetConfig()
+	cfg.Seal()
 
 	rootCmd.AddCommand(
 		ethermintclient.ValidateChainID(
