@@ -1,8 +1,7 @@
 # Contributing
 
 Thank you for your interest in contributing to Chain! The goal of the cronos repository is to develop the implementation
-of Crypto.org Chain to best power its network use cases in payments, finance and digital assets.
-Good places to start are this document and [the official documentation](https://github.com/crypto-org-chain/chain-docs). If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
+of Crypto.org Cronos Chain to best power its network use cases in payments, finance and digital assets. If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
 
 All work on the code base tries to adhere to the "Development Process" described in [The Collective Code Construction Contract (C4)](https://rfc.zeromq.org/spec/42/#24-development-process).
 
@@ -169,4 +168,4 @@ By making a contribution to this project, I certify that:
     personal information I submit with it, including my sign-off) is
     maintained indefinitely and may be redistributed consistent with
     this project or the open source license(s) involved.
-```    
+```
