@@ -120,7 +120,7 @@ python3 -m pip install pystarport
 run two nodes devnet
 
 ```
-pystarport serve --config ./examples/devnet.yaml
+pystarport serve --config ./scripts/cronos-devnet.yaml
 ```
 
 ### get status
