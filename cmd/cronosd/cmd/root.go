@@ -35,7 +35,6 @@ import (
 
 	ethermintclient "github.com/tharsis/ethermint/client"
 	"github.com/tharsis/ethermint/crypto/hd"
-	ethermintencoding "github.com/tharsis/ethermint/encoding"
 	ethermintserver "github.com/tharsis/ethermint/server"
 	servercfg "github.com/tharsis/ethermint/server/config"
 	ethermint "github.com/tharsis/ethermint/types"
@@ -54,7 +53,7 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 	// Set config for prefixes
 	app.SetConfig()
 
-	encodingConfig := ethermintencoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := app.MakeEncodingConfig()
 	initClientCtx := client.Context{}.
 		WithJSONCodec(encodingConfig.Marshaler).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
