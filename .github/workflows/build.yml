@@ -61,6 +61,7 @@ jobs:
         if: "env.GIT_DIFF != ''"
       - uses: codecov/codecov-action@v2.0.2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           fail_ci_if_error: true
         if: "env.GIT_DIFF != ''"

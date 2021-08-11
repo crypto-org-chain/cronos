@@ -8,7 +8,21 @@ build: go.sum
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-# release
+###############################################################################
+###                                Linting                                  ###
+###############################################################################
+
+lint:
+	golangci-lint run --out-format=tab
+
+lint-fix:
+	golangci-lint run --fix --out-format=tab --issues-exit-code=0
+.PHONY: lint lint-fix
+
+###############################################################################
+###                                Releasing                                ###
+###############################################################################
+
 PACKAGE_NAME:=github.com/crypto-org-chain/cronos
 GOLANG_CROSS_VERSION  = v1.16.4
 release-dry-run:
