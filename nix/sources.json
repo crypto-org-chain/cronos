@@ -11,6 +11,19 @@
         "url": "https://github.com/tweag/gomod2nix/archive/67f22dd738d092c6ba88e420350ada0ed4992ae8.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "gravity-bridge": {
+        "branch": "main",
+        "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
+        "homepage": "",
+        "owner": "PeggyJV",
+        "repo": "gravity-bridge",
+        "rev": "755156abff254420eec2c4e54fb6e8d189556ee2",
+        "sha256": "1fjkq0jv42pq7fsah4chk2d1xkrdnkb9x52lkyagzlykw08ywcvr",
+        "type": "tarball",
+        "url": "https://github.com/PeggyJV/gravity-bridge/archive/refs/tags/v0.1.21.tar.gz",
+        "url_template": "https://github.com/PeggyJV/gravity-bridge/archive/refs/tags/v0.1.21.tar.gz",
+        "version": "0.1.21"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",

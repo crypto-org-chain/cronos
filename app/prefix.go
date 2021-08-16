@@ -10,5 +10,7 @@ func SetConfig() {
 	// use the configurations from ethermint
 	cmdcfg.SetBech32Prefixes(config)
 	cmdcfg.SetBip44CoinType(config)
+	// Make sure address is compatible with ethereum
+	config.SetAddressVerifier(VerifyAddressFormat)
 	config.Seal()
 }
