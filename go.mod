@@ -16,9 +16,9 @@ require (
 	github.com/tendermint/spm v0.0.0-20210524110815-6d7452d2dc4a
 	github.com/tendermint/tendermint v0.34.11
 	github.com/tendermint/tm-db v0.6.4
-	github.com/tharsis/ethermint v0.4.2-0.20210810164548-bc790066c455
+	github.com/tharsis/ethermint v0.4.2-0.20210816081927-353455def901
 	google.golang.org/genproto v0.0.0-20210729151513-df9385d47c1b
-	google.golang.org/grpc v1.39.1
+	google.golang.org/grpc v1.40.0
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
