@@ -24,3 +24,6 @@ require (
 replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+
+// TODO: fix keyring upstream
+replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes

@@ -85,12 +85,13 @@
     sha256 = "1fv6mssk1r96jbkbb413kxmcf87xz2knyx1bivdam2aa3mhxrim5"
 
 ["github.com/99designs/keyring"]
-  sumVersion = "v1.1.6"
+  sumVersion = "v1.1.6-fixes"
+  vendorPath = "github.com/crypto-org-chain/keyring"
   ["github.com/99designs/keyring".fetch]
     type = "git"
-    url = "https://github.com/99designs/keyring"
-    rev = "68286ee5140ad1c5cce93fcc054e6cc90015b0ea"
-    sha256 = "08rcdqpxaa9n348q10fw40q4gxpjajkyrighykk71i7mxzwkcgwn"
+    url = "https://github.com/crypto-org-chain/keyring"
+    rev = "4fc1291852fc269b98e8466bfa8f0ce9b8e665ad"
+    sha256 = "1c55z0hhvk8w1mfwc587yd88hiyi6bnpnbd3p9dckj9sx8pw4rvi"
 
 ["github.com/Azure/azure-pipeline-go"]
   sumVersion = "v0.2.2"
