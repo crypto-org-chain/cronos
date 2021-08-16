@@ -1,3 +1,12 @@
 vue/node_modules
 vue/dist
 release/
+/build
+/coverage.txt
+__pycache__
+
+# nix
+/result
+
+# pystarport
+/data
