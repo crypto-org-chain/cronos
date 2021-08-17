@@ -1,6 +1,6 @@
 # Cronos 0.5.1 Release Notes
 
-This is the first release with the a new cronos scaffolding where ethermint is included as a library, it contains several compliance fixes on evm state machine and web3 rpc apis.
+This is the first release of the new scaffolded project where ethermint is imported as a library, it contains several compliance fixes on evm state machine and web3 rpc apis.
 
 Instructions to upgrade testnet are going to be published later.
 
