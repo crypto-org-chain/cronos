@@ -3,7 +3,7 @@ PACKAGES=$(shell go list ./... | grep -v '/simulation')
 COVERAGE ?= coverage.txt
 
 GOPATH ?= $(shell $(GO) env GOPATH)
-BINDIR ?= $(GOPATH)/bin
+BINDIR ?= ~/go/bin
 
 
 build: go.sum
@@ -70,8 +70,8 @@ SIMAPP = github.com/crypto-org-chain/cronos/app
 # go.{mod, sum} files.
 #
 # ref: https://github.com/golang/go/issues/30515
-runsim: $(RUNSIM)
-$(RUNSIM):
+runsim: $(BINDIR)/runsim
+$(BINDIR)/runsim:
 	@echo "Installing runsim..."
 	@(cd /tmp && go get github.com/cosmos/tools/cmd/runsim@v1.0.0)
 
