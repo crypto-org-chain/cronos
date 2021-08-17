@@ -6,6 +6,6 @@ pkgs.mkShell {
     pkgs.pystarport
     pkgs.start-scripts
     pkgs.poetry
-    (pkgs.poetry2nix.mkPoetryEnv { projectDir = ./.; })
+    (import ../nix/testenv.nix { inherit pkgs; })
   ];
 }
