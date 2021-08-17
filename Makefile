@@ -51,6 +51,6 @@ release:
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
 		troian/golang-cross:${GOLANG_CROSS_VERSION} \
-		release --rm-dist --skip-validate
+		release --rm-dist --skip-validate --release-notes ./RELEASE_CHANGELOG.md
 
 .PHONY: release-dry-run release
