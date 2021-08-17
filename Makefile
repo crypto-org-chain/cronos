@@ -2,6 +2,10 @@ BUILDDIR ?= $(CURDIR)/build
 PACKAGES=$(shell go list ./... | grep -v '/simulation')
 COVERAGE ?= coverage.txt
 
+GOPATH ?= $(shell $(GO) env GOPATH)
+BINDIR ?= $(GOPATH)/bin
+
+
 build: go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
@@ -60,6 +64,16 @@ release:
 ###############################################################################
 
 SIMAPP = github.com/crypto-org-chain/cronos/app
+
+# Install the runsim binary with a temporary workaround of entering an outside
+# directory as the "go get" command ignores the -mod option and will polute the
+# go.{mod, sum} files.
+#
+# ref: https://github.com/golang/go/issues/30515
+runsim: $(RUNSIM)
+$(RUNSIM):
+	@echo "Installing runsim..."
+	@(cd /tmp && go get github.com/cosmos/tools/cmd/runsim@v1.0.0)
 
 test-sim-nondeterminism:
 	@echo "Running non-determinism test..."
