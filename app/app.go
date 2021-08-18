@@ -458,8 +458,6 @@ func New(
 	// can do so safely.
 	app.mm.SetOrderInitGenesis(
 		capabilitytypes.ModuleName,
-		authz.ModuleName,
-		feegrant.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		distrtypes.ModuleName,
@@ -472,6 +470,8 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
+		authz.ModuleName,
+		feegrant.ModuleName,
 		evmtypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 		cronosmoduletypes.ModuleName,
