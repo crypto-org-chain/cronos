@@ -29,7 +29,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 )
@@ -183,7 +182,8 @@ func TestAppImportExport(t *testing.T) {
 		{app.keys[evidencetypes.StoreKey], newApp.keys[evidencetypes.StoreKey], [][]byte{}},
 		{app.keys[capabilitytypes.StoreKey], newApp.keys[capabilitytypes.StoreKey], [][]byte{}},
 		{app.keys[authzkeeper.StoreKey], newApp.keys[authzkeeper.StoreKey], [][]byte{}},
-		{app.keys[evmtypes.StoreKey], newApp.keys[evmtypes.StoreKey], [][]byte{}},
+		// FIXME https://github.com/tharsis/ethermint/issues/452
+		// {app.keys[evmtypes.StoreKey], newApp.keys[evmtypes.StoreKey], [][]byte{}},
 		{app.keys[cronosmoduletypes.StoreKey], newApp.keys[cronosmoduletypes.StoreKey], [][]byte{}},
 	}
 
