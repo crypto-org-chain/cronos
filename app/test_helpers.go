@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	SimAppChainID = "simulation-777"
+	SimAppChainID = "simulation_777-1"
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used in
