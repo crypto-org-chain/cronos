@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.5.2
+
+### Consensus breaking changes
+
+- (ethermint) [tharsis#447](https://github.com/tharsis/ethermint/pull/447) update `chain-id` format.
+
+### Improvements
+
+- (ethermint) [tharsis#434](https://github.com/tharsis/ethermint/pull/434) configurable vm tracer
+
+### Bug Fixes
+
+- (ethermint) [tharsis#446](https://github.com/tharsis/ethermint/pull/446) fix chain state export issue
+
 *August 16, 2021*
 
 ## v0.5.1

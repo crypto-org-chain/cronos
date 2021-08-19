@@ -1,5 +1,5 @@
-chainmaind-777:
-  cmd: ./build/ethermintd
+cronos_777-1:
+  cmd: ./build/cronosd
   start-flags: "--trace --evm-rpc.enable-unsafe-cors"
   validators:
     - coins: 1000000000000000000stake,1000000000000000000basetcro
