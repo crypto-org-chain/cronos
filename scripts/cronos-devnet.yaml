@@ -1,5 +1,5 @@
-cronosd-777:
-  cmd: ethermintd
+cronos_777-1:
+  cmd: cronosd
   start-flags: "--trace"
   validators:
     - coins: 1000000000000000000stake,1000000000000000000basetcro

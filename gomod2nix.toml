@@ -3380,12 +3380,12 @@
     sha256 = "0yi8p0yxiidpcg4cagxg2iyqcaapsng89rak4qyxmgails2fqg37"
 
 ["github.com/spf13/cast"]
-  sumVersion = "v1.4.0"
+  sumVersion = "v1.4.1"
   ["github.com/spf13/cast".fetch]
     type = "git"
     url = "https://github.com/spf13/cast"
-    rev = "3f42935ca945b3f2ebbcd8eede51188b7e235a82"
-    sha256 = "1ir1r87iysb7674kvviq5asv3sg2bx28gjqnq5hd1zz3has7vjrk"
+    rev = "88075729b052bca4b8b6c31bf198db2fe6c9da93"
+    sha256 = "06qsfpvcbgkf2pvcvf9l46fj55kmbhp2yz382fkj5gll2bykx9ld"
 
 ["github.com/spf13/cobra"]
   sumVersion = "v1.2.1"
@@ -3564,12 +3564,12 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20210816081927-353455def901"
+  sumVersion = "v0.4.2-0.20210817172937-b8fc58a75c33"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "353455def9019cf6edf55fcc4709e1b14c37c358"
-    sha256 = "0ddl2xwawnz6jzw3rb75nmg1xx853zmv0lxns1a3h26g5ckv29p5"
+    rev = "b8fc58a75c33b0d1c640a50c1dae7ce73083054f"
+    sha256 = "0ppya9kn0jid47zzwkffx8f5h44b1wqq3k45r9j3wlcmn9f4lidr"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
@@ -3904,12 +3904,12 @@
     sha256 = "14mr66h7vxirpvb12106372apw1w3ppymbf89lprxkkg03srkfy8"
 
 ["golang.org/x/crypto"]
-  sumVersion = "v0.0.0-20210711020723-a769d52b0f97"
+  sumVersion = "v0.0.0-20210813211128-0a44fdfbc16e"
   ["golang.org/x/crypto".fetch]
     type = "git"
     url = "https://go.googlesource.com/crypto"
-    rev = "a769d52b0f97a420f3dcafc17f8b3384217859a2"
-    sha256 = "1qdv4yfdl5fbsdgvxkki1yjwwn3whns381c0za74syxdvzhhgiaf"
+    rev = "0a44fdfbc16e146f50e5fb8823fcc5ac186049b2"
+    sha256 = "0wpysf77817gbij47kzymm8jfizz95v73msjv44nr7hf3njhcn2s"
 
 ["golang.org/x/exp"]
   sumVersion = "v0.0.0-20200331195152-e8c3332aa8e5"
@@ -4064,12 +4064,12 @@
     sha256 = "1wkipg7xxc0ha5p6c3bj0vpgq38l18441n5l6zxdhx0gzvz5z1hs"
 
 ["google.golang.org/genproto"]
-  sumVersion = "v0.0.0-20210729151513-df9385d47c1b"
+  sumVersion = "v0.0.0-20210816143620-e15ff196659d"
   ["google.golang.org/genproto".fetch]
     type = "git"
     url = "https://github.com/googleapis/go-genproto"
-    rev = "df9385d47c1bd605461ea1ebed768c659f962e09"
-    sha256 = "0478dxxh2ar1rvs545hzp429q84y86rz6gs4ax0bw2qxr32wlmxy"
+    rev = "e15ff196659db6e9e1c285934c758588a253ab38"
+    sha256 = "0i4gijqjq8ac10vpn7jk1hsvj9ikcyfpd9cfy0dri91b8kqjg663"
 
 ["google.golang.org/grpc"]
   sumVersion = "v1.33.2"

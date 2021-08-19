@@ -2,14 +2,16 @@ name: Sims
 # Sims workflow runs multiple types of simulations (nondeterminism, import-export, after-import, multi-seed-short)
 # This workflow will run on all Pull Requests, if a .go, .mod or .sum file have been changed
 on:
-  workflow_dispatch:
+  pull_request:
   push:
     branches:
-      - master
+      - main
+      - release/**
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: protected
     if: "!contains(github.event.head_commit.message, 'skip-sims')"
     steps:
       - uses: actions/checkout@v2

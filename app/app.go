@@ -94,6 +94,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 
 	evmante "github.com/tharsis/ethermint/app/ante"
+	srvflags "github.com/tharsis/ethermint/server/flags"
 	ethermint "github.com/tharsis/ethermint/types"
 	"github.com/tharsis/ethermint/x/evm"
 	evmrest "github.com/tharsis/ethermint/x/evm/client/rest"
@@ -371,10 +372,11 @@ func New(
 	app.EvidenceKeeper = *evidenceKeeper
 
 	// Create Ethermint keepers
+	tracer := cast.ToString(appOpts.Get(srvflags.EVMTracer))
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.StakingKeeper,
-		bApp.Trace(), // debug EVM based on Baseapp options
+		tracer, bApp.Trace(), // debug EVM based on Baseapp options
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
