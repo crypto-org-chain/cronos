@@ -12,17 +12,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "main",
+        "branch": "ethermint",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
-        "owner": "PeggyJV",
+        "owner": "yihuang",
         "repo": "gravity-bridge",
-        "rev": "755156abff254420eec2c4e54fb6e8d189556ee2",
-        "sha256": "1fjkq0jv42pq7fsah4chk2d1xkrdnkb9x52lkyagzlykw08ywcvr",
+        "rev": "7994753aec9edf7c2b94dfc748e3528de73e9985",
+        "sha256": "034iscll7h6vnqw7f0m3f27112sgd03lrwj7x9ja9a4gn8njjkf6",
         "type": "tarball",
-        "url": "https://github.com/PeggyJV/gravity-bridge/archive/refs/tags/v0.1.21.tar.gz",
-        "url_template": "https://github.com/PeggyJV/gravity-bridge/archive/refs/tags/v0.1.21.tar.gz",
-        "version": "0.1.21"
+        "url": "https://github.com/yihuang/gravity-bridge/archive/7994753aec9edf7c2b94dfc748e3528de73e9985.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
         "branch": "master",
