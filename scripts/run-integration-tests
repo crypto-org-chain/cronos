@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+cd "$(dirname "$0")"
+
+echo "build test contracts"
+cd ../integration_tests/contracts
+yarn
+npx hardhat typechain
+cd ..
+nix-shell --run "pytest -s"

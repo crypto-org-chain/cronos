@@ -7,6 +7,8 @@ pkgs.mkShell {
     pkgs.orchestrator
     pkgs.start-scripts
     pkgs.poetry
+    pkgs.yarn
+    pkgs.nodejs
     (import ../nix/testenv.nix { inherit pkgs; })
   ];
 }

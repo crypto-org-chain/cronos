@@ -1,19 +1,14 @@
-import os
 import re
-import signal
-import subprocess
-import time
 from pathlib import Path
 
 import pytest
-import web3
-from web3.middleware import geth_poa_middleware
 
-from .utils import cluster_fixture, wait_for_ipc, wait_for_port
+from .network import setup_cronos, setup_geth
 
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
+    config.addinivalue_line("markers", "gravity: gravity bridge test cases")
 
 
 def pytest_addoption(parser):
@@ -33,19 +28,17 @@ def worker_index(worker_id):
 
 
 @pytest.fixture(scope="session")
-def cluster(worker_index, pytestconfig, tmp_path_factory):
-    "default cluster fixture"
-    yield from cluster_fixture(
-        Path(__file__).parent / "configs/default.yaml",
-        worker_index,
-        tmp_path_factory.mktemp("data"),
-        quiet=pytestconfig.getoption("supervisord-quiet"),
-    )
-
-
-@pytest.fixture(scope="session")
 def suspend_capture(pytestconfig):
-    "used for pause in testing"
+    """
+    used to pause in testing
+
+    Example:
+    ```
+    def test_simple(suspend_capture):
+        with suspend_capture:
+            # read user input
+            print(input())
+    """
 
     class SuspendGuard:
         def __init__(self):
@@ -60,43 +53,13 @@ def suspend_capture(pytestconfig):
     yield SuspendGuard()
 
 
-def setup_cronos(path):
-    proc = subprocess.Popen(
-        ["start-cronos", path], preexec_fn=os.setsid, stdout=subprocess.PIPE
-    )
-    try:
-        wait_for_port(1317)
-        yield web3.Web3(web3.providers.HTTPProvider("http://localhost:1317"))
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
-
-
-def setup_geth(path):
-    proc = subprocess.Popen(
-        ["start-geth", path], preexec_fn=os.setsid, stdout=subprocess.PIPE
-    )
-    try:
-        ipc_path = path / "geth.ipc"
-        wait_for_ipc(ipc_path)
-        w3 = web3.Web3(web3.providers.IPCProvider(ipc_path))
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-        time.sleep(1)
-        yield w3
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
-
-
 @pytest.fixture(scope="session", params=["cronos", "geth"])
-def w3(request, tmp_path_factory):
+def cluster(request, tmp_path_factory):
     provider = request.param
     path = tmp_path_factory.mktemp(provider)
     if provider == "cronos":
-        yield from setup_cronos(path)
+        yield from setup_cronos(path, 26650)
     elif provider == "geth":
-        yield from setup_geth(path)
+        yield from setup_geth(path, 8545)
     else:
         raise NotImplementedError

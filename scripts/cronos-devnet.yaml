@@ -1,21 +1,17 @@
 cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
+  app-config:
+    json-rpc:
+      address: "0.0.0.0:{EVMRPC_PORT}"
+      ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
   validators:
     - coins: 1000000000000000000stake,1000000000000000000basetcro
       staked: 1000000000000000000stake
       mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
-      app-config:
-        evm-rpc:
-          address: "0.0.0.0:1317"
-          ws-address: "0.0.0.0:1318"
     - coins: 1000000000000000000stake,1000000000000000000basetcro
       staked: 1000000000000000000stake
       mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
-      app-config:
-        evm-rpc:
-          address: "0.0.0.0:1319"
-          ws-address: "0.0.0.0:1320"
   accounts:
     - name: community
       coins: 10000000000000000000000basetcro
