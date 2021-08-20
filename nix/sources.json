@@ -17,10 +17,10 @@
         "homepage": "",
         "owner": "yihuang",
         "repo": "gravity-bridge",
-        "rev": "7994753aec9edf7c2b94dfc748e3528de73e9985",
-        "sha256": "034iscll7h6vnqw7f0m3f27112sgd03lrwj7x9ja9a4gn8njjkf6",
+        "rev": "0685e62857ac47687516e212edaf1662c403f4c4",
+        "sha256": "122vs4ra6xjrlwiazdyr4a2v680v2dikw3wd3n57il5l4h718iwl",
         "type": "tarball",
-        "url": "https://github.com/yihuang/gravity-bridge/archive/7994753aec9edf7c2b94dfc748e3528de73e9985.tar.gz",
+        "url": "https://github.com/yihuang/gravity-bridge/archive/0685e62857ac47687516e212edaf1662c403f4c4.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
