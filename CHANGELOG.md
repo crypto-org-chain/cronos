@@ -1,5 +1,15 @@
 # Changelog
 
+## UNRELEASED
+
+### Features
+
+- [cronos#11](https://github.com/crypto-org-chain/cronos/pull/11) embed gravity bridge module
+
+
+
+*August 19, 2021*
+
 ## v0.5.2
 
 ### Consensus breaking changes
@@ -13,6 +23,8 @@
 ### Bug Fixes
 
 - (ethermint) [tharsis#446](https://github.com/tharsis/ethermint/pull/446) fix chain state export issue
+
+
 
 *August 16, 2021*
 
@@ -28,6 +40,7 @@ This version is a new scaffolding of cronos project where ethermint is included 
 - (ethermint) [tharsis#383](https://github.com/tharsis/ethermint/pull/383) `GetCommittedState` use the original context.
 
 ### Features
+
 ### Improvements
 
 - (ethermint) [tharsis#425](https://github.com/tharsis/ethermint/pull/425) Support build on linux arm64

@@ -24,6 +24,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -101,13 +102,24 @@ import (
 	evmkeeper "github.com/tharsis/ethermint/x/evm/keeper"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
+	"github.com/peggyjv/gravity-bridge/module/x/gravity"
+	gravitykeeper "github.com/peggyjv/gravity-bridge/module/x/gravity/keeper"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 	cronosmodule "github.com/crypto-org-chain/cronos/x/cronos"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
-const Name = "cronos"
+const (
+	Name = "cronos"
+
+	// AddrLen is the allowed length (in bytes) for an address.
+	//
+	// NOTE: In the SDK, the default value is 255.
+	AddrLen = 20
+)
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
 
@@ -154,6 +166,7 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		evm.AppModuleBasic{},
+		gravity.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 		cronosmodule.AppModuleBasic{},
 	)
@@ -168,6 +181,7 @@ var (
 		govtypes.ModuleName:            {authtypes.Burner},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
+		gravitytypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
 	}
 	// Module configurator
 
@@ -229,6 +243,9 @@ type App struct {
 	// Ethermint keepers
 	EvmKeeper *evmkeeper.Keeper
 
+	// Gravity module
+	GravityKeeper gravitykeeper.Keeper
+
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	CronosKeeper cronosmodulekeeper.Keeper
@@ -271,6 +288,7 @@ func New(
 		ibchost.StoreKey, ibctransfertypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey,
+		gravitytypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronosmoduletypes.StoreKey,
 	)
@@ -335,17 +353,11 @@ func New(
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp)
 	app.AuthzKeeper = authzkeeper.NewKeeper(keys[authzkeeper.StoreKey], appCodec, app.BaseApp.MsgServiceRouter())
 
-	// register the staking hooks
-	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
-	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(), app.SlashingKeeper.Hooks()),
-	)
-
 	// ... other modules keepers
 
 	// Create IBC Keeper
 	app.IBCKeeper = ibckeeper.NewKeeper(
-		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
+		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), stakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
 	// register the proposal types
@@ -366,7 +378,7 @@ func New(
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
-		appCodec, keys[evidencetypes.StoreKey], &app.StakingKeeper, app.SlashingKeeper,
+		appCodec, keys[evidencetypes.StoreKey], &stakingKeeper, app.SlashingKeeper,
 	)
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
@@ -375,7 +387,7 @@ func New(
 	tracer := cast.ToString(appOpts.Get(srvflags.EVMTracer))
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
-		app.AccountKeeper, app.BankKeeper, app.StakingKeeper,
+		app.AccountKeeper, app.BankKeeper, stakingKeeper,
 		tracer, bApp.Trace(), // debug EVM based on Baseapp options
 	)
 
@@ -391,6 +403,29 @@ func New(
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
 		&stakingKeeper, govRouter,
+	)
+
+	gravityKeeper := gravitykeeper.NewKeeper(
+		appCodec,
+		keys[gravitytypes.StoreKey],
+		app.GetSubspace(gravitytypes.ModuleName),
+		app.AccountKeeper,
+		stakingKeeper,
+		app.BankKeeper,
+		app.SlashingKeeper,
+		sdk.DefaultPowerReduction,
+	)
+
+	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
+
+	// register the staking hooks
+	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
+	app.StakingKeeper = *stakingKeeper.SetHooks(
+		stakingtypes.NewMultiStakingHooks(
+			app.DistrKeeper.Hooks(),
+			app.SlashingKeeper.Hooks(),
+			app.GravityKeeper.Hooks(),
+		),
 	)
 
 	// Create static IBC router, add transfer route, then set and seal it
@@ -432,6 +467,7 @@ func New(
 
 		transferModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+		gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 		cronosModule,
 	)
@@ -446,11 +482,13 @@ func New(
 		evmtypes.ModuleName,
 		minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
 		evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
+		gravitytypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
 		crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
 		evmtypes.ModuleName,
+		gravitytypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -475,6 +513,7 @@ func New(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		evmtypes.ModuleName,
+		gravitytypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 		cronosmoduletypes.ModuleName,
 	)
@@ -691,8 +730,24 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName)
+	paramsKeeper.Subspace(gravitytypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(cronosmoduletypes.ModuleName)
 
 	return paramsKeeper
+}
+
+// VerifyAddressFormat verifis the address is compatible with ethereum
+func VerifyAddressFormat(bz []byte) error {
+	if len(bz) == 0 {
+		return sdkerrors.Wrap(sdkerrors.ErrUnknownAddress, "invalid address; cannot be empty")
+	}
+	if len(bz) != AddrLen {
+		return sdkerrors.Wrapf(
+			sdkerrors.ErrUnknownAddress,
+			"invalid address length; got: %d, expect: %d", len(bz), AddrLen,
+		)
+	}
+
+	return nil
 }

@@ -18,6 +18,21 @@ import sources.nixpkgs {
         };
       }
     )
+    (_: pkgs: {
+      orchestrator = pkgs.rustPlatform.buildRustPackage rec {
+        name = "orchestrator";
+        src = sources.gravity-bridge;
+        sourceRoot = "gravity-bridge-src/${name}";
+        cargoSha256 = sha256:06s3qr4nx6ksmg83c9wvpbp8lvqnrklhwg2gazs5frc6qv63llm3;
+        cargoBuildFlags = "-p ${name} --features ethermint";
+        doCheck = false;
+        OPENSSL_NO_VENDOR = "1";
+        OPENSSL_DIR = pkgs.symlinkJoin {
+          name = "openssl";
+          paths = with pkgs.openssl; [ out dev ];
+        };
+      };
+    })
   ];
   config = { };
   inherit system;
