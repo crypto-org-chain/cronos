@@ -4,15 +4,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	evmTypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
-// GetParams returns the total set of bank parameters.
+// GetParams returns the total set of cronos parameters.
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 	k.paramSpace.GetParamSet(ctx, &params)
 	return params
 }
 
-// SetParams sets the total set of bank parameters.
+// SetParams sets the total set of cronos parameters.
 func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 	k.paramSpace.SetParamSet(ctx, &params)
 }
@@ -32,4 +33,10 @@ func (k Keeper) IsConvertEnabledCoins(ctx sdk.Context, coins ...sdk.Coin) error 
 // IsConvertEnabledCoin returns the current ConvertEnabled status of the provided coin's denom
 func (k Keeper) IsConvertEnabledCoin(ctx sdk.Context, coin sdk.Coin) bool {
 	return k.GetParams(ctx).ConvertEnabledDenom(coin.Denom)
+}
+
+// GetEvmParams returns the total set of evm parameters.
+func (k Keeper) GetEvmParams(ctx sdk.Context) (params evmTypes.Params) {
+	k.evmParamSpace.GetParamSet(ctx, &params)
+	return params
 }

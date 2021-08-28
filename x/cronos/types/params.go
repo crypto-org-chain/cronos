@@ -2,11 +2,11 @@ package types
 
 import (
 	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	yaml "gopkg.in/yaml.v2"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-
 )
 
 var (
@@ -22,10 +22,10 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(convertEnabledParams ConvertEnabledParams, IbcCroDenom string) Params {
+func NewParams(convertEnabledParams ConvertEnabledParams, ibcCroDenom string) Params {
 	return Params{
-		ConvertEnabled:        	convertEnabledParams,
-		IbcCroDenom: 			IbcCroDenom,
+		ConvertEnabled: convertEnabledParams,
+		IbcCroDenom:    ibcCroDenom,
 	}
 }
 
@@ -33,7 +33,7 @@ func NewParams(convertEnabledParams ConvertEnabledParams, IbcCroDenom string) Pa
 func DefaultParams() Params {
 	return Params{
 		ConvertEnabled: ConvertEnabledParams{},
-		IbcCroDenom: "",
+		IbcCroDenom:    "",
 	}
 }
 

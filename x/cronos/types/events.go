@@ -9,7 +9,7 @@ const (
 	AttributeKeySender    = "sender"
 
 	// events
-	EventTypeConvertCoin   = "convert_coin"
+	EventTypeConvertCoin = "convert_coin"
 )
 
 // NewCoinSpentEvent constructs a new coin convert sdk.Event

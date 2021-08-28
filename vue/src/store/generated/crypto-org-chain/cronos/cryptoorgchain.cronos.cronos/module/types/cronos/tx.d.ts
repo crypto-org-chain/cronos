@@ -8,7 +8,8 @@ export interface MsgConvertTokens {
 }
 /** MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins. */
 export interface MsgSendToCryptoOrg {
-    address: string;
+    from: string;
+    to: string;
     amount: Coin[];
 }
 /** MsgMultiSendResponse defines the MsgConvert response type. */

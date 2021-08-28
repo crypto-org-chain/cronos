@@ -12,7 +12,8 @@ export interface MsgConvertTokens {
 
 /** MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins. */
 export interface MsgSendToCryptoOrg {
-  address: string
+  from: string
+  to: string
   amount: Coin[]
 }
 
@@ -98,15 +99,18 @@ export const MsgConvertTokens = {
   }
 }
 
-const baseMsgSendToCryptoOrg: object = { address: '' }
+const baseMsgSendToCryptoOrg: object = { from: '', to: '' }
 
 export const MsgSendToCryptoOrg = {
   encode(message: MsgSendToCryptoOrg, writer: Writer = Writer.create()): Writer {
-    if (message.address !== '') {
-      writer.uint32(10).string(message.address)
+    if (message.from !== '') {
+      writer.uint32(10).string(message.from)
+    }
+    if (message.to !== '') {
+      writer.uint32(18).string(message.to)
     }
     for (const v of message.amount) {
-      Coin.encode(v!, writer.uint32(18).fork()).ldelim()
+      Coin.encode(v!, writer.uint32(26).fork()).ldelim()
     }
     return writer
   },
@@ -120,9 +124,12 @@ export const MsgSendToCryptoOrg = {
       const tag = reader.uint32()
       switch (tag >>> 3) {
         case 1:
-          message.address = reader.string()
+          message.from = reader.string()
           break
         case 2:
+          message.to = reader.string()
+          break
+        case 3:
           message.amount.push(Coin.decode(reader, reader.uint32()))
           break
         default:
@@ -136,10 +143,15 @@ export const MsgSendToCryptoOrg = {
   fromJSON(object: any): MsgSendToCryptoOrg {
     const message = { ...baseMsgSendToCryptoOrg } as MsgSendToCryptoOrg
     message.amount = []
-    if (object.address !== undefined && object.address !== null) {
-      message.address = String(object.address)
+    if (object.from !== undefined && object.from !== null) {
+      message.from = String(object.from)
     } else {
-      message.address = ''
+      message.from = ''
+    }
+    if (object.to !== undefined && object.to !== null) {
+      message.to = String(object.to)
+    } else {
+      message.to = ''
     }
     if (object.amount !== undefined && object.amount !== null) {
       for (const e of object.amount) {
@@ -151,7 +163,8 @@ export const MsgSendToCryptoOrg = {
 
   toJSON(message: MsgSendToCryptoOrg): unknown {
     const obj: any = {}
-    message.address !== undefined && (obj.address = message.address)
+    message.from !== undefined && (obj.from = message.from)
+    message.to !== undefined && (obj.to = message.to)
     if (message.amount) {
       obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined))
     } else {
@@ -163,10 +176,15 @@ export const MsgSendToCryptoOrg = {
   fromPartial(object: DeepPartial<MsgSendToCryptoOrg>): MsgSendToCryptoOrg {
     const message = { ...baseMsgSendToCryptoOrg } as MsgSendToCryptoOrg
     message.amount = []
-    if (object.address !== undefined && object.address !== null) {
-      message.address = object.address
+    if (object.from !== undefined && object.from !== null) {
+      message.from = object.from
     } else {
-      message.address = ''
+      message.from = ''
+    }
+    if (object.to !== undefined && object.to !== null) {
+      message.to = object.to
+    } else {
+      message.to = ''
     }
     if (object.amount !== undefined && object.amount !== null) {
       for (const e of object.amount) {

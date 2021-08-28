@@ -28,8 +28,9 @@ message MsgConvertTokens {
 
 // MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins.
 message MsgSendToCryptoOrg {
-    string address = 1;
-    repeated cosmos.base.v1beta1.Coin amount = 2
+    string from = 1;
+    string to = 2;
+    repeated cosmos.base.v1beta1.Coin amount = 3
     [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 

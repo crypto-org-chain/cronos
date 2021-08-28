@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -20,6 +21,8 @@ type (
 
 		// module specific parameter space that can be configured through governance
 		paramSpace paramtypes.Subspace
+		// evm parameter space
+		evmParamSpace paramtypes.Subspace
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
 
@@ -31,7 +34,8 @@ func NewKeeper(
 	cdc codec.Codec,
 	storeKey,
 	memKey sdk.StoreKey,
-    paramSpace paramtypes.Subspace,
+	paramSpace paramtypes.Subspace,
+	evmSpace paramtypes.Subspace,
 	bankKeeper types.BankKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
@@ -42,11 +46,12 @@ func NewKeeper(
 	}
 
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		memKey:   memKey,
-		paramSpace: paramSpace,
-		bankKeeper: bankKeeper,
+		cdc:           cdc,
+		storeKey:      storeKey,
+		memKey:        memKey,
+		paramSpace:    paramSpace,
+		evmParamSpace: evmSpace,
+		bankKeeper:    bankKeeper,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }

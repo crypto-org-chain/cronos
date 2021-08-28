@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -26,6 +27,7 @@ func GetTxCmd() *cobra.Command {
 	// this line is used by starport scaffolding # 1
 
 	cmd.AddCommand(CmdConvertTokens())
+	cmd.AddCommand(CmdSendToCryptoOrg())
 
 	return cmd
 }
@@ -36,7 +38,7 @@ func CmdConvertTokens() *cobra.Command {
 		Short: "Convert ibc tokens to cronos tokens",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argsAddress := string(args[0])
+			argsAddress := args[0]
 			coins, err := sdk.ParseCoinsNormalized(args[1])
 			if err != nil {
 				return err
@@ -47,7 +49,7 @@ func CmdConvertTokens() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgConvertTokens(string(argsAddress), coins)
+			msg := types.NewMsgConvertTokens(argsAddress, coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -60,14 +62,15 @@ func CmdConvertTokens() *cobra.Command {
 	return cmd
 }
 
-func CmdSendToCryptoORg() *cobra.Command {
+func CmdSendToCryptoOrg() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "send-cryptoorg [address] [amount]",
+		Use:   "send-cryptoorg [from] [to] [amount]",
 		Short: "Send cronos tokens to crypto.org chain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argsAddress := string(args[0])
-			coins, err := sdk.ParseCoinsNormalized(args[1])
+			argsFrom := args[0]
+			argsTo := args[1]
+			coins, err := sdk.ParseCoinsNormalized(args[2])
 			if err != nil {
 				return err
 			}
@@ -77,7 +80,7 @@ func CmdSendToCryptoORg() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgSendToCryptoOrg(string(argsAddress), coins)
+			msg := types.NewMsgSendToCryptoOrg(argsFrom, argsTo, coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}

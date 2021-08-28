@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	TypeMsgConvertToEvmTokens = "ConvertToEvmTokens"
-	TypeMsgConvertToIbcTokens = "ConvertToIbcTokens"
+	TypeMsgConvertTokens   = "ConvertTokens"
+	TypeMsgSendToCryptoOrg = "SendToCryptoOrg"
 )
 
 var _ sdk.Msg = &MsgConvertTokens{}
@@ -26,7 +26,7 @@ func (msg MsgConvertTokens) Route() string {
 
 // Type ...
 func (msg MsgConvertTokens) Type() string {
-	return TypeMsgConvertToEvmTokens
+	return TypeMsgConvertTokens
 }
 
 // GetSigners ...
@@ -62,10 +62,11 @@ func (msg *MsgConvertTokens) ValidateBasic() error {
 
 var _ sdk.Msg = &MsgSendToCryptoOrg{}
 
-func NewMsgSendToCryptoOrg(address string, amount sdk.Coins) *MsgSendToCryptoOrg {
+func NewMsgSendToCryptoOrg(from string, to string, amount sdk.Coins) *MsgSendToCryptoOrg {
 	return &MsgSendToCryptoOrg{
-		Address: address,
-		Amount:  amount,
+		From:   from,
+		To:     to,
+		Amount: amount,
 	}
 }
 
@@ -76,16 +77,16 @@ func (msg MsgSendToCryptoOrg) Route() string {
 
 // Type ...
 func (msg MsgSendToCryptoOrg) Type() string {
-	return TypeMsgConvertToIbcTokens
+	return TypeMsgSendToCryptoOrg
 }
 
 // GetSigners ...
 func (msg *MsgSendToCryptoOrg) GetSigners() []sdk.AccAddress {
-	address, err := sdk.AccAddressFromBech32(msg.Address)
+	from, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		panic(err)
 	}
-	return []sdk.AccAddress{address}
+	return []sdk.AccAddress{from}
 }
 
 // GetSignBytes ...
@@ -96,10 +97,13 @@ func (msg *MsgSendToCryptoOrg) GetSignBytes() []byte {
 
 // ValidateBasic ...
 func (msg *MsgSendToCryptoOrg) ValidateBasic() error {
-	_, err := sdk.AccAddressFromBech32(msg.Address)
+	_, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address address (%s)", err)
 	}
+
+	// TODO, validate TO address format
+
 	if !msg.Amount.IsValid() {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
 	}
