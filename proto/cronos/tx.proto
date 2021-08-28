@@ -3,11 +3,37 @@ package cryptoorgchain.cronos.cronos;
 
 // this line is used by starport scaffolding # proto/tx/import
 
+import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
 option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
-// Msg defines the Msg service.
+// Msg defines the Cronos Msg service
 service Msg {
     // this line is used by starport scaffolding # proto/tx/rpc
+
+    // Send defines a method for converting ibc coins to Cronos coins.
+    rpc ConvertTokens(MsgConvertTokens) returns (MsgConvertResponse);
+
+    // Send defines a method to send coins to Crypto.org chain
+    rpc SendToCryptoOrg(MsgSendToCryptoOrg) returns (MsgConvertResponse);
 }
+
+// MsgConvertToEvmTokens represents a message to convert ibc coins to evm coins.
+message MsgConvertTokens {
+    string address = 1;
+    repeated cosmos.base.v1beta1.Coin amount = 2
+    [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
+}
+
+// MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins.
+message MsgSendToCryptoOrg {
+    string address = 1;
+    repeated cosmos.base.v1beta1.Coin amount = 2
+    [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
+}
+
+// MsgMultiSendResponse defines the MsgConvert response type.
+message MsgConvertResponse {}
 
 // this line is used by starport scaffolding # proto/tx/message
