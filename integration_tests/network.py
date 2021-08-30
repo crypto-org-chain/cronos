@@ -60,7 +60,14 @@ def setup_cronos(path, base_port):
 def setup_geth(path, base_port):
     print("start-geth")
     proc = subprocess.Popen(
-        ["start-geth", path, "--http.port", str(base_port)],
+        [
+            "start-geth",
+            path,
+            "--http.port",
+            str(base_port),
+            "--port",
+            str(base_port + 1),
+        ],
         preexec_fn=os.setsid,
         # stdout=subprocess.PIPE,  # TODO write to log file somewhere
         # stderr=subprocess.STDOUT,
