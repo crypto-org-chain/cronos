@@ -9,6 +9,7 @@ pkgs.mkShell {
     pkgs.poetry
     pkgs.yarn
     pkgs.nodejs
+    pkgs.git
     (import ../nix/testenv.nix { inherit pkgs; })
   ];
 }
