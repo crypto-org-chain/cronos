@@ -28,7 +28,7 @@ func NewParams(convertEnabledParams ConvertEnabledParams, ibcCroDenom string, ib
 	return Params{
 		ConvertEnabled:  convertEnabledParams,
 		IbcCroDenom:     ibcCroDenom,
-		IbcCroChannelid: ibcCroChannelID,
+		IbcCroChannelID: ibcCroChannelID,
 	}
 }
 
@@ -37,7 +37,7 @@ func DefaultParams() Params {
 	return Params{
 		ConvertEnabled:  ConvertEnabledParams{},
 		IbcCroDenom:     "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865",
-		IbcCroChannelid: "channel-0",
+		IbcCroChannelID: "channel-0",
 	}
 }
 
@@ -49,7 +49,7 @@ func (p Params) Validate() error {
 	if err := validateIsString(p.IbcCroDenom); err != nil {
 		return err
 	}
-	return validateIsString(p.IbcCroChannelid)
+	return validateIsString(p.IbcCroChannelID)
 }
 
 // String implements the fmt.Stringer interface
@@ -78,7 +78,7 @@ func (p Params) SetConvertEnabledParam(denom string, convertEnabled bool) Params
 		}
 	}
 	convertParams = append(convertParams, NewConvertEnabled(denom, convertEnabled))
-	return NewParams(convertParams, p.IbcCroDenom, p.IbcCroChannelid)
+	return NewParams(convertParams, p.IbcCroDenom, p.IbcCroChannelID)
 }
 
 // ParamSetPairs implements params.ParamSet
@@ -86,7 +86,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyConvertEnabled, &p.ConvertEnabled, validateConvertEnabledParams),
 		paramtypes.NewParamSetPair(KeyIbcCroDenom, &p.IbcCroDenom, validateIsString),
-		paramtypes.NewParamSetPair(KeyIbcCroChannelID, &p.IbcCroChannelid, validateIsString),
+		paramtypes.NewParamSetPair(KeyIbcCroChannelID, &p.IbcCroChannelID, validateIsString),
 	}
 }
 

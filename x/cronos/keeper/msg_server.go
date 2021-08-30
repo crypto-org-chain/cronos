@@ -139,7 +139,7 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 			err = k.transferKeeper.SendTransfer(
 				ctx,
 				ibctransfertypes.PortID,
-				params.IbcCroChannelid,
+				params.IbcCroChannelID,
 				ibcCoin,
 				acc,
 				msg.To,

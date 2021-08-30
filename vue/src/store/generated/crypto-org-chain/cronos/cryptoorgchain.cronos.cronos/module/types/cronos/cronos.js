@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { Writer, Reader } from 'protobufjs/minimal';
 export const protobufPackage = 'cryptoorgchain.cronos.cronos';
-const baseParams = { ibcCroDenom: '', ibcCroChannelid: '' };
+const baseParams = { ibcCroDenom: '', ibcCroChannelID: '' };
 export const Params = {
     encode(message, writer = Writer.create()) {
         for (const v of message.convertEnabled) {
@@ -10,8 +10,8 @@ export const Params = {
         if (message.ibcCroDenom !== '') {
             writer.uint32(18).string(message.ibcCroDenom);
         }
-        if (message.ibcCroChannelid !== '') {
-            writer.uint32(26).string(message.ibcCroChannelid);
+        if (message.ibcCroChannelID !== '') {
+            writer.uint32(26).string(message.ibcCroChannelID);
         }
         return writer;
     },
@@ -30,7 +30,7 @@ export const Params = {
                     message.ibcCroDenom = reader.string();
                     break;
                 case 3:
-                    message.ibcCroChannelid = reader.string();
+                    message.ibcCroChannelID = reader.string();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -53,11 +53,11 @@ export const Params = {
         else {
             message.ibcCroDenom = '';
         }
-        if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
-            message.ibcCroChannelid = String(object.ibcCroChannelid);
+        if (object.ibcCroChannelID !== undefined && object.ibcCroChannelID !== null) {
+            message.ibcCroChannelID = String(object.ibcCroChannelID);
         }
         else {
-            message.ibcCroChannelid = '';
+            message.ibcCroChannelID = '';
         }
         return message;
     },
@@ -70,7 +70,7 @@ export const Params = {
             obj.convertEnabled = [];
         }
         message.ibcCroDenom !== undefined && (obj.ibcCroDenom = message.ibcCroDenom);
-        message.ibcCroChannelid !== undefined && (obj.ibcCroChannelid = message.ibcCroChannelid);
+        message.ibcCroChannelID !== undefined && (obj.ibcCroChannelID = message.ibcCroChannelID);
         return obj;
     },
     fromPartial(object) {
@@ -87,11 +87,11 @@ export const Params = {
         else {
             message.ibcCroDenom = '';
         }
-        if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
-            message.ibcCroChannelid = object.ibcCroChannelid;
+        if (object.ibcCroChannelID !== undefined && object.ibcCroChannelID !== null) {
+            message.ibcCroChannelID = object.ibcCroChannelID;
         }
         else {
-            message.ibcCroChannelid = '';
+            message.ibcCroChannelID = '';
         }
         return message;
     }

@@ -4,7 +4,7 @@ export declare const protobufPackage = "cryptoorgchain.cronos.cronos";
 export interface Params {
     convertEnabled: ConvertEnabled[];
     ibcCroDenom: string;
-    ibcCroChannelid: string;
+    ibcCroChannelID: string;
 }
 /**
  * ConvertEnabled maps coin denom to a convert_enabled status (whether a denom is

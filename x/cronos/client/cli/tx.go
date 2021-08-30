@@ -34,11 +34,15 @@ func GetTxCmd() *cobra.Command {
 
 func CmdConvertTokens() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "convert-tokens [address] [amount]",
-		Short: "Convert ibc tokens to cronos tokens",
-		Args:  cobra.ExactArgs(2),
+		Use: "convert-tokens [address] [amount]",
+		Short: "Convert ibc tokens to cronos tokens, Note, the'--from' flag is" +
+			" ignored as it is implied from [address].`",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argsAddress := args[0]
+			err := cmd.Flags().Set(flags.FlagFrom, args[0])
+			if err != nil {
+				return err
+			}
 			coins, err := sdk.ParseCoinsNormalized(args[1])
 			if err != nil {
 				return err
@@ -49,7 +53,7 @@ func CmdConvertTokens() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgConvertTokens(argsAddress, coins)
+			msg := types.NewMsgConvertTokens(clientCtx.GetFromAddress().String(), coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -64,11 +68,15 @@ func CmdConvertTokens() *cobra.Command {
 
 func CmdSendToCryptoOrg() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "send-cryptoorg [from] [to] [amount]",
-		Short: "Send cronos tokens to crypto.org chain",
-		Args:  cobra.ExactArgs(2),
+		Use: "send-cryptoorg [from] [to] [amount]",
+		Short: "Send cronos tokens to crypto.org chain, Note, the'--from' flag is" +
+			" ignored as it is implied from [from].`",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argsFrom := args[0]
+			err := cmd.Flags().Set(flags.FlagFrom, args[0])
+			if err != nil {
+				return err
+			}
 			argsTo := args[1]
 			coins, err := sdk.ParseCoinsNormalized(args[2])
 			if err != nil {
@@ -80,7 +88,7 @@ func CmdSendToCryptoOrg() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgSendToCryptoOrg(argsFrom, argsTo, coins)
+			msg := types.NewMsgSendToCryptoOrg(clientCtx.GetFromAddress().String(), argsTo, coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}

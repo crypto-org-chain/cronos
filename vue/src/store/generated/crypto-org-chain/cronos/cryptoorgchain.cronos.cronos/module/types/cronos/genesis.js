@@ -1,9 +1,13 @@
 /* eslint-disable */
+import { Params } from '../cronos/cronos';
 import { Writer, Reader } from 'protobufjs/minimal';
 export const protobufPackage = 'cryptoorgchain.cronos.cronos';
 const baseGenesisState = {};
 export const GenesisState = {
-    encode(_, writer = Writer.create()) {
+    encode(message, writer = Writer.create()) {
+        if (message.params !== undefined) {
+            Params.encode(message.params, writer.uint32(10).fork()).ldelim();
+        }
         return writer;
     },
     decode(input, length) {
@@ -13,6 +17,9 @@ export const GenesisState = {
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
+                case 1:
+                    message.params = Params.decode(reader, reader.uint32());
+                    break;
                 default:
                     reader.skipType(tag & 7);
                     break;
@@ -20,16 +27,29 @@ export const GenesisState = {
         }
         return message;
     },
-    fromJSON(_) {
+    fromJSON(object) {
         const message = { ...baseGenesisState };
+        if (object.params !== undefined && object.params !== null) {
+            message.params = Params.fromJSON(object.params);
+        }
+        else {
+            message.params = undefined;
+        }
         return message;
     },
-    toJSON(_) {
+    toJSON(message) {
         const obj = {};
+        message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
         return obj;
     },
-    fromPartial(_) {
+    fromPartial(object) {
         const message = { ...baseGenesisState };
+        if (object.params !== undefined && object.params !== null) {
+            message.params = Params.fromPartial(object.params);
+        }
+        else {
+            message.params = undefined;
+        }
         return message;
     }
 };
