@@ -46,7 +46,7 @@ def setup_cronos(path, base_port):
     proc = subprocess.Popen(
         ["start-cronos", path, "--base_port", str(base_port)],
         preexec_fn=os.setsid,
-        stdout=subprocess.PIPE,
+        # stdout=subprocess.PIPE,
     )
     try:
         wait_for_port(ports.evmrpc_port(ports.evmrpc_port(base_port)))
@@ -62,8 +62,8 @@ def setup_geth(path, base_port):
     proc = subprocess.Popen(
         ["start-geth", path, "--http.port", str(base_port)],
         preexec_fn=os.setsid,
-        stdout=subprocess.PIPE,  # TODO write to log file somewhere
-        stderr=subprocess.STDOUT,
+        # stdout=subprocess.PIPE,  # TODO write to log file somewhere
+        # stderr=subprocess.STDOUT,
     )
     try:
         wait_for_port(base_port)
