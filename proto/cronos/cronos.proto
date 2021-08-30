@@ -10,6 +10,7 @@ message Params {
     option (gogoproto.goproto_stringer)             = false;
     repeated ConvertEnabled convert_enabled         = 1 [(gogoproto.moretags) = "yaml:\"convert_enabled,omitempty\""];
     string                  ibc_cro_denom           = 2 [(gogoproto.moretags) = "yaml:\"ibc_cro_denom,omitempty\""];
+    string                  ibc_cro_channelid       = 3 [(gogoproto.moretags) = "yaml:\"ibc_cro_channelid,omitempty\""];
 }
 
 // ConvertEnabled maps coin denom to a convert_enabled status (whether a denom is

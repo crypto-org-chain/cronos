@@ -400,6 +400,7 @@ func New(
 		app.GetSubspace(cronosmoduletypes.ModuleName),
 		app.GetSubspace(evmtypes.ModuleName),
 		app.BankKeeper,
+		app.TransferKeeper,
 	)
 	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
 

@@ -3,6 +3,8 @@ package keeper
 import (
 	"fmt"
 
+	evmTypes "github.com/tharsis/ethermint/x/evm/types"
+
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -25,6 +27,8 @@ type (
 		evmParamSpace paramtypes.Subspace
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
+		// ibc transfer operations
+		transferKeeper types.TransferKeeper
 
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
@@ -37,6 +41,7 @@ func NewKeeper(
 	paramSpace paramtypes.Subspace,
 	evmSpace paramtypes.Subspace,
 	bankKeeper types.BankKeeper,
+	transferKeeper types.TransferKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
 
@@ -45,13 +50,18 @@ func NewKeeper(
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
 	}
 
+	if !evmSpace.HasKeyTable() {
+		paramSpace = paramSpace.WithKeyTable(evmTypes.ParamKeyTable())
+	}
+
 	return &Keeper{
-		cdc:           cdc,
-		storeKey:      storeKey,
-		memKey:        memKey,
-		paramSpace:    paramSpace,
-		evmParamSpace: evmSpace,
-		bankKeeper:    bankKeeper,
+		cdc:            cdc,
+		storeKey:       storeKey,
+		memKey:         memKey,
+		paramSpace:     paramSpace,
+		evmParamSpace:  evmSpace,
+		bankKeeper:     bankKeeper,
+		transferKeeper: transferKeeper,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }

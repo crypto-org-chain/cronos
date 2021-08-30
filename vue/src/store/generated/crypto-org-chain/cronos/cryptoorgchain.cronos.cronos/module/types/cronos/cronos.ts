@@ -7,6 +7,7 @@ export const protobufPackage = 'cryptoorgchain.cronos.cronos'
 export interface Params {
   convertEnabled: ConvertEnabled[]
   ibcCroDenom: string
+  ibcCroChannelid: string
 }
 
 /**
@@ -18,7 +19,7 @@ export interface ConvertEnabled {
   enabled: boolean
 }
 
-const baseParams: object = { ibcCroDenom: '' }
+const baseParams: object = { ibcCroDenom: '', ibcCroChannelid: '' }
 
 export const Params = {
   encode(message: Params, writer: Writer = Writer.create()): Writer {
@@ -27,6 +28,9 @@ export const Params = {
     }
     if (message.ibcCroDenom !== '') {
       writer.uint32(18).string(message.ibcCroDenom)
+    }
+    if (message.ibcCroChannelid !== '') {
+      writer.uint32(26).string(message.ibcCroChannelid)
     }
     return writer
   },
@@ -44,6 +48,9 @@ export const Params = {
           break
         case 2:
           message.ibcCroDenom = reader.string()
+          break
+        case 3:
+          message.ibcCroChannelid = reader.string()
           break
         default:
           reader.skipType(tag & 7)
@@ -66,6 +73,11 @@ export const Params = {
     } else {
       message.ibcCroDenom = ''
     }
+    if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
+      message.ibcCroChannelid = String(object.ibcCroChannelid)
+    } else {
+      message.ibcCroChannelid = ''
+    }
     return message
   },
 
@@ -77,6 +89,7 @@ export const Params = {
       obj.convertEnabled = []
     }
     message.ibcCroDenom !== undefined && (obj.ibcCroDenom = message.ibcCroDenom)
+    message.ibcCroChannelid !== undefined && (obj.ibcCroChannelid = message.ibcCroChannelid)
     return obj
   },
 
@@ -92,6 +105,11 @@ export const Params = {
       message.ibcCroDenom = object.ibcCroDenom
     } else {
       message.ibcCroDenom = ''
+    }
+    if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
+      message.ibcCroChannelid = object.ibcCroChannelid
+    } else {
+      message.ibcCroChannelid = ''
     }
     return message
   }

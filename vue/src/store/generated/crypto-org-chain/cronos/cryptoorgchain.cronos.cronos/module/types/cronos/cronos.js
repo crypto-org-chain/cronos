@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { Writer, Reader } from 'protobufjs/minimal';
 export const protobufPackage = 'cryptoorgchain.cronos.cronos';
-const baseParams = { ibcCroDenom: '' };
+const baseParams = { ibcCroDenom: '', ibcCroChannelid: '' };
 export const Params = {
     encode(message, writer = Writer.create()) {
         for (const v of message.convertEnabled) {
@@ -9,6 +9,9 @@ export const Params = {
         }
         if (message.ibcCroDenom !== '') {
             writer.uint32(18).string(message.ibcCroDenom);
+        }
+        if (message.ibcCroChannelid !== '') {
+            writer.uint32(26).string(message.ibcCroChannelid);
         }
         return writer;
     },
@@ -25,6 +28,9 @@ export const Params = {
                     break;
                 case 2:
                     message.ibcCroDenom = reader.string();
+                    break;
+                case 3:
+                    message.ibcCroChannelid = reader.string();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -47,6 +53,12 @@ export const Params = {
         else {
             message.ibcCroDenom = '';
         }
+        if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
+            message.ibcCroChannelid = String(object.ibcCroChannelid);
+        }
+        else {
+            message.ibcCroChannelid = '';
+        }
         return message;
     },
     toJSON(message) {
@@ -58,6 +70,7 @@ export const Params = {
             obj.convertEnabled = [];
         }
         message.ibcCroDenom !== undefined && (obj.ibcCroDenom = message.ibcCroDenom);
+        message.ibcCroChannelid !== undefined && (obj.ibcCroChannelid = message.ibcCroChannelid);
         return obj;
     },
     fromPartial(object) {
@@ -73,6 +86,12 @@ export const Params = {
         }
         else {
             message.ibcCroDenom = '';
+        }
+        if (object.ibcCroChannelid !== undefined && object.ibcCroChannelid !== null) {
+            message.ibcCroChannelid = object.ibcCroChannelid;
+        }
+        else {
+            message.ibcCroChannelid = '';
         }
         return message;
     }

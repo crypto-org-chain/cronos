@@ -14,6 +14,8 @@ var (
 	KeyConvertEnabled = []byte("ConvertEnabled")
 	// KeyIbcCroDenom is store's key for the IBC Cro denomination
 	KeyIbcCroDenom = []byte("IbcCroDenom")
+	// KeyIbcCroChannelId is store's key for the IBC Cro channel id
+	KeyIbcCroChannelID = []byte("IbcCroChannelID")
 )
 
 // ParamKeyTable returns the parameter key table.
@@ -22,27 +24,32 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(convertEnabledParams ConvertEnabledParams, ibcCroDenom string) Params {
+func NewParams(convertEnabledParams ConvertEnabledParams, ibcCroDenom string, ibcCroChannelID string) Params {
 	return Params{
-		ConvertEnabled: convertEnabledParams,
-		IbcCroDenom:    ibcCroDenom,
+		ConvertEnabled:  convertEnabledParams,
+		IbcCroDenom:     ibcCroDenom,
+		IbcCroChannelid: ibcCroChannelID,
 	}
 }
 
 // DefaultParams is the default parameter configuration for the cronos module
 func DefaultParams() Params {
 	return Params{
-		ConvertEnabled: ConvertEnabledParams{},
-		IbcCroDenom:    "",
+		ConvertEnabled:  ConvertEnabledParams{},
+		IbcCroDenom:     "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865",
+		IbcCroChannelid: "channel-0",
 	}
 }
 
-// Validate all bank module parameters
+// Validate all cronos module parameters
 func (p Params) Validate() error {
 	if err := validateConvertEnabledParams(p.ConvertEnabled); err != nil {
 		return err
 	}
-	return validateIsString(p.IbcCroDenom)
+	if err := validateIsString(p.IbcCroDenom); err != nil {
+		return err
+	}
+	return validateIsString(p.IbcCroChannelid)
 }
 
 // String implements the fmt.Stringer interface
@@ -71,7 +78,7 @@ func (p Params) SetConvertEnabledParam(denom string, convertEnabled bool) Params
 		}
 	}
 	convertParams = append(convertParams, NewConvertEnabled(denom, convertEnabled))
-	return NewParams(convertParams, p.IbcCroDenom)
+	return NewParams(convertParams, p.IbcCroDenom, p.IbcCroChannelid)
 }
 
 // ParamSetPairs implements params.ParamSet
@@ -79,6 +86,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyConvertEnabled, &p.ConvertEnabled, validateConvertEnabledParams),
 		paramtypes.NewParamSetPair(KeyIbcCroDenom, &p.IbcCroDenom, validateIsString),
+		paramtypes.NewParamSetPair(KeyIbcCroChannelID, &p.IbcCroChannelid, validateIsString),
 	}
 }
 
