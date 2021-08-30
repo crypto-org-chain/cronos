@@ -19,8 +19,26 @@ const (
 	// this line is used by starport scaffolding # ibc/keys/name
 )
 
+// prefix bytes for the cronos persistent store
+const (
+	prefixDenomToExternalContract = iota + 1
+	prefixDenomToAutoContract
+)
+
+// KVStore key prefixes
+var (
+	KeyPrefixDenomToExternalContract = []byte{prefixDenomToExternalContract}
+	KeyPrefixDenomToAutoContract     = []byte{prefixDenomToAutoContract}
+)
+
 // this line is used by starport scaffolding # ibc/keys/port
 
-func KeyPrefix(p string) []byte {
-	return []byte(p)
+// DenomToExternalContractKey defines the store key for denom to contract mapping
+func DenomToExternalContractKey(denom string) []byte {
+	return append(KeyPrefixDenomToExternalContract, denom...)
+}
+
+// DenomToAutoContractKey defines the store key for denom to auto contract mapping
+func DenomToAutoContractKey(denom string) []byte {
+	return append(KeyPrefixDenomToAutoContract, denom...)
 }

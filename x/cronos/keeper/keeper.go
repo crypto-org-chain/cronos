@@ -9,8 +9,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 
-	evmTypes "github.com/tharsis/ethermint/x/evm/types"
-
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -18,6 +16,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/ethereum/go-ethereum/common"
+	evmkeeper "github.com/tharsis/ethermint/x/evm/keeper"
 	// this line is used by starport scaffolding # ibc/keeper/import
 )
 
@@ -29,12 +29,12 @@ type (
 
 		// module specific parameter space that can be configured through governance
 		paramSpace paramtypes.Subspace
-		// evm parameter space
-		evmParamSpace paramtypes.Subspace
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
 		// ibc transfer operations
 		transferKeeper types.TransferKeeper
+		// ethermint evm keeper
+		evmKeeper *evmkeeper.Keeper
 
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
@@ -45,9 +45,9 @@ func NewKeeper(
 	storeKey,
 	memKey sdk.StoreKey,
 	paramSpace paramtypes.Subspace,
-	evmSpace paramtypes.Subspace,
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
+	evmKeeper *evmkeeper.Keeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
 
@@ -56,18 +56,14 @@ func NewKeeper(
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
 	}
 
-	if !evmSpace.HasKeyTable() {
-		evmSpace = evmSpace.WithKeyTable(evmTypes.ParamKeyTable())
-	}
-
 	return &Keeper{
 		cdc:            cdc,
 		storeKey:       storeKey,
 		memKey:         memKey,
 		paramSpace:     paramSpace,
-		evmParamSpace:  evmSpace,
 		bankKeeper:     bankKeeper,
 		transferKeeper: transferKeeper,
+		evmKeeper:      evmKeeper,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }
@@ -214,4 +210,46 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 		}
 	}()
 	return nil
+}
+
+// getExternalContractByDenom find the corresponding external contract for the denom,
+func (k Keeper) getExternalContractByDenom(ctx sdk.Context, denom string) (common.Address, bool) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.DenomToExternalContractKey(denom))
+	if len(bz) == 0 {
+		return common.Address{}, false
+	}
+
+	return common.BytesToAddress(bz), true
+}
+
+// getAutoContractByDenom find the corresponding auto-deployed contract for the denom,
+func (k Keeper) getAutoContractByDenom(ctx sdk.Context, denom string) (common.Address, bool) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.DenomToAutoContractKey(denom))
+	if len(bz) == 0 {
+		return common.Address{}, false
+	}
+
+	return common.BytesToAddress(bz), true
+}
+
+// GetContractByDenom find the corresponding contract for the denom,
+// external contract is taken in preference to auto-deployed one
+func (k Keeper) GetContractByDenom(ctx sdk.Context, denom string) (contract common.Address, found bool) {
+	contract, found = k.getExternalContractByDenom(ctx, denom)
+	if !found {
+		contract, found = k.getAutoContractByDenom(ctx, denom)
+	}
+	return
+}
+
+func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
+}
+
+func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 }

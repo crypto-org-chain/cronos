@@ -150,3 +150,17 @@ run-integration-tests:
 	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
 
 .PHONY: run-integration-tests
+
+###############################################################################
+###                                Utility                                  ###
+###############################################################################
+
+test-cronos-contracts:
+	@git submodule update --init --recursive
+	@nix-shell ./contracts/shell.nix --pure --run "make -C contracts test"
+
+gen-cronos-contracts:
+	@git submodule update --init --recursive
+	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
+
+.PHONY: gen-cronos-contracts test-cronos-contracts

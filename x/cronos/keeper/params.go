@@ -22,9 +22,8 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 }
 
 // GetEvmParams returns the total set of evm parameters.
-func (k Keeper) GetEvmParams(ctx sdk.Context) (params evmTypes.Params) {
-	k.evmParamSpace.GetParamSet(ctx, &params)
-	return params
+func (k Keeper) GetEvmParams(ctx sdk.Context) evmTypes.Params {
+	return k.evmKeeper.GetParams(ctx)
 }
 
 // GetSourceChannelID returns the channel id for an ibc voucher
