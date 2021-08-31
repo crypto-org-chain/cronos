@@ -97,7 +97,6 @@ def gravity(cronos, geth, suspend_capture):
             f"--cosmos-grpc=http://localhost:{grpc_port} "
             f"--ethereum-rpc={geth.provider.endpoint_uri} "
             "--address-prefix=eth --fees=basetcro "
-            "--hd-wallet-path \"m/44'/60'/0'/0/0\" "
             f"--contract-address={contract.address} "
             f"--metrics-listen 127.0.0.1:{metrics_port}"
         )
