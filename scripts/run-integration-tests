@@ -2,9 +2,18 @@
 set -e
 cd "$(dirname "$0")"
 
+if [[ $GITHUB_ACTIONS == "true" ]]
+then
+    # use a root directory in github action for artifact uploading
+    export TMPDIR=/tmp/pytest
+else
+    # explicitly set a short TMPDIR to prevent path too long issue on macosx
+    export TMPDIR=/tmp
+fi
+
 echo "build test contracts"
 cd ../integration_tests/contracts
 yarn
 npx hardhat typechain
 cd ..
-nix-shell --run "pytest -s"
+nix-shell --run "pytest -vv -s"

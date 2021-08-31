@@ -17,10 +17,14 @@ jobs:
       - uses: cachix/cachix-action@v8
         with:
           name: cronos
+          # github don't pass secrets for pull request from fork repos,
+          # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run integration tests
         run: make run-integration-tests
       - uses: actions/upload-artifact@v2
+        # FIXME debugging
+        # if: failure()
         with:
           name: debug-data
-          path: /tmp/pytest-of-*
+          path: /tmp/pytest
