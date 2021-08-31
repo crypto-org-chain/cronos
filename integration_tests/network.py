@@ -87,9 +87,8 @@ def setup_geth(path, base_port):
 
 class GravityBridge:
     cronos: Cronos
-    # web3 client of geth
-    geth: web3.Web3
-    # gravity contract
+    geth: Geth
+    # gravity contract deployed on geth
     contract: web3.contract.Contract
 
     def __init__(self, cronos, geth, contract):

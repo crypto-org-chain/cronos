@@ -38,6 +38,7 @@ def suspend_capture(pytestconfig):
         with suspend_capture:
             # read user input
             print(input())
+    ```
     """
 
     class SuspendGuard:

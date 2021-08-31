@@ -292,7 +292,7 @@ def supervisorctl(inipath, *args):
 
 def deploy_contract(w3, jsonfile, args=()):
     """
-    deploy contract and deployed contract instance
+    deploy contract and return the deployed contract instance
     """
     info = json.load(open(jsonfile))
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
