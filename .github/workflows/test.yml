@@ -20,3 +20,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run integration tests
         run: make run-integration-tests
+      - uses: actions/upload-artifact@v2
+        with:
+          name: debug-data
+          path: /tmp/pytest-of-*
