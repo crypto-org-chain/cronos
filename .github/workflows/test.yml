@@ -23,9 +23,8 @@ jobs:
       - name: Run integration tests
         run: make run-integration-tests
       - name: 'Tar debug files'
-        # FIXME debugging
-        # if: failure()
-        run: tar -cfz debug_files.tar.gz /tmp/pytest-of-runner
+        if: failure()
+        run: tar cfz debug_files.tar.gz -C /tmp/pytest-of-runner .
       - uses: actions/upload-artifact@v2
         with:
           name: debug-files
