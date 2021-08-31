@@ -42,9 +42,10 @@ class Geth:
 
 
 def setup_cronos(path, base_port):
-    print("start-cronos")
+    cmd = ["start-cronos", path, "--base_port", str(base_port)]
+    print(*cmd)
     proc = subprocess.Popen(
-        ["start-cronos", path, "--base_port", str(base_port)],
+        cmd,
         preexec_fn=os.setsid,
     )
     try:
@@ -57,17 +58,18 @@ def setup_cronos(path, base_port):
 
 
 def setup_geth(path, base_port):
-    print("start-geth")
     with (path / "geth.log").open("w") as logfile:
+        cmd = [
+            "start-geth",
+            path,
+            "--http.port",
+            str(base_port),
+            "--port",
+            str(base_port + 1),
+        ]
+        print(*cmd)
         proc = subprocess.Popen(
-            [
-                "start-geth",
-                path,
-                "--http.port",
-                str(base_port),
-                "--port",
-                str(base_port + 1),
-            ],
+            cmd,
             preexec_fn=os.setsid,
             stdout=logfile,
             stderr=subprocess.STDOUT,

@@ -22,9 +22,12 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run integration tests
         run: make run-integration-tests
-      - uses: actions/upload-artifact@v2
+      - name: 'Tar debug files'
         # FIXME debugging
         # if: failure()
+        run: tar -cfz debug_files.tar.gz /tmp/pytest-of-runner
+      - uses: actions/upload-artifact@v2
         with:
-          name: debug-data
-          path: /tmp/pytest
+          name: debug-files
+          path: debug_files.tar.gz
+          if-no-files-found: ignore
