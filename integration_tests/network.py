@@ -46,7 +46,6 @@ def setup_cronos(path, base_port):
     proc = subprocess.Popen(
         ["start-cronos", path, "--base_port", str(base_port)],
         preexec_fn=os.setsid,
-        # stdout=subprocess.PIPE,
     )
     try:
         wait_for_port(ports.evmrpc_port(ports.evmrpc_port(base_port)))
@@ -59,28 +58,29 @@ def setup_cronos(path, base_port):
 
 def setup_geth(path, base_port):
     print("start-geth")
-    proc = subprocess.Popen(
-        [
-            "start-geth",
-            path,
-            "--http.port",
-            str(base_port),
-            "--port",
-            str(base_port + 1),
-        ],
-        preexec_fn=os.setsid,
-        # stdout=subprocess.PIPE,  # TODO write to log file somewhere
-        # stderr=subprocess.STDOUT,
-    )
-    try:
-        wait_for_port(base_port)
-        w3 = web3.Web3(web3.providers.HTTPProvider(f"http://127.0.0.1:{base_port}"))
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-        yield Geth(w3)
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
+    with (path / "geth.log").open("w") as logfile:
+        proc = subprocess.Popen(
+            [
+                "start-geth",
+                path,
+                "--http.port",
+                str(base_port),
+                "--port",
+                str(base_port + 1),
+            ],
+            preexec_fn=os.setsid,
+            stdout=logfile,
+            stderr=subprocess.STDOUT,
+        )
+        try:
+            wait_for_port(base_port)
+            w3 = web3.Web3(web3.providers.HTTPProvider(f"http://127.0.0.1:{base_port}"))
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            yield Geth(w3)
+        finally:
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            # proc.terminate()
+            proc.wait()
 
 
 class GravityBridge:
