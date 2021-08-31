@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { Writer, Reader } from 'protobufjs/minimal';
 export const protobufPackage = 'cryptoorgchain.cronos.cronos';
-const baseParams = { ibcCroDenom: '', ibcCroChannelID: '' };
+const baseParams = { ibcCroDenom: '' };
 export const Params = {
     encode(message, writer = Writer.create()) {
         for (const v of message.convertEnabled) {
@@ -9,9 +9,6 @@ export const Params = {
         }
         if (message.ibcCroDenom !== '') {
             writer.uint32(18).string(message.ibcCroDenom);
-        }
-        if (message.ibcCroChannelID !== '') {
-            writer.uint32(26).string(message.ibcCroChannelID);
         }
         return writer;
     },
@@ -28,9 +25,6 @@ export const Params = {
                     break;
                 case 2:
                     message.ibcCroDenom = reader.string();
-                    break;
-                case 3:
-                    message.ibcCroChannelID = reader.string();
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -53,12 +47,6 @@ export const Params = {
         else {
             message.ibcCroDenom = '';
         }
-        if (object.ibcCroChannelID !== undefined && object.ibcCroChannelID !== null) {
-            message.ibcCroChannelID = String(object.ibcCroChannelID);
-        }
-        else {
-            message.ibcCroChannelID = '';
-        }
         return message;
     },
     toJSON(message) {
@@ -70,7 +58,6 @@ export const Params = {
             obj.convertEnabled = [];
         }
         message.ibcCroDenom !== undefined && (obj.ibcCroDenom = message.ibcCroDenom);
-        message.ibcCroChannelID !== undefined && (obj.ibcCroChannelID = message.ibcCroChannelID);
         return obj;
     },
     fromPartial(object) {
@@ -86,12 +73,6 @@ export const Params = {
         }
         else {
             message.ibcCroDenom = '';
-        }
-        if (object.ibcCroChannelID !== undefined && object.ibcCroChannelID !== null) {
-            message.ibcCroChannelID = object.ibcCroChannelID;
-        }
-        else {
-            message.ibcCroChannelID = '';
         }
         return message;
     }

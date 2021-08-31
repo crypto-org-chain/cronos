@@ -34,7 +34,6 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 
 	params := k.GetParams(ctx)
 	evmParams := k.GetEvmParams(ctx)
-
 	for _, c := range msg.Amount {
 		switch c.Denom {
 		case params.IbcCroDenom:
@@ -66,7 +65,7 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 			}
 
 		default:
-			if err := k.IsConvertEnabledCoins(ctx, msg.Amount...); err != nil {
+			if err := k.IsConvertEnabledCoins(ctx, c); err != nil {
 				return nil, err
 			}
 			// TODO wrap to erc20 tokens
@@ -110,10 +109,14 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 	for _, c := range msg.Amount {
 		switch c.Denom {
 		case evmParams.EvmDenom:
-			// Compute new amount, because evm token is a 18 decimals token, we need to divide by 10^10 to make it
-			// a 8 decimals token
-			amount8dec := c.Amount.Quo(sdk.NewIntFromBigInt(types.TenPowTen))
-			coins := sdk.NewCoins(sdk.NewCoin(evmParams.EvmDenom, amount8dec))
+			// Compute the remainder, we won't transfer anything lower than 10^10
+			amount8decRem := c.Amount.Mod(sdk.NewIntFromBigInt(types.TenPowTen))
+			amountToBurn := c.Amount.Sub(amount8decRem)
+			if amountToBurn.IsZero() {
+				// Amount too small
+				break
+			}
+			coins := sdk.NewCoins(sdk.NewCoin(evmParams.EvmDenom, amountToBurn))
 
 			// Send evm tokens to escrow address
 			err = k.bankKeeper.SendCoinsFromAccountToModule(ctx, acc, types.ModuleName, coins)
@@ -125,7 +128,10 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 				ctx, types.ModuleName, coins); err != nil {
 				return nil, err
 			}
+
 			// Transfer ibc tokens back to the user
+			// We divide by 10^10 to come back to an 8decimals token
+			amount8dec := c.Amount.Quo(sdk.NewIntFromBigInt(types.TenPowTen))
 			ibcCoin := sdk.NewCoin(params.IbcCroDenom, amount8dec)
 			if err := k.bankKeeper.SendCoinsFromModuleToAccount(
 				ctx, types.ModuleName, acc, sdk.NewCoins(ibcCoin),
@@ -133,24 +139,31 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 				return nil, err
 			}
 
+			channelID, err := k.GetSourceChannelID(ctx, params.IbcCroDenom)
+			if err != nil {
+				return nil, err
+			}
 			// Transfer coins to receiver through IBC
-			// Todo Need to extract last height from client and add +X, X can be defined in config
-			timeoutHeight := ibcclienttypes.NewHeight(0, 0)
+			// We use current time for timeout timestamp and zero height for timeoutHeight
+			// it means it can never fail by timeout
+			// TODO Might need to consider add timeout option in configuration.
+			timeoutTimestamp := ctx.BlockTime().UnixNano()
+			timeoutHeight := ibcclienttypes.ZeroHeight()
 			err = k.transferKeeper.SendTransfer(
 				ctx,
 				ibctransfertypes.PortID,
-				params.IbcCroChannelID,
+				channelID,
 				ibcCoin,
 				acc,
 				msg.To,
 				timeoutHeight,
-				0)
+				uint64(timeoutTimestamp))
 			if err != nil {
 				return nil, err
 			}
 
 		default:
-			if err := k.IsConvertEnabledCoins(ctx, msg.Amount...); err != nil {
+			if err := k.IsConvertEnabledCoins(ctx, c); err != nil {
 				return nil, err
 			}
 			// TODO wrap to erc20 tokens

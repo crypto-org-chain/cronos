@@ -71,7 +71,7 @@ func CmdSendToCryptoOrg() *cobra.Command {
 		Use: "send-cryptoorg [from] [to] [amount]",
 		Short: "Send cronos tokens to crypto.org chain, Note, the'--from' flag is" +
 			" ignored as it is implied from [from].`",
-		Args: cobra.ExactArgs(2),
+		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cmd.Flags().Set(flags.FlagFrom, args[0])
 			if err != nil {
