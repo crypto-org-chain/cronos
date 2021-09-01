@@ -19,10 +19,10 @@ const (
 
 // NewConvertVouchersEvent constructs a new voucher convert sdk.Event
 // nolint: interfacer
-func NewConvertVouchersEvent(sender sdk.AccAddress, amount fmt.Stringer) sdk.Event {
+func NewConvertVouchersEvent(sender string, amount fmt.Stringer) sdk.Event {
 	return sdk.NewEvent(
 		EventTypeConvertVouchers,
-		sdk.NewAttribute(AttributeKeySender, sender.String()),
+		sdk.NewAttribute(AttributeKeySender, sender),
 		sdk.NewAttribute(sdk.AttributeKeyAmount, amount.String()),
 	)
 }
