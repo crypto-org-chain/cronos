@@ -1,5 +1,5 @@
 /**
- * MsgMultiSendResponse defines the MsgConvert response type.
+ * MsgConvertResponse defines the MsgConvert response type.
  */
 export declare type CronosMsgConvertResponse = object;
 export interface ProtobufAny {

@@ -1,33 +1,33 @@
 import { Reader, Writer } from 'protobufjs/minimal';
 import { Coin } from '../cosmos/base/v1beta1/coin';
 export declare const protobufPackage = "cryptoorgchain.cronos.cronos";
-/** MsgConvertToEvmTokens represents a message to convert ibc coins to evm coins. */
-export interface MsgConvertTokens {
+/** MsgConvertVouchers represents a message to convert ibc voucher coins to cronos evm coins. */
+export interface MsgConvertVouchers {
     address: string;
-    amount: Coin[];
+    coins: Coin[];
 }
-/** MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins. */
-export interface MsgSendToCryptoOrg {
+/** MsgTransferTokens represents a message to transfer cronos evm coins through ibc. */
+export interface MsgTransferTokens {
     from: string;
     to: string;
-    amount: Coin[];
+    coins: Coin[];
 }
-/** MsgMultiSendResponse defines the MsgConvert response type. */
+/** MsgConvertResponse defines the MsgConvert response type. */
 export interface MsgConvertResponse {
 }
-export declare const MsgConvertTokens: {
-    encode(message: MsgConvertTokens, writer?: Writer): Writer;
-    decode(input: Reader | Uint8Array, length?: number): MsgConvertTokens;
-    fromJSON(object: any): MsgConvertTokens;
-    toJSON(message: MsgConvertTokens): unknown;
-    fromPartial(object: DeepPartial<MsgConvertTokens>): MsgConvertTokens;
+export declare const MsgConvertVouchers: {
+    encode(message: MsgConvertVouchers, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): MsgConvertVouchers;
+    fromJSON(object: any): MsgConvertVouchers;
+    toJSON(message: MsgConvertVouchers): unknown;
+    fromPartial(object: DeepPartial<MsgConvertVouchers>): MsgConvertVouchers;
 };
-export declare const MsgSendToCryptoOrg: {
-    encode(message: MsgSendToCryptoOrg, writer?: Writer): Writer;
-    decode(input: Reader | Uint8Array, length?: number): MsgSendToCryptoOrg;
-    fromJSON(object: any): MsgSendToCryptoOrg;
-    toJSON(message: MsgSendToCryptoOrg): unknown;
-    fromPartial(object: DeepPartial<MsgSendToCryptoOrg>): MsgSendToCryptoOrg;
+export declare const MsgTransferTokens: {
+    encode(message: MsgTransferTokens, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): MsgTransferTokens;
+    fromJSON(object: any): MsgTransferTokens;
+    toJSON(message: MsgTransferTokens): unknown;
+    fromPartial(object: DeepPartial<MsgTransferTokens>): MsgTransferTokens;
 };
 export declare const MsgConvertResponse: {
     encode(_: MsgConvertResponse, writer?: Writer): Writer;
@@ -38,16 +38,16 @@ export declare const MsgConvertResponse: {
 };
 /** Msg defines the Cronos Msg service */
 export interface Msg {
-    /** Send defines a method for converting ibc coins to Cronos coins. */
-    ConvertTokens(request: MsgConvertTokens): Promise<MsgConvertResponse>;
-    /** Send defines a method to send coins to Crypto.org chain */
-    SendToCryptoOrg(request: MsgSendToCryptoOrg): Promise<MsgConvertResponse>;
+    /** ConvertVouchers defines a method for converting ibc voucher to cronos evm coins. */
+    ConvertVouchers(request: MsgConvertVouchers): Promise<MsgConvertResponse>;
+    /** TransferTokens defines a method to transfer cronos evm coins to another chain through IBC */
+    TransferTokens(request: MsgTransferTokens): Promise<MsgConvertResponse>;
 }
 export declare class MsgClientImpl implements Msg {
     private readonly rpc;
     constructor(rpc: Rpc);
-    ConvertTokens(request: MsgConvertTokens): Promise<MsgConvertResponse>;
-    SendToCryptoOrg(request: MsgSendToCryptoOrg): Promise<MsgConvertResponse>;
+    ConvertVouchers(request: MsgConvertVouchers): Promise<MsgConvertResponse>;
+    TransferTokens(request: MsgTransferTokens): Promise<MsgConvertResponse>;
 }
 interface Rpc {
     request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>;

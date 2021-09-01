@@ -34,8 +34,8 @@ func GetTxCmd() *cobra.Command {
 
 func CmdConvertTokens() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "convert-tokens [address] [amount]",
-		Short: "Convert ibc tokens to cronos tokens, Note, the'--from' flag is" +
+		Use: "convert-vouchers [address] [amount]",
+		Short: "Convert ibc vouchers to cronos tokens, Note, the'--from' flag is" +
 			" ignored as it is implied from [address].`",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -53,7 +53,7 @@ func CmdConvertTokens() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgConvertTokens(clientCtx.GetFromAddress().String(), coins)
+			msg := types.NewMsgConvertVouchers(clientCtx.GetFromAddress().String(), coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -68,8 +68,8 @@ func CmdConvertTokens() *cobra.Command {
 
 func CmdSendToCryptoOrg() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "send-cryptoorg [from] [to] [amount]",
-		Short: "Send cronos tokens to crypto.org chain, Note, the'--from' flag is" +
+		Use: "transfer-tokens [from] [to] [amount]",
+		Short: "Transfer cronos tokens to the origin chain through IBC , Note, the'--from' flag is" +
 			" ignored as it is implied from [from].`",
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -88,7 +88,7 @@ func CmdSendToCryptoOrg() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgSendToCryptoOrg(clientCtx.GetFromAddress().String(), argsTo, coins)
+			msg := types.NewMsgMsgTransferTokens(clientCtx.GetFromAddress().String(), argsTo, coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}

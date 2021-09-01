@@ -1,8 +1,8 @@
 import { StdFee } from "@cosmjs/launchpad";
 import { OfflineSigner, EncodeObject } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
-import { MsgConvertTokens } from "./types/cronos/tx";
-import { MsgSendToCryptoOrg } from "./types/cronos/tx";
+import { MsgConvertVouchers } from "./types/cronos/tx";
+import { MsgTransferTokens } from "./types/cronos/tx";
 export declare const MissingWalletError: Error;
 interface TxClientOptions {
     addr: string;
@@ -13,8 +13,8 @@ interface SignAndBroadcastOptions {
 }
 declare const txClient: (wallet: OfflineSigner, { addr: addr }?: TxClientOptions) => Promise<{
     signAndBroadcast: (msgs: EncodeObject[], { fee, memo }?: SignAndBroadcastOptions) => Promise<import("@cosmjs/stargate").BroadcastTxResponse>;
-    msgConvertTokens: (data: MsgConvertTokens) => EncodeObject;
-    msgSendToCryptoOrg: (data: MsgSendToCryptoOrg) => EncodeObject;
+    msgConvertVouchers: (data: MsgConvertVouchers) => EncodeObject;
+    msgTransferTokens: (data: MsgTransferTokens) => EncodeObject;
 }>;
 interface QueryClientOptions {
     addr: string;

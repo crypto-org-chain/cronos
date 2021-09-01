@@ -21,23 +21,6 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 	k.paramSpace.SetParamSet(ctx, &params)
 }
 
-// IsConvertEnabledCoins checks the coins provide and returns an ErrConvertDisabled if
-// any of the coins are not configured for converting.  Returns nil if converting is enabled
-// for all provided coin
-func (k Keeper) IsConvertEnabledCoins(ctx sdk.Context, coins ...sdk.Coin) error {
-	for _, coin := range coins {
-		if !k.IsConvertEnabledCoin(ctx, coin) {
-			return sdkerrors.Wrapf(types.ErrConvertDisabled, "%s converts are currently disabled", coin.Denom)
-		}
-	}
-	return nil
-}
-
-// IsConvertEnabledCoin returns the current ConvertEnabled status of the provided coin's denom
-func (k Keeper) IsConvertEnabledCoin(ctx sdk.Context, coin sdk.Coin) bool {
-	return k.GetParams(ctx).ConvertEnabledDenom(coin.Denom)
-}
-
 // GetEvmParams returns the total set of evm parameters.
 func (k Keeper) GetEvmParams(ctx sdk.Context) (params evmTypes.Params) {
 	k.evmParamSpace.GetParamSet(ctx, &params)

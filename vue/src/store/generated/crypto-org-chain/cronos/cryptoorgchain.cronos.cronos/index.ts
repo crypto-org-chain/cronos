@@ -3,10 +3,9 @@ import { txClient, queryClient, MissingWalletError } from './module'
 import { SpVuexError } from '@starport/vuex'
 
 import { Params } from "./module/types/cronos/cronos"
-import { ConvertEnabled } from "./module/types/cronos/cronos"
 
 
-export { Params, ConvertEnabled };
+export { Params };
 
 async function initTxClient(vuexGetters) {
 	return await txClient(vuexGetters['common/wallet/signer'], {
@@ -47,7 +46,6 @@ const getDefaultState = () => {
 				
 				_Structure: {
 						Params: getStructure(Params.fromPartial({})),
-						ConvertEnabled: getStructure(ConvertEnabled.fromPartial({})),
 						
 		},
 		_Subscriptions: new Set(),
@@ -105,61 +103,61 @@ export default {
 			})
 		},
 		
-		async sendMsgConvertTokens({ rootGetters }, { value, fee = [], memo = '' }) {
+		async sendMsgConvertVouchers({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgConvertTokens(value)
+				const msg = await txClient.msgConvertVouchers(value)
 				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
 	gas: "200000" }, memo})
 				return result
 			} catch (e) {
 				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgConvertTokens:Init', 'Could not initialize signing client. Wallet is required.')
+					throw new SpVuexError('TxClient:MsgConvertVouchers:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgConvertTokens:Send', 'Could not broadcast Tx: '+ e.message)
+					throw new SpVuexError('TxClient:MsgConvertVouchers:Send', 'Could not broadcast Tx: '+ e.message)
 				}
 			}
 		},
-		async sendMsgSendToCryptoOrg({ rootGetters }, { value, fee = [], memo = '' }) {
+		async sendMsgTransferTokens({ rootGetters }, { value, fee = [], memo = '' }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgSendToCryptoOrg(value)
+				const msg = await txClient.msgTransferTokens(value)
 				const result = await txClient.signAndBroadcast([msg], {fee: { amount: fee, 
 	gas: "200000" }, memo})
 				return result
 			} catch (e) {
 				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgSendToCryptoOrg:Init', 'Could not initialize signing client. Wallet is required.')
+					throw new SpVuexError('TxClient:MsgTransferTokens:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgSendToCryptoOrg:Send', 'Could not broadcast Tx: '+ e.message)
+					throw new SpVuexError('TxClient:MsgTransferTokens:Send', 'Could not broadcast Tx: '+ e.message)
 				}
 			}
 		},
 		
-		async MsgConvertTokens({ rootGetters }, { value }) {
+		async MsgConvertVouchers({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgConvertTokens(value)
+				const msg = await txClient.msgConvertVouchers(value)
 				return msg
 			} catch (e) {
 				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgConvertTokens:Init', 'Could not initialize signing client. Wallet is required.')
+					throw new SpVuexError('TxClient:MsgConvertVouchers:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgConvertTokens:Create', 'Could not create message: ' + e.message)
+					throw new SpVuexError('TxClient:MsgConvertVouchers:Create', 'Could not create message: ' + e.message)
 					
 				}
 			}
 		},
-		async MsgSendToCryptoOrg({ rootGetters }, { value }) {
+		async MsgTransferTokens({ rootGetters }, { value }) {
 			try {
 				const txClient=await initTxClient(rootGetters)
-				const msg = await txClient.msgSendToCryptoOrg(value)
+				const msg = await txClient.msgTransferTokens(value)
 				return msg
 			} catch (e) {
 				if (e == MissingWalletError) {
-					throw new SpVuexError('TxClient:MsgSendToCryptoOrg:Init', 'Could not initialize signing client. Wallet is required.')
+					throw new SpVuexError('TxClient:MsgTransferTokens:Init', 'Could not initialize signing client. Wallet is required.')
 				}else{
-					throw new SpVuexError('TxClient:MsgSendToCryptoOrg:Create', 'Could not create message: ' + e.message)
+					throw new SpVuexError('TxClient:MsgTransferTokens:Create', 'Could not create message: ' + e.message)
 					
 				}
 			}

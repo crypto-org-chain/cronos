@@ -24,7 +24,7 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 
 var _ types.MsgServer = msgServer{}
 
-func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTokens) (*types.MsgConvertResponse, error) {
+func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertVouchers) (*types.MsgConvertResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	acc, err := sdk.AccAddressFromBech32(msg.Address)
@@ -34,7 +34,7 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 
 	params := k.GetParams(ctx)
 	evmParams := k.GetEvmParams(ctx)
-	for _, c := range msg.Amount {
+	for _, c := range msg.Coins {
 		switch c.Denom {
 		case params.IbcCroDenom:
 			if params.IbcCroDenom == "" {
@@ -65,17 +65,14 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 			}
 
 		default:
-			if err := k.IsConvertEnabledCoins(ctx, c); err != nil {
-				return nil, err
-			}
-			// TODO wrap to erc20 tokens
+			// TODO handle ERC20 tokens
 		}
 	}
 	defer func() {
-		for _, a := range msg.Amount {
+		for _, a := range msg.Coins {
 			if a.Amount.IsInt64() {
 				telemetry.SetGaugeWithLabels(
-					[]string{"tx", "msg", "convertTokens"},
+					[]string{"tx", "msg", "convertVouchers"},
 					float32(a.Amount.Int64()),
 					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
@@ -85,7 +82,7 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 
 	// emit events
 	ctx.EventManager().EmitEvents(sdk.Events{
-		types.NewConvertCoinEvent(acc, msg.Amount),
+		types.NewConvertVouchersEvent(acc, msg.Coins),
 		sdk.NewEvent(
 			sdk.EventTypeMessage,
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
@@ -95,7 +92,7 @@ func (k msgServer) ConvertTokens(goCtx context.Context, msg *types.MsgConvertTok
 	return &types.MsgConvertResponse{}, nil
 }
 
-func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCryptoOrg) (*types.MsgConvertResponse, error) {
+func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferTokens) (*types.MsgConvertResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
 	acc, err := sdk.AccAddressFromBech32(msg.From)
@@ -106,7 +103,7 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 	params := k.GetParams(ctx)
 	evmParams := k.GetEvmParams(ctx)
 
-	for _, c := range msg.Amount {
+	for _, c := range msg.Coins {
 		switch c.Denom {
 		case evmParams.EvmDenom:
 			// Compute the remainder, we won't transfer anything lower than 10^10
@@ -163,18 +160,15 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 			}
 
 		default:
-			if err := k.IsConvertEnabledCoins(ctx, c); err != nil {
-				return nil, err
-			}
-			// TODO wrap to erc20 tokens
+			// TODO handle erc20 tokens
 		}
 	}
 
 	defer func() {
-		for _, a := range msg.Amount {
+		for _, a := range msg.Coins {
 			if a.Amount.IsInt64() {
 				telemetry.SetGaugeWithLabels(
-					[]string{"tx", "msg", "sendToCryptoOrg"},
+					[]string{"tx", "msg", "transferTokens"},
 					float32(a.Amount.Int64()),
 					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
 				)
@@ -184,7 +178,7 @@ func (k msgServer) SendToCryptoOrg(goCtx context.Context, msg *types.MsgSendToCr
 
 	// emit events
 	ctx.EventManager().EmitEvents(sdk.Events{
-		types.NewSendToCryptoOrgEvent(msg.From, msg.To, msg.Amount),
+		types.NewTransferTokensEvent(msg.From, msg.To, msg.Coins),
 		sdk.NewEvent(
 			sdk.EventTypeMessage,
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),

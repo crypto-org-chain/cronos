@@ -4,40 +4,40 @@ import { Coin } from '../cosmos/base/v1beta1/coin'
 
 export const protobufPackage = 'cryptoorgchain.cronos.cronos'
 
-/** MsgConvertToEvmTokens represents a message to convert ibc coins to evm coins. */
-export interface MsgConvertTokens {
+/** MsgConvertVouchers represents a message to convert ibc voucher coins to cronos evm coins. */
+export interface MsgConvertVouchers {
   address: string
-  amount: Coin[]
+  coins: Coin[]
 }
 
-/** MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins. */
-export interface MsgSendToCryptoOrg {
+/** MsgTransferTokens represents a message to transfer cronos evm coins through ibc. */
+export interface MsgTransferTokens {
   from: string
   to: string
-  amount: Coin[]
+  coins: Coin[]
 }
 
-/** MsgMultiSendResponse defines the MsgConvert response type. */
+/** MsgConvertResponse defines the MsgConvert response type. */
 export interface MsgConvertResponse {}
 
-const baseMsgConvertTokens: object = { address: '' }
+const baseMsgConvertVouchers: object = { address: '' }
 
-export const MsgConvertTokens = {
-  encode(message: MsgConvertTokens, writer: Writer = Writer.create()): Writer {
+export const MsgConvertVouchers = {
+  encode(message: MsgConvertVouchers, writer: Writer = Writer.create()): Writer {
     if (message.address !== '') {
       writer.uint32(10).string(message.address)
     }
-    for (const v of message.amount) {
+    for (const v of message.coins) {
       Coin.encode(v!, writer.uint32(18).fork()).ldelim()
     }
     return writer
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgConvertTokens {
+  decode(input: Reader | Uint8Array, length?: number): MsgConvertVouchers {
     const reader = input instanceof Uint8Array ? new Reader(input) : input
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgConvertTokens } as MsgConvertTokens
-    message.amount = []
+    const message = { ...baseMsgConvertVouchers } as MsgConvertVouchers
+    message.coins = []
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -45,7 +45,7 @@ export const MsgConvertTokens = {
           message.address = reader.string()
           break
         case 2:
-          message.amount.push(Coin.decode(reader, reader.uint32()))
+          message.coins.push(Coin.decode(reader, reader.uint32()))
           break
         default:
           reader.skipType(tag & 7)
@@ -55,71 +55,71 @@ export const MsgConvertTokens = {
     return message
   },
 
-  fromJSON(object: any): MsgConvertTokens {
-    const message = { ...baseMsgConvertTokens } as MsgConvertTokens
-    message.amount = []
+  fromJSON(object: any): MsgConvertVouchers {
+    const message = { ...baseMsgConvertVouchers } as MsgConvertVouchers
+    message.coins = []
     if (object.address !== undefined && object.address !== null) {
       message.address = String(object.address)
     } else {
       message.address = ''
     }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromJSON(e))
+    if (object.coins !== undefined && object.coins !== null) {
+      for (const e of object.coins) {
+        message.coins.push(Coin.fromJSON(e))
       }
     }
     return message
   },
 
-  toJSON(message: MsgConvertTokens): unknown {
+  toJSON(message: MsgConvertVouchers): unknown {
     const obj: any = {}
     message.address !== undefined && (obj.address = message.address)
-    if (message.amount) {
-      obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined))
+    if (message.coins) {
+      obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined))
     } else {
-      obj.amount = []
+      obj.coins = []
     }
     return obj
   },
 
-  fromPartial(object: DeepPartial<MsgConvertTokens>): MsgConvertTokens {
-    const message = { ...baseMsgConvertTokens } as MsgConvertTokens
-    message.amount = []
+  fromPartial(object: DeepPartial<MsgConvertVouchers>): MsgConvertVouchers {
+    const message = { ...baseMsgConvertVouchers } as MsgConvertVouchers
+    message.coins = []
     if (object.address !== undefined && object.address !== null) {
       message.address = object.address
     } else {
       message.address = ''
     }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromPartial(e))
+    if (object.coins !== undefined && object.coins !== null) {
+      for (const e of object.coins) {
+        message.coins.push(Coin.fromPartial(e))
       }
     }
     return message
   }
 }
 
-const baseMsgSendToCryptoOrg: object = { from: '', to: '' }
+const baseMsgTransferTokens: object = { from: '', to: '' }
 
-export const MsgSendToCryptoOrg = {
-  encode(message: MsgSendToCryptoOrg, writer: Writer = Writer.create()): Writer {
+export const MsgTransferTokens = {
+  encode(message: MsgTransferTokens, writer: Writer = Writer.create()): Writer {
     if (message.from !== '') {
       writer.uint32(10).string(message.from)
     }
     if (message.to !== '') {
       writer.uint32(18).string(message.to)
     }
-    for (const v of message.amount) {
+    for (const v of message.coins) {
       Coin.encode(v!, writer.uint32(26).fork()).ldelim()
     }
     return writer
   },
 
-  decode(input: Reader | Uint8Array, length?: number): MsgSendToCryptoOrg {
+  decode(input: Reader | Uint8Array, length?: number): MsgTransferTokens {
     const reader = input instanceof Uint8Array ? new Reader(input) : input
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = { ...baseMsgSendToCryptoOrg } as MsgSendToCryptoOrg
-    message.amount = []
+    const message = { ...baseMsgTransferTokens } as MsgTransferTokens
+    message.coins = []
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -130,7 +130,7 @@ export const MsgSendToCryptoOrg = {
           message.to = reader.string()
           break
         case 3:
-          message.amount.push(Coin.decode(reader, reader.uint32()))
+          message.coins.push(Coin.decode(reader, reader.uint32()))
           break
         default:
           reader.skipType(tag & 7)
@@ -140,9 +140,9 @@ export const MsgSendToCryptoOrg = {
     return message
   },
 
-  fromJSON(object: any): MsgSendToCryptoOrg {
-    const message = { ...baseMsgSendToCryptoOrg } as MsgSendToCryptoOrg
-    message.amount = []
+  fromJSON(object: any): MsgTransferTokens {
+    const message = { ...baseMsgTransferTokens } as MsgTransferTokens
+    message.coins = []
     if (object.from !== undefined && object.from !== null) {
       message.from = String(object.from)
     } else {
@@ -153,29 +153,29 @@ export const MsgSendToCryptoOrg = {
     } else {
       message.to = ''
     }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromJSON(e))
+    if (object.coins !== undefined && object.coins !== null) {
+      for (const e of object.coins) {
+        message.coins.push(Coin.fromJSON(e))
       }
     }
     return message
   },
 
-  toJSON(message: MsgSendToCryptoOrg): unknown {
+  toJSON(message: MsgTransferTokens): unknown {
     const obj: any = {}
     message.from !== undefined && (obj.from = message.from)
     message.to !== undefined && (obj.to = message.to)
-    if (message.amount) {
-      obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined))
+    if (message.coins) {
+      obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined))
     } else {
-      obj.amount = []
+      obj.coins = []
     }
     return obj
   },
 
-  fromPartial(object: DeepPartial<MsgSendToCryptoOrg>): MsgSendToCryptoOrg {
-    const message = { ...baseMsgSendToCryptoOrg } as MsgSendToCryptoOrg
-    message.amount = []
+  fromPartial(object: DeepPartial<MsgTransferTokens>): MsgTransferTokens {
+    const message = { ...baseMsgTransferTokens } as MsgTransferTokens
+    message.coins = []
     if (object.from !== undefined && object.from !== null) {
       message.from = object.from
     } else {
@@ -186,9 +186,9 @@ export const MsgSendToCryptoOrg = {
     } else {
       message.to = ''
     }
-    if (object.amount !== undefined && object.amount !== null) {
-      for (const e of object.amount) {
-        message.amount.push(Coin.fromPartial(e))
+    if (object.coins !== undefined && object.coins !== null) {
+      for (const e of object.coins) {
+        message.coins.push(Coin.fromPartial(e))
       }
     }
     return message
@@ -235,10 +235,10 @@ export const MsgConvertResponse = {
 
 /** Msg defines the Cronos Msg service */
 export interface Msg {
-  /** Send defines a method for converting ibc coins to Cronos coins. */
-  ConvertTokens(request: MsgConvertTokens): Promise<MsgConvertResponse>
-  /** Send defines a method to send coins to Crypto.org chain */
-  SendToCryptoOrg(request: MsgSendToCryptoOrg): Promise<MsgConvertResponse>
+  /** ConvertVouchers defines a method for converting ibc voucher to cronos evm coins. */
+  ConvertVouchers(request: MsgConvertVouchers): Promise<MsgConvertResponse>
+  /** TransferTokens defines a method to transfer cronos evm coins to another chain through IBC */
+  TransferTokens(request: MsgTransferTokens): Promise<MsgConvertResponse>
 }
 
 export class MsgClientImpl implements Msg {
@@ -246,15 +246,15 @@ export class MsgClientImpl implements Msg {
   constructor(rpc: Rpc) {
     this.rpc = rpc
   }
-  ConvertTokens(request: MsgConvertTokens): Promise<MsgConvertResponse> {
-    const data = MsgConvertTokens.encode(request).finish()
-    const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'ConvertTokens', data)
+  ConvertVouchers(request: MsgConvertVouchers): Promise<MsgConvertResponse> {
+    const data = MsgConvertVouchers.encode(request).finish()
+    const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'ConvertVouchers', data)
     return promise.then((data) => MsgConvertResponse.decode(new Reader(data)))
   }
 
-  SendToCryptoOrg(request: MsgSendToCryptoOrg): Promise<MsgConvertResponse> {
-    const data = MsgSendToCryptoOrg.encode(request).finish()
-    const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'SendToCryptoOrg', data)
+  TransferTokens(request: MsgTransferTokens): Promise<MsgConvertResponse> {
+    const data = MsgTransferTokens.encode(request).finish()
+    const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'TransferTokens', data)
     return promise.then((data) => MsgConvertResponse.decode(new Reader(data)))
   }
 }

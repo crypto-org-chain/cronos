@@ -2,11 +2,11 @@
 import { SigningStargateClient } from "@cosmjs/stargate";
 import { Registry } from "@cosmjs/proto-signing";
 import { Api } from "./rest";
-import { MsgConvertTokens } from "./types/cronos/tx";
-import { MsgSendToCryptoOrg } from "./types/cronos/tx";
+import { MsgConvertVouchers } from "./types/cronos/tx";
+import { MsgTransferTokens } from "./types/cronos/tx";
 const types = [
-    ["/cryptoorgchain.cronos.cronos.MsgConvertTokens", MsgConvertTokens],
-    ["/cryptoorgchain.cronos.cronos.MsgSendToCryptoOrg", MsgSendToCryptoOrg],
+    ["/cryptoorgchain.cronos.cronos.MsgConvertVouchers", MsgConvertVouchers],
+    ["/cryptoorgchain.cronos.cronos.MsgTransferTokens", MsgTransferTokens],
 ];
 export const MissingWalletError = new Error("wallet is required");
 const registry = new Registry(types);
@@ -21,8 +21,8 @@ const txClient = async (wallet, { addr: addr } = { addr: "http://localhost:26657
     const { address } = (await wallet.getAccounts())[0];
     return {
         signAndBroadcast: (msgs, { fee, memo } = { fee: defaultFee, memo: "" }) => client.signAndBroadcast(address, msgs, fee, memo),
-        msgConvertTokens: (data) => ({ typeUrl: "/cryptoorgchain.cronos.cronos.MsgConvertTokens", value: data }),
-        msgSendToCryptoOrg: (data) => ({ typeUrl: "/cryptoorgchain.cronos.cronos.MsgSendToCryptoOrg", value: data }),
+        msgConvertVouchers: (data) => ({ typeUrl: "/cryptoorgchain.cronos.cronos.MsgConvertVouchers", value: data }),
+        msgTransferTokens: (data) => ({ typeUrl: "/cryptoorgchain.cronos.cronos.MsgTransferTokens", value: data }),
     };
 };
 const queryClient = async ({ addr: addr } = { addr: "http://localhost:1317" }) => {

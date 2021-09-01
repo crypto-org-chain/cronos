@@ -12,29 +12,29 @@ option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 service Msg {
     // this line is used by starport scaffolding # proto/tx/rpc
 
-    // Send defines a method for converting ibc coins to Cronos coins.
-    rpc ConvertTokens(MsgConvertTokens) returns (MsgConvertResponse);
+    // ConvertVouchers defines a method for converting ibc voucher to cronos evm coins.
+    rpc ConvertVouchers(MsgConvertVouchers) returns (MsgConvertResponse);
 
-    // Send defines a method to send coins to Crypto.org chain
-    rpc SendToCryptoOrg(MsgSendToCryptoOrg) returns (MsgConvertResponse);
+    // TransferTokens defines a method to transfer cronos evm coins to another chain through IBC
+    rpc TransferTokens(MsgTransferTokens) returns (MsgConvertResponse);
 }
 
-// MsgConvertToEvmTokens represents a message to convert ibc coins to evm coins.
-message MsgConvertTokens {
+// MsgConvertVouchers represents a message to convert ibc voucher coins to cronos evm coins.
+message MsgConvertVouchers {
     string address = 1;
-    repeated cosmos.base.v1beta1.Coin amount = 2
+    repeated cosmos.base.v1beta1.Coin coins = 2
     [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
-// MsgConvertToIbcTokens represents a message to convert evm coins to ibc coins.
-message MsgSendToCryptoOrg {
+// MsgTransferTokens represents a message to transfer cronos evm coins through ibc.
+message MsgTransferTokens {
     string from = 1;
     string to = 2;
-    repeated cosmos.base.v1beta1.Coin amount = 3
+    repeated cosmos.base.v1beta1.Coin coins = 3
     [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
-// MsgMultiSendResponse defines the MsgConvert response type.
+// MsgConvertResponse defines the MsgConvert response type.
 message MsgConvertResponse {}
 
 // this line is used by starport scaffolding # proto/tx/message

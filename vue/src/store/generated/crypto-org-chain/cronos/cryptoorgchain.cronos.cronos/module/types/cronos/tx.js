@@ -2,13 +2,13 @@
 import { Reader, Writer } from 'protobufjs/minimal';
 import { Coin } from '../cosmos/base/v1beta1/coin';
 export const protobufPackage = 'cryptoorgchain.cronos.cronos';
-const baseMsgConvertTokens = { address: '' };
-export const MsgConvertTokens = {
+const baseMsgConvertVouchers = { address: '' };
+export const MsgConvertVouchers = {
     encode(message, writer = Writer.create()) {
         if (message.address !== '') {
             writer.uint32(10).string(message.address);
         }
-        for (const v of message.amount) {
+        for (const v of message.coins) {
             Coin.encode(v, writer.uint32(18).fork()).ldelim();
         }
         return writer;
@@ -16,8 +16,8 @@ export const MsgConvertTokens = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgConvertTokens };
-        message.amount = [];
+        const message = { ...baseMsgConvertVouchers };
+        message.coins = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -25,7 +25,7 @@ export const MsgConvertTokens = {
                     message.address = reader.string();
                     break;
                 case 2:
-                    message.amount.push(Coin.decode(reader, reader.uint32()));
+                    message.coins.push(Coin.decode(reader, reader.uint32()));
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -35,17 +35,17 @@ export const MsgConvertTokens = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseMsgConvertTokens };
-        message.amount = [];
+        const message = { ...baseMsgConvertVouchers };
+        message.coins = [];
         if (object.address !== undefined && object.address !== null) {
             message.address = String(object.address);
         }
         else {
             message.address = '';
         }
-        if (object.amount !== undefined && object.amount !== null) {
-            for (const e of object.amount) {
-                message.amount.push(Coin.fromJSON(e));
+        if (object.coins !== undefined && object.coins !== null) {
+            for (const e of object.coins) {
+                message.coins.push(Coin.fromJSON(e));
             }
         }
         return message;
@@ -53,33 +53,33 @@ export const MsgConvertTokens = {
     toJSON(message) {
         const obj = {};
         message.address !== undefined && (obj.address = message.address);
-        if (message.amount) {
-            obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined));
+        if (message.coins) {
+            obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined));
         }
         else {
-            obj.amount = [];
+            obj.coins = [];
         }
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseMsgConvertTokens };
-        message.amount = [];
+        const message = { ...baseMsgConvertVouchers };
+        message.coins = [];
         if (object.address !== undefined && object.address !== null) {
             message.address = object.address;
         }
         else {
             message.address = '';
         }
-        if (object.amount !== undefined && object.amount !== null) {
-            for (const e of object.amount) {
-                message.amount.push(Coin.fromPartial(e));
+        if (object.coins !== undefined && object.coins !== null) {
+            for (const e of object.coins) {
+                message.coins.push(Coin.fromPartial(e));
             }
         }
         return message;
     }
 };
-const baseMsgSendToCryptoOrg = { from: '', to: '' };
-export const MsgSendToCryptoOrg = {
+const baseMsgTransferTokens = { from: '', to: '' };
+export const MsgTransferTokens = {
     encode(message, writer = Writer.create()) {
         if (message.from !== '') {
             writer.uint32(10).string(message.from);
@@ -87,7 +87,7 @@ export const MsgSendToCryptoOrg = {
         if (message.to !== '') {
             writer.uint32(18).string(message.to);
         }
-        for (const v of message.amount) {
+        for (const v of message.coins) {
             Coin.encode(v, writer.uint32(26).fork()).ldelim();
         }
         return writer;
@@ -95,8 +95,8 @@ export const MsgSendToCryptoOrg = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = { ...baseMsgSendToCryptoOrg };
-        message.amount = [];
+        const message = { ...baseMsgTransferTokens };
+        message.coins = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -107,7 +107,7 @@ export const MsgSendToCryptoOrg = {
                     message.to = reader.string();
                     break;
                 case 3:
-                    message.amount.push(Coin.decode(reader, reader.uint32()));
+                    message.coins.push(Coin.decode(reader, reader.uint32()));
                     break;
                 default:
                     reader.skipType(tag & 7);
@@ -117,8 +117,8 @@ export const MsgSendToCryptoOrg = {
         return message;
     },
     fromJSON(object) {
-        const message = { ...baseMsgSendToCryptoOrg };
-        message.amount = [];
+        const message = { ...baseMsgTransferTokens };
+        message.coins = [];
         if (object.from !== undefined && object.from !== null) {
             message.from = String(object.from);
         }
@@ -131,9 +131,9 @@ export const MsgSendToCryptoOrg = {
         else {
             message.to = '';
         }
-        if (object.amount !== undefined && object.amount !== null) {
-            for (const e of object.amount) {
-                message.amount.push(Coin.fromJSON(e));
+        if (object.coins !== undefined && object.coins !== null) {
+            for (const e of object.coins) {
+                message.coins.push(Coin.fromJSON(e));
             }
         }
         return message;
@@ -142,17 +142,17 @@ export const MsgSendToCryptoOrg = {
         const obj = {};
         message.from !== undefined && (obj.from = message.from);
         message.to !== undefined && (obj.to = message.to);
-        if (message.amount) {
-            obj.amount = message.amount.map((e) => (e ? Coin.toJSON(e) : undefined));
+        if (message.coins) {
+            obj.coins = message.coins.map((e) => (e ? Coin.toJSON(e) : undefined));
         }
         else {
-            obj.amount = [];
+            obj.coins = [];
         }
         return obj;
     },
     fromPartial(object) {
-        const message = { ...baseMsgSendToCryptoOrg };
-        message.amount = [];
+        const message = { ...baseMsgTransferTokens };
+        message.coins = [];
         if (object.from !== undefined && object.from !== null) {
             message.from = object.from;
         }
@@ -165,9 +165,9 @@ export const MsgSendToCryptoOrg = {
         else {
             message.to = '';
         }
-        if (object.amount !== undefined && object.amount !== null) {
-            for (const e of object.amount) {
-                message.amount.push(Coin.fromPartial(e));
+        if (object.coins !== undefined && object.coins !== null) {
+            for (const e of object.coins) {
+                message.coins.push(Coin.fromPartial(e));
             }
         }
         return message;
@@ -209,14 +209,14 @@ export class MsgClientImpl {
     constructor(rpc) {
         this.rpc = rpc;
     }
-    ConvertTokens(request) {
-        const data = MsgConvertTokens.encode(request).finish();
-        const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'ConvertTokens', data);
+    ConvertVouchers(request) {
+        const data = MsgConvertVouchers.encode(request).finish();
+        const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'ConvertVouchers', data);
         return promise.then((data) => MsgConvertResponse.decode(new Reader(data)));
     }
-    SendToCryptoOrg(request) {
-        const data = MsgSendToCryptoOrg.encode(request).finish();
-        const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'SendToCryptoOrg', data);
+    TransferTokens(request) {
+        const data = MsgTransferTokens.encode(request).finish();
+        const promise = this.rpc.request('cryptoorgchain.cronos.cronos.Msg', 'TransferTokens', data);
         return promise.then((data) => MsgConvertResponse.decode(new Reader(data)));
     }
 }

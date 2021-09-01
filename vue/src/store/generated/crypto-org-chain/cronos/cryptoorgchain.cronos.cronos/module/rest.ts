@@ -10,7 +10,7 @@
  */
 
 /**
- * MsgMultiSendResponse defines the MsgConvert response type.
+ * MsgConvertResponse defines the MsgConvert response type.
  */
 export type CronosMsgConvertResponse = object;
 

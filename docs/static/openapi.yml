@@ -23217,7 +23217,7 @@ definitions:
       response type.
   cryptoorgchain.cronos.cronos.MsgConvertResponse:
     type: object
-    description: MsgMultiSendResponse defines the MsgConvert response type.
+    description: MsgConvertResponse defines the MsgConvert response type.
   ethermint.evm.v1.ChainConfig:
     type: object
     properties:

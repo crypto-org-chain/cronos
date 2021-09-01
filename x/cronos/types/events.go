@@ -13,24 +13,24 @@ const (
 	AttributeKeySender    = "sender"
 
 	// events
-	EventTypeConvertCoin   = "convert_coin"
-	EventTypeSendCryptoOrg = "send_crypto_org"
+	EventTypeConvertVouchers = "convert_vouchers"
+	EventTypeTransferTokens  = "transfer_tokens"
 )
 
-// NewCoinSpentEvent constructs a new coin convert sdk.Event
+// NewConvertVouchersEvent constructs a new voucher convert sdk.Event
 // nolint: interfacer
-func NewConvertCoinEvent(sender sdk.AccAddress, amount fmt.Stringer) sdk.Event {
+func NewConvertVouchersEvent(sender sdk.AccAddress, amount fmt.Stringer) sdk.Event {
 	return sdk.NewEvent(
-		EventTypeConvertCoin,
+		EventTypeConvertVouchers,
 		sdk.NewAttribute(AttributeKeySender, sender.String()),
 		sdk.NewAttribute(sdk.AttributeKeyAmount, amount.String()),
 	)
 }
 
-// NewSendToCryptoOrgEvent constructs a new sendToCryptoOrg convert sdk.Event
-func NewSendToCryptoOrgEvent(sender string, recipient string, amount fmt.Stringer) sdk.Event {
+// NewTransferTokensEvent constructs a new transfer sdk.Event
+func NewTransferTokensEvent(sender string, recipient string, amount fmt.Stringer) sdk.Event {
 	return sdk.NewEvent(
-		EventTypeSendCryptoOrg,
+		EventTypeTransferTokens,
 		sdk.NewAttribute(AttributeKeySender, sender),
 		sdk.NewAttribute(AttributeKeyRecipient, recipient),
 		sdk.NewAttribute(sdk.AttributeKeyAmount, amount.String()),

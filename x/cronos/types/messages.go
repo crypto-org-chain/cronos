@@ -6,31 +6,31 @@ import (
 )
 
 const (
-	TypeMsgConvertTokens   = "ConvertTokens"
-	TypeMsgSendToCryptoOrg = "SendToCryptoOrg"
+	TypeMsgConvertVouchers = "ConvertVouchers"
+	TypeMsgTransferTokens  = "TransferTokens"
 )
 
-var _ sdk.Msg = &MsgConvertTokens{}
+var _ sdk.Msg = &MsgConvertVouchers{}
 
-func NewMsgConvertTokens(address string, amount sdk.Coins) *MsgConvertTokens {
-	return &MsgConvertTokens{
+func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
+	return &MsgConvertVouchers{
 		Address: address,
-		Amount:  amount,
+		Coins:   coins,
 	}
 }
 
 // Route ...
-func (msg MsgConvertTokens) Route() string {
+func (msg MsgConvertVouchers) Route() string {
 	return RouterKey
 }
 
 // Type ...
-func (msg MsgConvertTokens) Type() string {
-	return TypeMsgConvertTokens
+func (msg MsgConvertVouchers) Type() string {
+	return TypeMsgConvertVouchers
 }
 
 // GetSigners ...
-func (msg *MsgConvertTokens) GetSigners() []sdk.AccAddress {
+func (msg *MsgConvertVouchers) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
 		panic(err)
@@ -39,49 +39,49 @@ func (msg *MsgConvertTokens) GetSigners() []sdk.AccAddress {
 }
 
 // GetSignBytes ...
-func (msg *MsgConvertTokens) GetSignBytes() []byte {
+func (msg *MsgConvertVouchers) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
 
 // ValidateBasic ...
-func (msg *MsgConvertTokens) ValidateBasic() error {
+func (msg *MsgConvertVouchers) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address (%s)", err)
 	}
-	if !msg.Amount.IsValid() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
+	if !msg.Coins.IsValid() {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 
-	if !msg.Amount.IsAllPositive() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
+	if !msg.Coins.IsAllPositive() {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 	return nil
 }
 
-var _ sdk.Msg = &MsgSendToCryptoOrg{}
+var _ sdk.Msg = &MsgTransferTokens{}
 
-func NewMsgSendToCryptoOrg(from string, to string, amount sdk.Coins) *MsgSendToCryptoOrg {
-	return &MsgSendToCryptoOrg{
-		From:   from,
-		To:     to,
-		Amount: amount,
+func NewMsgMsgTransferTokens(from string, to string, coins sdk.Coins) *MsgTransferTokens {
+	return &MsgTransferTokens{
+		From:  from,
+		To:    to,
+		Coins: coins,
 	}
 }
 
 // Route ...
-func (msg MsgSendToCryptoOrg) Route() string {
+func (msg MsgTransferTokens) Route() string {
 	return RouterKey
 }
 
 // Type ...
-func (msg MsgSendToCryptoOrg) Type() string {
-	return TypeMsgSendToCryptoOrg
+func (msg MsgTransferTokens) Type() string {
+	return TypeMsgTransferTokens
 }
 
 // GetSigners ...
-func (msg *MsgSendToCryptoOrg) GetSigners() []sdk.AccAddress {
+func (msg *MsgTransferTokens) GetSigners() []sdk.AccAddress {
 	from, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		panic(err)
@@ -90,13 +90,13 @@ func (msg *MsgSendToCryptoOrg) GetSigners() []sdk.AccAddress {
 }
 
 // GetSignBytes ...
-func (msg *MsgSendToCryptoOrg) GetSignBytes() []byte {
+func (msg *MsgTransferTokens) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
 
 // ValidateBasic ...
-func (msg *MsgSendToCryptoOrg) ValidateBasic() error {
+func (msg *MsgTransferTokens) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address address (%s)", err)
@@ -104,12 +104,12 @@ func (msg *MsgSendToCryptoOrg) ValidateBasic() error {
 
 	// TODO, validate TO address format
 
-	if !msg.Amount.IsValid() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
+	if !msg.Coins.IsValid() {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 
-	if !msg.Amount.IsAllPositive() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Amount.String())
+	if !msg.Coins.IsAllPositive() {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 	return nil
 }
