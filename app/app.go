@@ -182,6 +182,7 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		gravitytypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
+		cronosmoduletypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
 	}
 	// Module configurator
 
@@ -397,6 +398,10 @@ func New(
 		appCodec,
 		keys[cronosmoduletypes.StoreKey],
 		keys[cronosmoduletypes.MemStoreKey],
+		app.GetSubspace(cronosmoduletypes.ModuleName),
+		app.GetSubspace(evmtypes.ModuleName),
+		app.BankKeeper,
+		app.TransferKeeper,
 	)
 	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
 
