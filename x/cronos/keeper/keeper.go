@@ -51,7 +51,7 @@ func NewKeeper(
 	}
 
 	if !evmSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(evmTypes.ParamKeyTable())
+		evmSpace = evmSpace.WithKeyTable(evmTypes.ParamKeyTable())
 	}
 
 	return &Keeper{
