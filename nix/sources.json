@@ -17,10 +17,10 @@
         "homepage": "",
         "owner": "yihuang",
         "repo": "gravity-bridge",
-        "rev": "0685e62857ac47687516e212edaf1662c403f4c4",
-        "sha256": "122vs4ra6xjrlwiazdyr4a2v680v2dikw3wd3n57il5l4h718iwl",
+        "rev": "c8b552dc3113a302dd714412182bd38c6f815653",
+        "sha256": "1c7wlq99anh0h6hflsrkisli6w11qyn0p0669j4ri0s6hni97c0c",
         "type": "tarball",
-        "url": "https://github.com/yihuang/gravity-bridge/archive/0685e62857ac47687516e212edaf1662c403f4c4.tar.gz",
+        "url": "https://github.com/yihuang/gravity-bridge/archive/c8b552dc3113a302dd714412182bd38c6f815653.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -53,10 +53,10 @@
         "homepage": null,
         "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "721bd70c125d29e12b7d4ac7dd72904fa3eef049",
-        "sha256": "1g73nb07vczfd32syr80gpcvq31hbx7nxwkyf0l1kj11pwrgya1k",
+        "rev": "7887caf1d9e7f1c8c807e66196c4f491aa35f804",
+        "sha256": "16a9nxpaqrnfapv0bwhpjc3il39zw80rgp0xc025wg1ax3yljs4s",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/721bd70c125d29e12b7d4ac7dd72904fa3eef049.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/7887caf1d9e7f1c8c807e66196c4f491aa35f804.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

@@ -139,3 +139,11 @@ test-sim-profile:
 
 .PHONY: test-sim-profile test-sim-benchmark
 
+###############################################################################
+###                                Integration Test                         ###
+###############################################################################
+
+run-integration-tests:
+	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
+
+.PHONY: run-integration-tests

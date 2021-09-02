@@ -1,18 +1,24 @@
+import configparser
 import datetime
 import json
 import os
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import time
 import uuid
 
+import bech32
 import eth_account
 import eth_utils
 import rlp
 import yaml
+from cprotobuf import Field, ProtoEntity
 from dateutil.parser import isoparse
+from eth_account.messages import encode_defunct
+from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
 
@@ -241,3 +247,55 @@ def contract_address(addr, nonce):
             )[12:]
         )
     )
+
+
+def decode_bech32(addr):
+    previx, bz = bech32.bech32_decode(addr)
+    return HexBytes(bytes(bech32.convertbits(bz, 5, 8)))
+
+
+def bech32_to_eth(addr):
+    return decode_bech32(addr).hex()
+
+
+class DelegateKeysSignMsg(ProtoEntity):
+    validator_address = Field("string", 1)
+    nonce = Field("uint64", 2)
+
+
+def sign_validator(acct, val_addr, nonce):
+    if nonce > 0:
+        msg = DelegateKeysSignMsg(validator_address=val_addr, nonce=nonce)
+    else:
+        msg = DelegateKeysSignMsg(validator_address=val_addr)
+    sign_bytes = eth_utils.keccak(msg.SerializeToString())
+    signed = acct.sign_message(encode_defunct(sign_bytes))
+    return eth_utils.to_hex(signed.signature)
+
+
+def add_ini_sections(inipath, sections):
+    ini = configparser.RawConfigParser()
+    ini.read_file(inipath.open())
+    for name, value in sections.items():
+        ini.add_section(name)
+        ini[name].update(value)
+    with inipath.open("w") as fp:
+        ini.write(fp)
+
+
+def supervisorctl(inipath, *args):
+    subprocess.run(
+        (sys.executable, "-msupervisor.supervisorctl", "-c", inipath, *args),
+        check=True,
+    )
+
+
+def deploy_contract(w3, jsonfile, args=()):
+    """
+    deploy contract and return the deployed contract instance
+    """
+    info = json.load(open(jsonfile))
+    contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
+    txhash = contract.constructor(*args).transact({"from": w3.eth.coinbase})
+    address = w3.eth.wait_for_transaction_receipt(txhash).contractAddress
+    return w3.eth.contract(address=address, abi=info["abi"])
