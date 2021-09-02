@@ -9,6 +9,9 @@ BINDIR ?= ~/go/bin
 build: go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
+install: go.sum
+	@go install -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) ./cmd/cronosd	
+
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
