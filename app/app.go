@@ -423,6 +423,11 @@ func New(
 
 	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
 
+	app.EvmKeeper.SetHooks(evmkeeper.NewMultiEvmHooks(
+		cronosmodulekeeper.NewBankSendHook(app.BankKeeper, app.CronosKeeper),
+		cronosmodulekeeper.NewGravitySendHook(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
+	))
+
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
