@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/armon/go-metrics"
@@ -134,7 +135,11 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 		return err
 	}
 
-	params := k.GetParams(ctx)
+	if len(destination) == 0 {
+		return errors.New("to address cannot be empty")
+	}
+
+		params := k.GetParams(ctx)
 	evmParams := k.GetEvmParams(ctx)
 
 	for _, c := range coins {

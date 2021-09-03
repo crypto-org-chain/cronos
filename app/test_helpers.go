@@ -57,6 +57,7 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 }
 
 func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
+	SetConfig()
 	db := dbm.NewMemDB()
 	encCdc := MakeEncodingConfig()
 	app := New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, invCheckPeriod, encCdc, EmptyAppOptions{})

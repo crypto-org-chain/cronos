@@ -62,7 +62,7 @@ func (msg *MsgConvertVouchers) ValidateBasic() error {
 
 var _ sdk.Msg = &MsgTransferTokens{}
 
-func NewMsgMsgTransferTokens(from string, to string, coins sdk.Coins) *MsgTransferTokens {
+func NewMsgTransferTokens(from string, to string, coins sdk.Coins) *MsgTransferTokens {
 	return &MsgTransferTokens{
 		From:  from,
 		To:    to,
