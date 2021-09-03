@@ -1,15 +1,11 @@
 package cronos_test
 
 import (
-	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
-	"github.com/stretchr/testify/require"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"testing"
 )
 
-func TestInitGenesis(t *testing.T) {
+func (suite *CronosTestSuite) TestInitGenesis() {
 	testCases := []struct {
 		name     string
 		malleate func()
@@ -42,22 +38,19 @@ func TestInitGenesis(t *testing.T) {
 		},
 	}
 
-	app := app.Setup(false)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		suite.Run(tc.name, func() {
 			tc.malleate()
 			if tc.expPanic {
-				require.Panics(t,
+				suite.Require().Panics(
 					func() {
-						cronos.InitGenesis(ctx, app.CronosKeeper, *tc.genState)
+						cronos.InitGenesis(suite.ctx, suite.app.CronosKeeper, *tc.genState)
 					},
 				)
 			} else {
-				require.NotPanics(t,
+				suite.Require().NotPanics(
 					func() {
-						cronos.InitGenesis(ctx, app.CronosKeeper, *tc.genState)
+						cronos.InitGenesis(suite.ctx, suite.app.CronosKeeper, *tc.genState)
 					},
 				)
 			}
@@ -65,10 +58,7 @@ func TestInitGenesis(t *testing.T) {
 	}
 }
 
-func TestExportGenesis(t *testing.T) {
-	app := app.Setup(false)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-	genesisState := cronos.ExportGenesis(ctx, app.CronosKeeper)
-
-	require.Equal(t, genesisState.Params.IbcCroDenom, types.DefaultGenesis().Params.IbcCroDenom)
+func (suite *CronosTestSuite) TestExportGenesis() {
+	genesisState := cronos.ExportGenesis(suite.ctx, suite.app.CronosKeeper)
+	suite.Require().Equal(genesisState.Params.IbcCroDenom, types.DefaultParams().IbcCroDenom)
 }

@@ -128,5 +128,4 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 	contract, found = keeper.GetContractByDenom(suite.ctx, denom)
 	suite.Require().True(found)
 	suite.Require().Equal(externalContract, contract)
-
 }
