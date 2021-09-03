@@ -272,9 +272,6 @@ class CosmosCLI:
                 "-y",
                 "--generate-only" if generate_only else None,
                 home=self.data_dir,
-                keyring_backend="test",
-                chain_id=self.chain_id,
-                node=self.node_rpc,
                 fees=fees,
             )
         )

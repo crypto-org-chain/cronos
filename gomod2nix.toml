@@ -886,12 +886,12 @@
     sha256 = "0nxbn0m7lr4dg0yrwnvlkfiyg3ndv8vdpssjx7b714nivpc6ar0y"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.43.0"
+  sumVersion = "v0.44.0"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "3f8596c1955e40ef30e4abcd06f2237d132db3a9"
-    sha256 = "1fgi8xq4k7bislfchl8hz18iwf37ppkp5w471v5h4axq4xynpsmy"
+    rev = "ccc5245c3a1b2e5f1f584e9395fc571a1d19d989"
+    sha256 = "1vh48mwp8w21a3i71alwn56rlm8ip2na5mm7jpsj43d9d915phxp"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -2965,13 +2965,13 @@
     sha256 = "0f146yjqwx2mr110kl8scjhqd08hys7vr5z0d0a3lskb6yy22gfg"
 
 ["github.com/peggyjv/gravity-bridge/module"]
-  sumVersion = "v0.1.21"
+  sumVersion = "v0.2.0"
   relPath = "module"
   ["github.com/peggyjv/gravity-bridge/module".fetch]
     type = "git"
     url = "https://github.com/peggyjv/gravity-bridge"
-    rev = "755156abff254420eec2c4e54fb6e8d189556ee2"
-    sha256 = "1fjkq0jv42pq7fsah4chk2d1xkrdnkb9x52lkyagzlykw08ywcvr"
+    rev = "8af32db2883af08acd35bd76703eac39ab283eaa"
+    sha256 = "1rk5xca5zvk3srxsfa8482hbimf1mcdl5dksf2b5vgrmim4v3vn8"
 
 ["github.com/pelletier/go-toml"]
   sumVersion = "v1.9.3"
@@ -3542,12 +3542,12 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20210831155846-516ffe2bf176"
+  sumVersion = "v0.4.2-0.20210902174739-5fac39db38ed"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "516ffe2bf1765c62a6cdabf0384410933b431e65"
-    sha256 = "096rm0ibagl6ilhakpm7qb6g521m3jjif738pgzx6ih1mw0g5qi1"
+    rev = "5fac39db38ed302af421e56f321b979200332287"
+    sha256 = "1l64nimbmfxv06qn3b3356maan8npn0hlnqxd1iv4sqdganvkbra"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"

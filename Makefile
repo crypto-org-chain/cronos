@@ -6,6 +6,7 @@ GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
 
 
+all: build
 build: go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
@@ -14,6 +15,8 @@ install: go.sum
 
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
+
+.PHONY: build install test
 
 ###############################################################################
 ###                                Linting                                  ###

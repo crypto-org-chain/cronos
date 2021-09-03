@@ -259,12 +259,17 @@ def contract_address(addr, nonce):
 
 
 def decode_bech32(addr):
-    previx, bz = bech32.bech32_decode(addr)
+    _, bz = bech32.bech32_decode(addr)
     return HexBytes(bytes(bech32.convertbits(bz, 5, 8)))
 
 
 def bech32_to_eth(addr):
     return decode_bech32(addr).hex()
+
+
+def eth_to_bech32(addr, prefix="ethm"):
+    bz = bech32.convertbits(HexBytes(addr), 8, 5)
+    return bech32.bech32_encode(prefix, bz)
 
 
 class DelegateKeysSignMsg(ProtoEntity):

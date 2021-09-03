@@ -13,6 +13,7 @@ contract ModuleCRC20Test is DSTest {
 
     function test_basic_sanity() public {
         assertEq(uint(token.decimals()), uint(0));
+        assertEq(token.native_denom(), "gravity0x0");
     }
 
     function testFail_mint_by_cronos_module() public {
