@@ -111,7 +111,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			}
 
 		default:
-			// TODO handle ERC20 tokens
+			// TODO handle CRC20 tokens
 		}
 	}
 	defer func() {

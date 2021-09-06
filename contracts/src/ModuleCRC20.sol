@@ -2,7 +2,7 @@ pragma solidity ^0.6.11;
 
 import "ds-token/token.sol";
 
-contract ModuleERC20 is DSToken  {
+contract ModuleCRC20 is DSToken  {
     // sha256('cronos')[:20]
     address constant module_address = 0x6526B48f897f6e08067dF00A1821d783cbC2af8b;
 

@@ -55,9 +55,9 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 	return &msg, ret, nil
 }
 
-// CallModuleERC20 call a method of ModuleERC20 contract
-func (k Keeper) CallModuleERC20(ctx sdk.Context, contract common.Address, method string, args ...interface{}) ([]byte, error) {
-	data, err := types.ModuleERC20Contract.ABI.Pack(method, args...)
+// CallModuleCRC20 call a method of ModuleCRC20 contract
+func (k Keeper) CallModuleCRC20(ctx sdk.Context, contract common.Address, method string, args ...interface{}) ([]byte, error) {
+	data, err := types.ModuleCRC20Contract.ABI.Pack(method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,13 +71,13 @@ func (k Keeper) CallModuleERC20(ctx sdk.Context, contract common.Address, method
 	return res.Ret, nil
 }
 
-// DeployModuleERC20 deploy an embed erc20 contract
-func (k Keeper) DeployModuleERC20(ctx sdk.Context, denom string) (common.Address, error) {
-	ctor, err := types.ModuleERC20Contract.ABI.Pack("", denom, uint8(0))
+// DeployModuleCRC20 deploy an embed erc20 contract
+func (k Keeper) DeployModuleCRC20(ctx sdk.Context, denom string) (common.Address, error) {
+	ctor, err := types.ModuleCRC20Contract.ABI.Pack("", denom, uint8(0))
 	if err != nil {
 		return common.Address{}, err
 	}
-	data := append(types.ModuleERC20Contract.Bin, ctor...)
+	data := append(types.ModuleCRC20Contract.Bin, ctor...)
 
 	msg, res, err := k.CallEVM(ctx, nil, data, big.NewInt(0))
 	if err != nil {
@@ -90,8 +90,8 @@ func (k Keeper) DeployModuleERC20(ctx sdk.Context, denom string) (common.Address
 	return crypto.CreateAddress(types.EVMModuleAddress, msg.Nonce()), nil
 }
 
-// SendCoinFromNativeToERC20 convert native token to erc20 token
-func (k Keeper) SendCoinFromNativeToERC20(ctx sdk.Context, sender common.Address, coin sdk.Coin, autoDeploy bool) error {
+// SendCoinFromNativeToCRC20 convert native token to erc20 token
+func (k Keeper) SendCoinFromNativeToCRC20(ctx sdk.Context, sender common.Address, coin sdk.Coin, autoDeploy bool) error {
 	if !types.IsValidDenomToWrap(coin.Denom) {
 		return errors.New("denom is not supported for wrapping")
 	}
@@ -103,7 +103,7 @@ func (k Keeper) SendCoinFromNativeToERC20(ctx sdk.Context, sender common.Address
 		if !autoDeploy {
 			return errors.New("no contract found for the denom")
 		}
-		contract, err = k.DeployModuleERC20(ctx, coin.Denom)
+		contract, err = k.DeployModuleCRC20(ctx, coin.Denom)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ func (k Keeper) SendCoinFromNativeToERC20(ctx sdk.Context, sender common.Address
 	if err != nil {
 		return err
 	}
-	_, err = k.CallModuleERC20(ctx, contract, "mint_by_native", sender, coin.Amount.BigInt())
+	_, err = k.CallModuleCRC20(ctx, contract, "mint_by_native", sender, coin.Amount.BigInt())
 	if err != nil {
 		return err
 	}
@@ -121,8 +121,8 @@ func (k Keeper) SendCoinFromNativeToERC20(ctx sdk.Context, sender common.Address
 	return nil
 }
 
-// SendCoinFromERC20ToNative convert erc20 token to native token
-func (k Keeper) SendCoinFromERC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coin sdk.Coin) error {
+// SendCoinFromCRC20ToNative convert erc20 token to native token
+func (k Keeper) SendCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coin sdk.Coin) error {
 	if !types.IsValidDenomToWrap(coin.Denom) {
 		return errors.New("denom is not supported for wrapping")
 	}
@@ -140,7 +140,7 @@ func (k Keeper) SendCoinFromERC20ToNative(ctx sdk.Context, contract common.Addre
 		return err
 	}
 
-	_, err = k.CallModuleERC20(ctx, contract, "burn_by_native", receiver, coin.Amount.BigInt())
+	_, err = k.CallModuleCRC20(ctx, contract, "burn_by_native", receiver, coin.Amount.BigInt())
 	if err != nil {
 		return err
 	}
@@ -148,20 +148,20 @@ func (k Keeper) SendCoinFromERC20ToNative(ctx sdk.Context, contract common.Addre
 	return nil
 }
 
-// ConvertCoinsFromNativeToERC20 convert native tokens to erc20 tokens
-func (k Keeper) ConvertCoinsFromNativeToERC20(ctx sdk.Context, sender common.Address, coins sdk.Coins, autoDeploy bool) error {
+// ConvertCoinsFromNativeToCRC20 convert native tokens to erc20 tokens
+func (k Keeper) ConvertCoinsFromNativeToCRC20(ctx sdk.Context, sender common.Address, coins sdk.Coins, autoDeploy bool) error {
 	for _, coin := range coins {
-		if err := k.SendCoinFromNativeToERC20(ctx, sender, coin, autoDeploy); err != nil {
+		if err := k.SendCoinFromNativeToCRC20(ctx, sender, coin, autoDeploy); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ConvertCoinsFromERC20ToNative convert erc20 tokens to native tokens
-func (k Keeper) ConvertCoinsFromERC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coins sdk.Coins) error {
+// ConvertCoinsFromCRC20ToNative convert erc20 tokens to native tokens
+func (k Keeper) ConvertCoinsFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coins sdk.Coins) error {
 	for _, coin := range coins {
-		if err := k.SendCoinFromERC20ToNative(ctx, contract, receiver, coin); err != nil {
+		if err := k.SendCoinFromCRC20ToNative(ctx, contract, receiver, coin); err != nil {
 			return err
 		}
 	}
