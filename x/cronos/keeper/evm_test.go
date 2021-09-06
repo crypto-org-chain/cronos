@@ -26,7 +26,7 @@ func (suite *KeeperTestSuite) TestTokenConversion() {
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
 	cosmosAddress := sdk.AccAddress(address.Bytes())
 
-	denom := "ibc/testdenom"
+	denom := "ibc/0000000000000000000000000000000000000000000000000000000000000000"
 	amount := big.NewInt(100)
 	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)))
 
