@@ -13,6 +13,7 @@ from .utils import (
     deploy_contract,
     sign_validator,
     supervisorctl,
+    wait_for_fn,
     wait_for_new_blocks,
 )
 
@@ -146,11 +147,12 @@ def test_gravity_transfer(gravity, suspend_capture):
     geth.eth.wait_for_transaction_receipt(txhash)
     assert erc20.caller.balanceOf(geth.eth.coinbase) == balance - amount
 
-    # TODO better way to wait?
-    time.sleep(20)
-
     denom = "gravity" + erc20.address
-    assert cli.balance(cosmos_recipient, denom) == amount
+
+    def check():
+        return cli.balance(cosmos_recipient, denom) == amount
+
+    wait_for_fn("send-to-cosmos", check)
 
     # send it back to erc20
     print("send back to ethereum")
@@ -160,7 +162,7 @@ def test_gravity_transfer(gravity, suspend_capture):
     assert rsp["code"] == 0, rsp["raw_log"]
     assert cli.balance(cosmos_recipient, denom) == 0
 
-    # TODO better way to wait?
-    time.sleep(40)
+    def check():
+        return erc20.caller.balanceOf(geth.eth.coinbase) == balance
 
-    assert erc20.caller.balanceOf(geth.eth.coinbase) == balance
+    wait_for_fn("send-to-ethereum", check)

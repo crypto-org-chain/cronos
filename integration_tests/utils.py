@@ -29,6 +29,15 @@ KEYS = {
 ADDRS = {name: eth_account.Account.from_key(key).address for name, key in KEYS.items()}
 
 
+def wait_for_fn(name, fn, *, timeout=120, interval=1):
+    for i in range(int(timeout / interval)):
+        if fn():
+            break
+        time.sleep(interval)
+    else:
+        raise TimeoutError(f"wait for {name} timeout")
+
+
 def wait_for_block(cli, height, timeout=240):
     for i in range(timeout * 2):
         try:
