@@ -30,8 +30,11 @@ func (k Keeper) GetEvmParams(ctx sdk.Context) evmTypes.Params {
 // The voucher has for format ibc/hash(path)
 func (k Keeper) GetSourceChannelID(ctx sdk.Context, ibcVoucherDenom string) (channelID string, err error) {
 	// remove the ibc
-	hash := strings.Split(ibcVoucherDenom, "/")[1]
-	hexDenomBytes, err := transferTypes.ParseHexHash(hash)
+	hash := strings.Split(ibcVoucherDenom, "/")
+	if len(hash) != 2 {
+		return "", sdkerrors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
+	}
+	hexDenomBytes, err := transferTypes.ParseHexHash(hash[1])
 	if err != nil {
 		return "", sdkerrors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
 	}

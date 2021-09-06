@@ -23,7 +23,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 		coin          sdk.Coins
 		malleate      func()
 		expectedError error
-		preCheck      func()
+		postCheck     func()
 	}{
 		{
 			"Wrong from address",
@@ -93,7 +93,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
 				suite.Require().NoError(err)
-				tc.preCheck()
+				tc.postCheck()
 			}
 		})
 	}
@@ -112,7 +112,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 		coin          sdk.Coins
 		malleate      func()
 		expectedError error
-		preCheck      func()
+		postCheck     func()
 	}{
 		{
 			"Wrong from address",
@@ -209,7 +209,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
 				suite.Require().NoError(err)
-				tc.preCheck()
+				tc.postCheck()
 			}
 		})
 	}
