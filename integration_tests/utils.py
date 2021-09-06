@@ -31,7 +31,9 @@ ADDRS = {name: eth_account.Account.from_key(key).address for name, key in KEYS.i
 
 def wait_for_fn(name, fn, *, timeout=120, interval=1):
     for i in range(int(timeout / interval)):
-        if fn():
+        result = fn()
+        print("check", name, result)
+        if result:
             break
         time.sleep(interval)
     else:
@@ -313,3 +315,10 @@ def deploy_contract(w3, jsonfile, args=()):
     txhash = contract.constructor(*args).transact({"from": w3.eth.coinbase})
     address = w3.eth.wait_for_transaction_receipt(txhash).contractAddress
     return w3.eth.contract(address=address, abi=info["abi"])
+
+
+def send_transaction(w3, tx, key):
+    acct = eth_account.Account.from_key(key)
+    signed = acct.sign_transaction(tx)
+    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    return w3.eth.wait_for_transaction_receipt(txhash)

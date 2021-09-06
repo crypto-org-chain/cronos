@@ -1,16 +1,19 @@
-import time
+import json
 from pathlib import Path
 
 import pytest
 from eth_account.account import Account
+from hexbytes import HexBytes
 from pystarport import ports
 
 from .conftest import setup_cronos, setup_geth
 from .network import GravityBridge
 from .utils import (
+    ADDRS,
+    KEYS,
     add_ini_sections,
-    decode_bech32,
     deploy_contract,
+    send_transaction,
     sign_validator,
     supervisorctl,
     wait_for_fn,
@@ -20,6 +23,11 @@ from .utils import (
 pytestmark = pytest.mark.gravity
 
 Account.enable_unaudited_hdwallet_features()
+
+
+def cronos_crc20_abi():
+    path = Path(__file__).parent.parent / "x/cronos/types/contracts/ModuleCRC20.json"
+    return json.load(path.open())["abi"]
 
 
 @pytest.fixture(scope="module")
@@ -119,6 +127,7 @@ def gravity(cronos, geth, suspend_capture):
 def test_gravity_transfer(gravity, suspend_capture):
     geth = gravity.geth
     cli = gravity.cronos.cosmos_cli()
+    cronos_w3 = gravity.cronos.w3
 
     # deploy test erc20 contract
     erc20 = deploy_contract(
@@ -138,31 +147,47 @@ def test_gravity_transfer(gravity, suspend_capture):
     geth.eth.wait_for_transaction_receipt(txhash)
 
     # gravity send
-    print("send to cronos")
-    cosmos_recipient = cli.address("community")
-    recipient = b"\x00" * 12 + decode_bech32(cosmos_recipient)
+    print("send to cronos crc20")
+    recipient = HexBytes(ADDRS["community"])
     txhash = gravity.contract.functions.sendToCosmos(
-        erc20.address, recipient, amount
+        erc20.address, b"\x00" * 12 + recipient, amount
     ).transact(tx_tpl)
     geth.eth.wait_for_transaction_receipt(txhash)
     assert erc20.caller.balanceOf(geth.eth.coinbase) == balance - amount
 
     denom = "gravity" + erc20.address
 
+    crc20_contract = None
+
     def check():
-        return cli.balance(cosmos_recipient, denom) == amount
+        nonlocal crc20_contract
+        try:
+            rsp = cli.query_contract_by_denom(denom)
+        except AssertionError:
+            # not deployed yet
+            return False
+        assert len(rsp["auto_contract"]) > 0
+        crc20_contract = cronos_w3.eth.contract(
+            address=rsp["auto_contract"], abi=cronos_crc20_abi()
+        )
+        return crc20_contract.caller.balanceOf(recipient) == amount
 
     wait_for_fn("send-to-cronos", check)
 
     # send it back to erc20
-    print("send back to ethereum")
-    rsp = cli.send_to_ethereum(
-        cosmos_recipient, geth.eth.coinbase, f"{amount}{denom}", f"0{denom}"
+    tx = crc20_contract.functions.send_to_ethereum(
+        geth.eth.coinbase, amount, 0
+    ).buildTransaction(
+        {
+            "gas": 42000,
+            "nonce": cronos_w3.eth.get_transaction_count(recipient),
+        }
     )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    assert cli.balance(cosmos_recipient, denom) == 0
+    txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
+    assert txreceipt.status == 1, "should success"
 
     def check():
-        return erc20.caller.balanceOf(geth.eth.coinbase) == balance
+        v = erc20.caller.balanceOf(geth.eth.coinbase)
+        return v == balance
 
     wait_for_fn("send-to-ethereum", check)

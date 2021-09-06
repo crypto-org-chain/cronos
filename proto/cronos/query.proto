@@ -9,7 +9,38 @@ option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
 // Query defines the gRPC querier service.
 service Query {
+    // ContractByDenom queries contract addresses by native denom
+    rpc ContractByDenom(ContractByDenomRequest) returns (ContractByDenomResponse) {
+        option (google.api.http).get = "/cronos/v1/contract_by_denom/{denom}";
+    }
+
+    // DenomByContract queries native denom by contract address
+    rpc DenomByContract(DenomByContractRequest) returns (DenomByContractResponse) {
+        option (google.api.http).get = "/cronos/v1/denom_by_contract/{contract}";
+    }
+
     // this line is used by starport scaffolding # 2
+}
+
+// ContractByDenomRequest is the request type of ContractByDenom call
+message ContractByDenomRequest {
+    string denom = 1;
+}
+
+// ContractByDenomRequest is the response type of ContractByDenom call
+message ContractByDenomResponse {
+    string contract = 1;
+    string auto_contract = 2;
+}
+
+// DenomByContractRequest is the request type of DenomByContract call
+message DenomByContractRequest {
+    string contract = 1;
+}
+
+// DenomByContractResponse is the response type of DenomByContract call
+message DenomByContractResponse {
+    string denom = 1;
 }
 
 // this line is used by starport scaffolding # 3

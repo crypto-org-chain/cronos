@@ -4,6 +4,7 @@ release/
 /build
 /coverage.txt
 __pycache__
+/dist
 
 # nix
 /result

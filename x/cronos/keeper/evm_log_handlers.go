@@ -141,12 +141,12 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
-	recipient := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	ethRecipient := unpacked[0].(common.Address)
 	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 	bridgeFee := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 	msg := gravitytypes.MsgSendToEthereum{
 		Sender:            contractAddr.String(),
-		EthereumRecipient: recipient.String(),
+		EthereumRecipient: ethRecipient.Hex(),
 		Amount:            sdk.NewCoin(denom, amount),
 		BridgeFee:         sdk.NewCoin(denom, bridgeFee),
 	}

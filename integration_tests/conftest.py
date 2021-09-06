@@ -1,6 +1,3 @@
-import re
-from pathlib import Path
-
 import pytest
 
 from .network import setup_cronos, setup_geth
@@ -9,22 +6,6 @@ from .network import setup_cronos, setup_geth
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
     config.addinivalue_line("markers", "gravity: gravity bridge test cases")
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--supervisord-quiet",
-        dest="supervisord-quiet",
-        action="store_true",
-        default=False,
-        help="redirect supervisord's stdout to file",
-    )
-
-
-@pytest.fixture(scope="session")
-def worker_index(worker_id):
-    match = re.search(r"\d+", worker_id)
-    return int(match[0]) if match is not None else 0
 
 
 @pytest.fixture(scope="session")

@@ -14,6 +14,15 @@ contract ModuleCRC20 is DSToken  {
         denom = denom_;
     }
 
+    // unsafe_burn burn tokens without user's approval and authentication, used internally
+    function unsafe_burn(address addr, uint amount) private {
+        // Deduct user's balance without approval
+        require(balanceOf[addr] >= amount, "ds-token-insufficient-balance");
+        balanceOf[addr] = sub(balanceOf[addr], amount);
+        totalSupply = sub(totalSupply, amount);
+        emit Burn(addr, amount);
+    }
+
     function native_denom() public view returns (string memory) {
         return denom;
     }
@@ -25,16 +34,12 @@ contract ModuleCRC20 is DSToken  {
 
     function burn_by_cronos_module(address addr, uint amount) public {
         require(msg.sender == module_address);
-        // Deduct user's balance without approval
-        require(balanceOf[addr] >= amount, "ds-token-insufficient-balance");
-        balanceOf[addr] = sub(balanceOf[addr], amount);
-        totalSupply = sub(totalSupply, amount);
-        emit Burn(addr, amount);
+        unsafe_burn(addr, amount);
     }
 
     // send to ethereum through gravity bridge
-    function send_to_ethereum(address recipient, uint amount, uint bridge_fee) public {
-        burn(msg.sender, add(amount, bridge_fee));
+    function send_to_ethereum(address recipient, uint amount, uint bridge_fee) external {
+        unsafe_burn(msg.sender, add(amount, bridge_fee));
         emit __CronosSendToEthereum(recipient, amount, bridge_fee);
     }
 }

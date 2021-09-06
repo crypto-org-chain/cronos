@@ -39,6 +39,11 @@ type AccountKeeper interface {
 	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
 }
 
+// GravityKeeper defines the expected gravity keeper interface
+type GravityKeeper interface {
+	ERC20ToDenomLookup(ctx sdk.Context, tokenContract string) (bool, string)
+}
+
 // EvmLogHandler defines the interface for evm log handler
 type EvmLogHandler interface {
 	// Return the id of the log signature it handles
