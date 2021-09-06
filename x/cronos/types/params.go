@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -59,7 +58,7 @@ func validateIsIbcDenom(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 
-	if s != "" && (!strings.HasPrefix(s, "ibc/") || len(s) != 68) {
+	if !IsValidIBCDenom(s) {
 		return fmt.Errorf("invalid ibc denom: %T", i)
 	}
 	return nil
