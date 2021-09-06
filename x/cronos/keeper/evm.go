@@ -157,13 +157,3 @@ func (k Keeper) ConvertCoinsFromNativeToCRC20(ctx sdk.Context, sender common.Add
 	}
 	return nil
 }
-
-// ConvertCoinsFromCRC20ToNative convert erc20 tokens to native tokens
-func (k Keeper) ConvertCoinsFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coins sdk.Coins) error {
-	for _, coin := range coins {
-		if err := k.ConvertCoinFromCRC20ToNative(ctx, contract, receiver, coin); err != nil {
-			return err
-		}
-	}
-	return nil
-}
