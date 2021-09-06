@@ -90,8 +90,8 @@ func (k Keeper) DeployModuleCRC20(ctx sdk.Context, denom string) (common.Address
 	return crypto.CreateAddress(types.EVMModuleAddress, msg.Nonce()), nil
 }
 
-// SendCoinFromNativeToCRC20 convert native token to erc20 token
-func (k Keeper) SendCoinFromNativeToCRC20(ctx sdk.Context, sender common.Address, coin sdk.Coin, autoDeploy bool) error {
+// ConvertCoinFromNativeToCRC20 convert native token to erc20 token
+func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Address, coin sdk.Coin, autoDeploy bool) error {
 	if !types.IsValidDenomToWrap(coin.Denom) {
 		return errors.New("denom is not supported for wrapping")
 	}
@@ -121,8 +121,8 @@ func (k Keeper) SendCoinFromNativeToCRC20(ctx sdk.Context, sender common.Address
 	return nil
 }
 
-// SendCoinFromCRC20ToNative convert erc20 token to native token
-func (k Keeper) SendCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coin sdk.Coin) error {
+// ConvertCoinFromCRC20ToNative convert erc20 token to native token
+func (k Keeper) ConvertCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coin sdk.Coin) error {
 	if !types.IsValidDenomToWrap(coin.Denom) {
 		return errors.New("denom is not supported for wrapping")
 	}
@@ -151,7 +151,7 @@ func (k Keeper) SendCoinFromCRC20ToNative(ctx sdk.Context, contract common.Addre
 // ConvertCoinsFromNativeToCRC20 convert native tokens to erc20 tokens
 func (k Keeper) ConvertCoinsFromNativeToCRC20(ctx sdk.Context, sender common.Address, coins sdk.Coins, autoDeploy bool) error {
 	for _, coin := range coins {
-		if err := k.SendCoinFromNativeToCRC20(ctx, sender, coin, autoDeploy); err != nil {
+		if err := k.ConvertCoinFromNativeToCRC20(ctx, sender, coin, autoDeploy); err != nil {
 			return err
 		}
 	}
@@ -161,7 +161,7 @@ func (k Keeper) ConvertCoinsFromNativeToCRC20(ctx sdk.Context, sender common.Add
 // ConvertCoinsFromCRC20ToNative convert erc20 tokens to native tokens
 func (k Keeper) ConvertCoinsFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coins sdk.Coins) error {
 	for _, coin := range coins {
-		if err := k.SendCoinFromCRC20ToNative(ctx, contract, receiver, coin); err != nil {
+		if err := k.ConvertCoinFromCRC20ToNative(ctx, contract, receiver, coin); err != nil {
 			return err
 		}
 	}
