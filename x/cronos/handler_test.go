@@ -72,7 +72,7 @@ func (suite *CronosTestSuite) TestMsgConvertVouchers() {
 			"Correct address with non supported coin denom",
 			types.NewMsgConvertVouchers(suite.address.String(), sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
 			func() {},
-			nil,
+			errors.New("coin fake is not supported"),
 		},
 	}
 
@@ -118,7 +118,7 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 			"Correct address with non supported coin denom",
 			types.NewMsgTransferTokens(suite.address.String(), "to", sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
 			func() {},
-			nil,
+			errors.New("coin fake is not supported"),
 		},
 	}
 	for _, tc := range testCases {
