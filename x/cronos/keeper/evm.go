@@ -113,7 +113,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 	if err != nil {
 		return err
 	}
-	_, err = k.CallModuleCRC20(ctx, contract, "mint_by_native", sender, coin.Amount.BigInt())
+	_, err = k.CallModuleCRC20(ctx, contract, "mint_by_cronos_module", sender, coin.Amount.BigInt())
 	if err != nil {
 		return err
 	}

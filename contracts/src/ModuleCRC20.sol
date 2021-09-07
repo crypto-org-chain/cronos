@@ -10,12 +10,12 @@ contract ModuleCRC20 is DSToken  {
         decimals = decimals_;
     }
 
-    function mint_by_native(address addr, uint amount) public {
+    function mint_by_cronos_module(address addr, uint amount) public {
         require(msg.sender == module_address);
         mint(addr, amount);
     }
 
-    function burn_by_native(address addr, uint amount) public {
+    function burn_by_cronos_module(address addr, uint amount) public {
         require(msg.sender == module_address);
         // Deduct user's balance without approval
         balanceOf[addr] = sub(balanceOf[addr], amount);
