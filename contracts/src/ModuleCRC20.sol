@@ -20,5 +20,6 @@ contract ModuleCRC20 is DSToken  {
         // Deduct user's balance without approval
         balanceOf[addr] = sub(balanceOf[addr], amount);
         totalSupply = sub(totalSupply, amount);
+        emit Burn(addr, amount);
     }
 }
