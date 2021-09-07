@@ -46,7 +46,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			nil,
+			errors.New("coin fake is not supported"),
 			func() {},
 		},
 		{
@@ -138,7 +138,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"to",
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			nil,
+			errors.New("coin fake is not supported"),
 			func() {},
 		},
 		{

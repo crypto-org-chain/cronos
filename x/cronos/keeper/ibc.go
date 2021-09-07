@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/armon/go-metrics"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -51,7 +52,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			}
 
 		default:
-			// TODO handle ERC20 tokens
+			return fmt.Errorf("coin %s is not supported", c.Denom)
 		}
 	}
 	defer func() {
@@ -138,7 +139,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 			}
 
 		default:
-			// TODO handle erc20 tokens
+			return fmt.Errorf("coin %s is not supported", c.Denom)
 		}
 	}
 
