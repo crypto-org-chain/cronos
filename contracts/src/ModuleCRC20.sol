@@ -18,6 +18,7 @@ contract ModuleCRC20 is DSToken  {
     function burn_by_cronos_module(address addr, uint amount) public {
         require(msg.sender == module_address);
         // Deduct user's balance without approval
+        require(balanceOf[addr] >= amount, "ds-token-insufficient-balance");
         balanceOf[addr] = sub(balanceOf[addr], amount);
         totalSupply = sub(totalSupply, amount);
         emit Burn(addr, amount);
