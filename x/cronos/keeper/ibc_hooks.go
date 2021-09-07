@@ -26,12 +26,7 @@ func (k Keeper) AfterRecvTransfer(
 	isSource bool) {
 	// Only after minting vouchers
 	if !isSource {
-		err := k.ConvertVouchersToEvmCoins(ctx, receiver, sdk.NewCoins(token))
-		if err != nil {
-			k.Logger(ctx).Error(
-				fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
-					receiver, token.String(), err))
-		}
+		k.OnRecvTransfer(ctx, sdk.NewCoins(token), receiver)
 	}
 }
 
@@ -41,4 +36,19 @@ func (k Keeper) AfterRefundTransfer(
 	token sdk.Coin,
 	sender string,
 	isSource bool) {
+}
+
+func (k Keeper) OnRecvTransfer(
+	ctx sdk.Context,
+	tokens sdk.Coins,
+	receiver string) {
+	cacheCtx, commit := ctx.CacheContext()
+	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
+	if err == nil {
+		commit()
+	} else {
+		k.Logger(ctx).Error(
+			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
+				receiver, tokens.String(), err))
+	}
 }

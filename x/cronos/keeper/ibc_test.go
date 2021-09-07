@@ -63,20 +63,19 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))),
 			func() {
 				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
-				// Verify balance IBC coin post operation
+				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdk.NewInt(123), ibcCroCoin.Amount)
-				// Verify balance EVM coin post operation
-				evmCoinDenom := suite.app.EvmKeeper.GetParams(suite.ctx).EvmDenom
-				evmCoin := suite.GetBalance(address, evmCoinDenom)
+				// Verify balance EVM coin pre operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdk.NewInt(0), evmCoin.Amount)
 			},
 			nil,
 			func() {
-				// Verify balance IBC coin pre operation
+				// Verify balance IBC coin post operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdk.NewInt(0), ibcCroCoin.Amount)
-				// Verify balance EVM coin pre operation
+				// Verify balance EVM coin post operation
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdk.NewInt(1230000000000), evmCoin.Amount)
 			},
@@ -168,21 +167,20 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				// Mint Coin to user and module
 				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(1230000000000))))
 				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
-				// Verify balance IBC coin post operation
+				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdk.NewInt(0), ibcCroCoin.Amount)
-				// Verify balance EVM coin post operation
+				// Verify balance EVM coin pre operation
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdk.NewInt(1230000000000), evmCoin.Amount)
 			},
 			nil,
 			func() {
-				// Verify balance IBC coin pre operation
+				// Verify balance IBC coin post operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdk.NewInt(123), ibcCroCoin.Amount)
-				// Verify balance EVM coin pre operation
-				evmCoinDenom := suite.app.EvmKeeper.GetParams(suite.ctx).EvmDenom
-				evmCoin := suite.GetBalance(address, evmCoinDenom)
+				// Verify balance EVM coin post operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdk.NewInt(0), evmCoin.Amount)
 			},
 		},
