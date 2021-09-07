@@ -244,12 +244,27 @@ func (k Keeper) GetContractByDenom(ctx sdk.Context, denom string) (contract comm
 	return
 }
 
+// GetDenomByContract find native denom by contract address
+func (k Keeper) GetDenomByContract(ctx sdk.Context, contract common.Address) (denom string, found bool) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.ContractToDenomKey(contract.Bytes()))
+	if len(bz) == 0 {
+		return "", false
+	}
+
+	return string(bz), true
+}
+
+// SetExternalContractForDenom set the external contract for native denom
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
+	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 }
 
+// SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
+	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 }

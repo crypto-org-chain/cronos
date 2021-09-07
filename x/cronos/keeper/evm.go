@@ -122,25 +122,23 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 }
 
 // ConvertCoinFromCRC20ToNative convert erc20 token to native token
-func (k Keeper) ConvertCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, coin sdk.Coin) error {
-	if !types.IsValidDenomToWrap(coin.Denom) {
-		return errors.New("denom is not supported for wrapping")
-	}
-
-	// validate contract address
-	externalContract, externalFound := k.getExternalContractByDenom(ctx, coin.Denom)
-	autoContract, autoFound := k.getAutoContractByDenom(ctx, coin.Denom)
-	found := (externalFound && externalContract == contract) || (autoFound && autoContract == contract)
+func (k Keeper) ConvertCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, amount sdk.Int) error {
+	denom, found := k.GetDenomByContract(ctx, contract)
 	if !found {
-		return errors.New("the contract address is not mapped to the denom")
+		return errors.New("the contract address is not mapped to native token")
 	}
 
-	err := k.bankKeeper.SendCoins(ctx, sdk.AccAddress(contract.Bytes()), sdk.AccAddress(receiver.Bytes()), sdk.NewCoins(coin))
+	err := k.bankKeeper.SendCoins(
+		ctx,
+		sdk.AccAddress(contract.Bytes()),
+		sdk.AccAddress(receiver.Bytes()),
+		sdk.NewCoins(sdk.NewCoin(denom, amount)),
+	)
 	if err != nil {
 		return err
 	}
 
-	_, err = k.CallModuleCRC20(ctx, contract, "burn_by_cronos_module", receiver, coin.Amount.BigInt())
+	_, err = k.CallModuleCRC20(ctx, contract, "burn_by_cronos_module", receiver, amount.BigInt())
 	if err != nil {
 		return err
 	}

@@ -51,7 +51,7 @@ func (suite *KeeperTestSuite) TestTokenConversion() {
 	suite.Require().Equal(amount, big.NewInt(0).SetBytes(ret))
 
 	// convert back to native
-	err = keeper.ConvertCoinFromCRC20ToNative(suite.ctx, contract, address, coins[0])
+	err = keeper.ConvertCoinFromCRC20ToNative(suite.ctx, contract, address, coins[0].Amount)
 	suite.Require().NoError(err)
 
 	ret, err = keeper.CallModuleCRC20(suite.ctx, contract, "balanceOf", address)
