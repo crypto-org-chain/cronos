@@ -940,7 +940,7 @@ class CosmosCLI:
             self.raw(
                 "tx",
                 "gravity",
-                "send-to-etheruem",
+                "send-to-ethereum",
                 receiver,
                 coins,
                 fee,
