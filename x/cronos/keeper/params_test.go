@@ -6,7 +6,6 @@ import (
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 func (suite *KeeperTestSuite) TestGetSourceChannelID() {
@@ -42,9 +41,9 @@ func (suite *KeeperTestSuite) TestGetSourceChannelID() {
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),
-				suite.app.GetSubspace(evmtypes.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

@@ -7,7 +7,6 @@ import (
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 func (suite *KeeperTestSuite) TestOnRecvTransfer() {
@@ -74,9 +73,9 @@ func (suite *KeeperTestSuite) TestOnRecvTransfer() {
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),
-				suite.app.GetSubspace(evmtypes.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

@@ -90,7 +90,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 			amountToBurn := c.Amount.Sub(amount8decRem)
 			if amountToBurn.IsZero() {
 				// Amount too small
-				break
+				continue
 			}
 			coins := sdk.NewCoins(sdk.NewCoin(evmParams.EvmDenom, amountToBurn))
 
