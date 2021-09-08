@@ -21,5 +21,11 @@ func (i IbcKeeperMock) GetDenomTrace(ctx sdk.Context, denomTraceHash tmbytes.Hex
 			BaseDenom: "basetcro",
 		}, true
 	}
+	if denomTraceHash.String() == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" {
+		return types.DenomTrace{
+			Path:      "transfer/channel-0",
+			BaseDenom: "correctIBCToken",
+		}, true
+	}
 	return types.DenomTrace{}, false
 }
