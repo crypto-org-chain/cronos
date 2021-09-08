@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"errors"
+	"fmt"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,9 +17,14 @@ var (
 	_ types.EvmLogHandler = EthereumTransferHandler{}
 )
 
+const (
+	NativeTransferEventName   = "__CronosNativeTransfer"
+	EthereumTransferEventName = "__CronosEthereumTransfer"
+)
+
 var (
 	// NativeTransferEvent represent the signature of
-	// `event __CronosNativeTransfer(address recipient, uint256 amount, string denom)`
+	// `event __CronosNativeTransfer(address recipient, uint256 amount)`
 	NativeTransferEvent abi.Event
 
 	// EthereumTransferEvent represent the signature of
@@ -31,8 +36,8 @@ func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	uint256Type, _ := abi.NewType("uint256", "", nil)
 	NativeTransferEvent = abi.NewEvent(
-		"__CronosNativeTransfer",
-		"__CronosNativeTransfer",
+		NativeTransferEventName,
+		NativeTransferEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "recipient",
@@ -45,8 +50,8 @@ func init() {
 		}},
 	)
 	EthereumTransferEvent = abi.NewEvent(
-		"__CronosEthereumTransfer",
-		"__CronosEthereumTransfer",
+		EthereumTransferEventName,
+		EthereumTransferEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "recipient",
@@ -91,7 +96,7 @@ func (h NativeTransferHandler) Handle(ctx sdk.Context, contract common.Address, 
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
 	if !found {
-		return errors.New("contract is not connected to native token")
+		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
@@ -105,7 +110,7 @@ func (h NativeTransferHandler) Handle(ctx sdk.Context, contract common.Address, 
 	return nil
 }
 
-// EthereumTransferHandler handles `__CosmosNativeGravitySend` log
+// EthereumTransferHandler handles `__CronosEthereumTransfer` log
 type EthereumTransferHandler struct {
 	gravitySrv   gravitytypes.MsgServer
 	cronosKeeper Keeper
@@ -132,7 +137,7 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
 	if !found {
-		return errors.New("contract is not connected to native token")
+		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
@@ -143,8 +148,7 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 		Sender:            contractAddr.String(),
 		EthereumRecipient: recipient.String(),
 		Amount:            sdk.NewCoin(denom, amount),
-		// FIXME bridge fee?
-		BridgeFee: sdk.NewCoin(denom, bridgeFee),
+		BridgeFee:         sdk.NewCoin(denom, bridgeFee),
 	}
 	_, err = h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
 	if err != nil {
