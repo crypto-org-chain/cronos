@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+CONFIG=$1
+if [ -z "$CONFIG" ]; then
+    echo "No config file supplied"
+    exit 1
+fi
+shift
+
+
+DATA=$1
+if [ -z "$DATA" ]; then
+    echo "No data directory supplied"
+    exit 1
+fi
+shift
+
+# `pystarport serve` don't work for integration test for some weird reason
+echo 'config'$CONFIG
+echo 'data'$DATA
+pystarport init --config $CONFIG --data $DATA $@
+supervisord -c $DATA/tasks.ini
