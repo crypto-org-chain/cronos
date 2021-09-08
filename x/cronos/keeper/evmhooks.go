@@ -60,14 +60,6 @@ func init() {
 	)
 }
 
-// EvmLogHandler defines the interface for evm log handler
-type EvmLogHandler interface {
-	// Return the id of the log signature it handles
-	EventID() common.Hash
-	// Process the log
-	Handle(ctx sdk.Context, contract common.Address, data []byte) error
-}
-
 // NativeTransferHandler handles `__CronosNativeTransfer` log
 type NativeTransferHandler struct {
 	bankKeeper   types.BankKeeper
@@ -159,11 +151,11 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 
 // LogProcessEvmHook is an evm hook that convert specific contract logs into native module calls
 type LogProcessEvmHook struct {
-	handlers map[common.Hash]EvmLogHandler
+	handlers map[common.Hash]types.EvmLogHandler
 }
 
-func NewLogProcessEvmHook(handlers ...EvmLogHandler) *LogProcessEvmHook {
-	handlerMap := make(map[common.Hash]EvmLogHandler)
+func NewLogProcessEvmHook(handlers ...types.EvmLogHandler) *LogProcessEvmHook {
+	handlerMap := make(map[common.Hash]types.EvmLogHandler)
 	for _, handler := range handlers {
 		handlerMap[handler.EventID()] = handler
 	}
