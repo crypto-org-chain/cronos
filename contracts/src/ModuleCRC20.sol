@@ -7,7 +7,7 @@ contract ModuleCRC20 is DSToken  {
     address constant module_address = 0x6526B48f897f6e08067dF00A1821d783cbC2af8b;
     string denom;
 
-    event __CronosEthereumTransfer(address recipient, uint256 amount, uint256 fee_amount);
+    event __CronosEthereumTransfer(address recipient, uint256 amount, uint256 bridge_fee);
 
     constructor(string memory denom_, uint8 decimals_) DSToken(denom) public {
         decimals = decimals_;
@@ -33,8 +33,8 @@ contract ModuleCRC20 is DSToken  {
     }
 
     // send to ethereum through gravity bridge
-    function send_to_ethereum(address recipient, uint amount, uint fee_amount) public {
-        burn(msg.sender, add(amount, fee_amount));
-        emit __CronosEthereumTransfer(recipient, amount, fee_amount);
+    function send_to_ethereum(address recipient, uint amount, uint bridge_fee) public {
+        burn(msg.sender, add(amount, bridge_fee));
+        emit __CronosEthereumTransfer(recipient, amount, bridge_fee);
     }
 }
