@@ -169,7 +169,7 @@ gen-cronos-contracts:
 ###                                Protobuf                                 ###
 ###############################################################################
 
-HTTPS_GIT := https://github.com/tharsis/ethermint.git
+HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 
@@ -234,3 +234,4 @@ proto-update-deps:
 	@curl -sSL $(TM_URL)/crypto/proof.proto > $(TM_CRYPTO_TYPES)/proof.proto
 	@curl -sSL $(TM_URL)/crypto/keys.proto > $(TM_CRYPTO_TYPES)/keys.proto
 
+.PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
