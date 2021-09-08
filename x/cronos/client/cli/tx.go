@@ -88,7 +88,7 @@ func CmdSendToCryptoOrg() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgMsgTransferTokens(clientCtx.GetFromAddress().String(), argsTo, coins)
+			msg := types.NewMsgTransferTokens(clientCtx.GetFromAddress().String(), argsTo, coins)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}

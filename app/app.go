@@ -375,7 +375,6 @@ func New(
 		app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, scopedTransferKeeper,
 	)
-	transferModule := transfer.NewAppModule(app.TransferKeeper)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -404,6 +403,10 @@ func New(
 		app.EvmKeeper,
 	)
 	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
+
+	// Set IBC hooks
+	app.TransferKeeper = *app.TransferKeeper.SetHooks(app.CronosKeeper)
+	transferModule := transfer.NewAppModule(app.TransferKeeper)
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,

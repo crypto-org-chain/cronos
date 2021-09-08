@@ -30,3 +30,6 @@ replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alp
 
 // TODO: fix keyring upstream
 replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
+
+// TODO: remove when middleware will be implemented
+replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-hooks

@@ -77,7 +77,8 @@ func (k Keeper) DeployModuleCRC20(ctx sdk.Context, denom string) (common.Address
 	if err != nil {
 		return common.Address{}, err
 	}
-	data := append(types.ModuleCRC20Contract.Bin, ctor...)
+	data := types.ModuleCRC20Contract.Bin
+	data = append(data, ctor...)
 
 	msg, res, err := k.CallEVM(ctx, nil, data, big.NewInt(0))
 	if err != nil {
