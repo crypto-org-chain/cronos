@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/armon/go-metrics"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -52,7 +54,11 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			}
 
 		default:
-			return fmt.Errorf("coin %s is not supported", c.Denom)
+			// TODO use autoDeploy boolean in Params.go
+			err := k.ConvertCoinFromNativeToCRC20(ctx, common.BytesToAddress(acc.Bytes()), c, false)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	defer func() {
@@ -115,31 +121,25 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 				return err
 			}
 
-			channelID, err := k.GetSourceChannelID(ctx, params.IbcCroDenom)
-			if err != nil {
-				return err
-			}
-			// Transfer coins to receiver through IBC
-			// We use current time for timeout timestamp and zero height for timeoutHeight
-			// it means it can never fail by timeout
-			// TODO Might need to consider add timeout option in configuration.
-			timeoutTimestamp := ctx.BlockTime().UnixNano()
-			timeoutHeight := ibcclienttypes.ZeroHeight()
-			err = k.transferKeeper.SendTransfer(
-				ctx,
-				ibctransfertypes.PortID,
-				channelID,
-				ibcCoin,
-				acc,
-				destination,
-				timeoutHeight,
-				uint64(timeoutTimestamp))
+			err = k.ibcSendTransfer(ctx, acc, destination, ibcCoin)
 			if err != nil {
 				return err
 			}
 
 		default:
-			return fmt.Errorf("coin %s is not supported", c.Denom)
+			contract, found := k.GetContractByDenom(ctx, c.Denom)
+			if !found {
+				return fmt.Errorf("coin %s is not supported", c.Denom)
+			}
+			err := k.ConvertCoinFromCRC20ToNative(ctx, contract, common.BytesToAddress(acc.Bytes()), c.Amount)
+			if err != nil {
+				return err
+			}
+
+			err = k.ibcSendTransfer(ctx, acc, destination, c)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -155,4 +155,28 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 		}
 	}()
 	return nil
+}
+
+func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destination string, coin sdk.Coin) error {
+	// Coin needs to be a voucher so that we can extract the channel id from the denom
+	channelID, err := k.GetSourceChannelID(ctx, coin.Denom)
+	if err != nil {
+		return err
+	}
+
+	// Transfer coins to receiver through IBC
+	// We use current time for timeout timestamp and zero height for timeoutHeight
+	// it means it can never fail by timeout
+	// TODO Might need to consider add timeout option in configuration.
+	timeoutTimestamp := ctx.BlockTime().UnixNano()
+	timeoutHeight := ibcclienttypes.ZeroHeight()
+	return k.transferKeeper.SendTransfer(
+		ctx,
+		ibctransfertypes.PortID,
+		channelID,
+		coin,
+		sender,
+		destination,
+		timeoutHeight,
+		uint64(timeoutTimestamp))
 }

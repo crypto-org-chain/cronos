@@ -45,7 +45,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			errors.New("coin fake is not supported"),
+			errors.New("coin fake is not supported for wrapping"),
 			func() {},
 		},
 		{
