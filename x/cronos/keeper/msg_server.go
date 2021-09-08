@@ -19,7 +19,7 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 
 var _ types.MsgServer = msgServer{}
 
-func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertVouchers) (*types.MsgConvertResponse, error) {
+func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertVouchers) (*types.MsgConvertVouchersResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	err := k.ConvertVouchersToEvmCoins(ctx, msg.Address, msg.Coins)
 	if err != nil {
@@ -35,10 +35,10 @@ func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertV
 		)},
 	)
 
-	return &types.MsgConvertResponse{}, nil
+	return &types.MsgConvertVouchersResponse{}, nil
 }
 
-func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferTokens) (*types.MsgConvertResponse, error) {
+func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferTokens) (*types.MsgTransferTokensResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	err := k.IbcTransferCoins(ctx, msg.From, msg.To, msg.Coins)
 	if err != nil {
@@ -53,5 +53,5 @@ func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferT
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
 		)},
 	)
-	return &types.MsgConvertResponse{}, nil
+	return &types.MsgTransferTokensResponse{}, nil
 }
