@@ -1,0 +1,6 @@
+[submodule "contracts/lib/ds-test"]
+	path = contracts/lib/ds-test
+	url = https://github.com/dapphub/ds-test
+[submodule "contracts/lib/ds-token"]
+	path = contracts/lib/ds-token
+	url = https://github.com/dapphub/ds-token

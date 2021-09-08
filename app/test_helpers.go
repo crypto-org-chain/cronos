@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	SimAppChainID = "simulation_777-1"
+	SimAppChainID  = "simulation_777-1"
+	TestAppChainID = "cronos_777-1"
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used in
@@ -78,6 +79,7 @@ func Setup(isCheckTx bool) *App {
 		// Initialize the chain
 		app.InitChain(
 			abci.RequestInitChain{
+				ChainId:         TestAppChainID,
 				Validators:      []abci.ValidatorUpdate{},
 				ConsensusParams: DefaultConsensusParams,
 				AppStateBytes:   stateBytes,
@@ -151,6 +153,7 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	// init chain will set the validator set and initialize the genesis accounts
 	app.InitChain(
 		abci.RequestInitChain{
+			ChainId:         TestAppChainID,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
@@ -191,6 +194,7 @@ func SetupWithGenesisAccounts(genAccs []authtypes.GenesisAccount, balances ...ba
 
 	app.InitChain(
 		abci.RequestInitChain{
+			ChainId:         TestAppChainID,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,

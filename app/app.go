@@ -399,9 +399,9 @@ func New(
 		keys[cronosmoduletypes.StoreKey],
 		keys[cronosmoduletypes.MemStoreKey],
 		app.GetSubspace(cronosmoduletypes.ModuleName),
-		app.GetSubspace(evmtypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
+		app.EvmKeeper,
 	)
 	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
 

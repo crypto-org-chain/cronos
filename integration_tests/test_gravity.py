@@ -97,7 +97,7 @@ def gravity(cronos, geth, suspend_capture):
             f"--ethereum-key={acct.key.hex()} "
             f"--cosmos-grpc=http://localhost:{grpc_port} "
             f"--ethereum-rpc={geth.provider.endpoint_uri} "
-            "--address-prefix=eth --fees=basetcro "
+            "--address-prefix=ethm --fees=basetcro "
             f"--contract-address={contract.address} "
             f"--metrics-listen 127.0.0.1:{metrics_port}"
         )
@@ -152,7 +152,7 @@ def test_gravity_transfer(gravity, suspend_capture):
     def check():
         return cli.balance(cosmos_recipient, denom) == amount
 
-    wait_for_fn("send-to-cosmos", check)
+    wait_for_fn("send-to-cronos", check)
 
     # send it back to erc20
     print("send back to ethereum")

@@ -1,4 +1,17 @@
 {
+    "dapptools": {
+        "branch": "master",
+        "description": "Dapp, Seth, Hevm, and more",
+        "homepage": "https://dapp.tools",
+        "owner": "dapphub",
+        "repo": "dapptools",
+        "rev": "60d61f24d3d43b45a30abab7970dae9e31b20ae3",
+        "sha256": "139aq7qc1zlpilj04mz191b8jgb6misliv10mkqxc9shqdm8ymw0",
+        "type": "tarball",
+        "url": "https://github.com/dapphub/dapptools/archive/refs/tags/dapp/0.33.0.tar.gz",
+        "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/dapp/0.33.0.tar.gz",
+        "version": "dapp/0.33.0"
+    },
     "gomod2nix": {
         "branch": "master",
         "description": "Convert applications using Go modules to Nix expressions",
@@ -36,15 +49,27 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "nixpkgs-unstable",
+        "branch": "release-21.05",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f930ea227cecaed1f1bdb047fef54fe4f0721c8c",
-        "sha256": "04khbc44lppzz0m2g56zr7vafv4fvnb7rfbz7c03dqw6k99svj1c",
+        "rev": "4b7e51865e44d3afc564e3a3111af12be1003251",
+        "sha256": "0n3cf1wgw3j8hswxjy5q1vcbyyml6z0c57jc5zjkgrvbkp4g3b2c",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/f930ea227cecaed1f1bdb047fef54fe4f0721c8c.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/4b7e51865e44d3afc564e3a3111af12be1003251.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "poetry2nix": {
+        "branch": "master",
+        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
+        "homepage": "",
+        "owner": "nix-community",
+        "repo": "poetry2nix",
+        "rev": "4bc4abd85cb6031e1e85328cbb028e085f85469a",
+        "sha256": "192c9r10x20pw66cf8n412sxazpdkav74m9yrgzjg0yq57idlkiw",
+        "type": "tarball",
+        "url": "https://github.com/nix-community/poetry2nix/archive/4bc4abd85cb6031e1e85328cbb028e085f85469a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
