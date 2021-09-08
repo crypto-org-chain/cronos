@@ -13,6 +13,11 @@ import (
 )
 
 var (
+	_ types.EvmLogHandler = NativeTransferHandler{}
+	_ types.EvmLogHandler = EthereumTransferHandler{}
+)
+
+var (
 	// NativeTransferEvent represent the signature of
 	// `event __CronosNativeTransfer(address recipient, uint256 amount, string denom)`
 	NativeTransferEvent abi.Event
