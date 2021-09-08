@@ -5,6 +5,8 @@
 ### Features
 
 - [cronos#11](https://github.com/crypto-org-chain/cronos/pull/11) embed gravity bridge module
+- [cronos#35](https://github.com/crypto-org-chain/cronos/pull/35) add support for ibc hook
+- [cronos#55](https://github.com/crypto-org-chain/cronos/pull/55) add support for ibc token conversion to crc20 
 
 - [cronos#45](https://github.com/crypto-org-chain/cronos/pull/45) Allow evm contract to call bank send and gravity send
 
