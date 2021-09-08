@@ -13,6 +13,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
+	"strings"
 )
 
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -270,7 +271,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			tc.malleate()
 			err := suite.app.CronosKeeper.IbcTransferCoins(suite.ctx, tc.from, tc.to, tc.coin)
 			if tc.expectedError != nil {
-				suite.Require().EqualError(err, tc.expectedError.Error())
+				suite.Require().True(strings.Contains(err.Error(),tc.expectedError.Error()))
 			} else {
 				suite.Require().NoError(err)
 				tc.postCheck()
