@@ -94,7 +94,7 @@ func (k Keeper) DeployModuleCRC20(ctx sdk.Context, denom string) (common.Address
 // ConvertCoinFromNativeToCRC20 convert native token to erc20 token
 func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Address, coin sdk.Coin, autoDeploy bool) error {
 	if !types.IsValidDenomToWrap(coin.Denom) {
-		return errors.New("denom is not supported for wrapping")
+		return fmt.Errorf("coin %s is not supported for wrapping", coin.Denom)
 	}
 
 	var err error
@@ -102,7 +102,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 	contract, found := k.GetContractByDenom(ctx, coin.Denom)
 	if !found {
 		if !autoDeploy {
-			return errors.New("no contract found for the denom")
+			return fmt.Errorf("no contract found for the denom %s", coin.Denom)
 		}
 		contract, err = k.DeployModuleCRC20(ctx, coin.Denom)
 		if err != nil {
@@ -126,7 +126,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 func (k Keeper) ConvertCoinFromCRC20ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, amount sdk.Int) error {
 	denom, found := k.GetDenomByContract(ctx, contract)
 	if !found {
-		return errors.New("the contract address is not mapped to native token")
+		return fmt.Errorf("the contract address %s is not mapped to native token", contract.String())
 	}
 
 	err := k.bankKeeper.SendCoins(
