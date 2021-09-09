@@ -127,15 +127,10 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 			}
 
 		default:
-			contract, found := k.GetContractByDenom(ctx, c.Denom)
+			_, found := k.GetContractByDenom(ctx, c.Denom)
 			if !found {
 				return fmt.Errorf("coin %s is not supported", c.Denom)
 			}
-			err := k.ConvertCoinFromCRC20ToNative(ctx, contract, common.BytesToAddress(acc.Bytes()), c.Amount)
-			if err != nil {
-				return err
-			}
-
 			err = k.ibcSendTransfer(ctx, acc, destination, c)
 			if err != nil {
 				return err

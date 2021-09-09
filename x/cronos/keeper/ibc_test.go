@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
 	"math/big"
-	"strings"
 )
 
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -139,7 +138,6 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())
-	contractAddress := common.Address{}
 
 	testCases := []struct {
 		name          string
@@ -222,60 +220,31 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			},
 		},
 		{
-			"Correct address with not enough CR20 token",
+			"Correct address with non correct IBC token denom",
 			address.String(),
 			"to",
-			sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(123))),
+			sdk.NewCoins(sdk.NewCoin("incorrect", sdk.NewInt(123))),
 			func() {
-				// Deploy CRC20 token contract
-				contractAddress, err := suite.app.CronosKeeper.DeployModuleCRC20(suite.ctx, CorrectIbcDenom)
-				suite.Require().NoError(err)
-				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectIbcDenom, contractAddress)
-				// Verify IBC coin pre operation
-				ibcCoin := suite.GetBalance(address, CorrectIbcDenom)
-				suite.Require().Equal(sdk.NewInt(0), ibcCoin.Amount)
-				// Mint IBC coin for contract address
-				suite.MintCoins(sdk.AccAddress(contractAddress.Bytes()), sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(123))))
+				// Add support for the IBC token
+				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, "incorrect", common.HexToAddress("0x11"))
 			},
-			errors.New("call contract failed: 0x658660A24B791726Ac482Eaad6a99d8C45677006, burn_by_cronos_module"),
+			errors.New("incorrect is invalid: ibc cro denom is invalid"),
 			func() {
 			},
 		},
 		{
-			"Correct address with enough CRC20 token : Should receive IBC token",
+			"Correct address with correct IBC token denom",
 			address.String(),
 			"to",
 			sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(123))),
 			func() {
-				// Deploy and Mint CRC20 tokens for user
-				contractAddress, err := suite.app.CronosKeeper.DeployModuleCRC20(suite.ctx, CorrectIbcDenom)
-				suite.Require().NoError(err)
-				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectIbcDenom, contractAddress)
-				_, err = suite.app.CronosKeeper.CallModuleCRC20(
-					suite.ctx, contractAddress, "mint_by_cronos_module", common.BytesToAddress(address.Bytes()), big.NewInt(123))
-				suite.Require().NoError(err)
-				// Verify balance CRC20 pre operation
-				ret, err := suite.app.CronosKeeper.CallModuleCRC20(
-					suite.ctx, contractAddress, "balanceOf", common.BytesToAddress(address.Bytes()))
-				suite.Require().NoError(err)
-				suite.Require().Equal(big.NewInt(123), big.NewInt(0).SetBytes(ret))
-				// Verify IBC coin pre operation
-				ibcCoin := suite.GetBalance(address, CorrectIbcDenom)
-				suite.Require().Equal(sdk.NewInt(0), ibcCoin.Amount)
-
-				// Mint IBC coin for contract address
-				suite.MintCoins(sdk.AccAddress(contractAddress.Bytes()), sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(123))))
+				// Mint IBC token for user
+				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(123))))
+				// Add support for the IBC token
+				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectIbcDenom, common.HexToAddress("0x11"))
 			},
 			nil,
 			func() {
-				// Verify balance CRC20 post operation
-				ret, err := suite.app.CronosKeeper.CallModuleCRC20(
-					suite.ctx, contractAddress, "balanceOf", common.BytesToAddress(address.Bytes()))
-				suite.Require().NoError(err)
-				suite.Require().Equal(big.NewInt(0), big.NewInt(0).SetBytes(ret))
-				// Verify IBC coin post operation
-				ibcCoin := suite.GetBalance(address, CorrectIbcDenom)
-				suite.Require().Equal(sdk.NewInt(123), ibcCoin.Amount)
 			},
 		},
 	}
@@ -298,7 +267,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			tc.malleate()
 			err := suite.app.CronosKeeper.IbcTransferCoins(suite.ctx, tc.from, tc.to, tc.coin)
 			if tc.expectedError != nil {
-				suite.Require().True(strings.Contains(err.Error(),tc.expectedError.Error()))
+				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
 				suite.Require().NoError(err)
 				tc.postCheck()
