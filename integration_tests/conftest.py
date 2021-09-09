@@ -54,13 +54,27 @@ def suspend_capture(pytestconfig):
     yield SuspendGuard()
 
 
+@pytest.fixture(scope="session")
+def cronos(tmp_path_factory):
+    path = tmp_path_factory.mktemp("cronos")
+    yield from setup_cronos(path, 26650)
+
+
+@pytest.fixture(scope="session")
+def geth(tmp_path_factory):
+    path = tmp_path_factory.mktemp("geth")
+    yield from setup_geth(path, 8545)
+
+
 @pytest.fixture(scope="session", params=["cronos", "geth"])
-def cluster(request, tmp_path_factory):
+def cluster(request, cronos, geth):
+    """
+    run on both cronos and geth
+    """
     provider = request.param
-    path = tmp_path_factory.mktemp(provider)
     if provider == "cronos":
-        yield from setup_cronos(path, 26650)
+        yield cronos
     elif provider == "geth":
-        yield from setup_geth(path, 8545)
+        yield geth
     else:
         raise NotImplementedError

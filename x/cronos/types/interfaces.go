@@ -5,6 +5,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	"github.com/ethereum/go-ethereum/common"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
@@ -36,4 +37,12 @@ type TransferKeeper interface {
 // AccountKeeper defines the expected account keeper interface
 type AccountKeeper interface {
 	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
+}
+
+// EvmLogHandler defines the interface for evm log handler
+type EvmLogHandler interface {
+	// Return the id of the log signature it handles
+	EventID() common.Hash
+	// Process the log
+	Handle(ctx sdk.Context, contract common.Address, data []byte) error
 }

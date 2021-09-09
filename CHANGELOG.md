@@ -6,7 +6,7 @@
 
 - [cronos#11](https://github.com/crypto-org-chain/cronos/pull/11) embed gravity bridge module
 
-
+- [cronos#45](https://github.com/crypto-org-chain/cronos/pull/45) Allow evm contract to call bank send and gravity send
 
 *August 19, 2021*
 
