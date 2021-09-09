@@ -18,17 +18,17 @@ var (
 )
 
 const (
-	NativeTransferEventName   = "__CronosNativeTransfer"
-	EthereumTransferEventName = "__CronosEthereumTransfer"
+	NativeTransferEventName   = "__CronosSendToAccount"
+	EthereumTransferEventName = "__CronosSendToEthereum"
 )
 
 var (
 	// NativeTransferEvent represent the signature of
-	// `event __CronosNativeTransfer(address recipient, uint256 amount)`
+	// `event __CronosSendToAccount(address recipient, uint256 amount)`
 	NativeTransferEvent abi.Event
 
 	// EthereumTransferEvent represent the signature of
-	// `event __CronosEthereumTransfer(address recipient, uint256 amount, uint256 bridge_fee)`
+	// `event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee)`
 	EthereumTransferEvent abi.Event
 )
 
@@ -69,7 +69,7 @@ func init() {
 	)
 }
 
-// NativeTransferHandler handles `__CronosNativeTransfer` log
+// NativeTransferHandler handles `__CronosSendToAccount` log
 type NativeTransferHandler struct {
 	bankKeeper   types.BankKeeper
 	cronosKeeper Keeper
@@ -110,7 +110,7 @@ func (h NativeTransferHandler) Handle(ctx sdk.Context, contract common.Address, 
 	return nil
 }
 
-// EthereumTransferHandler handles `__CronosEthereumTransfer` log
+// EthereumTransferHandler handles `__CronosSendToEthereum` log
 type EthereumTransferHandler struct {
 	gravitySrv   gravitytypes.MsgServer
 	cronosKeeper Keeper
