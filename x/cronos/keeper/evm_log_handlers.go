@@ -34,7 +34,7 @@ var (
 	EthereumTransferEvent abi.Event
 
 	// IbcTransferEvent represent the signature of
-	// `event __CronosSendToIbc(address sender, string recipient, uint256 amount)`
+	// `event __CronosSendToIbc(string recipient, uint256 amount)`
 	IbcTransferEvent abi.Event
 )
 
@@ -157,7 +157,7 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 	}
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found && !types.IsValidGravityDenom(denom) {
+	if !found || !types.IsValidGravityDenom(denom) {
 		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 
@@ -202,7 +202,7 @@ func (h IbcTransferHandler) Handle(ctx sdk.Context, contract common.Address, dat
 	}
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found && !types.IsValidIBCDenom(denom) {
+	if !found || !types.IsValidIBCDenom(denom) {
 		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 

@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"errors"
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/app"
@@ -23,10 +24,10 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 	var data []byte
 
 	testCases := []struct {
-		msg      string
-		malleate func()
+		msg       string
+		malleate  func()
 		postcheck func()
-		expectError bool
+		error     error
 	}{
 		{
 			"nil data, expect success",
@@ -34,7 +35,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 				data = nil
 			},
 			func() {},
-			false,
+			nil,
 		},
 		{
 			"not enough balance, expect fail",
@@ -46,8 +47,8 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 				data = input
 				suite.Require().NoError(err)
 			},
-			func(){},
-			true,
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
 			"success native transfer",
@@ -67,14 +68,14 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 				suite.Require().NoError(err)
 				data = input
 			},
-			func(){
+			func() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(sdk.NewCoin(denom, sdk.NewInt(0)), balance)
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(recipient.Bytes()), denom)
 				coin := sdk.NewCoin(denom, sdk.NewInt(100))
 				suite.Require().Equal(coin, balance)
 			},
-			false,
+			nil,
 		},
 	}
 
@@ -83,8 +84,8 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 			handler := keeper.NewNativeTransferHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
-			if tc.expectError {
-				suite.Require().Error(err)
+			if tc.error != nil {
+				suite.Require().EqualError(err, tc.error.Error())
 			} else {
 				suite.Require().NoError(err)
 				tc.postcheck()
@@ -103,10 +104,10 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 	var data []byte
 
 	testCases := []struct {
-		msg      string
-		malleate func()
+		msg       string
+		malleate  func()
 		postcheck func()
-		expectError bool
+		error     error
 	}{
 		{
 			"invalid denom, expect fail",
@@ -126,8 +127,8 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				)
 				data = input
 			},
-			func(){},
-			true,
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
 			"success ethereum transfer",
@@ -147,7 +148,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				)
 				data = input
 			},
-			func(){
+			func() {
 				// sender's balance deducted
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
@@ -158,7 +159,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				suite.Require().Equal(1, len(rsp.SendToEthereums))
 				suite.Require().NoError(err)
 			},
-			false,
+			nil,
 		},
 	}
 
@@ -168,8 +169,8 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper), suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
-			if tc.expectError {
-				suite.Require().Error(err)
+			if tc.error != nil {
+				suite.Require().EqualError(err, tc.error.Error())
 			} else {
 				suite.Require().NoError(err)
 				tc.postcheck()
@@ -187,10 +188,10 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 	var data []byte
 
 	testCases := []struct {
-		msg      string
-		malleate func()
+		msg       string
+		malleate  func()
 		postcheck func()
-		expectError bool
+		error     error
 	}{
 		{
 			"invalid denom, expect fail",
@@ -209,8 +210,8 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				)
 				data = input
 			},
-			func(){},
-			true,
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
 			"success ibc transfer",
@@ -229,9 +230,9 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				)
 				data = input
 			},
-			func(){
+			func() {
 			},
-			false,
+			nil,
 		},
 	}
 
@@ -250,8 +251,8 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 			handler := keeper.NewIbcTransferHandler(cronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
-			if tc.expectError {
-				suite.Require().Error(err)
+			if tc.error != nil {
+				suite.Require().EqualError(err, tc.error.Error())
 			} else {
 				suite.Require().NoError(err)
 				tc.postcheck()
@@ -259,4 +260,3 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 		})
 	}
 }
-
