@@ -144,22 +144,22 @@ func (m *MsgTransferTokens) GetCoins() github_com_cosmos_cosmos_sdk_types.Coins 
 	return nil
 }
 
-// MsgConvertResponse defines the MsgConvert response type.
-type MsgConvertResponse struct {
+// MsgConvertVouchersResponse defines the ConvertVouchers response type.
+type MsgConvertVouchersResponse struct {
 }
 
-func (m *MsgConvertResponse) Reset()         { *m = MsgConvertResponse{} }
-func (m *MsgConvertResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgConvertResponse) ProtoMessage()    {}
-func (*MsgConvertResponse) Descriptor() ([]byte, []int) {
+func (m *MsgConvertVouchersResponse) Reset()         { *m = MsgConvertVouchersResponse{} }
+func (m *MsgConvertVouchersResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgConvertVouchersResponse) ProtoMessage()    {}
+func (*MsgConvertVouchersResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_28e09e4eabb18884, []int{2}
 }
-func (m *MsgConvertResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgConvertVouchersResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgConvertResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgConvertVouchersResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgConvertResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgConvertVouchersResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -169,51 +169,90 @@ func (m *MsgConvertResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *MsgConvertResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgConvertResponse.Merge(m, src)
+func (m *MsgConvertVouchersResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgConvertVouchersResponse.Merge(m, src)
 }
-func (m *MsgConvertResponse) XXX_Size() int {
+func (m *MsgConvertVouchersResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgConvertResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgConvertResponse.DiscardUnknown(m)
+func (m *MsgConvertVouchersResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgConvertVouchersResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgConvertResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgConvertVouchersResponse proto.InternalMessageInfo
+
+// MsgTransferTokensResponse defines the TransferTokens response type.
+type MsgTransferTokensResponse struct {
+}
+
+func (m *MsgTransferTokensResponse) Reset()         { *m = MsgTransferTokensResponse{} }
+func (m *MsgTransferTokensResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgTransferTokensResponse) ProtoMessage()    {}
+func (*MsgTransferTokensResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_28e09e4eabb18884, []int{3}
+}
+func (m *MsgTransferTokensResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgTransferTokensResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgTransferTokensResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgTransferTokensResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgTransferTokensResponse.Merge(m, src)
+}
+func (m *MsgTransferTokensResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgTransferTokensResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgTransferTokensResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgTransferTokensResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgConvertVouchers)(nil), "cryptoorgchain.cronos.cronos.MsgConvertVouchers")
-	proto.RegisterType((*MsgTransferTokens)(nil), "cryptoorgchain.cronos.cronos.MsgTransferTokens")
-	proto.RegisterType((*MsgConvertResponse)(nil), "cryptoorgchain.cronos.cronos.MsgConvertResponse")
+	proto.RegisterType((*MsgConvertVouchers)(nil), "cronos.MsgConvertVouchers")
+	proto.RegisterType((*MsgTransferTokens)(nil), "cronos.MsgTransferTokens")
+	proto.RegisterType((*MsgConvertVouchersResponse)(nil), "cronos.MsgConvertVouchersResponse")
+	proto.RegisterType((*MsgTransferTokensResponse)(nil), "cronos.MsgTransferTokensResponse")
 }
 
 func init() { proto.RegisterFile("cronos/tx.proto", fileDescriptor_28e09e4eabb18884) }
 
 var fileDescriptor_28e09e4eabb18884 = []byte{
-	// 366 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x52, 0x3d, 0x8e, 0x1a, 0x31,
-	0x14, 0x1e, 0x0f, 0xf9, 0x51, 0x1c, 0x09, 0x14, 0x8b, 0x62, 0x82, 0xa2, 0x01, 0x51, 0xd1, 0x60,
-	0x03, 0xb9, 0x01, 0x94, 0x11, 0x0d, 0x42, 0x29, 0xd2, 0xcd, 0x0c, 0xc6, 0x8c, 0x10, 0x7e, 0x23,
-	0x3f, 0x83, 0xe0, 0x16, 0x49, 0x9b, 0x23, 0xe4, 0x24, 0x94, 0x94, 0xa9, 0x76, 0x57, 0x70, 0x82,
-	0xbd, 0xc1, 0x0a, 0xcf, 0xa0, 0x65, 0x59, 0x69, 0x7f, 0x8a, 0xad, 0xde, 0xb3, 0x9f, 0xbf, 0x1f,
-	0x7d, 0x7e, 0xb4, 0x92, 0x18, 0xd0, 0x80, 0xc2, 0xae, 0x79, 0x66, 0xc0, 0x02, 0xfb, 0x96, 0x98,
-	0x4d, 0x66, 0x01, 0x8c, 0x4a, 0x66, 0x51, 0xaa, 0x79, 0x3e, 0x2f, 0x4a, 0xad, 0xaa, 0x40, 0x81,
-	0x7b, 0x28, 0x8e, 0x5d, 0x8e, 0xa9, 0x85, 0x09, 0xe0, 0x02, 0x50, 0xc4, 0x11, 0x4a, 0xb1, 0xea,
-	0xc6, 0xd2, 0x46, 0x5d, 0x91, 0x40, 0xaa, 0xf3, 0x79, 0xf3, 0x0f, 0xa1, 0x6c, 0x88, 0x6a, 0x00,
-	0x7a, 0x25, 0x8d, 0xfd, 0x09, 0xcb, 0x64, 0x26, 0x0d, 0xb2, 0x80, 0x7e, 0x8c, 0x26, 0x13, 0x23,
-	0x11, 0x03, 0xd2, 0x20, 0xad, 0x4f, 0xa3, 0xd3, 0x91, 0x45, 0xf4, 0xfd, 0x11, 0x8e, 0x81, 0xdf,
-	0x28, 0xb5, 0x3e, 0xf7, 0xbe, 0xf2, 0x5c, 0x80, 0x1f, 0x05, 0x78, 0x21, 0xc0, 0x07, 0x90, 0xea,
-	0x7e, 0x67, 0x7b, 0x55, 0xf7, 0xfe, 0x5d, 0xd7, 0x5b, 0x2a, 0xb5, 0xb3, 0x65, 0xcc, 0x13, 0x58,
-	0x88, 0xc2, 0x4d, 0x5e, 0xda, 0x38, 0x99, 0x0b, 0xbb, 0xc9, 0x24, 0x3a, 0x00, 0x8e, 0x72, 0xe6,
-	0xe6, 0x5f, 0x42, 0xbf, 0x0c, 0x51, 0x8d, 0x4d, 0xa4, 0x71, 0x2a, 0xcd, 0x18, 0xe6, 0x52, 0x23,
-	0x63, 0xf4, 0xdd, 0xd4, 0xc0, 0xa2, 0xf0, 0xe3, 0x7a, 0x56, 0xa6, 0xbe, 0x85, 0xc0, 0x77, 0x37,
-	0xbe, 0x85, 0x7b, 0x73, 0xa5, 0x37, 0x33, 0x57, 0x3d, 0xcf, 0x6b, 0x24, 0x31, 0x03, 0x8d, 0xb2,
-	0x77, 0x4b, 0x68, 0x69, 0x88, 0x8a, 0x2d, 0x69, 0xe5, 0x32, 0xca, 0x0e, 0x7f, 0xea, 0xdb, 0xf8,
-	0xe3, 0xf0, 0x6b, 0x2f, 0x46, 0x9c, 0xe4, 0x19, 0xd2, 0xf2, 0x45, 0x5a, 0xe2, 0x59, 0x8e, 0x87,
-	0x80, 0xd7, 0x8b, 0xf6, 0x7f, 0x6c, 0xf7, 0x21, 0xd9, 0xed, 0x43, 0x72, 0xb3, 0x0f, 0xc9, 0xef,
-	0x43, 0xe8, 0xed, 0x0e, 0xa1, 0xf7, 0xff, 0x10, 0x7a, 0xbf, 0xba, 0xe7, 0xa1, 0x3a, 0xd6, 0x36,
-	0x18, 0xd5, 0x76, 0xbc, 0xa2, 0xd8, 0xea, 0xf5, 0xa9, 0x71, 0x19, 0xc7, 0x1f, 0xdc, 0x3a, 0x7e,
-	0xbf, 0x0b, 0x00, 0x00, 0xff, 0xff, 0xf9, 0x38, 0xcb, 0x9e, 0xf5, 0x02, 0x00, 0x00,
+	// 370 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x92, 0xbf, 0x8e, 0xda, 0x40,
+	0x10, 0xc6, 0xbd, 0x26, 0x21, 0xca, 0x46, 0x02, 0x65, 0x95, 0xc2, 0x38, 0x91, 0x21, 0xae, 0x68,
+	0xd8, 0x0d, 0xe4, 0x0d, 0xa0, 0x8c, 0x88, 0x14, 0x84, 0x52, 0xa4, 0xb3, 0xcd, 0x62, 0x2c, 0xc4,
+	0x8e, 0xb5, 0xb3, 0x20, 0x78, 0x8b, 0xa4, 0xcd, 0x13, 0x9c, 0xee, 0x49, 0x28, 0x29, 0xaf, 0xba,
+	0x3b, 0xc1, 0x8b, 0x9c, 0xf0, 0x1f, 0x1d, 0x07, 0xa2, 0xbc, 0xca, 0xe3, 0xf9, 0x69, 0xbe, 0xf9,
+	0xf4, 0xed, 0xd0, 0x7a, 0xa4, 0x41, 0x01, 0x0a, 0xb3, 0xe6, 0xa9, 0x06, 0x03, 0xac, 0x9a, 0x37,
+	0xdc, 0x4f, 0x31, 0xc4, 0x90, 0xb5, 0xc4, 0xb1, 0xca, 0xa9, 0xeb, 0x45, 0x80, 0x0b, 0x40, 0x11,
+	0x06, 0x28, 0xc5, 0xaa, 0x1b, 0x4a, 0x13, 0x74, 0x45, 0x04, 0x89, 0xca, 0xb9, 0xff, 0x8f, 0x50,
+	0x36, 0xc4, 0x78, 0x00, 0x6a, 0x25, 0xb5, 0xf9, 0x0d, 0xcb, 0x68, 0x26, 0x35, 0x32, 0x87, 0xbe,
+	0x0b, 0x26, 0x13, 0x2d, 0x11, 0x1d, 0xd2, 0x22, 0xed, 0xf7, 0xa3, 0xf2, 0x97, 0x05, 0xf4, 0xed,
+	0x71, 0x1c, 0x1d, 0xbb, 0x55, 0x69, 0x7f, 0xe8, 0x35, 0x78, 0xbe, 0x80, 0x1f, 0x17, 0xf0, 0x62,
+	0x01, 0x1f, 0x40, 0xa2, 0xfa, 0xdf, 0xb6, 0xf7, 0x4d, 0xeb, 0xf6, 0xa1, 0xd9, 0x8e, 0x13, 0x33,
+	0x5b, 0x86, 0x3c, 0x82, 0x85, 0x28, 0xdc, 0xe4, 0x9f, 0x0e, 0x4e, 0xe6, 0xc2, 0x6c, 0x52, 0x89,
+	0xd9, 0x00, 0x8e, 0x72, 0x65, 0xff, 0x3f, 0xa1, 0x1f, 0x87, 0x18, 0x8f, 0x75, 0xa0, 0x70, 0x2a,
+	0xf5, 0x18, 0xe6, 0x52, 0x21, 0x63, 0xf4, 0xcd, 0x54, 0xc3, 0xa2, 0xf0, 0x93, 0xd5, 0xac, 0x46,
+	0x6d, 0x03, 0x8e, 0x9d, 0x75, 0x6c, 0x03, 0xcf, 0xe6, 0x2a, 0xaf, 0x66, 0xee, 0x0b, 0x75, 0x2f,
+	0xf3, 0x1a, 0x49, 0x4c, 0x41, 0xa1, 0xf4, 0x3f, 0xd3, 0xc6, 0x85, 0xf3, 0x12, 0xf6, 0x6e, 0x08,
+	0xad, 0x0c, 0x31, 0x66, 0xbf, 0x68, 0xfd, 0x3c, 0x6f, 0x97, 0xe7, 0xaf, 0xc8, 0x2f, 0xb5, 0x5d,
+	0xff, 0x3a, 0x2b, 0xa5, 0xd9, 0x4f, 0x5a, 0x3b, 0x8b, 0xab, 0x71, 0x32, 0xf5, 0x12, 0xb9, 0x5f,
+	0xaf, 0xa2, 0x52, 0xaf, 0xff, 0x63, 0xbb, 0xf7, 0xc8, 0x6e, 0xef, 0x91, 0xc7, 0xbd, 0x47, 0xfe,
+	0x1e, 0x3c, 0x6b, 0x77, 0xf0, 0xac, 0xbb, 0x83, 0x67, 0xfd, 0xe9, 0x9e, 0x06, 0xa6, 0x37, 0xa9,
+	0x81, 0x0e, 0xe8, 0xb8, 0x13, 0xcd, 0x82, 0x44, 0x89, 0xe2, 0x36, 0xd7, 0x65, 0x91, 0xe5, 0x17,
+	0x56, 0xb3, 0x53, 0xfb, 0xfe, 0x14, 0x00, 0x00, 0xff, 0xff, 0x0b, 0xf6, 0x69, 0x5d, 0xbb, 0x02,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -229,9 +268,9 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
 	// ConvertVouchers defines a method for converting ibc voucher to cronos evm coins.
-	ConvertVouchers(ctx context.Context, in *MsgConvertVouchers, opts ...grpc.CallOption) (*MsgConvertResponse, error)
+	ConvertVouchers(ctx context.Context, in *MsgConvertVouchers, opts ...grpc.CallOption) (*MsgConvertVouchersResponse, error)
 	// TransferTokens defines a method to transfer cronos evm coins to another chain through IBC
-	TransferTokens(ctx context.Context, in *MsgTransferTokens, opts ...grpc.CallOption) (*MsgConvertResponse, error)
+	TransferTokens(ctx context.Context, in *MsgTransferTokens, opts ...grpc.CallOption) (*MsgTransferTokensResponse, error)
 }
 
 type msgClient struct {
@@ -242,18 +281,18 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) ConvertVouchers(ctx context.Context, in *MsgConvertVouchers, opts ...grpc.CallOption) (*MsgConvertResponse, error) {
-	out := new(MsgConvertResponse)
-	err := c.cc.Invoke(ctx, "/cryptoorgchain.cronos.cronos.Msg/ConvertVouchers", in, out, opts...)
+func (c *msgClient) ConvertVouchers(ctx context.Context, in *MsgConvertVouchers, opts ...grpc.CallOption) (*MsgConvertVouchersResponse, error) {
+	out := new(MsgConvertVouchersResponse)
+	err := c.cc.Invoke(ctx, "/cronos.Msg/ConvertVouchers", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *msgClient) TransferTokens(ctx context.Context, in *MsgTransferTokens, opts ...grpc.CallOption) (*MsgConvertResponse, error) {
-	out := new(MsgConvertResponse)
-	err := c.cc.Invoke(ctx, "/cryptoorgchain.cronos.cronos.Msg/TransferTokens", in, out, opts...)
+func (c *msgClient) TransferTokens(ctx context.Context, in *MsgTransferTokens, opts ...grpc.CallOption) (*MsgTransferTokensResponse, error) {
+	out := new(MsgTransferTokensResponse)
+	err := c.cc.Invoke(ctx, "/cronos.Msg/TransferTokens", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -263,19 +302,19 @@ func (c *msgClient) TransferTokens(ctx context.Context, in *MsgTransferTokens, o
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// ConvertVouchers defines a method for converting ibc voucher to cronos evm coins.
-	ConvertVouchers(context.Context, *MsgConvertVouchers) (*MsgConvertResponse, error)
+	ConvertVouchers(context.Context, *MsgConvertVouchers) (*MsgConvertVouchersResponse, error)
 	// TransferTokens defines a method to transfer cronos evm coins to another chain through IBC
-	TransferTokens(context.Context, *MsgTransferTokens) (*MsgConvertResponse, error)
+	TransferTokens(context.Context, *MsgTransferTokens) (*MsgTransferTokensResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) ConvertVouchers(ctx context.Context, req *MsgConvertVouchers) (*MsgConvertResponse, error) {
+func (*UnimplementedMsgServer) ConvertVouchers(ctx context.Context, req *MsgConvertVouchers) (*MsgConvertVouchersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ConvertVouchers not implemented")
 }
-func (*UnimplementedMsgServer) TransferTokens(ctx context.Context, req *MsgTransferTokens) (*MsgConvertResponse, error) {
+func (*UnimplementedMsgServer) TransferTokens(ctx context.Context, req *MsgTransferTokens) (*MsgTransferTokensResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TransferTokens not implemented")
 }
 
@@ -293,7 +332,7 @@ func _Msg_ConvertVouchers_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cryptoorgchain.cronos.cronos.Msg/ConvertVouchers",
+		FullMethod: "/cronos.Msg/ConvertVouchers",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MsgServer).ConvertVouchers(ctx, req.(*MsgConvertVouchers))
@@ -311,7 +350,7 @@ func _Msg_TransferTokens_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/cryptoorgchain.cronos.cronos.Msg/TransferTokens",
+		FullMethod: "/cronos.Msg/TransferTokens",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MsgServer).TransferTokens(ctx, req.(*MsgTransferTokens))
@@ -320,7 +359,7 @@ func _Msg_TransferTokens_Handler(srv interface{}, ctx context.Context, dec func(
 }
 
 var _Msg_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "cryptoorgchain.cronos.cronos.Msg",
+	ServiceName: "cronos.Msg",
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -431,7 +470,7 @@ func (m *MsgTransferTokens) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgConvertResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgConvertVouchersResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -441,12 +480,35 @@ func (m *MsgConvertResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgConvertResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgConvertVouchersResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgConvertResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgConvertVouchersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgTransferTokensResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgTransferTokensResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgTransferTokensResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -507,7 +569,16 @@ func (m *MsgTransferTokens) Size() (n int) {
 	return n
 }
 
-func (m *MsgConvertResponse) Size() (n int) {
+func (m *MsgConvertVouchersResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *MsgTransferTokensResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -786,7 +857,7 @@ func (m *MsgTransferTokens) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgConvertResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgConvertVouchersResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -809,10 +880,60 @@ func (m *MsgConvertResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgConvertResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgConvertVouchersResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgConvertResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgConvertVouchersResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgTransferTokensResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgTransferTokensResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgTransferTokensResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package cryptoorgchain.cronos.cronos;
+package cronos;
 
 // this line is used by starport scaffolding # proto/tx/import
 
@@ -13,10 +13,10 @@ service Msg {
     // this line is used by starport scaffolding # proto/tx/rpc
 
     // ConvertVouchers defines a method for converting ibc voucher to cronos evm coins.
-    rpc ConvertVouchers(MsgConvertVouchers) returns (MsgConvertResponse);
+    rpc ConvertVouchers(MsgConvertVouchers) returns (MsgConvertVouchersResponse);
 
     // TransferTokens defines a method to transfer cronos evm coins to another chain through IBC
-    rpc TransferTokens(MsgTransferTokens) returns (MsgConvertResponse);
+    rpc TransferTokens(MsgTransferTokens) returns (MsgTransferTokensResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to cronos evm coins.
@@ -34,7 +34,9 @@ message MsgTransferTokens {
     [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
-// MsgConvertResponse defines the MsgConvert response type.
-message MsgConvertResponse {}
+// MsgConvertVouchersResponse defines the ConvertVouchers response type.
+message MsgConvertVouchersResponse {}
 
+// MsgTransferTokensResponse defines the TransferTokens response type.
+message MsgTransferTokensResponse {}
 // this line is used by starport scaffolding # proto/tx/message
