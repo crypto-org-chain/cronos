@@ -2,9 +2,13 @@ package keeper_test
 
 import (
 	"fmt"
+	"github.com/crypto-org-chain/cronos/app"
+	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
@@ -157,6 +161,47 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 					SenderAddress: sdk.AccAddress(contract.Bytes()).String(),
 				})
 				suite.Require().Equal(1, len(rsp.SendToEthereums))
+			},
+		},
+		{
+			"failed ibc transfer, invalid denom",
+			func() {
+				suite.SetupTest()
+				// Create Cronos Keeper with mock transfer keeper
+				cronosKeeper := *cronosmodulekeeper.NewKeeper(
+					app.MakeEncodingConfig().Marshaler,
+					suite.app.GetKey(types.StoreKey),
+					suite.app.GetKey(types.MemStoreKey),
+					suite.app.GetSubspace(types.ModuleName),
+					suite.app.BankKeeper,
+					keepertest.IbcKeeperMock{},
+					suite.app.EvmKeeper,
+				)
+				suite.app.CronosKeeper = cronosKeeper
+
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				coin := sdk.NewCoin(denom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
+				suite.Require().Equal(coin, balance)
+
+				data, err := keeper.IbcTransferEvent.Inputs.Pack(
+					"recipient",
+					coin.Amount.BigInt(),
+				)
+				suite.Require().NoError(err)
+				logs := []*ethtypes.Log{
+					{
+						Address: contract,
+						Topics:  []common.Hash{keeper.IbcTransferEvent.ID},
+						Data:    data,
+					},
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				// should fail, because of not ibc denom name
+				suite.Require().Error(err)
 			},
 		},
 	}
