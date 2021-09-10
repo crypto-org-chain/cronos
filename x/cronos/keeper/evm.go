@@ -46,7 +46,7 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 	if err != nil {
 		return nil, nil, errors.New("failed to obtain coinbase address")
 	}
-	evm := k.evmKeeper.NewEVM(msg, ethCfg, params, coinbase, nil)
+	evm := k.evmKeeper.NewEVM(msg, ethCfg, params, coinbase, types.NewDummyTracer())
 	ret, err := k.evmKeeper.ApplyMessage(evm, msg, ethCfg, true)
 	if err != nil {
 		return nil, nil, err
@@ -109,6 +109,8 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 			return err
 		}
 		k.SetAutoContractForDenom(ctx, coin.Denom, contract)
+
+		k.Logger(ctx).Info(fmt.Sprintf("contract address %s created for coin denom %s", contract.String(), coin.Denom))
 	}
 	err = k.bankKeeper.SendCoins(ctx, sdk.AccAddress(sender.Bytes()), sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
 	if err != nil {

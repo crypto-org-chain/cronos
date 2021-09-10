@@ -4,7 +4,7 @@ import "ds-token/token.sol";
 
 contract ModuleCRC20 is DSToken  {
     // sha256('cronos')[:20]
-    address constant module_address = 0x6526B48f897f6e08067dF00A1821d783cbC2af8b;
+    address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
     string denom;
 
     event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee);
