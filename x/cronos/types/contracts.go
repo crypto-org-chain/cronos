@@ -40,6 +40,8 @@ type CompiledContract struct {
 	Bin ByteString
 }
 
+const EVMModuleName = "cronos-evm"
+
 var (
 	//go:embed contracts/ModuleCRC20.json
 	cronosCRC20JSON []byte
@@ -52,7 +54,7 @@ var (
 )
 
 func init() {
-	EVMModuleAddress = common.BytesToAddress(authtypes.NewModuleAddress(ModuleName).Bytes())
+	EVMModuleAddress = common.BytesToAddress(authtypes.NewModuleAddress(EVMModuleName).Bytes())
 
 	err := json.Unmarshal(cronosCRC20JSON, &ModuleCRC20Contract)
 	if err != nil {
