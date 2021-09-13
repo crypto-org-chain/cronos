@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"errors"
+
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
@@ -43,6 +44,7 @@ func (suite *KeeperTestSuite) TestGetSourceChannelID() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper

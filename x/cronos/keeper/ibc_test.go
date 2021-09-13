@@ -3,6 +3,9 @@ package keeper_test
 import (
 	"errors"
 	"fmt"
+
+	"math/big"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -10,7 +13,6 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
-	"math/big"
 )
 
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -260,6 +262,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper

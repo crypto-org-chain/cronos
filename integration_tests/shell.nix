@@ -3,7 +3,7 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.jq
     pkgs.go
-    (import ../. { inherit pkgs; })
+    (import ../. { inherit pkgs; }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
     pkgs.pystarport

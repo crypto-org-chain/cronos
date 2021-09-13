@@ -391,6 +391,16 @@ func New(
 		tracer, bApp.Trace(), // debug EVM based on Baseapp options
 	)
 
+	gravityKeeper := gravitykeeper.NewKeeper(
+		appCodec,
+		keys[gravitytypes.StoreKey],
+		app.GetSubspace(gravitytypes.ModuleName),
+		app.AccountKeeper,
+		stakingKeeper,
+		app.BankKeeper,
+		app.SlashingKeeper,
+		sdk.DefaultPowerReduction,
+	)
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	app.CronosKeeper = *cronosmodulekeeper.NewKeeper(
@@ -400,6 +410,7 @@ func New(
 		app.GetSubspace(cronosmoduletypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
+		gravityKeeper,
 		app.EvmKeeper,
 	)
 	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
@@ -411,17 +422,6 @@ func New(
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
 		&stakingKeeper, govRouter,
-	)
-
-	gravityKeeper := gravitykeeper.NewKeeper(
-		appCodec,
-		keys[gravitytypes.StoreKey],
-		app.GetSubspace(gravitytypes.ModuleName),
-		app.AccountKeeper,
-		stakingKeeper,
-		app.BankKeeper,
-		app.SlashingKeeper,
-		sdk.DefaultPowerReduction,
 	)
 
 	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)

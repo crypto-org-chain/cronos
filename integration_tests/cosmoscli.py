@@ -949,3 +949,15 @@ class CosmosCLI:
                 home=self.data_dir,
             )
         )
+
+    def query_contract_by_denom(self, denom: str):
+        "query contract by denom"
+        return json.loads(
+            self.raw(
+                "query",
+                "cronos",
+                "contract-by-denom",
+                denom,
+                home=self.data_dir,
+            )
+        )
