@@ -15,9 +15,7 @@ import (
 	"math/big"
 )
 
-func (suite *KeeperTestSuite) TestNativeTransferHandler() {
-	suite.SetupTest()
-
+func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	recipient := common.BigToAddress(big.NewInt(3))
 	denom := "testdenom"
@@ -94,7 +92,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
+func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
@@ -113,6 +111,26 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 			"non gravity denom, expect fail",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					recipient,
+					coin.Amount.BigInt(),
+					big.NewInt(0),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
+		},
+		{
+			"non associated coin denom, expect fail",
+			func() {
 				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
 				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
@@ -165,6 +183,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
+			suite.SetupTest()
 			handler := keeper.NewSendToEthereumHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper), suite.app.CronosKeeper)
 			tc.malleate()
@@ -179,9 +198,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestIbcTransferHandler() {
-	suite.SetupTest()
-
+func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	invalidDenom := "testdenom"
 	validDenom := CorrectIbcDenom
@@ -193,6 +210,25 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 		postcheck func()
 		error     error
 	}{
+		{
+			"non associated coin denom, expect fail",
+			func() {
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToIbcEvent.Inputs.Pack(
+					"recipient",
+					coin.Amount.BigInt(),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+		},
 		{
 			"non IBC denom, expect fail",
 			func() {
@@ -211,7 +247,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not an ibc voucher"),
 		},
 		{
 			"success send to ibc",
@@ -237,6 +273,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
+			suite.SetupTest()
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
 				app.MakeEncodingConfig().Marshaler,

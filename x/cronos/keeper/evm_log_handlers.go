@@ -157,8 +157,12 @@ func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, 
 	}
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found || !types.IsValidGravityDenom(denom) {
+	if !found {
 		return fmt.Errorf("contract %s is not connected to native token", contract)
+	}
+
+	if !types.IsValidGravityDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
@@ -202,8 +206,12 @@ func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data 
 	}
 
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found || !types.IsValidIBCDenom(denom) {
+	if !found {
 		return fmt.Errorf("contract %s is not connected to native token", contract)
+	}
+
+	if !types.IsValidIBCDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not an ibc voucher", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
