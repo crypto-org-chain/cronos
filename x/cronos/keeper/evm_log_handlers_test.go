@@ -245,6 +245,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			handler := keeper.NewSendToIbcHandler(cronosKeeper)
