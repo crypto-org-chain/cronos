@@ -16,12 +16,14 @@ var (
 	_ types.EvmLogHandler = SendToAccountHandler{}
 	_ types.EvmLogHandler = SendToEthereumHandler{}
 	_ types.EvmLogHandler = SendToIbcHandler{}
+	_ types.EvmLogHandler = SendCroToIbcHandler{}
 )
 
 const (
 	SendToAccountEventName  = "__CronosSendToAccount"
 	SendToEthereumEventName = "__CronosSendToEthereum"
 	SendToIbcEventName      = "__CronosSendToIbc"
+	SendCroToIbcEventName   = "__CronosSendCroToIbc"
 )
 
 var (
@@ -36,6 +38,10 @@ var (
 	// SendToIbcEvent represent the signature of
 	// `event __CronosSendToIbc(string recipient, uint256 amount)`
 	SendToIbcEvent abi.Event
+
+	// SendCroToIbcEvent represent the signature of
+	// `event __CronosSendCroToIbc(string recipient, uint256 amount)`
+	SendCroToIbcEvent abi.Event
 )
 
 func init() {
@@ -77,6 +83,20 @@ func init() {
 	SendToIbcEvent = abi.NewEvent(
 		SendToIbcEventName,
 		SendToIbcEventName,
+		false,
+		abi.Arguments{abi.Argument{
+			Name:    "recipient",
+			Type:    stringType,
+			Indexed: false,
+		}, abi.Argument{
+			Name:    "amount",
+			Type:    uint256Type,
+			Indexed: false,
+		}},
+	)
+	SendCroToIbcEvent = abi.NewEvent(
+		SendCroToIbcEventName,
+		SendCroToIbcEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "recipient",
@@ -218,6 +238,41 @@ func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data 
 	recipient := unpacked[0].(string)
 	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 	coin := sdk.NewCoin(denom, amount)
+	err = h.cronosKeeper.IbcTransferCoins(ctx, contractAddr.String(), recipient, sdk.NewCoins(coin))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SendCroToIbcHandler handles `__CronosSendCroToIbc` log
+type SendCroToIbcHandler struct {
+	cronosKeeper Keeper
+}
+
+func NewSendCroToIbcHandler(cronosKeeper Keeper) *SendCroToIbcHandler {
+	return &SendCroToIbcHandler{
+		cronosKeeper: cronosKeeper,
+	}
+}
+
+func (h SendCroToIbcHandler) EventID() common.Hash {
+	return SendCroToIbcEvent.ID
+}
+
+func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
+	if err != nil {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		return nil
+	}
+
+	contractAddr := sdk.AccAddress(contract.Bytes())
+	recipient := unpacked[0].(string)
+	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	evmDenom := h.cronosKeeper.GetEvmParams(ctx).EvmDenom
+	coin := sdk.NewCoin(evmDenom, amount)
 	err = h.cronosKeeper.IbcTransferCoins(ctx, contractAddr.String(), recipient, sdk.NewCoins(coin))
 	if err != nil {
 		return err
