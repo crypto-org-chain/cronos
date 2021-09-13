@@ -2,7 +2,7 @@ pragma solidity ^0.6.6;
 
 contract CroBridge {
 
-    event __CronosSendToIbc(string recipient, uint256 amount);
+    event __CronosSendCroToIbc(string recipient, uint256 amount);
 
     // Pay the contract a certain CRO amount and trigger a CRO transfer
     // from the contract to recipient through IBC
