@@ -8,6 +8,7 @@ contract ModuleCRC20 is DSToken  {
     string denom;
 
     event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee);
+    event __CronosSendToIbc(string recipient, uint256 amount);
 
     constructor(string memory denom_, uint8 decimals_) DSToken(denom) public {
         decimals = decimals_;
@@ -41,5 +42,11 @@ contract ModuleCRC20 is DSToken  {
     function send_to_ethereum(address recipient, uint amount, uint bridge_fee) external {
         unsafe_burn(msg.sender, add(amount, bridge_fee));
         emit __CronosSendToEthereum(recipient, amount, bridge_fee);
+    }
+
+    // send an "amount" of the contract token to recipient through IBC
+    function send_to_ibc(string memory recipient, uint amount) public {
+        burn(msg.sender, amount);
+        emit __CronosSendToIbc(recipient, amount);
     }
 }

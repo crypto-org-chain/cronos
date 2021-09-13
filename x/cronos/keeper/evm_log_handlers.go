@@ -13,31 +13,38 @@ import (
 )
 
 var (
-	_ types.EvmLogHandler = NativeTransferHandler{}
-	_ types.EvmLogHandler = EthereumTransferHandler{}
+	_ types.EvmLogHandler = SendToAccountHandler{}
+	_ types.EvmLogHandler = SendToEthereumHandler{}
+	_ types.EvmLogHandler = SendToIbcHandler{}
 )
 
 const (
-	NativeTransferEventName   = "__CronosSendToAccount"
-	EthereumTransferEventName = "__CronosSendToEthereum"
+	SendToAccountEventName  = "__CronosSendToAccount"
+	SendToEthereumEventName = "__CronosSendToEthereum"
+	SendToIbcEventName      = "__CronosSendToIbc"
 )
 
 var (
-	// NativeTransferEvent represent the signature of
+	// SendToAccountEvent represent the signature of
 	// `event __CronosSendToAccount(address recipient, uint256 amount)`
-	NativeTransferEvent abi.Event
+	SendToAccountEvent abi.Event
 
-	// EthereumTransferEvent represent the signature of
+	// SendToEthereumEvent represent the signature of
 	// `event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee)`
-	EthereumTransferEvent abi.Event
+	SendToEthereumEvent abi.Event
+
+	// SendToIbcEvent represent the signature of
+	// `event __CronosSendToIbc(string recipient, uint256 amount)`
+	SendToIbcEvent abi.Event
 )
 
 func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	uint256Type, _ := abi.NewType("uint256", "", nil)
-	NativeTransferEvent = abi.NewEvent(
-		NativeTransferEventName,
-		NativeTransferEventName,
+	stringType, _ := abi.NewType("string", "", nil)
+	SendToAccountEvent = abi.NewEvent(
+		SendToAccountEventName,
+		SendToAccountEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "recipient",
@@ -49,9 +56,9 @@ func init() {
 			Indexed: false,
 		}},
 	)
-	EthereumTransferEvent = abi.NewEvent(
-		EthereumTransferEventName,
-		EthereumTransferEventName,
+	SendToEthereumEvent = abi.NewEvent(
+		SendToEthereumEventName,
+		SendToEthereumEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "recipient",
@@ -67,27 +74,41 @@ func init() {
 			Indexed: false,
 		}},
 	)
+	SendToIbcEvent = abi.NewEvent(
+		SendToIbcEventName,
+		SendToIbcEventName,
+		false,
+		abi.Arguments{abi.Argument{
+			Name:    "recipient",
+			Type:    stringType,
+			Indexed: false,
+		}, abi.Argument{
+			Name:    "amount",
+			Type:    uint256Type,
+			Indexed: false,
+		}},
+	)
 }
 
-// NativeTransferHandler handles `__CronosSendToAccount` log
-type NativeTransferHandler struct {
+// SendToAccountHandler handles `__CronosSendToAccount` log
+type SendToAccountHandler struct {
 	bankKeeper   types.BankKeeper
 	cronosKeeper Keeper
 }
 
-func NewNativeTransferHandler(bankKeeper types.BankKeeper, cronosKeeper Keeper) *NativeTransferHandler {
-	return &NativeTransferHandler{
+func NewSendToAccountHandler(bankKeeper types.BankKeeper, cronosKeeper Keeper) *SendToAccountHandler {
+	return &SendToAccountHandler{
 		bankKeeper:   bankKeeper,
 		cronosKeeper: cronosKeeper,
 	}
 }
 
-func (h NativeTransferHandler) EventID() common.Hash {
-	return NativeTransferEvent.ID
+func (h SendToAccountHandler) EventID() common.Hash {
+	return SendToAccountEvent.ID
 }
 
-func (h NativeTransferHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
-	unpacked, err := NativeTransferEvent.Inputs.Unpack(data)
+func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+	unpacked, err := SendToAccountEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
@@ -110,25 +131,25 @@ func (h NativeTransferHandler) Handle(ctx sdk.Context, contract common.Address, 
 	return nil
 }
 
-// EthereumTransferHandler handles `__CronosSendToEthereum` log
-type EthereumTransferHandler struct {
+// SendToEthereumHandler handles `__CronosSendToEthereum` log
+type SendToEthereumHandler struct {
 	gravitySrv   gravitytypes.MsgServer
 	cronosKeeper Keeper
 }
 
-func NewEthereumTransferHandler(gravitySrv gravitytypes.MsgServer, cronosKeeper Keeper) *EthereumTransferHandler {
-	return &EthereumTransferHandler{
+func NewSendToEthereumHandler(gravitySrv gravitytypes.MsgServer, cronosKeeper Keeper) *SendToEthereumHandler {
+	return &SendToEthereumHandler{
 		gravitySrv:   gravitySrv,
 		cronosKeeper: cronosKeeper,
 	}
 }
 
-func (h EthereumTransferHandler) EventID() common.Hash {
-	return EthereumTransferEvent.ID
+func (h SendToEthereumHandler) EventID() common.Hash {
+	return SendToEthereumEvent.ID
 }
 
-func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
-	unpacked, err := EthereumTransferEvent.Inputs.Unpack(data)
+func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+	unpacked, err := SendToEthereumEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
@@ -138,6 +159,10 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
 	if !found {
 		return fmt.Errorf("contract %s is not connected to native token", contract)
+	}
+
+	if !types.IsValidGravityDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
@@ -151,6 +176,49 @@ func (h EthereumTransferHandler) Handle(ctx sdk.Context, contract common.Address
 		BridgeFee:         sdk.NewCoin(denom, bridgeFee),
 	}
 	_, err = h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SendToIbcHandler handles `__CronosSendToIbc` log
+type SendToIbcHandler struct {
+	cronosKeeper Keeper
+}
+
+func NewSendToIbcHandler(cronosKeeper Keeper) *SendToIbcHandler {
+	return &SendToIbcHandler{
+		cronosKeeper: cronosKeeper,
+	}
+}
+
+func (h SendToIbcHandler) EventID() common.Hash {
+	return SendToIbcEvent.ID
+}
+
+func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
+	if err != nil {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		return nil
+	}
+
+	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
+	if !found {
+		return fmt.Errorf("contract %s is not connected to native token", contract)
+	}
+
+	if !types.IsValidIBCDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not an ibc voucher", contract)
+	}
+
+	contractAddr := sdk.AccAddress(contract.Bytes())
+	recipient := unpacked[0].(string)
+	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	coin := sdk.NewCoin(denom, amount)
+	err = h.cronosKeeper.IbcTransferCoins(ctx, contractAddr.String(), recipient, sdk.NewCoins(coin))
 	if err != nil {
 		return err
 	}
