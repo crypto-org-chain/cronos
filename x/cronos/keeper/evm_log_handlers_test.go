@@ -40,7 +40,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 		{
 			"not enough balance, expect fail",
 			func() {
-				input, err := keeper.NativeTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					big.NewInt(100),
 				)
@@ -51,7 +51,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
-			"success native transfer",
+			"success send to account",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
 				coin := sdk.NewCoin(denom, sdk.NewInt(100))
@@ -61,7 +61,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.NativeTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					coin.Amount.BigInt(),
 				)
@@ -81,7 +81,7 @@ func (suite *KeeperTestSuite) TestNativeTransferHandler() {
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
-			handler := keeper.NewNativeTransferHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
+			handler := keeper.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
 			if tc.error != nil {
@@ -110,7 +110,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 		error     error
 	}{
 		{
-			"invalid denom, expect fail",
+			"non gravity denom, expect fail",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
 				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
@@ -120,7 +120,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.EthereumTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -131,7 +131,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
-			"success ethereum transfer",
+			"success send to ethereum",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
 				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
@@ -141,7 +141,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.EthereumTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -165,7 +165,7 @@ func (suite *KeeperTestSuite) TestEthereumTransferHandler() {
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
-			handler := keeper.NewEthereumTransferHandler(
+			handler := keeper.NewSendToEthereumHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper), suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
@@ -194,7 +194,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 		error     error
 	}{
 		{
-			"invalid denom, expect fail",
+			"non IBC denom, expect fail",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
 				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
@@ -204,7 +204,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.IbcTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToIbcEvent.Inputs.Pack(
 					"recipient",
 					coin.Amount.BigInt(),
 				)
@@ -214,7 +214,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
-			"success ibc transfer",
+			"success send to ibc",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
 				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
@@ -224,14 +224,13 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.IbcTransferEvent.Inputs.Pack(
+				input, err := keeper.SendToIbcEvent.Inputs.Pack(
 					"recipient",
 					coin.Amount.BigInt(),
 				)
 				data = input
 			},
-			func() {
-			},
+			func() {},
 			nil,
 		},
 	}
@@ -248,7 +247,7 @@ func (suite *KeeperTestSuite) TestIbcTransferHandler() {
 				keepertest.IbcKeeperMock{},
 				suite.app.EvmKeeper,
 			)
-			handler := keeper.NewIbcTransferHandler(cronosKeeper)
+			handler := keeper.NewSendToIbcHandler(cronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
 			if tc.error != nil {
