@@ -342,9 +342,12 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			},
 			func() {
 				// Verify balance post operation
-				coin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), types.IbcCroDenomDefaultValue)
+				coin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(0))
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(types.ModuleName), types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(coin, balance)
+				ibcCoin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))
+				ibcBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(ibcCoin, ibcBalance)
 				croCoin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(500))
 				croBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), suite.evmParam.EvmDenom)
 				suite.Require().Equal(croCoin, croBalance)
