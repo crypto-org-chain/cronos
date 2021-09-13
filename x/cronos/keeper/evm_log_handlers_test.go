@@ -325,8 +325,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 		{
 			"success send cro to ibc",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, suite.evmParam.EvmDenom, contract)
-				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(12300000000))
+				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(1230000000500))
 				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
@@ -335,17 +334,21 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 
 				// Mint coin for the module
 				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
-
-				err = suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
-				suite.Require().NoError(err)
-
 				input, err := keeper.SendToIbcEvent.Inputs.Pack(
 					"recipient",
 					coin.Amount.BigInt(),
 				)
 				data = input
 			},
-			func() {},
+			func() {
+				// Verify balance post operation
+				coin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(coin, balance)
+				croCoin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(500))
+				croBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), suite.evmParam.EvmDenom)
+				suite.Require().Equal(croCoin, croBalance)
+			},
 			nil,
 		},
 	}
