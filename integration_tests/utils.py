@@ -333,3 +333,26 @@ def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
     "return cronos address from mnemonics"
     acct = Account.from_mnemonic(mnemonics)
     return eth_to_bech32(acct.address, prefix)
+
+
+def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None):
+    '''
+    do approve and sendToCosmos on ethereum side
+    '''
+    acct = Account.from_key(key)
+    txreceipt = send_transaction(
+        token_contract.web3,
+        token_contract.functions.approve(
+            gravity_contract.address, amount
+        ).buildTransaction({"from": acct.address}),
+        key,
+    )
+    assert txreceipt.status == 1, "approve failed"
+
+    return send_transaction(
+        gravity_contract.web3,
+        gravity_contract.functions.sendToCosmos(
+            token_contract.address, b"\x00" * 12 + HexBytes(recipient), amount
+        ).buildTransaction({"from": acct.address}),
+        key,
+    )
