@@ -46,7 +46,7 @@ contract ModuleCRC20 is DSToken  {
 
     // send an "amount" of the contract token to recipient through IBC
     function send_to_ibc(string memory recipient, uint amount) public {
-        burn(msg.sender, amount);
+        unsafe_burn(msg.sender, amount);
         emit __CronosSendToIbc(recipient, amount);
     }
 }

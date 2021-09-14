@@ -430,6 +430,7 @@ func New(
 		cronosmodulekeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
 		cronosmodulekeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
 		cronosmodulekeeper.NewSendToIbcHandler(app.CronosKeeper),
+		cronosmodulekeeper.NewSendCroToIbcHandler(app.CronosKeeper),
 	))
 
 	// register the staking hooks
