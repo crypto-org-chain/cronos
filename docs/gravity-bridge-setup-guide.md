@@ -26,7 +26,7 @@ Own some funds in this testnet, for the local testnet, you'll get the funds with
 
 ## Generate Orchestrator Keys
 
-You'll need to prepare two accounts for orchestrator, one for ethereum and one for cronos, you can also using a same private key for both accounts. Both accounts need to have some basic funds to convert the gas fees for messages relaying.
+You'll need to prepare two accounts for orchestrator, one for ethereum and one for cronos, you can also using a same private key for both accounts. Both accounts need to have some basic funds to cover the gas fees for messages relaying.
 
 ## Sign Validator Address
 
