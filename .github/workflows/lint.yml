@@ -34,8 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v10
-      - uses: cachix/cachix-action@v8
+      - uses: cachix/install-nix-action@v14
+      - uses: cachix/cachix-action@v10
         with:
           name: cronos
       - run: nix-shell -I nixpkgs=./nix -p test-env --run "make lint-py"
@@ -45,5 +45,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v10
+      - uses: cachix/install-nix-action@v14
       - run: nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
