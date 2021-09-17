@@ -153,7 +153,7 @@ def test_gravity_transfer(gravity, suspend_capture):
         / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
     )
 
-    balance = erc20.caller.balanceOf(geth.eth.coinbase)
+    balance = erc20.caller.balanceOf(ADDRS["validator"])
     assert balance == 100000000000000000000000000
     amount = 1000
 
@@ -185,13 +185,13 @@ def test_gravity_transfer(gravity, suspend_capture):
 
     # send it back to erc20
     tx = crc20_contract.functions.send_to_ethereum(
-        geth.eth.coinbase, amount, 0
-    ).buildTransaction()
+        ADDRS["validator"], amount, 0
+    ).buildTransaction({"from": ADDRS["community"]})
     txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
     assert txreceipt.status == 1, "should success"
 
     def check():
-        v = erc20.caller.balanceOf(geth.eth.coinbase)
+        v = erc20.caller.balanceOf(ADDRS["validator"])
         return v == balance
 
     wait_for_fn("send-to-ethereum", check)
