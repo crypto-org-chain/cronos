@@ -34,7 +34,7 @@ lint-py:
           --format="::error file=%(path)s,line=%(row)d,col=%(col)d::%(path)s:%(row)d:%(col)d: %(code)s %(text)s" \
 
 lint-nix:
-	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" -exec nixpkgs-fmt --check {} \;
+	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" | xargs nixpkgs-fmt --check
 
 .PHONY: lint lint-fix lint-py
 
