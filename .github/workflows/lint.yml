@@ -28,7 +28,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         # Check only if there are differences in the source code
         if: "env.GIT_DIFF"
+
   lint-python:
+    name: Lint python
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -36,13 +38,12 @@ jobs:
       - uses: cachix/cachix-action@v8
         with:
           name: cronos
-          extraPullNames: dapp
-      - run: |
-        nix-shell -I nixpkgs=./nix -p test-env --run "make lint-py"
+      - run: nix-shell -I nixpkgs=./nix -p test-env --run "make lint-py"
+
   lint-nix:
+    name: Lint nix
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v10
-      - run: |
-        nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
+      - run: nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
