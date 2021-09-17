@@ -904,7 +904,12 @@ class CosmosCLI:
             )
         )
 
-    def set_delegate_keys(self, val_addr, acc_addr, eth_addr, signature):
+    def set_delegate_keys(self, val_addr, acc_addr, eth_addr, signature, **kwargs):
+        """
+        val_addr: cronos validator address
+        acc_addr: orchestrator's cronos address
+        eth_addr: orchestrator's ethereum address
+        """
         return json.loads(
             self.raw(
                 "tx",
@@ -915,8 +920,8 @@ class CosmosCLI:
                 eth_addr,
                 signature,
                 "-y",
-                from_=acc_addr,
                 home=self.data_dir,
+                **kwargs,
             )
         )
 

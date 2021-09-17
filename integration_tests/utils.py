@@ -11,22 +11,24 @@ import time
 import uuid
 
 import bech32
-import eth_account
 import eth_utils
 import rlp
 import yaml
 from cprotobuf import Field, ProtoEntity
 from dateutil.parser import isoparse
+from eth_account import Account
 from eth_account.messages import encode_defunct
 from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
+from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 KEYS = {
     "validator": "826E479F5385C8C32CD96B0C0ACCDB8CC4FA5CACCC1BE54C1E3AA4D676A6EFF5",
     "community": "5D665FBD2FB40CB8E9849263B04457BA46D5F948972D0FE4C1F19B6B0F243574",
 }
-ADDRS = {name: eth_account.Account.from_key(key).address for name, key in KEYS.items()}
+ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
+CRONOS_ADDRESS_PREFIX = "ethm"
 
 
 def wait_for_fn(name, fn, *, timeout=120, interval=1):
@@ -269,7 +271,7 @@ def bech32_to_eth(addr):
     return decode_bech32(addr).hex()
 
 
-def eth_to_bech32(addr, prefix="ethm"):
+def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
     bz = bech32.convertbits(HexBytes(addr), 8, 5)
     return bech32.bech32_encode(prefix, bz)
 
@@ -318,7 +320,16 @@ def deploy_contract(w3, jsonfile, args=()):
 
 
 def send_transaction(w3, tx, key):
-    acct = eth_account.Account.from_key(key)
+    acct = Account.from_key(key)
+    tx["from"] = acct.address
+    tx = fill_transaction_defaults(w3, tx)
+    tx = fill_nonce(w3, tx)
     signed = acct.sign_transaction(tx)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     return w3.eth.wait_for_transaction_receipt(txhash)
+
+
+def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
+    "return cronos address from mnemonics"
+    acct = Account.from_mnemonic(mnemonics)
+    return eth_to_bech32(acct.address, prefix)

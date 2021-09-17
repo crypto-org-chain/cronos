@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from eth_account.account import Account
 from hexbytes import HexBytes
+from mnemonic import Mnemonic
 from pystarport import ports
 
 from .conftest import setup_cronos, setup_geth
@@ -12,6 +13,7 @@ from .utils import (
     ADDRS,
     KEYS,
     add_ini_sections,
+    cronos_address_from_mnemonics,
     deploy_contract,
     send_transaction,
     sign_validator,
@@ -51,16 +53,37 @@ def gravity(cronos, geth, suspend_capture):
     - start orchestrator
     """
     chain_id = "cronos_777-1"
+    mnemonic_gen = Mnemonic("english")
+
     # set-delegate-keys
+    eth_accounts = []  # eth accounts created for orchestrators
+    cosmos_mnemonics = []  # cosmos mnemonics created for orchestrators
     for i, val in enumerate(cronos.config["validators"]):
-        # use the same key for cronos validator, geth, orchestrator
+        # generate orchestrator eth key
+        acct = Account.create()
+        eth_accounts.append(acct)
+
+        # fund the orchestrator account in geth
+        send_transaction(
+            geth, {"to": acct.address, "value": 10 ** 17}, KEYS["validator"]
+        )
+
+        # orchestrator cronos key
+        mnemonic = mnemonic_gen.generate()
+        cosmos_mnemonics.append(mnemonic)
+        acc_addr = cronos_address_from_mnemonics(mnemonic)
+
+        # fund the orchestrator account in cronos
         cli = cronos.cosmos_cli(i)
+        cli.transfer("validator", acc_addr, "%dbasetcro" % 10 ** 16)
+
         val_addr = cli.address("validator", bech="val")
-        acc_addr = cli.address("validator")
-        nonce = int(cli.account(acc_addr)["base_account"]["sequence"])
-        acct = Account.from_mnemonic(val["mnemonic"])
+        val_acct_addr = cli.address("validator")
+        nonce = int(cli.account(val_acct_addr)["base_account"]["sequence"])
         signature = sign_validator(acct, val_addr, nonce)
-        rsp = cli.set_delegate_keys(val_addr, acc_addr, acct.address, signature)
+        rsp = cli.set_delegate_keys(
+            val_addr, acc_addr, acct.address, signature, from_=val_acct_addr
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
     # wait for gravity signer tx get generated
     wait_for_new_blocks(cli, 2)
@@ -88,21 +111,11 @@ def gravity(cronos, geth, suspend_capture):
     # b) reload supervisord
     programs = {}
     for i, val in enumerate(cronos.config["validators"]):
-        mnemonic = val["mnemonic"]
-        acct = Account.from_mnemonic(mnemonic)
-
-        # fund the address in geth
-        geth.eth.wait_for_transaction_receipt(
-            geth.eth.send_transaction(
-                {"from": geth.eth.coinbase, "to": acct.address, "value": 10 ** 17}
-            )
-        )
-
         metrics_port = 3000 + i
         grpc_port = ports.grpc_port(val["base_port"])
         cmd = (
-            f'orchestrator --cosmos-phrase="{mnemonic}" '
-            f"--ethereum-key={acct.key.hex()} "
+            f'orchestrator --cosmos-phrase="{cosmos_mnemonics[i]}" '
+            f"--ethereum-key={eth_accounts[i].key.hex()} "
             f"--cosmos-grpc=http://localhost:{grpc_port} "
             f"--ethereum-rpc={geth.provider.endpoint_uri} "
             "--address-prefix=ethm --fees=basetcro "
