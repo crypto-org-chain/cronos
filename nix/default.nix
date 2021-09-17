@@ -48,6 +48,9 @@ import sources.nixpkgs {
         };
       };
     })
+    (_: pkgs: {
+      test-env = import ./testenv.nix { inherit pkgs; };
+    })
   ];
   config = { };
   inherit system;

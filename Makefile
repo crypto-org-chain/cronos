@@ -23,11 +23,20 @@ test:
 ###############################################################################
 
 lint:
+	go mod verify
 	golangci-lint run --out-format=tab
 
 lint-fix:
 	golangci-lint run --fix --out-format=tab --issues-exit-code=0
-.PHONY: lint lint-fix
+
+lint-py:
+	flake8 --show-source --count --statistics \
+          --format="::error file=%(path)s,line=%(row)d,col=%(col)d::%(path)s:%(row)d:%(col)d: %(code)s %(text)s" \
+
+lint-nix:
+	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" -exec nixpkgs-fmt --check {} \;
+
+.PHONY: lint lint-fix lint-py
 
 ###############################################################################
 ###                                Releasing                                ###

@@ -14,6 +14,7 @@ pkgs.mkShell {
     pkgs.git
     pkgs.dapp
     pkgs.solc-static-versions.solc_0_6_11
-    (import ../nix/testenv.nix { inherit pkgs; })
+    pkgs.test-env
+    pkgs.nixpkgs-fmt
   ];
 }
