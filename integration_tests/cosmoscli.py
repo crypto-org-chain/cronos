@@ -291,7 +291,7 @@ class CosmosCLI:
         )
 
     def delegate_amount(self, to_addr, amount, from_addr, gas_price=None):
-        if gas_price == None:
+        if gas_price is None:
             return json.loads(
                 self.raw(
                     "tx",
