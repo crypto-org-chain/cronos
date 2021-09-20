@@ -118,7 +118,7 @@ def gravity(cronos, geth, suspend_capture):
             f"--ethereum-key={eth_accounts[i].key.hex()} "
             f"--cosmos-grpc=http://localhost:{grpc_port} "
             f"--ethereum-rpc={geth.provider.endpoint_uri} "
-            "--address-prefix=ethm --fees=basetcro "
+            "--address-prefix=crc --fees=basetcro "
             f"--contract-address={contract.address} "
             f"--metrics-listen 127.0.0.1:{metrics_port}"
         )

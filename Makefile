@@ -4,14 +4,20 @@ COVERAGE ?= coverage.txt
 
 GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
+NETWORK ?= mainnet
 
+TESTNET_FLAGS ?=
+
+ifeq ($(NETWORK),testnet)
+	BUILD_TAGS := -tags testnet
+endif
 
 all: build
-build: go.sum
+build: check-network go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
-install: go.sum
-	@go install -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) ./cmd/cronosd	
+install: check-network go.sum
+	@go install -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) ./cmd/cronosd
 
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
@@ -176,6 +182,14 @@ gen-cronos-contracts:
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
 .PHONY: gen-cronos-contracts test-cronos-contracts
+
+check-network:
+ifeq ($(NETWORK),mainnet)
+else ifeq ($(NETWORK),testnet)
+else
+	@echo "Unrecognized network: ${NETWORK}"
+endif
+	@echo "building network: ${NETWORK}"
 
 ###############################################################################
 ###                                Protobuf                                 ###
