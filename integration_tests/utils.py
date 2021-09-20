@@ -336,9 +336,9 @@ def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
 
 
 def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None):
-    '''
+    """
     do approve and sendToCosmos on ethereum side
-    '''
+    """
     acct = Account.from_key(key)
     txreceipt = send_transaction(
         token_contract.web3,
