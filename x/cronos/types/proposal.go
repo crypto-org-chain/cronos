@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	// ProposalTypeChange defines the type for a TokenMappingChangeProposal
-	ProposalTypeChange = "TokenMappingChange"
+	// ProposalTypeTokenMappingChange defines the type for a TokenMappingChangeProposal
+	ProposalTypeTokenMappingChange = "TokenMappingChange"
 )
 
 // Assert TokenMappingChangeProposal implements govtypes.Content at compile-time
 var _ govtypes.Content = &TokenMappingChangeProposal{}
 
 func init() {
-	govtypes.RegisterProposalType(ProposalTypeChange)
+	govtypes.RegisterProposalType(ProposalTypeTokenMappingChange)
 	govtypes.RegisterProposalTypeCodec(&TokenMappingChangeProposal{}, "cronos/TokenMappingChangeProposal")
 }
 
@@ -39,7 +39,7 @@ func (tcp *TokenMappingChangeProposal) GetDescription() string { return tcp.Desc
 func (tcp *TokenMappingChangeProposal) ProposalRoute() string { return RouterKey }
 
 // ProposalType returns the type of a parameter change proposal.
-func (tcp *TokenMappingChangeProposal) ProposalType() string { return ProposalTypeChange }
+func (tcp *TokenMappingChangeProposal) ProposalType() string { return ProposalTypeTokenMappingChange }
 
 // ValidateBasic validates the parameter change proposal
 func (tcp *TokenMappingChangeProposal) ValidateBasic() error {
