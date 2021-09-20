@@ -28,7 +28,7 @@ KEYS = {
     "community": "5D665FBD2FB40CB8E9849263B04457BA46D5F948972D0FE4C1F19B6B0F243574",
 }
 ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
-CRONOS_ADDRESS_PREFIX = "ethm"
+CRONOS_ADDRESS_PREFIX = "crc"
 
 
 def wait_for_fn(name, fn, *, timeout=120, interval=1):
