@@ -19,7 +19,7 @@ require (
 	github.com/tendermint/spm v0.0.0-20210524110815-6d7452d2dc4a
 	github.com/tendermint/tendermint v0.34.13
 	github.com/tendermint/tm-db v0.6.4
-	github.com/tharsis/ethermint v0.4.2-0.20210915094503-116de5461766
+	github.com/tharsis/ethermint v0.4.2-0.20210920104419-1a01c6a992c0
 	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af
 	google.golang.org/grpc v1.40.0
 	gopkg.in/yaml.v2 v2.4.0
