@@ -37,3 +37,5 @@ replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-ho
 
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
 replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20210908191543-71021d1bfff2
+
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.4.2-0.20210922040229-16124b2166a8

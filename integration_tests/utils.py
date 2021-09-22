@@ -308,14 +308,17 @@ def supervisorctl(inipath, *args):
     )
 
 
-def deploy_contract(w3, jsonfile, args=()):
+def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     """
     deploy contract and return the deployed contract instance
     """
+    acct = Account.from_key(key)
     info = json.load(open(jsonfile))
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    txhash = contract.constructor(*args).transact({"from": w3.eth.coinbase})
-    address = w3.eth.wait_for_transaction_receipt(txhash).contractAddress
+    tx = contract.constructor(*args).buildTransaction({"from": acct.address})
+    txreceipt = send_transaction(w3, tx, key)
+    assert txreceipt.status == 1
+    address = txreceipt.contractAddress
     return w3.eth.contract(address=address, abi=info["abi"])
 
 
