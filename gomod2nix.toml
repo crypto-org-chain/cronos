@@ -982,12 +982,12 @@
     sha256 = "0q063bsalxffq41l3f6xlr50xa2985liw6y5niiwnjysdc5rlva2"
 
 ["github.com/cosmos/iavl"]
-  sumVersion = "v0.16.0"
+  sumVersion = "v0.17.1"
   ["github.com/cosmos/iavl".fetch]
     type = "git"
     url = "https://github.com/cosmos/iavl"
-    rev = "db56af10fd129f80dda8abb1889d5d37d31e5ac5"
-    sha256 = "0cvgzjfbxhrada3h6lmcc9pvjjsbi3hz84cxj4xfjglddsm7virj"
+    rev = "8e24bc87fc0702f0994ac3b2b55386235c3dd3cf"
+    sha256 = "1q5fbk4afkxxlgyj82xfxfmwzcpsaa4hwm431xl8b34xhpdglkdp"
 
 ["github.com/cosmos/ibc-go"]
   sumVersion = "v1.0.1-hooks"
@@ -2885,14 +2885,6 @@
     rev = "1b5ee5ba6837fe62f5c9f2275033db8ec84de004"
     sha256 = "0jk0ws9cxdiicfd4w7mpvfgsx4fabgpjhyl8jwbqnzpq2w0pgk6p"
 
-["github.com/niemeyer/pretty"]
-  sumVersion = "v0.0.0-20200227124842-a10e7caefd8e"
-  ["github.com/niemeyer/pretty".fetch]
-    type = "git"
-    url = "https://github.com/niemeyer/pretty"
-    rev = "a10e7caefd8e0d600cea437f5c3613aeb1553d56"
-    sha256 = "1jmazh4xzaa3v6g46hz60q2z7nmqs9l9cxdzmmscn3kbcs2znq4v"
-
 ["github.com/nishanths/predeclared"]
   sumVersion = "v0.0.0-20200524104333-86fad755b4d3"
   ["github.com/nishanths/predeclared".fetch]
@@ -3751,12 +3743,11 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20210922040229-16124b2166a8"
-  vendorPath = "github.com/crypto-org-chain/ethermint"
+  sumVersion = "v0.4.2-0.20210922090135-01b789c3e974"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "16124b2166a8006a26075cb2fb80c35736231efc"
+    url = "https://github.com/tharsis/ethermint"
+    rev = "01b789c3e974778f099b5eac89df2eac84d7c9c3"
     sha256 = "1dp7fy69rhzhm8ghw7ipakd4jci3yy2skm9x07gwarnr1hcqh0nr"
 
 ["github.com/tidwall/gjson"]

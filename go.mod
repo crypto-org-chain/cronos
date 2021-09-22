@@ -19,7 +19,7 @@ require (
 	github.com/tendermint/spm v0.0.0-20210524110815-6d7452d2dc4a
 	github.com/tendermint/tendermint v0.34.13
 	github.com/tendermint/tm-db v0.6.4
-	github.com/tharsis/ethermint v0.4.2-0.20210920104419-1a01c6a992c0
+	github.com/tharsis/ethermint v0.4.2-0.20210922090135-01b789c3e974
 	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af
 	google.golang.org/grpc v1.40.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -38,4 +38,4 @@ replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-ho
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
 replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20210908191543-71021d1bfff2
 
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.4.2-0.20210922040229-16124b2166a8
+replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
