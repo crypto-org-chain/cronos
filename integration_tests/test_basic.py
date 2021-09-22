@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from eth_utils import abi
+from eth_bloom import BloomFilter
+from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 
 from .utils import ADDRS, KEYS, deploy_contract, send_transaction
@@ -42,16 +43,12 @@ def test_events(cluster, suspend_capture):
     assert expect_log.items() <= txreceipt.logs[0].items()
 
     # check block bloom
-    assert w3.eth.get_block(txreceipt.blockNumber).logsBloom == HexBytes(
-        "0x0000080000000000000000000000000000000000000000000000000000000000"
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "0000000000000000000000080000020000000000000000000000000000000000"
-        "0000000000000000000000000000000000000000000000000000001000000000"
-        "0000000000000000000000400000000000000000000000000000000000000000"
-        "0000000000000000000000000400000000000000000000000000000020000000"
-        "0000000200000000000000000000000000000000000000000000100000000800"
-        "0000000000000000041000000000000000000000000000000000000000000000"
+    bloom = BloomFilter(
+        big_endian_to_int(w3.eth.get_block(txreceipt.blockNumber).logsBloom)
     )
+    assert HexBytes(erc20.address) in bloom
+    for topic in expect_log["topics"]:
+        assert topic in bloom
 
 
 def test_native_call(cronos):

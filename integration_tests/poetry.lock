@@ -243,6 +243,23 @@ lint = ["flake8 (==3.7.9)", "isort (>=4.2.15,<5)", "mypy (==0.770)", "pydocstyle
 test = ["hypothesis (>=4.18.0,<5)", "pytest (==5.4.1)", "pytest-xdist", "tox (==3.14.6)"]
 
 [[package]]
+name = "eth-bloom"
+version = "1.0.4"
+description = "Python implementation of the Ethereum Trie structure"
+category = "main"
+optional = false
+python-versions = ">=3.6, <4"
+
+[package.dependencies]
+eth-hash = {version = ">=0.3.1,<0.4.0", extras = ["pycryptodome"]}
+
+[package.extras]
+deploy = ["bumpversion (>=0.5.3,<1.0.0)", "wheel (>=0.30.0,<1.0.0)"]
+dev = ["bumpversion (>=0.5.3,<1.0.0)", "wheel (>=0.30.0,<1.0.0)", "twine", "pytest (==3.0.7)", "hypothesis (==3.7.0)", "tox (==2.6.0)", "flake8 (>=3.5.0,<4.0.0)", "mypy (<0.600)"]
+lint = ["flake8 (>=3.5.0,<4.0.0)", "mypy (<0.600)"]
+test = ["pytest (==3.0.7)", "hypothesis (==3.7.0)", "tox (==2.6.0)"]
+
+[[package]]
 name = "eth-hash"
 version = "0.3.1"
 description = "eth-hash: The Ethereum hashing function, keccak256, sometimes (erroneously) called sha3"
@@ -1000,7 +1017,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "a8a6d9039b992a3d728f82ec464b6a4e0a2c47989e0a4d0af945c099f95a9920"
+content-hash = "bdbf8559c4dfa848f8f1788a3cc5e698f5924234ab20a9f8d38b3701843d2477"
 
 [metadata.files]
 aiohttp = [
@@ -1111,6 +1128,10 @@ eth-abi = [
 eth-account = [
     {file = "eth-account-0.5.5.tar.gz", hash = "sha256:60396fedde2546bb23d3b1a4f28a959387738c9906090d2fdd01b9e663eaa829"},
     {file = "eth_account-0.5.5-py3-none-any.whl", hash = "sha256:e579a898a976ad3436e328036a0ac4bb36573561dd0773f717dba6a72c137a2c"},
+]
+eth-bloom = [
+    {file = "eth-bloom-1.0.4.tar.gz", hash = "sha256:688317306d87b823da63d24e1ad706defadbd865887ed4bddf7fbd0410b2093c"},
+    {file = "eth_bloom-1.0.4-py3-none-any.whl", hash = "sha256:5d6d28fa60ee1e25436c45b9593798d7e193224b364ea1a212050055dfa1942c"},
 ]
 eth-hash = [
     {file = "eth-hash-0.3.1.tar.gz", hash = "sha256:aee46d9c43b98ac6d4ddf957cf75d4d0a5174ee814cc6b53dd6134dcedb459bf"},

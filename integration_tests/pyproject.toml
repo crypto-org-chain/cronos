@@ -21,6 +21,7 @@ pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "m
 web3 = "^5.20.1"
 cprotobuf = "^0.1.10"
 mnemonic = "^0.20"
+eth-bloom = "^1.0.4"
 
 [tool.poetry.dev-dependencies]
 
