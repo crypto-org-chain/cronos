@@ -7,5 +7,10 @@ pkgs.poetry2nix.mkPoetryEnv {
         buildInputs = (old.buildInputs or [ ]) ++ [ self.cython ];
       }
     );
+    eth-bloom = super.eth-bloom.overridePythonAttrs {
+      preConfigure = ''
+        substituteInPlace setup.py --replace \'setuptools-markdown\' ""
+      '';
+    };
   });
 }
