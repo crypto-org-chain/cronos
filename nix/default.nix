@@ -25,7 +25,7 @@ import sources.nixpkgs {
         name = "orchestrator";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = sha256:0c6nmkdgi4r9z4r50cipmivy9nwlkvxryd6ang73ql1m1kzf15kc;
+        cargoSha256 = sha256:055x1s66ficsmx1fmfzl7dc30fly27m7xb3xgjrlfgsw9crfpvgp;
         cargoBuildFlags = "-p ${name} --features ethermint";
         doCheck = false;
         OPENSSL_NO_VENDOR = "1";
@@ -38,7 +38,7 @@ import sources.nixpkgs {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = sha256:0izh3csm2vr9q9mk0mvjrvpk6y4c4d59r5fj2shiwj78bdswsqai;
+        cargoSha256 = sha256:1rr2gq3gm0ir374mlbqw2qza60nhnh6cdy0vhafaqzw4m0wry7ny;
         cargoBuildFlags = "-p ${name} --features ethermint";
         doCheck = false;
         OPENSSL_NO_VENDOR = "1";

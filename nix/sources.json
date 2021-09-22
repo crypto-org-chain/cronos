@@ -25,15 +25,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "ethermint",
+        "branch": "cronos",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
-        "owner": "yihuang",
+        "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "c8b552dc3113a302dd714412182bd38c6f815653",
-        "sha256": "1c7wlq99anh0h6hflsrkisli6w11qyn0p0669j4ri0s6hni97c0c",
+        "rev": "b2866ce6ded71c8805fb70ee4281b328cd31342e",
+        "sha256": "0x2l6aw63zz7w9y0r3sh47rcnanibl23k2pbgphl9iib5yga2mmn",
         "type": "tarball",
-        "url": "https://github.com/yihuang/gravity-bridge/archive/c8b552dc3113a302dd714412182bd38c6f815653.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/b2866ce6ded71c8805fb70ee4281b328cd31342e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
