@@ -97,7 +97,7 @@ $ orchestrator --cosmos-phrase="{mnemonic_phrase_of_cronos_acount}" \
     --ethereum-key={private_key_of_ethereum_account} \
     --cosmos-grpc=http://localhost:{cronos_grpc_port} \
     --ethereum-rpc={ethereum_web3_endpoint} \
-    --address-prefix=ethm --fees=basetcro \
+    --address-prefix=crc --fees=basetcro \
     --contract-address={gravity_contract_address} \
     --metrics-listen 127.0.0.1:3000
 ```
