@@ -3142,13 +3142,14 @@
     sha256 = "0f146yjqwx2mr110kl8scjhqd08hys7vr5z0d0a3lskb6yy22gfg"
 
 ["github.com/peggyjv/gravity-bridge/module"]
-  sumVersion = "v0.1.22-0.20210923041625-b2866ce6ded7"
+  sumVersion = "v0.1.22-0.20210923075944-630e7235f4b2"
+  relPath = "module"
   vendorPath = "github.com/crypto-org-chain/gravity-bridge/module"
   ["github.com/peggyjv/gravity-bridge/module".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/gravity-bridge"
-    rev = "b2866ce6ded71c8805fb70ee4281b328cd31342e"
-    sha256 = "0x2l6aw63zz7w9y0r3sh47rcnanibl23k2pbgphl9iib5yga2mmn"
+    rev = "630e7235f4b2345177b571813ab316f01cdbfb93"
+    sha256 = "021n33b05x41bc65b42af179q12sx55dsh4si9xc1rjjvbl3dpd5"
 
 ["github.com/pelletier/go-toml"]
   sumVersion = "v1.9.4"
