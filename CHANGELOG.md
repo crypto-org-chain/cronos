@@ -3,7 +3,9 @@
 ## UNRELEASED
 
 ### Bug Fixes
+
 - [cronos#109](https://github.com/crypto-org-chain/cronos/issues/109) ibc transfer timeout too short
+- [tharsis#590](https://github.com/tharsis/ethermint/pull/590) fix export contract state in genesis and reimport
 
 ### Features
 
@@ -18,6 +20,7 @@ This version is the same as v0.5.3 with a patched version of ethermint which inc
 
 - [cronos#93](https://github.com/crypto-org-chain/cronos/pull/93) tx receipts don't contain events
 - [cronos#98](https://github.com/crypto-org-chain/cronos/pull/98) node crash under concurrent query
+
 
 *September 21, 2021*
 ## v0.5.3

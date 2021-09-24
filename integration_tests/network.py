@@ -95,3 +95,29 @@ class GravityBridge:
         self.cronos = cronos
         self.geth = geth
         self.contract = contract
+
+
+def setup_custom_cronos(path, base_port, config):
+    cmd = [
+        "pystarport",
+        "serve",
+        "--config",
+        config,
+        "--data",
+        path,
+        "--base_port",
+        str(base_port),
+        "--quiet",
+    ]
+    print(*cmd)
+    proc = subprocess.Popen(
+        cmd,
+        preexec_fn=os.setsid,
+    )
+    try:
+        wait_for_port(ports.evmrpc_port(base_port))
+        yield Cronos(path / "cronos_777-1")
+    finally:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        # proc.terminate()
+        proc.wait()

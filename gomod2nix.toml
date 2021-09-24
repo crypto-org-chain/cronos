@@ -3736,12 +3736,12 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20210922090135-01b789c3e974"
+  sumVersion = "v0.4.2-0.20210927141513-04c2f05002f8"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "01b789c3e974778f099b5eac89df2eac84d7c9c3"
-    sha256 = "1dp7fy69rhzhm8ghw7ipakd4jci3yy2skm9x07gwarnr1hcqh0nr"
+    rev = "04c2f05002f8c4fa9dc2bed2c9b108c9f90c2a7d"
+    sha256 = "0wsh31zm05r6bzy4dnq1axsvzfzk586l0crjxqncx1y26gqnhgaj"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
