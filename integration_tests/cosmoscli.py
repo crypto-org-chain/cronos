@@ -657,9 +657,6 @@ class CosmosCLI:
                 )
 
     def gov_vote(self, voter, proposal_id, option):
-        print(voter)
-        print(proposal_id)
-        print(option)
         return json.loads(
             self.raw(
                 "tx",
@@ -964,5 +961,20 @@ class CosmosCLI:
                 "contract-by-denom",
                 denom,
                 home=self.data_dir,
+            )
+        )
+
+    def gov_propose_token_mapping_change(self, denom, contract, **kwargs):
+        return json.loads(
+            self.raw(
+                "tx",
+                "gov",
+                "submit-proposal",
+                "token-mapping-change",
+                denom,
+                contract,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
             )
         )

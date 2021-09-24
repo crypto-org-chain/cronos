@@ -107,9 +107,10 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
-	cronosmodule "github.com/crypto-org-chain/cronos/x/cronos"
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+	cronos "github.com/crypto-org-chain/cronos/x/cronos"
+	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
+	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
 const (
@@ -133,6 +134,7 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		upgradeclient.ProposalHandler,
 		upgradeclient.CancelProposalHandler,
 		ibcclientclient.UpdateClientProposalHandler, ibcclientclient.UpgradeProposalHandler,
+		cronosclient.ProposalHandler,
 		// this line is used by starport scaffolding # stargate/app/govProposalHandler
 	)
 
@@ -168,7 +170,7 @@ var (
 		evm.AppModuleBasic{},
 		gravity.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
-		cronosmodule.AppModuleBasic{},
+		cronos.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -182,7 +184,7 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		gravitytypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
-		cronosmoduletypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
+		cronostypes.ModuleName:         {authtypes.Minter, authtypes.Burner},
 	}
 	// Module configurator
 
@@ -249,7 +251,7 @@ type App struct {
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
-	CronosKeeper cronosmodulekeeper.Keeper
+	CronosKeeper cronoskeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -291,7 +293,7 @@ func New(
 		evmtypes.StoreKey,
 		gravitytypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
-		cronosmoduletypes.StoreKey,
+		cronostypes.StoreKey,
 	)
 
 	// Add the EVM transient store key
@@ -361,14 +363,6 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), stakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
-	// register the proposal types
-	govRouter := govtypes.NewRouter()
-	govRouter.AddRoute(govtypes.RouterKey, govtypes.ProposalHandler).
-		AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
-		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
-		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibchost.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
-
 	// Create Transfer Keepers
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
@@ -403,17 +397,26 @@ func New(
 	)
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
-	app.CronosKeeper = *cronosmodulekeeper.NewKeeper(
+	app.CronosKeeper = *cronoskeeper.NewKeeper(
 		appCodec,
-		keys[cronosmoduletypes.StoreKey],
-		keys[cronosmoduletypes.MemStoreKey],
-		app.GetSubspace(cronosmoduletypes.ModuleName),
+		keys[cronostypes.StoreKey],
+		keys[cronostypes.MemStoreKey],
+		app.GetSubspace(cronostypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
 		gravityKeeper,
 		app.EvmKeeper,
 	)
-	cronosModule := cronosmodule.NewAppModule(appCodec, app.CronosKeeper)
+	cronosModule := cronos.NewAppModule(appCodec, app.CronosKeeper)
+
+	// register the proposal types
+	govRouter := govtypes.NewRouter()
+	govRouter.AddRoute(govtypes.RouterKey, govtypes.ProposalHandler).
+		AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
+		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
+		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
+		AddRoute(ibchost.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
+		AddRoute(cronostypes.RouterKey, cronos.NewTokenMappingChangeProposalHandler(app.CronosKeeper))
 
 	// Set IBC hooks
 	app.TransferKeeper = *app.TransferKeeper.SetHooks(app.CronosKeeper)
@@ -426,11 +429,11 @@ func New(
 
 	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
 
-	app.EvmKeeper.SetHooks(cronosmodulekeeper.NewLogProcessEvmHook(
-		cronosmodulekeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		cronosmodulekeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
-		cronosmodulekeeper.NewSendToIbcHandler(app.CronosKeeper),
-		cronosmodulekeeper.NewSendCroToIbcHandler(app.CronosKeeper),
+	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
+		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
+		cronoskeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
+		cronoskeeper.NewSendToIbcHandler(app.CronosKeeper),
+		cronoskeeper.NewSendCroToIbcHandler(app.CronosKeeper),
 	))
 
 	// register the staking hooks
@@ -530,7 +533,7 @@ func New(
 		evmtypes.ModuleName,
 		gravitytypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
-		cronosmoduletypes.ModuleName,
+		cronostypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -747,7 +750,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(evmtypes.ModuleName)
 	paramsKeeper.Subspace(gravitytypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
-	paramsKeeper.Subspace(cronosmoduletypes.ModuleName)
+	paramsKeeper.Subspace(cronostypes.ModuleName)
 
 	return paramsKeeper
 }

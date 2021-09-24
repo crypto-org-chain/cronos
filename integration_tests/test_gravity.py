@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from dateutil.parser import isoparse
 from eth_account.account import Account
 from hexbytes import HexBytes
 from mnemonic import Mnemonic
@@ -15,9 +16,12 @@ from .utils import (
     add_ini_sections,
     cronos_address_from_mnemonics,
     deploy_contract,
+    parse_events,
+    send_to_cosmos,
     send_transaction,
     sign_validator,
     supervisorctl,
+    wait_for_block_time,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -104,7 +108,7 @@ def gravity(cronos, geth, suspend_capture):
         / "contracts/artifacts/contracts/Gravity.sol/Gravity.json",
         (gravity_id.encode(), threshold, eth_addresses, powers),
     )
-    print("contract deployed", contract.address)
+    print("gravity contract deployed", contract.address)
 
     # start orchestrator:
     # a) add process into the supervisord config file
@@ -149,24 +153,16 @@ def test_gravity_transfer(gravity, suspend_capture):
         / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
     )
 
-    balance = erc20.caller.balanceOf(geth.eth.coinbase)
+    balance = erc20.caller.balanceOf(ADDRS["validator"])
     assert balance == 100000000000000000000000000
     amount = 1000
 
-    tx_tpl = {"from": geth.eth.coinbase}
-
-    # approve
-    txhash = erc20.functions.approve(gravity.contract.address, amount).transact(tx_tpl)
-    geth.eth.wait_for_transaction_receipt(txhash)
-
-    # gravity send
     print("send to cronos crc20")
     recipient = HexBytes(ADDRS["community"])
-    txhash = gravity.contract.functions.sendToCosmos(
-        erc20.address, b"\x00" * 12 + recipient, amount
-    ).transact(tx_tpl)
-    geth.eth.wait_for_transaction_receipt(txhash)
-    assert erc20.caller.balanceOf(geth.eth.coinbase) == balance - amount
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, recipient, amount, KEYS["validator"]
+    )
+    assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
     denom = "gravity" + erc20.address
 
@@ -189,18 +185,90 @@ def test_gravity_transfer(gravity, suspend_capture):
 
     # send it back to erc20
     tx = crc20_contract.functions.send_to_ethereum(
-        geth.eth.coinbase, amount, 0
-    ).buildTransaction(
-        {
-            "gas": 42000,
-            "nonce": cronos_w3.eth.get_transaction_count(recipient),
-        }
-    )
+        ADDRS["validator"], amount, 0
+    ).buildTransaction({"from": ADDRS["community"]})
     txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
     assert txreceipt.status == 1, "should success"
 
     def check():
-        v = erc20.caller.balanceOf(geth.eth.coinbase)
+        v = erc20.caller.balanceOf(ADDRS["validator"])
         return v == balance
 
     wait_for_fn("send-to-ethereum", check)
+
+
+def test_gov_token_mapping(gravity):
+    """
+    Test adding a token mapping through gov module
+    - deploy test erc20 contract on geth
+    - deploy corresponding contract on cronos
+    - add the token mapping on cronos using gov module
+    - do a gravity transfer, check the balances
+    """
+    geth = gravity.geth
+    cli = gravity.cronos.cosmos_cli()
+    cronos_w3 = gravity.cronos.w3
+
+    # deploy test erc20 contract
+    erc20 = deploy_contract(
+        geth,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+    )
+    print("erc20 contract", erc20.address)
+    crc20 = deploy_contract(
+        cronos_w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+    )
+    print("crc20 contract", crc20.address)
+    denom = f"gravity{erc20.address}"
+
+    print("check the contract mapping not exists yet")
+    with pytest.raises(AssertionError):
+        cli.query_contract_by_denom(denom)
+
+    rsp = cli.gov_propose_token_mapping_change(
+        denom, crc20.address, from_="community", deposit="1basetcro"
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # get proposal_id
+    ev = parse_events(rsp["logs"])["submit_proposal"]
+    assert ev["proposal_type"] == "TokenMappingChange", rsp
+    proposal_id = ev["proposal_id"]
+    print("gov proposal submitted", proposal_id)
+
+    # not sure why, but sometimes can't find the proposal immediatelly
+    wait_for_new_blocks(cli, 1)
+    proposal = cli.query_proposal(proposal_id)
+
+    # each validator vote yes
+    for i in range(len(gravity.cronos.config["validators"])):
+        rsp = gravity.cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+        assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+    assert (
+        int(cli.query_tally(proposal_id)["yes"]) == cli.staking_pool()
+    ), "all validators should have voted yes"
+    print("wait for proposal to be activated")
+    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
+    wait_for_new_blocks(cli, 1)
+
+    print("check the contract mapping exists now")
+    rsp = cli.query_contract_by_denom(denom)
+    print("contract", rsp)
+    assert rsp["contract"] == crc20.address
+
+    print("try to send token from ethereum to cronos")
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, ADDRS["community"], 10, KEYS["validator"]
+    )
+    assert txreceipt.status == 1
+
+    def check():
+        balance = crc20.caller.balanceOf(ADDRS["community"])
+        print("crc20 balance", balance)
+        return balance == 10
+
+    wait_for_fn("check balance on cronos", check)

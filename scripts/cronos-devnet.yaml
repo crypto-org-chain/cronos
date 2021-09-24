@@ -21,3 +21,11 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
+      gov:
+        voting_params:
+          voting_period: "10s"
+        deposit_params:
+          max_deposit_period: "10s"
+          min_deposit:
+            - denom: "basetcro"
+              amount: "1"
