@@ -120,7 +120,8 @@ def gravity(cronos, geth, suspend_capture):
             f"--ethereum-rpc={geth.provider.endpoint_uri} "
             "--address-prefix=crc --fees=basetcro "
             f"--contract-address={contract.address} "
-            f"--metrics-listen 127.0.0.1:{metrics_port}"
+            f"--metrics-listen 127.0.0.1:{metrics_port} "
+            f'''--hd-wallet-path="m/44'/60'/0'/0/0"'''
         )
         programs[f"program:{chain_id}-orchestrator{i}"] = {
             "command": cmd,
