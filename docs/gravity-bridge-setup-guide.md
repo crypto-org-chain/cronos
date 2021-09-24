@@ -6,7 +6,7 @@
 
 - `geth`, the go-ethereum binary.
 - `cronosd`, the cronos node binary.
-- `orchestrator`, the gravity bridge orchestrator cli.
+- `orchestrator`, the gravity bridge orchestrator cli, build from the [crypto-org fork](https://github.com/crypto-org-chain/gravity-bridge/tree/cronos/orchestrator/orchestrator).
 - `pystarport`, a tool to run local cosmos devnet.
 - `start-geth`/`start-cronos`, convenient scripts to start the local devnets.
 
@@ -99,7 +99,7 @@ $ orchestrator --cosmos-phrase="{mnemonic_phrase_of_cronos_acount}" \
     --ethereum-rpc={ethereum_web3_endpoint} \
     --address-prefix=crc --fees=basetcro \
     --contract-address={gravity_contract_address} \
-    --metrics-listen 127.0.0.1:3000
+    --metrics-listen 127.0.0.1:3000 --hd-wallet-path="m/44'/60'/0'/0/0"
 ```
 
 After all the orchestrator processes run, the gravity bridge between ethereum and cronos is setup succesfully.
