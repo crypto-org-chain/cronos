@@ -23,3 +23,9 @@ message TokenMappingChangeProposal {
   string denom = 3;
   string contract = 4;
 }
+
+// TokenMapping defines a mapping between native denom and contract
+message TokenMapping {
+  string denom = 1;
+  string contract = 2;
+}
