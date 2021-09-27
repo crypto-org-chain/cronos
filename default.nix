@@ -7,7 +7,7 @@ pkgs.buildGoApplication rec {
     "!/x/"
     "!/app/"
     "!/cmd/"
-    "!/docs/"
+    "!/client/"
     "!go.mod"
     "!go.sum"
     "!gomod2nix.toml"
