@@ -3719,14 +3719,6 @@
     rev = "ccb15b138dfd74282be78f5e9059387768b12918"
     sha256 = "1zcms3l5fihzg8nf4vhdk18qpn1jkbm3rpkjfpskfcrgzlxk6vi5"
 
-["github.com/tendermint/spm"]
-  sumVersion = "v0.0.0-20210524110815-6d7452d2dc4a"
-  ["github.com/tendermint/spm".fetch]
-    type = "git"
-    url = "https://github.com/tendermint/spm"
-    rev = "6d7452d2dc4af5dd53506ec3642ad364543756fa"
-    sha256 = "078a0zl6mpl27zvw6b0vvszbvzg6w4m14flzg375gp812wp8rw33"
-
 ["github.com/tendermint/tendermint"]
   sumVersion = "v0.34.13"
   ["github.com/tendermint/tendermint".fetch]
