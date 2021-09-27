@@ -28,3 +28,23 @@ func Test_validateIsIbcDenomParam(t *testing.T) {
 		})
 	}
 }
+
+func Test_validateIsUint64(t *testing.T) {
+	type args struct {
+		i interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"invalid type", args{"a"}, true},
+		{"correct IBC timeout", args{IbcTimeoutDefaultValue}, false},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.wantErr, validateIsUint64(tt.args.i) != nil)
+		})
+	}
+}
