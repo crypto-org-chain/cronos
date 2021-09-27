@@ -2,6 +2,9 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+- [cronos#109](https://github.com/crypto-org-chain/cronos/issues/109) ibc transfer timeout too short
+
 *September 22, 2021*
 ## v0.5.4
 

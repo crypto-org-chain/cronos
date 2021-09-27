@@ -10,6 +10,7 @@ message Params {
   option (gogoproto.goproto_stringer) = false;
   string ibc_cro_denom = 1
       [ (gogoproto.moretags) = "yaml:\"ibc_cro_denom,omitempty\"" ];
+  uint64 ibc_timeout = 2;
 }
 
 // TokenMappingChangeProposal defines a proposal to change one token mapping.
