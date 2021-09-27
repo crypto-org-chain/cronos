@@ -11,9 +11,12 @@ import (
 var (
 	// KeyIbcCroDenom is store's key for the IBC Cro denomination
 	KeyIbcCroDenom = []byte("IbcCroDenom")
+	// KeyIbcTimeout is store's key for the IBC Timeout
+	KeyIbcTimeout = []byte("KeyIbcTimeout")
 )
 
 const IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
+const IbcTimeoutDefaultValue = uint64(86400000000000) // 1 day
 
 // ParamKeyTable returns the parameter key table.
 func ParamKeyTable() paramtypes.KeyTable {
@@ -21,9 +24,10 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64) Params {
 	return Params{
 		IbcCroDenom: ibcCroDenom,
+		IbcTimeout:  ibcTimeout,
 	}
 }
 
@@ -31,11 +35,15 @@ func NewParams(ibcCroDenom string) Params {
 func DefaultParams() Params {
 	return Params{
 		IbcCroDenom: IbcCroDenomDefaultValue,
+		IbcTimeout:  IbcTimeoutDefaultValue,
 	}
 }
 
 // Validate all cronos module parameters
 func (p Params) Validate() error {
+	if err := validateIsUint64(p.IbcTimeout); err != nil {
+		return err
+	}
 	return validateIsIbcDenom(p.IbcCroDenom)
 }
 
@@ -49,6 +57,7 @@ func (p Params) String() string {
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyIbcCroDenom, &p.IbcCroDenom, validateIsIbcDenom),
+		paramtypes.NewParamSetPair(KeyIbcTimeout, &p.IbcTimeout, validateIsUint64),
 	}
 }
 
@@ -60,6 +69,13 @@ func validateIsIbcDenom(i interface{}) error {
 
 	if !IsValidIBCDenom(s) {
 		return fmt.Errorf("invalid ibc denom: %T", i)
+	}
+	return nil
+}
+
+func validateIsUint64(i interface{}) error {
+	if _, ok := i.(uint64); !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 	return nil
 }

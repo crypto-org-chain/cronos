@@ -162,8 +162,8 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	// Transfer coins to receiver through IBC
 	// We use current time for timeout timestamp and zero height for timeoutHeight
 	// it means it can never fail by timeout
-	// TODO Might need to consider add timeout option in configuration.
-	timeoutTimestamp := ctx.BlockTime().UnixNano()
+	params := k.GetParams(ctx)
+	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
 	timeoutHeight := ibcclienttypes.ZeroHeight()
 	return k.transferKeeper.SendTransfer(
 		ctx,
@@ -173,5 +173,5 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 		sender,
 		destination,
 		timeoutHeight,
-		uint64(timeoutTimestamp))
+		timeoutTimestamp)
 }

@@ -2,6 +2,9 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+- [cronos#109](https://github.com/crypto-org-chain/cronos/issues/109) ibc transfer timeout too short
+
 ### Features
 
 - [cronos#110](https://github.com/crypto-org-chain/cronos/pull/110) embed swagger doc ui
