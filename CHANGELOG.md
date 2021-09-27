@@ -17,7 +17,6 @@ This version is the same as v0.5.3 with a patched version of ethermint which inc
 - [cronos#98](https://github.com/crypto-org-chain/cronos/pull/98) node crash under concurrent query
 
 *September 21, 2021*
-
 ## v0.5.3
 
 This version contains several new features, it enables gravity bridge in Cronos and automatic token conversion for bridging tokens to crc20 tokens. It also fix the decimal conversion issues in the CRO tokens from crypto.org chain.
