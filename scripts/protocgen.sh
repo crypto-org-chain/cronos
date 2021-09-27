@@ -30,13 +30,13 @@ Mgoogle/protobuf/any.proto=github.com/cosmos/cosmos-sdk/codec/types:. \
 
 done
 
-# # command to generate docs using protoc-gen-doc
-# buf protoc \
-# -I "proto" \
-# -I "third_party/proto" \
-# --doc_out=./docs/api \
-# --doc_opt=./docs/protodoc-markdown.tmpl,proto-docs.md \
-# $(find "$(pwd)/proto" -maxdepth 5 -name '*.proto')
+# command to generate docs using protoc-gen-doc
+buf protoc \
+-I "proto" \
+-I "third_party/proto" \
+--doc_out=./docs/api \
+--doc_opt=./docs/protodoc-markdown.tmpl,proto-docs.md \
+$(find "$(pwd)/proto" -maxdepth 5 -name '*.proto')
 # go mod tidy
 
 # move proto files to the right places

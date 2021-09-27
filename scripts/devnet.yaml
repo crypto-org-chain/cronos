@@ -1,6 +1,6 @@
 cronos_777-1:
   cmd: ./build/cronosd
-  start-flags: "--trace --json-rpc.enable-unsafe-cors"
+  start-flags: "--trace"
   app-config:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
