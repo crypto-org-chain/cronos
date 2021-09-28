@@ -1,15 +1,13 @@
-name: Sims
+name: Sims-protected
 # Sims workflow runs multiple types of simulations (nondeterminism, import-export, after-import, multi-seed-short)
-# This workflow will run on main and release branches, if a .go, .mod or .sum file have been changed
+# This workflow will ask for approval to run on all Pull Requests, if a .go, .mod or .sum file have been changed
 on:
-  push:
-    branches:
-      - main
-      - release/**
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: protected
     if: "!contains(github.event.head_commit.message, 'skip-sims')"
     steps:
       - uses: actions/checkout@v2
