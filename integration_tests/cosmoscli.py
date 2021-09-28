@@ -937,6 +937,11 @@ class CosmosCLI:
             )
         )
 
+    def query_latest_signer_set_tx(self):
+        return json.loads(
+            self.raw("query", "gravity", "latest-signer-set-tx", home=self.data_dir)
+        )
+
     def send_to_ethereum(self, from_, receiver, coins, fee):
         return json.loads(
             self.raw(

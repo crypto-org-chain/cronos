@@ -94,9 +94,7 @@ def gravity(cronos, geth, suspend_capture):
 
     # deploy gravity contract to geth
     gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
-    # hardcode the nonce as 3, because we can't query latest directly
-    # https://github.com/PeggyJV/gravity-bridge/issues/154
-    signer_set = cli.query_signer_set_tx(3)["signer_set"]["signers"]
+    signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
     powers = [int(signer["power"]) for signer in signer_set]
     threshold = int(2 ** 32 * 0.66)  # gravity normalize the power to [0, 2**32]
     eth_addresses = [signer["ethereum_address"] for signer in signer_set]
