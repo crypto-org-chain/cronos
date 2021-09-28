@@ -18,6 +18,13 @@ cronos_777-1:
       mnemonic: "notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate"
   genesis:
     app_state:
+      cronos:
+        external_contracts:
+          - denom: gravity0x0000000000000000000000000000000000000000
+            contract: "0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503"
+        auto_contracts:
+          - denom: gravity0x0000000000000000000000000000000000000000
+            contract: "0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503"
       auth:
         accounts:
           - "@type": "/ethermint.types.v1.EthAccount"

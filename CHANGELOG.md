@@ -10,6 +10,7 @@
 ### Features
 
 - [cronos#110](https://github.com/crypto-org-chain/cronos/pull/110) embed swagger doc ui
+- [cronos#113](https://github.com/crypto-org-chain/cronos/pull/113) export token mapping state to genesis
 
 *September 22, 2021*
 ## v0.5.4

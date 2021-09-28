@@ -8,6 +8,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -123,6 +124,32 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+}
+
+// GetExternalContracts returns all external contract mappings
+func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping) {
+	store := ctx.KVStore(k.storeKey)
+	iter := prefix.NewStore(store, types.KeyPrefixDenomToExternalContract).Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		out = append(out, types.TokenMapping{
+			Denom:    string(iter.Key()),
+			Contract: common.BytesToAddress(iter.Value()).Hex(),
+		})
+	}
+	return
+}
+
+// GetAutoContracts returns all auto-deployed contract mappings
+func (k Keeper) GetAutoContracts(ctx sdk.Context) (out []types.TokenMapping) {
+	store := ctx.KVStore(k.storeKey)
+	iter := prefix.NewStore(store, types.KeyPrefixDenomToAutoContract).Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		out = append(out, types.TokenMapping{
+			Denom:    string(iter.Key()),
+			Contract: common.BytesToAddress(iter.Value()).Hex(),
+		})
+	}
+	return
 }
 
 // DeleteExternalContractForDenom delete the external contract mapping for native denom,

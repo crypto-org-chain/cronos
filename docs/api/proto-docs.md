@@ -6,6 +6,7 @@
 
 - [cronos/cronos.proto](#cronos/cronos.proto)
     - [Params](#cronos.Params)
+    - [TokenMapping](#cronos.TokenMapping)
     - [TokenMappingChangeProposal](#cronos.TokenMappingChangeProposal)
   
 - [cronos/genesis.proto](#cronos/genesis.proto)
@@ -47,6 +48,23 @@ Params defines the parameters for the cronos module.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `ibc_cro_denom` | [string](#string) |  |  |
+| `ibc_timeout` | [uint64](#uint64) |  |  |
+
+
+
+
+
+
+<a name="cronos.TokenMapping"></a>
+
+### TokenMapping
+TokenMapping defines a mapping between native denom and contract
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `denom` | [string](#string) |  |  |
+| `contract` | [string](#string) |  |  |
 
 
 
@@ -95,9 +113,9 @@ GenesisState defines the cronos module's genesis state.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `params` | [Params](#cronos.Params) |  | params defines all the paramaters of the module.
-
-this line is used by starport scaffolding # genesis/proto/state this line is used by starport scaffolding # ibc/genesis/proto |
+| `params` | [Params](#cronos.Params) |  | params defines all the paramaters of the module. |
+| `external_contracts` | [TokenMapping](#cronos.TokenMapping) | repeated |  |
+| `auto_contracts` | [TokenMapping](#cronos.TokenMapping) | repeated | this line is used by starport scaffolding # genesis/proto/state this line is used by starport scaffolding # ibc/genesis/proto |
 
 
 
