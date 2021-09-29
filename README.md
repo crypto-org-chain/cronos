@@ -148,4 +148,4 @@ pystarport supervisorctl stop all
 - [Ethermint](https://github.com/tharsis/ethermint) by Tharsis
 - [Cosmos SDK documentation](https://docs.cosmos.network)
 - [Cosmos Discord](https://discord.gg/W8trcGV)
-- [Pystarport](./pystarport/README.md)
+- [Pystarport](https://github.com/crypto-com/pystarport/blob/main/README.md)
