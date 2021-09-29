@@ -22,7 +22,10 @@ install: check-network go.sum
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-.PHONY: build install test
+.PHONY: clean build install test
+
+clean:
+	rm -rf $(BUILDDIR)/
 
 ###############################################################################
 ###                                Linting                                  ###
