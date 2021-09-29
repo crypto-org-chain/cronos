@@ -79,7 +79,7 @@ After setting the local devnet, you may interact with the your local blockchain 
 There are different tests that can be executed in the following ways:
 
 - unit tests: `make test`
-
+- [integration tests](./docs/integration-test.md)
 <a id="pystarport" />
 
 ## 9. Pystarport Quick Start
@@ -101,8 +101,8 @@ sudo make install
 ```
 
 ### set path (for linux or for mac)
-in some cases, if there are multiple python versions, pystarport cannot be found.  
-then adjust python path.  
+in some cases, if there are multiple python versions, pystarport cannot be found.
+then adjust python path.
 also `$HOME/.local/bin` should be included to the PATH.
 
 ```
