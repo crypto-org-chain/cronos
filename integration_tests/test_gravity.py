@@ -16,6 +16,7 @@ from .utils import (
     add_ini_sections,
     cronos_address_from_mnemonics,
     deploy_contract,
+    eth_to_bech32,
     parse_events,
     send_to_cosmos,
     send_transaction,
@@ -43,14 +44,14 @@ def geth(tmp_path_factory):
         yield network.w3
 
 
-@pytest.fixture(scope="module")
-def cronos(tmp_path_factory):
+@pytest.fixture(scope="module", params=[True, False])
+def cronos(request, tmp_path_factory):
     "start-cronos"
-    yield from setup_cronos(tmp_path_factory.mktemp("cronos"), 26700)
+    yield from setup_cronos(tmp_path_factory.mktemp("cronos"), 26700, request.param)
 
 
 @pytest.fixture(scope="module")
-def gravity(cronos, geth, suspend_capture):
+def gravity(cronos, geth):
     """
     - set-delegator-keys
     - deploy gravity contract
@@ -140,7 +141,7 @@ def gravity(cronos, geth, suspend_capture):
     yield GravityBridge(cronos, geth, contract)
 
 
-def test_gravity_transfer(gravity, suspend_capture):
+def test_gravity_transfer(gravity):
     geth = gravity.geth
     cli = gravity.cronos.cosmos_cli()
     cronos_w3 = gravity.cronos.w3
@@ -167,7 +168,8 @@ def test_gravity_transfer(gravity, suspend_capture):
 
     crc20_contract = None
 
-    def check():
+    def check_auto_deployment():
+        "check crc20 contract auto deployed, and the crc20 balance"
         nonlocal crc20_contract
         try:
             rsp = cli.query_contract_by_denom(denom)
@@ -180,14 +182,26 @@ def test_gravity_transfer(gravity, suspend_capture):
         )
         return crc20_contract.caller.balanceOf(recipient) == amount
 
-    wait_for_fn("send-to-cronos", check)
+    def check_gravity_native_tokens():
+        "check the balance of gravity native token"
+        return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
 
-    # send it back to erc20
-    tx = crc20_contract.functions.send_to_ethereum(
-        ADDRS["validator"], amount, 0
-    ).buildTransaction({"from": ADDRS["community"]})
-    txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
-    assert txreceipt.status == 1, "should success"
+    if gravity.cronos.enable_auto_deployment:
+        wait_for_fn("send-to-crc20", check_auto_deployment)
+
+        # send it back to erc20
+        tx = crc20_contract.functions.send_to_ethereum(
+            ADDRS["validator"], amount, 0
+        ).buildTransaction({"from": ADDRS["community"]})
+        txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
+        assert txreceipt.status == 1, "should success"
+    else:
+        wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
+        # send back the gravity native tokens
+        rsp = cli.send_to_ethereum(
+            ADDRS["validator"], f"{amount}{denom}", f"0{denom}", from_="community"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
 
     def check():
         v = erc20.caller.balanceOf(ADDRS["validator"])

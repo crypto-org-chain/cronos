@@ -62,9 +62,8 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 		return err
 	}
 	addr := common.BytesToAddress(cosmosAddr.Bytes())
-	// Use auto deploy here for testing.
-	// FIXME update after gov feature is implemented: https://github.com/crypto-org-chain/cronos/issues/46
-	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, true)
+	enableAutoDeployment := k.GetParams(ctx).EnableAutoDeployment
+	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, enableAutoDeployment)
 	if err != nil {
 		return err
 	}

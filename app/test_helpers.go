@@ -30,6 +30,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
@@ -77,6 +78,11 @@ func Setup(isCheckTx bool, cronosAdmin string) *App {
 	genesisState["cronos"] = app.cdc.MustMarshalJSON(cronosGen)
 
 	if !isCheckTx {
+		// enable auto deployment in genesis
+		cronosGen := cronostypes.DefaultGenesis()
+		cronosGen.Params.EnableAutoDeployment = true
+		genesisState["cronos"] = app.cdc.MustMarshalJSON(cronosGen)
+
 		// init chain must be called to stop deliverState from being nil
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 		if err != nil {

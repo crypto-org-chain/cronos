@@ -16,6 +16,8 @@ var (
 	KeyIbcTimeout = []byte("KeyIbcTimeout")
 	// KeyCronosAdmin is store's key for the admin address
 	KeyCronosAdmin = []byte("KeyCronosAdmin")
+	// KeyEnableAutoDeployment is store's key for the EnableAutoDeployment
+	KeyEnableAutoDeployment = []byte("KeyEnableAutoDeployment")
 )
 
 const IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
@@ -27,20 +29,22 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool) Params {
 	return Params{
-		IbcCroDenom: ibcCroDenom,
-		IbcTimeout:  ibcTimeout,
-		CronosAdmin: cronosAdmin,
+		IbcCroDenom:          ibcCroDenom,
+		IbcTimeout:           ibcTimeout,
+		CronosAdmin:          cronosAdmin,
+		EnableAutoDeployment: enableAutoDeployment,
 	}
 }
 
 // DefaultParams is the default parameter configuration for the cronos module
 func DefaultParams() Params {
 	return Params{
-		IbcCroDenom: IbcCroDenomDefaultValue,
-		IbcTimeout:  IbcTimeoutDefaultValue,
-		CronosAdmin: "",
+		IbcCroDenom:          IbcCroDenomDefaultValue,
+		IbcTimeout:           IbcTimeoutDefaultValue,
+		CronosAdmin:          "",
+		EnableAutoDeployment: false,
 	}
 }
 
@@ -72,6 +76,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyIbcCroDenom, &p.IbcCroDenom, validateIsIbcDenom),
 		paramtypes.NewParamSetPair(KeyIbcTimeout, &p.IbcTimeout, validateIsUint64),
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
+		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
 	}
 }
 
@@ -105,5 +110,12 @@ func validateIsAddress(i interface{}) error {
 		}
 	}
 	return nil
+}
 
+func validateIsBool(i interface{}) error {
+	_, ok := i.(bool)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	return nil
 }
