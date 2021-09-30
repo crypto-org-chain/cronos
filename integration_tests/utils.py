@@ -340,7 +340,7 @@ def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
 
 def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None):
     """
-    do approve and sendToCosmos on ethereum side
+    do approve and sendToCronos on ethereum side
     """
     acct = Account.from_key(key)
     txreceipt = send_transaction(
@@ -354,8 +354,8 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
 
     return send_transaction(
         gravity_contract.web3,
-        gravity_contract.functions.sendToCosmos(
-            token_contract.address, b"\x00" * 12 + HexBytes(recipient), amount
+        gravity_contract.functions.sendToCronos(
+            token_contract.address, HexBytes(recipient), amount
         ).buildTransaction({"from": acct.address}),
         key,
     )
