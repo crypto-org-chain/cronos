@@ -521,11 +521,19 @@ contract Gravity is ReentrancyGuard {
 		}
 	}
 
+	function sendToCronos(
+		address _tokenContract,
+		address _destination,
+		uint256 _amount
+	) public nonReentrant {
+		sendToCosmos(_tokenContract, bytes32(uint256(uint160(_destination))), _amount);
+	}
+
 	function sendToCosmos(
 		address _tokenContract,
 		bytes32 _destination,
 		uint256 _amount
-	) public nonReentrant {
+	) private {
 		IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
 		state_lastEventNonce = state_lastEventNonce.add(1);
 		emit SendToCosmosEvent(
