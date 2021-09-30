@@ -50,6 +50,7 @@ func (k Keeper) OnRecvVouchers(
 	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
 	if err == nil {
 		commit()
+		ctx.EventManager().EmitEvents(cacheCtx.EventManager().Events())
 	} else {
 		k.Logger(ctx).Error(
 			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
