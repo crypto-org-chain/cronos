@@ -3,11 +3,13 @@ package types
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
-	TypeMsgConvertVouchers = "ConvertVouchers"
-	TypeMsgTransferTokens  = "TransferTokens"
+	TypeMsgConvertVouchers    = "ConvertVouchers"
+	TypeMsgTransferTokens     = "TransferTokens"
+	TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
 )
 
 var _ sdk.Msg = &MsgConvertVouchers{}
@@ -112,4 +114,58 @@ func (msg *MsgTransferTokens) ValidateBasic() error {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 	return nil
+}
+
+var _ sdk.Msg = &MsgUpdateTokenMapping{}
+
+// NewMsgUpdateTokenMapping ...
+func NewMsgUpdateTokenMapping(admin string, denom string, contract string) *MsgUpdateTokenMapping {
+	return &MsgUpdateTokenMapping{
+		Sender:   admin,
+		Denom:    denom,
+		Contract: contract,
+	}
+}
+
+// GetSigners ...
+func (msg *MsgUpdateTokenMapping) GetSigners() []sdk.AccAddress {
+	sender, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{sender}
+}
+
+// ValidateBasic ...
+func (msg *MsgUpdateTokenMapping) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+
+	if !IsValidDenomToWrap(msg.Denom) {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid denom to wrap (%s)", msg.Denom)
+	}
+
+	if !common.IsHexAddress(msg.Contract) {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid contract address (%s)", msg.Contract)
+	}
+
+	return nil
+}
+
+// Route ...
+func (msg MsgUpdateTokenMapping) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgUpdateTokenMapping) Type() string {
+	return TypeMsgUpdateTokenMapping
+}
+
+// GetSignBytes ...
+func (msg *MsgUpdateTokenMapping) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
 }

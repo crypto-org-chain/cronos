@@ -2,6 +2,10 @@ package cronos_test
 
 import (
 	"errors"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -11,9 +15,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
-	"strings"
-	"testing"
-	"time"
 )
 
 type CronosTestSuite struct {
@@ -31,7 +32,7 @@ func TestCronosTestSuite(t *testing.T) {
 
 func (suite *CronosTestSuite) SetupTest() {
 	checkTx := false
-	suite.app = app.Setup(false)
+	suite.app = app.Setup(false, "")
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
 	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
 

@@ -1,10 +1,11 @@
 package keeper_test
 
 import (
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 	"math/big"
 	"testing"
 	"time"
+
+	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -36,6 +37,8 @@ type KeeperTestSuite struct {
 
 	// EVM helpers
 	evmParam evmtypes.Params
+
+	address common.Address
 }
 
 func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
@@ -44,14 +47,14 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	// account key
 	priv, err := ethsecp256k1.GenerateKey()
 	require.NoError(t, err)
-	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
+	suite.address = common.BytesToAddress(priv.PubKey().Address().Bytes())
 
 	// consensus key
 	priv, err = ethsecp256k1.GenerateKey()
 	require.NoError(t, err)
 	consAddress := sdk.ConsAddress(priv.PubKey().Address())
 
-	suite.app = app.Setup(checkTx)
+	suite.app = app.Setup(checkTx, sdk.AccAddress(suite.address.Bytes()).String())
 	suite.ctx = suite.app.NewContext(checkTx, tmproto.Header{
 		Height:          1,
 		ChainID:         app.TestAppChainID,
@@ -79,13 +82,13 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 
 	// initialize the validator
 	acc := &ethermint.EthAccount{
-		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(address.Bytes()), nil, 0, 0),
+		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(suite.address.Bytes()), nil, 0, 0),
 		CodeHash:    common.BytesToHash(ethcrypto.Keccak256(nil)).String(),
 	}
 
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
-	valAddr := sdk.ValAddress(address.Bytes())
+	valAddr := sdk.ValAddress(suite.address.Bytes())
 	validator, err := stakingtypes.NewValidator(valAddr, priv.PubKey(), stakingtypes.Description{})
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
 	require.NoError(t, err)

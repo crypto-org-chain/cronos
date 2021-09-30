@@ -25,6 +25,8 @@
     - [MsgConvertVouchersResponse](#cronos.MsgConvertVouchersResponse)
     - [MsgTransferTokens](#cronos.MsgTransferTokens)
     - [MsgTransferTokensResponse](#cronos.MsgTransferTokensResponse)
+    - [MsgUpdateTokenMapping](#cronos.MsgUpdateTokenMapping)
+    - [MsgUpdateTokenMappingResponse](#cronos.MsgUpdateTokenMappingResponse)
   
     - [Msg](#cronos.Msg)
   
@@ -49,6 +51,7 @@ Params defines the parameters for the cronos module.
 | ----- | ---- | ----- | ----------- |
 | `ibc_cro_denom` | [string](#string) |  |  |
 | `ibc_timeout` | [uint64](#uint64) |  |  |
+| `cronos_admin` | [string](#string) |  | the admin address who can update token mapping |
 
 
 
@@ -274,7 +277,32 @@ MsgTransferTokens represents a message to transfer cronos evm coins through ibc.
 ### MsgTransferTokensResponse
 MsgTransferTokensResponse defines the TransferTokens response type.
 
-this line is used by starport scaffolding # proto/tx/message
+
+
+
+
+
+<a name="cronos.MsgUpdateTokenMapping"></a>
+
+### MsgUpdateTokenMapping
+MsgUpdateTokenMapping defines the request type
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `sender` | [string](#string) |  |  |
+| `denom` | [string](#string) |  |  |
+| `contract` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cronos.MsgUpdateTokenMappingResponse"></a>
+
+### MsgUpdateTokenMappingResponse
+MsgUpdateTokenMappingResponse defines the response type
 
 
 
@@ -296,6 +324,7 @@ Msg defines the Cronos Msg service
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
 | `ConvertVouchers` | [MsgConvertVouchers](#cronos.MsgConvertVouchers) | [MsgConvertVouchersResponse](#cronos.MsgConvertVouchersResponse) | ConvertVouchers defines a method for converting ibc voucher to cronos evm coins. | |
 | `TransferTokens` | [MsgTransferTokens](#cronos.MsgTransferTokens) | [MsgTransferTokensResponse](#cronos.MsgTransferTokensResponse) | TransferTokens defines a method to transfer cronos evm coins to another chain through IBC | |
+| `UpdateTokenMapping` | [MsgUpdateTokenMapping](#cronos.MsgUpdateTokenMapping) | [MsgUpdateTokenMappingResponse](#cronos.MsgUpdateTokenMappingResponse) | UpdateTokenMapping defines a method to update token mapping | |
 
  <!-- end services -->
 

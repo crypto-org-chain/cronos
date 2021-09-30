@@ -17,6 +17,9 @@ service Msg {
 
     // TransferTokens defines a method to transfer cronos evm coins to another chain through IBC
     rpc TransferTokens(MsgTransferTokens) returns (MsgTransferTokensResponse);
+
+    // UpdateTokenMapping defines a method to update token mapping
+    rpc UpdateTokenMapping(MsgUpdateTokenMapping) returns (MsgUpdateTokenMappingResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to cronos evm coins.
@@ -39,4 +42,16 @@ message MsgConvertVouchersResponse {}
 
 // MsgTransferTokensResponse defines the TransferTokens response type.
 message MsgTransferTokensResponse {}
+
+// MsgUpdateTokenMapping defines the request type
+message MsgUpdateTokenMapping {
+    string sender = 1;
+    string denom = 2;
+    string contract = 3;
+}
+
+// MsgUpdateTokenMappingResponse defines the response type
+message MsgUpdateTokenMappingResponse {
+}
+
 // this line is used by starport scaffolding # proto/tx/message

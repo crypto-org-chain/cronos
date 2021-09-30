@@ -33,6 +33,7 @@ func GetTxCmd() *cobra.Command {
 
 	cmd.AddCommand(CmdConvertTokens())
 	cmd.AddCommand(CmdSendToCryptoOrg())
+	cmd.AddCommand(CmdUpdateTokenMapping())
 
 	return cmd
 }
@@ -171,6 +172,31 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")
 	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description")
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
+
+	return cmd
+}
+
+// CmdUpdateTokenMapping returns a CLI command handler for update token mapping
+func CmdUpdateTokenMapping() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-token-mapping [denom] [contract]",
+		Short: "Update token mapping",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			msg := types.NewMsgUpdateTokenMapping(clientCtx.GetFromAddress().String(), args[0], args[1])
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
 }

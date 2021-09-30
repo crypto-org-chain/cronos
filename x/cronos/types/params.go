@@ -5,6 +5,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
@@ -13,6 +14,8 @@ var (
 	KeyIbcCroDenom = []byte("IbcCroDenom")
 	// KeyIbcTimeout is store's key for the IBC Timeout
 	KeyIbcTimeout = []byte("KeyIbcTimeout")
+	// KeyCronosAdmin is store's key for the admin address
+	KeyCronosAdmin = []byte("KeyCronosAdmin")
 )
 
 const IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
@@ -24,10 +27,11 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string) Params {
 	return Params{
 		IbcCroDenom: ibcCroDenom,
 		IbcTimeout:  ibcTimeout,
+		CronosAdmin: cronosAdmin,
 	}
 }
 
@@ -36,6 +40,7 @@ func DefaultParams() Params {
 	return Params{
 		IbcCroDenom: IbcCroDenomDefaultValue,
 		IbcTimeout:  IbcTimeoutDefaultValue,
+		CronosAdmin: "",
 	}
 }
 
@@ -44,7 +49,15 @@ func (p Params) Validate() error {
 	if err := validateIsUint64(p.IbcTimeout); err != nil {
 		return err
 	}
-	return validateIsIbcDenom(p.IbcCroDenom)
+	if err := validateIsIbcDenom(p.IbcCroDenom); err != nil {
+		return err
+	}
+	if len(p.CronosAdmin) > 0 {
+		if _, err := sdk.AccAddressFromBech32(p.CronosAdmin); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // String implements the fmt.Stringer interface
@@ -58,6 +71,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyIbcCroDenom, &p.IbcCroDenom, validateIsIbcDenom),
 		paramtypes.NewParamSetPair(KeyIbcTimeout, &p.IbcTimeout, validateIsUint64),
+		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 	}
 }
 
@@ -78,4 +92,18 @@ func validateIsUint64(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	}
 	return nil
+}
+
+func validateIsAddress(i interface{}) error {
+	s, ok := i.(string)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	if len(s) > 0 {
+		if _, err := sdk.AccAddressFromBech32(s); err != nil {
+			return err
+		}
+	}
+	return nil
+
 }

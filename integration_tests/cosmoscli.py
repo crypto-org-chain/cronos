@@ -983,3 +983,17 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+
+    def update_token_mapping(self, denom, contract, **kwargs):
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "update-token-mapping",
+                denom,
+                contract,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
