@@ -6,6 +6,7 @@
 
 - [cronos#109](https://github.com/crypto-org-chain/cronos/issues/109) ibc transfer timeout too short
 - [tharsis#590](https://github.com/tharsis/ethermint/pull/590) fix export contract state in genesis and reimport
+- [cronos#123](https://github.com/crypto-org-chain/cronos/issues/123) fix ibc refund logic
 
 ### Features
 
