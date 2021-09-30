@@ -26,7 +26,7 @@ func (k Keeper) AfterRecvTransfer(
 	isSource bool) {
 	// Only after minting vouchers
 	if !isSource {
-		k.OnRecvTransfer(ctx, sdk.NewCoins(token), receiver)
+		k.OnRecvVouchers(ctx, sdk.NewCoins(token), receiver)
 	}
 }
 
@@ -36,9 +36,13 @@ func (k Keeper) AfterRefundTransfer(
 	token sdk.Coin,
 	sender string,
 	isSource bool) {
+	// Only after minting vouchers
+	if !isSource {
+		k.OnRecvVouchers(ctx, sdk.NewCoins(token), sender)
+	}
 }
 
-func (k Keeper) OnRecvTransfer(
+func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
 	receiver string) {

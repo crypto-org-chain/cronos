@@ -435,8 +435,8 @@ func New(
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
 		cronoskeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
-		cronoskeeper.NewSendToIbcHandler(app.CronosKeeper),
-		cronoskeeper.NewSendCroToIbcHandler(app.CronosKeeper),
+		cronoskeeper.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
+		cronoskeeper.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
 	))
 
 	// register the staking hooks

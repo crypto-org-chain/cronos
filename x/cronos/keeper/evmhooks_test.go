@@ -22,6 +22,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 	contract := common.BigToAddress(big.NewInt(1))
 	txHash := common.BigToHash(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
+	sender := common.BigToAddress(big.NewInt(4))
 	denom := "testdenom"
 
 	testCases := []struct {
@@ -189,6 +190,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				suite.Require().Equal(coin, balance)
 
 				data, err := keeper.SendToIbcEvent.Inputs.Pack(
+					sender,
 					"recipient",
 					coin.Amount.BigInt(),
 				)

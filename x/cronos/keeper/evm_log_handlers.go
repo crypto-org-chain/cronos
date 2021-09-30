@@ -85,6 +85,10 @@ func init() {
 		SendToIbcEventName,
 		false,
 		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
 			Name:    "recipient",
 			Type:    stringType,
 			Indexed: false,
@@ -99,6 +103,10 @@ func init() {
 		SendCroToIbcEventName,
 		false,
 		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
 			Name:    "recipient",
 			Type:    stringType,
 			Indexed: false,
@@ -204,11 +212,13 @@ func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, 
 
 // SendToIbcHandler handles `__CronosSendToIbc` log
 type SendToIbcHandler struct {
+	bankKeeper   types.BankKeeper
 	cronosKeeper Keeper
 }
 
-func NewSendToIbcHandler(cronosKeeper Keeper) *SendToIbcHandler {
+func NewSendToIbcHandler(bankKeeper types.BankKeeper, cronosKeeper Keeper) *SendToIbcHandler {
 	return &SendToIbcHandler{
+		bankKeeper:   bankKeeper,
 		cronosKeeper: cronosKeeper,
 	}
 }
@@ -235,11 +245,17 @@ func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data 
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
-	recipient := unpacked[0].(string)
-	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
-	coin := sdk.NewCoin(denom, amount)
-	err = h.cronosKeeper.IbcTransferCoins(ctx, contractAddr.String(), recipient, sdk.NewCoins(coin))
-	if err != nil {
+	sender := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	recipient := unpacked[1].(string)
+	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
+
+	// First, transfer IBC coin to user so that he will be the refunded address if transfer fails
+	if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender, coins); err != nil {
+		return err
+	}
+	// Initiate IBC transfer from sender account
+	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {
 		return err
 	}
 	return nil
@@ -247,11 +263,13 @@ func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data 
 
 // SendCroToIbcHandler handles `__CronosSendCroToIbc` log
 type SendCroToIbcHandler struct {
+	bankKeeper   types.BankKeeper
 	cronosKeeper Keeper
 }
 
-func NewSendCroToIbcHandler(cronosKeeper Keeper) *SendCroToIbcHandler {
+func NewSendCroToIbcHandler(bankKeeper types.BankKeeper, cronosKeeper Keeper) *SendCroToIbcHandler {
 	return &SendCroToIbcHandler{
+		bankKeeper:   bankKeeper,
 		cronosKeeper: cronosKeeper,
 	}
 }
@@ -269,12 +287,17 @@ func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, da
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
-	recipient := unpacked[0].(string)
-	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	sender := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	recipient := unpacked[1].(string)
+	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 	evmDenom := h.cronosKeeper.GetEvmParams(ctx).EvmDenom
-	coin := sdk.NewCoin(evmDenom, amount)
-	err = h.cronosKeeper.IbcTransferCoins(ctx, contractAddr.String(), recipient, sdk.NewCoins(coin))
-	if err != nil {
+	coins := sdk.NewCoins(sdk.NewCoin(evmDenom, amount))
+	// First, transfer IBC coin to user so that he will be the refunded address if transfer fails
+	if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender, coins); err != nil {
+		return err
+	}
+	// Initiate IBC transfer from sender account
+	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {
 		return err
 	}
 	return nil
