@@ -533,7 +533,7 @@ contract Gravity is ReentrancyGuard {
 		address _tokenContract,
 		bytes32 _destination,
 		uint256 _amount
-	) public {
+	) private {
 		IERC20(_tokenContract).safeTransferFrom(msg.sender, address(this), _amount);
 		state_lastEventNonce = state_lastEventNonce.add(1);
 		emit SendToCosmosEvent(
