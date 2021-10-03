@@ -9,12 +9,16 @@ import (
 const (
 	AttributeValueCategory = ModuleName
 
-	AttributeKeyRecipient = "recipient"
-	AttributeKeySender    = "sender"
+	AttributeKeyRecipient             = "recipient"
+	AttributeKeySender                = "sender"
+	AttributeKeyAmount                = "amount"
+	AttributeKeyReceiver              = "receiver"
+	AttributeKeyEthereumTokenContract = "ethereum_token_contract"
 
 	// events
-	EventTypeConvertVouchers = "convert_vouchers"
-	EventTypeTransferTokens  = "transfer_tokens"
+	EventTypeConvertVouchers             = "convert_vouchers"
+	EventTypeTransferTokens              = "transfer_tokens"
+	EventTypeEthereumSendToCosmosHandled = "ethereum_send_to_cosmos_handled"
 )
 
 // NewConvertVouchersEvent constructs a new voucher convert sdk.Event

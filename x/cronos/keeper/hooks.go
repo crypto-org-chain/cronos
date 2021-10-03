@@ -2,8 +2,11 @@ package keeper
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	"github.com/ethereum/go-ethereum/common"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+	"strconv"
 )
 
 // TODO Implements GravityHooks interface
@@ -41,9 +44,26 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 	addr := common.BytesToAddress(cosmosAddr.Bytes())
 	// Use auto deploy here for testing.
 	// FIXME update after gov feature is implemented: https://github.com/crypto-org-chain/cronos/issues/46
-	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, sdk.NewCoin(denom, event.Amount), true)
+	coin := sdk.NewCoin(denom, event.Amount)
+	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, true)
 	if err != nil {
 		return err
 	}
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		cronostypes.EventTypeEthereumSendToCosmosHandled,
+		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+		sdk.NewAttribute(cronostypes.AttributeKeySender, event.GetEthereumSender()),
+		sdk.NewAttribute(cronostypes.AttributeKeyReceiver, event.GetCosmosReceiver()),
+		sdk.NewAttribute(cronostypes.AttributeKeyAmount, coin.String()),
+		sdk.NewAttribute(gravitytypes.AttributeKeyBridgeChainID, strconv.FormatUint(
+			k.gravityKeeper.GetParams(ctx).BridgeChainId, 10,
+		)),
+		sdk.NewAttribute(cronostypes.AttributeKeyEthereumTokenContract, event.GetTokenContract()),
+		sdk.NewAttribute(gravitytypes.AttributeKeyNonce, strconv.FormatUint(event.GetEventNonce(), 10)),
+		sdk.NewAttribute(gravitytypes.AttributeKeyEthereumEventVoteRecordID,
+			string(gravitytypes.MakeEthereumEventVoteRecordKey(event.GetEventNonce(), event.Hash()))),
+	))
+
 	return nil
 }
