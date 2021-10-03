@@ -36,8 +36,8 @@ replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1
 replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-hooks
 
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
-replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20210923075944-630e7235f4b2
+replace github.com/peggyjv/gravity-bridge/module => github.com/yihuang/gravity-bridge/module v0.1.22-0.20211004002640-008106caa0eb
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
 
-replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.4.2-0.20211003001121-544c6d1f93d8
+replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.4.2-0.20211003002300-c53ebc8bbdaf

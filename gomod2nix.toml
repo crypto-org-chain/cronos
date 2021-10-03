@@ -3904,14 +3904,14 @@
     sha256 = "0f146yjqwx2mr110kl8scjhqd08hys7vr5z0d0a3lskb6yy22gfg"
 
 ["github.com/peggyjv/gravity-bridge/module"]
-  sumVersion = "v0.1.22-0.20210923075944-630e7235f4b2"
+  sumVersion = "v0.1.22-0.20211004002640-008106caa0eb"
   relPath = "module"
-  vendorPath = "github.com/crypto-org-chain/gravity-bridge/module"
+  vendorPath = "github.com/yihuang/gravity-bridge/module"
   ["github.com/peggyjv/gravity-bridge/module".fetch]
     type = "git"
-    url = "https://github.com/crypto-org-chain/gravity-bridge"
-    rev = "630e7235f4b2345177b571813ab316f01cdbfb93"
-    sha256 = "021n33b05x41bc65b42af179q12sx55dsh4si9xc1rjjvbl3dpd5"
+    url = "https://github.com/yihuang/gravity-bridge"
+    rev = "008106caa0eb834c499a3ee4e5cec8d20c3a7fcf"
+    sha256 = "0np8iyys81f3pr96snp6cz5bac6ny94v2343vdz2j33zaq2s689w"
 
 ["github.com/pelletier/go-toml"]
   sumVersion = "v1.9.4"
@@ -4686,13 +4686,13 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20211003001121-544c6d1f93d8"
+  sumVersion = "v0.4.2-0.20211003002300-c53ebc8bbdaf"
   vendorPath = "github.com/yihuang/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/yihuang/ethermint"
-    rev = "544c6d1f93d8b4bd5d19d6cf86214196b4698c01"
-    sha256 = "1y1gcr2lsfzrnp6vk0il7mn246gb9cph6q93agidnj3ppw801y2i"
+    rev = "c53ebc8bbdaff416ced87144ba67b4ec4367fce6"
+    sha256 = "0id3574c8fj9wv3jqqz39m1f6rlj9cyh8hn2jbvpik4plysgh02c"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
