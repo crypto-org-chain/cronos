@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/armon/go-metrics v0.3.9
-	github.com/cosmos/cosmos-sdk v0.44.0
+	github.com/cosmos/cosmos-sdk v0.44.1
 	github.com/cosmos/ibc-go v1.2.0
 	github.com/ethereum/go-ethereum v1.10.3
 	github.com/gogo/protobuf v1.3.3
@@ -39,3 +39,5 @@ replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-ho
 replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20210923075944-630e7235f4b2
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
+
+replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.4.2-0.20211003001121-544c6d1f93d8
