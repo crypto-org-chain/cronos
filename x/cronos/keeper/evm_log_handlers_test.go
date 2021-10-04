@@ -353,6 +353,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(types.ModuleName), types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(coin, balance)
 				ibcCoin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))
+				// As we mock IBC module, we expect the token to be in user balance
 				ibcBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(ibcCoin, ibcBalance)
 				croCoin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(500))
