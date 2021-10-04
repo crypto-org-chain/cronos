@@ -6,7 +6,7 @@ require (
 	github.com/armon/go-metrics v0.3.9
 	github.com/cosmos/cosmos-sdk v0.44.1
 	github.com/cosmos/ibc-go v1.2.0
-	github.com/ethereum/go-ethereum v1.10.3
+	github.com/ethereum/go-ethereum v1.10.8
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
