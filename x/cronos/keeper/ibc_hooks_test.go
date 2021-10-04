@@ -9,7 +9,7 @@ import (
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
 )
 
-func (suite *KeeperTestSuite) TestOnRecvTransfer() {
+func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())
@@ -81,7 +81,7 @@ func (suite *KeeperTestSuite) TestOnRecvTransfer() {
 			suite.app.CronosKeeper = cronosKeeper
 
 			tc.malleate()
-			suite.app.CronosKeeper.OnRecvTransfer(suite.ctx, tc.coins, address.String())
+			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
 			tc.postCheck()
 		})
 	}
