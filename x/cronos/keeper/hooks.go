@@ -33,6 +33,24 @@ func (k Keeper) AfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.SendT
 
 func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.SendToCosmosEvent) error {
 	isCosmosOriginated, denom := k.gravityKeeper.ERC20ToDenomLookup(ctx, event.TokenContract)
+	coin := sdk.NewCoin(denom, event.Amount)
+	// TODO: Remove after event is emitted at Gravity module https://github.com/crypto-org-chain/gravity-bridge/pull/12
+	coins := sdk.Coins{sdk.NewCoin(denom, event.Amount)}
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		cronostypes.EventTypeEthereumSendToCosmosHandled,
+		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+		sdk.NewAttribute(cronostypes.AttributeKeySender, event.GetEthereumSender()),
+		sdk.NewAttribute(cronostypes.AttributeKeyReceiver, event.GetCosmosReceiver()),
+		sdk.NewAttribute(cronostypes.AttributeKeyAmount, coins.String()),
+		sdk.NewAttribute(gravitytypes.AttributeKeyBridgeChainID, strconv.FormatUint(
+			k.gravityKeeper.GetParams(ctx).BridgeChainId, 10,
+		)),
+		sdk.NewAttribute(cronostypes.AttributeKeyEthereumTokenContract, event.GetTokenContract()),
+		sdk.NewAttribute(gravitytypes.AttributeKeyNonce, strconv.FormatUint(event.GetEventNonce(), 10)),
+		sdk.NewAttribute(gravitytypes.AttributeKeyEthereumEventVoteRecordID,
+			string(gravitytypes.MakeEthereumEventVoteRecordKey(event.GetEventNonce(), event.Hash()))),
+	))
+
 	if isCosmosOriginated {
 		// ignore cosmos originated transfer
 		return nil
@@ -45,26 +63,10 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 	addr := common.BytesToAddress(cosmosAddr.Bytes())
 	// Use auto deploy here for testing.
 	// FIXME update after gov feature is implemented: https://github.com/crypto-org-chain/cronos/issues/46
-	coin := sdk.NewCoin(denom, event.Amount)
 	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, true)
 	if err != nil {
 		return err
 	}
-
-	ctx.EventManager().EmitEvent(sdk.NewEvent(
-		cronostypes.EventTypeEthereumSendToCosmosHandled,
-		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-		sdk.NewAttribute(cronostypes.AttributeKeySender, event.GetEthereumSender()),
-		sdk.NewAttribute(cronostypes.AttributeKeyReceiver, event.GetCosmosReceiver()),
-		sdk.NewAttribute(cronostypes.AttributeKeyAmount, coin.String()),
-		sdk.NewAttribute(gravitytypes.AttributeKeyBridgeChainID, strconv.FormatUint(
-			k.gravityKeeper.GetParams(ctx).BridgeChainId, 10,
-		)),
-		sdk.NewAttribute(cronostypes.AttributeKeyEthereumTokenContract, event.GetTokenContract()),
-		sdk.NewAttribute(gravitytypes.AttributeKeyNonce, strconv.FormatUint(event.GetEventNonce(), 10)),
-		sdk.NewAttribute(gravitytypes.AttributeKeyEthereumEventVoteRecordID,
-			string(gravitytypes.MakeEthereumEventVoteRecordKey(event.GetEventNonce(), event.Hash()))),
-	))
 
 	return nil
 }
