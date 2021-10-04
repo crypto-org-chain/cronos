@@ -15,7 +15,7 @@ builds:
     goarch:
       - amd64
     flags:
-        - -tags=cgo
+        - -tags=testnet,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-darwin-arm64"
@@ -30,7 +30,7 @@ builds:
     goarch:
       - arm64
     flags:
-      - -tags=cgo
+      - -tags=testnet,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-linux"
@@ -45,7 +45,7 @@ builds:
     goarch:
       - amd64
     flags:
-      - -tags=cgo
+      - -tags=testnet,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-linux-arm64"
@@ -60,7 +60,7 @@ builds:
     goarch:
       - arm64
     flags:
-      - -tags=cgo
+      - -tags=testnet,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-windows"
@@ -75,7 +75,7 @@ builds:
     goarch:
       - amd64
     flags:
-      - -tags=cgo
+      - -tags=testnet,cgo
       - -buildmode=exe
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
