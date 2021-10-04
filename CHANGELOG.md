@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+*October 4, 2021*
+## v0.5.5
+
+This version fixes various bugs regarding ibc fund transfer and EVM-related in ethermint.
+We also enable swagger doc ui and add the token mapping state in genesis.
+
 ### Bug Fixes
 
 - [cronos#109](https://github.com/crypto-org-chain/cronos/issues/109) ibc transfer timeout too short

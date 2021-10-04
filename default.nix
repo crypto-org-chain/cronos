@@ -1,7 +1,7 @@
 { system ? builtins.currentSystem, pkgs ? import ./nix { inherit system; } }:
 pkgs.buildGoApplication rec {
   pname = "cronosd";
-  version = "0.5.4-testnet";
+  version = "0.5.5-testnet";
   src = (pkgs.nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
