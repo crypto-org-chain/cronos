@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+- [cronos#144](https://github.com/crypto-org-chain/cronos/pull/144) fix events in autodeploy crc20 module contract
+
+
 *October 4, 2021*
 ## v0.5.5
 
