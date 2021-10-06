@@ -5,6 +5,7 @@ COVERAGE ?= coverage.txt
 GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
 NETWORK ?= mainnet
+LEDGER_ENABLED ?= false
 
 TESTNET_FLAGS ?=
 
@@ -12,11 +13,34 @@ ifeq ($(NETWORK),testnet)
 	BUILD_TAGS := -tags testnet
 endif
 
+ifeq ($(LEDGER_ENABLED),true)
+    ifeq ($(OS),Windows_NT)
+        GCCEXE = $(shell where gcc.exe 2> NUL)
+        ifeq ($(GCCEXE),)
+            $(error gcc.exe not installed for ledger support, please install or set LEDGER_ENABLED=false)
+        else
+            BUILD_TAGS := $(BUILD_TAGS),ledger
+        endif
+    else
+        UNAME_S = $(shell uname -s)
+        ifeq ($(UNAME_S),OpenBSD)
+            $(warning OpenBSD detected, disabling ledger support (https://github.com/cosmos/cosmos-sdk/issues/1988))
+        else
+            GCC = $(shell command -v gcc 2> /dev/null)
+            ifeq ($(GCC),)
+                $(error gcc not installed for ledger support, please install or set LEDGER_ENABLED=false)
+            else
+                BUILD_TAGS := $(BUILD_TAGS),ledger
+            endif
+        endif
+    endif
+endif
+
 all: build
-build: check-network go.sum
+build: check-network print-ledger go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
-install: check-network go.sum
+install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) ./cmd/cronosd
 
 test:
@@ -193,6 +217,11 @@ else
 	@echo "Unrecognized network: ${NETWORK}"
 endif
 	@echo "building network: ${NETWORK}"
+
+print-ledger:
+ifeq ($(LEDGER_ENABLED),true)
+	@echo "building with ledger support"
+endif
 
 ###############################################################################
 ###                                Protobuf                                 ###
