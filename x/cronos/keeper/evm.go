@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -27,32 +26,14 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 		value, // amount
 		config.DefaultGasCap,
 		big.NewInt(0), // gasPrice
+		big.NewInt(0), // gasFeeCap
+		big.NewInt(0), // gasTipCap
 		data,
 		nil,   // accessList
 		false, // checkNonce
 	)
-
-	params := k.evmKeeper.GetParams(ctx)
-	// return error if contract creation or call are disabled through governance
-	if !params.EnableCreate && to == nil {
-		return nil, nil, errors.New("failed to create new contract")
-	} else if !params.EnableCall && to != nil {
-		return nil, nil, errors.New("failed to call contract")
-	}
-	ethCfg := params.ChainConfig.EthereumConfig(k.evmKeeper.ChainID())
-
-	// get the coinbase address from the block proposer
-	coinbase, err := k.evmKeeper.GetCoinbaseAddress(ctx)
-	if err != nil {
-		return nil, nil, errors.New("failed to obtain coinbase address")
-	}
-	evm := k.evmKeeper.NewEVM(msg, ethCfg, params, coinbase, types.NewDummyTracer())
-	ret, err := k.evmKeeper.ApplyMessage(evm, msg, ethCfg, true)
-	if err != nil {
-		return nil, nil, err
-	}
-	k.evmKeeper.CommitCachedContexts()
-	return &msg, ret, nil
+	ret, err := k.evmKeeper.ApplyNativeMessage(msg)
+	return &msg, ret, err
 }
 
 // CallModuleCRC20 call a method of ModuleCRC20 contract

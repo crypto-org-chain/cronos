@@ -6,8 +6,10 @@ import (
 	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
@@ -44,6 +46,14 @@ type AccountKeeper interface {
 type GravityKeeper interface {
 	ERC20ToDenomLookup(ctx sdk.Context, tokenContract string) (bool, string)
 	GetParams(ctx sdk.Context) (params gravitytypes.Params)
+}
+
+// EvmKeeper defines the expected evm keeper interface
+type EvmKeeper interface {
+	WithContext(ctx sdk.Context)
+	GetNonce(common.Address) uint64
+	ApplyNativeMessage(core.Message) (*evmtypes.MsgEthereumTxResponse, error)
+	GetParams(ctx sdk.Context) evmtypes.Params
 }
 
 // EvmLogHandler defines the interface for evm log handler

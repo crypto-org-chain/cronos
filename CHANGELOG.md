@@ -9,6 +9,8 @@
 
 ### Improvements
 - [cronos#162](https://github.com/crypto-org-chain/cronos/pull/162) bump ibc-go to v1.2.1 with hooks support
+- [cronos#143](https://github.com/crypto-org-chain/cronos/pull/143) update go-ethereum to 1.10.9 and add fee market
+  module.
 
 *October 4, 2021*
 ## v0.5.5

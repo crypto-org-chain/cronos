@@ -12,7 +12,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	evmkeeper "github.com/tharsis/ethermint/x/evm/keeper"
 	// this line is used by starport scaffolding # ibc/keeper/import
 )
 
@@ -31,7 +30,7 @@ type (
 		// gravity bridge keeper
 		gravityKeeper types.GravityKeeper
 		// ethermint evm keeper
-		evmKeeper *evmkeeper.Keeper
+		evmKeeper types.EvmKeeper
 
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
@@ -45,7 +44,7 @@ func NewKeeper(
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
 	gravityKeeper types.GravityKeeper,
-	evmKeeper *evmkeeper.Keeper,
+	evmKeeper types.EvmKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
 
