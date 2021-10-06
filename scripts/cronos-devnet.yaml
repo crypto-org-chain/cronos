@@ -2,6 +2,7 @@ cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
   app-config:
+    minimum-gas-prices: 5000000000000basetcro
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
@@ -17,6 +18,9 @@ cronos_777-1:
       coins: 10000000000000000000000basetcro
       mnemonic: "notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate"
   genesis:
+    consensus_params:
+      block:
+        max_gas: "81500000"
     app_state:
       evm:
         params:

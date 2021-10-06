@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -51,6 +52,28 @@ def test_events(cluster, suspend_capture):
         assert topic in bloom
 
 
+def test_minimal_gas_price(cronos):
+    w3 = cronos.w3
+    gas_price = w3.eth.gas_price
+    assert gas_price == 5000000000000
+    tx = {
+        "to": "0x0000000000000000000000000000000000000000",
+        "value": 10000,
+    }
+    with pytest.raises(ValueError):
+        send_transaction(
+            w3,
+            {**tx, "gasPrice": 1},
+            KEYS["community"],
+        )
+    receipt = send_transaction(
+        w3,
+        {**tx, "gasPrice": gas_price},
+        KEYS["validator"],
+    )
+    assert receipt.status == 1
+
+
 def test_native_call(cronos):
     """
     test contract native call on cronos network
@@ -78,3 +101,23 @@ def test_native_call(cronos):
     )
     receipt = w3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 0, "should fail"
+
+
+def test_message_call(cronos):
+    "stress test the evm by doing message calls as much as possible"
+    w3 = cronos.w3
+    contract = deploy_contract(
+        w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestMessageCall.sol/TestMessageCall.json",
+        key=KEYS["community"],
+    )
+    iterations = 40000
+    receipt = send_transaction(
+        w3,
+        contract.functions.test(iterations).buildTransaction(),
+        KEYS["community"],
+    )
+    print(receipt.cumulativeGasUsed)
+    assert receipt.status == 1, "shouldn't fail"
+    assert len(receipt.logs) == iterations
