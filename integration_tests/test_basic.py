@@ -1,4 +1,5 @@
 import concurrent.futures
+import time
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from .utils import (
     ADDRS,
     KEYS,
     Greeter,
-    TestRevert,
+    RevertTestContract,
     deploy_contract,
     send_transaction,
     wait_for_block,
@@ -299,12 +300,12 @@ def test_transaction(cronos):
 
     # Deploy multiple contracts
     contracts = {
-        "test_revert_1": TestRevert(
+        "test_revert_1": RevertTestContract(
             Path(__file__).parent
             / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
             KEYS["validator"],
         ),
-        "test_revert_2": TestRevert(
+        "test_revert_2": RevertTestContract(
             Path(__file__).parent
             / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
             KEYS["community"],
@@ -392,3 +393,45 @@ def assert_receipt_transaction_and_block(w3, futures):
         assert transaction["hash"] in block["transactions"]
         # check blockNumber in block
         assert transaction["blockNumber"] == block["number"]
+
+
+def test_exception(cluster):
+    w3 = cluster.w3
+    contract = deploy_contract(
+        w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+    )
+    with pytest.raises(web3.exceptions.ContractLogicError):
+        send_transaction(
+            w3, contract.functions.transfer(5 * 10 ** 18 - 1).buildTransaction()
+        )
+    assert 0 == contract.caller.query()
+
+    receipt = send_transaction(
+        w3, contract.functions.transfer(5 * 10 ** 18).buildTransaction()
+    )
+    assert receipt.status == 1, "should be succesfully"
+    assert 5 * 10 ** 18 == contract.caller.query()
+
+
+def test_message_call(cronos):
+    "stress test the evm by doing message calls as much as possible"
+    w3 = cronos.w3
+    contract = deploy_contract(
+        w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestMessageCall.sol/TestMessageCall.json",
+        key=KEYS["community"],
+    )
+    iterations = 13000
+    tx = contract.functions.test(iterations).buildTransaction()
+
+    begin = time.time()
+    tx["gas"] = w3.eth.estimate_gas(tx)
+    assert time.time() - begin < 5  # should finish in reasonable time
+
+    receipt = send_transaction(w3, tx, KEYS["community"])
+    assert 23828976 == receipt.cumulativeGasUsed
+    assert receipt.status == 1, "shouldn't fail"
+    assert len(receipt.logs) == iterations
