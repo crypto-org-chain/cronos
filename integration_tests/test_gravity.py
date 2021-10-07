@@ -1,7 +1,9 @@
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
+import toml
 from dateutil.parser import isoparse
 from eth_account.account import Account
 from hexbytes import HexBytes
@@ -13,6 +15,7 @@ from .network import GravityBridge
 from .utils import (
     ADDRS,
     KEYS,
+    InlineTable,
     add_ini_sections,
     cronos_address_from_mnemonics,
     deploy_contract,
@@ -68,19 +71,24 @@ def gravity(cronos, geth, suspend_capture):
         eth_accounts.append(acct)
 
         # fund the orchestrator account in geth
+        print("fund 0.1 eth to address", acct.address)
         send_transaction(
             geth, {"to": acct.address, "value": 10 ** 17}, KEYS["validator"]
         )
 
         # orchestrator cronos key
-        mnemonic = mnemonic_gen.generate()
+        mnemonic = mnemonic_gen.generate(strength=256)
         cosmos_mnemonics.append(mnemonic)
         acc_addr = cronos_address_from_mnemonics(mnemonic)
 
         # fund the orchestrator account in cronos
-        cli = cronos.cosmos_cli(i)
-        cli.transfer("validator", acc_addr, "%dbasetcro" % 10 ** 16)
+        print("fund 100cro to address", acc_addr)
+        rsp = cronos.cosmos_cli().transfer(
+            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
 
+        cli = cronos.cosmos_cli(i)
         val_addr = cli.address("validator", bech="val")
         val_acct_addr = cli.address("validator")
         nonce = int(cli.account(val_acct_addr)["base_account"]["sequence"])
@@ -115,18 +123,77 @@ def gravity(cronos, geth, suspend_capture):
     for i, val in enumerate(cronos.config["validators"]):
         metrics_port = 3000 + i
         grpc_port = ports.grpc_port(val["base_port"])
-        cmd = (
-            f'orchestrator --cosmos-phrase="{cosmos_mnemonics[i]}" '
-            f"--ethereum-key={eth_accounts[i].key.hex()} "
-            f"--cosmos-grpc=http://localhost:{grpc_port} "
-            f"--ethereum-rpc={geth.provider.endpoint_uri} "
-            "--address-prefix=crc --fees=basetcro "
-            f"--contract-address={contract.address} "
-            f"--metrics-listen 127.0.0.1:{metrics_port} "
-            f'''--hd-wallet-path="m/44'/60'/0'/0/0"'''
+        gorc_config = cronos.base_dir / f"node{i}/gorc.toml"
+
+        # generate gorc config file
+        gorc_config.write_text(
+            toml.dumps(
+                {
+                    "keystore": InlineTable(
+                        {
+                            "File": str(
+                                cronos.base_dir / f"node{i}/orchestrator_keystore"
+                            ),
+                        }
+                    ),
+                    "gravity": {
+                        "contract": contract.address,
+                        "fees_denom": "basetcro",
+                    },
+                    "ethereum": {
+                        "key_derivation_path": "m/44'/60'/0'/0/0",
+                        "rpc": geth.provider.endpoint_uri,
+                    },
+                    "cosmos": {
+                        "gas_price": {
+                            "amount": 5000000000000,
+                            "denom": "basetcro",
+                        },
+                        "grpc": f"http://localhost:{grpc_port}",
+                        "key_derivation_path": "m/44'/60'/0'/0/0",
+                        "prefix": "crc",
+                    },
+                    "metrics": {
+                        "listen_addr": f"127.0.0.1:{metrics_port}",
+                    },
+                },
+                encoder=toml.TomlPreserveInlineDictEncoder(),
+            )
         )
+
+        # load keys
+        subprocess.run(
+            [
+                "gorc",
+                "-c",
+                gorc_config,
+                "keys",
+                "eth",
+                "recover",
+                "cosmos",
+                cosmos_mnemonics[i],
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "gorc",
+                "-c",
+                gorc_config,
+                "keys",
+                "eth",
+                "import",
+                "eth",
+                eth_accounts[i].key.hex(),
+            ],
+            check=True,
+        )
+
         programs[f"program:{chain_id}-orchestrator{i}"] = {
-            "command": cmd,
+            "command": (
+                f'gorc -c "{gorc_config}" orchestrator start '
+                "--cosmos-key cosmos --ethereum-key eth"
+            ),
             "autostart": "true",
             "autorestart": "true",
             "startsecs": "3",

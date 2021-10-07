@@ -13,6 +13,7 @@ import uuid
 import bech32
 import eth_utils
 import rlp
+import toml
 import yaml
 from cprotobuf import Field, ProtoEntity
 from dateutil.parser import isoparse
@@ -359,3 +360,8 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
         ).buildTransaction({"from": acct.address}),
         key,
     )
+
+
+class InlineTable(dict, toml.decoder.InlineTableDict):
+    "a hack to dump inline table with toml library"
+    pass

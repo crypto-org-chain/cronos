@@ -21,25 +21,13 @@ import sources.nixpkgs {
       }
     )
     (_: pkgs: {
-      orchestrator = pkgs.rustPlatform.buildRustPackage rec {
-        name = "orchestrator";
-        src = sources.gravity-bridge;
-        sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = sha256:1rii0l2xd2r5ha9ac10da6h2z4wnhf55cp5kdfrfwiacrrg3gg3l;
-        cargoBuildFlags = "-p ${name} --features ethermint";
-        doCheck = false;
-        OPENSSL_NO_VENDOR = "1";
-        OPENSSL_DIR = pkgs.symlinkJoin {
-          name = "openssl";
-          paths = with pkgs.openssl; [ out dev ];
-        };
-      };
       gorc = pkgs.rustPlatform.buildRustPackage rec {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = sha256:1rdg71i393hwqw306fqssb7iby3ivxzh42vv53c2gqy90gd9dfjk;
+        cargoSha256 = sha256:08bpbi7j0jr9mr65hh92gcxys5yqrgyjx6fixjg4v09yyw5im9x7;
         cargoBuildFlags = "-p ${name} --features ethermint";
+        buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security ];
         doCheck = false;
         OPENSSL_NO_VENDOR = "1";
         OPENSSL_DIR = pkgs.symlinkJoin {
