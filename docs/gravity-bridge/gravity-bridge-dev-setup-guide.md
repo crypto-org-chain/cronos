@@ -1,4 +1,4 @@
-# Gravity Bridge Setup Guide
+# Gravity Bridge Dev Setup Guide
 
 ## Prerequisite
 
