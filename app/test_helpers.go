@@ -30,6 +30,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
 const (
@@ -67,8 +68,14 @@ func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 }
 
 // Setup initializes a new App. A Nop logger is set in App.
-func Setup(isCheckTx bool) *App {
+func Setup(isCheckTx bool, cronosAdmin string) *App {
 	app, genesisState := setup(!isCheckTx, 5)
+
+	// set cronos_admin for test
+	cronosGen := cronostypes.DefaultGenesis()
+	cronosGen.Params.CronosAdmin = cronosAdmin
+	genesisState["cronos"] = app.cdc.MustMarshalJSON(cronosGen)
+
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")

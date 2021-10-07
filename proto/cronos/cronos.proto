@@ -11,6 +11,8 @@ message Params {
   string ibc_cro_denom = 1
       [ (gogoproto.moretags) = "yaml:\"ibc_cro_denom,omitempty\"" ];
   uint64 ibc_timeout = 2;
+  // the admin address who can update token mapping
+  string cronos_admin = 3;
 }
 
 // TokenMappingChangeProposal defines a proposal to change one token mapping.

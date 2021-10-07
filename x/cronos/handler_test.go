@@ -2,6 +2,10 @@ package cronos_test
 
 import (
 	"errors"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -11,9 +15,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
-	"strings"
-	"testing"
-	"time"
 )
 
 type CronosTestSuite struct {
@@ -31,13 +32,13 @@ func TestCronosTestSuite(t *testing.T) {
 
 func (suite *CronosTestSuite) SetupTest() {
 	checkTx := false
-	suite.app = app.Setup(false)
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
-	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
-
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	suite.address = sdk.AccAddress(privKey.PubKey().Address())
+	suite.app = app.Setup(false, suite.address.String())
+	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
+	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
+
 }
 
 func (suite *CronosTestSuite) TestInvalidMsg() {
@@ -132,4 +133,20 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 			}
 		})
 	}
+}
+
+func (suite *CronosTestSuite) TestUpdateTokenMapping() {
+	suite.SetupTest()
+
+	denom := "gravity0x6E7eef2b30585B2A4D45Ba9312015d5354FDB067"
+	contract := "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2"
+
+	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract)
+	handler := cronos.NewHandler(suite.app.CronosKeeper)
+	_, err := handler(suite.ctx, msg)
+	suite.Require().NoError(err)
+
+	contractAddr, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, denom)
+	suite.Require().True(found)
+	suite.Require().Equal(contract, contractAddr.Hex())
 }

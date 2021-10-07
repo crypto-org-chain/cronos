@@ -24,6 +24,7 @@ We also enable swagger doc ui and add the token mapping state in genesis.
 
 - [cronos#110](https://github.com/crypto-org-chain/cronos/pull/110) embed swagger doc ui
 - [cronos#113](https://github.com/crypto-org-chain/cronos/pull/113) export token mapping state to genesis
+- [cronos#128](https://github.com/crypto-org-chain/cronos/pull/128) add native message to update token mapping
 
 *September 22, 2021*
 ## v0.5.4

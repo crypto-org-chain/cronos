@@ -271,3 +271,60 @@ def test_gov_token_mapping(gravity):
         return balance == 10
 
     wait_for_fn("check balance on cronos", check)
+
+
+def test_direct_token_mapping(gravity):
+    """
+    Test adding a token mapping directly
+    - deploy test erc20 contract on geth
+    - deploy corresponding contract on cronos
+    - add the token mapping on cronos using gov module
+    - do a gravity transfer, check the balances
+    """
+    geth = gravity.geth
+    cli = gravity.cronos.cosmos_cli()
+    cronos_w3 = gravity.cronos.w3
+
+    # deploy test erc20 contract
+    erc20 = deploy_contract(
+        geth,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+    )
+    print("erc20 contract", erc20.address)
+    crc20 = deploy_contract(
+        cronos_w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+    )
+    print("crc20 contract", crc20.address)
+    denom = f"gravity{erc20.address}"
+
+    print("check the contract mapping not exists yet")
+    with pytest.raises(AssertionError):
+        cli.query_contract_by_denom(denom)
+
+    rsp = cli.update_token_mapping(denom, crc20.address, from_="community")
+    assert rsp["code"] != 0, "should not have the permission"
+
+    rsp = cli.update_token_mapping(denom, crc20.address, from_="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+
+    print("check the contract mapping exists now")
+    rsp = cli.query_contract_by_denom(denom)
+    print("contract", rsp)
+    assert rsp["contract"] == crc20.address
+
+    print("try to send token from ethereum to cronos")
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, ADDRS["community"], 10, KEYS["validator"]
+    )
+    assert txreceipt.status == 1
+
+    def check():
+        balance = crc20.caller.balanceOf(ADDRS["community"])
+        print("crc20 balance", balance)
+        return balance == 10
+
+    wait_for_fn("check balance on cronos", check)

@@ -21,6 +21,9 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
+      cronos:
+        params:
+          cronos_admin: crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp
       gov:
         voting_params:
           voting_period: "10s"
