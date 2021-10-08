@@ -37,7 +37,7 @@ replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-ho
 
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
 // https://github.com/crypto-org-chain/gravity-bridge/tree/cronos
-replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211004080324-36ed315b3281
+replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
 

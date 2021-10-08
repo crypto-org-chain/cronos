@@ -220,7 +220,7 @@ contract Gravity is ReentrancyGuard {
 		uint8[] memory _v,
 		bytes32[] memory _r,
 		bytes32[] memory _s
-	) public nonReentrant {
+	) public nonReentrant virtual {
 		// CHECKS
 
 		// Check that the valset nonce is greater than the old one
@@ -302,7 +302,7 @@ contract Gravity is ReentrancyGuard {
 		// a block height beyond which this batch is not valid
 		// used to provide a fee-free timeout
 		uint256 _batchTimeout
-	) public nonReentrant {
+	) public nonReentrant virtual {
 		// CHECKS scoped to reduce stack depth
 		{
 			// Check that the batch nonce is higher than the last nonce for this token
@@ -411,7 +411,7 @@ contract Gravity is ReentrancyGuard {
 		bytes32[] memory _r,
 		bytes32[] memory _s,
 		LogicCallArgs memory _args
-	) public nonReentrant {
+	) public nonReentrant virtual {
 		// CHECKS scoped to reduce stack depth
 		{
 			// Check that the call has not timed out
@@ -525,7 +525,7 @@ contract Gravity is ReentrancyGuard {
 		address _tokenContract,
 		address _destination,
 		uint256 _amount
-	) public nonReentrant {
+	) public nonReentrant virtual {
 		sendToCosmos(_tokenContract, bytes32(uint256(uint160(_destination))), _amount);
 	}
 
