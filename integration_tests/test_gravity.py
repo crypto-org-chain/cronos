@@ -106,7 +106,7 @@ def gravity(cronos, geth, suspend_capture):
             dump_toml(
                 gorc_config(
                     cronos.base_dir / f"node{i}/orchestrator_keystore",
-                    "",
+                    "",  # to be filled later after the gravity contract deployed
                     geth.provider.endpoint_uri,
                     f"http://localhost:{grpc_port}",
                     f"127.0.0.1:{metrics_port}",
@@ -118,7 +118,7 @@ def gravity(cronos, geth, suspend_capture):
 
         # generate new accounts on both chain
         gorc.add_eth_key("eth")
-        gorc.add_eth_key("cronos")
+        gorc.add_eth_key("cronos")  # cronos and eth key derivation are the same
 
         # fund the orchestrator accounts
         eth_addr = gorc.show_eth_addr("eth")
