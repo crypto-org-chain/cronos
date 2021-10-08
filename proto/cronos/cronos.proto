@@ -13,6 +13,7 @@ message Params {
   uint64 ibc_timeout = 2;
   // the admin address who can update token mapping
   string cronos_admin = 3;
+  bool enable_auto_deployment = 4;
 }
 
 // TokenMappingChangeProposal defines a proposal to change one token mapping.

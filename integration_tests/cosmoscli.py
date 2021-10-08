@@ -942,7 +942,7 @@ class CosmosCLI:
             self.raw("query", "gravity", "latest-signer-set-tx", home=self.data_dir)
         )
 
-    def send_to_ethereum(self, from_, receiver, coins, fee):
+    def send_to_ethereum(self, receiver, coins, fee, **kwargs):
         return json.loads(
             self.raw(
                 "tx",
@@ -952,8 +952,8 @@ class CosmosCLI:
                 coins,
                 fee,
                 "-y",
-                from_=from_,
                 home=self.data_dir,
+                **kwargs,
             )
         )
 

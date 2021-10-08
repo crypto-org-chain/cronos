@@ -52,6 +52,7 @@ Params defines the parameters for the cronos module.
 | `ibc_cro_denom` | [string](#string) |  |  |
 | `ibc_timeout` | [uint64](#uint64) |  |  |
 | `cronos_admin` | [string](#string) |  | the admin address who can update token mapping |
+| `enable_auto_deployment` | [bool](#bool) |  |  |
 
 
 

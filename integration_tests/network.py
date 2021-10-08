@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import subprocess
+from pathlib import Path
 
 import web3
 from pystarport import ports
@@ -16,6 +17,9 @@ class Cronos:
         self._w3 = None
         self.base_dir = base_dir
         self.config = json.load(open(base_dir / "config.json"))
+        self.enable_auto_deployment = json.load(open(base_dir / "genesis.json"))[
+            "app_state"
+        ]["cronos"]["params"]["enable_auto_deployment"]
 
     @property
     def w3(self, i=0):
@@ -41,20 +45,13 @@ class Geth:
         self.w3 = w3
 
 
-def setup_cronos(path, base_port):
-    cmd = ["start-cronos", path, "--base_port", str(base_port)]
-    print(*cmd)
-    proc = subprocess.Popen(
-        cmd,
-        preexec_fn=os.setsid,
+def setup_cronos(path, base_port, enable_auto_deployment=True):
+    cfg = Path(__file__).parent / (
+        "../scripts/cronos-devnet.yaml"
+        if enable_auto_deployment
+        else "configs/disable_auto_deployment.yaml"
     )
-    try:
-        wait_for_port(ports.evmrpc_port(ports.evmrpc_port(base_port)))
-        yield Cronos(path / "cronos_777-1")
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
+    yield from setup_custom_cronos(path, base_port, cfg)
 
 
 def setup_geth(path, base_port):

@@ -55,7 +55,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 
 		default:
 			// TODO use autoDeploy boolean in Params.go
-			err := k.ConvertCoinFromNativeToCRC20(ctx, common.BytesToAddress(acc.Bytes()), c, true)
+			err := k.ConvertCoinFromNativeToCRC20(ctx, common.BytesToAddress(acc.Bytes()), c, params.EnableAutoDeployment)
 			if err != nil {
 				return err
 			}
