@@ -22,6 +22,7 @@ from eth_account.messages import encode_defunct
 from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
+from pystarport.utils import interact
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 KEYS = {
@@ -365,3 +366,7 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
 class InlineTable(dict, toml.decoder.InlineTableDict):
     "a hack to dump inline table with toml library"
     pass
+
+
+def dump_toml(obj):
+    return toml.dumps(obj, encoder=toml.TomlPreserveInlineDictEncoder())
