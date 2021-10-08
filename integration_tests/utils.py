@@ -22,7 +22,6 @@ from eth_account.messages import encode_defunct
 from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
-from pystarport.utils import interact
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 KEYS = {
