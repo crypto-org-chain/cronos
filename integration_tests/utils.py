@@ -15,10 +15,8 @@ import eth_utils
 import rlp
 import toml
 import yaml
-from cprotobuf import Field, ProtoEntity
 from dateutil.parser import isoparse
 from eth_account import Account
-from eth_account.messages import encode_defunct
 from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
@@ -275,21 +273,6 @@ def bech32_to_eth(addr):
 def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
     bz = bech32.convertbits(HexBytes(addr), 8, 5)
     return bech32.bech32_encode(prefix, bz)
-
-
-class DelegateKeysSignMsg(ProtoEntity):
-    validator_address = Field("string", 1)
-    nonce = Field("uint64", 2)
-
-
-def sign_validator(acct, val_addr, nonce):
-    if nonce > 0:
-        msg = DelegateKeysSignMsg(validator_address=val_addr, nonce=nonce)
-    else:
-        msg = DelegateKeysSignMsg(validator_address=val_addr)
-    sign_bytes = eth_utils.keccak(msg.SerializeToString())
-    signed = acct.sign_message(encode_defunct(sign_bytes))
-    return eth_utils.to_hex(signed.signature)
 
 
 def add_ini_sections(inipath, sections):
