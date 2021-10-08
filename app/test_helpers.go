@@ -75,14 +75,11 @@ func Setup(isCheckTx bool, cronosAdmin string) *App {
 	// set cronos_admin for test
 	cronosGen := cronostypes.DefaultGenesis()
 	cronosGen.Params.CronosAdmin = cronosAdmin
+	// enable auto deployment in test genesis
+	cronosGen.Params.EnableAutoDeployment = true
 	genesisState["cronos"] = app.cdc.MustMarshalJSON(cronosGen)
 
 	if !isCheckTx {
-		// enable auto deployment in genesis
-		cronosGen := cronostypes.DefaultGenesis()
-		cronosGen.Params.EnableAutoDeployment = true
-		genesisState["cronos"] = app.cdc.MustMarshalJSON(cronosGen)
-
 		// init chain must be called to stop deliverState from being nil
 		stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 		if err != nil {
