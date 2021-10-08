@@ -9,8 +9,11 @@ LEDGER_ENABLED ?= true
 
 TESTNET_FLAGS ?=
 
-ifeq ($(NETWORK),testnet)
-	BUILD_TAGS := -tags testnet
+BUILD_TAGS := -tags
+ifeq ($(NETWORK),mainnet)
+    BUILD_TAGS := $(BUILD_TAGS) mainnet
+else ifeq ($(NETWORK),testnet)
+    BUILD_TAGS := $(BUILD_TAGS) testnet
 endif
 
 ifeq ($(LEDGER_ENABLED),true)
