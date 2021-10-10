@@ -18,6 +18,7 @@ from .utils import (
     add_ini_sections,
     deploy_contract,
     dump_toml,
+    eth_to_bech32,
     parse_events,
     send_to_cosmos,
     send_transaction,
