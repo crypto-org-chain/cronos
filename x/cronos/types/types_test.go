@@ -30,8 +30,8 @@ func Test_IsValidGravityDenom(t *testing.T) {
 		success bool
 	}{
 		{"wrong length", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD", false},
-		{"invalid denom", "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", false},
-		{"correct gravity denom", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", true},
+		{"invalid denom", "aaa0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", false},
+		{"correct gravity denom", "gravity0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", true},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -47,12 +47,12 @@ func Test_IsValidDenomToWrap(t *testing.T) {
 		denom   string
 		success bool
 	}{
+		{"wrong length", "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD", false},
+		{"invalid denom", "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865", false},
+		{"correct IBC denom", IbcCroDenomDefaultValue, true},
 		{"wrong length", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD", false},
-		{"invalid denom", "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", false},
-		{"correct gravity denom", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", true},
-		{"wrong length", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD", false},
-		{"invalid denom", "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", false},
-		{"correct gravity denom", "gravity0x/6B5A664BF0AF4F71B2F0BAA33141E2F1321242F", true},
+		{"invalid denom", "aaa0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", false},
+		{"correct gravity denom", "gravity0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", true},
 	}
 	for _, tt := range tests {
 		tt := tt

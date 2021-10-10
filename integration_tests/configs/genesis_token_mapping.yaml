@@ -25,6 +25,8 @@ cronos_777-1:
         auto_contracts:
           - denom: gravity0x0000000000000000000000000000000000000000
             contract: "0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503"
+        params:
+          enable_auto_deployment: true
       auth:
         accounts:
           - "@type": "/ethermint.types.v1.EthAccount"
