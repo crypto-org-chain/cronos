@@ -4569,12 +4569,12 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.6.1-0.20211005160855-202bc5f1cd2e"
+  sumVersion = "v0.6.1-0.20211008133842-e9ab6241db41"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "202bc5f1cd2e7c9e44a9cd6a722dd26abd5955ad"
-    sha256 = "1jkvvgzl9a8mhpn4833l3jmw4q1spgrzkclj2ws1gb58zss1f0vm"
+    rev = "e9ab6241db4177a1fdd0a80c6fa21a6c3dcecffb"
+    sha256 = "0jwbj5chz1d3m6hy3wyy75nrmqsx727rsgf5x95kgm0nfm1y5al7"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
@@ -5181,12 +5181,12 @@
     sha256 = "1wkipg7xxc0ha5p6c3bj0vpgq38l18441n5l6zxdhx0gzvz5z1hs"
 
 ["google.golang.org/genproto"]
-  sumVersion = "v0.0.0-20211001223012-bfb93cce50d9"
+  sumVersion = "v0.0.0-20211007155348-82e027067bd4"
   ["google.golang.org/genproto".fetch]
     type = "git"
     url = "https://github.com/googleapis/go-genproto"
-    rev = "bfb93cce50d9212d8edd323d18cf616ab983e277"
-    sha256 = "0p6w5k8jhd0kixbkl2brgl7a64g526iq8a3s3kz7zs61d75w1f6w"
+    rev = "82e027067bd47cd3a8625f101795b0bf298cba9c"
+    sha256 = "0dn0nq6f2l3yzpaaxgp3yxrz99cglxpknr3r75ryk76m9jdys2mv"
 
 ["google.golang.org/grpc"]
   sumVersion = "v1.33.2"
