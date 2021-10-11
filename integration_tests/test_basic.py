@@ -55,7 +55,7 @@ def test_events(cluster, suspend_capture):
 def test_minimal_gas_price(cronos):
     w3 = cronos.w3
     gas_price = w3.eth.gas_price
-    assert gas_price == 5000000000000
+    assert gas_price == 5001000000000
     tx = {
         "to": "0x0000000000000000000000000000000000000000",
         "value": 10000,

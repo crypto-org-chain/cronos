@@ -21,6 +21,8 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
+          chain_config:
+            london_block: "9223372036854775808"
       cronos:
         params:
           cronos_admin: crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp
