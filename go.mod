@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/armon/go-metrics v0.3.9
 	github.com/cosmos/cosmos-sdk v0.44.1
-	github.com/cosmos/ibc-go v1.2.0
+	github.com/cosmos/ibc-go v1.2.1
 	github.com/ethereum/go-ethereum v1.10.3
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
@@ -33,7 +33,7 @@ replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alp
 replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
 
 // TODO: remove when middleware will be implemented
-replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.0.1-hooks
+replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.2.1-hooks
 
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
 // https://github.com/crypto-org-chain/gravity-bridge/tree/cronos
