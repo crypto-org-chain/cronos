@@ -7,7 +7,7 @@ import bech32
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-DEFAULT_GAS_PRICE = "5000000000000basetcro"
+DEFAULT_GAS_PRICE = "5001000000000basetcro"
 
 
 class ModuleAccount(enum.Enum):

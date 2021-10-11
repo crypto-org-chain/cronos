@@ -55,7 +55,7 @@ def gorc_config(keystore, gravity_contract, eth_rpc, cosmos_grpc, metrics_listen
         },
         "cosmos": {
             "gas_price": {
-                "amount": 5000000000000,
+                "amount": 5001000000000,
                 "denom": "basetcro",
             },
             "grpc": cosmos_grpc,
