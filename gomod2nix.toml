@@ -1143,13 +1143,13 @@
     sha256 = "1q5fbk4afkxxlgyj82xfxfmwzcpsaa4hwm431xl8b34xhpdglkdp"
 
 ["github.com/cosmos/ibc-go"]
-  sumVersion = "v1.0.1-hooks"
+  sumVersion = "v1.2.1-hooks"
   vendorPath = "github.com/crypto-org-chain/ibc-go"
   ["github.com/cosmos/ibc-go".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ibc-go"
-    rev = "5efc09f726b1e3c6d041cac47fd8872228ece595"
-    sha256 = "0pfis3ymrpy17ar5iq63xyjllhr43y8np792iww37g4z06wyiscy"
+    rev = "e9cafc8681ec38bfc4000056071abe6827d27fc9"
+    sha256 = "0n8mmbvwkdvr0iwziprhx840364z0l2v5mc4j3lynsj5d10f5i1b"
 
 ["github.com/cosmos/ledger-cosmos-go"]
   sumVersion = "v0.11.1"
