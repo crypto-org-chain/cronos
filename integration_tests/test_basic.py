@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -49,6 +50,28 @@ def test_events(cluster, suspend_capture):
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
         assert topic in bloom
+
+
+def test_minimal_gas_price(cronos):
+    w3 = cronos.w3
+    gas_price = w3.eth.gas_price
+    assert gas_price == 5000000000000
+    tx = {
+        "to": "0x0000000000000000000000000000000000000000",
+        "value": 10000,
+    }
+    with pytest.raises(ValueError):
+        send_transaction(
+            w3,
+            {**tx, "gasPrice": 1},
+            KEYS["community"],
+        )
+    receipt = send_transaction(
+        w3,
+        {**tx, "gasPrice": gas_price},
+        KEYS["validator"],
+    )
+    assert receipt.status == 1
 
 
 def test_native_call(cronos):

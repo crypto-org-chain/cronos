@@ -2,25 +2,26 @@ import json
 from pathlib import Path
 
 import pytest
+import toml
 from dateutil.parser import isoparse
 from eth_account.account import Account
 from hexbytes import HexBytes
-from mnemonic import Mnemonic
 from pystarport import ports
 
 from .conftest import setup_cronos, setup_geth
+from .gorc import GoRc
 from .network import GravityBridge
 from .utils import (
     ADDRS,
     KEYS,
+    InlineTable,
     add_ini_sections,
-    cronos_address_from_mnemonics,
     deploy_contract,
+    dump_toml,
     eth_to_bech32,
     parse_events,
     send_to_cosmos,
     send_transaction,
-    sign_validator,
     supervisorctl,
     wait_for_block_time,
     wait_for_fn,
@@ -35,6 +36,43 @@ Account.enable_unaudited_hdwallet_features()
 def cronos_crc20_abi():
     path = Path(__file__).parent.parent / "x/cronos/types/contracts/ModuleCRC20.json"
     return json.load(path.open())["abi"]
+
+
+def gorc_config(keystore, gravity_contract, eth_rpc, cosmos_grpc, metrics_listen):
+    return {
+        "keystore": InlineTable(
+            {
+                "File": str(keystore),
+            }
+        ),
+        "gravity": {
+            "contract": gravity_contract,
+            "fees_denom": "basetcro",
+        },
+        "ethereum": {
+            "key_derivation_path": "m/44'/60'/0'/0/0",
+            "rpc": eth_rpc,
+        },
+        "cosmos": {
+            "gas_price": {
+                "amount": 5000000000000,
+                "denom": "basetcro",
+            },
+            "grpc": cosmos_grpc,
+            "key_derivation_path": "m/44'/60'/0'/0/0",
+            "prefix": "crc",
+        },
+        "metrics": {
+            "listen_addr": metrics_listen,
+        },
+    }
+
+
+def update_gravity_contract(tomlfile, contract):
+    with open(tomlfile) as fp:
+        obj = toml.load(fp)
+    obj["gravity"]["contract"] = contract
+    tomlfile.write_text(dump_toml(obj))
 
 
 @pytest.fixture(scope="module")
@@ -58,36 +96,49 @@ def gravity(cronos, geth):
     - start orchestrator
     """
     chain_id = "cronos_777-1"
-    mnemonic_gen = Mnemonic("english")
 
     # set-delegate-keys
-    eth_accounts = []  # eth accounts created for orchestrators
-    cosmos_mnemonics = []  # cosmos mnemonics created for orchestrators
     for i, val in enumerate(cronos.config["validators"]):
-        # generate orchestrator eth key
-        acct = Account.create()
-        eth_accounts.append(acct)
-
-        # fund the orchestrator account in geth
-        send_transaction(
-            geth, {"to": acct.address, "value": 10 ** 17}, KEYS["validator"]
+        # generate gorc config file
+        gorc_config_path = cronos.base_dir / f"node{i}/gorc.toml"
+        grpc_port = ports.grpc_port(val["base_port"])
+        metrics_port = 3000 + i
+        gorc_config_path.write_text(
+            dump_toml(
+                gorc_config(
+                    cronos.base_dir / f"node{i}/orchestrator_keystore",
+                    "",  # to be filled later after the gravity contract deployed
+                    geth.provider.endpoint_uri,
+                    f"http://localhost:{grpc_port}",
+                    f"127.0.0.1:{metrics_port}",
+                )
+            )
         )
 
-        # orchestrator cronos key
-        mnemonic = mnemonic_gen.generate()
-        cosmos_mnemonics.append(mnemonic)
-        acc_addr = cronos_address_from_mnemonics(mnemonic)
+        gorc = GoRc(gorc_config_path)
 
-        # fund the orchestrator account in cronos
+        # generate new accounts on both chain
+        gorc.add_eth_key("eth")
+        gorc.add_eth_key("cronos")  # cronos and eth key derivation are the same
+
+        # fund the orchestrator accounts
+        eth_addr = gorc.show_eth_addr("eth")
+        print("fund 0.1 eth to address", eth_addr)
+        send_transaction(geth, {"to": eth_addr, "value": 10 ** 17}, KEYS["validator"])
+        acc_addr = gorc.show_cosmos_addr("cronos")
+        print("fund 100cro to address", acc_addr)
+        rsp = cronos.cosmos_cli().transfer(
+            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+
         cli = cronos.cosmos_cli(i)
-        cli.transfer("validator", acc_addr, "%dbasetcro" % 10 ** 16)
-
         val_addr = cli.address("validator", bech="val")
         val_acct_addr = cli.address("validator")
         nonce = int(cli.account(val_acct_addr)["base_account"]["sequence"])
-        signature = sign_validator(acct, val_addr, nonce)
+        signature = gorc.sign_validator("eth", val_addr, nonce)
         rsp = cli.set_delegate_keys(
-            val_addr, acc_addr, acct.address, signature, from_=val_acct_addr
+            val_addr, acc_addr, eth_addr, signature, from_=val_acct_addr
         )
         assert rsp["code"] == 0, rsp["raw_log"]
     # wait for gravity signer tx get generated
@@ -114,20 +165,15 @@ def gravity(cronos, geth):
     # b) reload supervisord
     programs = {}
     for i, val in enumerate(cronos.config["validators"]):
-        metrics_port = 3000 + i
-        grpc_port = ports.grpc_port(val["base_port"])
-        cmd = (
-            f'orchestrator --cosmos-phrase="{cosmos_mnemonics[i]}" '
-            f"--ethereum-key={eth_accounts[i].key.hex()} "
-            f"--cosmos-grpc=http://localhost:{grpc_port} "
-            f"--ethereum-rpc={geth.provider.endpoint_uri} "
-            "--address-prefix=crc --fees=basetcro "
-            f"--contract-address={contract.address} "
-            f"--metrics-listen 127.0.0.1:{metrics_port} "
-            f'''--hd-wallet-path="m/44'/60'/0'/0/0"'''
-        )
+        # update gravity contract in gorc config
+        gorc_config_path = cronos.base_dir / f"node{i}/gorc.toml"
+        update_gravity_contract(gorc_config_path, contract.address)
+
         programs[f"program:{chain_id}-orchestrator{i}"] = {
-            "command": cmd,
+            "command": (
+                f'gorc -c "{gorc_config_path}" orchestrator start '
+                "--cosmos-key cronos --ethereum-key eth"
+            ),
             "autostart": "true",
             "autorestart": "true",
             "startsecs": "3",

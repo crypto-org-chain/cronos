@@ -7,7 +7,7 @@ pkgs.mkShell {
     pkgs.start-scripts
     pkgs.go-ethereum
     pkgs.pystarport
-    pkgs.orchestrator
+    pkgs.gorc
     pkgs.poetry
     pkgs.yarn
     pkgs.nodejs

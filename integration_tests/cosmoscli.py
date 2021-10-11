@@ -7,6 +7,8 @@ import bech32
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
+DEFAULT_GAS_PRICE = "5000000000000basetcro"
+
 
 class ModuleAccount(enum.Enum):
     FeeCollector = "fee_collector"
@@ -260,7 +262,8 @@ class CosmosCLI:
             )["bonded_tokens" if bonded else "not_bonded_tokens"]
         )
 
-    def transfer(self, from_, to, coins, generate_only=False, fees=None):
+    def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
@@ -273,6 +276,7 @@ class CosmosCLI:
                 "--generate-only" if generate_only else None,
                 home=self.data_dir,
                 fees=fees,
+                **kwargs,
             )
         )
 
@@ -590,7 +594,8 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose(self, proposer, kind, proposal):
+    def gov_propose(self, proposer, kind, proposal, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(
@@ -610,9 +615,7 @@ class CosmosCLI:
                     deposit=proposal.get("deposit"),
                     # basic
                     home=self.data_dir,
-                    node=self.node_rpc,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
+                    **kwargs,
                 )
             )
         elif kind == "cancel-software-upgrade":
@@ -630,9 +633,7 @@ class CosmosCLI:
                     deposit=proposal.get("deposit"),
                     # basic
                     home=self.data_dir,
-                    node=self.node_rpc,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
+                    **kwargs,
                 )
             )
         else:
@@ -650,13 +651,12 @@ class CosmosCLI:
                         from_=proposer,
                         # basic
                         home=self.data_dir,
-                        node=self.node_rpc,
-                        keyring_backend="test",
-                        chain_id=self.chain_id,
+                        **kwargs,
                     )
                 )
 
-    def gov_vote(self, voter, proposal_id, option):
+    def gov_vote(self, voter, proposal_id, option, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
@@ -667,9 +667,7 @@ class CosmosCLI:
                 "-y",
                 from_=voter,
                 home=self.data_dir,
-                node=self.node_rpc,
-                keyring_backend="test",
-                chain_id=self.chain_id,
+                **kwargs,
             )
         )
 
@@ -907,6 +905,7 @@ class CosmosCLI:
         acc_addr: orchestrator's cronos address
         eth_addr: orchestrator's ethereum address
         """
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
@@ -943,6 +942,7 @@ class CosmosCLI:
         )
 
     def send_to_ethereum(self, receiver, coins, fee, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
@@ -970,6 +970,7 @@ class CosmosCLI:
         )
 
     def gov_propose_token_mapping_change(self, denom, contract, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
@@ -985,6 +986,7 @@ class CosmosCLI:
         )
 
     def update_token_mapping(self, denom, contract, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
                 "tx",
