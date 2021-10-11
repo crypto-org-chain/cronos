@@ -7,10 +7,10 @@ cronos_777-1:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
   validators:
-    - coins: 1000000000000000000stake,100000000000000000000basetcro
+    - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
       mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
-    - coins: 1000000000000000000stake,100000000000000000000basetcro
+    - coins: 1000000000000000000stake
       staked: 1000000000000000000stake
       mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
   accounts:
