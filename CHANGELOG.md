@@ -4,6 +4,8 @@
 
 ### Bug Fixes
 - [cronos#144](https://github.com/crypto-org-chain/cronos/pull/144) fix events in autodeploy crc20 module contract
+- [gravity-bridge#17](https://github.com/crypto-org-chain/gravity-bridge/pull/17) processEthereumEvent does not persist hooks emitted event
+- [gravity-bridge#20](https://github.com/crypto-org-chain/gravity-bridge/pull/20) fix undeterministic in consensus
 
 
 *October 4, 2021*
@@ -18,13 +20,13 @@ We also enable swagger doc ui and add the token mapping state in genesis.
 - [tharsis#590](https://github.com/tharsis/ethermint/pull/590) fix export contract state in genesis and reimport
 - [cronos#123](https://github.com/crypto-org-chain/cronos/issues/123) fix ibc refund logic
 - [tharsis#617](https://github.com/tharsis/ethermint/pull/617) iterator on deeply nested cache contexts is extremely slow
-- [tharsis#615](https://github.com/tharsis/ethermint/pull/615) tx log attribtue value not parsable by some client
+- [tharsis#615](https://github.com/tharsis/ethermint/pull/615) tx log attribtue value not parsable by some client
 
 ### Features
 
-- [cronos#110](https://github.com/crypto-org-chain/cronos/pull/110) embed swagger doc ui
-- [cronos#113](https://github.com/crypto-org-chain/cronos/pull/113) export token mapping state to genesis
-- [cronos#128](https://github.com/crypto-org-chain/cronos/pull/128) add native message to update token mapping
+- [cronos#110](https://github.com/crypto-org-chain/cronos/pull/110) embed swagger doc ui
+- [cronos#113](https://github.com/crypto-org-chain/cronos/pull/113) export token mapping state to genesis
+- [cronos#128](https://github.com/crypto-org-chain/cronos/pull/128) add native message to update token mapping
 
 *September 22, 2021*
 ## v0.5.4
