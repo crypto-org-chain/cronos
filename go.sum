@@ -271,8 +271,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/ethermint v0.4.2-0.20211004101819-7b5449f36cc8 h1:Q/MuWq+i8xODIJMx23pnhWvnIQJsv0hroaU6XQpeCQQ=
 github.com/crypto-org-chain/ethermint v0.4.2-0.20211004101819-7b5449f36cc8/go.mod h1:8DQM1tW3h/rxvD0cJG8fyW/YkdPGb4WjFdO11g4Dk3k=
-github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211004080324-36ed315b3281 h1:2eCVwGyNuiPw3yKpWeFNVsStGlT4qQrBXKdxu9tTHes=
-github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211004080324-36ed315b3281/go.mod h1:7sqblrhSS7+I94DDIWz98N2mcXR5hL7f+EaV054sBMQ=
+github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304 h1:5A6pzj5uQPQCCO96SqsCCoar/DfjOxIdadBHX3ncotU=
+github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304/go.mod h1:7sqblrhSS7+I94DDIWz98N2mcXR5hL7f+EaV054sBMQ=
 github.com/crypto-org-chain/ibc-go v1.0.1-hooks h1:XNW6yqIAjDBbRHt7KlfCmB/mCcwjfghOmUP4SFN3mVY=
 github.com/crypto-org-chain/ibc-go v1.0.1-hooks/go.mod h1:pfLnoW9yUdjSMw3rD0baIsqLBauVAlGFQ1zQ3HGK6J0=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
