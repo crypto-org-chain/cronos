@@ -259,6 +259,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:ma
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/crypto-org-chain/ethermint v0.4.2-0.20211012020956-6c537e87c727 h1:9MuZPjHvTTvRk1GThHyobTtr943Px59McQOBU0VDIuk=
+github.com/crypto-org-chain/ethermint v0.4.2-0.20211012020956-6c537e87c727/go.mod h1:y1AeS88om0/IfdHqjA8F82eM/dSX5i9GBnrQjRMTLdI=
 github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304 h1:5A6pzj5uQPQCCO96SqsCCoar/DfjOxIdadBHX3ncotU=
 github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304/go.mod h1:7sqblrhSS7+I94DDIWz98N2mcXR5hL7f+EaV054sBMQ=
 github.com/crypto-org-chain/ibc-go v1.2.1-hooks h1:wuWaQqm/TFKJQwuFgjCPiPumQio+Yik5Z1DObDExrrU=
@@ -1160,8 +1162,6 @@ github.com/tendermint/tendermint v0.34.13/go.mod h1:6RVVRBqwtKhA+H59APKumO+B7Nye
 github.com/tendermint/tm-db v0.6.4 h1:3N2jlnYQkXNQclQwd/eKV/NzlqPlfK21cpRRIx80XXQ=
 github.com/tendermint/tm-db v0.6.4/go.mod h1:dptYhIpJ2M5kUuenLr+Yyf3zQOv1SgBZcl8/BmWlMBw=
 github.com/tetafro/godot v1.4.9/go.mod h1:LR3CJpxDVGlYOWn3ZZg1PgNZdTUvzsZWu8xaEohUpn8=
-github.com/tharsis/ethermint v0.6.1-0.20211008133842-e9ab6241db41 h1:wyL2PQVPgdFQZTzML0MVTyYFQTWBgURjxfVnKF/3Chg=
-github.com/tharsis/ethermint v0.6.1-0.20211008133842-e9ab6241db41/go.mod h1:y1AeS88om0/IfdHqjA8F82eM/dSX5i9GBnrQjRMTLdI=
 github.com/tidwall/gjson v1.6.7/go.mod h1:zeFuBCIqD4sN/gmqBzZ4j7Jd6UcA2Fc56x7QFsv+8fI=
 github.com/tidwall/match v1.0.3/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
 github.com/tidwall/pretty v1.0.2/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=

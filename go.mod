@@ -40,3 +40,5 @@ replace github.com/cosmos/ibc-go => github.com/crypto-org-chain/ibc-go v1.2.1-ho
 replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
+
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.4.2-0.20211012020956-6c537e87c727
