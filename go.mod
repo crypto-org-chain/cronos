@@ -41,4 +41,5 @@ replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
 
+// FIXME: https://github.com/crypto-org-chain/ethermint/tree/nil-tracer
 replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.4.2-0.20211012020956-6c537e87c727
