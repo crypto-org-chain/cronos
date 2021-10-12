@@ -6,11 +6,12 @@
 - [cronos#144](https://github.com/crypto-org-chain/cronos/pull/144) fix events in autodeploy crc20 module contract
 - [gravity-bridge#17](https://github.com/crypto-org-chain/gravity-bridge/pull/17) processEthereumEvent does not persist hooks emitted event
 - [gravity-bridge#20](https://github.com/crypto-org-chain/gravity-bridge/pull/20) fix undeterministic in consensus
+- [ethermint#620](https://github.com/tharsis/ethermint/pull/620) Add fee market field to EVM `Keeper` and `AnteHandler`.
+- [ethermint#231](https://github.com/tharsis/ethermint/pull/231) Bump go-ethereum version to [`v1.10.9`](https://github.com/ethereum/go-ethereum/releases/tag/v1.10.9)
 
 ### Improvements
 - [cronos#162](https://github.com/crypto-org-chain/cronos/pull/162) bump ibc-go to v1.2.1 with hooks support
-- [cronos#143](https://github.com/crypto-org-chain/cronos/pull/143) update go-ethereum to 1.10.9 and add fee market
-  module.
+- [cronos#143](https://github.com/crypto-org-chain/cronos/pull/143) update ethermint dependency
 
 *October 4, 2021*
 ## v0.5.5
