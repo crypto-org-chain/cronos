@@ -24,6 +24,7 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgConvertVouchers{},
 		&MsgTransferTokens{},
+		&MsgUpdateTokenMapping{},
 	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
