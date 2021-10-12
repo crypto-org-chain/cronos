@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
@@ -39,7 +38,7 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 	coins := sdk.Coins{sdk.NewCoin(denom, event.Amount)}
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
 		cronostypes.EventTypeEthereumSendToCosmosHandled,
-		sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+		sdk.NewAttribute(sdk.AttributeKeyModule, gravitytypes.ModuleName),
 		sdk.NewAttribute(cronostypes.AttributeKeySender, event.GetEthereumSender()),
 		sdk.NewAttribute(cronostypes.AttributeKeyReceiver, event.GetCosmosReceiver()),
 		sdk.NewAttribute(cronostypes.AttributeKeyAmount, coins.String()),
