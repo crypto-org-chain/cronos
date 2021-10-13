@@ -1,6 +1,10 @@
 # Changelog
 
-## UNRELEASED
+*October 13, 2021*
+
+## v0.6.0
+
+This version remove gravity-bridge from cronos, also includes multiple bug fixes in third-party dependencies.
 
 ### Consensus breaking changes
 
@@ -14,7 +18,7 @@
 
 ### Improvements
 - [cronos#162](https://github.com/crypto-org-chain/cronos/pull/162) bump ibc-go to v1.2.1 with hooks support
-- [cronos#169](https://github.com/crypto-org-chain/cronos/pull/169) bump ethermint to v0.7.1 and go-ethereun to v10.1.3-patched which include (CVE-2021-39137) hotfix
+- [cronos#169](https://github.com/crypto-org-chain/cronos/pull/169) bump ethermint to v0.7.1 and go-ethereum to v10.1.3-patched which include (CVE-2021-39137) hotfix
 
 *October 4, 2021*
 ## v0.5.5
