@@ -8,7 +8,6 @@ import (
 
 func SetConfig() {
 	config := sdk.GetConfig()
-	// use the configurations from ethermint
 	cmdcfg.SetBech32Prefixes(config)
 	ethcfg.SetBip44CoinType(config)
 	// Make sure address is compatible with ethereum
