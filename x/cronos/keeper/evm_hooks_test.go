@@ -125,7 +125,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			},
 		},
 		{
-			"fail send to ethereum",
+			"fail send to ethereum", // gravity feature is removed
 			func() {
 				suite.SetupTest()
 				denom := "gravity0x0000000000000000000000000000000000000000"

@@ -173,6 +173,9 @@ func (h SendToEthereumHandler) EventID() common.Hash {
 	return SendToEthereumEvent.ID
 }
 
+// Handle returns error unconditionally.
+// Since gravity bridge is removed and could be added later,
+// we keep this event handler, but returns error unconditionally to prevent accidental access.
 func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
 	return fmt.Errorf("native action %s is not implemented", SendToEthereumEventName)
 }
