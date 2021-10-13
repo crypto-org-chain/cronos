@@ -27,3 +27,4 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 
 | ADR \# | Description | Status |
 | ------ | ----------- | ------ |
+| [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Proposed |
