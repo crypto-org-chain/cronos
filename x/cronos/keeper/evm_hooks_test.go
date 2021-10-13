@@ -2,16 +2,16 @@ package keeper_test
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/crypto-org-chain/cronos/app"
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
-	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
@@ -125,7 +125,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			},
 		},
 		{
-			"success send to ethereum",
+			"fail send to ethereum", // gravity feature is removed
 			func() {
 				suite.SetupTest()
 				denom := "gravity0x0000000000000000000000000000000000000000"
@@ -152,16 +152,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 					},
 				}
 				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
-				suite.Require().NoError(err)
-
-				// sender's balance deducted
-				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
-				suite.Require().Equal(sdk.NewCoin(denom, sdk.NewInt(0)), balance)
-				// query unbatched SendToEthereum message exist
-				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
-					SenderAddress: sdk.AccAddress(contract.Bytes()).String(),
-				})
-				suite.Require().Equal(1, len(rsp.SendToEthereums))
+				suite.Require().Error(err)
 			},
 		},
 		{
@@ -176,7 +167,6 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 					suite.app.GetSubspace(types.ModuleName),
 					suite.app.BankKeeper,
 					keepertest.IbcKeeperMock{},
-					suite.app.GravityKeeper,
 					suite.app.EvmKeeper,
 				)
 				suite.app.CronosKeeper = cronosKeeper

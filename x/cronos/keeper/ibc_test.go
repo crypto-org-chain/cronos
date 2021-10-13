@@ -262,7 +262,6 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
-				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
