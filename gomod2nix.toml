@@ -1030,22 +1030,6 @@
     rev = "39ac3d4b3f1fc30b95a4098257eaac0ad2093a34"
     sha256 = "1y564cvr8lh33andnbpivpkz472z72g4f2gf24b701s2bclx0k6w"
 
-["github.com/consensys/goff"]
-  sumVersion = "v0.3.10"
-  ["github.com/consensys/goff".fetch]
-    type = "git"
-    url = "https://github.com/consensys/goff"
-    rev = "753b362693129e21b5f2af66f7e52a8eff91721c"
-    sha256 = "1c8ksxlff8a4rm5q1sr15kvi3j9q2f2y2fh7hh9qx56chh1yqy22"
-
-["github.com/consensys/gurvy"]
-  sumVersion = "v0.3.8"
-  ["github.com/consensys/gurvy".fetch]
-    type = "git"
-    url = "https://github.com/consensys/gurvy"
-    rev = "e350ead0219d4f30aa72ec85d1857b573d2f136a"
-    sha256 = "0h9p576h425djlq5ddbcf2yjrxc44k9a47l5srpqhqb6ndx18m1v"
-
 ["github.com/containerd/console"]
   sumVersion = "v1.0.2"
   ["github.com/containerd/console".fetch]
@@ -1368,14 +1352,6 @@
     rev = "248326c1351b716b2820b01a49d53837bfd9ac59"
     sha256 = "06zj4n96pa5lnx8pxjhn3vis01fjklhsdqbcbqdv9m4kc7qip27s"
 
-["github.com/dvyukov/go-fuzz"]
-  sumVersion = "v0.0.0-20200318091601-be3528f3a813"
-  ["github.com/dvyukov/go-fuzz".fetch]
-    type = "git"
-    url = "https://github.com/dvyukov/go-fuzz"
-    rev = "be3528f3a81351d8a438aed216130e1e7da39f7c"
-    sha256 = "1sxl62r8c13p4sm60c77mzcn6dlxbbk6c2nmic6j8z55dx4nlg1a"
-
 ["github.com/eapache/go-resiliency"]
   sumVersion = "v1.2.0"
   ["github.com/eapache/go-resiliency".fetch]
@@ -1457,12 +1433,13 @@
     sha256 = "1kqq3js0rhhdircwamyr0b6l7b01flgvj4ny5x4g51vz8m1z36jj"
 
 ["github.com/ethereum/go-ethereum"]
-  sumVersion = "v1.10.3"
+  sumVersion = "v1.10.3-patched"
+  vendorPath = "github.com/crypto-org-chain/go-ethereum"
   ["github.com/ethereum/go-ethereum".fetch]
     type = "git"
-    url = "https://github.com/ethereum/go-ethereum"
-    rev = "991384a7f6719e1125ca0be7fb27d0c4d1c5d2d3"
-    sha256 = "0hshipwwfgdb91wz91iwaf8na18i7x7sr2dprdmv75m36qjg6qrm"
+    url = "https://github.com/crypto-org-chain/go-ethereum"
+    rev = "c5f8b280a2c6b5980317631b471a6e6371e0bf05"
+    sha256 = "09jvbbckbk9swhbn3gk1r1q23d7qjcynqknsrr0irs1v7j6cs5vc"
 
 ["github.com/ettle/strcase"]
   sumVersion = "v0.1.1"
@@ -2972,14 +2949,6 @@
     rev = "48d3d31d256d9922a90b14c518c4b685f321fab2"
     sha256 = "1vb4irkbj5s4v8n8dqngmg2w2fbnaz568z731yqryspvvmrki2a1"
 
-["github.com/kilic/bls12-381"]
-  sumVersion = "v0.0.0-20201226121925-69dacb279461"
-  ["github.com/kilic/bls12-381".fetch]
-    type = "git"
-    url = "https://github.com/kilic/bls12-381"
-    rev = "69dacb279461b1e4d9a3d693901f478eb9aafb3e"
-    sha256 = "1fghffa56qzqapnlcjg9pir6c171sxk37jsadhljmi3ilc9v4jms"
-
 ["github.com/kisielk/errcheck"]
   sumVersion = "v1.6.0"
   ["github.com/kisielk/errcheck".fetch]
@@ -4196,14 +4165,6 @@
     rev = "64821dda5aedeb954fb2caf787f7a1030085ab34"
     sha256 = "07nf0lai4m5m61j6kscynqcwpj28df13g79rrdmk0g3ba3cbf9gr"
 
-["github.com/rs/xhandler"]
-  sumVersion = "v0.0.0-20160618193221-ed27b6fd6521"
-  ["github.com/rs/xhandler".fetch]
-    type = "git"
-    url = "https://github.com/rs/xhandler"
-    rev = "ed27b6fd65218132ee50cd95f38474a3d8a2cd12"
-    sha256 = "1fpp4rh812nvr5m0s0d5dsa1ypr4333mcijng0dp5bcgg2bqkwdz"
-
 ["github.com/rs/xid"]
   sumVersion = "v1.3.0"
   ["github.com/rs/xid".fetch]
@@ -4686,13 +4647,12 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.4.2-0.20211004101819-7b5449f36cc8"
-  vendorPath = "github.com/crypto-org-chain/ethermint"
+  sumVersion = "v0.7.1"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "7b5449f36cc87285ff68e0977c7105782ce7dc03"
-    sha256 = "055lx94k9gn835n3i1gbzyqa9ncknghf43hmk501cqcjgqn4mdsr"
+    url = "https://github.com/tharsis/ethermint"
+    rev = "222420f2ab77111a724b5fabbe32297cdfcacb33"
+    sha256 = "0s7pm1437zh0hz34jinkzmawsc9wd99ajvwcq8yvq6iwqn6yqfj2"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
@@ -4951,14 +4911,6 @@
     rev = "d860f346b89450988a379d7d705e83c58d1ea227"
     sha256 = "18419ip5mnblnyx2rjixad90dhjb1x2kaiidr7zk9b3qci799rh0"
 
-["github.com/wsddn/go-ecdh"]
-  sumVersion = "v0.0.0-20161211032359-48726bab9208"
-  ["github.com/wsddn/go-ecdh".fetch]
-    type = "git"
-    url = "https://github.com/wsddn/go-ecdh"
-    rev = "48726bab92085232373de4ec5c51ce7b441c63a0"
-    sha256 = "1rszp777snp9qvnh2giim7d42cvca5l180gq4j7clbmshnzg6c6m"
-
 ["github.com/xdg/scram"]
   sumVersion = "v0.0.0-20180814205039-7eeb5667e42c"
   ["github.com/xdg/scram".fetch]
@@ -5203,12 +5155,12 @@
     sha256 = "1n7lrr3282q3li4f06afms444qy13rfd316za0drqihakwyki2jk"
 
 ["golang.org/x/mobile"]
-  sumVersion = "v0.0.0-20200801112145-973feb4309de"
+  sumVersion = "v0.0.0-20190719004257-d2bd2a29d028"
   ["golang.org/x/mobile".fetch]
     type = "git"
     url = "https://go.googlesource.com/mobile"
-    rev = "973feb4309de5c3aad0553fc987d76abf1fa58f7"
-    sha256 = "0jwz7jq1cqp9x6b9kpfrmw84sg7dg5v4xaa8zdbgq14gskmjx72d"
+    rev = "d2bd2a29d028cb94031e5e81788b19b371d00eb8"
+    sha256 = "1nv6vvhnjr01nx9y06q46ww87dppdwpbqrlsfg1xf2587wxl8xiv"
 
 ["golang.org/x/mod"]
   sumVersion = "v0.4.2"

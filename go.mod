@@ -19,7 +19,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.13
 	github.com/tendermint/tm-db v0.6.4
-	github.com/tharsis/ethermint v0.4.2-0.20210927141513-04c2f05002f8
+	github.com/tharsis/ethermint v0.7.1
 	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af
 	google.golang.org/grpc v1.41.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -41,5 +41,4 @@ replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.1
 
-// FIXME: https://github.com/crypto-org-chain/ethermint/tree/cronos2
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.4.2-0.20211004101819-7b5449f36cc8
+replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.3-patched
