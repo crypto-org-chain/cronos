@@ -28,7 +28,7 @@ from .utils import (
     wait_for_new_blocks,
 )
 
-pytestmark = pytest.mark.gravity
+pytestmark = pytest.mark.skip
 
 Account.enable_unaudited_hdwallet_features()
 
