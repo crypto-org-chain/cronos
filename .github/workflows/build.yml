@@ -73,7 +73,15 @@ jobs:
       - name: gomod2nix
         run: nix run -f ./nix gomod2nix -c gomod2nix
       - name: check working directory is clean
-        uses: numtide/clean-git-action@v1
+        id: changes
+        uses: UnicornGlobal/has-changes-action@v1.0.11
+      - uses: actions/upload-artifact@v2
+        if: steps.changes.outputs.changed == 1
+        with:
+          name: gomod2nix.toml
+          path: ./gomod2nix.toml
+      - if: steps.changes.outputs.changed == 1
+        run: echo "Working directory is dirty" && exit 1
 
   contracts:
     runs-on: ubuntu-latest
@@ -90,4 +98,13 @@ jobs:
       - name: build contracts
         run: make gen-cronos-contracts
       - name: check working directory is clean
-        uses: numtide/clean-git-action@v1
+        id: changes
+        uses: UnicornGlobal/has-changes-action@v1.0.11
+      - uses: actions/upload-artifact@v2
+        if: steps.changes.outputs.changed == 1
+        with:
+          name: contracts_out
+          path: ./contracts/out
+          if-no-files-found: ignore
+      - if: steps.changes.outputs.changed == 1
+        run: echo "Working directory is dirty" && exit 1
