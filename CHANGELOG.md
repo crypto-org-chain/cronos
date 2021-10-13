@@ -4,7 +4,7 @@
 
 ## v0.6.0
 
-This version remove gravity-bridge from cronos, also includes multiple bug fixes in third-party dependencies.
+This version removes gravity-bridge from cronos, also includes multiple bug fixes in third-party dependencies.
 
 ### Consensus breaking changes
 
