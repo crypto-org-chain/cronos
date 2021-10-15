@@ -10,7 +10,7 @@ contract ModuleCRC20 is DSToken  {
     event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee);
     event __CronosSendToIbc(address sender, string recipient, uint256 amount);
 
-    constructor(string memory denom_, uint8 decimals_) DSToken(denom) public {
+    constructor(string memory denom_, uint8 decimals_) DSToken(denom_) public {
         decimals = decimals_;
         denom = denom_;
     }
