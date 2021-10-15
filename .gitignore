@@ -5,6 +5,7 @@ release/
 /coverage.txt
 __pycache__
 /dist
+/vendor
 
 # nix
 /result
