@@ -9,6 +9,20 @@ LEDGER_ENABLED ?= true
 
 TESTNET_FLAGS ?=
 
+VERSION := $(shell echo $(shell git describe --tags 2>/dev/null ) | sed 's/^v//')
+COMMIT := $(shell git log -1 --format='%H')
+NETWORK ?= mainnet
+COVERAGE ?= coverage.txt
+BUILDDIR ?= $(CURDIR)/build
+LEDGER_ENABLED ?= true
+
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=cronos \
+	-X github.com/cosmos/cosmos-sdk/version.ServerName=cronosd \
+	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
+
+BUILD_FLAGS := -ldflags '$(ldflags)'
+
 BUILD_TAGS := -tags
 ifeq ($(NETWORK),mainnet)
     BUILD_TAGS := $(BUILD_TAGS) mainnet
