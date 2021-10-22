@@ -67,6 +67,8 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 	// msg is already validated
-	k.Keeper.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract))
+	if err := k.Keeper.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
+		return nil, err
+	}
 	return &types.MsgUpdateTokenMappingResponse{}, nil
 }

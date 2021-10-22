@@ -116,27 +116,64 @@ func (suite *KeeperTestSuite) MintCoins(address sdk.AccAddress, coins sdk.Coins)
 }
 
 func (suite *KeeperTestSuite) TestDenomContractMap() {
-	suite.SetupTest()
-	keeper := suite.app.CronosKeeper
+	denom1 := "testdenom1"
+	denom2 := "testdenom2"
 
-	denom := "testdenom"
 	autoContract := common.BigToAddress(big.NewInt(1))
 	externalContract := common.BigToAddress(big.NewInt(2))
 
-	contract, found := keeper.GetContractByDenom(suite.ctx, denom)
-	suite.Require().False(found)
+	testCases := []struct {
+		name     string
+		malleate func()
+	}{
+		{
+			"success, happy path",
+			func() {
+				keeper := suite.app.CronosKeeper
 
-	keeper.SetAutoContractForDenom(suite.ctx, denom, autoContract)
+				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
+				suite.Require().False(found)
 
-	contract, found = keeper.GetContractByDenom(suite.ctx, denom)
-	suite.Require().True(found)
-	suite.Require().Equal(autoContract, contract)
+				keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
 
-	keeper.SetExternalContractForDenom(suite.ctx, denom, externalContract)
+				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
+				suite.Require().True(found)
+				suite.Require().Equal(autoContract, contract)
 
-	contract, found = keeper.GetContractByDenom(suite.ctx, denom)
-	suite.Require().True(found)
-	suite.Require().Equal(externalContract, contract)
+				keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
+
+				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
+				suite.Require().True(found)
+				suite.Require().Equal(externalContract, contract)
+			},
+		},
+		{
+			"failure, multiple denoms map to same contract",
+			func() {
+				keeper := suite.app.CronosKeeper
+				keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
+				err := keeper.SetExternalContractForDenom(suite.ctx, denom2, autoContract)
+				suite.Require().Error(err)
+			},
+		},
+		{
+			"failure, multiple denoms map to same external contract",
+			func() {
+				keeper := suite.app.CronosKeeper
+				err := keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
+				suite.Require().NoError(err)
+				err = keeper.SetExternalContractForDenom(suite.ctx, denom2, externalContract)
+				suite.Require().Error(err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest()
+			tc.malleate()
+		})
+	}
 }
 
 func (suite *KeeperTestSuite) MintCoinsToModule(module string, coins sdk.Coins) error {
