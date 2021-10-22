@@ -13,11 +13,11 @@ var (
 	// KeyIbcCroDenom is store's key for the IBC Cro denomination
 	KeyIbcCroDenom = []byte("IbcCroDenom")
 	// KeyIbcTimeout is store's key for the IBC Timeout
-	KeyIbcTimeout = []byte("KeyIbcTimeout")
+	KeyIbcTimeout = []byte("IbcTimeout")
 	// KeyCronosAdmin is store's key for the admin address
-	KeyCronosAdmin = []byte("KeyCronosAdmin")
+	KeyCronosAdmin = []byte("CronosAdmin")
 	// KeyEnableAutoDeployment is store's key for the EnableAutoDeployment
-	KeyEnableAutoDeployment = []byte("KeyEnableAutoDeployment")
+	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
 )
 
 const IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
