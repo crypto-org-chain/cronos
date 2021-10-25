@@ -26,7 +26,7 @@ Fields:
 
 Transfer IBC tokens (including CRO) away from Cronos chain, decimals conversion is done automatically for CRO.
 
-It calls the ibc transfer module internally, the `timeoutHeight` parameter is hardcoded to zero, the `timeoutTimestamp` parameter is set according the `IbcTimeout` module parameter.
+It calls the ibc transfer module internally, the `timeoutHeight` parameter is hardcoded to zero, the `timeoutTimestamp` parameter is set according the `IbcTimeout` module parameter.
 
 +++ https://github.com/crypto-org-chain/cronos/blob/v0.6.0-testnet/proto/cronos/tx.proto#L33-L38
 
@@ -51,3 +51,5 @@ This message is expected to fail if:
 
 - The sender is not authorized.
 - The contract address or denom is malformed.
+
+- The contract is already mapped to anther denom.
