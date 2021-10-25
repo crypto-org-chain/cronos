@@ -21,7 +21,9 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 		if !common.IsHexAddress(m.Contract) {
 			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
 		}
-		k.SetExternalContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract))
+		if err := k.SetExternalContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
+			panic(err)
+		}
 	}
 
 	for _, m := range genState.AutoContracts {

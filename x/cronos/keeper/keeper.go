@@ -111,7 +111,13 @@ func (k Keeper) GetDenomByContract(ctx sdk.Context, contract common.Address) (de
 }
 
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
-func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) {
+func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
+	// check the contract is not registered already
+	_, found := k.GetDenomByContract(ctx, address)
+	if found {
+		return fmt.Errorf("the contract is already registered: %s", address.Hex())
+	}
+
 	store := ctx.KVStore(k.storeKey)
 	existing, found := k.getExternalContractByDenom(ctx, denom)
 	if found {
@@ -120,6 +126,7 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+	return nil
 }
 
 // GetExternalContracts returns all external contract mappings

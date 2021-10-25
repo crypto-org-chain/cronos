@@ -21,7 +21,9 @@ func NewTokenMappingChangeProposalHandler(k keeper.Keeper) govtypes.Handler {
 			} else {
 				// update the mapping
 				contract := common.HexToAddress(c.Contract)
-				k.SetExternalContractForDenom(ctx, c.Denom, contract)
+				if err := k.SetExternalContractForDenom(ctx, c.Denom, contract); err != nil {
+					return err
+				}
 			}
 			return nil
 		default:
