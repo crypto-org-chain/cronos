@@ -29,4 +29,4 @@ The Cronos module contains the following parameters:
 
   When disabled and there's no external contract mapped for the token, new coming tokens are kept as native tokens, user can transfer them back using cosmos native messages.
 
-  Can be updated at runtime.
+  Can be updated at runtime, after disabled at runtime, the previous deposited tokens can still be withdrawn.
