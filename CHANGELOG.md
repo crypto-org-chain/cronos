@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### State Machine Breaking
+- [cronos#190](https://github.com/crypto-org-chain/cronos/pull/190) upgrade ethermint to v0.7.2 with (#661) and (#689)
+
+### Bug Fixes
+- [cronos#187](https://github.com/crypto-org-chain/cronos/pull/187) multiple denoms can be mapped to same contract
+- [cronos#157](https://github.com/crypto-org-chain/cronos/pull/185) cronos params name has an unnecessary Key prefix
+- [cronos#179](https://github.com/crypto-org-chain/cronos/pull/179) fix denom (symbol) in CRC20Module
+- [cronos#178](https://github.com/crypto-org-chain/cronos/pull/178) version CLI command doesn't output any text
+
+
+
 *October 13, 2021*
 
 ## v0.6.0
