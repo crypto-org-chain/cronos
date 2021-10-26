@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+*October 26, 2021*
+
+## v0.6.1
+
 ### State Machine Breaking
 - [cronos#190](https://github.com/crypto-org-chain/cronos/pull/190) upgrade ethermint to v0.7.2 with (#661) and (#689)
 
