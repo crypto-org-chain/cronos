@@ -341,12 +341,12 @@
     sha256 = "1lg3pq9mg55zpv3k431nnpx3pz13aja7vs18hw236jl2yb1ga1vw"
 
 ["github.com/Shopify/sarama"]
-  sumVersion = "v1.19.0"
+  sumVersion = "v1.28.0"
   ["github.com/Shopify/sarama".fetch]
     type = "git"
     url = "https://github.com/Shopify/sarama"
-    rev = "ec843464b50d4c8b56403ec9d589cf41ea30e722"
-    sha256 = "0q1z3pvcd011yprwzws2s293v4cjvsszhai6vnfrahjcbsz79q0z"
+    rev = "a7eb541855c8e19965a30547eadc20f6bc6edea5"
+    sha256 = "0b6qckxqnsikkmqkgwzq919zns7ajip6bb69xkfpr0kdy4ryc8cv"
 
 ["github.com/Shopify/toxiproxy"]
   sumVersion = "v2.1.4+incompatible"
@@ -453,12 +453,12 @@
     sha256 = "011i8yqzyjgwj17k44xvvg4bxfv8z20s0416r2d3yf4s3wqqygpq"
 
 ["github.com/allegro/bigcache"]
-  sumVersion = "v1.2.1-0.20190218064605-e24eb225f156"
+  sumVersion = "v1.2.1"
   ["github.com/allegro/bigcache".fetch]
     type = "git"
     url = "https://github.com/allegro/bigcache"
-    rev = "e24eb225f15679bbe54f91bfa7da3b00e59b9768"
-    sha256 = "1ha36q4km0i1klhpxywkfc8w77ldddl7nvqg0wl0ixy17j20na7m"
+    rev = "0605c28b510103c549fb020d5fb50e1ad4093de8"
+    sha256 = "1h4lir4xfdyfbn6g8yv8g1if63wdx5k0az70rirnvriv303jlg7w"
 
 ["github.com/andreyvit/diff"]
   sumVersion = "v0.0.0-20170406064948-c7f18ee00883"
@@ -508,6 +508,38 @@
     url = "https://github.com/apache/thrift"
     rev = "cecee50308fc7e6f77f55b3fd906c1c6c471fa2f"
     sha256 = "17ckl7p7s3ga33yrjisilsimp80ansqxl54wvpkv0j7vx2zvc13y"
+
+["github.com/aristanetworks/fsnotify"]
+  sumVersion = "v1.4.2"
+  ["github.com/aristanetworks/fsnotify".fetch]
+    type = "git"
+    url = "https://github.com/aristanetworks/fsnotify"
+    rev = "629574ca2a5df945712d3079857300b5e4da0236"
+    sha256 = "06wfg1mmzjj04z7d0q1x2fai9k6hm957brngsaf02fa9a3qqanv3"
+
+["github.com/aristanetworks/glog"]
+  sumVersion = "v0.0.0-20191112221043-67e8567f59f3"
+  ["github.com/aristanetworks/glog".fetch]
+    type = "git"
+    url = "https://github.com/aristanetworks/glog"
+    rev = "67e8567f59f3d2957c87f7a95002ae485e1c4a7f"
+    sha256 = "1ja15n6m2s70qlxccwll9d7bs8hz88j1mv31d1b6l80q19a6fcl0"
+
+["github.com/aristanetworks/goarista"]
+  sumVersion = "v0.0.0-20210308203447-b196d8410f1d"
+  ["github.com/aristanetworks/goarista".fetch]
+    type = "git"
+    url = "https://github.com/aristanetworks/goarista"
+    rev = "b196d8410f1d5a6647463a66296323dc9ed5dc4a"
+    sha256 = "06dlkw9v45byl6sq4wzvvaig12a5vgnjx53akb5p8zq4mxkvx8mr"
+
+["github.com/aristanetworks/splunk-hec-go"]
+  sumVersion = "v0.3.3"
+  ["github.com/aristanetworks/splunk-hec-go".fetch]
+    type = "git"
+    url = "https://github.com/aristanetworks/splunk-hec-go"
+    rev = "69956d6a6cbd511dade209563c3256c204c9ae51"
+    sha256 = "10m4ymrwlfxkgx7wfnxmfrw7569r4q6pj5y2g5wk0hmyd9wqb3sd"
 
 ["github.com/armon/circbuf"]
   sumVersion = "v0.0.0-20150827004946-bbbad097214e"
@@ -811,6 +843,14 @@
     url = "https://github.com/cenkalti/backoff"
     rev = "5267b6dd4d2666b980a911bf235efa276222cbe2"
     sha256 = "1mf4lsl3rbb8kk42x0mrhzzy4ikqy0jf6nxpzhkr02rdgwh6rjk8"
+
+["github.com/cenkalti/backoff/v4"]
+  sumVersion = "v4.0.0"
+  ["github.com/cenkalti/backoff/v4".fetch]
+    type = "git"
+    url = "https://github.com/cenkalti/backoff"
+    rev = "a9a4cec6c9a26336ca42700ccc319ca842be56c0"
+    sha256 = "0ch1wi2ajs34lny21i92wl2ri9kydvqil72h50ir154sld2mc16l"
 
 ["github.com/census-instrumentation/opencensus-proto"]
   sumVersion = "v0.2.1"
@@ -1313,12 +1353,12 @@
     sha256 = "06zj4n96pa5lnx8pxjhn3vis01fjklhsdqbcbqdv9m4kc7qip27s"
 
 ["github.com/eapache/go-resiliency"]
-  sumVersion = "v1.1.0"
+  sumVersion = "v1.2.0"
   ["github.com/eapache/go-resiliency".fetch]
     type = "git"
     url = "https://github.com/eapache/go-resiliency"
-    rev = "ea41b0fad31007accc7f806884dcdf3da98b79ce"
-    sha256 = "1zmgw3c4w5r6m2r340n4jc5l5ll3m3nbszqrmrgbqc2xixxyk2gx"
+    rev = "5efd2ed019fd331ec2defc6f3bd98882f1e3e636"
+    sha256 = "01rskda1hdmrmf9wz2zn33zisavkkrgd8ycj9zvlz19v5rgjrsqy"
 
 ["github.com/eapache/go-xerial-snappy"]
   sumVersion = "v0.0.0-20180814174437-776d5712da21"
@@ -1351,6 +1391,14 @@
     url = "https://github.com/edsrzf/mmap-go"
     rev = "188cc3b666ba704534fa4f96e9e61f21f1e1ba7c"
     sha256 = "0ajmkk5cj6xmbngx3nhar7672i2vrkwpnbv1f26i5p4f5aydhl4k"
+
+["github.com/elastic/gosigar"]
+  sumVersion = "v0.14.1"
+  ["github.com/elastic/gosigar".fetch]
+    type = "git"
+    url = "https://github.com/elastic/gosigar"
+    rev = "69b57d03f20e0ee9d614207292b61bd1f3886d92"
+    sha256 = "1l4sfcv81sqf6yx4jdbf9civpp96h8mpf39rxf03ydlg7bc6djnf"
 
 ["github.com/enigmampc/btcutil"]
   sumVersion = "v1.0.3-0.20200723161021-e2fb6adb2a25"
@@ -1520,6 +1568,14 @@
     url = "https://github.com/fzipp/gocyclo"
     rev = "39f24b305784dc1d91c39229afd889a161000c9b"
     sha256 = "1rimdrhmy6nkzh7ydpx6139hh9ml6rdqg5gvkpy2l1x9mhanvan0"
+
+["github.com/garyburd/redigo"]
+  sumVersion = "v1.6.0"
+  ["github.com/garyburd/redigo".fetch]
+    type = "git"
+    url = "https://github.com/garyburd/redigo"
+    rev = "a69d19351219b6dd56f274f96d85a7014a2ec34e"
+    sha256 = "0k88z3vmqn36msw06qlwqw7xy8blvg06wkc5a9nyhrfv5z5x9a2v"
 
 ["github.com/gballet/go-libpcsclite"]
   sumVersion = "v0.0.0-20190607065134-2772fd86a8ff"
@@ -2067,6 +2123,14 @@
     rev = "4bb14d4b1be14417e47d0bbaf2bd4e188eda647f"
     sha256 = "15lgdlblmw0f0cj0k7qn8bbk15k5b61n4r3vm2gaac2zribxk47b"
 
+["github.com/google/protobuf"]
+  sumVersion = "v3.14.0+incompatible"
+  ["github.com/google/protobuf".fetch]
+    type = "git"
+    url = "https://github.com/google/protobuf"
+    rev = "2514f0bd7da7e2af1bed4c5d1b84f031c4d12c10"
+    sha256 = "0kz4nwh4p0z4hlr7llx6r6wf3b2d1lkavysvkbja3a69dr1077ky"
+
 ["github.com/google/renameio"]
   sumVersion = "v0.1.0"
   ["github.com/google/renameio".fetch]
@@ -2155,6 +2219,22 @@
     url = "https://github.com/gorilla/mux"
     rev = "98cb6bf42e086f6af920b965c38cacc07402d51b"
     sha256 = "18f0q9qxgq1yh4ji07mqhiydfcwvi56z9d775v7dc7yckj33kpdk"
+
+["github.com/gorilla/securecookie"]
+  sumVersion = "v1.1.1"
+  ["github.com/gorilla/securecookie".fetch]
+    type = "git"
+    url = "https://github.com/gorilla/securecookie"
+    rev = "e59506cc896acb7f7bf732d4fdf5e25f7ccd8983"
+    sha256 = "16bqimpxs9vj5n59vm04y04v665l7jh0sddxn787pfafyxcmh410"
+
+["github.com/gorilla/sessions"]
+  sumVersion = "v1.2.1"
+  ["github.com/gorilla/sessions".fetch]
+    type = "git"
+    url = "https://github.com/gorilla/sessions"
+    rev = "61fa50d034f99479a7de0d1c02c5e9dea5ad30cb"
+    sha256 = "1zjw2s37yggk9231db0vmgs67z8m3am8i8l4gpgz6fvlbv52baxp"
 
 ["github.com/gorilla/websocket"]
   sumVersion = "v1.4.2"
@@ -2367,12 +2447,12 @@
     sha256 = "09vccqggz212cg0jir6vv708d6mx0f9w5bxrcdah3h6chgmal6v1"
 
 ["github.com/hashicorp/go-uuid"]
-  sumVersion = "v1.0.1"
+  sumVersion = "v1.0.2"
   ["github.com/hashicorp/go-uuid".fetch]
     type = "git"
     url = "https://github.com/hashicorp/go-uuid"
-    rev = "4f571afc59f3043a65f8fe6bf46d887b10a01d43"
-    sha256 = "0jvb88m0rq41bwgirsadgw7mnayl27av3gd2vqa3xvxp3fy0hp5k"
+    rev = "6195a4f20692188e0a389def25559731d1e130f9"
+    sha256 = "1azjn5a03cv0bdab3clmkfz8g9807nxxjwy9i7dy73p7d4sikhja"
 
 ["github.com/hashicorp/go-version"]
   sumVersion = "v1.2.0"
@@ -2552,12 +2632,12 @@
     sha256 = "1siv31gp7ypjphxjfv91sxzpz2rxk1nn2aj17pgk0cz7c8m59ic7"
 
 ["github.com/influxdata/influxdb1-client"]
-  sumVersion = "v0.0.0-20191209144304-8bf82d3c094d"
+  sumVersion = "v0.0.0-20200827194710-b269163b24ab"
   ["github.com/influxdata/influxdb1-client".fetch]
     type = "git"
     url = "https://github.com/influxdata/influxdb1-client"
-    rev = "8bf82d3c094dc06be9da8e5bf9d3589b6ea032ae"
-    sha256 = "0cjli7prxfxayx2grianbla5jr0dq28sazk8phbnh61ac5zaya4s"
+    rev = "b269163b24ab8e62026d13a92aa988a7389c3b4e"
+    sha256 = "0pm1j437xk7d32px60j52qm98zgn21nmaqavjflvr44zaglrz5n9"
 
 ["github.com/influxdata/influxql"]
   sumVersion = "v1.1.1-0.20200828144457-65d3ef77d385"
@@ -2614,6 +2694,59 @@
     url = "https://github.com/jackpal/go-nat-pmp"
     rev = "1fa385a6f45828c83361136b45b1a21a12139493"
     sha256 = "1n5h3qrd613cfw95vyqpy9vh3xv0zgbk3j5q8zad25q10wvp6ymn"
+
+["github.com/jcmturner/aescts/v2"]
+  sumVersion = "v2.0.0"
+  relPath = "v2"
+  ["github.com/jcmturner/aescts/v2".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/aescts"
+    rev = "72347e1bd92aa67384e4f8c0e8a6d7cfaa716eea"
+    sha256 = "0yrdiisdhcqfs8jpicc30dfmbqzxhkmbayn902xrgwkndky8w7l1"
+
+["github.com/jcmturner/dnsutils/v2"]
+  sumVersion = "v2.0.0"
+  relPath = "v2"
+  ["github.com/jcmturner/dnsutils/v2".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/dnsutils"
+    rev = "90052734000be120c409677a88cb517e5b49dbf4"
+    sha256 = "116zbgvfj88vv93fnapmmgyd5g8kzy774cdyzsnnzyzng92j61c9"
+
+["github.com/jcmturner/gofork"]
+  sumVersion = "v1.0.0"
+  ["github.com/jcmturner/gofork".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/gofork"
+    rev = "dc7c13fece037a4a36e2b3c69db4991498d30692"
+    sha256 = "0xzsnjqv3d59w9pgqzf6550wdwaqnac7zcdgqfd25w65yhcffzhr"
+
+["github.com/jcmturner/goidentity/v6"]
+  sumVersion = "v6.0.1"
+  relPath = "v6"
+  ["github.com/jcmturner/goidentity/v6".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/goidentity"
+    rev = "836ef0c4025b66a750604bb79d41ace085366777"
+    sha256 = "064ysvxvrvij843s7qj1nkzl5qc6j1qbrsb3s0zmwd1sa7vq8q1n"
+
+["github.com/jcmturner/gokrb5/v8"]
+  sumVersion = "v8.4.2"
+  relPath = "v8"
+  ["github.com/jcmturner/gokrb5/v8".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/gokrb5"
+    rev = "663478bf457f1fc3275973bea5b7b787cd332015"
+    sha256 = "0w9d1pa3r6qmdblk25bghf78ncs03l15l1sxnh4n536c356rzq4b"
+
+["github.com/jcmturner/rpc/v2"]
+  sumVersion = "v2.0.3"
+  relPath = "v2"
+  ["github.com/jcmturner/rpc/v2".fetch]
+    type = "git"
+    url = "https://github.com/jcmturner/rpc"
+    rev = "7f482067a47ba5c8f25f2bcae9ab99b3fed820e9"
+    sha256 = "1nm4j2nwcszghldw39rwdx2hr56i1lybfpv33y4gd67w6qcqbpsi"
 
 ["github.com/jedisct1/go-minisign"]
   sumVersion = "v0.0.0-20190909160543-45766022959e"
@@ -2849,12 +2982,20 @@
     sha256 = "1bnxpv11zxg23h6qnm6wvf1qvbz2k2n3l1xy02wwfa139kpwc4ag"
 
 ["github.com/klauspost/cpuid"]
-  sumVersion = "v0.0.0-20170728055534-ae7887de9fa5"
+  sumVersion = "v1.2.1"
   ["github.com/klauspost/cpuid".fetch]
     type = "git"
     url = "https://github.com/klauspost/cpuid"
-    rev = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
-    sha256 = "178apw89g8nsd7w6mbdylxn956h3iig6rbw3bkivp6lplhb5dvq4"
+    rev = "05a8198c0f5a27739aec358908d7e12c64ce6eb7"
+    sha256 = "1071wchrs37bvpb99fwf19fjrpz0yaqipi2y2hjvim419flvd49x"
+
+["github.com/klauspost/cpuid/v2"]
+  sumVersion = "v2.0.4"
+  ["github.com/klauspost/cpuid/v2".fetch]
+    type = "git"
+    url = "https://github.com/klauspost/cpuid"
+    rev = "11274af0a6d540f8fcfec0d5ed78fbe6f42c3ee3"
+    sha256 = "1riaicd9yyhx8zgmw1dzqf01ifhlg8fbzjag5xpl3rajih4ml6dr"
 
 ["github.com/klauspost/crc32"]
   sumVersion = "v0.0.0-20161016154125-cb6bfca970f6"
@@ -2871,6 +3012,14 @@
     url = "https://github.com/klauspost/pgzip"
     rev = "0bf5dcad4ada2814c3c00f996a982270bb81a506"
     sha256 = "0dgp2iljvhibzxia1g3lsfg4bjmfh4kf0bfrmfi7sd49hwhrvk7s"
+
+["github.com/klauspost/reedsolomon"]
+  sumVersion = "v1.9.11"
+  ["github.com/klauspost/reedsolomon".fetch]
+    type = "git"
+    url = "https://github.com/klauspost/reedsolomon"
+    rev = "ab26eb412646d995bc07af659e8abd4f679ae63d"
+    sha256 = "070damdcsp3lbbbcrsvq6ckhd9ff72b52palc02dyc98dxqcv3xh"
 
 ["github.com/konsorten/go-windows-terminal-sequences"]
   sumVersion = "v1.0.3"
@@ -3539,6 +3688,38 @@
     rev = "970db520ece77730c7e4724c61121037378659d9"
     sha256 = "1cpna2x5l071z1vrnk7zipdkka8dzwsjyx7m79xk0lr08rip0kcj"
 
+["github.com/openconfig/gnmi"]
+  sumVersion = "v0.0.0-20210226144353-8eae1937bf84"
+  ["github.com/openconfig/gnmi".fetch]
+    type = "git"
+    url = "https://github.com/openconfig/gnmi"
+    rev = "8eae1937bf841842e2e0864c34562c8352d56bb2"
+    sha256 = "0xrfpn117fb28inrnfrzsbrpndd8npiyn207w6fx9srp5d1hr9w4"
+
+["github.com/openconfig/goyang"]
+  sumVersion = "v0.0.0-20200115183954-d0a48929f0ea"
+  ["github.com/openconfig/goyang".fetch]
+    type = "git"
+    url = "https://github.com/openconfig/goyang"
+    rev = "d0a48929f0eacdc11bbfe0555e7ac8621cfa8b4f"
+    sha256 = "036ma7lfliz7gld863760b69vql4vxd0m9c5n7vkch22srm7f4wg"
+
+["github.com/openconfig/reference"]
+  sumVersion = "v0.0.0-20201210185750-72ca4cfd4abd"
+  ["github.com/openconfig/reference".fetch]
+    type = "git"
+    url = "https://github.com/openconfig/reference"
+    rev = "72ca4cfd4abdbdb382905ff45e9cb990b4a770bb"
+    sha256 = "1laf2k1cfwdr2wcgfc6g6y4rs7cwjnwdj3lgrvgiklfyf5q8yw27"
+
+["github.com/openconfig/ygot"]
+  sumVersion = "v0.6.0"
+  ["github.com/openconfig/ygot".fetch]
+    type = "git"
+    url = "https://github.com/openconfig/ygot"
+    rev = "68346f97239f91ac9fb1f419586f58d6c39f5500"
+    sha256 = "0baza6d80wvnbfdqdvyz98pl61w7ihnbm1mdwkn6b9a0ip6f9k6j"
+
 ["github.com/opencontainers/go-digest"]
   sumVersion = "v1.0.0"
   ["github.com/opencontainers/go-digest".fetch]
@@ -3748,12 +3929,12 @@
     sha256 = "1pg84khadh79v42y8sjsdgfb54vw2kzv7hpapxkifgj0yvcp30g2"
 
 ["github.com/pierrec/lz4"]
-  sumVersion = "v2.0.5+incompatible"
+  sumVersion = "v2.6.0+incompatible"
   ["github.com/pierrec/lz4".fetch]
     type = "git"
     url = "https://github.com/pierrec/lz4"
-    rev = "ea731401f5c95a8ba30f15787e5e0fb77c60c66b"
-    sha256 = "0y5rh7z01zycd59nnjpkqq0ydyjmcg9j1xw15q1i600l9j9g617p"
+    rev = "0e583d326e0ec6b9c1ad223188dc709af385408e"
+    sha256 = "1w1427xd9k7yz3yda0n07vc27hlb8l2c2lmhnn7lpj83g9s0wy60"
 
 ["github.com/pkg/errors"]
   sumVersion = "v0.9.1"
@@ -4062,6 +4243,14 @@
     rev = "1595213edefa28ca5047b00340c63557f9c051d0"
     sha256 = "06h5g16zlfnw9wvgaqp7jfav3n3pvli6asfcx1hv44sl601wnwk0"
 
+["github.com/satori/go.uuid"]
+  sumVersion = "v1.2.0"
+  ["github.com/satori/go.uuid".fetch]
+    type = "git"
+    url = "https://github.com/satori/go.uuid"
+    rev = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+    sha256 = "1j4s5pfg2ldm35y8ls8jah4dya2grfnx2drb4jcbjsyrp4cm5yfb"
+
 ["github.com/sean-/seed"]
   sumVersion = "v0.0.0-20170313163322-e2103e2c3529"
   ["github.com/sean-/seed".fetch]
@@ -4295,6 +4484,22 @@
     rev = "957c095369694cc23ce9f2bca4acd325764860eb"
     sha256 = "0ybxxlc1j1fvkk8g4wnfmh29waavdp6ykjkg7d24365sxdg5gmy9"
 
+["github.com/steakknife/bloomfilter"]
+  sumVersion = "v0.0.0-20180922174646-6819c0d2a570"
+  ["github.com/steakknife/bloomfilter".fetch]
+    type = "git"
+    url = "https://github.com/steakknife/bloomfilter"
+    rev = "6819c0d2a57025e1700378ee59b7382d71987f14"
+    sha256 = "1dr4pb172rwi9cxvxl23j4j8q6ybqjfzll5dd14cd398f231nk81"
+
+["github.com/steakknife/hamming"]
+  sumVersion = "v0.0.0-20180906055917-c99c65617cd3"
+  ["github.com/steakknife/hamming".fetch]
+    type = "git"
+    url = "https://github.com/steakknife/hamming"
+    rev = "c99c65617cd3d686aea8365fe563d6542f01d940"
+    sha256 = "03scc8fkkwpbc7p9ymlrm6wg57mzr0d6s2k2dz2gp339pllxyxjr"
+
 ["github.com/streadway/amqp"]
   sumVersion = "v0.0.0-20190827072141-edfb9018d271"
   ["github.com/streadway/amqp".fetch]
@@ -4367,6 +4572,22 @@
     rev = "f0fad39f321c61bf05fcb4a01fe259606235e712"
     sha256 = "0brf99da00jf91hf7w0qqk6yj61zcya9ci7pm8d60q6zl40i87c5"
 
+["github.com/templexxx/cpufeat"]
+  sumVersion = "v0.0.0-20180724012125-cef66df7f161"
+  ["github.com/templexxx/cpufeat".fetch]
+    type = "git"
+    url = "https://github.com/templexxx/cpufeat"
+    rev = "cef66df7f161dee20f4d650da7268d77eaaec82d"
+    sha256 = "183aviadgq0slzighpa9z32cd26991hv5d5jnmk7frcq0nd62p9k"
+
+["github.com/templexxx/xor"]
+  sumVersion = "v0.0.0-20191217153810-f85b25db303b"
+  ["github.com/templexxx/xor".fetch]
+    type = "git"
+    url = "https://github.com/templexxx/xor"
+    rev = "f85b25db303b7014d1e97d8f25909c721a48cddf"
+    sha256 = "0h39qrkiq025q7dg8225afc6a7gqf6d25zspvzb6n02hdnchfqq2"
+
 ["github.com/tendermint/btcd"]
   sumVersion = "v0.1.1"
   ["github.com/tendermint/btcd".fetch]
@@ -4392,12 +4613,12 @@
     sha256 = "1zcms3l5fihzg8nf4vhdk18qpn1jkbm3rpkjfpskfcrgzlxk6vi5"
 
 ["github.com/tendermint/tendermint"]
-  sumVersion = "v0.34.13"
+  sumVersion = "v0.34.14"
   ["github.com/tendermint/tendermint".fetch]
     type = "git"
     url = "https://github.com/tendermint/tendermint"
-    rev = "849461aab254014f6b7976710400ea59f83265ce"
-    sha256 = "0il93a42simg5hs01i8zfccw5s4hgh69rkzj4zpz9w1sv46xnyng"
+    rev = "85870def7b628effad73af942e638bbddf2ba8fd"
+    sha256 = "15rrh25qdc4dvq0f125a039n08wv82ijjd0zzrr3n9d6fv028mpw"
 
 ["github.com/tendermint/tm-db"]
   sumVersion = "v0.6.4"
@@ -4416,12 +4637,13 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.7.1"
+  sumVersion = "v0.7.2-cronos"
+  vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/tharsis/ethermint"
-    rev = "222420f2ab77111a724b5fabbe32297cdfcacb33"
-    sha256 = "0s7pm1437zh0hz34jinkzmawsc9wd99ajvwcq8yvq6iwqn6yqfj2"
+    url = "https://github.com/crypto-org-chain/ethermint"
+    rev = "fabf5d73a24fda0c04c41be091d2983a8fa86897"
+    sha256 = "09z5n78vjgq543bg43f22czgj8c0l61102q0lf498xsbfi4rk31w"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
@@ -4470,6 +4692,14 @@
     url = "https://github.com/tinylib/msgp"
     rev = "b2b6a672cf1e5b90748f79b8b81fc8c5cf0571a1"
     sha256 = "0pypfknghg1hcjjrqz3f1riaylk6hcxn9h0qyzynb74rp0qmlxjc"
+
+["github.com/tjfoc/gmsm"]
+  sumVersion = "v1.4.0"
+  ["github.com/tjfoc/gmsm".fetch]
+    type = "git"
+    url = "https://github.com/tjfoc/gmsm"
+    rev = "d8e8bda44671fdfb187e931f324d7537ece9a87f"
+    sha256 = "104mhgl9skqbin1s9d7x1gmimvfpzkc4r11s7q18gvpkjlgcsl8y"
 
 ["github.com/tklauser/go-sysconf"]
   sumVersion = "v0.3.7"
@@ -4672,6 +4902,22 @@
     rev = "d860f346b89450988a379d7d705e83c58d1ea227"
     sha256 = "18419ip5mnblnyx2rjixad90dhjb1x2kaiidr7zk9b3qci799rh0"
 
+["github.com/xdg/scram"]
+  sumVersion = "v0.0.0-20180814205039-7eeb5667e42c"
+  ["github.com/xdg/scram".fetch]
+    type = "git"
+    url = "https://github.com/xdg/scram"
+    rev = "7eeb5667e42c09cb51bf7b7c28aea8c56767da90"
+    sha256 = "1ff20g1wdfz9yfg0azawmi7bdfnn4b8ymkmcf67ckq04q49cvfnb"
+
+["github.com/xdg/stringprep"]
+  sumVersion = "v1.0.0"
+  ["github.com/xdg/stringprep".fetch]
+    type = "git"
+    url = "https://github.com/xdg/stringprep"
+    rev = "bd625b8dc1e3b0f57412280ccbcc317f0c69d8db"
+    sha256 = "03nard51zgzbaq64p6gsvrz8fps3yazl3ydd115y0bppkdx2i4ji"
+
 ["github.com/xiang90/probing"]
   sumVersion = "v0.0.0-20190116061207-43a291ad63a2"
   ["github.com/xiang90/probing".fetch]
@@ -4703,6 +4949,22 @@
     url = "https://github.com/xordataexchange/crypt"
     rev = "b2862e3d0a775f18c7cfe02273500ae307b61218"
     sha256 = "04q3856anpzl4gdfgmg7pbp9cx231nkz3ymq2xp27rnmmwhfxr8y"
+
+["github.com/xtaci/kcp-go"]
+  sumVersion = "v5.4.20+incompatible"
+  ["github.com/xtaci/kcp-go".fetch]
+    type = "git"
+    url = "https://github.com/xtaci/kcp-go"
+    rev = "b1d82b8a82e775446d6700472900f0da93d2aca5"
+    sha256 = "0jljqbhklhx4cjxpqsm4v4ci1w2yaamxxyixyhh9sxhbcywcq6a8"
+
+["github.com/xtaci/lossyconn"]
+  sumVersion = "v0.0.0-20190602105132-8df528c0c9ae"
+  ["github.com/xtaci/lossyconn".fetch]
+    type = "git"
+    url = "https://github.com/xtaci/lossyconn"
+    rev = "8df528c0c9aeed110ff35a1d622c540d9f7d8f04"
+    sha256 = "0sbh56lfrpvyjkzp65h9dv9n2jda6b1slqamv0njzspigxr1zp44"
 
 ["github.com/ybbus/jsonrpc"]
   sumVersion = "v2.1.2+incompatible"
@@ -4948,12 +5210,12 @@
     sha256 = "0wzhvdb059vrp2cczqw422ajrb9sbs4l3qd020hlngj33qfhxah0"
 
 ["golang.org/x/time"]
-  sumVersion = "v0.0.0-20201208040808-7e3f01d25324"
+  sumVersion = "v0.0.0-20210220033141-f8bda1e9f3ba"
   ["golang.org/x/time".fetch]
     type = "git"
     url = "https://go.googlesource.com/time"
-    rev = "7e3f01d253248a0a5694eb5b7376dfea18b6397e"
-    sha256 = "19l0c6nc74gxn9l3qvgk791kbaik4h9w5wv0ayyr3bgw4hb48pgm"
+    rev = "f8bda1e9f3badef837c98cbaf4f7c335de90f266"
+    sha256 = "0d3ba0p47j9v5f7wwg29whyfwz9rv94ada5nv8f8hn7v87820xqi"
 
 ["golang.org/x/tools"]
   sumVersion = "v0.1.5"
@@ -5052,13 +5314,21 @@
     rev = "947dcec5ba9c011838740e680966fd7087a71d0d"
     sha256 = "0mndnv3hdngr3bxp7yxfd47cas4prv98sqw534mx7vp38gd88n5r"
 
+["gopkg.in/bsm/ratelimit.v1"]
+  sumVersion = "v1.0.0-20160220154919-db14e161995a"
+  ["gopkg.in/bsm/ratelimit.v1".fetch]
+    type = "git"
+    url = "https://gopkg.in/bsm/ratelimit.v1"
+    rev = "db14e161995a5177acef654cb0dd785e8ee8bc22"
+    sha256 = "1ph6dsvgwrsli9akh6arwkvz78hkdb42lyqmgfckjcsar1a2fcsh"
+
 ["gopkg.in/check.v1"]
-  sumVersion = "v1.0.0-20200227125254-8fa46927fb4f"
+  sumVersion = "v1.0.0-20201130134442-10cb98267c6c"
   ["gopkg.in/check.v1".fetch]
     type = "git"
     url = "https://gopkg.in/check.v1"
-    rev = "8fa46927fb4f5b54d48bde78c6c08db205b2298c"
-    sha256 = "0fx03x0nx9mjwnqphnx852q9p76qg7cazrachvgr1bj357lplrcw"
+    rev = "10cb98267c6cb43ea9cd6793f29ff4089c306974"
+    sha256 = "1jwxndf8rsyx0fgrp47d99rp55yzssmryb92jfj3yf7zd8rjjljn"
 
 ["gopkg.in/cheggaaa/pb.v1"]
   sumVersion = "v1.0.28"
@@ -5116,6 +5386,46 @@
     rev = "14e9811b1643cf01ea36277e44dffef4f119fa31"
     sha256 = "0s35274ibybg1nidwb65jyc3gkkbs91s7rv5jdg73x6sbd73q6wr"
 
+["gopkg.in/jcmturner/aescts.v1"]
+  sumVersion = "v1.0.1"
+  ["gopkg.in/jcmturner/aescts.v1".fetch]
+    type = "git"
+    url = "https://gopkg.in/jcmturner/aescts.v1"
+    rev = "f6abebb3171c4c1b1fea279cb7c7325020a26290"
+    sha256 = "0rbq4zf3db48xa2gqdp2swws7wizmbwagigqkr1zxzd1ramps6rv"
+
+["gopkg.in/jcmturner/dnsutils.v1"]
+  sumVersion = "v1.0.1"
+  ["gopkg.in/jcmturner/dnsutils.v1".fetch]
+    type = "git"
+    url = "https://gopkg.in/jcmturner/dnsutils.v1"
+    rev = "13eeb8d49ffb74d7a75784c35e4d900607a3943c"
+    sha256 = "0l543c64pyzbnrc00jspg21672l3a0kjjw9pbdxwna93w8d8m927"
+
+["gopkg.in/jcmturner/goidentity.v3"]
+  sumVersion = "v3.0.0"
+  ["gopkg.in/jcmturner/goidentity.v3".fetch]
+    type = "git"
+    url = "https://gopkg.in/jcmturner/goidentity.v3"
+    rev = "3a6fd63c09116f950c952b5cb82d039acc7545b1"
+    sha256 = "0ymvs25i3j8nv3pml86bkxa73syki6k73bhhdcs15chr7bfgx0im"
+
+["gopkg.in/jcmturner/gokrb5.v7"]
+  sumVersion = "v7.2.3"
+  ["gopkg.in/jcmturner/gokrb5.v7".fetch]
+    type = "git"
+    url = "https://gopkg.in/jcmturner/gokrb5.v7"
+    rev = "7b6b2f54b7fda31a47cd7e68ca8485dedeb0e1ed"
+    sha256 = "1rb524xfzf7ij0sbwhiclzg8iqhwck6ndfmbajkw24w761sgnw8q"
+
+["gopkg.in/jcmturner/rpc.v1"]
+  sumVersion = "v1.1.0"
+  ["gopkg.in/jcmturner/rpc.v1".fetch]
+    type = "git"
+    url = "https://gopkg.in/jcmturner/rpc.v1"
+    rev = "99a8ce2fbf8b8087b6ed12a37c61b10f04070043"
+    sha256 = "0hkmvf8qdcifnzym8kv1xhq7lq0wpr0i6gzff159lh9xn0wfg175"
+
 ["gopkg.in/natefinch/npipe.v2"]
   sumVersion = "v2.0.0-20160621034901-c1b8fa8bdcce"
   ["gopkg.in/natefinch/npipe.v2".fetch]
@@ -5131,6 +5441,14 @@
     url = "https://gopkg.in/olebedev/go-duktape.v3"
     rev = "60c24ae608a642bf894bed9eb53627d2384bedca"
     sha256 = "13qirm5nqk6isv9n0wdi18k9wc8h1d7n6zwflhziwix7ghnr7a1q"
+
+["gopkg.in/redis.v4"]
+  sumVersion = "v4.2.4"
+  ["gopkg.in/redis.v4".fetch]
+    type = "git"
+    url = "https://gopkg.in/redis.v4"
+    rev = "c938162545c57136fa59879746bc65d0f1db3d1e"
+    sha256 = "10dkav38ljdsfjvj9wpjn29y4csa2kymm5fgalqa4hvwxz95cnpg"
 
 ["gopkg.in/resty.v1"]
   sumVersion = "v1.12.0"
