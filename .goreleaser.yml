@@ -157,7 +157,8 @@ builds:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
 
 archives:
-- name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+- id: mainnet
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
   replacements:
     darwin: Darwin
     linux: Linux
@@ -172,11 +173,22 @@ archives:
   - cronosd-windows
   - cronosd-linux
   - cronosd-linux-arm64
-  - cronosd-darwin-testnet
-  - cronosd-darwin-arm64-testnet
-  - cronosd-windows-testnet
-  - cronosd-linux-tesnet
-  - cronosd-linux-arm64-testnet
+- id: testnet
+  name_template: '{{ .ProjectName }}_{{ .Version }}-testnet_{{ .Os }}_{{ .Arch }}'
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    amd64: x86_64
+  format_overrides:
+    - goos: windows
+      format: zip
+  builds:
+    - cronosd-darwin-testnet
+    - cronosd-darwin-arm64-testnet
+    - cronosd-windows-testnet
+    - cronosd-linux-testnet
+    - cronosd-linux-arm64-testnet
   
 checksum:
   name_template: 'checksums.txt'
