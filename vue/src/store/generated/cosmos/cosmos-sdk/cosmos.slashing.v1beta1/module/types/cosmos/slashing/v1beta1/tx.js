@@ -38,8 +38,7 @@ export const MsgUnjail = {
     },
     toJSON(message) {
         const obj = {};
-        message.validatorAddr !== undefined &&
-            (obj.validatorAddr = message.validatorAddr);
+        message.validatorAddr !== undefined && (obj.validatorAddr = message.validatorAddr);
         return obj;
     },
     fromPartial(object) {

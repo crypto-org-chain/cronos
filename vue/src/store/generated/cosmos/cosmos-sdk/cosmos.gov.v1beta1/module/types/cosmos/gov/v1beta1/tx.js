@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { voteOptionFromJSON, voteOptionToJSON } from '../../../cosmos/gov/v1beta1/gov';
+import { WeightedVoteOption, voteOptionFromJSON, voteOptionToJSON } from '../../../cosmos/gov/v1beta1/gov';
 import { Reader, util, configure, Writer } from 'protobufjs/minimal';
 import * as Long from 'long';
 import { Any } from '../../../google/protobuf/any';
@@ -67,10 +67,9 @@ export const MsgSubmitProposal = {
     },
     toJSON(message) {
         const obj = {};
-        message.content !== undefined &&
-            (obj.content = message.content ? Any.toJSON(message.content) : undefined);
+        message.content !== undefined && (obj.content = message.content ? Any.toJSON(message.content) : undefined);
         if (message.initialDeposit) {
-            obj.initialDeposit = message.initialDeposit.map((e) => e ? Coin.toJSON(e) : undefined);
+            obj.initialDeposit = message.initialDeposit.map((e) => (e ? Coin.toJSON(e) : undefined));
         }
         else {
             obj.initialDeposit = [];
@@ -112,9 +111,7 @@ export const MsgSubmitProposalResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseMsgSubmitProposalResponse
-        };
+        const message = { ...baseMsgSubmitProposalResponse };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -129,9 +126,7 @@ export const MsgSubmitProposalResponse = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseMsgSubmitProposalResponse
-        };
+        const message = { ...baseMsgSubmitProposalResponse };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = Number(object.proposalId);
         }
@@ -146,9 +141,7 @@ export const MsgSubmitProposalResponse = {
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseMsgSubmitProposalResponse
-        };
+        const message = { ...baseMsgSubmitProposalResponse };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = object.proposalId;
         }
@@ -221,8 +214,7 @@ export const MsgVote = {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
         message.voter !== undefined && (obj.voter = message.voter);
-        message.option !== undefined &&
-            (obj.option = voteOptionToJSON(message.option));
+        message.option !== undefined && (obj.option = voteOptionToJSON(message.option));
         return obj;
     },
     fromPartial(object) {
@@ -277,6 +269,133 @@ export const MsgVoteResponse = {
     },
     fromPartial(_) {
         const message = { ...baseMsgVoteResponse };
+        return message;
+    }
+};
+const baseMsgVoteWeighted = { proposalId: 0, voter: '' };
+export const MsgVoteWeighted = {
+    encode(message, writer = Writer.create()) {
+        if (message.proposalId !== 0) {
+            writer.uint32(8).uint64(message.proposalId);
+        }
+        if (message.voter !== '') {
+            writer.uint32(18).string(message.voter);
+        }
+        for (const v of message.options) {
+            WeightedVoteOption.encode(v, writer.uint32(26).fork()).ldelim();
+        }
+        return writer;
+    },
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgVoteWeighted };
+        message.options = [];
+        while (reader.pos < end) {
+            const tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    message.proposalId = longToNumber(reader.uint64());
+                    break;
+                case 2:
+                    message.voter = reader.string();
+                    break;
+                case 3:
+                    message.options.push(WeightedVoteOption.decode(reader, reader.uint32()));
+                    break;
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+            }
+        }
+        return message;
+    },
+    fromJSON(object) {
+        const message = { ...baseMsgVoteWeighted };
+        message.options = [];
+        if (object.proposalId !== undefined && object.proposalId !== null) {
+            message.proposalId = Number(object.proposalId);
+        }
+        else {
+            message.proposalId = 0;
+        }
+        if (object.voter !== undefined && object.voter !== null) {
+            message.voter = String(object.voter);
+        }
+        else {
+            message.voter = '';
+        }
+        if (object.options !== undefined && object.options !== null) {
+            for (const e of object.options) {
+                message.options.push(WeightedVoteOption.fromJSON(e));
+            }
+        }
+        return message;
+    },
+    toJSON(message) {
+        const obj = {};
+        message.proposalId !== undefined && (obj.proposalId = message.proposalId);
+        message.voter !== undefined && (obj.voter = message.voter);
+        if (message.options) {
+            obj.options = message.options.map((e) => (e ? WeightedVoteOption.toJSON(e) : undefined));
+        }
+        else {
+            obj.options = [];
+        }
+        return obj;
+    },
+    fromPartial(object) {
+        const message = { ...baseMsgVoteWeighted };
+        message.options = [];
+        if (object.proposalId !== undefined && object.proposalId !== null) {
+            message.proposalId = object.proposalId;
+        }
+        else {
+            message.proposalId = 0;
+        }
+        if (object.voter !== undefined && object.voter !== null) {
+            message.voter = object.voter;
+        }
+        else {
+            message.voter = '';
+        }
+        if (object.options !== undefined && object.options !== null) {
+            for (const e of object.options) {
+                message.options.push(WeightedVoteOption.fromPartial(e));
+            }
+        }
+        return message;
+    }
+};
+const baseMsgVoteWeightedResponse = {};
+export const MsgVoteWeightedResponse = {
+    encode(_, writer = Writer.create()) {
+        return writer;
+    },
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseMsgVoteWeightedResponse };
+        while (reader.pos < end) {
+            const tag = reader.uint32();
+            switch (tag >>> 3) {
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+            }
+        }
+        return message;
+    },
+    fromJSON(_) {
+        const message = { ...baseMsgVoteWeightedResponse };
+        return message;
+    },
+    toJSON(_) {
+        const obj = {};
+        return obj;
+    },
+    fromPartial(_) {
+        const message = { ...baseMsgVoteWeightedResponse };
         return message;
     }
 };
@@ -420,6 +539,11 @@ export class MsgClientImpl {
         const data = MsgVote.encode(request).finish();
         const promise = this.rpc.request('cosmos.gov.v1beta1.Msg', 'Vote', data);
         return promise.then((data) => MsgVoteResponse.decode(new Reader(data)));
+    }
+    VoteWeighted(request) {
+        const data = MsgVoteWeighted.encode(request).finish();
+        const promise = this.rpc.request('cosmos.gov.v1beta1.Msg', 'VoteWeighted', data);
+        return promise.then((data) => MsgVoteWeightedResponse.decode(new Reader(data)));
     }
     Deposit(request) {
         const data = MsgDeposit.encode(request).finish();

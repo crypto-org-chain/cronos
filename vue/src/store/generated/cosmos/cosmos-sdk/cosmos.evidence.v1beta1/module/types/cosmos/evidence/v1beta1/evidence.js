@@ -66,8 +66,7 @@ export const Equivocation = {
         else {
             message.power = 0;
         }
-        if (object.consensusAddress !== undefined &&
-            object.consensusAddress !== null) {
+        if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
             message.consensusAddress = String(object.consensusAddress);
         }
         else {
@@ -78,12 +77,9 @@ export const Equivocation = {
     toJSON(message) {
         const obj = {};
         message.height !== undefined && (obj.height = message.height);
-        message.time !== undefined &&
-            (obj.time =
-                message.time !== undefined ? message.time.toISOString() : null);
+        message.time !== undefined && (obj.time = message.time !== undefined ? message.time.toISOString() : null);
         message.power !== undefined && (obj.power = message.power);
-        message.consensusAddress !== undefined &&
-            (obj.consensusAddress = message.consensusAddress);
+        message.consensusAddress !== undefined && (obj.consensusAddress = message.consensusAddress);
         return obj;
     },
     fromPartial(object) {
@@ -106,8 +102,7 @@ export const Equivocation = {
         else {
             message.power = 0;
         }
-        if (object.consensusAddress !== undefined &&
-            object.consensusAddress !== null) {
+        if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
             message.consensusAddress = object.consensusAddress;
         }
         else {

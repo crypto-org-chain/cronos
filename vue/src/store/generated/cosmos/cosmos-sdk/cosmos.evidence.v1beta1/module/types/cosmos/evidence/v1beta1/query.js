@@ -37,10 +37,7 @@ export const QueryEvidenceRequest = {
     },
     toJSON(message) {
         const obj = {};
-        message.evidenceHash !== undefined &&
-            (obj.evidenceHash = base64FromBytes(message.evidenceHash !== undefined
-                ? message.evidenceHash
-                : new Uint8Array()));
+        message.evidenceHash !== undefined && (obj.evidenceHash = base64FromBytes(message.evidenceHash !== undefined ? message.evidenceHash : new Uint8Array()));
         return obj;
     },
     fromPartial(object) {
@@ -91,10 +88,7 @@ export const QueryEvidenceResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.evidence !== undefined &&
-            (obj.evidence = message.evidence
-                ? Any.toJSON(message.evidence)
-                : undefined);
+        message.evidence !== undefined && (obj.evidence = message.evidence ? Any.toJSON(message.evidence) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -119,9 +113,7 @@ export const QueryAllEvidenceRequest = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseQueryAllEvidenceRequest
-        };
+        const message = { ...baseQueryAllEvidenceRequest };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -136,9 +128,7 @@ export const QueryAllEvidenceRequest = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseQueryAllEvidenceRequest
-        };
+        const message = { ...baseQueryAllEvidenceRequest };
         if (object.pagination !== undefined && object.pagination !== null) {
             message.pagination = PageRequest.fromJSON(object.pagination);
         }
@@ -149,16 +139,11 @@ export const QueryAllEvidenceRequest = {
     },
     toJSON(message) {
         const obj = {};
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseQueryAllEvidenceRequest
-        };
+        const message = { ...baseQueryAllEvidenceRequest };
         if (object.pagination !== undefined && object.pagination !== null) {
             message.pagination = PageRequest.fromPartial(object.pagination);
         }
@@ -182,9 +167,7 @@ export const QueryAllEvidenceResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseQueryAllEvidenceResponse
-        };
+        const message = { ...baseQueryAllEvidenceResponse };
         message.evidence = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
@@ -203,9 +186,7 @@ export const QueryAllEvidenceResponse = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseQueryAllEvidenceResponse
-        };
+        const message = { ...baseQueryAllEvidenceResponse };
         message.evidence = [];
         if (object.evidence !== undefined && object.evidence !== null) {
             for (const e of object.evidence) {
@@ -223,21 +204,16 @@ export const QueryAllEvidenceResponse = {
     toJSON(message) {
         const obj = {};
         if (message.evidence) {
-            obj.evidence = message.evidence.map((e) => e ? Any.toJSON(e) : undefined);
+            obj.evidence = message.evidence.map((e) => (e ? Any.toJSON(e) : undefined));
         }
         else {
             obj.evidence = [];
         }
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseQueryAllEvidenceResponse
-        };
+        const message = { ...baseQueryAllEvidenceResponse };
         message.evidence = [];
         if (object.evidence !== undefined && object.evidence !== null) {
             for (const e of object.evidence) {
@@ -279,8 +255,7 @@ var globalThis = (() => {
         return global;
     throw 'Unable to locate global object';
 })();
-const atob = globalThis.atob ||
-    ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
+const atob = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
 function bytesFromBase64(b64) {
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -289,8 +264,7 @@ function bytesFromBase64(b64) {
     }
     return arr;
 }
-const btoa = globalThis.btoa ||
-    ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
+const btoa = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
 function base64FromBytes(arr) {
     const bin = [];
     for (let i = 0; i < arr.byteLength; ++i) {

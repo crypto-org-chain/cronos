@@ -219,9 +219,7 @@ export const MsgMultiSend = {
       obj.inputs = []
     }
     if (message.outputs) {
-      obj.outputs = message.outputs.map((e) =>
-        e ? Output.toJSON(e) : undefined
-      )
+      obj.outputs = message.outputs.map((e) => (e ? Output.toJSON(e) : undefined))
     } else {
       obj.outputs = []
     }
@@ -305,21 +303,13 @@ export class MsgClientImpl implements Msg {
 
   MultiSend(request: MsgMultiSend): Promise<MsgMultiSendResponse> {
     const data = MsgMultiSend.encode(request).finish()
-    const promise = this.rpc.request(
-      'cosmos.bank.v1beta1.Msg',
-      'MultiSend',
-      data
-    )
+    const promise = this.rpc.request('cosmos.bank.v1beta1.Msg', 'MultiSend', data)
     return promise.then((data) => MsgMultiSendResponse.decode(new Reader(data)))
   }
 }
 
 interface Rpc {
-  request(
-    service: string,
-    method: string,
-    data: Uint8Array
-  ): Promise<Uint8Array>
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | undefined

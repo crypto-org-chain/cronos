@@ -79,10 +79,9 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.params !== undefined &&
-            (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+        message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
         if (message.balances) {
-            obj.balances = message.balances.map((e) => e ? Balance.toJSON(e) : undefined);
+            obj.balances = message.balances.map((e) => (e ? Balance.toJSON(e) : undefined));
         }
         else {
             obj.balances = [];
@@ -94,7 +93,7 @@ export const GenesisState = {
             obj.supply = [];
         }
         if (message.denomMetadata) {
-            obj.denomMetadata = message.denomMetadata.map((e) => e ? Metadata.toJSON(e) : undefined);
+            obj.denomMetadata = message.denomMetadata.map((e) => (e ? Metadata.toJSON(e) : undefined));
         }
         else {
             obj.denomMetadata = [];

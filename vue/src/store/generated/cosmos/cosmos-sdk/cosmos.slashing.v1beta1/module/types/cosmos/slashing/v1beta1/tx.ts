@@ -51,8 +51,7 @@ export const MsgUnjail = {
 
   toJSON(message: MsgUnjail): unknown {
     const obj: any = {}
-    message.validatorAddr !== undefined &&
-      (obj.validatorAddr = message.validatorAddr)
+    message.validatorAddr !== undefined && (obj.validatorAddr = message.validatorAddr)
     return obj
   },
 
@@ -122,21 +121,13 @@ export class MsgClientImpl implements Msg {
   }
   Unjail(request: MsgUnjail): Promise<MsgUnjailResponse> {
     const data = MsgUnjail.encode(request).finish()
-    const promise = this.rpc.request(
-      'cosmos.slashing.v1beta1.Msg',
-      'Unjail',
-      data
-    )
+    const promise = this.rpc.request('cosmos.slashing.v1beta1.Msg', 'Unjail', data)
     return promise.then((data) => MsgUnjailResponse.decode(new Reader(data)))
   }
 }
 
 interface Rpc {
-  request(
-    service: string,
-    method: string,
-    data: Uint8Array
-  ): Promise<Uint8Array>
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | undefined

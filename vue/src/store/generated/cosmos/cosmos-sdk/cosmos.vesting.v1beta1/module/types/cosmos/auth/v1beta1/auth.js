@@ -77,10 +77,8 @@ export const BaseAccount = {
     toJSON(message) {
         const obj = {};
         message.address !== undefined && (obj.address = message.address);
-        message.pubKey !== undefined &&
-            (obj.pubKey = message.pubKey ? Any.toJSON(message.pubKey) : undefined);
-        message.accountNumber !== undefined &&
-            (obj.accountNumber = message.accountNumber);
+        message.pubKey !== undefined && (obj.pubKey = message.pubKey ? Any.toJSON(message.pubKey) : undefined);
+        message.accountNumber !== undefined && (obj.accountNumber = message.accountNumber);
         message.sequence !== undefined && (obj.sequence = message.sequence);
         return obj;
     },
@@ -175,10 +173,7 @@ export const ModuleAccount = {
     },
     toJSON(message) {
         const obj = {};
-        message.baseAccount !== undefined &&
-            (obj.baseAccount = message.baseAccount
-                ? BaseAccount.toJSON(message.baseAccount)
-                : undefined);
+        message.baseAccount !== undefined && (obj.baseAccount = message.baseAccount ? BaseAccount.toJSON(message.baseAccount) : undefined);
         message.name !== undefined && (obj.name = message.name);
         if (message.permissions) {
             obj.permissions = message.permissions.map((e) => e);
@@ -211,13 +206,7 @@ export const ModuleAccount = {
         return message;
     }
 };
-const baseParams = {
-    maxMemoCharacters: 0,
-    txSigLimit: 0,
-    txSizeCostPerByte: 0,
-    sigVerifyCostEd25519: 0,
-    sigVerifyCostSecp256k1: 0
-};
+const baseParams = { maxMemoCharacters: 0, txSigLimit: 0, txSizeCostPerByte: 0, sigVerifyCostEd25519: 0, sigVerifyCostSecp256k1: 0 };
 export const Params = {
     encode(message, writer = Writer.create()) {
         if (message.maxMemoCharacters !== 0) {
@@ -268,8 +257,7 @@ export const Params = {
     },
     fromJSON(object) {
         const message = { ...baseParams };
-        if (object.maxMemoCharacters !== undefined &&
-            object.maxMemoCharacters !== null) {
+        if (object.maxMemoCharacters !== undefined && object.maxMemoCharacters !== null) {
             message.maxMemoCharacters = Number(object.maxMemoCharacters);
         }
         else {
@@ -281,22 +269,19 @@ export const Params = {
         else {
             message.txSigLimit = 0;
         }
-        if (object.txSizeCostPerByte !== undefined &&
-            object.txSizeCostPerByte !== null) {
+        if (object.txSizeCostPerByte !== undefined && object.txSizeCostPerByte !== null) {
             message.txSizeCostPerByte = Number(object.txSizeCostPerByte);
         }
         else {
             message.txSizeCostPerByte = 0;
         }
-        if (object.sigVerifyCostEd25519 !== undefined &&
-            object.sigVerifyCostEd25519 !== null) {
+        if (object.sigVerifyCostEd25519 !== undefined && object.sigVerifyCostEd25519 !== null) {
             message.sigVerifyCostEd25519 = Number(object.sigVerifyCostEd25519);
         }
         else {
             message.sigVerifyCostEd25519 = 0;
         }
-        if (object.sigVerifyCostSecp256k1 !== undefined &&
-            object.sigVerifyCostSecp256k1 !== null) {
+        if (object.sigVerifyCostSecp256k1 !== undefined && object.sigVerifyCostSecp256k1 !== null) {
             message.sigVerifyCostSecp256k1 = Number(object.sigVerifyCostSecp256k1);
         }
         else {
@@ -306,21 +291,16 @@ export const Params = {
     },
     toJSON(message) {
         const obj = {};
-        message.maxMemoCharacters !== undefined &&
-            (obj.maxMemoCharacters = message.maxMemoCharacters);
+        message.maxMemoCharacters !== undefined && (obj.maxMemoCharacters = message.maxMemoCharacters);
         message.txSigLimit !== undefined && (obj.txSigLimit = message.txSigLimit);
-        message.txSizeCostPerByte !== undefined &&
-            (obj.txSizeCostPerByte = message.txSizeCostPerByte);
-        message.sigVerifyCostEd25519 !== undefined &&
-            (obj.sigVerifyCostEd25519 = message.sigVerifyCostEd25519);
-        message.sigVerifyCostSecp256k1 !== undefined &&
-            (obj.sigVerifyCostSecp256k1 = message.sigVerifyCostSecp256k1);
+        message.txSizeCostPerByte !== undefined && (obj.txSizeCostPerByte = message.txSizeCostPerByte);
+        message.sigVerifyCostEd25519 !== undefined && (obj.sigVerifyCostEd25519 = message.sigVerifyCostEd25519);
+        message.sigVerifyCostSecp256k1 !== undefined && (obj.sigVerifyCostSecp256k1 = message.sigVerifyCostSecp256k1);
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseParams };
-        if (object.maxMemoCharacters !== undefined &&
-            object.maxMemoCharacters !== null) {
+        if (object.maxMemoCharacters !== undefined && object.maxMemoCharacters !== null) {
             message.maxMemoCharacters = object.maxMemoCharacters;
         }
         else {
@@ -332,22 +312,19 @@ export const Params = {
         else {
             message.txSigLimit = 0;
         }
-        if (object.txSizeCostPerByte !== undefined &&
-            object.txSizeCostPerByte !== null) {
+        if (object.txSizeCostPerByte !== undefined && object.txSizeCostPerByte !== null) {
             message.txSizeCostPerByte = object.txSizeCostPerByte;
         }
         else {
             message.txSizeCostPerByte = 0;
         }
-        if (object.sigVerifyCostEd25519 !== undefined &&
-            object.sigVerifyCostEd25519 !== null) {
+        if (object.sigVerifyCostEd25519 !== undefined && object.sigVerifyCostEd25519 !== null) {
             message.sigVerifyCostEd25519 = object.sigVerifyCostEd25519;
         }
         else {
             message.sigVerifyCostEd25519 = 0;
         }
-        if (object.sigVerifyCostSecp256k1 !== undefined &&
-            object.sigVerifyCostSecp256k1 !== null) {
+        if (object.sigVerifyCostSecp256k1 !== undefined && object.sigVerifyCostSecp256k1 !== null) {
             message.sigVerifyCostSecp256k1 = object.sigVerifyCostSecp256k1;
         }
         else {

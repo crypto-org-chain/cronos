@@ -72,8 +72,7 @@ export const GenesisState = {
         message.deposits = [];
         message.votes = [];
         message.proposals = [];
-        if (object.startingProposalId !== undefined &&
-            object.startingProposalId !== null) {
+        if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
             message.startingProposalId = Number(object.startingProposalId);
         }
         else {
@@ -116,10 +115,9 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.startingProposalId !== undefined &&
-            (obj.startingProposalId = message.startingProposalId);
+        message.startingProposalId !== undefined && (obj.startingProposalId = message.startingProposalId);
         if (message.deposits) {
-            obj.deposits = message.deposits.map((e) => e ? Deposit.toJSON(e) : undefined);
+            obj.deposits = message.deposits.map((e) => (e ? Deposit.toJSON(e) : undefined));
         }
         else {
             obj.deposits = [];
@@ -131,23 +129,14 @@ export const GenesisState = {
             obj.votes = [];
         }
         if (message.proposals) {
-            obj.proposals = message.proposals.map((e) => e ? Proposal.toJSON(e) : undefined);
+            obj.proposals = message.proposals.map((e) => (e ? Proposal.toJSON(e) : undefined));
         }
         else {
             obj.proposals = [];
         }
-        message.depositParams !== undefined &&
-            (obj.depositParams = message.depositParams
-                ? DepositParams.toJSON(message.depositParams)
-                : undefined);
-        message.votingParams !== undefined &&
-            (obj.votingParams = message.votingParams
-                ? VotingParams.toJSON(message.votingParams)
-                : undefined);
-        message.tallyParams !== undefined &&
-            (obj.tallyParams = message.tallyParams
-                ? TallyParams.toJSON(message.tallyParams)
-                : undefined);
+        message.depositParams !== undefined && (obj.depositParams = message.depositParams ? DepositParams.toJSON(message.depositParams) : undefined);
+        message.votingParams !== undefined && (obj.votingParams = message.votingParams ? VotingParams.toJSON(message.votingParams) : undefined);
+        message.tallyParams !== undefined && (obj.tallyParams = message.tallyParams ? TallyParams.toJSON(message.tallyParams) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -155,8 +144,7 @@ export const GenesisState = {
         message.deposits = [];
         message.votes = [];
         message.proposals = [];
-        if (object.startingProposalId !== undefined &&
-            object.startingProposalId !== null) {
+        if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
             message.startingProposalId = object.startingProposalId;
         }
         else {

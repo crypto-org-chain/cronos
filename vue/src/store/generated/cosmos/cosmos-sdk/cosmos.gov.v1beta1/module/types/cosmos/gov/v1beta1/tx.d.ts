@@ -1,4 +1,4 @@
-import { VoteOption } from '../../../cosmos/gov/v1beta1/gov';
+import { VoteOption, WeightedVoteOption } from '../../../cosmos/gov/v1beta1/gov';
 import { Reader, Writer } from 'protobufjs/minimal';
 import { Any } from '../../../google/protobuf/any';
 import { Coin } from '../../../cosmos/base/v1beta1/coin';
@@ -24,6 +24,15 @@ export interface MsgVote {
 }
 /** MsgVoteResponse defines the Msg/Vote response type. */
 export interface MsgVoteResponse {
+}
+/** MsgVoteWeighted defines a message to cast a vote. */
+export interface MsgVoteWeighted {
+    proposalId: number;
+    voter: string;
+    options: WeightedVoteOption[];
+}
+/** MsgVoteWeightedResponse defines the Msg/VoteWeighted response type. */
+export interface MsgVoteWeightedResponse {
 }
 /** MsgDeposit defines a message to submit a deposit to an existing proposal. */
 export interface MsgDeposit {
@@ -62,6 +71,20 @@ export declare const MsgVoteResponse: {
     toJSON(_: MsgVoteResponse): unknown;
     fromPartial(_: DeepPartial<MsgVoteResponse>): MsgVoteResponse;
 };
+export declare const MsgVoteWeighted: {
+    encode(message: MsgVoteWeighted, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): MsgVoteWeighted;
+    fromJSON(object: any): MsgVoteWeighted;
+    toJSON(message: MsgVoteWeighted): unknown;
+    fromPartial(object: DeepPartial<MsgVoteWeighted>): MsgVoteWeighted;
+};
+export declare const MsgVoteWeightedResponse: {
+    encode(_: MsgVoteWeightedResponse, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): MsgVoteWeightedResponse;
+    fromJSON(_: any): MsgVoteWeightedResponse;
+    toJSON(_: MsgVoteWeightedResponse): unknown;
+    fromPartial(_: DeepPartial<MsgVoteWeightedResponse>): MsgVoteWeightedResponse;
+};
 export declare const MsgDeposit: {
     encode(message: MsgDeposit, writer?: Writer): Writer;
     decode(input: Reader | Uint8Array, length?: number): MsgDeposit;
@@ -82,6 +105,8 @@ export interface Msg {
     SubmitProposal(request: MsgSubmitProposal): Promise<MsgSubmitProposalResponse>;
     /** Vote defines a method to add a vote on a specific proposal. */
     Vote(request: MsgVote): Promise<MsgVoteResponse>;
+    /** VoteWeighted defines a method to add a weighted vote on a specific proposal. */
+    VoteWeighted(request: MsgVoteWeighted): Promise<MsgVoteWeightedResponse>;
     /** Deposit defines a method to add deposit on a specific proposal. */
     Deposit(request: MsgDeposit): Promise<MsgDepositResponse>;
 }
@@ -90,6 +115,7 @@ export declare class MsgClientImpl implements Msg {
     constructor(rpc: Rpc);
     SubmitProposal(request: MsgSubmitProposal): Promise<MsgSubmitProposalResponse>;
     Vote(request: MsgVote): Promise<MsgVoteResponse>;
+    VoteWeighted(request: MsgVoteWeighted): Promise<MsgVoteWeightedResponse>;
     Deposit(request: MsgDeposit): Promise<MsgDepositResponse>;
 }
 interface Rpc {

@@ -136,6 +136,76 @@ export function proposalStatusToJSON(object) {
             return 'UNKNOWN';
     }
 }
+const baseWeightedVoteOption = { option: 0, weight: '' };
+export const WeightedVoteOption = {
+    encode(message, writer = Writer.create()) {
+        if (message.option !== 0) {
+            writer.uint32(8).int32(message.option);
+        }
+        if (message.weight !== '') {
+            writer.uint32(18).string(message.weight);
+        }
+        return writer;
+    },
+    decode(input, length) {
+        const reader = input instanceof Uint8Array ? new Reader(input) : input;
+        let end = length === undefined ? reader.len : reader.pos + length;
+        const message = { ...baseWeightedVoteOption };
+        while (reader.pos < end) {
+            const tag = reader.uint32();
+            switch (tag >>> 3) {
+                case 1:
+                    message.option = reader.int32();
+                    break;
+                case 2:
+                    message.weight = reader.string();
+                    break;
+                default:
+                    reader.skipType(tag & 7);
+                    break;
+            }
+        }
+        return message;
+    },
+    fromJSON(object) {
+        const message = { ...baseWeightedVoteOption };
+        if (object.option !== undefined && object.option !== null) {
+            message.option = voteOptionFromJSON(object.option);
+        }
+        else {
+            message.option = 0;
+        }
+        if (object.weight !== undefined && object.weight !== null) {
+            message.weight = String(object.weight);
+        }
+        else {
+            message.weight = '';
+        }
+        return message;
+    },
+    toJSON(message) {
+        const obj = {};
+        message.option !== undefined && (obj.option = voteOptionToJSON(message.option));
+        message.weight !== undefined && (obj.weight = message.weight);
+        return obj;
+    },
+    fromPartial(object) {
+        const message = { ...baseWeightedVoteOption };
+        if (object.option !== undefined && object.option !== null) {
+            message.option = object.option;
+        }
+        else {
+            message.option = 0;
+        }
+        if (object.weight !== undefined && object.weight !== null) {
+            message.weight = object.weight;
+        }
+        else {
+            message.weight = '';
+        }
+        return message;
+    }
+};
 const baseTextProposal = { title: '', description: '' };
 export const TextProposal = {
     encode(message, writer = Writer.create()) {
@@ -396,8 +466,7 @@ export const Proposal = {
         else {
             message.status = 0;
         }
-        if (object.finalTallyResult !== undefined &&
-            object.finalTallyResult !== null) {
+        if (object.finalTallyResult !== undefined && object.finalTallyResult !== null) {
             message.finalTallyResult = TallyResult.fromJSON(object.finalTallyResult);
         }
         else {
@@ -420,8 +489,7 @@ export const Proposal = {
                 message.totalDeposit.push(Coin.fromJSON(e));
             }
         }
-        if (object.votingStartTime !== undefined &&
-            object.votingStartTime !== null) {
+        if (object.votingStartTime !== undefined && object.votingStartTime !== null) {
             message.votingStartTime = fromJsonTimestamp(object.votingStartTime);
         }
         else {
@@ -438,40 +506,19 @@ export const Proposal = {
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
-        message.content !== undefined &&
-            (obj.content = message.content ? Any.toJSON(message.content) : undefined);
-        message.status !== undefined &&
-            (obj.status = proposalStatusToJSON(message.status));
-        message.finalTallyResult !== undefined &&
-            (obj.finalTallyResult = message.finalTallyResult
-                ? TallyResult.toJSON(message.finalTallyResult)
-                : undefined);
-        message.submitTime !== undefined &&
-            (obj.submitTime =
-                message.submitTime !== undefined
-                    ? message.submitTime.toISOString()
-                    : null);
-        message.depositEndTime !== undefined &&
-            (obj.depositEndTime =
-                message.depositEndTime !== undefined
-                    ? message.depositEndTime.toISOString()
-                    : null);
+        message.content !== undefined && (obj.content = message.content ? Any.toJSON(message.content) : undefined);
+        message.status !== undefined && (obj.status = proposalStatusToJSON(message.status));
+        message.finalTallyResult !== undefined && (obj.finalTallyResult = message.finalTallyResult ? TallyResult.toJSON(message.finalTallyResult) : undefined);
+        message.submitTime !== undefined && (obj.submitTime = message.submitTime !== undefined ? message.submitTime.toISOString() : null);
+        message.depositEndTime !== undefined && (obj.depositEndTime = message.depositEndTime !== undefined ? message.depositEndTime.toISOString() : null);
         if (message.totalDeposit) {
-            obj.totalDeposit = message.totalDeposit.map((e) => e ? Coin.toJSON(e) : undefined);
+            obj.totalDeposit = message.totalDeposit.map((e) => (e ? Coin.toJSON(e) : undefined));
         }
         else {
             obj.totalDeposit = [];
         }
-        message.votingStartTime !== undefined &&
-            (obj.votingStartTime =
-                message.votingStartTime !== undefined
-                    ? message.votingStartTime.toISOString()
-                    : null);
-        message.votingEndTime !== undefined &&
-            (obj.votingEndTime =
-                message.votingEndTime !== undefined
-                    ? message.votingEndTime.toISOString()
-                    : null);
+        message.votingStartTime !== undefined && (obj.votingStartTime = message.votingStartTime !== undefined ? message.votingStartTime.toISOString() : null);
+        message.votingEndTime !== undefined && (obj.votingEndTime = message.votingEndTime !== undefined ? message.votingEndTime.toISOString() : null);
         return obj;
     },
     fromPartial(object) {
@@ -495,8 +542,7 @@ export const Proposal = {
         else {
             message.status = 0;
         }
-        if (object.finalTallyResult !== undefined &&
-            object.finalTallyResult !== null) {
+        if (object.finalTallyResult !== undefined && object.finalTallyResult !== null) {
             message.finalTallyResult = TallyResult.fromPartial(object.finalTallyResult);
         }
         else {
@@ -519,8 +565,7 @@ export const Proposal = {
                 message.totalDeposit.push(Coin.fromPartial(e));
             }
         }
-        if (object.votingStartTime !== undefined &&
-            object.votingStartTime !== null) {
+        if (object.votingStartTime !== undefined && object.votingStartTime !== null) {
             message.votingStartTime = object.votingStartTime;
         }
         else {
@@ -655,12 +700,16 @@ export const Vote = {
         if (message.option !== 0) {
             writer.uint32(24).int32(message.option);
         }
+        for (const v of message.options) {
+            WeightedVoteOption.encode(v, writer.uint32(34).fork()).ldelim();
+        }
         return writer;
     },
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
         const message = { ...baseVote };
+        message.options = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -673,6 +722,9 @@ export const Vote = {
                 case 3:
                     message.option = reader.int32();
                     break;
+                case 4:
+                    message.options.push(WeightedVoteOption.decode(reader, reader.uint32()));
+                    break;
                 default:
                     reader.skipType(tag & 7);
                     break;
@@ -682,6 +734,7 @@ export const Vote = {
     },
     fromJSON(object) {
         const message = { ...baseVote };
+        message.options = [];
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = Number(object.proposalId);
         }
@@ -700,18 +753,29 @@ export const Vote = {
         else {
             message.option = 0;
         }
+        if (object.options !== undefined && object.options !== null) {
+            for (const e of object.options) {
+                message.options.push(WeightedVoteOption.fromJSON(e));
+            }
+        }
         return message;
     },
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
         message.voter !== undefined && (obj.voter = message.voter);
-        message.option !== undefined &&
-            (obj.option = voteOptionToJSON(message.option));
+        message.option !== undefined && (obj.option = voteOptionToJSON(message.option));
+        if (message.options) {
+            obj.options = message.options.map((e) => (e ? WeightedVoteOption.toJSON(e) : undefined));
+        }
+        else {
+            obj.options = [];
+        }
         return obj;
     },
     fromPartial(object) {
         const message = { ...baseVote };
+        message.options = [];
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = object.proposalId;
         }
@@ -729,6 +793,11 @@ export const Vote = {
         }
         else {
             message.option = 0;
+        }
+        if (object.options !== undefined && object.options !== null) {
+            for (const e of object.options) {
+                message.options.push(WeightedVoteOption.fromPartial(e));
+            }
         }
         return message;
     }
@@ -773,8 +842,7 @@ export const DepositParams = {
                 message.minDeposit.push(Coin.fromJSON(e));
             }
         }
-        if (object.maxDepositPeriod !== undefined &&
-            object.maxDepositPeriod !== null) {
+        if (object.maxDepositPeriod !== undefined && object.maxDepositPeriod !== null) {
             message.maxDepositPeriod = Duration.fromJSON(object.maxDepositPeriod);
         }
         else {
@@ -785,15 +853,12 @@ export const DepositParams = {
     toJSON(message) {
         const obj = {};
         if (message.minDeposit) {
-            obj.minDeposit = message.minDeposit.map((e) => e ? Coin.toJSON(e) : undefined);
+            obj.minDeposit = message.minDeposit.map((e) => (e ? Coin.toJSON(e) : undefined));
         }
         else {
             obj.minDeposit = [];
         }
-        message.maxDepositPeriod !== undefined &&
-            (obj.maxDepositPeriod = message.maxDepositPeriod
-                ? Duration.toJSON(message.maxDepositPeriod)
-                : undefined);
+        message.maxDepositPeriod !== undefined && (obj.maxDepositPeriod = message.maxDepositPeriod ? Duration.toJSON(message.maxDepositPeriod) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -804,8 +869,7 @@ export const DepositParams = {
                 message.minDeposit.push(Coin.fromPartial(e));
             }
         }
-        if (object.maxDepositPeriod !== undefined &&
-            object.maxDepositPeriod !== null) {
+        if (object.maxDepositPeriod !== undefined && object.maxDepositPeriod !== null) {
             message.maxDepositPeriod = Duration.fromPartial(object.maxDepositPeriod);
         }
         else {
@@ -851,10 +915,7 @@ export const VotingParams = {
     },
     toJSON(message) {
         const obj = {};
-        message.votingPeriod !== undefined &&
-            (obj.votingPeriod = message.votingPeriod
-                ? Duration.toJSON(message.votingPeriod)
-                : undefined);
+        message.votingPeriod !== undefined && (obj.votingPeriod = message.votingPeriod ? Duration.toJSON(message.votingPeriod) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -920,14 +981,9 @@ export const TallyParams = {
     },
     toJSON(message) {
         const obj = {};
-        message.quorum !== undefined &&
-            (obj.quorum = base64FromBytes(message.quorum !== undefined ? message.quorum : new Uint8Array()));
-        message.threshold !== undefined &&
-            (obj.threshold = base64FromBytes(message.threshold !== undefined ? message.threshold : new Uint8Array()));
-        message.vetoThreshold !== undefined &&
-            (obj.vetoThreshold = base64FromBytes(message.vetoThreshold !== undefined
-                ? message.vetoThreshold
-                : new Uint8Array()));
+        message.quorum !== undefined && (obj.quorum = base64FromBytes(message.quorum !== undefined ? message.quorum : new Uint8Array()));
+        message.threshold !== undefined && (obj.threshold = base64FromBytes(message.threshold !== undefined ? message.threshold : new Uint8Array()));
+        message.vetoThreshold !== undefined && (obj.vetoThreshold = base64FromBytes(message.vetoThreshold !== undefined ? message.vetoThreshold : new Uint8Array()));
         return obj;
     },
     fromPartial(object) {
@@ -964,8 +1020,7 @@ var globalThis = (() => {
         return global;
     throw 'Unable to locate global object';
 })();
-const atob = globalThis.atob ||
-    ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
+const atob = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
 function bytesFromBase64(b64) {
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -974,8 +1029,7 @@ function bytesFromBase64(b64) {
     }
     return arr;
 }
-const btoa = globalThis.btoa ||
-    ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
+const btoa = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
 function base64FromBytes(arr) {
     const bin = [];
     for (let i = 0; i < arr.byteLength; ++i) {

@@ -188,7 +188,7 @@ export const MsgMultiSend = {
             obj.inputs = [];
         }
         if (message.outputs) {
-            obj.outputs = message.outputs.map((e) => e ? Output.toJSON(e) : undefined);
+            obj.outputs = message.outputs.map((e) => (e ? Output.toJSON(e) : undefined));
         }
         else {
             obj.outputs = [];

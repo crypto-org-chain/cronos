@@ -1,7 +1,5 @@
 export interface ProtobufAny {
-    typeUrl?: string;
-    /** @format byte */
-    value?: string;
+    "@type"?: string;
 }
 export interface RpcStatus {
     /** @format int32 */
@@ -44,6 +42,8 @@ export interface V1Beta1PageRequest {
      * is set.
      */
     countTotal?: boolean;
+    /** reverse is set to true if results are to be returned in the descending order. */
+    reverse?: boolean;
 }
 /**
 * PageResponse is to be embedded in gRPC response messages where the
@@ -106,12 +106,28 @@ export interface V1Beta1ValidatorSigningInfo {
     address?: string;
     /** @format int64 */
     startHeight?: string;
-    /** @format int64 */
+    /**
+     * Index which is incremented each time the validator was a bonded
+     * in a block and may have signed a precommit or not. This in conjunction with the
+     * `SignedBlocksWindow` param determines the index in the `MissedBlocksBitArray`.
+     * @format int64
+     */
     indexOffset?: string;
-    /** @format date-time */
+    /**
+     * Timestamp until which the validator is jailed due to liveness downtime.
+     * @format date-time
+     */
     jailedUntil?: string;
+    /**
+     * Whether or not a validator has been tombstoned (killed out of validator set). It is set
+     * once the validator commits an equivocation or for any other configured misbehiavor.
+     */
     tombstoned?: boolean;
-    /** @format int64 */
+    /**
+     * A counter kept to avoid unnecessary array reads.
+     * Note that `Sum(MissedBlocksBitArray)` always equals `MissedBlocksCounter`.
+     * @format int64
+     */
     missedBlocksCounter?: string;
 }
 export declare type QueryParamsType = Record<string | number, any>;
@@ -194,6 +210,7 @@ export declare class Api<SecurityDataType extends unknown> extends HttpClient<Se
         "pagination.offset"?: string;
         "pagination.limit"?: string;
         "pagination.countTotal"?: boolean;
+        "pagination.reverse"?: boolean;
     }, params?: RequestParams) => Promise<HttpResponse<V1Beta1QuerySigningInfosResponse, RpcStatus>>;
     /**
      * No description

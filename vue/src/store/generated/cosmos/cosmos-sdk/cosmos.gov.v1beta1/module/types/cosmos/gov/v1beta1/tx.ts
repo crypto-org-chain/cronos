@@ -1,9 +1,5 @@
 /* eslint-disable */
-import {
-  VoteOption,
-  voteOptionFromJSON,
-  voteOptionToJSON
-} from '../../../cosmos/gov/v1beta1/gov'
+import { VoteOption, WeightedVoteOption, voteOptionFromJSON, voteOptionToJSON } from '../../../cosmos/gov/v1beta1/gov'
 import { Reader, util, configure, Writer } from 'protobufjs/minimal'
 import * as Long from 'long'
 import { Any } from '../../../google/protobuf/any'
@@ -35,6 +31,16 @@ export interface MsgVote {
 
 /** MsgVoteResponse defines the Msg/Vote response type. */
 export interface MsgVoteResponse {}
+
+/** MsgVoteWeighted defines a message to cast a vote. */
+export interface MsgVoteWeighted {
+  proposalId: number
+  voter: string
+  options: WeightedVoteOption[]
+}
+
+/** MsgVoteWeightedResponse defines the Msg/VoteWeighted response type. */
+export interface MsgVoteWeightedResponse {}
 
 /** MsgDeposit defines a message to submit a deposit to an existing proposal. */
 export interface MsgDeposit {
@@ -110,12 +116,9 @@ export const MsgSubmitProposal = {
 
   toJSON(message: MsgSubmitProposal): unknown {
     const obj: any = {}
-    message.content !== undefined &&
-      (obj.content = message.content ? Any.toJSON(message.content) : undefined)
+    message.content !== undefined && (obj.content = message.content ? Any.toJSON(message.content) : undefined)
     if (message.initialDeposit) {
-      obj.initialDeposit = message.initialDeposit.map((e) =>
-        e ? Coin.toJSON(e) : undefined
-      )
+      obj.initialDeposit = message.initialDeposit.map((e) => (e ? Coin.toJSON(e) : undefined))
     } else {
       obj.initialDeposit = []
     }
@@ -148,25 +151,17 @@ export const MsgSubmitProposal = {
 const baseMsgSubmitProposalResponse: object = { proposalId: 0 }
 
 export const MsgSubmitProposalResponse = {
-  encode(
-    message: MsgSubmitProposalResponse,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: MsgSubmitProposalResponse, writer: Writer = Writer.create()): Writer {
     if (message.proposalId !== 0) {
       writer.uint32(8).uint64(message.proposalId)
     }
     return writer
   },
 
-  decode(
-    input: Reader | Uint8Array,
-    length?: number
-  ): MsgSubmitProposalResponse {
+  decode(input: Reader | Uint8Array, length?: number): MsgSubmitProposalResponse {
     const reader = input instanceof Uint8Array ? new Reader(input) : input
     let end = length === undefined ? reader.len : reader.pos + length
-    const message = {
-      ...baseMsgSubmitProposalResponse
-    } as MsgSubmitProposalResponse
+    const message = { ...baseMsgSubmitProposalResponse } as MsgSubmitProposalResponse
     while (reader.pos < end) {
       const tag = reader.uint32()
       switch (tag >>> 3) {
@@ -182,9 +177,7 @@ export const MsgSubmitProposalResponse = {
   },
 
   fromJSON(object: any): MsgSubmitProposalResponse {
-    const message = {
-      ...baseMsgSubmitProposalResponse
-    } as MsgSubmitProposalResponse
+    const message = { ...baseMsgSubmitProposalResponse } as MsgSubmitProposalResponse
     if (object.proposalId !== undefined && object.proposalId !== null) {
       message.proposalId = Number(object.proposalId)
     } else {
@@ -199,12 +192,8 @@ export const MsgSubmitProposalResponse = {
     return obj
   },
 
-  fromPartial(
-    object: DeepPartial<MsgSubmitProposalResponse>
-  ): MsgSubmitProposalResponse {
-    const message = {
-      ...baseMsgSubmitProposalResponse
-    } as MsgSubmitProposalResponse
+  fromPartial(object: DeepPartial<MsgSubmitProposalResponse>): MsgSubmitProposalResponse {
+    const message = { ...baseMsgSubmitProposalResponse } as MsgSubmitProposalResponse
     if (object.proposalId !== undefined && object.proposalId !== null) {
       message.proposalId = object.proposalId
     } else {
@@ -278,8 +267,7 @@ export const MsgVote = {
     const obj: any = {}
     message.proposalId !== undefined && (obj.proposalId = message.proposalId)
     message.voter !== undefined && (obj.voter = message.voter)
-    message.option !== undefined &&
-      (obj.option = voteOptionToJSON(message.option))
+    message.option !== undefined && (obj.option = voteOptionToJSON(message.option))
     return obj
   },
 
@@ -338,6 +326,140 @@ export const MsgVoteResponse = {
 
   fromPartial(_: DeepPartial<MsgVoteResponse>): MsgVoteResponse {
     const message = { ...baseMsgVoteResponse } as MsgVoteResponse
+    return message
+  }
+}
+
+const baseMsgVoteWeighted: object = { proposalId: 0, voter: '' }
+
+export const MsgVoteWeighted = {
+  encode(message: MsgVoteWeighted, writer: Writer = Writer.create()): Writer {
+    if (message.proposalId !== 0) {
+      writer.uint32(8).uint64(message.proposalId)
+    }
+    if (message.voter !== '') {
+      writer.uint32(18).string(message.voter)
+    }
+    for (const v of message.options) {
+      WeightedVoteOption.encode(v!, writer.uint32(26).fork()).ldelim()
+    }
+    return writer
+  },
+
+  decode(input: Reader | Uint8Array, length?: number): MsgVoteWeighted {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = { ...baseMsgVoteWeighted } as MsgVoteWeighted
+    message.options = []
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        case 1:
+          message.proposalId = longToNumber(reader.uint64() as Long)
+          break
+        case 2:
+          message.voter = reader.string()
+          break
+        case 3:
+          message.options.push(WeightedVoteOption.decode(reader, reader.uint32()))
+          break
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(object: any): MsgVoteWeighted {
+    const message = { ...baseMsgVoteWeighted } as MsgVoteWeighted
+    message.options = []
+    if (object.proposalId !== undefined && object.proposalId !== null) {
+      message.proposalId = Number(object.proposalId)
+    } else {
+      message.proposalId = 0
+    }
+    if (object.voter !== undefined && object.voter !== null) {
+      message.voter = String(object.voter)
+    } else {
+      message.voter = ''
+    }
+    if (object.options !== undefined && object.options !== null) {
+      for (const e of object.options) {
+        message.options.push(WeightedVoteOption.fromJSON(e))
+      }
+    }
+    return message
+  },
+
+  toJSON(message: MsgVoteWeighted): unknown {
+    const obj: any = {}
+    message.proposalId !== undefined && (obj.proposalId = message.proposalId)
+    message.voter !== undefined && (obj.voter = message.voter)
+    if (message.options) {
+      obj.options = message.options.map((e) => (e ? WeightedVoteOption.toJSON(e) : undefined))
+    } else {
+      obj.options = []
+    }
+    return obj
+  },
+
+  fromPartial(object: DeepPartial<MsgVoteWeighted>): MsgVoteWeighted {
+    const message = { ...baseMsgVoteWeighted } as MsgVoteWeighted
+    message.options = []
+    if (object.proposalId !== undefined && object.proposalId !== null) {
+      message.proposalId = object.proposalId
+    } else {
+      message.proposalId = 0
+    }
+    if (object.voter !== undefined && object.voter !== null) {
+      message.voter = object.voter
+    } else {
+      message.voter = ''
+    }
+    if (object.options !== undefined && object.options !== null) {
+      for (const e of object.options) {
+        message.options.push(WeightedVoteOption.fromPartial(e))
+      }
+    }
+    return message
+  }
+}
+
+const baseMsgVoteWeightedResponse: object = {}
+
+export const MsgVoteWeightedResponse = {
+  encode(_: MsgVoteWeightedResponse, writer: Writer = Writer.create()): Writer {
+    return writer
+  },
+
+  decode(input: Reader | Uint8Array, length?: number): MsgVoteWeightedResponse {
+    const reader = input instanceof Uint8Array ? new Reader(input) : input
+    let end = length === undefined ? reader.len : reader.pos + length
+    const message = { ...baseMsgVoteWeightedResponse } as MsgVoteWeightedResponse
+    while (reader.pos < end) {
+      const tag = reader.uint32()
+      switch (tag >>> 3) {
+        default:
+          reader.skipType(tag & 7)
+          break
+      }
+    }
+    return message
+  },
+
+  fromJSON(_: any): MsgVoteWeightedResponse {
+    const message = { ...baseMsgVoteWeightedResponse } as MsgVoteWeightedResponse
+    return message
+  },
+
+  toJSON(_: MsgVoteWeightedResponse): unknown {
+    const obj: any = {}
+    return obj
+  },
+
+  fromPartial(_: DeepPartial<MsgVoteWeightedResponse>): MsgVoteWeightedResponse {
+    const message = { ...baseMsgVoteWeightedResponse } as MsgVoteWeightedResponse
     return message
   }
 }
@@ -482,6 +604,8 @@ export interface Msg {
   SubmitProposal(request: MsgSubmitProposal): Promise<MsgSubmitProposalResponse>
   /** Vote defines a method to add a vote on a specific proposal. */
   Vote(request: MsgVote): Promise<MsgVoteResponse>
+  /** VoteWeighted defines a method to add a weighted vote on a specific proposal. */
+  VoteWeighted(request: MsgVoteWeighted): Promise<MsgVoteWeightedResponse>
   /** Deposit defines a method to add deposit on a specific proposal. */
   Deposit(request: MsgDeposit): Promise<MsgDepositResponse>
 }
@@ -491,24 +615,22 @@ export class MsgClientImpl implements Msg {
   constructor(rpc: Rpc) {
     this.rpc = rpc
   }
-  SubmitProposal(
-    request: MsgSubmitProposal
-  ): Promise<MsgSubmitProposalResponse> {
+  SubmitProposal(request: MsgSubmitProposal): Promise<MsgSubmitProposalResponse> {
     const data = MsgSubmitProposal.encode(request).finish()
-    const promise = this.rpc.request(
-      'cosmos.gov.v1beta1.Msg',
-      'SubmitProposal',
-      data
-    )
-    return promise.then((data) =>
-      MsgSubmitProposalResponse.decode(new Reader(data))
-    )
+    const promise = this.rpc.request('cosmos.gov.v1beta1.Msg', 'SubmitProposal', data)
+    return promise.then((data) => MsgSubmitProposalResponse.decode(new Reader(data)))
   }
 
   Vote(request: MsgVote): Promise<MsgVoteResponse> {
     const data = MsgVote.encode(request).finish()
     const promise = this.rpc.request('cosmos.gov.v1beta1.Msg', 'Vote', data)
     return promise.then((data) => MsgVoteResponse.decode(new Reader(data)))
+  }
+
+  VoteWeighted(request: MsgVoteWeighted): Promise<MsgVoteWeightedResponse> {
+    const data = MsgVoteWeighted.encode(request).finish()
+    const promise = this.rpc.request('cosmos.gov.v1beta1.Msg', 'VoteWeighted', data)
+    return promise.then((data) => MsgVoteWeightedResponse.decode(new Reader(data)))
   }
 
   Deposit(request: MsgDeposit): Promise<MsgDepositResponse> {
@@ -519,11 +641,7 @@ export class MsgClientImpl implements Msg {
 }
 
 interface Rpc {
-  request(
-    service: string,
-    method: string,
-    data: Uint8Array
-  ): Promise<Uint8Array>
+  request(service: string, method: string, data: Uint8Array): Promise<Uint8Array>
 }
 
 declare var self: any | undefined

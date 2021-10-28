@@ -52,6 +52,11 @@ export declare enum ProposalStatus {
 }
 export declare function proposalStatusFromJSON(object: any): ProposalStatus;
 export declare function proposalStatusToJSON(object: ProposalStatus): string;
+/** WeightedVoteOption defines a unit of vote for vote split. */
+export interface WeightedVoteOption {
+    option: VoteOption;
+    weight: string;
+}
 /**
  * TextProposal defines a standard text proposal whose changes need to be
  * manually updated in case of approval.
@@ -95,7 +100,15 @@ export interface TallyResult {
 export interface Vote {
     proposalId: number;
     voter: string;
+    /**
+     * Deprecated: Prefer to use `options` instead. This field is set in queries
+     * if and only if `len(options) == 1` and that option has weight 1. In all
+     * other cases, this field will default to VOTE_OPTION_UNSPECIFIED.
+     *
+     * @deprecated
+     */
     option: VoteOption;
+    options: WeightedVoteOption[];
 }
 /** DepositParams defines the params for deposits on governance proposals. */
 export interface DepositParams {
@@ -127,6 +140,13 @@ export interface TallyParams {
      */
     vetoThreshold: Uint8Array;
 }
+export declare const WeightedVoteOption: {
+    encode(message: WeightedVoteOption, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): WeightedVoteOption;
+    fromJSON(object: any): WeightedVoteOption;
+    toJSON(message: WeightedVoteOption): unknown;
+    fromPartial(object: DeepPartial<WeightedVoteOption>): WeightedVoteOption;
+};
 export declare const TextProposal: {
     encode(message: TextProposal, writer?: Writer): Writer;
     decode(input: Reader | Uint8Array, length?: number): TextProposal;

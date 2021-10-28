@@ -48,10 +48,13 @@ Example 2: Pack and unpack a message in Java.
  Example 4: Pack and unpack a message in Go
 
      foo := &pb.Foo{...}
-     any, err := ptypes.MarshalAny(foo)
+     any, err := anypb.New(foo)
+     if err != nil {
+       ...
+     }
      ...
      foo := &pb.Foo{}
-     if err := ptypes.UnmarshalAny(any, foo); err != nil {
+     if err := any.UnmarshalTo(foo); err != nil {
        ...
      }
 
@@ -120,13 +123,7 @@ export interface ProtobufAny {
    * Schemes other than `http`, `https` (or the empty scheme) might be
    * used with implementation specific semantics.
    */
-  typeUrl?: string;
-
-  /**
-   * Must be a valid serialized protocol buffer of the above specified type.
-   * @format byte
-   */
-  value?: string;
+  "@type"?: string;
 }
 
 export interface RpcStatus {
@@ -191,6 +188,11 @@ export interface V1Beta1MsgSubmitProposalResponse {
 export type V1Beta1MsgVoteResponse = object;
 
 /**
+ * MsgVoteWeightedResponse defines the Msg/VoteWeighted response type.
+ */
+export type V1Beta1MsgVoteWeightedResponse = object;
+
+/**
 * message SomeRequest {
          Foo some_parameter = 1;
          PageRequest pagination = 2;
@@ -227,6 +229,9 @@ export interface V1Beta1PageRequest {
    * is set.
    */
   countTotal?: boolean;
+
+  /** reverse is set to true if results are to be returned in the descending order. */
+  reverse?: boolean;
 }
 
 /**
@@ -292,10 +297,13 @@ export interface V1Beta1Proposal {
    *  Example 4: Pack and unpack a message in Go
    *
    *      foo := &pb.Foo{...}
-   *      any, err := ptypes.MarshalAny(foo)
+   *      any, err := anypb.New(foo)
+   *      if err != nil {
+   *        ...
+   *      }
    *      ...
    *      foo := &pb.Foo{}
-   *      if err := ptypes.UnmarshalAny(any, foo); err != nil {
+   *      if err := any.UnmarshalTo(foo); err != nil {
    *        ...
    *      }
    *
@@ -517,15 +525,12 @@ export interface V1Beta1Vote {
   voter?: string;
 
   /**
-   * VoteOption enumerates the valid vote options for a given governance proposal.
-   *
-   *  - VOTE_OPTION_UNSPECIFIED: VOTE_OPTION_UNSPECIFIED defines a no-op vote option.
-   *  - VOTE_OPTION_YES: VOTE_OPTION_YES defines a yes vote option.
-   *  - VOTE_OPTION_ABSTAIN: VOTE_OPTION_ABSTAIN defines an abstain vote option.
-   *  - VOTE_OPTION_NO: VOTE_OPTION_NO defines a no vote option.
-   *  - VOTE_OPTION_NO_WITH_VETO: VOTE_OPTION_NO_WITH_VETO defines a no with veto vote option.
+   * Deprecated: Prefer to use `options` instead. This field is set in queries
+   * if and only if `len(options) == 1` and that option has weight 1. In all
+   * other cases, this field will default to VOTE_OPTION_UNSPECIFIED.
    */
   option?: V1Beta1VoteOption;
+  options?: V1Beta1WeightedVoteOption[];
 }
 
 /**
@@ -551,6 +556,23 @@ export enum V1Beta1VoteOption {
 export interface V1Beta1VotingParams {
   /** Length of the voting period. */
   votingPeriod?: string;
+}
+
+/**
+ * WeightedVoteOption defines a unit of vote for vote split.
+ */
+export interface V1Beta1WeightedVoteOption {
+  /**
+   * VoteOption enumerates the valid vote options for a given governance proposal.
+   *
+   *  - VOTE_OPTION_UNSPECIFIED: VOTE_OPTION_UNSPECIFIED defines a no-op vote option.
+   *  - VOTE_OPTION_YES: VOTE_OPTION_YES defines a yes vote option.
+   *  - VOTE_OPTION_ABSTAIN: VOTE_OPTION_ABSTAIN defines an abstain vote option.
+   *  - VOTE_OPTION_NO: VOTE_OPTION_NO defines a no vote option.
+   *  - VOTE_OPTION_NO_WITH_VETO: VOTE_OPTION_NO_WITH_VETO defines a no with veto vote option.
+   */
+  option?: V1Beta1VoteOption;
+  weight?: string;
 }
 
 export type QueryParamsType = Record<string | number, any>;
@@ -788,6 +810,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -830,6 +853,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>
@@ -888,6 +912,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
       "pagination.offset"?: string;
       "pagination.limit"?: string;
       "pagination.countTotal"?: boolean;
+      "pagination.reverse"?: boolean;
     },
     params: RequestParams = {},
   ) =>

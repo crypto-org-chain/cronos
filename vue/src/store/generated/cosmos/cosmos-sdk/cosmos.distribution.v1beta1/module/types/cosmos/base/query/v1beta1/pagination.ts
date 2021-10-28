@@ -38,6 +38,8 @@ export interface PageRequest {
    * is set.
    */
   countTotal: boolean
+  /** reverse is set to true if results are to be returned in the descending order. */
+  reverse: boolean
 }
 
 /**
@@ -62,7 +64,7 @@ export interface PageResponse {
   total: number
 }
 
-const basePageRequest: object = { offset: 0, limit: 0, countTotal: false }
+const basePageRequest: object = { offset: 0, limit: 0, countTotal: false, reverse: false }
 
 export const PageRequest = {
   encode(message: PageRequest, writer: Writer = Writer.create()): Writer {
@@ -77,6 +79,9 @@ export const PageRequest = {
     }
     if (message.countTotal === true) {
       writer.uint32(32).bool(message.countTotal)
+    }
+    if (message.reverse === true) {
+      writer.uint32(40).bool(message.reverse)
     }
     return writer
   },
@@ -99,6 +104,9 @@ export const PageRequest = {
           break
         case 4:
           message.countTotal = reader.bool()
+          break
+        case 5:
+          message.reverse = reader.bool()
           break
         default:
           reader.skipType(tag & 7)
@@ -128,18 +136,21 @@ export const PageRequest = {
     } else {
       message.countTotal = false
     }
+    if (object.reverse !== undefined && object.reverse !== null) {
+      message.reverse = Boolean(object.reverse)
+    } else {
+      message.reverse = false
+    }
     return message
   },
 
   toJSON(message: PageRequest): unknown {
     const obj: any = {}
-    message.key !== undefined &&
-      (obj.key = base64FromBytes(
-        message.key !== undefined ? message.key : new Uint8Array()
-      ))
+    message.key !== undefined && (obj.key = base64FromBytes(message.key !== undefined ? message.key : new Uint8Array()))
     message.offset !== undefined && (obj.offset = message.offset)
     message.limit !== undefined && (obj.limit = message.limit)
     message.countTotal !== undefined && (obj.countTotal = message.countTotal)
+    message.reverse !== undefined && (obj.reverse = message.reverse)
     return obj
   },
 
@@ -164,6 +175,11 @@ export const PageRequest = {
       message.countTotal = object.countTotal
     } else {
       message.countTotal = false
+    }
+    if (object.reverse !== undefined && object.reverse !== null) {
+      message.reverse = object.reverse
+    } else {
+      message.reverse = false
     }
     return message
   }
@@ -218,10 +234,7 @@ export const PageResponse = {
 
   toJSON(message: PageResponse): unknown {
     const obj: any = {}
-    message.nextKey !== undefined &&
-      (obj.nextKey = base64FromBytes(
-        message.nextKey !== undefined ? message.nextKey : new Uint8Array()
-      ))
+    message.nextKey !== undefined && (obj.nextKey = base64FromBytes(message.nextKey !== undefined ? message.nextKey : new Uint8Array()))
     message.total !== undefined && (obj.total = message.total)
     return obj
   },
@@ -252,9 +265,7 @@ var globalThis: any = (() => {
   throw 'Unable to locate global object'
 })()
 
-const atob: (b64: string) => string =
-  globalThis.atob ||
-  ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'))
+const atob: (b64: string) => string = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'))
 function bytesFromBase64(b64: string): Uint8Array {
   const bin = atob(b64)
   const arr = new Uint8Array(bin.length)
@@ -264,9 +275,7 @@ function bytesFromBase64(b64: string): Uint8Array {
   return arr
 }
 
-const btoa: (bin: string) => string =
-  globalThis.btoa ||
-  ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'))
+const btoa: (bin: string) => string = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'))
 function base64FromBytes(arr: Uint8Array): string {
   const bin: string[] = []
   for (let i = 0; i < arr.byteLength; ++i) {

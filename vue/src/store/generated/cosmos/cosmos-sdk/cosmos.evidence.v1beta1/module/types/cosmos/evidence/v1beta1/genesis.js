@@ -41,7 +41,7 @@ export const GenesisState = {
     toJSON(message) {
         const obj = {};
         if (message.evidence) {
-            obj.evidence = message.evidence.map((e) => e ? Any.toJSON(e) : undefined);
+            obj.evidence = message.evidence.map((e) => (e ? Any.toJSON(e) : undefined));
         }
         else {
             obj.evidence = [];

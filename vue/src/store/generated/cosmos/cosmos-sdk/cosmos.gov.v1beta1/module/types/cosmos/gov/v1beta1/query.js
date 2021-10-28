@@ -92,10 +92,7 @@ export const QueryProposalResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.proposal !== undefined &&
-            (obj.proposal = message.proposal
-                ? Proposal.toJSON(message.proposal)
-                : undefined);
+        message.proposal !== undefined && (obj.proposal = message.proposal ? Proposal.toJSON(message.proposal) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -109,11 +106,7 @@ export const QueryProposalResponse = {
         return message;
     }
 };
-const baseQueryProposalsRequest = {
-    proposalStatus: 0,
-    voter: '',
-    depositor: ''
-};
+const baseQueryProposalsRequest = { proposalStatus: 0, voter: '', depositor: '' };
 export const QueryProposalsRequest = {
     encode(message, writer = Writer.create()) {
         if (message.proposalStatus !== 0) {
@@ -186,14 +179,10 @@ export const QueryProposalsRequest = {
     },
     toJSON(message) {
         const obj = {};
-        message.proposalStatus !== undefined &&
-            (obj.proposalStatus = proposalStatusToJSON(message.proposalStatus));
+        message.proposalStatus !== undefined && (obj.proposalStatus = proposalStatusToJSON(message.proposalStatus));
         message.voter !== undefined && (obj.voter = message.voter);
         message.depositor !== undefined && (obj.depositor = message.depositor);
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -276,15 +265,12 @@ export const QueryProposalsResponse = {
     toJSON(message) {
         const obj = {};
         if (message.proposals) {
-            obj.proposals = message.proposals.map((e) => e ? Proposal.toJSON(e) : undefined);
+            obj.proposals = message.proposals.map((e) => (e ? Proposal.toJSON(e) : undefined));
         }
         else {
             obj.proposals = [];
         }
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -411,8 +397,7 @@ export const QueryVoteResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.vote !== undefined &&
-            (obj.vote = message.vote ? Vote.toJSON(message.vote) : undefined);
+        message.vote !== undefined && (obj.vote = message.vote ? Vote.toJSON(message.vote) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -476,10 +461,7 @@ export const QueryVotesRequest = {
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -555,10 +537,7 @@ export const QueryVotesResponse = {
         else {
             obj.votes = [];
         }
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -690,18 +669,9 @@ export const QueryParamsResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.votingParams !== undefined &&
-            (obj.votingParams = message.votingParams
-                ? VotingParams.toJSON(message.votingParams)
-                : undefined);
-        message.depositParams !== undefined &&
-            (obj.depositParams = message.depositParams
-                ? DepositParams.toJSON(message.depositParams)
-                : undefined);
-        message.tallyParams !== undefined &&
-            (obj.tallyParams = message.tallyParams
-                ? TallyParams.toJSON(message.tallyParams)
-                : undefined);
+        message.votingParams !== undefined && (obj.votingParams = message.votingParams ? VotingParams.toJSON(message.votingParams) : undefined);
+        message.depositParams !== undefined && (obj.depositParams = message.depositParams ? DepositParams.toJSON(message.depositParams) : undefined);
+        message.tallyParams !== undefined && (obj.tallyParams = message.tallyParams ? TallyParams.toJSON(message.tallyParams) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -834,10 +804,7 @@ export const QueryDepositResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.deposit !== undefined &&
-            (obj.deposit = message.deposit
-                ? Deposit.toJSON(message.deposit)
-                : undefined);
+        message.deposit !== undefined && (obj.deposit = message.deposit ? Deposit.toJSON(message.deposit) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -901,10 +868,7 @@ export const QueryDepositsRequest = {
     toJSON(message) {
         const obj = {};
         message.proposalId !== undefined && (obj.proposalId = message.proposalId);
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageRequest.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageRequest.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -975,15 +939,12 @@ export const QueryDepositsResponse = {
     toJSON(message) {
         const obj = {};
         if (message.deposits) {
-            obj.deposits = message.deposits.map((e) => e ? Deposit.toJSON(e) : undefined);
+            obj.deposits = message.deposits.map((e) => (e ? Deposit.toJSON(e) : undefined));
         }
         else {
             obj.deposits = [];
         }
-        message.pagination !== undefined &&
-            (obj.pagination = message.pagination
-                ? PageResponse.toJSON(message.pagination)
-                : undefined);
+        message.pagination !== undefined && (obj.pagination = message.pagination ? PageResponse.toJSON(message.pagination) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -1014,9 +975,7 @@ export const QueryTallyResultRequest = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseQueryTallyResultRequest
-        };
+        const message = { ...baseQueryTallyResultRequest };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -1031,9 +990,7 @@ export const QueryTallyResultRequest = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseQueryTallyResultRequest
-        };
+        const message = { ...baseQueryTallyResultRequest };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = Number(object.proposalId);
         }
@@ -1048,9 +1005,7 @@ export const QueryTallyResultRequest = {
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseQueryTallyResultRequest
-        };
+        const message = { ...baseQueryTallyResultRequest };
         if (object.proposalId !== undefined && object.proposalId !== null) {
             message.proposalId = object.proposalId;
         }
@@ -1071,9 +1026,7 @@ export const QueryTallyResultResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseQueryTallyResultResponse
-        };
+        const message = { ...baseQueryTallyResultResponse };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -1088,9 +1041,7 @@ export const QueryTallyResultResponse = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseQueryTallyResultResponse
-        };
+        const message = { ...baseQueryTallyResultResponse };
         if (object.tally !== undefined && object.tally !== null) {
             message.tally = TallyResult.fromJSON(object.tally);
         }
@@ -1101,16 +1052,11 @@ export const QueryTallyResultResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.tally !== undefined &&
-            (obj.tally = message.tally
-                ? TallyResult.toJSON(message.tally)
-                : undefined);
+        message.tally !== undefined && (obj.tally = message.tally ? TallyResult.toJSON(message.tally) : undefined);
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseQueryTallyResultResponse
-        };
+        const message = { ...baseQueryTallyResultResponse };
         if (object.tally !== undefined && object.tally !== null) {
             message.tally = TallyResult.fromPartial(object.tally);
         }

@@ -1,14 +1,7 @@
 /* eslint-disable */
 import * as Long from 'long'
 import { util, configure, Writer, Reader } from 'protobufjs/minimal'
-import {
-  Deposit,
-  Vote,
-  Proposal,
-  DepositParams,
-  VotingParams,
-  TallyParams
-} from '../../../cosmos/gov/v1beta1/gov'
+import { Deposit, Vote, Proposal, DepositParams, VotingParams, TallyParams } from '../../../cosmos/gov/v1beta1/gov'
 
 export const protobufPackage = 'cosmos.gov.v1beta1'
 
@@ -47,16 +40,10 @@ export const GenesisState = {
       Proposal.encode(v!, writer.uint32(34).fork()).ldelim()
     }
     if (message.depositParams !== undefined) {
-      DepositParams.encode(
-        message.depositParams,
-        writer.uint32(42).fork()
-      ).ldelim()
+      DepositParams.encode(message.depositParams, writer.uint32(42).fork()).ldelim()
     }
     if (message.votingParams !== undefined) {
-      VotingParams.encode(
-        message.votingParams,
-        writer.uint32(50).fork()
-      ).ldelim()
+      VotingParams.encode(message.votingParams, writer.uint32(50).fork()).ldelim()
     }
     if (message.tallyParams !== undefined) {
       TallyParams.encode(message.tallyParams, writer.uint32(58).fork()).ldelim()
@@ -108,10 +95,7 @@ export const GenesisState = {
     message.deposits = []
     message.votes = []
     message.proposals = []
-    if (
-      object.startingProposalId !== undefined &&
-      object.startingProposalId !== null
-    ) {
+    if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
       message.startingProposalId = Number(object.startingProposalId)
     } else {
       message.startingProposalId = 0
@@ -151,12 +135,9 @@ export const GenesisState = {
 
   toJSON(message: GenesisState): unknown {
     const obj: any = {}
-    message.startingProposalId !== undefined &&
-      (obj.startingProposalId = message.startingProposalId)
+    message.startingProposalId !== undefined && (obj.startingProposalId = message.startingProposalId)
     if (message.deposits) {
-      obj.deposits = message.deposits.map((e) =>
-        e ? Deposit.toJSON(e) : undefined
-      )
+      obj.deposits = message.deposits.map((e) => (e ? Deposit.toJSON(e) : undefined))
     } else {
       obj.deposits = []
     }
@@ -166,24 +147,13 @@ export const GenesisState = {
       obj.votes = []
     }
     if (message.proposals) {
-      obj.proposals = message.proposals.map((e) =>
-        e ? Proposal.toJSON(e) : undefined
-      )
+      obj.proposals = message.proposals.map((e) => (e ? Proposal.toJSON(e) : undefined))
     } else {
       obj.proposals = []
     }
-    message.depositParams !== undefined &&
-      (obj.depositParams = message.depositParams
-        ? DepositParams.toJSON(message.depositParams)
-        : undefined)
-    message.votingParams !== undefined &&
-      (obj.votingParams = message.votingParams
-        ? VotingParams.toJSON(message.votingParams)
-        : undefined)
-    message.tallyParams !== undefined &&
-      (obj.tallyParams = message.tallyParams
-        ? TallyParams.toJSON(message.tallyParams)
-        : undefined)
+    message.depositParams !== undefined && (obj.depositParams = message.depositParams ? DepositParams.toJSON(message.depositParams) : undefined)
+    message.votingParams !== undefined && (obj.votingParams = message.votingParams ? VotingParams.toJSON(message.votingParams) : undefined)
+    message.tallyParams !== undefined && (obj.tallyParams = message.tallyParams ? TallyParams.toJSON(message.tallyParams) : undefined)
     return obj
   },
 
@@ -192,10 +162,7 @@ export const GenesisState = {
     message.deposits = []
     message.votes = []
     message.proposals = []
-    if (
-      object.startingProposalId !== undefined &&
-      object.startingProposalId !== null
-    ) {
+    if (object.startingProposalId !== undefined && object.startingProposalId !== null) {
       message.startingProposalId = object.startingProposalId
     } else {
       message.startingProposalId = 0

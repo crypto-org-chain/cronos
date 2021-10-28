@@ -53,10 +53,7 @@ export const GenesisState = {
 
   toJSON(message: GenesisState): unknown {
     const obj: any = {}
-    message.constantFee !== undefined &&
-      (obj.constantFee = message.constantFee
-        ? Coin.toJSON(message.constantFee)
-        : undefined)
+    message.constantFee !== undefined && (obj.constantFee = message.constantFee ? Coin.toJSON(message.constantFee) : undefined)
     return obj
   },
 

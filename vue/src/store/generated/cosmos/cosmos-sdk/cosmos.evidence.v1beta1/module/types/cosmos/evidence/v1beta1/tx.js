@@ -52,10 +52,7 @@ export const MsgSubmitEvidence = {
     toJSON(message) {
         const obj = {};
         message.submitter !== undefined && (obj.submitter = message.submitter);
-        message.evidence !== undefined &&
-            (obj.evidence = message.evidence
-                ? Any.toJSON(message.evidence)
-                : undefined);
+        message.evidence !== undefined && (obj.evidence = message.evidence ? Any.toJSON(message.evidence) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -86,9 +83,7 @@ export const MsgSubmitEvidenceResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseMsgSubmitEvidenceResponse
-        };
+        const message = { ...baseMsgSubmitEvidenceResponse };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -103,9 +98,7 @@ export const MsgSubmitEvidenceResponse = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseMsgSubmitEvidenceResponse
-        };
+        const message = { ...baseMsgSubmitEvidenceResponse };
         if (object.hash !== undefined && object.hash !== null) {
             message.hash = bytesFromBase64(object.hash);
         }
@@ -113,14 +106,11 @@ export const MsgSubmitEvidenceResponse = {
     },
     toJSON(message) {
         const obj = {};
-        message.hash !== undefined &&
-            (obj.hash = base64FromBytes(message.hash !== undefined ? message.hash : new Uint8Array()));
+        message.hash !== undefined && (obj.hash = base64FromBytes(message.hash !== undefined ? message.hash : new Uint8Array()));
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseMsgSubmitEvidenceResponse
-        };
+        const message = { ...baseMsgSubmitEvidenceResponse };
         if (object.hash !== undefined && object.hash !== null) {
             message.hash = object.hash;
         }
@@ -151,8 +141,7 @@ var globalThis = (() => {
         return global;
     throw 'Unable to locate global object';
 })();
-const atob = globalThis.atob ||
-    ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
+const atob = globalThis.atob || ((b64) => globalThis.Buffer.from(b64, 'base64').toString('binary'));
 function bytesFromBase64(b64) {
     const bin = atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -161,8 +150,7 @@ function bytesFromBase64(b64) {
     }
     return arr;
 }
-const btoa = globalThis.btoa ||
-    ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
+const btoa = globalThis.btoa || ((bin) => globalThis.Buffer.from(bin, 'binary').toString('base64'));
 function base64FromBytes(arr) {
     const bin = [];
     for (let i = 0; i < arr.byteLength; ++i) {

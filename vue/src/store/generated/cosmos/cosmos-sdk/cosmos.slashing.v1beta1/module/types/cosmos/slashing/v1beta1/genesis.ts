@@ -1,10 +1,7 @@
 /* eslint-disable */
 import * as Long from 'long'
 import { util, configure, Writer, Reader } from 'protobufjs/minimal'
-import {
-  Params,
-  ValidatorSigningInfo
-} from '../../../cosmos/slashing/v1beta1/slashing'
+import { Params, ValidatorSigningInfo } from '../../../cosmos/slashing/v1beta1/slashing'
 
 export const protobufPackage = 'cosmos.slashing.v1beta1'
 
@@ -18,7 +15,7 @@ export interface GenesisState {
    */
   signingInfos: SigningInfo[]
   /**
-   * signing_infos represents a map between validator addresses and their
+   * missed_blocks represents a map between validator addresses and their
    * missed blocks.
    */
   missedBlocks: ValidatorMissedBlocks[]
@@ -83,9 +80,7 @@ export const GenesisState = {
           message.signingInfos.push(SigningInfo.decode(reader, reader.uint32()))
           break
         case 3:
-          message.missedBlocks.push(
-            ValidatorMissedBlocks.decode(reader, reader.uint32())
-          )
+          message.missedBlocks.push(ValidatorMissedBlocks.decode(reader, reader.uint32()))
           break
         default:
           reader.skipType(tag & 7)
@@ -119,19 +114,14 @@ export const GenesisState = {
 
   toJSON(message: GenesisState): unknown {
     const obj: any = {}
-    message.params !== undefined &&
-      (obj.params = message.params ? Params.toJSON(message.params) : undefined)
+    message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined)
     if (message.signingInfos) {
-      obj.signingInfos = message.signingInfos.map((e) =>
-        e ? SigningInfo.toJSON(e) : undefined
-      )
+      obj.signingInfos = message.signingInfos.map((e) => (e ? SigningInfo.toJSON(e) : undefined))
     } else {
       obj.signingInfos = []
     }
     if (message.missedBlocks) {
-      obj.missedBlocks = message.missedBlocks.map((e) =>
-        e ? ValidatorMissedBlocks.toJSON(e) : undefined
-      )
+      obj.missedBlocks = message.missedBlocks.map((e) => (e ? ValidatorMissedBlocks.toJSON(e) : undefined))
     } else {
       obj.missedBlocks = []
     }
@@ -169,10 +159,7 @@ export const SigningInfo = {
       writer.uint32(10).string(message.address)
     }
     if (message.validatorSigningInfo !== undefined) {
-      ValidatorSigningInfo.encode(
-        message.validatorSigningInfo,
-        writer.uint32(18).fork()
-      ).ldelim()
+      ValidatorSigningInfo.encode(message.validatorSigningInfo, writer.uint32(18).fork()).ldelim()
     }
     return writer
   },
@@ -188,10 +175,7 @@ export const SigningInfo = {
           message.address = reader.string()
           break
         case 2:
-          message.validatorSigningInfo = ValidatorSigningInfo.decode(
-            reader,
-            reader.uint32()
-          )
+          message.validatorSigningInfo = ValidatorSigningInfo.decode(reader, reader.uint32())
           break
         default:
           reader.skipType(tag & 7)
@@ -208,13 +192,8 @@ export const SigningInfo = {
     } else {
       message.address = ''
     }
-    if (
-      object.validatorSigningInfo !== undefined &&
-      object.validatorSigningInfo !== null
-    ) {
-      message.validatorSigningInfo = ValidatorSigningInfo.fromJSON(
-        object.validatorSigningInfo
-      )
+    if (object.validatorSigningInfo !== undefined && object.validatorSigningInfo !== null) {
+      message.validatorSigningInfo = ValidatorSigningInfo.fromJSON(object.validatorSigningInfo)
     } else {
       message.validatorSigningInfo = undefined
     }
@@ -225,9 +204,7 @@ export const SigningInfo = {
     const obj: any = {}
     message.address !== undefined && (obj.address = message.address)
     message.validatorSigningInfo !== undefined &&
-      (obj.validatorSigningInfo = message.validatorSigningInfo
-        ? ValidatorSigningInfo.toJSON(message.validatorSigningInfo)
-        : undefined)
+      (obj.validatorSigningInfo = message.validatorSigningInfo ? ValidatorSigningInfo.toJSON(message.validatorSigningInfo) : undefined)
     return obj
   },
 
@@ -238,13 +215,8 @@ export const SigningInfo = {
     } else {
       message.address = ''
     }
-    if (
-      object.validatorSigningInfo !== undefined &&
-      object.validatorSigningInfo !== null
-    ) {
-      message.validatorSigningInfo = ValidatorSigningInfo.fromPartial(
-        object.validatorSigningInfo
-      )
+    if (object.validatorSigningInfo !== undefined && object.validatorSigningInfo !== null) {
+      message.validatorSigningInfo = ValidatorSigningInfo.fromPartial(object.validatorSigningInfo)
     } else {
       message.validatorSigningInfo = undefined
     }
@@ -255,10 +227,7 @@ export const SigningInfo = {
 const baseValidatorMissedBlocks: object = { address: '' }
 
 export const ValidatorMissedBlocks = {
-  encode(
-    message: ValidatorMissedBlocks,
-    writer: Writer = Writer.create()
-  ): Writer {
+  encode(message: ValidatorMissedBlocks, writer: Writer = Writer.create()): Writer {
     if (message.address !== '') {
       writer.uint32(10).string(message.address)
     }
@@ -310,18 +279,14 @@ export const ValidatorMissedBlocks = {
     const obj: any = {}
     message.address !== undefined && (obj.address = message.address)
     if (message.missedBlocks) {
-      obj.missedBlocks = message.missedBlocks.map((e) =>
-        e ? MissedBlock.toJSON(e) : undefined
-      )
+      obj.missedBlocks = message.missedBlocks.map((e) => (e ? MissedBlock.toJSON(e) : undefined))
     } else {
       obj.missedBlocks = []
     }
     return obj
   },
 
-  fromPartial(
-    object: DeepPartial<ValidatorMissedBlocks>
-  ): ValidatorMissedBlocks {
+  fromPartial(object: DeepPartial<ValidatorMissedBlocks>): ValidatorMissedBlocks {
     const message = { ...baseValidatorMissedBlocks } as ValidatorMissedBlocks
     message.missedBlocks = []
     if (object.address !== undefined && object.address !== null) {

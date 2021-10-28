@@ -39,10 +39,7 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.constantFee !== undefined &&
-            (obj.constantFee = message.constantFee
-                ? Coin.toJSON(message.constantFee)
-                : undefined);
+        message.constantFee !== undefined && (obj.constantFee = message.constantFee ? Coin.toJSON(message.constantFee) : undefined);
         return obj;
     },
     fromPartial(object) {

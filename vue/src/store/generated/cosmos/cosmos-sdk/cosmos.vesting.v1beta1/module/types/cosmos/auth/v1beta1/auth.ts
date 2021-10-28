@@ -107,10 +107,8 @@ export const BaseAccount = {
   toJSON(message: BaseAccount): unknown {
     const obj: any = {}
     message.address !== undefined && (obj.address = message.address)
-    message.pubKey !== undefined &&
-      (obj.pubKey = message.pubKey ? Any.toJSON(message.pubKey) : undefined)
-    message.accountNumber !== undefined &&
-      (obj.accountNumber = message.accountNumber)
+    message.pubKey !== undefined && (obj.pubKey = message.pubKey ? Any.toJSON(message.pubKey) : undefined)
+    message.accountNumber !== undefined && (obj.accountNumber = message.accountNumber)
     message.sequence !== undefined && (obj.sequence = message.sequence)
     return obj
   },
@@ -205,10 +203,7 @@ export const ModuleAccount = {
 
   toJSON(message: ModuleAccount): unknown {
     const obj: any = {}
-    message.baseAccount !== undefined &&
-      (obj.baseAccount = message.baseAccount
-        ? BaseAccount.toJSON(message.baseAccount)
-        : undefined)
+    message.baseAccount !== undefined && (obj.baseAccount = message.baseAccount ? BaseAccount.toJSON(message.baseAccount) : undefined)
     message.name !== undefined && (obj.name = message.name)
     if (message.permissions) {
       obj.permissions = message.permissions.map((e) => e)
@@ -240,13 +235,7 @@ export const ModuleAccount = {
   }
 }
 
-const baseParams: object = {
-  maxMemoCharacters: 0,
-  txSigLimit: 0,
-  txSizeCostPerByte: 0,
-  sigVerifyCostEd25519: 0,
-  sigVerifyCostSecp256k1: 0
-}
+const baseParams: object = { maxMemoCharacters: 0, txSigLimit: 0, txSizeCostPerByte: 0, sigVerifyCostEd25519: 0, sigVerifyCostSecp256k1: 0 }
 
 export const Params = {
   encode(message: Params, writer: Writer = Writer.create()): Writer {
@@ -300,10 +289,7 @@ export const Params = {
 
   fromJSON(object: any): Params {
     const message = { ...baseParams } as Params
-    if (
-      object.maxMemoCharacters !== undefined &&
-      object.maxMemoCharacters !== null
-    ) {
+    if (object.maxMemoCharacters !== undefined && object.maxMemoCharacters !== null) {
       message.maxMemoCharacters = Number(object.maxMemoCharacters)
     } else {
       message.maxMemoCharacters = 0
@@ -313,26 +299,17 @@ export const Params = {
     } else {
       message.txSigLimit = 0
     }
-    if (
-      object.txSizeCostPerByte !== undefined &&
-      object.txSizeCostPerByte !== null
-    ) {
+    if (object.txSizeCostPerByte !== undefined && object.txSizeCostPerByte !== null) {
       message.txSizeCostPerByte = Number(object.txSizeCostPerByte)
     } else {
       message.txSizeCostPerByte = 0
     }
-    if (
-      object.sigVerifyCostEd25519 !== undefined &&
-      object.sigVerifyCostEd25519 !== null
-    ) {
+    if (object.sigVerifyCostEd25519 !== undefined && object.sigVerifyCostEd25519 !== null) {
       message.sigVerifyCostEd25519 = Number(object.sigVerifyCostEd25519)
     } else {
       message.sigVerifyCostEd25519 = 0
     }
-    if (
-      object.sigVerifyCostSecp256k1 !== undefined &&
-      object.sigVerifyCostSecp256k1 !== null
-    ) {
+    if (object.sigVerifyCostSecp256k1 !== undefined && object.sigVerifyCostSecp256k1 !== null) {
       message.sigVerifyCostSecp256k1 = Number(object.sigVerifyCostSecp256k1)
     } else {
       message.sigVerifyCostSecp256k1 = 0
@@ -342,24 +319,17 @@ export const Params = {
 
   toJSON(message: Params): unknown {
     const obj: any = {}
-    message.maxMemoCharacters !== undefined &&
-      (obj.maxMemoCharacters = message.maxMemoCharacters)
+    message.maxMemoCharacters !== undefined && (obj.maxMemoCharacters = message.maxMemoCharacters)
     message.txSigLimit !== undefined && (obj.txSigLimit = message.txSigLimit)
-    message.txSizeCostPerByte !== undefined &&
-      (obj.txSizeCostPerByte = message.txSizeCostPerByte)
-    message.sigVerifyCostEd25519 !== undefined &&
-      (obj.sigVerifyCostEd25519 = message.sigVerifyCostEd25519)
-    message.sigVerifyCostSecp256k1 !== undefined &&
-      (obj.sigVerifyCostSecp256k1 = message.sigVerifyCostSecp256k1)
+    message.txSizeCostPerByte !== undefined && (obj.txSizeCostPerByte = message.txSizeCostPerByte)
+    message.sigVerifyCostEd25519 !== undefined && (obj.sigVerifyCostEd25519 = message.sigVerifyCostEd25519)
+    message.sigVerifyCostSecp256k1 !== undefined && (obj.sigVerifyCostSecp256k1 = message.sigVerifyCostSecp256k1)
     return obj
   },
 
   fromPartial(object: DeepPartial<Params>): Params {
     const message = { ...baseParams } as Params
-    if (
-      object.maxMemoCharacters !== undefined &&
-      object.maxMemoCharacters !== null
-    ) {
+    if (object.maxMemoCharacters !== undefined && object.maxMemoCharacters !== null) {
       message.maxMemoCharacters = object.maxMemoCharacters
     } else {
       message.maxMemoCharacters = 0
@@ -369,26 +339,17 @@ export const Params = {
     } else {
       message.txSigLimit = 0
     }
-    if (
-      object.txSizeCostPerByte !== undefined &&
-      object.txSizeCostPerByte !== null
-    ) {
+    if (object.txSizeCostPerByte !== undefined && object.txSizeCostPerByte !== null) {
       message.txSizeCostPerByte = object.txSizeCostPerByte
     } else {
       message.txSizeCostPerByte = 0
     }
-    if (
-      object.sigVerifyCostEd25519 !== undefined &&
-      object.sigVerifyCostEd25519 !== null
-    ) {
+    if (object.sigVerifyCostEd25519 !== undefined && object.sigVerifyCostEd25519 !== null) {
       message.sigVerifyCostEd25519 = object.sigVerifyCostEd25519
     } else {
       message.sigVerifyCostEd25519 = 0
     }
-    if (
-      object.sigVerifyCostSecp256k1 !== undefined &&
-      object.sigVerifyCostSecp256k1 !== null
-    ) {
+    if (object.sigVerifyCostSecp256k1 !== undefined && object.sigVerifyCostSecp256k1 !== null) {
       message.sigVerifyCostSecp256k1 = object.sigVerifyCostSecp256k1
     } else {
       message.sigVerifyCostSecp256k1 = 0

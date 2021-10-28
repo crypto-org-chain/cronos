@@ -8,7 +8,10 @@ export interface GenesisState {
     params: Params | undefined;
     /** balances is an array containing the balances of all the accounts. */
     balances: Balance[];
-    /** supply represents the total supply. */
+    /**
+     * supply represents the total supply. If it is left empty, then supply will be calculated based on the provided
+     * balances. Otherwise, it will be used to validate that the sum of the balances equals this amount.
+     */
     supply: Coin[];
     /** denom_metadata defines the metadata of the differents coins. */
     denomMetadata: Metadata[];

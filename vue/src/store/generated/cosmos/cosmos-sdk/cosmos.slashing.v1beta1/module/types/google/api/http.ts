@@ -341,13 +341,8 @@ export const Http = {
         message.rules.push(HttpRule.fromJSON(e))
       }
     }
-    if (
-      object.fullyDecodeReservedExpansion !== undefined &&
-      object.fullyDecodeReservedExpansion !== null
-    ) {
-      message.fullyDecodeReservedExpansion = Boolean(
-        object.fullyDecodeReservedExpansion
-      )
+    if (object.fullyDecodeReservedExpansion !== undefined && object.fullyDecodeReservedExpansion !== null) {
+      message.fullyDecodeReservedExpansion = Boolean(object.fullyDecodeReservedExpansion)
     } else {
       message.fullyDecodeReservedExpansion = false
     }
@@ -361,8 +356,7 @@ export const Http = {
     } else {
       obj.rules = []
     }
-    message.fullyDecodeReservedExpansion !== undefined &&
-      (obj.fullyDecodeReservedExpansion = message.fullyDecodeReservedExpansion)
+    message.fullyDecodeReservedExpansion !== undefined && (obj.fullyDecodeReservedExpansion = message.fullyDecodeReservedExpansion)
     return obj
   },
 
@@ -374,10 +368,7 @@ export const Http = {
         message.rules.push(HttpRule.fromPartial(e))
       }
     }
-    if (
-      object.fullyDecodeReservedExpansion !== undefined &&
-      object.fullyDecodeReservedExpansion !== null
-    ) {
+    if (object.fullyDecodeReservedExpansion !== undefined && object.fullyDecodeReservedExpansion !== null) {
       message.fullyDecodeReservedExpansion = object.fullyDecodeReservedExpansion
     } else {
       message.fullyDecodeReservedExpansion = false
@@ -409,10 +400,7 @@ export const HttpRule = {
       writer.uint32(50).string(message.patch)
     }
     if (message.custom !== undefined) {
-      CustomHttpPattern.encode(
-        message.custom,
-        writer.uint32(66).fork()
-      ).ldelim()
+      CustomHttpPattern.encode(message.custom, writer.uint32(66).fork()).ldelim()
     }
     if (message.body !== '') {
       writer.uint32(58).string(message.body)
@@ -462,9 +450,7 @@ export const HttpRule = {
           message.responseBody = reader.string()
           break
         case 11:
-          message.additionalBindings.push(
-            HttpRule.decode(reader, reader.uint32())
-          )
+          message.additionalBindings.push(HttpRule.decode(reader, reader.uint32()))
           break
         default:
           reader.skipType(tag & 7)
@@ -522,10 +508,7 @@ export const HttpRule = {
     } else {
       message.responseBody = ''
     }
-    if (
-      object.additionalBindings !== undefined &&
-      object.additionalBindings !== null
-    ) {
+    if (object.additionalBindings !== undefined && object.additionalBindings !== null) {
       for (const e of object.additionalBindings) {
         message.additionalBindings.push(HttpRule.fromJSON(e))
       }
@@ -541,17 +524,11 @@ export const HttpRule = {
     message.post !== undefined && (obj.post = message.post)
     message.delete !== undefined && (obj.delete = message.delete)
     message.patch !== undefined && (obj.patch = message.patch)
-    message.custom !== undefined &&
-      (obj.custom = message.custom
-        ? CustomHttpPattern.toJSON(message.custom)
-        : undefined)
+    message.custom !== undefined && (obj.custom = message.custom ? CustomHttpPattern.toJSON(message.custom) : undefined)
     message.body !== undefined && (obj.body = message.body)
-    message.responseBody !== undefined &&
-      (obj.responseBody = message.responseBody)
+    message.responseBody !== undefined && (obj.responseBody = message.responseBody)
     if (message.additionalBindings) {
-      obj.additionalBindings = message.additionalBindings.map((e) =>
-        e ? HttpRule.toJSON(e) : undefined
-      )
+      obj.additionalBindings = message.additionalBindings.map((e) => (e ? HttpRule.toJSON(e) : undefined))
     } else {
       obj.additionalBindings = []
     }
@@ -606,10 +583,7 @@ export const HttpRule = {
     } else {
       message.responseBody = ''
     }
-    if (
-      object.additionalBindings !== undefined &&
-      object.additionalBindings !== null
-    ) {
+    if (object.additionalBindings !== undefined && object.additionalBindings !== null) {
       for (const e of object.additionalBindings) {
         message.additionalBindings.push(HttpRule.fromPartial(e))
       }

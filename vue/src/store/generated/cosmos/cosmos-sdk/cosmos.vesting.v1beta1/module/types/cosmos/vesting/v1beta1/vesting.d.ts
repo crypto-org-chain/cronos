@@ -43,6 +43,14 @@ export interface PeriodicVestingAccount {
     startTime: number;
     vestingPeriods: Period[];
 }
+/**
+ * PermanentLockedAccount implements the VestingAccount interface. It does
+ * not ever release coins, locking them indefinitely. Coins in this account can
+ * still be used for delegating and for governance votes even while locked.
+ */
+export interface PermanentLockedAccount {
+    baseVestingAccount: BaseVestingAccount | undefined;
+}
 export declare const BaseVestingAccount: {
     encode(message: BaseVestingAccount, writer?: Writer): Writer;
     decode(input: Reader | Uint8Array, length?: number): BaseVestingAccount;
@@ -77,6 +85,13 @@ export declare const PeriodicVestingAccount: {
     fromJSON(object: any): PeriodicVestingAccount;
     toJSON(message: PeriodicVestingAccount): unknown;
     fromPartial(object: DeepPartial<PeriodicVestingAccount>): PeriodicVestingAccount;
+};
+export declare const PermanentLockedAccount: {
+    encode(message: PermanentLockedAccount, writer?: Writer): Writer;
+    decode(input: Reader | Uint8Array, length?: number): PermanentLockedAccount;
+    fromJSON(object: any): PermanentLockedAccount;
+    toJSON(message: PermanentLockedAccount): unknown;
+    fromPartial(object: DeepPartial<PermanentLockedAccount>): PermanentLockedAccount;
 };
 declare type Builtin = Date | Function | Uint8Array | string | number | undefined;
 export declare type DeepPartial<T> = T extends Builtin ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>> : T extends {} ? {

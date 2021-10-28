@@ -3,12 +3,7 @@ import { Reader, util, configure, Writer } from 'protobufjs/minimal';
 import * as Long from 'long';
 import { Coin } from '../../../cosmos/base/v1beta1/coin';
 export const protobufPackage = 'cosmos.vesting.v1beta1';
-const baseMsgCreateVestingAccount = {
-    fromAddress: '',
-    toAddress: '',
-    endTime: 0,
-    delayed: false
-};
+const baseMsgCreateVestingAccount = { fromAddress: '', toAddress: '', endTime: 0, delayed: false };
 export const MsgCreateVestingAccount = {
     encode(message, writer = Writer.create()) {
         if (message.fromAddress !== '') {
@@ -31,9 +26,7 @@ export const MsgCreateVestingAccount = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseMsgCreateVestingAccount
-        };
+        const message = { ...baseMsgCreateVestingAccount };
         message.amount = [];
         while (reader.pos < end) {
             const tag = reader.uint32();
@@ -61,9 +54,7 @@ export const MsgCreateVestingAccount = {
         return message;
     },
     fromJSON(object) {
-        const message = {
-            ...baseMsgCreateVestingAccount
-        };
+        const message = { ...baseMsgCreateVestingAccount };
         message.amount = [];
         if (object.fromAddress !== undefined && object.fromAddress !== null) {
             message.fromAddress = String(object.fromAddress);
@@ -111,9 +102,7 @@ export const MsgCreateVestingAccount = {
         return obj;
     },
     fromPartial(object) {
-        const message = {
-            ...baseMsgCreateVestingAccount
-        };
+        const message = { ...baseMsgCreateVestingAccount };
         message.amount = [];
         if (object.fromAddress !== undefined && object.fromAddress !== null) {
             message.fromAddress = object.fromAddress;
@@ -155,9 +144,7 @@ export const MsgCreateVestingAccountResponse = {
     decode(input, length) {
         const reader = input instanceof Uint8Array ? new Reader(input) : input;
         let end = length === undefined ? reader.len : reader.pos + length;
-        const message = {
-            ...baseMsgCreateVestingAccountResponse
-        };
+        const message = { ...baseMsgCreateVestingAccountResponse };
         while (reader.pos < end) {
             const tag = reader.uint32();
             switch (tag >>> 3) {
@@ -169,9 +156,7 @@ export const MsgCreateVestingAccountResponse = {
         return message;
     },
     fromJSON(_) {
-        const message = {
-            ...baseMsgCreateVestingAccountResponse
-        };
+        const message = { ...baseMsgCreateVestingAccountResponse };
         return message;
     },
     toJSON(_) {
@@ -179,9 +164,7 @@ export const MsgCreateVestingAccountResponse = {
         return obj;
     },
     fromPartial(_) {
-        const message = {
-            ...baseMsgCreateVestingAccountResponse
-        };
+        const message = { ...baseMsgCreateVestingAccountResponse };
         return message;
     }
 };

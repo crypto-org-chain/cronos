@@ -7,18 +7,25 @@ export declare const protobufPackage = "cosmos.slashing.v1beta1";
  */
 export interface ValidatorSigningInfo {
     address: string;
-    /** height at which validator was first a candidate OR was unjailed */
+    /** Height at which validator was first a candidate OR was unjailed */
     startHeight: number;
-    /** index offset into signed block bit array */
+    /**
+     * Index which is incremented each time the validator was a bonded
+     * in a block and may have signed a precommit or not. This in conjunction with the
+     * `SignedBlocksWindow` param determines the index in the `MissedBlocksBitArray`.
+     */
     indexOffset: number;
-    /** timestamp validator cannot be unjailed until */
+    /** Timestamp until which the validator is jailed due to liveness downtime. */
     jailedUntil: Date | undefined;
     /**
-     * whether or not a validator has been tombstoned (killed out of validator
-     * set)
+     * Whether or not a validator has been tombstoned (killed out of validator set). It is set
+     * once the validator commits an equivocation or for any other configured misbehiavor.
      */
     tombstoned: boolean;
-    /** missed blocks counter (to avoid scanning the array every time) */
+    /**
+     * A counter kept to avoid unnecessary array reads.
+     * Note that `Sum(MissedBlocksBitArray)` always equals `MissedBlocksCounter`.
+     */
     missedBlocksCounter: number;
 }
 /** Params represents the parameters used for by the slashing module. */

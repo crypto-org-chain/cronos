@@ -24,10 +24,7 @@ export const Equivocation = {
       writer.uint32(8).int64(message.height)
     }
     if (message.time !== undefined) {
-      Timestamp.encode(
-        toTimestamp(message.time),
-        writer.uint32(18).fork()
-      ).ldelim()
+      Timestamp.encode(toTimestamp(message.time), writer.uint32(18).fork()).ldelim()
     }
     if (message.power !== 0) {
       writer.uint32(24).int64(message.power)
@@ -49,9 +46,7 @@ export const Equivocation = {
           message.height = longToNumber(reader.int64() as Long)
           break
         case 2:
-          message.time = fromTimestamp(
-            Timestamp.decode(reader, reader.uint32())
-          )
+          message.time = fromTimestamp(Timestamp.decode(reader, reader.uint32()))
           break
         case 3:
           message.power = longToNumber(reader.int64() as Long)
@@ -84,10 +79,7 @@ export const Equivocation = {
     } else {
       message.power = 0
     }
-    if (
-      object.consensusAddress !== undefined &&
-      object.consensusAddress !== null
-    ) {
+    if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
       message.consensusAddress = String(object.consensusAddress)
     } else {
       message.consensusAddress = ''
@@ -98,12 +90,9 @@ export const Equivocation = {
   toJSON(message: Equivocation): unknown {
     const obj: any = {}
     message.height !== undefined && (obj.height = message.height)
-    message.time !== undefined &&
-      (obj.time =
-        message.time !== undefined ? message.time.toISOString() : null)
+    message.time !== undefined && (obj.time = message.time !== undefined ? message.time.toISOString() : null)
     message.power !== undefined && (obj.power = message.power)
-    message.consensusAddress !== undefined &&
-      (obj.consensusAddress = message.consensusAddress)
+    message.consensusAddress !== undefined && (obj.consensusAddress = message.consensusAddress)
     return obj
   },
 
@@ -124,10 +113,7 @@ export const Equivocation = {
     } else {
       message.power = 0
     }
-    if (
-      object.consensusAddress !== undefined &&
-      object.consensusAddress !== null
-    ) {
+    if (object.consensusAddress !== undefined && object.consensusAddress !== null) {
       message.consensusAddress = object.consensusAddress
     } else {
       message.consensusAddress = ''

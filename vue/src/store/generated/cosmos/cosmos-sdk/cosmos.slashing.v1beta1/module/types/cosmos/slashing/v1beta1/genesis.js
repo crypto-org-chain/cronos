@@ -66,16 +66,15 @@ export const GenesisState = {
     },
     toJSON(message) {
         const obj = {};
-        message.params !== undefined &&
-            (obj.params = message.params ? Params.toJSON(message.params) : undefined);
+        message.params !== undefined && (obj.params = message.params ? Params.toJSON(message.params) : undefined);
         if (message.signingInfos) {
-            obj.signingInfos = message.signingInfos.map((e) => e ? SigningInfo.toJSON(e) : undefined);
+            obj.signingInfos = message.signingInfos.map((e) => (e ? SigningInfo.toJSON(e) : undefined));
         }
         else {
             obj.signingInfos = [];
         }
         if (message.missedBlocks) {
-            obj.missedBlocks = message.missedBlocks.map((e) => e ? ValidatorMissedBlocks.toJSON(e) : undefined);
+            obj.missedBlocks = message.missedBlocks.map((e) => (e ? ValidatorMissedBlocks.toJSON(e) : undefined));
         }
         else {
             obj.missedBlocks = [];
@@ -144,8 +143,7 @@ export const SigningInfo = {
         else {
             message.address = '';
         }
-        if (object.validatorSigningInfo !== undefined &&
-            object.validatorSigningInfo !== null) {
+        if (object.validatorSigningInfo !== undefined && object.validatorSigningInfo !== null) {
             message.validatorSigningInfo = ValidatorSigningInfo.fromJSON(object.validatorSigningInfo);
         }
         else {
@@ -157,9 +155,7 @@ export const SigningInfo = {
         const obj = {};
         message.address !== undefined && (obj.address = message.address);
         message.validatorSigningInfo !== undefined &&
-            (obj.validatorSigningInfo = message.validatorSigningInfo
-                ? ValidatorSigningInfo.toJSON(message.validatorSigningInfo)
-                : undefined);
+            (obj.validatorSigningInfo = message.validatorSigningInfo ? ValidatorSigningInfo.toJSON(message.validatorSigningInfo) : undefined);
         return obj;
     },
     fromPartial(object) {
@@ -170,8 +166,7 @@ export const SigningInfo = {
         else {
             message.address = '';
         }
-        if (object.validatorSigningInfo !== undefined &&
-            object.validatorSigningInfo !== null) {
+        if (object.validatorSigningInfo !== undefined && object.validatorSigningInfo !== null) {
             message.validatorSigningInfo = ValidatorSigningInfo.fromPartial(object.validatorSigningInfo);
         }
         else {
@@ -232,7 +227,7 @@ export const ValidatorMissedBlocks = {
         const obj = {};
         message.address !== undefined && (obj.address = message.address);
         if (message.missedBlocks) {
-            obj.missedBlocks = message.missedBlocks.map((e) => e ? MissedBlock.toJSON(e) : undefined);
+            obj.missedBlocks = message.missedBlocks.map((e) => (e ? MissedBlock.toJSON(e) : undefined));
         }
         else {
             obj.missedBlocks = [];
