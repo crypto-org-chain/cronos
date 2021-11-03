@@ -11,6 +11,10 @@ This guide is intended to assist the community validators with setting up crypto
 
 You should have a validator running in the `Cronos Testnet 3` network.
 
+### Ethereum kovan node
+
+You need to have access to the RPC endpoint of a kovan node. Or host your own kovan node with [go-ethereum](https://github.com/ethereum/go-ethereum/) or [openethereum](https://github.com/openethereum/openethereum).
+
 ### Binaries
 
 -  `cronosd` version: `0.5.5-testnet` , the cronos node binary found at https://github.com/crypto-org-chain/cronos/releases/tag/v0.5.5-testnet.
@@ -23,7 +27,7 @@ You should have a validator running in the `Cronos Testnet 3` network.
 
 ## Generate Orchestrator Keys
 
-You need to prepare two accounts for the orchestrator, one for ethereum and one for cronos, you can also use the same private key for both accounts. You should transfer some funds to these accounts, so the orchestrator can cover the gas fees of messages relaying later.
+You need to prepare two accounts for the orchestrator, one for ethereum and one for cronos, you can also use the same private key for both accounts. You should transfer some funds to these accounts, so the orchestrator can cover the gas fees of messages relaying later. 
 
 ### Creating a Cronos account:
 
