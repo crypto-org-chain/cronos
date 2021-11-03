@@ -5,8 +5,7 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 
-from .utils import ADDRS, KEYS, deploy_contract, send_transaction
-
+from .utils import ADDRS, KEYS, deploy_contract, send_transaction, wait_for_block
 
 def test_basic(cluster):
     w3 = cluster.w3
@@ -101,3 +100,14 @@ def test_native_call(cronos):
     )
     receipt = w3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 0, "should fail"
+
+def test_statesync(cronos_cluster):
+    wait_for_block(cronos_cluster, 10)
+
+    # add a statesync node
+    i = cronos_cluster.create_node(moniker="statesync", statesync=True)
+    cronos_cluster.supervisor.startProcess(f"{cronos_cluster.chain_id}-node{i}")
+
+    # discovery_time is set to 5 seconds, add extra seconds for processing
+    wait_for_block(cronos_cluster.cosmos_cli(i), 10)
+    print("succesfully syncing")
