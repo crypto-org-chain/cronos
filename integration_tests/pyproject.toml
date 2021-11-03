@@ -20,6 +20,7 @@ python-dateutil = "^2.8.1"
 pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 web3 = "^5.20.1"
 eth-bloom = "^1.0.4"
+pytest-xdist = "1.34.0"
 
 [tool.poetry.dev-dependencies]
 
