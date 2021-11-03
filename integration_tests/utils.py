@@ -139,15 +139,15 @@ def cluster_fixture(
             ini = chain_data / cluster.SUPERVISOR_CONFIG_FILE
             ini.write_text(
                 re.sub(
-                    r"^command = (.*/)?chain-maind",
-                    "command = chain-maind-inst "
+                    r"^command = (.*/)?cronosd",
+                    "command = cronosd-inst "
                     "-test.coverprofile=%(here)s/coverage.txt",
                     ini.read_text(),
                     count=1,
                     flags=re.M,
                 )
             )
-        clis[chain_id] = cluster.ClusterCLI(data, chain_id=chain_id)
+        clis[chain_id] = cluster.ClusterCLI(data, cmd="cronosd", chain_id=chain_id)
 
     supervisord = cluster.start_cluster(data)
     if not quiet:
