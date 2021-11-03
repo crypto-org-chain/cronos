@@ -1,6 +1,10 @@
+import re
+from pathlib import Path
+
 import pytest
 
 from .network import setup_cronos, setup_geth
+from .utils import cluster_fixture
 
 
 def pytest_configure(config):
@@ -59,3 +63,18 @@ def cluster(request, cronos, geth):
         yield geth
     else:
         raise NotImplementedError
+
+@pytest.fixture(scope="session")
+def worker_index(worker_id):
+    match = re.search(r"\d+", worker_id)
+    return int(match[0]) if match is not None else 0
+
+@pytest.fixture(scope="session")
+def cronos_cluster(worker_index, pytestconfig, tmp_path_factory):
+    "default cluster fixture"
+    yield from cluster_fixture(
+        Path(__file__).parent / "../scripts/cronos-devnet.yaml",
+        worker_index,
+        tmp_path_factory.mktemp("data"),
+        quiet=True,
+    )
