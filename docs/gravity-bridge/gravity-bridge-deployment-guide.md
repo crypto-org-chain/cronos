@@ -13,7 +13,7 @@ You should have a validator running in the `Cronos Testnet 3` network.
 
 ### Ethereum kovan node
 
-You need to have access to the RPC endpoint of a kovan node. Maybe host a own kovan node? https://github.com/openethereum/openethereum
+You need to have access to the RPC endpoint of a kovan node. Or host your own kovan node with [go-ethereum](https://github.com/ethereum/go-ethereum/) or [openethereum](https://github.com/openethereum/openethereum).
 
 ### Binaries
 
