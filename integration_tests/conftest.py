@@ -64,12 +64,12 @@ def cluster(request, cronos, geth):
     else:
         raise NotImplementedError
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def worker_index(worker_id):
     match = re.search(r"\d+", worker_id)
     return int(match[0]) if match is not None else 0
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def cronos_cluster(worker_index, pytestconfig, tmp_path_factory):
     "default cluster fixture"
     yield from cluster_fixture(
