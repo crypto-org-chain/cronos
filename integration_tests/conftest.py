@@ -76,5 +76,5 @@ def cronos_cluster(worker_index, pytestconfig, tmp_path_factory):
         Path(__file__).parent / "../scripts/cronos-devnet.yaml",
         worker_index,
         tmp_path_factory.mktemp("data"),
-        quiet=True,
+        # quiet=True,
     )
