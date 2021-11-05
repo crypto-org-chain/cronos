@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bug Fixes
+
+- [cronos#205](https://github.com/crypto-org-chain/cronos/pull/205) fix `debug_traceTransaction` failure
+
 *October 26, 2021*
 
 ## v0.6.1
@@ -25,7 +29,7 @@ This version removes gravity-bridge from cronos, also includes multiple bug fixe
 
 ### Consensus breaking changes
 
-- [cronos#171](https://github.com/crypto-org-chain/cronos/pull/171) remove gravity-bridge for mainnet launch
+- [cronos#171](https://github.com/crypto-org-chain/cronos/pull/171) remove gravity-bridge for mainnet launch
 
 ### Bug Fixes
 - [cronos#144](https://github.com/crypto-org-chain/cronos/pull/144) fix events in autodeploy crc20 module contract
