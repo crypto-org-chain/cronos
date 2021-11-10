@@ -21,6 +21,7 @@ from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
+from pathlib import Path
 
 KEYS = {
     "validator": "826E479F5385C8C32CD96B0C0ACCDB8CC4FA5CACCC1BE54C1E3AA4D676A6EFF5",
@@ -352,3 +353,70 @@ class InlineTable(dict, toml.decoder.InlineTableDict):
 
 def dump_toml(obj):
     return toml.dumps(obj, encoder=toml.TomlPreserveInlineDictEncoder())
+
+class Greeter:
+    "Greeter contract."
+    def __init__(self):
+        self.chain_id = 777
+        self.address = ADDRS["community"]
+        self.private_key = KEYS["community"]
+        self.nonce = 0
+
+        contract_path = (
+            Path(__file__).parent / "contracts/artifacts/contracts/Greeter.sol/Greeter.json"
+        )
+
+        with open(contract_path) as f:
+            json_data = f.read()
+            contract_json = json.loads(json_data)
+
+        self.bytecode = contract_json["bytecode"]
+        self.abi = contract_json["abi"]
+
+        self.contract = None
+        self._contract_hash = None
+
+    def deploy(self, w3):
+        "Deploy Greeter contract on `w3` and return the transaction hash."
+        if self.contract == None:
+            Contract = w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
+            self.nonce = w3.eth.get_transaction_count(self.address)
+
+            transaction = Contract.constructor().buildTransaction(
+                {"chainId": self.chain_id, "from": self.address, "nonce": self.nonce}
+            )
+
+            signed_txn = w3.eth.account.sign_transaction(transaction, private_key=self.private_key)
+
+            # print("Deploying contract...")
+            # Send this signed transaction
+            self._contract_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+
+            tx_receipt = w3.eth.wait_for_transaction_receipt(self._contract_hash)
+            # print("Deployed!")
+
+            self.contract = w3.eth.contract(address=tx_receipt.contractAddress, abi=self.abi)
+
+            # print(contract.functions.greet().call())
+
+            return self._contract_hash
+        else:
+            return self._contract_hash
+
+    def call_contact(self, w3):
+        "Call contract on `w3` and return the transaction hash."
+        # print("Updating Contract...")
+
+        store_transaction = self.contract.functions.setGreeting("world").buildTransaction({
+            "chainId": self.chain_id,
+            "from": self.address,
+            "nonce": self.nonce + 1 # nonce can only be used once in each transaction
+        })
+        signed_store_txn = w3.eth.account.sign_transaction(store_transaction, private_key=self.private_key)
+        send_store_tx = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
+        tx_receipt = w3.eth.wait_for_transaction_receipt(send_store_tx)
+        # print("Updated!")
+
+        assert "world" == self.contract.functions.greet().call()
+
+        return send_store_tx

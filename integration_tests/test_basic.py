@@ -5,7 +5,9 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 
-from .utils import ADDRS, KEYS, deploy_contract, send_transaction, wait_for_block
+from .utils import ADDRS, KEYS, deploy_contract, send_transaction, wait_for_block, wait_for_port, Greeter
+from pystarport import cluster
+import web3
 
 def test_basic(cluster):
     w3 = cluster.w3
@@ -108,15 +110,24 @@ def test_statesync(cronos):
     # Return a Cronos object (Defined in network.py)
 
     ## do some transactions
+    # Do a tx bank transaction
     from_addr = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
     to_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
     coins = "10basetcro"
     node = cronos.node_rpc(0)
-    txhash_1 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
-    # discovery_time is set to 5 seconds, add extra seconds for processing
+    txhash_0 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+
+    # Deploy greeter contract
+    w3 = cronos.w3
+    greeter = Greeter()
+    txhash_1 = greeter.deploy(w3)
+
+    # Wait some empty blocks
     wait_for_block(cronos.cosmos_cli(0), 15)
-    # Check the transaction is added
-    assert cronos.cosmos_cli(0).query_tx("hash", txhash_1)["txhash"] == txhash_1
+
+    # Check the transactions are added
+    assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0
+    assert w3.eth.get_transaction(txhash_1) != None
 
     ## add a new state sync node, sync
     # We can not use the cronos fixture to do statesync, since they are full nodes.
@@ -135,13 +146,20 @@ def test_statesync(cronos):
     ## check query chain state works
     assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
 
-    ## check query old transaction don't work
-    with pytest.raises(AssertionError):
-        clustercli.cosmos_cli(i).query_tx("hash", txhash_1)
+    ## check query old transaction does't work
+    # Get we3 provider
+    wait_for_port(8545)
+    statesync_w3 = web3.Web3(
+        web3.providers.HTTPProvider("http://localhost:8545")
+    )
+    with pytest.raises(web3.exceptions.TransactionNotFound):
+        # clustercli.cosmos_cli(i).query_tx("hash", txhash_0)
+        statesync_w3.eth.get_transaction(txhash_1)
 
-    ## execute new transaction
+    ## execute new transactions
     # output = clustercli.cosmos_cli(0).transfer(from_addr, to_addr, coins) # this would have problem!
     txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+    txhash_3 = greeter.call_contact(w3)
     # discovery_time is set to 5 seconds, add extra seconds for processing
     wait_for_block(clustercli.cosmos_cli(i), 30)
 
@@ -150,5 +168,6 @@ def test_statesync(cronos):
 
     ## check query new transaction works
     assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2
+    assert statesync_w3.eth.get_transaction(txhash_3)
 
     print("succesfully syncing")
