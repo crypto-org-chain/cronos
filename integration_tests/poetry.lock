@@ -719,7 +719,7 @@ tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/damoncro/pystarport.git"
+url = "https://github.com/crypto-com/pystarport.git"
 reference = "main"
 resolved_reference = "a127111b2c23ce167155f7c4f6751e6af894306b"
 
@@ -1001,7 +1001,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "82a6bba70407e16dee01dbcd8da5252b5b6e2436a782873f2170c5c0ca47e634"
+content-hash = "d1fea50ba0e8a8edfd3385ad3cb6b488f1a7ca044316c0723f0ab07a82f7fbb9"
 
 [metadata.files]
 aiohttp = [
