@@ -126,8 +126,8 @@ def test_statesync(cronos):
     greeter = Greeter()
     txhash_1 = greeter.deploy(w3)
 
-    # Wait some empty blocks
-    wait_for_block(cronos.cosmos_cli(0), 15)
+    # Wait 1 more block
+    wait_for_block(cronos.cosmos_cli(0), int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1)
 
     # Check the transactions are added
     # assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0 # DEPRECATED
@@ -145,8 +145,8 @@ def test_statesync(cronos):
     # create a new node with statesync enabled
     i = clustercli.create_node(moniker="statesync", statesync=True)
     clustercli.supervisor.startProcess(f"{clustercli.chain_id}-node{i}")
-    # discovery_time is set to 5 seconds, add extra seconds for processing
-    wait_for_block(clustercli.cosmos_cli(i), 20)
+    # Wait 1 more block
+    wait_for_block(clustercli.cosmos_cli(i), int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1)
 
     ## check query chain state works
     assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
@@ -156,7 +156,10 @@ def test_statesync(cronos):
     wait_for_port(8545)
     statesync_w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     with pytest.raises(web3.exceptions.TransactionNotFound):
-        # clustercli.cosmos_cli(i).query_tx("hash", txhash_0)
+        # clustercli.cosmos_cli(i).query_tx("hash", txhash_0) # DEPRECATED
+        statesync_w3.eth.get_transaction(txhash_0)
+
+    with pytest.raises(web3.exceptions.TransactionNotFound):
         statesync_w3.eth.get_transaction(txhash_1)
 
     ## execute new transactions
@@ -164,15 +167,15 @@ def test_statesync(cronos):
     # txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"] # DEPRECATED
     txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
     txhash_3 = greeter.call_contact(w3)
-    # discovery_time is set to 5 seconds, add extra seconds for processing
-    wait_for_block(clustercli.cosmos_cli(i), 30)
+    # Wait 1 more block
+    wait_for_block(clustercli.cosmos_cli(i), int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1)
 
     ## check query chain state works
     assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
 
     ## check query new transaction works
     # assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2 # DEPRECATED
-    assert statesync_w3.eth.get_transaction(txhash_2)
-    assert statesync_w3.eth.get_transaction(txhash_3)
+    assert w3.eth.get_transaction(txhash_2) != None
+    assert w3.eth.get_transaction(txhash_3) != None
 
     print("succesfully syncing")
