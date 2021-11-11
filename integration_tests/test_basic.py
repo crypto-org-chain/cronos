@@ -108,17 +108,21 @@ def test_statesync(cronos):
     # Load cronos-devnet.yaml
     # Spawn pystarport with the yaml, port 26650 (multiple nodes will be created based on `validators`)
     # Return a Cronos object (Defined in network.py)
+    w3 = cronos.w3
 
     ## do some transactions
-    # Do a tx bank transaction
-    from_addr = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
-    to_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
-    coins = "10basetcro"
-    node = cronos.node_rpc(0)
-    txhash_0 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+    # DEPRECATED: Do a tx bank transaction
+    # from_addr = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
+    # to_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
+    # coins = "10basetcro"
+    # node = cronos.node_rpc(0)
+    # txhash_0 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+
+    # Do an ethereum transfer
+    tx = {"to": ADDRS["community"], "value": 10000, "gasPrice": w3.eth.gas_price}
+    txhash_0 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
 
     # Deploy greeter contract
-    w3 = cronos.w3
     greeter = Greeter()
     txhash_1 = greeter.deploy(w3)
 
@@ -126,7 +130,8 @@ def test_statesync(cronos):
     wait_for_block(cronos.cosmos_cli(0), 15)
 
     # Check the transactions are added
-    assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0
+    # assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0 # DEPRECATED
+    assert w3.eth.get_transaction(txhash_0) != None
     assert w3.eth.get_transaction(txhash_1) != None
 
     ## add a new state sync node, sync
@@ -149,16 +154,15 @@ def test_statesync(cronos):
     ## check query old transaction does't work
     # Get we3 provider
     wait_for_port(8545)
-    statesync_w3 = web3.Web3(
-        web3.providers.HTTPProvider("http://localhost:8545")
-    )
+    statesync_w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     with pytest.raises(web3.exceptions.TransactionNotFound):
         # clustercli.cosmos_cli(i).query_tx("hash", txhash_0)
         statesync_w3.eth.get_transaction(txhash_1)
 
     ## execute new transactions
     # output = clustercli.cosmos_cli(0).transfer(from_addr, to_addr, coins) # this would have problem!
-    txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+    # txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"] # DEPRECATED
+    txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
     txhash_3 = greeter.call_contact(w3)
     # discovery_time is set to 5 seconds, add extra seconds for processing
     wait_for_block(clustercli.cosmos_cli(i), 30)
@@ -167,7 +171,8 @@ def test_statesync(cronos):
     assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
 
     ## check query new transaction works
-    assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2
+    # assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2 # DEPRECATED
+    assert statesync_w3.eth.get_transaction(txhash_2)
     assert statesync_w3.eth.get_transaction(txhash_3)
 
     print("succesfully syncing")
