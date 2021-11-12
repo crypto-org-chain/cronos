@@ -356,10 +356,11 @@ def dump_toml(obj):
 
 class Greeter:
     "Greeter contract."
-    def __init__(self):
-        self.chain_id = 777
-        self.address = ADDRS["community"]
-        self.private_key = KEYS["community"]
+    def __init__(self, private_key=KEYS["validator"], chain_id=777):
+        self.chain_id = chain_id
+        self.account = Account.from_key(private_key)
+        self.address = self.account.address
+        self.private_key = private_key
         self.nonce = 0
 
         contract_path = (
@@ -407,10 +408,13 @@ class Greeter:
         "Call contract on `w3` and return the transaction hash."
         # print("Updating Contract...")
 
+        # Get updated nonce, in case the nonce changes
+        self.nonce = w3.eth.get_transaction_count(self.address)
+
         store_transaction = self.contract.functions.setGreeting("world").buildTransaction({
             "chainId": self.chain_id,
             "from": self.address,
-            "nonce": self.nonce + 1 # nonce can only be used once in each transaction
+            "nonce": self.nonce # nonce can only be used once in each transaction
         })
         signed_store_txn = w3.eth.account.sign_transaction(store_transaction, private_key=self.private_key)
         send_store_tx = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
