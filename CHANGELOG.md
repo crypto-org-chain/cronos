@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Improvements
+- [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
+
+
 *November 30, 2021*
 
 ## v0.6.4
@@ -24,6 +28,7 @@
 - [tharsis#786](https://github.com/tharsis/ethermint/pull/786) Improve error message of `SendTransaction`/`SendRawTransaction` JSON-RPC APIs.
 - [cronos#222](https://github.com/crypto-org-chain/cronos/pull/222) change solc 0.6.11 to 0.6.8 (from dapp cachix) and update hermes to 0.8.
 
+
 *November 19, 2021*
 
 ## v0.6.2
@@ -34,7 +39,6 @@
 - [tharsis#746](https://github.com/tharsis/ethermint/pull/746) set debug based on tracer
 - [tharsis#741](https://github.com/tharsis/ethermint/pull/741) filter non eth txs in block rpc response
 - [crypto-org-chain/ethermint#12](https://github.com/crypto-org-chain/ethermint/pull/12) reject tx with too large gas limit
-
 
 *October 26, 2021*
 
