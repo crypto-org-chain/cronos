@@ -12,6 +12,8 @@ import (
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	gravitykeeper "github.com/peggyjv/gravity-bridge/module/x/gravity/keeper"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 )
 
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {
@@ -96,6 +98,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 
 	contract := common.BigToAddress(big.NewInt(1))
 	recipient := common.BigToAddress(big.NewInt(3))
+	invalidDenom := "testdenom"
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
 
@@ -106,7 +109,48 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 		error     error
 	}{
 		{
-			"not implemented, expect fail",
+			"non gravity denom, expect fail",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					recipient,
+					coin.Amount.BigInt(),
+					big.NewInt(0),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
+		},
+		{
+			"non associated coin denom, expect fail",
+			func() {
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					recipient,
+					coin.Amount.BigInt(),
+					big.NewInt(0),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+		},
+		{
+			"success send to ethereum",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
 				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
@@ -123,15 +167,26 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				)
 				data = input
 			},
-			func() {},
-			errors.New("native action __CronosSendToEthereum is not implemented"),
+			func() {
+				// sender's balance deducted
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
+				// query unbatched SendToEthereum message exist
+				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
+					SenderAddress: sdk.AccAddress(contract.Bytes()).String(),
+				})
+				suite.Require().Equal(1, len(rsp.SendToEthereums))
+				suite.Require().NoError(err)
+			},
+			nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := keeper.NewSendToEthereumHandler(suite.app.CronosKeeper)
+			handler := keeper.NewSendToEthereumHandler(
+				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper), suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data)
 			if tc.error != nil {
@@ -232,6 +287,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			handler := keeper.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
@@ -320,6 +376,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			handler := keeper.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)

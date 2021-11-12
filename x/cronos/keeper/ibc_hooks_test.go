@@ -75,6 +75,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper

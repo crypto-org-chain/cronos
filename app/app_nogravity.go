@@ -1,4 +1,4 @@
-// +build !nogravity
+// +build nogravity
 
 package app
 
@@ -104,10 +104,6 @@ import (
 	evmkeeper "github.com/tharsis/ethermint/x/evm/keeper"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
-	"github.com/peggyjv/gravity-bridge/module/x/gravity"
-	gravitykeeper "github.com/peggyjv/gravity-bridge/module/x/gravity/keeper"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
-
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 	cronos "github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
@@ -173,7 +169,6 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		evm.AppModuleBasic{},
-		gravity.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 		cronos.AppModuleBasic{},
 	)
@@ -188,7 +183,6 @@ var (
 		govtypes.ModuleName:            {authtypes.Burner},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
-		gravitytypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
 		cronostypes.ModuleName:         {authtypes.Minter, authtypes.Burner},
 	}
 	// Module configurator
@@ -251,9 +245,6 @@ type App struct {
 	// Ethermint keepers
 	EvmKeeper *evmkeeper.Keeper
 
-	// Gravity module
-	GravityKeeper gravitykeeper.Keeper
-
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	CronosKeeper cronoskeeper.Keeper
@@ -296,7 +287,6 @@ func New(
 		ibchost.StoreKey, ibctransfertypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey,
-		gravitytypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronostypes.StoreKey,
 	)
@@ -387,18 +377,7 @@ func New(
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, stakingKeeper,
-		tracer,
-	)
-
-	gravityKeeper := gravitykeeper.NewKeeper(
-		appCodec,
-		keys[gravitytypes.StoreKey],
-		app.GetSubspace(gravitytypes.ModuleName),
-		app.AccountKeeper,
-		stakingKeeper,
-		app.BankKeeper,
-		app.SlashingKeeper,
-		sdk.DefaultPowerReduction,
+		tracer, bApp.Trace(), // debug EVM based on Baseapp options
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
@@ -410,7 +389,7 @@ func New(
 		app.GetSubspace(cronostypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
-		gravityKeeper,
+		nil,
 		app.EvmKeeper,
 	)
 	cronosModule := cronos.NewAppModule(appCodec, app.CronosKeeper)
@@ -433,11 +412,9 @@ func New(
 		&stakingKeeper, govRouter,
 	)
 
-	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
-
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
+		cronoskeeper.NewSendToEthereumHandler(nil, app.CronosKeeper),
 		cronoskeeper.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
 		cronoskeeper.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
 	))
@@ -448,7 +425,6 @@ func New(
 		stakingtypes.NewMultiStakingHooks(
 			app.DistrKeeper.Hooks(),
 			app.SlashingKeeper.Hooks(),
-			app.GravityKeeper.Hooks(),
 		),
 	)
 
@@ -491,7 +467,6 @@ func New(
 
 		transferModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-		gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 		cronosModule,
 	)
@@ -506,13 +481,11 @@ func New(
 		evmtypes.ModuleName,
 		minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
 		evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
-		gravitytypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
 		crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
 		evmtypes.ModuleName,
-		gravitytypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -537,7 +510,6 @@ func New(
 		authz.ModuleName,
 		feegrant.ModuleName,
 		evmtypes.ModuleName,
-		gravitytypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 		cronostypes.ModuleName,
 	)
@@ -766,7 +738,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName)
-	paramsKeeper.Subspace(gravitytypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(cronostypes.ModuleName)
 
