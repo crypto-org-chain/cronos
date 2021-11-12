@@ -15,6 +15,7 @@ NETWORK ?= mainnet
 COVERAGE ?= coverage.txt
 BUILDDIR ?= $(CURDIR)/build
 LEDGER_ENABLED ?= true
+GRAVITY_ENABLED ?= true
 
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=cronos \
 	-X github.com/cosmos/cosmos-sdk/version.AppName=cronosd \
@@ -53,11 +54,15 @@ ifeq ($(LEDGER_ENABLED),true)
     endif
 endif
 
+ifeq ($(GRAVITY_ENABLED),false)
+    BUILD_TAGS := $(BUILD_TAGS),nogravity
+endif
+
 all: build
-build: check-network print-ledger go.sum
+build: check-network print-ledger print-gravity go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
-install: check-network print-ledger go.sum
+install: check-network print-ledger print-gravity go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) $(BUILD_TAGS) ./cmd/cronosd
 
 test:
@@ -238,6 +243,11 @@ endif
 print-ledger:
 ifeq ($(LEDGER_ENABLED),true)
 	@echo "building with ledger support"
+endif
+
+print-gravity:
+ifeq ($(GRAVITY_ENABLED),true)
+	@echo "building with gravity"
 endif
 
 ###############################################################################
