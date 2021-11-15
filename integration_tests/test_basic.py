@@ -5,7 +5,18 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 
-from .utils import ADDRS, KEYS, deploy_contract, send_transaction
+from .utils import (
+    ADDRS,
+    KEYS,
+    deploy_contract,
+    send_transaction,
+    wait_for_block,
+    wait_for_port,
+    Greeter,
+)
+
+from pystarport import cluster, ports
+import web3
 
 
 def test_basic(cluster):
@@ -101,3 +112,114 @@ def test_native_call(cronos):
     )
     receipt = w3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 0, "should fail"
+
+
+def test_statesync(cronos):
+    ## cronos fixture
+    # Load cronos-devnet.yaml
+    # Spawn pystarport with the yaml, port 26650 (multiple nodes will be created based on `validators`)
+    # Return a Cronos object (Defined in network.py)
+    w3 = cronos.w3
+
+    ## do some transactions
+    # DEPRECATED: Do a tx bank transaction
+    # from_addr = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
+    # to_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
+    # coins = "10basetcro"
+    # node = cronos.node_rpc(0)
+    # txhash_0 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"]
+
+    # Do an ethereum transfer
+    tx_value = 10000
+    gas_price = w3.eth.gas_price
+    initial_balance = 10000000000000000000000
+    tx = {"to": ADDRS["community"], "value": tx_value, "gasPrice": gas_price}
+    txhash_0 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
+
+    # Deploy greeter contract
+    greeter = Greeter(KEYS["validator"])
+    txhash_1 = greeter.deploy(w3)
+
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + tx_value
+
+    # Wait 5 more block (sometimes not enough blocks can not work)
+    wait_for_block(
+        cronos.cosmos_cli(0),
+        int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 5,
+    )
+
+    # Check the transactions are added
+    # assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0 # DEPRECATED
+    assert w3.eth.get_transaction(txhash_0) != None
+    assert w3.eth.get_transaction(txhash_1) != None
+
+    ## add a new state sync node, sync
+    # We can not use the cronos fixture to do statesync, since they are full nodes.
+    # We can only create a new node with statesync config
+    data = Path(cronos.base_dir).parent  # Same data dir as cronos fixture
+    chain_id = cronos.config["chain_id"]  # Same chain_id as cronos fixture
+    cmd = "cronosd"
+    # create a clustercli object from ClusterCLI class
+    clustercli = cluster.ClusterCLI(data, cmd=cmd, chain_id=chain_id)
+    # create a new node with statesync enabled
+    i = clustercli.create_node(moniker="statesync", statesync=True)
+    # Modify the json-rpc addresses to avoid conflict
+    cluster.edit_app_cfg(
+        clustercli.home(i) / "config/app.toml",
+        clustercli.base_port(i),
+        {
+            "json-rpc": {
+                "address": "0.0.0.0:{EVMRPC_PORT}",
+                "ws-address": "0.0.0.0:{EVMRPC_PORT_WS}",
+            }
+        },
+    )
+    clustercli.supervisor.startProcess(f"{clustercli.chain_id}-node{i}")
+    # Wait 1 more block
+    wait_for_block(
+        clustercli.cosmos_cli(i),
+        int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1,
+    )
+
+    ## check query chain state works
+    assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
+
+    ## check query old transaction does't work
+    # Get we3 provider
+    base_port = ports.evmrpc_port(clustercli.base_port(i))
+    print("json-rpc port:", base_port)
+    wait_for_port(base_port)
+    statesync_w3 = web3.Web3(
+        web3.providers.HTTPProvider(f"http://localhost:{base_port}")
+    )
+    with pytest.raises(web3.exceptions.TransactionNotFound):
+        # clustercli.cosmos_cli(i).query_tx("hash", txhash_0) # DEPRECATED
+        statesync_w3.eth.get_transaction(txhash_0)
+
+    with pytest.raises(web3.exceptions.TransactionNotFound):
+        statesync_w3.eth.get_transaction(txhash_1)
+
+    ## execute new transactions
+    # output = clustercli.cosmos_cli(0).transfer(from_addr, to_addr, coins) # this would have problem!
+    # txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"] # DEPRECATED
+    txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
+    txhash_3 = greeter.call_contact(w3)
+    # Wait 1 more block
+    wait_for_block(
+        clustercli.cosmos_cli(i),
+        int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1,
+    )
+
+    ## check query chain state works
+    assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
+
+    ## check query new transaction works
+    # assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2 # DEPRECATED
+    assert statesync_w3.eth.get_transaction(txhash_2) != None
+    assert statesync_w3.eth.get_transaction(txhash_3) != None
+    assert (
+        statesync_w3.eth.get_balance(ADDRS["community"])
+        == initial_balance + tx_value + tx_value
+    )
+
+    print("succesfully syncing")

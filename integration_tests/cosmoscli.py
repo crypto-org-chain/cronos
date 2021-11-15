@@ -157,6 +157,19 @@ class CosmosCLI:
         denoms = {coin["denom"]: int(coin["amount"]) for coin in self.balances(addr)}
         return denoms.get(denom, 0)
 
+    def query_tx(self, tx_type, tx_value):
+        tx = self.raw(
+            "query",
+            "tx",
+            "--type",
+            tx_type,
+            tx_value,
+            home=self.data_dir,
+            chain_id=self.chain_id,
+            node=self.node_rpc,
+        )
+        return json.loads(tx)
+
     def query_all_txs(self, addr):
         txs = self.raw(
             "query",
