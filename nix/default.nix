@@ -1,4 +1,4 @@
-{ sources ? import ./sources.nix, system ? builtins.currentSystem }:
+{ sources ? import ./sources.nix, system ? builtins.currentSystem, ... }:
 
 import sources.nixpkgs {
   overlays = [

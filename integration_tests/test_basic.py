@@ -1,22 +1,21 @@
 from pathlib import Path
 
 import pytest
+import web3
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
+from pystarport import cluster, ports
 
 from .utils import (
     ADDRS,
     KEYS,
+    Greeter,
     deploy_contract,
     send_transaction,
     wait_for_block,
     wait_for_port,
-    Greeter,
 )
-
-from pystarport import cluster, ports
-import web3
 
 
 def test_basic(cluster):
@@ -115,13 +114,14 @@ def test_native_call(cronos):
 
 
 def test_statesync(cronos):
-    ## cronos fixture
+    # cronos fixture
     # Load cronos-devnet.yaml
-    # Spawn pystarport with the yaml, port 26650 (multiple nodes will be created based on `validators`)
+    # Spawn pystarport with the yaml, port 26650
+    # (multiple nodes will be created based on `validators`)
     # Return a Cronos object (Defined in network.py)
     w3 = cronos.w3
 
-    ## do some transactions
+    # do some transactions
     # DEPRECATED: Do a tx bank transaction
     # from_addr = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
     # to_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
@@ -149,11 +149,10 @@ def test_statesync(cronos):
     )
 
     # Check the transactions are added
-    # assert cronos.cosmos_cli(0).query_tx("hash", txhash_0)["txhash"] == txhash_0 # DEPRECATED
-    assert w3.eth.get_transaction(txhash_0) != None
-    assert w3.eth.get_transaction(txhash_1) != None
+    assert w3.eth.get_transaction(txhash_0) is not None
+    assert w3.eth.get_transaction(txhash_1) is not None
 
-    ## add a new state sync node, sync
+    # add a new state sync node, sync
     # We can not use the cronos fixture to do statesync, since they are full nodes.
     # We can only create a new node with statesync config
     data = Path(cronos.base_dir).parent  # Same data dir as cronos fixture
@@ -181,10 +180,10 @@ def test_statesync(cronos):
         int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1,
     )
 
-    ## check query chain state works
-    assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
+    # check query chain state works
+    assert not clustercli.status(i)["SyncInfo"]["catching_up"]
 
-    ## check query old transaction does't work
+    # check query old transaction does't work
     # Get we3 provider
     base_port = ports.evmrpc_port(clustercli.base_port(i))
     print("json-rpc port:", base_port)
@@ -193,15 +192,12 @@ def test_statesync(cronos):
         web3.providers.HTTPProvider(f"http://localhost:{base_port}")
     )
     with pytest.raises(web3.exceptions.TransactionNotFound):
-        # clustercli.cosmos_cli(i).query_tx("hash", txhash_0) # DEPRECATED
         statesync_w3.eth.get_transaction(txhash_0)
 
     with pytest.raises(web3.exceptions.TransactionNotFound):
         statesync_w3.eth.get_transaction(txhash_1)
 
-    ## execute new transactions
-    # output = clustercli.cosmos_cli(0).transfer(from_addr, to_addr, coins) # this would have problem!
-    # txhash_2 = cronos.cosmos_cli(0).transfer(from_addr, to_addr, coins)["txhash"] # DEPRECATED
+    # execute new transactions
     txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
     txhash_3 = greeter.call_contact(w3)
     # Wait 1 more block
@@ -210,13 +206,12 @@ def test_statesync(cronos):
         int(cronos.cosmos_cli(0).status()["SyncInfo"]["latest_block_height"]) + 1,
     )
 
-    ## check query chain state works
-    assert clustercli.status(i)["SyncInfo"]["catching_up"] == False
+    # check query chain state works
+    assert not clustercli.status(i)["SyncInfo"]["catching_up"]
 
-    ## check query new transaction works
-    # assert clustercli.cosmos_cli(i).query_tx("hash", txhash_2)["txhash"] == txhash_2 # DEPRECATED
-    assert statesync_w3.eth.get_transaction(txhash_2) != None
-    assert statesync_w3.eth.get_transaction(txhash_3) != None
+    # check query new transaction works
+    assert statesync_w3.eth.get_transaction(txhash_2) is not None
+    assert statesync_w3.eth.get_transaction(txhash_3) is not None
     assert (
         statesync_w3.eth.get_balance(ADDRS["community"])
         == initial_balance + tx_value + tx_value
