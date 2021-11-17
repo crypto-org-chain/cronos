@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+*November 19, 2021*
+
+## v0.6.2
+
+### Bug Fixes
+- [tharsis#720](https://github.com/tharsis/ethermint/pull/720) traceTransaction fails for succesful tx
+- [tharsis#743](https://github.com/tharsis/ethermint/pull/743) missing debug_tranceBlockByHash RPC method and fix debug_traceBlock*
+- [tharsis#746](https://github.com/tharsis/ethermint/pull/746) set debug based on tracer
+- [tharsis#741](https://github.com/tharsis/ethermint/pull/741) filter non eth txs in block rpc response
+- [crypto-org-chain/ethermint#12](https://github.com/crypto-org-chain/ethermint/pull/12) reject tx with too large gas limit
+
+
 *October 26, 2021*
 
 ## v0.6.1
