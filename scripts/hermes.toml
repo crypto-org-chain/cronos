@@ -2,6 +2,11 @@
 strategy = 'packets'
 log_level = 'error'
 
+[rest]
+enabled = true
+host    = '127.0.0.1'
+port    = 3000
+
 [[chains]]
 id = 'chainmain-1'
 rpc_addr = 'http://127.0.0.1:26807'

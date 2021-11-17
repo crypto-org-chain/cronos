@@ -1,11 +1,12 @@
 import json
-import os
 import time
 from pathlib import Path
 
 import pytest
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
+import subprocess
+from .utils import wait_for_port
 
 
 @pytest.fixture(scope="module")
@@ -23,20 +24,11 @@ def chainmain(tmp_path_factory):
 @pytest.fixture(scope="module")
 def hermes(tmp_path_factory):
     time.sleep(20)
-    yield from setup_hermes(tmp_path_factory.mktemp("hermes"), 26900)
+    yield from setup_hermes(tmp_path_factory.mktemp("hermes"))
 
 
 def get_balance(chain, addr, denom):
-    output = chain.cosmos_cli(0).raw(
-        "query",
-        "bank",
-        "balances",
-        addr,
-        node=chain.node_rpc(0),
-        output="json",
-    )
-    c = json.loads(output.decode())
-    coins = c["balances"]
+    coins = chain.cosmos_cli(0).balances(addr)
     for coin in coins:
         if coin["denom"] == denom:
             value = int(coin["amount"])
@@ -46,7 +38,13 @@ def get_balance(chain, addr, denom):
 
 def test_ibc(cronos, chainmain, hermes):
     # wait for hermes
-    time.sleep(20)
+    hermes_rest_port = 3000
+    wait_for_port(hermes_rest_port)
+    output = subprocess.getoutput(
+        f"curl -s -X GET 'http://127.0.0.1:{hermes_rest_port}/state' | jq"
+    )
+    assert json.loads(output)["status"] == "success"
+
     my_ibc0 = "chainmain-1"
     my_ibc1 = "cronos_777-1"
     my_channel = "channel-0"
@@ -61,7 +59,7 @@ def test_ibc(cronos, chainmain, hermes):
     cmd = f"hermes -c {my_config} tx raw ft-transfer \
     {my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} \
     -o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k testkey"
-    os.popen(cmd)
+    _ = subprocess.getoutput(cmd)
     dstaddr = f"{coin_receiver}"
     olddstbalance = get_balance(cronos, dstaddr, dst_denom)
     time.sleep(5)
@@ -71,6 +69,14 @@ def test_ibc(cronos, chainmain, hermes):
 
 
 def test_ibc_reverse(cronos, chainmain, hermes):
+    # wait for hermes
+    hermes_rest_port = 3000
+    wait_for_port(hermes_rest_port)
+    output = subprocess.getoutput(
+        f"curl -s -X GET 'http://127.0.0.1:{hermes_rest_port}/state' | jq"
+    )
+    assert json.loads(output)["status"] == "success"
+
     # wait for hermes
     my_ibc0 = "chainmain-1"
     my_ibc1 = "cronos_777-1"
@@ -87,7 +93,7 @@ def test_ibc_reverse(cronos, chainmain, hermes):
     cmd = f"hermes -c {my_config} tx raw ft-transfer \
     {my_ibc0} {my_ibc1} transfer {my_channel} {src_amount} \
     -o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k testkey"
-    os.popen(cmd)
+    _ = subprocess.getoutput(cmd)
     dstaddr = f"{coin_receiver}"
     olddstbalance = get_balance(chainmain, dstaddr, dst_denom)
     time.sleep(5)
@@ -119,7 +125,7 @@ belt veteran siren poem alcohol menu custom crunch index"
     bytecode = contract_json["bytecode"]
     abi = contract_json["abi"]
 
-    web3api.eth.defaultAccount = account
+    web3api.eth.default_account = account
     # deploy
     greeter_contract_class = web3api.eth.contract(abi=abi, bytecode=bytecode)
     nonce = web3api.eth.get_transaction_count(account.address)
