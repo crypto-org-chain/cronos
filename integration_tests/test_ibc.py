@@ -98,7 +98,7 @@ def test_ibc_reverse(cronos, chainmain, hermes):
 
 def test_contract(cronos, chainmain, hermes):
     cronos_chainid = 777
-    cronos_gas = 3000000000
+    cronos_gas = 1000000
     cronos_mnemonics = "night renew tonight dinner shaft scheme \
 domain oppose echo summer broccoli agent face guitar surface \
 belt veteran siren poem alcohol menu custom crunch index"
