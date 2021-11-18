@@ -6,6 +6,13 @@ parent:
 <div align="center">
   <h1> <img src="./assets/cronos.svg" alt="Cronos Logo" width="300px" /> </h1>
 </div>
+<br />
+
+<p align="center">
+  <a href="https://github.com/crypto-org-chain/cronos/actions/workflows/build.yml"><img label="Build Status" src="https://github.com/crypto-org-chain/cronos/actions/workflows/build.yml/badge.svg" /></a>
+  <a href="https://codecov.io/gh/crypto-org-chain/cronos"><img label="Code Coverage" src="https://codecov.io/gh/crypto-org-chain/cronos/branch/main/graph/badge.svg" /></a>
+  <a href="https://discord.gg/pahqHz26q4"><img label="Discord" src="https://img.shields.io/discord/783264383978569728.svg?color=7289da&label=Cronos&logo=discord&style=flat-square" /></a>
+</p>
 
 ## Table of Contents
 
