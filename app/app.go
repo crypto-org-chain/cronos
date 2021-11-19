@@ -375,7 +375,7 @@ func New(
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, stakingKeeper,
-		tracer, bApp.Trace(), // debug EVM based on Baseapp options
+		tracer,
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
