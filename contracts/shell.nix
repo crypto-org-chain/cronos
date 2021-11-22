@@ -3,7 +3,6 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.jq
     pkgs.dapp
-    pkgs.solc-static-versions.solc_0_6_11
+    pkgs.solc-versions.solc_0_6_8
   ];
 }
-
