@@ -54,7 +54,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	require.NoError(t, err)
 	consAddress := sdk.ConsAddress(priv.PubKey().Address())
 
-	suite.app = app.Setup(checkTx, sdk.AccAddress(suite.address.Bytes()).String())
+	suite.app = app.Setup(checkTx, sdk.AccAddress(suite.address.Bytes()).String(), true)
 	suite.ctx = suite.app.NewContext(checkTx, tmproto.Header{
 		Height:          1,
 		ChainID:         app.TestAppChainID,
