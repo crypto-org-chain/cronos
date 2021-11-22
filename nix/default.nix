@@ -11,7 +11,7 @@ let
 in
 import sources.nixpkgs {
   overlays = [
-    (_: pkgs: dapptools)  # use released version to hit the binary cache
+    (_: pkgs: dapptools) # use released version to hit the binary cache
     (import (sources.gomod2nix + "/overlay.nix"))
     (import (sources.poetry2nix + "/overlay.nix"))
     (_: pkgs: {
