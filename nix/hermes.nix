@@ -14,7 +14,8 @@ let
     };
   }.${pkgs.stdenv.system} or (throw
     "Unsupported system: ${pkgs.stdenv.system}");
-in pkgs.stdenv.mkDerivation {
+in
+pkgs.stdenv.mkDerivation {
   name = "hermes";
   inherit version;
   src = pkgs.fetchurl srcUrl;

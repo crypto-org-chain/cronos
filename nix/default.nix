@@ -8,7 +8,8 @@ let
       (import (sources.dapptools + "/release.nix") { }).dapphub.darwin.stable;
   }.${system} or (throw
     "Unsupported system: ${system}");
-in import sources.nixpkgs {
+in
+import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools)
     (import (sources.gomod2nix + "/overlay.nix"))
