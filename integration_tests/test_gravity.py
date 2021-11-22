@@ -8,9 +8,8 @@ from eth_account.account import Account
 from hexbytes import HexBytes
 from pystarport import ports
 
-from .conftest import setup_cronos, setup_geth
 from .gorc import GoRc
-from .network import GravityBridge
+from .network import GravityBridge, setup_cronos_experimental, setup_geth
 from .utils import (
     ADDRS,
     KEYS,
@@ -85,7 +84,9 @@ def geth(tmp_path_factory):
 @pytest.fixture(scope="module", params=[True, False])
 def cronos(request, tmp_path_factory):
     "start-cronos"
-    yield from setup_cronos(tmp_path_factory.mktemp("cronos"), 26700, request.param)
+    yield from setup_cronos_experimental(
+        tmp_path_factory.mktemp("cronos_experimental"), 26700, request.param
+    )
 
 
 @pytest.fixture(scope="module")
