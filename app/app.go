@@ -1,5 +1,3 @@
-// +build !nogravity
-
 package app
 
 import (
@@ -109,7 +107,7 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
-	cronos "github.com/crypto-org-chain/cronos/x/cronos"
+	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -281,25 +279,44 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
+	experimental := cast.ToBool(appOpts.Get(cronos.ExperimentalFlag))
+
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	keys := sdk.NewKVStoreKeys(
-		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		feegrant.StoreKey, authzkeeper.StoreKey,
-		// ibc keys
-		ibchost.StoreKey, ibctransfertypes.StoreKey,
-		// ethermint keys
-		evmtypes.StoreKey,
-		gravitytypes.StoreKey,
-		// this line is used by starport scaffolding # stargate/app/storeKey
-		cronostypes.StoreKey,
-	)
+	var keys map[string]*sdk.KVStoreKey
+	if experimental {
+		keys = sdk.NewKVStoreKeys(
+			authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+			govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
+			evidencetypes.StoreKey, capabilitytypes.StoreKey,
+			feegrant.StoreKey, authzkeeper.StoreKey,
+			// ibc keys
+			ibchost.StoreKey, ibctransfertypes.StoreKey,
+			// ethermint keys
+			evmtypes.StoreKey,
+			gravitytypes.StoreKey,
+			// this line is used by starport scaffolding # stargate/app/storeKey
+			cronostypes.StoreKey,
+		)
+	} else {
+		keys = sdk.NewKVStoreKeys(
+			authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+			govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
+			evidencetypes.StoreKey, capabilitytypes.StoreKey,
+			feegrant.StoreKey, authzkeeper.StoreKey,
+			// ibc keys
+			ibchost.StoreKey, ibctransfertypes.StoreKey,
+			// ethermint keys
+			evmtypes.StoreKey,
+			// this line is used by starport scaffolding # stargate/app/storeKey
+			cronostypes.StoreKey,
+		)
+	}
 
 	// Add the EVM transient store key
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey)
@@ -316,7 +333,7 @@ func New(
 		memKeys:           memKeys,
 	}
 
-	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
+	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey], experimental)
 
 	// set the BaseApp's parameter store
 	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramskeeper.ConsensusParamsKeyTable()))
@@ -390,16 +407,19 @@ func New(
 		tracer,
 	)
 
-	gravityKeeper := gravitykeeper.NewKeeper(
-		appCodec,
-		keys[gravitytypes.StoreKey],
-		app.GetSubspace(gravitytypes.ModuleName),
-		app.AccountKeeper,
-		stakingKeeper,
-		app.BankKeeper,
-		app.SlashingKeeper,
-		sdk.DefaultPowerReduction,
-	)
+	var gravityKeeper gravitykeeper.Keeper
+	if experimental {
+		gravityKeeper = gravitykeeper.NewKeeper(
+			appCodec,
+			keys[gravitytypes.StoreKey],
+			app.GetSubspace(gravitytypes.ModuleName),
+			app.AccountKeeper,
+			stakingKeeper,
+			app.BankKeeper,
+			app.SlashingKeeper,
+			sdk.DefaultPowerReduction,
+		)
+	}
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
@@ -433,24 +453,37 @@ func New(
 		&stakingKeeper, govRouter,
 	)
 
-	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
+	var gravitySrv gravitytypes.MsgServer
+	if experimental {
+		app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
+		gravitySrv = gravitykeeper.NewMsgServerImpl(app.GravityKeeper)
+	}
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewSendToEthereumHandler(gravitykeeper.NewMsgServerImpl(app.GravityKeeper), app.CronosKeeper),
+		cronoskeeper.NewSendToEthereumHandler(gravitySrv, app.CronosKeeper),
 		cronoskeeper.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
 		cronoskeeper.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
 	))
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
-	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(
-			app.DistrKeeper.Hooks(),
-			app.SlashingKeeper.Hooks(),
-			app.GravityKeeper.Hooks(),
-		),
-	)
+	if experimental {
+		app.StakingKeeper = *stakingKeeper.SetHooks(
+			stakingtypes.NewMultiStakingHooks(
+				app.DistrKeeper.Hooks(),
+				app.SlashingKeeper.Hooks(),
+				app.GravityKeeper.Hooks(),
+			),
+		)
+	} else {
+		app.StakingKeeper = *stakingKeeper.SetHooks(
+			stakingtypes.NewMultiStakingHooks(
+				app.DistrKeeper.Hooks(),
+				app.SlashingKeeper.Hooks(),
+			),
+		)
+	}
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
@@ -467,80 +500,148 @@ func New(
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
 
-	app.mm = module.NewManager(
-		genutil.NewAppModule(
-			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
-			encodingConfig.TxConfig,
-		),
-		auth.NewAppModule(appCodec, app.AccountKeeper, nil),
-		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
-		capability.NewAppModule(appCodec, *app.CapabilityKeeper),
-		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-		gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
-		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-		upgrade.NewAppModule(app.UpgradeKeeper),
-		evidence.NewAppModule(app.EvidenceKeeper),
-		ibc.NewAppModule(app.IBCKeeper),
-		params.NewAppModule(app.ParamsKeeper),
-		feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+	if experimental {
+		app.mm = module.NewManager(
+			genutil.NewAppModule(
+				app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
+				encodingConfig.TxConfig,
+			),
+			auth.NewAppModule(appCodec, app.AccountKeeper, nil),
+			vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
+			bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
+			capability.NewAppModule(appCodec, *app.CapabilityKeeper),
+			crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
+			gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+			mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
+			slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+			upgrade.NewAppModule(app.UpgradeKeeper),
+			evidence.NewAppModule(app.EvidenceKeeper),
+			ibc.NewAppModule(app.IBCKeeper),
+			params.NewAppModule(app.ParamsKeeper),
+			feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
+			authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 
-		transferModule,
-		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-		gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
-		// this line is used by starport scaffolding # stargate/app/appModule
-		cronosModule,
-	)
+			transferModule,
+			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
+			// this line is used by starport scaffolding # stargate/app/appModule
+			cronosModule,
+		)
+	} else {
+		app.mm = module.NewManager(
+			genutil.NewAppModule(
+				app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
+				encodingConfig.TxConfig,
+			),
+			auth.NewAppModule(appCodec, app.AccountKeeper, nil),
+			vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
+			bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
+			capability.NewAppModule(appCodec, *app.CapabilityKeeper),
+			crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
+			gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+			mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
+			slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+			staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+			upgrade.NewAppModule(app.UpgradeKeeper),
+			evidence.NewAppModule(app.EvidenceKeeper),
+			ibc.NewAppModule(app.IBCKeeper),
+			params.NewAppModule(app.ParamsKeeper),
+			feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
+			authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+
+			transferModule,
+			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+			// this line is used by starport scaffolding # stargate/app/appModule
+			cronosModule,
+		)
+	}
 
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	app.mm.SetOrderBeginBlockers(
-		upgradetypes.ModuleName,
-		capabilitytypes.ModuleName,
-		evmtypes.ModuleName,
-		minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
-		evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
-		gravitytypes.ModuleName,
-	)
+	if experimental {
+		app.mm.SetOrderBeginBlockers(
+			upgradetypes.ModuleName,
+			capabilitytypes.ModuleName,
+			evmtypes.ModuleName,
+			minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
+			evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
+			gravitytypes.ModuleName,
+		)
 
-	app.mm.SetOrderEndBlockers(
-		crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
-		evmtypes.ModuleName,
-		gravitytypes.ModuleName,
-	)
+		app.mm.SetOrderEndBlockers(
+			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
+			evmtypes.ModuleName,
+			gravitytypes.ModuleName,
+		)
+	} else {
+		app.mm.SetOrderBeginBlockers(
+			upgradetypes.ModuleName,
+			capabilitytypes.ModuleName,
+			evmtypes.ModuleName,
+			minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
+			evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
+		)
+
+		app.mm.SetOrderEndBlockers(
+			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
+			evmtypes.ModuleName,
+		)
+	}
 
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
 	// NOTE: Capability module must occur first so that it can initialize any capabilities
 	// so that other modules that want to create or claim capabilities afterwards in InitChain
 	// can do so safely.
-	app.mm.SetOrderInitGenesis(
-		capabilitytypes.ModuleName,
-		authtypes.ModuleName,
-		banktypes.ModuleName,
-		distrtypes.ModuleName,
-		stakingtypes.ModuleName,
-		slashingtypes.ModuleName,
-		govtypes.ModuleName,
-		minttypes.ModuleName,
-		crisistypes.ModuleName,
-		ibchost.ModuleName,
-		genutiltypes.ModuleName,
-		evidencetypes.ModuleName,
-		ibctransfertypes.ModuleName,
-		authz.ModuleName,
-		feegrant.ModuleName,
-		evmtypes.ModuleName,
-		gravitytypes.ModuleName,
-		// this line is used by starport scaffolding # stargate/app/initGenesis
-		cronostypes.ModuleName,
-	)
+	if experimental {
+		app.mm.SetOrderInitGenesis(
+			capabilitytypes.ModuleName,
+			authtypes.ModuleName,
+			banktypes.ModuleName,
+			distrtypes.ModuleName,
+			stakingtypes.ModuleName,
+			slashingtypes.ModuleName,
+			govtypes.ModuleName,
+			minttypes.ModuleName,
+			crisistypes.ModuleName,
+			ibchost.ModuleName,
+			genutiltypes.ModuleName,
+			evidencetypes.ModuleName,
+			ibctransfertypes.ModuleName,
+			authz.ModuleName,
+			feegrant.ModuleName,
+			evmtypes.ModuleName,
+			gravitytypes.ModuleName,
+			// this line is used by starport scaffolding # stargate/app/initGenesis
+			cronostypes.ModuleName,
+		)
+	} else {
+		app.mm.SetOrderInitGenesis(
+			capabilitytypes.ModuleName,
+			authtypes.ModuleName,
+			banktypes.ModuleName,
+			distrtypes.ModuleName,
+			stakingtypes.ModuleName,
+			slashingtypes.ModuleName,
+			govtypes.ModuleName,
+			minttypes.ModuleName,
+			crisistypes.ModuleName,
+			ibchost.ModuleName,
+			genutiltypes.ModuleName,
+			evidencetypes.ModuleName,
+			ibctransfertypes.ModuleName,
+			authz.ModuleName,
+			feegrant.ModuleName,
+			evmtypes.ModuleName,
+			// this line is used by starport scaffolding # stargate/app/initGenesis
+			cronostypes.ModuleName,
+		)
+	}
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
@@ -752,7 +853,7 @@ func GetMaccPerms() map[string][]string {
 }
 
 // initParamsKeeper init params keeper and its subspaces
-func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey sdk.StoreKey) paramskeeper.Keeper {
+func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey sdk.StoreKey, experimental bool) paramskeeper.Keeper {
 	paramsKeeper := paramskeeper.NewKeeper(appCodec, legacyAmino, key, tkey)
 
 	paramsKeeper.Subspace(authtypes.ModuleName)
@@ -766,7 +867,9 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName)
-	paramsKeeper.Subspace(gravitytypes.ModuleName)
+	if experimental {
+		paramsKeeper.Subspace(gravitytypes.ModuleName)
+	}
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(cronostypes.ModuleName)
 
