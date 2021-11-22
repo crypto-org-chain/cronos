@@ -1,9 +1,9 @@
 import json
+import subprocess
 import time
 from pathlib import Path
 
 import pytest
-import subprocess
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
 from .utils import wait_for_port
