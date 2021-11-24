@@ -219,7 +219,7 @@ run-integration-tests:
 
 test-cronos-contracts:
 	@git submodule update --init --recursive
-	@nix-shell ./contracts/shell.nix --pure --run "make -C contracts test"
+	@nix-shell ./contracts/shell.nix --pure --run ./scripts/test-cronos-contracts
 
 gen-cronos-contracts:
 	@git submodule update --init --recursive

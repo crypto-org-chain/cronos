@@ -107,8 +107,8 @@ def setup_chainmain(path, base_port):
         proc.wait()
 
 
-def setup_hermes(path, base_port):
-    cmd = ["start-hermes", path, "--base_port", str(base_port)]
+def setup_hermes(path):
+    cmd = ["start-hermes", path]
     proc = subprocess.Popen(
         cmd,
         preexec_fn=os.setsid,

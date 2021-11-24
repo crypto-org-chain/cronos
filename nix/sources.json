@@ -5,12 +5,12 @@
         "homepage": "https://dapp.tools",
         "owner": "dapphub",
         "repo": "dapptools",
-        "rev": "60d61f24d3d43b45a30abab7970dae9e31b20ae3",
-        "sha256": "139aq7qc1zlpilj04mz191b8jgb6misliv10mkqxc9shqdm8ymw0",
+        "rev": "fb9476ded759da44c449eb391cc67bfb0df61112",
+        "sha256": "1aan8mq7mbj90hfblha92wynvxyckrlwsnq7av4mqms574fmq842",
         "type": "tarball",
-        "url": "https://github.com/dapphub/dapptools/archive/refs/tags/dapp/0.33.0.tar.gz",
-        "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/dapp/0.33.0.tar.gz",
-        "version": "dapp/0.33.0"
+        "url": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
+        "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
+        "version": "hevm/0.49.0"
     },
     "gomod2nix": {
         "branch": "master",
