@@ -3840,6 +3840,14 @@
     rev = "3ce08c8af46b7bc33a06efc9b8807c08806c8af2"
     sha256 = "08mnyf1yb6zjqfzs1pdh44drv390lfilhh4vi4asnjk52gknqfn0"
 
+["github.com/palantir/stacktrace"]
+  sumVersion = "v0.0.0-20161112013806-78658fd2d177"
+  ["github.com/palantir/stacktrace".fetch]
+    type = "git"
+    url = "https://github.com/palantir/stacktrace"
+    rev = "78658fd2d1772b755720ed8c44367d11ee5380d6"
+    sha256 = "1322v09p008yxyk76drci9hz5xxqghgp2r7yp7wwn6xmmgyfvyf0"
+
 ["github.com/pascaldekloe/goe"]
   sumVersion = "v0.1.0"
   ["github.com/pascaldekloe/goe".fetch]
@@ -4629,13 +4637,13 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.7.2-cronos-3"
+  sumVersion = "v0.7.2-cronos-4"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "839e6b433980f26c5fc82dc959671587e5cb497f"
-    sha256 = "14r4hpzpq88vsyd0b1k5hvjk5g9q4rqlhd205zm2zv8idik7lig2"
+    rev = "82805507f7d2e83cad547736883dc22acfb52440"
+    sha256 = "01f9i8vq0jqml676wvh0kr9kxg7grqw7f64g1qd81pzm2n89k7pn"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
