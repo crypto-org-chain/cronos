@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Bug Fixes
+- [crypto-org-chain/ethermint#19](https://github.com/crypto-org-chain/ethermint/pull/19) revert tharsis#786 because it contains consensus breaking changes
+
 *November 29, 2021*
 
 ## v0.6.3
@@ -14,6 +17,7 @@
 
 ### Improvements
 
+- [tharsis#786](https://github.com/tharsis/ethermint/pull/786) Improve error message of `SendTransaction`/`SendRawTransaction` JSON-RPC APIs.
 - [cronos#222](https://github.com/crypto-org-chain/cronos/pull/222) change solc 0.6.11 to 0.6.8 (from dapp cachix) and update hermes to 0.8.
 
 *November 19, 2021*
