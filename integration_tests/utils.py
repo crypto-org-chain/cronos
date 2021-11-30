@@ -17,15 +17,18 @@ import rlp
 import toml
 import yaml
 from dateutil.parser import isoparse
+from dotenv import load_dotenv
 from eth_account import Account
 from hexbytes import HexBytes
 from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
+load_dotenv("../scripts/.env")
+
 KEYS = {
-    "validator": "826E479F5385C8C32CD96B0C0ACCDB8CC4FA5CACCC1BE54C1E3AA4D676A6EFF5",
-    "community": "5D665FBD2FB40CB8E9849263B04457BA46D5F948972D0FE4C1F19B6B0F243574",
+    "validator": os.getenv("VALIDATOR_KEY"),
+    "community": os.getenv("COMMUNITY_KEY"),
 }
 ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"

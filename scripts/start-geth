@@ -20,18 +20,18 @@ pwdfile=$(mktemp /tmp/password.XXXXXX)
 tmpfile=$(mktemp /tmp/validator-key.XXXXXX)
 
 cat > $pwdfile << EOF
-123456
+$PASSWORD
 EOF
 
 # import validator key
 cat > $tmpfile << EOF
-826E479F5385C8C32CD96B0C0ACCDB8CC4FA5CACCC1BE54C1E3AA4D676A6EFF5
+$VALIDATOR_KEY
 EOF
 geth --datadir $DATA account import $tmpfile --password $pwdfile
 
 # import community key
 cat > $tmpfile << EOF
-5D665FBD2FB40CB8E9849263B04457BA46D5F948972D0FE4C1F19B6B0F243574
+$COMMUNITY_KEY
 EOF
 geth --datadir $DATA account import $tmpfile --password $pwdfile
 

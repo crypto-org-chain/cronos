@@ -1,3 +1,4 @@
+dotenv: .env
 cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
@@ -9,21 +10,21 @@ cronos_777-1:
   validators:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
+      mnemonic: ${VALIDATOR1_MNEMONIC}
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
+      mnemonic: ${VALIDATOR2_MNEMONIC}
   accounts:
     - name: community
       coins: 10000000000000000000000basetcro
-      mnemonic: "notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate"
+      mnemonic: ${COMMUNITY_MNEMONIC}
     - name: signer1
       coins: 20000000000000000000000basetcro
-      mnemonic: shed crumble dismiss loyal latin million oblige gesture shrug still oxygen custom remove ribbon disorder palace addict again blanket sad flock consider obey popular
+      mnemonic: ${SIGNER1_MNEMONIC}
     - name: signer2
       coins: 30000000000000000000000basetcro
-      mnemonic: night renew tonight dinner shaft scheme domain oppose echo summer broccoli agent face guitar surface belt veteran siren poem alcohol menu custom crunch index
-  
+      mnemonic: ${SIGNER2_MNEMONIC}
+
   genesis:
     consensus_params:
       block:
@@ -35,9 +36,9 @@ cronos_777-1:
           evm_denom: basetcro
       cronos:
         params:
-          cronos_admin: crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp
+          cronos_admin: ${CRONOS_ADMIN}
           enable_auto_deployment: true
-          ibc_cro_denom: ibc/6411AE2ADA1E73DB59DB151A8988F9B7D5E7E233D8414DB6817F8F1A01611F86
+          ibc_cro_denom: ${IBC_CRO_DENOM}
       gov:
         voting_params:
           voting_period: "10s"
