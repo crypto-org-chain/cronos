@@ -24,10 +24,11 @@ import sources.nixpkgs {
       import ./scripts.nix {
         inherit pkgs;
         config = {
-          chainmain-config = ../scripts/chainmain-devnet.yaml;
-          cronos-config = ../scripts/cronos-devnet.yaml;
-          hermes-config = ../scripts/hermes.toml;
-          geth-genesis = ../scripts/geth-genesis.json;
+          chainmain-config = builtins.toString ../scripts/chainmain-devnet.yaml;
+          cronos-config = builtins.toString ../scripts/cronos-devnet.yaml;
+          hermes-config = builtins.toString ../scripts/hermes.toml;
+          geth-genesis = builtins.toString ../scripts/geth-genesis.json;
+          dotenv = builtins.path { name = "dotenv"; path = ../scripts/.env; };
         };
       })
     (_: pkgs: {
