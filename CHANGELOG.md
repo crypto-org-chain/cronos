@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Bug Fixes
+- [crypto-org-chain/ethermint#19](https://github.com/crypto-org-chain/ethermint/pull/19) revert tharsis#786 because it contains consensus breaking changes
+
 *November 29, 2021*
 
 ## v0.6.3
