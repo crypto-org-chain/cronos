@@ -78,10 +78,10 @@
         "homepage": null,
         "owner": "damoncro",
         "repo": "pystarport",
-        "rev": "ee589d2f5f1b07807a0060920596a19efe0d99aa",
-        "sha256": "0wga1kk47saak43h13l9c2h3zp14zk2bjav5cyvnf1xylvxm1m8z",
+        "rev": "946d5e9eb462783d88b9b666f93e764966b2ee84",
+        "sha256": "1h4qs702q22sh2vc3fpbgwrhaaclj3i1c3pxzcsyc46v4yyjh991",
         "type": "tarball",
-        "url": "https://github.com/damoncro/pystarport/archive/ee589d2f5f1b07807a0060920596a19efe0d99aa.tar.gz",
+        "url": "https://github.com/damoncro/pystarport/archive/946d5e9eb462783d88b9b666f93e764966b2ee84.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
