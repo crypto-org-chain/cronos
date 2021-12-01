@@ -11,6 +11,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/peggyjv/gravity-bridge/module v0.2.0
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.2.1
@@ -165,3 +166,7 @@ replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethere
 replace github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.44.2
 
 replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-4
+
+// FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
+// https://github.com/crypto-org-chain/gravity-bridge/tree/cronos
+replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304

@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
 	"github.com/ethereum/go-ethereum/common"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 )
 
@@ -37,6 +38,12 @@ type TransferKeeper interface {
 // AccountKeeper defines the expected account keeper interface
 type AccountKeeper interface {
 	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
+}
+
+// GravityKeeper defines the expected gravity keeper interface
+type GravityKeeper interface {
+	ERC20ToDenomLookup(ctx sdk.Context, tokenContract string) (bool, string)
+	GetParams(ctx sdk.Context) (params gravitytypes.Params)
 }
 
 // EvmLogHandler defines the interface for evm log handler

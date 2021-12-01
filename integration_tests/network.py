@@ -91,6 +91,15 @@ def setup_cronos(path, base_port, enable_auto_deployment=True):
     yield from setup_custom_cronos(path, base_port, cfg)
 
 
+def setup_cronos_experimental(path, base_port, enable_auto_deployment=True):
+    cfg = Path(__file__).parent / (
+        "../scripts/cronos-experimental-devnet.yaml"
+        if enable_auto_deployment
+        else "configs/disable_auto_deployment.yaml"
+    )
+    yield from setup_custom_cronos(path, base_port, cfg)
+
+
 def setup_chainmain(path, base_port):
     cmd = ["start-chainmain", path, "--base_port", str(base_port)]
     print(*cmd)
