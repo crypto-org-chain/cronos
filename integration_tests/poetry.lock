@@ -743,7 +743,7 @@ tomlkit = "^0.7.0"
 type = "git"
 url = "https://github.com/damoncro/pystarport.git"
 reference = "feature/expansion"
-resolved_reference = "946d5e9eb462783d88b9b666f93e764966b2ee84"
+resolved_reference = "19fe003d2ee6e4309862d1cf5ab9fff24aefa45b"
 
 [[package]]
 name = "pytest"
