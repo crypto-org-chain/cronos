@@ -7,25 +7,26 @@ from pystarport.expansion import expand_yaml
 
 
 def test_expansion():
-    template_with_dotenv = Path(__file__).parent / "template_with_dotenv.yaml"
-    template_no_dotenv = Path(__file__).parent / "template_no_dotenv.yaml"
+    cronos_has_dotenv = Path(__file__).parent / "cronos_has_dotenv.yaml"
+    cronos_no_dotenv = Path(__file__).parent / "cronos_no_dotenv.yaml"
+    cronos_has_posix_no_dotenv = (
+        Path(__file__).parent / "cronos_has_posix_no_dotenv.yaml"
+    )
 
     # `expand_yaml` is backward compatible, not expanded, and no diff
-    assert yaml.safe_load(open(template_no_dotenv)) == expand_yaml(
-        template_no_dotenv, None
-    )
+    assert yaml.safe_load(open(cronos_no_dotenv)) == expand_yaml(cronos_no_dotenv, None)
 
     # `expand_yaml` is expanded but no diff
     assert not DeepDiff(
-        yaml.safe_load(open(template_no_dotenv)),
-        expand_yaml(template_with_dotenv, None),
+        yaml.safe_load(open(cronos_no_dotenv)),
+        expand_yaml(cronos_has_dotenv, None),
         ignore_order=True,
     )
 
     # overriding dotenv with relative path is expanded and has diff)
     assert DeepDiff(
-        yaml.safe_load(open(template_no_dotenv)),
-        expand_yaml(template_with_dotenv, ".env1"),
+        yaml.safe_load(open(cronos_no_dotenv)),
+        expand_yaml(cronos_has_dotenv, ".env1"),
         ignore_order=True,
     ) == {
         "values_changed": {
@@ -40,8 +41,8 @@ def test_expansion():
 
     # overriding dotenv with absolute path is expanded and has diff
     assert DeepDiff(
-        yaml.safe_load(open(template_no_dotenv)),
-        expand_yaml(template_with_dotenv, os.path.abspath("test_expansion/.env1")),
+        yaml.safe_load(open(cronos_no_dotenv)),
+        expand_yaml(cronos_has_dotenv, os.path.abspath("test_expansion/.env1")),
         ignore_order=True,
     ) == {
         "values_changed": {
@@ -53,3 +54,19 @@ def test_expansion():
             }
         }
     }
+
+    # overriding dotenv with absolute path is expanded and no diff
+    # If the `.env` changes, it may impact the test result
+    assert not DeepDiff(
+        yaml.safe_load(open(cronos_no_dotenv)),
+        expand_yaml(cronos_has_posix_no_dotenv, os.path.abspath("../scripts/.env")),
+        ignore_order=True,
+    )
+
+    # overriding dotenv with absolute path is expanded and no diff
+    # If the `.env` changes, it may impact the test result
+    assert not DeepDiff(
+        yaml.safe_load(open(cronos_no_dotenv)),
+        expand_yaml(cronos_has_dotenv, os.path.abspath("../scripts/.env")),
+        ignore_order=True,
+    )
