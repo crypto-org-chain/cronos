@@ -265,8 +265,6 @@ github.com/crypto-org-chain/ethermint v0.7.2-cronos-4 h1:NaCc0L5zN2u7B9WofmhJfur
 github.com/crypto-org-chain/ethermint v0.7.2-cronos-4/go.mod h1:J96LX4KvLyl+5jV6+mt/4l6srtGX/mdDTuqQQuYrdDk=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched h1:kr6oQIYOi2VC8SZwkhlUDZE1Omit/YHVysKMgCB2nes=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched/go.mod h1:99onQmSd1GRGOziyGldI41YQb7EESX3Q4H41IfJgIQQ=
-github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304 h1:5A6pzj5uQPQCCO96SqsCCoar/DfjOxIdadBHX3ncotU=
-github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304/go.mod h1:7sqblrhSS7+I94DDIWz98N2mcXR5hL7f+EaV054sBMQ=
 github.com/crypto-org-chain/ibc-go v1.2.1-hooks h1:wuWaQqm/TFKJQwuFgjCPiPumQio+Yik5Z1DObDExrrU=
 github.com/crypto-org-chain/ibc-go v1.2.1-hooks/go.mod h1:YieSs25Y0TSFR67qg6Elge34yJNEOjYhYB+HNQQLoSQ=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
@@ -930,6 +928,8 @@ github.com/pascaldekloe/goe v0.1.0 h1:cBOtyMzM9HTpWjXfbbunk26uA6nG3a8n06Wieeh0Mw
 github.com/pascaldekloe/goe v0.1.0/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/paulbellamy/ratecounter v0.2.0/go.mod h1:Hfx1hDpSGoqxkVVpBi/IlYD7kChlfo5C6hzIHwPqfFE=
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
+github.com/peggyjv/gravity-bridge/module v0.2.23 h1:suFIjm2AntN2sfzylbAWlcikss7B7kUNijIjScn6o0E=
+github.com/peggyjv/gravity-bridge/module v0.2.23/go.mod h1:7sqblrhSS7+I94DDIWz98N2mcXR5hL7f+EaV054sBMQ=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pelletier/go-toml v1.9.3/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
 github.com/pelletier/go-toml v1.9.4 h1:tjENF6MfZAg8e4ZmZTeWaWiT2vXtsoO6+iuOjFhECwM=
