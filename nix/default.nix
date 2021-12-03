@@ -28,7 +28,7 @@ import sources.nixpkgs {
           cronos-config = builtins.toString ../scripts/cronos-devnet.yaml;
           hermes-config = builtins.toString ../scripts/hermes.toml;
           geth-genesis = builtins.toString ../scripts/geth-genesis.json;
-          dotenv = builtins.path { name = "dotenv"; path = ../scripts/.env; };
+          dotenv = builtins.toString ../scripts/.env;
         };
       })
     (_: pkgs: {
