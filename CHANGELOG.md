@@ -4,6 +4,7 @@
 
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
+- [cronos#239](https://github.com/crypto-org-chain/cronos/pull/239) switch gravity module to upstream version and bump to v0.2.23
 
 
 *November 30, 2021*
