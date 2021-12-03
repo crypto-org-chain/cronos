@@ -24,8 +24,7 @@ from pystarport import cluster, ledger
 from pystarport.ports import rpc_port
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
-load_dotenv("../scripts/.env")
-
+load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 KEYS = {
     "validator": os.getenv("VALIDATOR_KEY"),
     "community": os.getenv("COMMUNITY_KEY"),
