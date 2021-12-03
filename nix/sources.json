@@ -73,15 +73,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
-        "branch": "feature/expansion",
+        "branch": "main",
         "description": "pystarport setup and run local devnet for cosmos like blockchains",
         "homepage": null,
-        "owner": "damoncro",
+        "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "19fe003d2ee6e4309862d1cf5ab9fff24aefa45b",
-        "sha256": "105627cqs0nyz097kb0fwic78lbsy1kap2ylq4ip02p6nv0kjjdy",
+        "rev": "e08c02d64b19140e1473dfe47cdc759001eff505",
+        "sha256": "1h39ckb56br1cgznbr8xw054pg6vixdxhz2vbr4ypgvwh372sd4h",
         "type": "tarball",
-        "url": "https://github.com/damoncro/pystarport/archive/19fe003d2ee6e4309862d1cf5ab9fff24aefa45b.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/e08c02d64b19140e1473dfe47cdc759001eff505.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

@@ -165,20 +165,6 @@ toolz = ">=0.8.0"
 cython = ["cython"]
 
 [[package]]
-name = "deepdiff"
-version = "5.6.0"
-description = "Deep Difference and Search of any Python object/data."
-category = "main"
-optional = false
-python-versions = ">=3.6"
-
-[package.dependencies]
-ordered-set = "4.0.2"
-
-[package.extras]
-cli = ["click (==7.1.2)", "pyyaml (==5.4)", "toml (==0.10.2)", "clevercsv (==0.6.7)"]
-
-[[package]]
 name = "docker"
 version = "4.4.4"
 description = "A Python library for the Docker Engine API."
@@ -600,14 +586,6 @@ optional = false
 python-versions = "*"
 
 [[package]]
-name = "ordered-set"
-version = "4.0.2"
-description = "A set that remembers its order, and allows looking up its items by their index in that order."
-category = "main"
-optional = false
-python-versions = ">=3.5"
-
-[[package]]
 name = "packaging"
 version = "21.0"
 description = "Core utilities for Python packages"
@@ -720,7 +698,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "pystarport"
-version = "0.2.2"
+version = "0.2.3"
 description = "Spawn local devnets for cosmos-sdk chains"
 category = "main"
 optional = false
@@ -735,15 +713,16 @@ fire = "^0.4.0"
 jsonmerge = "^1.7.0"
 multitail2 = "^1.5.2"
 python-dateutil = "^2.8.1"
+python-dotenv = "^0.19.2"
 PyYAML = "^5.3.1"
 supervisor = "^4.2.1"
 tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/damoncro/pystarport.git"
-reference = "feature/expansion"
-resolved_reference = "19fe003d2ee6e4309862d1cf5ab9fff24aefa45b"
+url = "https://github.com/crypto-com/pystarport.git"
+reference = "main"
+resolved_reference = "e08c02d64b19140e1473dfe47cdc759001eff505"
 
 [[package]]
 name = "pytest"
@@ -1034,7 +1013,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "b83e3be43d6342abb06b585f14b6687128b0b71eba36e0e6d392e21d8e1b5fe5"
+content-hash = "a813271b2621c76a1b619bd5bc719a25c51c3758f90d7f09f7d2c44e5f4c3bba"
 
 [metadata.files]
 aiohttp = [
@@ -1148,10 +1127,6 @@ cytoolz = [
     {file = "cytoolz-0.11.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:3159da30eaf214746215293fdba19b6b54af59b3b2ba979eb9e184c6c7a854d2"},
     {file = "cytoolz-0.11.0-cp39-cp39-win_amd64.whl", hash = "sha256:b61f23e9fa7cd5a87a503ab659f816858e2235926cd95b0c7e37403530d4a2d6"},
     {file = "cytoolz-0.11.0.tar.gz", hash = "sha256:c64f3590c3eb40e1548f0d3c6b2ccde70493d0b8dc6cc7f9f3fec0bb3dcd4222"},
-]
-deepdiff = [
-    {file = "deepdiff-5.6.0-py3-none-any.whl", hash = "sha256:ef3410ca31e059a9d10edfdff552245829835b3ecd03212dc5b533d45a6c3f57"},
-    {file = "deepdiff-5.6.0.tar.gz", hash = "sha256:e3f1c3a375c7ea5ca69dba6f7920f9368658318ff1d8a496293c79481f48e649"},
 ]
 docker = [
     {file = "docker-4.4.4-py2.py3-none-any.whl", hash = "sha256:f3607d5695be025fa405a12aca2e5df702a57db63790c73b927eb6a94aac60af"},
@@ -1355,9 +1330,6 @@ mypy-extensions = [
 netaddr = [
     {file = "netaddr-0.8.0-py2.py3-none-any.whl", hash = "sha256:9666d0232c32d2656e5e5f8d735f58fd6c7457ce52fc21c98d45f2af78f990ac"},
     {file = "netaddr-0.8.0.tar.gz", hash = "sha256:d6cc57c7a07b1d9d2e917aa8b36ae8ce61c35ba3fcd1b83ca31c5a0ee2b5a243"},
-]
-ordered-set = [
-    {file = "ordered-set-4.0.2.tar.gz", hash = "sha256:ba93b2df055bca202116ec44b9bead3df33ea63a7d5827ff8e16738b97f33a95"},
 ]
 packaging = [
     {file = "packaging-21.0-py3-none-any.whl", hash = "sha256:c86254f9220d55e31cc94d69bade760f0847da8000def4dfe1c6b872fd14ff14"},
