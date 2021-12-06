@@ -45,7 +45,6 @@ require (
 	github.com/confio/ics23/go v0.6.6 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/iavl v0.17.2 // indirect
-	github.com/cosmos/ibc-go v1.0.1 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.11.1 // indirect
 	github.com/cosmos/ledger-go v0.9.2 // indirect
 	github.com/danieljoos/wincred v1.0.2 // indirect
@@ -164,4 +163,4 @@ replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.6.1-0.20
 
 // FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/182
 // https://github.com/crypto-org-chain/gravity-bridge/tree/cronos
-replace github.com/peggyjv/gravity-bridge/module => github.com/crypto-org-chain/gravity-bridge/module v0.1.22-0.20211011065300-a09cf050d304
+replace github.com/peggyjv/gravity-bridge/module => github.com/yihuang/gravity-bridge/module v0.1.22-0.20211206061519-4be324e626a8
