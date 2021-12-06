@@ -33,6 +33,9 @@ cronos_777-1:
             base_account:
               address: crc1dp2zh5ftg86a28tzstk8mywh6rtcu3gr08l7s9
               sequence: "1"
+      feemarket:
+        params:
+          no_base_fee: true
       evm:
         params:
           evm_denom: basetcro
