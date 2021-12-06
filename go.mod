@@ -156,7 +156,7 @@ replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alp
 replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
 
 // TODO: remove when middleware will be implemented
-replace github.com/cosmos/ibc-go/v2 => github.com/yihuang/ibc-go/v2 v2.0.0-hooks
+replace github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.0-hooks-2
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.2
 
