@@ -106,11 +106,10 @@ def test_native_call(cronos):
 
     # expect failure, because contract is not connected with native denom yet
     # TODO complete the test after gov managed token mapping is implemented.
-    txhash = contract.functions.test_native_transfer(amount).transact(
-        {"from": w3.eth.coinbase}
-    )
-    receipt = w3.eth.wait_for_transaction_receipt(txhash)
-    assert receipt.status == 0, "should fail"
+    with pytest.raises(ValueError):
+        contract.functions.test_native_transfer(amount).transact(
+            {"from": w3.eth.coinbase}
+        )
 
 
 def test_statesync(cronos):

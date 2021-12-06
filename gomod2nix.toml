@@ -917,13 +917,21 @@
     rev = "399ea9e2e55f791b6e3d920860dbecb99c3692f0"
     sha256 = "0nxbn0m7lr4dg0yrwnvlkfiyg3ndv8vdpssjx7b714nivpc6ar0y"
 
+["github.com/cosmos/btcutil"]
+  sumVersion = "v1.0.4"
+  ["github.com/cosmos/btcutil".fetch]
+    type = "git"
+    url = "https://github.com/cosmos/btcutil"
+    rev = "a68c44d216624107f23b6c8e66704ff4ecee879a"
+    sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
+
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.44.4"
+  sumVersion = "v0.44.5"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "59d7dc4679b1a3bb2a992b1e3da374743f3c2c9c"
-    sha256 = "1hc88y5ckkjxh4qkn2rw7sknqz3n6710z0z1flqy0w93sxm2yf39"
+    rev = "33dbf6a795e68c744a2c312b76d41614b3563c01"
+    sha256 = "06hl39q4kil1j7cf9l0a0b7g797qxyqzz8s8m33pqa1d643cj4kg"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -3073,13 +3081,14 @@
     sha256 = "0f146yjqwx2mr110kl8scjhqd08hys7vr5z0d0a3lskb6yy22gfg"
 
 ["github.com/peggyjv/gravity-bridge/module"]
-  sumVersion = "v0.1.22-0.20211206061519-4be324e626a8"
+  sumVersion = "v0.1.22-0.20211206072459-b197433bdb33"
+  relPath = "module"
   vendorPath = "github.com/yihuang/gravity-bridge/module"
   ["github.com/peggyjv/gravity-bridge/module".fetch]
     type = "git"
     url = "https://github.com/yihuang/gravity-bridge"
-    rev = "4be324e626a89ea572fed435d99a92381f5d35ab"
-    sha256 = "1awcy9wrjrrdk9fykxlvma0ix620b1hfc6nk70gzcbh600vg8amv"
+    rev = "b197433bdb333f41329b79b9fe427d0a32d09788"
+    sha256 = "1q3k60hpc9cq920v8x0a7im3yb8z68xbazdpd5jqdcp3a37f8y5f"
 
 ["github.com/pelletier/go-toml"]
   sumVersion = "v1.9.4"
@@ -3642,13 +3651,13 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.6.1-0.20211203095314-2fbf8a5b65d3"
+  sumVersion = "v0.6.1-0.20211206083034-fc6185e4eb5e"
   vendorPath = "github.com/yihuang/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/yihuang/ethermint"
-    rev = "2fbf8a5b65d3844418a93967e5295c5880080085"
-    sha256 = "1awanwdjgb4mr63lv0mdgyh7nxg1c2xs122nmvnqngxf0zfb1q0y"
+    rev = "fc6185e4eb5eeac15bb79a45d5009f52bef128ee"
+    sha256 = "00sqxi1swfqs43yj4dj5wc0vi1zckdcnz391zks7mz9kznhy6l0l"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
