@@ -78,7 +78,6 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 		ConsensusHash:      tmhash.Sum([]byte("consensus")),
 		LastResultsHash:    tmhash.Sum([]byte("last_result")),
 	})
-	suite.app.EvmKeeper.WithContext(suite.ctx)
 
 	// initialize the validator
 	acc := &ethermint.EthAccount{
