@@ -1,3 +1,4 @@
+dotenv: .env
 chainmain-1:
   cmd: chain-maind
   start-flags: "--trace"
@@ -6,21 +7,21 @@ chainmain-1:
   validators:
     - coins: 2234240000000000000cro
       staked: 10000000000000cro
-      mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
+      mnemonic: ${VALIDATOR1_MNEMONIC}
     - coins: 987870000000000000cro
       staked: 20000000000000cro
-      mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
+      mnemonic: ${VALIDATOR2_MNEMONIC}
 #   min_self_delegation: 10000000  # 0.1cro
   accounts:
     - name: community
       coins: 10000000000000cro
-      mnemonic: notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate
+      mnemonic: ${COMMUNITY_MNEMONIC}
     - name: signer1
       coins: 10000000000000cro
-      mnemonic: shed crumble dismiss loyal latin million oblige gesture shrug still oxygen custom remove ribbon disorder palace addict again blanket sad flock consider obey popular
+      mnemonic: ${SIGNER1_MNEMONIC}
     - name: signer2
       coins: 10000000000000cro
-      mnemonic: night renew tonight dinner shaft scheme domain oppose echo summer broccoli agent face guitar surface belt veteran siren poem alcohol menu custom crunch index
+      mnemonic: ${SIGNER2_MNEMONIC}
   genesis:
     app_state:
       staking:
@@ -37,4 +38,4 @@ chainmain-1:
       transfer:
         params:
           receive_enabled: true
-          send_enabled: true      
+          send_enabled: true

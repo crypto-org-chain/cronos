@@ -1,3 +1,4 @@
+dotenv: .env
 cronos_777-1:
   cmd: ./build/cronosd
   start-flags: "--trace --unsafe-experimental"
@@ -8,14 +9,14 @@ cronos_777-1:
   validators:
     - coins: 1000000000000000000stake,1000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
+      mnemonic: ${VALIDATOR1_MNEMONIC}
     - coins: 1000000000000000000stake,1000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
+      mnemonic: ${VALIDATOR2_MNEMONIC}
   accounts:
     - name: community
       coins: 10000000000000000000000basetcro
-      mnemonic: "notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate"
+      mnemonic: ${COMMUNITY_MNEMONIC}
   genesis:
     app_state:
       evm:

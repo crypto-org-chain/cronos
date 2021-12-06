@@ -4,9 +4,10 @@ import time
 from pathlib import Path
 
 import pytest
+from eth_account import Account
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
-from .utils import wait_for_port
+from .utils import KEYS, wait_for_port
 
 
 @pytest.fixture(scope="module")
@@ -105,12 +106,8 @@ def test_ibc_reverse(cronos, chainmain, hermes):
 def test_contract(cronos, chainmain, hermes):
     cronos_chainid = 777
     cronos_gas = 10000000
-    cronos_mnemonics = "night renew tonight dinner shaft scheme \
-domain oppose echo summer broccoli agent face guitar surface \
-belt veteran siren poem alcohol menu custom crunch index"
     web3api = cronos.w3
-    web3api.eth.account.enable_unaudited_hdwallet_features()
-    account = web3api.eth.account.from_mnemonic(cronos_mnemonics)
+    account = Account.from_key(KEYS["validator"])
     contract_creator_address = account.address
     web3api.eth.get_balance(contract_creator_address)
 
