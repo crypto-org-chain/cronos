@@ -7,14 +7,12 @@
 }: rec {
   start-chainmain = pkgs.writeShellScriptBin "start-chainmain" ''
     export PATH=${pkgs.pystarport}/bin:${chainmain}/bin:$PATH
-    source ${config.dotenv}
-    ${../scripts/start-chainmain} ${config.chainmain-config} $@
+    ${../scripts/start-chainmain} ${config.chainmain-config} ${config.dotenv} $@
   '';
   start-cronos = pkgs.writeShellScriptBin "start-cronos" ''
     # rely on environment to provide cronosd
     export PATH=${pkgs.pystarport}/bin:$PATH
-    source ${config.dotenv}
-    ${../scripts/start-cronos} ${config.cronos-config} $@
+    ${../scripts/start-cronos} ${config.cronos-config} ${config.dotenv} $@
   '';
   start-geth = pkgs.writeShellScriptBin "start-geth" ''
     export PATH=${pkgs.go-ethereum}/bin:$PATH
