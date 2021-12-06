@@ -20,7 +20,7 @@ python-dateutil = "^2.8.1"
 web3 = "^5.20.1"
 eth-bloom = "^1.0.4"
 python-dotenv = "^0.19.2"
-pystarport = {git = "https://github.com/crypto-com/pystarport.git", rev = "main"}
+pystarport = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 

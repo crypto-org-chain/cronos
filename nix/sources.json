@@ -81,7 +81,8 @@
         "rev": "e08c02d64b19140e1473dfe47cdc759001eff505",
         "sha256": "1h39ckb56br1cgznbr8xw054pg6vixdxhz2vbr4ypgvwh372sd4h",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/e08c02d64b19140e1473dfe47cdc759001eff505.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "url": "https://github.com/crypto-com/pystarport/archive/refs/tags/v0.2.3.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
+        "version": "v0.2.3"
     }
 }

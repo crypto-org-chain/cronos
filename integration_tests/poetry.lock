@@ -702,27 +702,20 @@ version = "0.2.3"
 description = "Spawn local devnets for cosmos-sdk chains"
 category = "main"
 optional = false
-python-versions = "^3.8"
-develop = false
+python-versions = ">=3.8,<4.0"
 
 [package.dependencies]
-bech32 = "^1.1.0"
-docker = "^4.3.1"
-durations = "^0.3.3"
-fire = "^0.4.0"
-jsonmerge = "^1.7.0"
-multitail2 = "^1.5.2"
-python-dateutil = "^2.8.1"
-python-dotenv = "^0.19.2"
-PyYAML = "^5.3.1"
-supervisor = "^4.2.1"
-tomlkit = "^0.7.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/crypto-com/pystarport.git"
-reference = "main"
-resolved_reference = "e08c02d64b19140e1473dfe47cdc759001eff505"
+bech32 = ">=1.1.0,<2.0.0"
+docker = ">=4.3.1,<5.0.0"
+durations = ">=0.3.3,<0.4.0"
+fire = ">=0.4.0,<0.5.0"
+jsonmerge = ">=1.7.0,<2.0.0"
+multitail2 = ">=1.5.2,<2.0.0"
+python-dateutil = ">=2.8.1,<3.0.0"
+python-dotenv = ">=0.19.2,<0.20.0"
+PyYAML = ">=5.3.1,<6.0.0"
+supervisor = ">=4.2.1,<5.0.0"
+tomlkit = ">=0.7.0,<0.8.0"
 
 [[package]]
 name = "pytest"
@@ -1013,7 +1006,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "a813271b2621c76a1b619bd5bc719a25c51c3758f90d7f09f7d2c44e5f4c3bba"
+content-hash = "95d92138648b4653d4efb5c33fff0ac014c34524de684664e592106af8fb13bc"
 
 [metadata.files]
 aiohttp = [
@@ -1450,7 +1443,9 @@ pyrsistent = [
     {file = "pyrsistent-0.18.0-cp39-cp39-win_amd64.whl", hash = "sha256:404e1f1d254d314d55adb8d87f4f465c8693d6f902f67eb6ef5b4526dc58e6ea"},
     {file = "pyrsistent-0.18.0.tar.gz", hash = "sha256:773c781216f8c2900b42a7b638d5b517bb134ae1acbebe4d1e8f1f41ea60eb4b"},
 ]
-pystarport = []
+pystarport = [
+    {file = "pystarport-0.2.3-py3-none-any.whl", hash = "sha256:c522b9f5f39fe3d1ab0363a968b163c2de337f48f1ee970ee5ebc756494594dc"},
+]
 pytest = [
     {file = "pytest-5.4.3-py3-none-any.whl", hash = "sha256:5c0db86b698e8f170ba4582a492248919255fcd4c79b1ee64ace34301fb589a1"},
     {file = "pytest-5.4.3.tar.gz", hash = "sha256:7979331bfcba207414f5e1263b5a0f8f521d0f457318836a7355531ed1a4c7d8"},
