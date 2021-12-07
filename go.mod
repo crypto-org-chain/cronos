@@ -11,7 +11,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/peggyjv/gravity-bridge/module v0.2.0
+	github.com/peggyjv/gravity-bridge/module v0.2.24-0.20211206214839-d22e7091a41d
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.2.1
@@ -160,6 +160,3 @@ replace github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.2
 
 replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.6.1-0.20211206083034-fc6185e4eb5e
-
-// FIXME: update after PR merged: https://github.com/PeggyJV/gravity-bridge/pull/310
-replace github.com/peggyjv/gravity-bridge/module => github.com/yihuang/gravity-bridge/module v0.1.22-0.20211206072459-b197433bdb33

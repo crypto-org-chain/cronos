@@ -803,6 +803,8 @@ github.com/pascaldekloe/goe v0.1.0/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144T
 github.com/paulbellamy/ratecounter v0.2.0/go.mod h1:Hfx1hDpSGoqxkVVpBi/IlYD7kChlfo5C6hzIHwPqfFE=
 github.com/pborman/uuid v0.0.0-20170112150404-1b00554d8222/go.mod h1:VyrYX9gd7irzKovcSS6BIIEwPRkP2Wm2m9ufcdFSJ34=
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
+github.com/peggyjv/gravity-bridge/module v0.2.24-0.20211206214839-d22e7091a41d h1:d5Syc0x3BNi7u0Ep7/GaqqDWO/W97AMRv/IMhu5xpcI=
+github.com/peggyjv/gravity-bridge/module v0.2.24-0.20211206214839-d22e7091a41d/go.mod h1:IFm0SoZGHzA8c6NH3YyRSl2sGT7qdxY+DimCrP2+J+4=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pelletier/go-toml v1.9.3/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
 github.com/pelletier/go-toml v1.9.4 h1:tjENF6MfZAg8e4ZmZTeWaWiT2vXtsoO6+iuOjFhECwM=
@@ -1032,8 +1034,6 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yihuang/ethermint v0.6.1-0.20211206083034-fc6185e4eb5e h1:mDJPpzEti7q3bV6+AO9pBD3c9urhGh2HJYSfe93J3cU=
 github.com/yihuang/ethermint v0.6.1-0.20211206083034-fc6185e4eb5e/go.mod h1:5Nukk6Aobxjnx7HAJTUHqyd7s7zSxbtZ4EWlwGb3pFc=
-github.com/yihuang/gravity-bridge/module v0.1.22-0.20211206072459-b197433bdb33 h1:fbBRTDNiYR/UkowLCBjAuhe5MI32Waf3Or7WG9AltoY=
-github.com/yihuang/gravity-bridge/module v0.1.22-0.20211206072459-b197433bdb33/go.mod h1:IFm0SoZGHzA8c6NH3YyRSl2sGT7qdxY+DimCrP2+J+4=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
