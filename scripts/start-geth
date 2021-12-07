@@ -24,14 +24,26 @@ $PASSWORD
 EOF
 
 # import validator key
+validator_key=$(python -c """
+from eth_account import Account
+Account.enable_unaudited_hdwallet_features()
+print(Account.from_mnemonic('$VALIDATOR1_MNEMONIC').key.hex().replace('0x',''))
+""")
+
 cat > $tmpfile << EOF
-$VALIDATOR_KEY
+$validator_key
 EOF
 geth --datadir $DATA account import $tmpfile --password $pwdfile
 
 # import community key
+community_key=$(python -c """
+from eth_account import Account
+Account.enable_unaudited_hdwallet_features()
+print(Account.from_mnemonic('$COMMUNITY_MNEMONIC').key.hex().replace('0x',''))
+""")
+
 cat > $tmpfile << EOF
-$COMMUNITY_KEY
+$community_key
 EOF
 geth --datadir $DATA account import $tmpfile --password $pwdfile
 

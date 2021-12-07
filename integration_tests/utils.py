@@ -25,11 +25,13 @@ from pystarport.ports import rpc_port
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
-KEYS = {
-    "validator": os.getenv("VALIDATOR_KEY"),
-    "community": os.getenv("COMMUNITY_KEY"),
+Account.enable_unaudited_hdwallet_features()
+ACCOUNTS = {
+    "validator": Account.from_mnemonic(os.getenv("VALIDATOR1_MNEMONIC")),
+    "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
 }
-ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
+KEYS = {name: account.key.hex().replace("0x", "") for name, account in ACCOUNTS.items()}
+ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
 
 
