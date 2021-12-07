@@ -3651,10 +3651,10 @@
 
 ["github.com/tharsis/ethermint"]
   sumVersion = "v0.6.1-0.20211207040748-254df3803d62"
-  vendorPath = "github.com/yihuang/ethermint"
+  vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/yihuang/ethermint"
+    url = "https://github.com/crypto-org-chain/ethermint"
     rev = "254df3803d62dc8602854d78e7fb094b2c8a5e60"
     sha256 = "0gclwq2ljngjqpjv60nyyss2p9mfgqdazwjk616p7rlpig1kczs5"
 

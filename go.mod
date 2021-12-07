@@ -159,4 +159,4 @@ replace github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.
 
 replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.2
 
-replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.6.1-0.20211207040748-254df3803d62
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62
