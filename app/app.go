@@ -726,7 +726,8 @@ func New(
 	// upgrade handler
 	plan0_7_0 := "v0.7.0"
 	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-                 // The default genesis parameters of `feemarket` module are fine, the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price, so it don't affect user experience at first, we can always adjust the parameters through governance later.
+		// The default genesis parameters of `feemarket` module are fine, because the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price,
+		// so it don't have effect at the beginning, we can always adjust the parameters through the governance later.
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
