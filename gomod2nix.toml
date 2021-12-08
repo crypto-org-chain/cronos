@@ -942,21 +942,21 @@
     sha256 = "0q063bsalxffq41l3f6xlr50xa2985liw6y5niiwnjysdc5rlva2"
 
 ["github.com/cosmos/iavl"]
-  sumVersion = "v0.17.2"
+  sumVersion = "v0.17.3"
   ["github.com/cosmos/iavl".fetch]
     type = "git"
     url = "https://github.com/cosmos/iavl"
-    rev = "72b6c23262c6f36f995a226d607dab73893488b9"
-    sha256 = "1fdj0nzspd27xhv6m8jrgpyyg9x5nkjclhv5bbkmp762r2vb66ys"
+    rev = "d99448032e95a6ce05d342737cd745a20ef0b6ce"
+    sha256 = "115964xzwlr8j0l8f5x0v31f5hnxhd0rh5cvgy560l0dd77i735k"
 
 ["github.com/cosmos/ibc-go/v2"]
-  sumVersion = "v2.0.0-hooks-2"
+  sumVersion = "v2.0.1-hooks"
   vendorPath = "github.com/crypto-org-chain/ibc-go/v2"
   ["github.com/cosmos/ibc-go/v2".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ibc-go"
-    rev = "8ad035e91c1eaa81d028fcac82c9cc319b9f3e5b"
-    sha256 = "01w21wc6l9mkjj9rhrspx42pgbf0np46wrz7jw3gkqa2vr76f1hc"
+    rev = "e76d986d1e4874ac304b2f394b0ae8daba50cfbe"
+    sha256 = "0yqgs2axwbnfxhbikpwhpzb8csljpxmvjww3w9jkrvch99k6wn31"
 
 ["github.com/cosmos/ledger-cosmos-go"]
   sumVersion = "v0.11.1"

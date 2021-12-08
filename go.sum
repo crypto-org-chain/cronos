@@ -216,13 +216,14 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cosmos/btcutil v1.0.4 h1:n7C2ngKXo7UC9gNyMNLbzqz7Asuf+7Qv4gnX/rOdQ44=
 github.com/cosmos/btcutil v1.0.4/go.mod h1:Ffqc8Hn6TJUdDgHBwIZLtrLQC1KdJ9jGJl/TvgUaxbU=
 github.com/cosmos/cosmos-sdk v0.44.3/go.mod h1:bA3+VenaR/l/vDiYzaiwbWvRPWHMBX2jG0ygiFtiBp0=
+github.com/cosmos/cosmos-sdk v0.44.4/go.mod h1:0QTCOkE8IWu5LZyfnbbjFjxYRIcV4pBOr7+zPpJwl58=
 github.com/cosmos/cosmos-sdk v0.44.5 h1:t5h+KPzZb0Zsag1RP1DCMQlyJyIQqJcqSPJrbUCDGHY=
 github.com/cosmos/cosmos-sdk v0.44.5/go.mod h1:maUA6m2TBxOJZkbwl0eRtEBgTX37kcaiOWU5t1HEGaY=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
-github.com/cosmos/iavl v0.17.2 h1:BT2u7DUvLLB+RYz9RItn/8n7Bt5xe5rj8QRTkk/PQU0=
-github.com/cosmos/iavl v0.17.2/go.mod h1:prJoErZFABYZGDHka1R6Oay4z9PrNeFFiMKHDAMOi4w=
+github.com/cosmos/iavl v0.17.3 h1:s2N819a2olOmiauVa0WAhoIJq9EhSXE9HDBAoR9k+8Y=
+github.com/cosmos/iavl v0.17.3/go.mod h1:prJoErZFABYZGDHka1R6Oay4z9PrNeFFiMKHDAMOi4w=
 github.com/cosmos/ledger-cosmos-go v0.11.1 h1:9JIYsGnXP613pb2vPjFeMMjBI5lEDsEaF6oYorTy6J4=
 github.com/cosmos/ledger-cosmos-go v0.11.1/go.mod h1:J8//BsAGTo3OC/vDLjMRFLW6q0WAaXvHnVc7ZmE8iUY=
 github.com/cosmos/ledger-go v0.9.2 h1:Nnao/dLwaVTk1Q5U9THldpUMMXU94BOTWPddSmVB6pI=
@@ -234,8 +235,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62 h1:9/wTMiLSbgNPxpElwrVT6+Q4OzePFxb42Ws7+ur+nDg=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62/go.mod h1:5Nukk6Aobxjnx7HAJTUHqyd7s7zSxbtZ4EWlwGb3pFc=
-github.com/crypto-org-chain/ibc-go/v2 v2.0.0-hooks-2 h1:cb4Or9oeyoSRkEQS3JUQhpAGA2OffJUepDsJOL/EZSw=
-github.com/crypto-org-chain/ibc-go/v2 v2.0.0-hooks-2/go.mod h1:n53VhNSUxCtMLysvgyNhwrGHL8OW+318LMjtSmaVe9Q=
+github.com/crypto-org-chain/ibc-go/v2 v2.0.1-hooks h1:XzF2wdfSPrf1J5FpyBpbRT+Imb/bqSvRoXV/nlaX28Y=
+github.com/crypto-org-chain/ibc-go/v2 v2.0.1-hooks/go.mod h1:ZfePiHyAVzWvRafjDCI00huUnPjRgOn1FsOklO68AF0=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
 github.com/crypto-org-chain/keyring v1.1.6-fixes/go.mod h1:0mkLWIoZuQ7uBoospo5Q9zIpqq6rYCPJDSUdeCJvPM8=
 github.com/cyberdelia/templates v0.0.0-20141128023046-ca7fffd4298c/go.mod h1:GyV+0YP4qX0UQ7r2MoYZ+AvYDp12OF5yg4q8rGnyNh4=
