@@ -2,9 +2,12 @@
 
 ## Unreleased
 
+### State Machine Breaking
+
+- [cronos#241](https://github.com/crypto-org-chain/cronos/pull/241) Update ethermint to main and merged statedb refactoring in custom fork.
+
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
-
 
 *November 30, 2021*
 

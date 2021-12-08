@@ -2,8 +2,9 @@ package keeper_test
 
 import (
 	"fmt"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 	"math/big"
+
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 
 	"github.com/crypto-org-chain/cronos/app"
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
@@ -39,7 +40,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Topics:  []common.Hash{keeper.SendToAccountEvent.ID},
 					},
 				}
-				err := suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				suite.Require().NoError(err)
 			},
 		},
@@ -58,7 +59,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				suite.Require().Error(err)
 			},
 		},
@@ -85,7 +86,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				suite.Require().NoError(err)
 
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -120,7 +121,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				// should fail, because of not gravity denom name
 				suite.Require().Error(err)
 			},
@@ -152,7 +153,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				suite.Require().NoError(err)
 
 				// sender's balance deducted
@@ -203,7 +204,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(txHash, logs)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
 				// should fail, because of not ibc denom name
 				suite.Require().Error(err)
 			},

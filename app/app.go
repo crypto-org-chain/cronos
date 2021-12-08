@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -83,15 +84,15 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
 	appparams "github.com/cosmos/cosmos-sdk/simapp/params"
-	"github.com/cosmos/ibc-go/modules/apps/transfer"
-	ibctransferkeeper "github.com/cosmos/ibc-go/modules/apps/transfer/keeper"
-	ibctransfertypes "github.com/cosmos/ibc-go/modules/apps/transfer/types"
-	ibc "github.com/cosmos/ibc-go/modules/core"
-	ibcclient "github.com/cosmos/ibc-go/modules/core/02-client"
-	ibcclientclient "github.com/cosmos/ibc-go/modules/core/02-client/client"
-	porttypes "github.com/cosmos/ibc-go/modules/core/05-port/types"
-	ibchost "github.com/cosmos/ibc-go/modules/core/24-host"
-	ibckeeper "github.com/cosmos/ibc-go/modules/core/keeper"
+	"github.com/cosmos/ibc-go/v2/modules/apps/transfer"
+	ibctransferkeeper "github.com/cosmos/ibc-go/v2/modules/apps/transfer/keeper"
+	ibctransfertypes "github.com/cosmos/ibc-go/v2/modules/apps/transfer/types"
+	ibc "github.com/cosmos/ibc-go/v2/modules/core"
+	ibcclient "github.com/cosmos/ibc-go/v2/modules/core/02-client"
+	ibcclientclient "github.com/cosmos/ibc-go/v2/modules/core/02-client/client"
+	porttypes "github.com/cosmos/ibc-go/v2/modules/core/05-port/types"
+	ibchost "github.com/cosmos/ibc-go/v2/modules/core/24-host"
+	ibckeeper "github.com/cosmos/ibc-go/v2/modules/core/keeper"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 
 	evmante "github.com/tharsis/ethermint/app/ante"
@@ -101,6 +102,9 @@ import (
 	evmrest "github.com/tharsis/ethermint/x/evm/client/rest"
 	evmkeeper "github.com/tharsis/ethermint/x/evm/keeper"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
+	"github.com/tharsis/ethermint/x/feemarket"
+	feemarketkeeper "github.com/tharsis/ethermint/x/feemarket/keeper"
+	feemarkettypes "github.com/tharsis/ethermint/x/feemarket/types"
 
 	"github.com/peggyjv/gravity-bridge/module/x/gravity"
 	gravitykeeper "github.com/peggyjv/gravity-bridge/module/x/gravity/keeper"
@@ -171,6 +175,7 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		evm.AppModuleBasic{},
+		feemarket.AppModuleBasic{},
 		gravity.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 		cronos.AppModuleBasic{},
@@ -247,7 +252,8 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
 	// Ethermint keepers
-	EvmKeeper *evmkeeper.Keeper
+	EvmKeeper       *evmkeeper.Keeper
+	FeeMarketKeeper feemarketkeeper.Keeper
 
 	// Gravity module
 	GravityKeeper gravitykeeper.Keeper
@@ -297,7 +303,7 @@ func New(
 			// ibc keys
 			ibchost.StoreKey, ibctransfertypes.StoreKey,
 			// ethermint keys
-			evmtypes.StoreKey,
+			evmtypes.StoreKey, feemarkettypes.StoreKey,
 			gravitytypes.StoreKey,
 			// this line is used by starport scaffolding # stargate/app/storeKey
 			cronostypes.StoreKey,
@@ -312,7 +318,7 @@ func New(
 			// ibc keys
 			ibchost.StoreKey, ibctransfertypes.StoreKey,
 			// ethermint keys
-			evmtypes.StoreKey,
+			evmtypes.StoreKey, feemarkettypes.StoreKey,
 			// this line is used by starport scaffolding # stargate/app/storeKey
 			cronostypes.StoreKey,
 		)
@@ -401,9 +407,16 @@ func New(
 
 	// Create Ethermint keepers
 	tracer := cast.ToString(appOpts.Get(srvflags.EVMTracer))
+
+	// Create Ethermint keepers
+	app.FeeMarketKeeper = feemarketkeeper.NewKeeper(
+		appCodec, keys[feemarkettypes.StoreKey], app.GetSubspace(feemarkettypes.ModuleName),
+	)
+
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, stakingKeeper,
+		&app.FeeMarketKeeper,
 		tracer,
 	)
 
@@ -525,6 +538,7 @@ func New(
 
 			transferModule,
 			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+			feemarket.NewAppModule(app.FeeMarketKeeper),
 			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
 			// this line is used by starport scaffolding # stargate/app/appModule
 			cronosModule,
@@ -554,6 +568,7 @@ func New(
 
 			transferModule,
 			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+			feemarket.NewAppModule(app.FeeMarketKeeper),
 			// this line is used by starport scaffolding # stargate/app/appModule
 			cronosModule,
 		)
@@ -575,7 +590,7 @@ func New(
 
 		app.mm.SetOrderEndBlockers(
 			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
-			evmtypes.ModuleName,
+			evmtypes.ModuleName, feemarkettypes.ModuleName,
 			gravitytypes.ModuleName,
 		)
 	} else {
@@ -589,7 +604,7 @@ func New(
 
 		app.mm.SetOrderEndBlockers(
 			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
-			evmtypes.ModuleName,
+			evmtypes.ModuleName, feemarkettypes.ModuleName,
 		)
 	}
 
@@ -616,6 +631,7 @@ func New(
 			authz.ModuleName,
 			feegrant.ModuleName,
 			evmtypes.ModuleName,
+			feemarkettypes.ModuleName,
 			gravitytypes.ModuleName,
 			// this line is used by starport scaffolding # stargate/app/initGenesis
 			cronostypes.ModuleName,
@@ -638,6 +654,7 @@ func New(
 			authz.ModuleName,
 			feegrant.ModuleName,
 			evmtypes.ModuleName,
+			feemarkettypes.ModuleName,
 			// this line is used by starport scaffolding # stargate/app/initGenesis
 			cronostypes.ModuleName,
 		)
@@ -670,6 +687,8 @@ func New(
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		transferModule,
+		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+		feemarket.NewAppModule(app.FeeMarketKeeper),
 	)
 
 	app.sm.RegisterStoreDecoders()
@@ -687,6 +706,7 @@ func New(
 	app.SetAnteHandler(
 		evmante.NewAnteHandler(
 			app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.FeeGrantKeeper, app.IBCKeeper.ChannelKeeper,
+			&app.FeeMarketKeeper,
 			encodingConfig.TxConfig.SignModeHandler(),
 		),
 	)
@@ -702,6 +722,28 @@ func New(
 	app.ScopedIBCKeeper = scopedIBCKeeper
 	app.ScopedTransferKeeper = scopedTransferKeeper
 	// this line is used by starport scaffolding # stargate/app/beforeInitReturn
+
+	// upgrade handler
+	plan0_7_0 := "v0.7.0"
+	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		// The default genesis parameters of `feemarket` module are fine, because the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price,
+		// so it don't have effect at the beginning, we can always adjust the parameters through the governance later.
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic(err)
+	}
+
+	if upgradeInfo.Name == plan0_7_0 && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: []string{"feemarket"},
+		}
+
+		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+	}
 
 	return app
 }
@@ -867,6 +909,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName)
+	paramsKeeper.Subspace(feemarkettypes.ModuleName)
 	if experimental {
 		paramsKeeper.Subspace(gravitytypes.ModuleName)
 	}

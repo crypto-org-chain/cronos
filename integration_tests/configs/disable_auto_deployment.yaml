@@ -34,3 +34,6 @@ cronos_777-1:
           min_deposit:
             - denom: "basetcro"
               amount: "1"
+      feemarket:
+        params:
+          no_base_fee: true

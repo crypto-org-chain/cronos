@@ -3,11 +3,14 @@ package types
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/ibc-go/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/modules/core/02-client/types"
+	"github.com/cosmos/ibc-go/v2/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v2/modules/core/02-client/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/vm"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
@@ -52,4 +55,11 @@ type EvmLogHandler interface {
 	EventID() common.Hash
 	// Process the log
 	Handle(ctx sdk.Context, contract common.Address, data []byte) error
+}
+
+// EvmKeeper defines the interface for evm keeper
+type EvmKeeper interface {
+	GetNonce(ctx sdk.Context, addr common.Address) (uint64, error)
+	ApplyMessage(ctx sdk.Context, msg core.Message, tracer vm.Tracer, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
+	GetParams(ctx sdk.Context) evmtypes.Params
 }

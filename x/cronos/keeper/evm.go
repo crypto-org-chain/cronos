@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -9,49 +8,36 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/tharsis/ethermint/server/config"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
+// DefaultGasCap defines the gas limit used to run internal evm call
+const DefaultGasCap uint64 = 25000000
+
 // CallEVM execute an evm message from native module
 func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error) {
-	k.evmKeeper.WithContext(ctx)
-
-	nonce := k.evmKeeper.GetNonce(types.EVMModuleAddress)
+	nonce, err := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
+	if err != nil {
+		return nil, nil, err
+	}
 	msg := ethtypes.NewMessage(
 		types.EVMModuleAddress,
 		to,
 		nonce,
 		value, // amount
-		config.DefaultGasCap,
-		big.NewInt(0), // gasPrice
+		DefaultGasCap,
+		big.NewInt(0), nil, nil, // gasPrice
 		data,
 		nil,   // accessList
-		false, // checkNonce
+		false, // isFake
 	)
 
-	params := k.evmKeeper.GetParams(ctx)
-	// return error if contract creation or call are disabled through governance
-	if !params.EnableCreate && to == nil {
-		return nil, nil, errors.New("failed to create new contract")
-	} else if !params.EnableCall && to != nil {
-		return nil, nil, errors.New("failed to call contract")
-	}
-	ethCfg := params.ChainConfig.EthereumConfig(k.evmKeeper.ChainID())
-
-	// get the coinbase address from the block proposer
-	coinbase, err := k.evmKeeper.GetCoinbaseAddress(ctx)
-	if err != nil {
-		return nil, nil, errors.New("failed to obtain coinbase address")
-	}
-	evm := k.evmKeeper.NewEVM(msg, ethCfg, params, coinbase, types.NewDummyTracer())
-	ret, err := k.evmKeeper.ApplyMessage(evm, msg, ethCfg, true)
+	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {
 		return nil, nil, err
 	}
-	k.evmKeeper.CommitCachedContexts()
 	return &msg, ret, nil
 }
 

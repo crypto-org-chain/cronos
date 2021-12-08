@@ -51,3 +51,6 @@ cronos_777-1:
         params:
           receive_enabled: true
           send_enabled: true
+      feemarket:
+        params:
+          no_base_fee: true
