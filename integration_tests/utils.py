@@ -137,6 +137,30 @@ def wait_for_ipc(path, timeout=40.0):
             )
 
 
+def w3_wait_for_block(w3, height, timeout=240):
+    for i in range(timeout * 2):
+        try:
+            current_height = w3.eth.block_number
+        except AssertionError as e:
+            print(f"get current block number failed: {e}", file=sys.stderr)
+        else:
+            if current_height >= height:
+                break
+            print("current block height", current_height)
+        time.sleep(0.5)
+    else:
+        raise TimeoutError(f"wait for block {height} timeout")
+
+
+def w3_wait_for_new_blocks(w3, n):
+    begin_height = w3.eth.block_number
+    while True:
+        time.sleep(0.5)
+        cur_height = w3.eth.block_number
+        if cur_height - begin_height >= n:
+            break
+
+
 def cluster_fixture(
     config_path,
     worker_index,
