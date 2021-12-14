@@ -18,10 +18,10 @@
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "67f22dd738d092c6ba88e420350ada0ed4992ae8",
-        "sha256": "0a9rhw6djgcrky5nzly3srsl8095q42f2nyzxyisp9fh9fg70nih",
+        "rev": "596d01fd55ed8521853807df1f4e9d858cf75d7e",
+        "sha256": "040xh14gh1x9p80adwfzs21h1hq1di1qkw7jpzyhsm13wv5z2ja2",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/67f22dd738d092c6ba88e420350ada0ed4992ae8.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/596d01fd55ed8521853807df1f4e9d858cf75d7e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -49,27 +49,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "release-21.05",
+        "branch": "release-21.11",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "4b7e51865e44d3afc564e3a3111af12be1003251",
-        "sha256": "0n3cf1wgw3j8hswxjy5q1vcbyyml6z0c57jc5zjkgrvbkp4g3b2c",
+        "rev": "d2f47b7dcd558a7727606319fd8661a4c3311b4a",
+        "sha256": "1kkykw8i80jcnw6iz7a4kndia3fig53jm1kzqi4xbfgxamfwqnzb",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/4b7e51865e44d3afc564e3a3111af12be1003251.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "poetry2nix": {
-        "branch": "master",
-        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
-        "homepage": "",
-        "owner": "nix-community",
-        "repo": "poetry2nix",
-        "rev": "4bc4abd85cb6031e1e85328cbb028e085f85469a",
-        "sha256": "192c9r10x20pw66cf8n412sxazpdkav74m9yrgzjg0yq57idlkiw",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/4bc4abd85cb6031e1e85328cbb028e085f85469a.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/d2f47b7dcd558a7727606319fd8661a4c3311b4a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
