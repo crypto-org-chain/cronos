@@ -137,7 +137,11 @@ def test_statesync(cronos):
     txhash_0 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
 
     # Deploy greeter contract
-    greeter = Greeter(KEYS["validator"])
+    greeter = Greeter(
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+        KEYS["validator"],
+    )
     txhash_1 = greeter.deploy(w3)
 
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + tx_value
@@ -260,7 +264,11 @@ def test_transaction(cronos):
     assert "insufficient fee" in str(error)
 
     # Deploy contract
-    test_revert = TestRevert(KEYS["validator"])
+    test_revert = TestRevert(
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+        KEYS["validator"],
+    )
     txhash_3 = test_revert.deploy(w3)
     tx3 = w3.eth.get_transaction(txhash_3)
     # Check tx2 are not included, tx3 is included
