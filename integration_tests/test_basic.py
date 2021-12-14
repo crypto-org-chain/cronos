@@ -233,7 +233,7 @@ def test_transaction(cronos):
     assert tx1["transactionIndex"] == 0
 
     # out of gas
-    try:
+    with pytest.raises(ValueError) as error:
         send_transaction(
             w3,
             {
@@ -244,11 +244,10 @@ def test_transaction(cronos):
             },
             KEYS["validator"],
         )["transactionHash"]
-    except ValueError as error:
-        assert "out of gas" in str(error)
+    assert "out of gas" in str(error)
 
     # insufficient fee
-    try:
+    with pytest.raises(ValueError) as error:
         send_transaction(
             w3,
             {
@@ -258,8 +257,7 @@ def test_transaction(cronos):
             },
             KEYS["validator"],
         )["transactionHash"]
-    except ValueError as error:
-        assert "insufficient fee" in str(error)
+    assert "insufficient fee" in str(error)
 
     # Deploy contract
     test_revert = TestRevert(KEYS["validator"])
