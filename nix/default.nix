@@ -12,8 +12,14 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (import (sources.gomod2nix + "/overlay.nix"))
-    (import (sources.poetry2nix + "/overlay.nix"))
+    (_: pkgs: rec {
+      buildGoApplication = pkgs.callPackage (import (sources.gomod2nix + "/builder")) {
+        go = pkgs.go_1_17;
+      };
+      gomod2nix = pkgs.callPackage (import (sources.gomod2nix)) {
+        inherit buildGoApplication;
+      };
+    })
     (_: pkgs: {
       pystarport = pkgs.poetry2nix.mkPoetryApplication {
         projectDir = sources.pystarport;

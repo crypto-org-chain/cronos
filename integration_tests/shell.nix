@@ -2,7 +2,8 @@
 pkgs.mkShell {
   buildInputs = [
     pkgs.jq
-    pkgs.go
+    pkgs.go_1_17
+    pkgs.gomod2nix
     (import ../. { inherit pkgs; }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
