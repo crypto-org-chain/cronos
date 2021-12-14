@@ -11,6 +11,7 @@ from .utils import (
     ADDRS,
     KEYS,
     Greeter,
+    TestRevert,
     deploy_contract,
     send_transaction,
     wait_for_block,
@@ -217,3 +218,70 @@ def test_statesync(cronos):
     )
 
     print("succesfully syncing")
+
+
+def test_transaction(cronos):
+    w3 = cronos.w3
+
+    # send transaction
+    txhash_1 = send_transaction(
+        w3,
+        {"to": ADDRS["community"], "value": 10000, "gasPrice": w3.eth.gas_price},
+        KEYS["validator"],
+    )["transactionHash"]
+    tx1 = w3.eth.get_transaction(txhash_1)
+    assert tx1["transactionIndex"] == 0
+
+    # out of gas
+    try:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "gas": 1,
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    except ValueError as error:
+        assert "out of gas" in str(error)
+
+    # insufficient fee
+    try:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": 1,
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    except ValueError as error:
+        assert "insufficient fee" in str(error)
+
+    # Deploy contract
+    test_revert = TestRevert(KEYS["validator"])
+    txhash_3 = test_revert.deploy(w3)
+    tx3 = w3.eth.get_transaction(txhash_3)
+    # Check tx2 are not included, tx3 is included
+    assert tx3["transactionIndex"] == 0
+    assert tx3["blockNumber"] == tx1["blockNumber"] + 1
+
+    # Call contract (reverted)
+    txhash_4 = test_revert.transfer(w3, 5 * 10 ** 18 - 1)
+    tx4 = w3.eth.get_transaction(txhash_4)
+    tx4_receipt = w3.eth.get_transaction_receipt(txhash_4)
+    # Check tx4 is included
+    assert tx4["transactionIndex"] == 0
+    assert tx4["blockNumber"] == tx1["blockNumber"] + 2
+    # Check revert transaction included and reverted
+    assert tx4_receipt["status"] == 0
+
+    # Call contract (normal)
+    txhash_5 = test_revert.transfer(w3, 5 * 10 ** 18)
+    tx5 = w3.eth.get_transaction(txhash_5)
+    # Check tx5 is included
+    assert tx5["transactionIndex"] == 0
+    assert tx5["blockNumber"] == tx1["blockNumber"] + 3

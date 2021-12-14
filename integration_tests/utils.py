@@ -441,3 +441,83 @@ class Greeter:
         assert "world" == self.contract.functions.greet().call()
 
         return send_store_tx
+
+
+class TestRevert:
+    "TestRevert contract."
+
+    def __init__(self, private_key=KEYS["validator"], chain_id=777):
+        self.chain_id = chain_id
+        self.account = Account.from_key(private_key)
+        self.address = self.account.address
+        self.private_key = private_key
+        self.nonce = 0
+
+        contract_path = (
+            Path(__file__).parent
+            / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json"
+        )
+
+        with open(contract_path) as f:
+            json_data = f.read()
+            contract_json = json.loads(json_data)
+
+        self.bytecode = contract_json["bytecode"]
+        self.abi = contract_json["abi"]
+
+        self.contract = None
+        self._contract_hash = None
+
+    def deploy(self, w3):
+        "Deploy Greeter contract on `w3` and return the transaction hash."
+        if self.contract is None:
+            contract = w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
+            self.nonce = w3.eth.get_transaction_count(self.address)
+
+            transaction = contract.constructor().buildTransaction(
+                {"chainId": self.chain_id, "from": self.address, "nonce": self.nonce}
+            )
+
+            signed_txn = w3.eth.account.sign_transaction(
+                transaction, private_key=self.private_key
+            )
+
+            # print("Deploying contract...")
+            # Send this signed transaction
+            self._contract_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+
+            tx_receipt = w3.eth.wait_for_transaction_receipt(self._contract_hash)
+            # print("Deployed!")
+
+            self.contract = w3.eth.contract(
+                address=tx_receipt.contractAddress, abi=self.abi
+            )
+
+            return self._contract_hash
+        else:
+            return self._contract_hash
+
+    def transfer(self, w3, value):
+        "Call contract on `w3` and return the transaction hash."
+        # print("Updating Contract...")
+
+        # Get updated nonce, in case the nonce changes
+        self.nonce = w3.eth.get_transaction_count(self.address)
+
+        store_transaction = self.contract.functions.transfer(value).buildTransaction(
+            {
+                "chainId": self.chain_id,
+                "from": self.address,
+                "nonce": self.nonce,  # nonce can only be used once in each transaction
+                "gas": 1000000000,  # skip estimateGas error
+            }
+        )
+
+        signed_store_txn = w3.eth.account.sign_transaction(
+            store_transaction, private_key=self.private_key
+        )
+        send_store_tx = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
+
+        _ = w3.eth.wait_for_transaction_receipt(send_store_tx)
+
+        return send_store_tx
