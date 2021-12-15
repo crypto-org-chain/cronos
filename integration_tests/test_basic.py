@@ -238,6 +238,36 @@ def test_transaction(cronos):
     tx1 = w3.eth.get_transaction(txhash_1)
     assert tx1["transactionIndex"] == 0
 
+    initial_block_number = w3.eth.get_block_number()
+
+    # tx already in mempool
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) - 1,
+            },
+            KEYS["validator"],
+        )
+    assert "tx already in mempool" in str(exc)
+
+    # invalid sequence
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) + 1,
+            },
+            KEYS["validator"],
+        )
+    assert "invalid sequence" in str(exc)
+
     # out of gas
     with pytest.raises(ValueError) as exc:
         send_transaction(
@@ -264,6 +294,9 @@ def test_transaction(cronos):
             KEYS["validator"],
         )["transactionHash"]
     assert "insufficient fee" in str(exc)
+
+    # check all failed transactions are not included in blockchain
+    assert w3.eth.get_block_number() == initial_block_number
 
     # Deploy multiple contracts
     contracts = {
