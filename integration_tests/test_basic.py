@@ -16,8 +16,8 @@ from .utils import (
     deploy_contract,
     send_transaction,
     wait_for_block,
-    wait_for_port,
     wait_for_current_block_confirmation,
+    wait_for_port,
 )
 
 
