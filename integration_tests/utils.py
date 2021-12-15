@@ -29,6 +29,8 @@ Account.enable_unaudited_hdwallet_features()
 ACCOUNTS = {
     "validator": Account.from_mnemonic(os.getenv("VALIDATOR1_MNEMONIC")),
     "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
+    "signer1": Account.from_mnemonic(os.getenv("SIGNER1_MNEMONIC")),
+    "signer2": Account.from_mnemonic(os.getenv("SIGNER2_MNEMONIC")),
 }
 KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
@@ -107,6 +109,12 @@ def wait_for_ipc(path, timeout=40.0):
             raise TimeoutError(
                 "Waited too long for the unix socket {path} to be available"
             )
+
+
+def wait_for_current_block_confirmation(w3):
+    current_block = w3.eth.get_block_number()
+    while current_block + 1 != w3.eth.get_block_number():
+        time.sleep(0.4)
 
 
 def cluster_fixture(
@@ -378,29 +386,33 @@ class Contract:
 
         self.contract = None
         self._contract_hash = None
+        self.w3 = None
 
     def deploy(self, w3):
         "Deploy Greeter contract on `w3` and return the transaction hash."
         if self.contract is None:
-            contract = w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
-            self.nonce = w3.eth.get_transaction_count(self.address)
+            self.w3 = w3
+            contract = self.w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
+            self.nonce = self.w3.eth.get_transaction_count(self.address)
 
             transaction = contract.constructor().buildTransaction(
                 {"chainId": self.chain_id, "from": self.address, "nonce": self.nonce}
             )
 
-            signed_txn = w3.eth.account.sign_transaction(
+            signed_txn = self.w3.eth.account.sign_transaction(
                 transaction, private_key=self.private_key
             )
 
             # print("Deploying contract...")
             # Send this signed transaction
-            self._contract_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            self._contract_hash = self.w3.eth.send_raw_transaction(
+                signed_txn.rawTransaction
+            )
 
-            tx_receipt = w3.eth.wait_for_transaction_receipt(self._contract_hash)
+            tx_receipt = self.w3.eth.wait_for_transaction_receipt(self._contract_hash)
             # print("Deployed!")
 
-            self.contract = w3.eth.contract(
+            self.contract = self.w3.eth.contract(
                 address=tx_receipt.contractAddress, abi=self.abi
             )
 
@@ -414,15 +426,15 @@ class Contract:
 class Greeter(Contract):
     "Greeter contract."
 
-    def call_contact(self, w3):
+    def transfer(self, string):
         "Call contract on `w3` and return the transaction hash."
         # print("Updating Contract...")
 
         # Get updated nonce, in case the nonce changes
-        self.nonce = w3.eth.get_transaction_count(self.address)
+        self.nonce = self.w3.eth.get_transaction_count(self.address)
 
         store_transaction = self.contract.functions.setGreeting(
-            "world"
+            string
         ).buildTransaction(
             {
                 "chainId": self.chain_id,
@@ -430,14 +442,16 @@ class Greeter(Contract):
                 "nonce": self.nonce,  # nonce can only be used once in each transaction
             }
         )
-        signed_store_txn = w3.eth.account.sign_transaction(
+        signed_store_txn = self.w3.eth.account.sign_transaction(
             store_transaction, private_key=self.private_key
         )
-        send_store_tx = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
-        _ = w3.eth.wait_for_transaction_receipt(send_store_tx)
+        send_store_tx = self.w3.eth.send_raw_transaction(
+            signed_store_txn.rawTransaction
+        )
+        _ = self.w3.eth.wait_for_transaction_receipt(send_store_tx)
         # print("Updated!")
 
-        assert "world" == self.contract.functions.greet().call()
+        assert string == self.contract.functions.greet().call()
 
         return send_store_tx
 
@@ -445,27 +459,29 @@ class Greeter(Contract):
 class TestRevert(Contract):
     "TestRevert contract."
 
-    def transfer(self, w3, value):
+    def transfer(self, value):
         "Call contract on `w3` and return the transaction hash."
         # print("Updating Contract...")
 
         # Get updated nonce, in case the nonce changes
-        self.nonce = w3.eth.get_transaction_count(self.address)
+        self.nonce = self.w3.eth.get_transaction_count(self.address)
 
         store_transaction = self.contract.functions.transfer(value).buildTransaction(
             {
                 "chainId": self.chain_id,
                 "from": self.address,
                 "nonce": self.nonce,  # nonce can only be used once in each transaction
-                "gas": 1000000000,  # skip estimateGas error
+                "gas": 100000,  # skip estimateGas error
             }
         )
 
-        signed_store_txn = w3.eth.account.sign_transaction(
+        signed_store_txn = self.w3.eth.account.sign_transaction(
             store_transaction, private_key=self.private_key
         )
-        send_store_tx = w3.eth.send_raw_transaction(signed_store_txn.rawTransaction)
+        send_store_tx = self.w3.eth.send_raw_transaction(
+            signed_store_txn.rawTransaction
+        )
 
-        _ = w3.eth.wait_for_transaction_receipt(send_store_tx)
+        _ = self.w3.eth.wait_for_transaction_receipt(send_store_tx)
 
         return send_store_tx
