@@ -205,7 +205,7 @@ def test_statesync(cronos):
 
     # execute new transactions
     txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
-    txhash_3 = greeter.tranfer("world")
+    txhash_3 = greeter.transfer("world")
     # Wait 1 more block
     wait_for_block(
         clustercli.cosmos_cli(i),
