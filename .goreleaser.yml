@@ -200,3 +200,6 @@ changelog:
     - '^test:'
 snapshot:
   name_template: "{{ .Tag }}-next"
+
+release:
+  draft: true
