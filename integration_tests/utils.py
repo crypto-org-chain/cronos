@@ -111,12 +111,6 @@ def wait_for_ipc(path, timeout=40.0):
             )
 
 
-def wait_for_current_block_confirmation(w3):
-    current_block = w3.eth.get_block_number()
-    while current_block + 1 != w3.eth.get_block_number():
-        time.sleep(0.4)
-
-
 def cluster_fixture(
     config_path,
     worker_index,

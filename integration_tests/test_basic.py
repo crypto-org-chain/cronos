@@ -16,7 +16,6 @@ from .utils import (
     deploy_contract,
     send_transaction,
     wait_for_block,
-    wait_for_current_block_confirmation,
     wait_for_port,
 )
 
@@ -329,8 +328,6 @@ def test_transaction(cronos):
         }
 
         assert_receipt_transaction_and_block(w3, future_to_contract)
-
-    wait_for_current_block_confirmation(w3)
 
     # Do Multiple contract calls
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
