@@ -143,7 +143,7 @@ def test_statesync(cronos):
         / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
         KEYS["validator"],
     )
-    txhash_1 = greeter.deploy(w3)
+    txhash_1 = greeter.deploy(w3)["transactionHash"].hex()
 
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + tx_value
 
@@ -204,7 +204,7 @@ def test_statesync(cronos):
 
     # execute new transactions
     txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
-    txhash_3 = greeter.transfer("world")
+    txhash_3 = greeter.transfer("world")["transactionHash"].hex()
     # Wait 1 more block
     wait_for_block(
         clustercli.cosmos_cli(i),
