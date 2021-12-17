@@ -1,3 +1,4 @@
+import concurrent.futures
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from .utils import (
     ADDRS,
     KEYS,
     Greeter,
+    TestRevert,
     deploy_contract,
     send_transaction,
     wait_for_block,
@@ -136,8 +138,12 @@ def test_statesync(cronos):
     txhash_0 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
 
     # Deploy greeter contract
-    greeter = Greeter(KEYS["validator"])
-    txhash_1 = greeter.deploy(w3)
+    greeter = Greeter(
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+        KEYS["validator"],
+    )
+    txhash_1 = greeter.deploy(w3)["transactionHash"].hex()
 
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + tx_value
 
@@ -198,7 +204,7 @@ def test_statesync(cronos):
 
     # execute new transactions
     txhash_2 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
-    txhash_3 = greeter.call_contact(w3)
+    txhash_3 = greeter.transfer("world")["transactionHash"].hex()
     # Wait 1 more block
     wait_for_block(
         clustercli.cosmos_cli(i),
@@ -217,3 +223,172 @@ def test_statesync(cronos):
     )
 
     print("succesfully syncing")
+
+
+def test_transaction(cronos):
+    w3 = cronos.w3
+
+    # send transaction
+    txhash_1 = send_transaction(
+        w3,
+        {"to": ADDRS["community"], "value": 10000, "gasPrice": w3.eth.gas_price},
+        KEYS["validator"],
+    )["transactionHash"]
+    tx1 = w3.eth.get_transaction(txhash_1)
+    assert tx1["transactionIndex"] == 0
+
+    initial_block_number = w3.eth.get_block_number()
+
+    # tx already in mempool
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) - 1,
+            },
+            KEYS["validator"],
+        )
+    assert "tx already in mempool" in str(exc)
+
+    # invalid sequence
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "nonce": w3.eth.get_transaction_count(ADDRS["validator"]) + 1,
+            },
+            KEYS["validator"],
+        )
+    assert "invalid sequence" in str(exc)
+
+    # out of gas
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": w3.eth.gas_price,
+                "gas": 1,
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    assert "out of gas" in str(exc)
+
+    # insufficient fee
+    with pytest.raises(ValueError) as exc:
+        send_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 10000,
+                "gasPrice": 1,
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    assert "insufficient fee" in str(exc)
+
+    # check all failed transactions are not included in blockchain
+    assert w3.eth.get_block_number() == initial_block_number
+
+    # Deploy multiple contracts
+    contracts = {
+        "test_revert_1": TestRevert(
+            Path(__file__).parent
+            / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+            KEYS["validator"],
+        ),
+        "test_revert_2": TestRevert(
+            Path(__file__).parent
+            / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+            KEYS["community"],
+        ),
+        "greeter_1": Greeter(
+            Path(__file__).parent
+            / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+            KEYS["signer1"],
+        ),
+        "greeter_2": Greeter(
+            Path(__file__).parent
+            / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+            KEYS["signer2"],
+        ),
+    }
+
+    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+        future_to_contract = {
+            executor.submit(contract.deploy, w3): name
+            for name, contract in contracts.items()
+        }
+
+        assert_receipt_transaction_and_block(w3, future_to_contract)
+
+    # Do Multiple contract calls
+    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+        futures = []
+        futures.append(
+            executor.submit(contracts["test_revert_1"].transfer, 5 * 10 ** 18 - 1)
+        )
+        futures.append(
+            executor.submit(contracts["test_revert_2"].transfer, 5 * 10 ** 18)
+        )
+        futures.append(executor.submit(contracts["greeter_1"].transfer, "hello"))
+        futures.append(executor.submit(contracts["greeter_2"].transfer, "world"))
+
+        assert_receipt_transaction_and_block(w3, futures)
+
+        # revert transaction
+        assert futures[0].result()["status"] == 0
+        # normal transaction
+        assert futures[1].result()["status"] == 1
+        # normal transaction
+        assert futures[2].result()["status"] == 1
+        # normal transaction
+        assert futures[3].result()["status"] == 1
+
+
+def assert_receipt_transaction_and_block(w3, futures):
+    receipts = []
+    for future in concurrent.futures.as_completed(futures):
+        # name = future_to_contract[future]
+        data = future.result()
+        receipts.append(data)
+    assert len(receipts) == 4
+    # print(receipts)
+
+    block_number = w3.eth.get_block_number()
+    tx_indexes = [0, 1, 2, 3]
+    for receipt in receipts:
+        # check in the same block
+        assert receipt["blockNumber"] == block_number
+        # check transactionIndex
+        transaction_index = receipt["transactionIndex"]
+        assert transaction_index in tx_indexes
+        tx_indexes.remove(transaction_index)
+
+    block = w3.eth.get_block(block_number)
+    # print(block)
+
+    transactions = [
+        w3.eth.get_transaction_by_block(block_number, receipt["transactionIndex"])
+        for receipt in receipts
+    ]
+    assert len(transactions) == 4
+    for i, transaction in enumerate(transactions):
+        # print(transaction)
+        # check in the same block
+        assert transaction["blockNumber"] == block_number
+        # check transactionIndex
+        assert transaction["transactionIndex"] == receipts[i]["transactionIndex"]
+        # check hash
+        assert transaction["hash"] == receipts[i]["transactionHash"]
+        # check transaction in block
+        assert transaction["hash"] in block["transactions"]
+        # check blockNumber in block
+        assert transaction["blockNumber"] == block["number"]
