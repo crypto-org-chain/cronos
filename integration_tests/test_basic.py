@@ -321,6 +321,7 @@ def test_transaction(cronos):
             KEYS["signer2"],
         ),
     }
+
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
         future_to_contract = {
             executor.submit(contract.deploy, w3): name
@@ -346,13 +347,13 @@ def test_transaction(cronos):
         assert_receipt_transaction_and_block(w3, futures)
 
         # revert transaction
-        assert w3.eth.get_transaction_receipt(futures[0].result())["status"] == 0
+        assert futures[0].result()["status"] == 0
         # normal transaction
-        assert w3.eth.get_transaction_receipt(futures[1].result())["status"] == 1
+        assert futures[1].result()["status"] == 1
         # normal transaction
-        assert w3.eth.get_transaction_receipt(futures[2].result())["status"] == 1
+        assert futures[2].result()["status"] == 1
         # normal transaction
-        assert w3.eth.get_transaction_receipt(futures[3].result())["status"] == 1
+        assert futures[3].result()["status"] == 1
 
 
 def assert_receipt_transaction_and_block(w3, futures):
@@ -364,7 +365,7 @@ def assert_receipt_transaction_and_block(w3, futures):
         except Exception as exc:
             print("%s" % (exc))
         else:
-            receipts.append(w3.eth.get_transaction_receipt(data))
+            receipts.append(data)
     assert len(receipts) == 4
     # print(receipts)
 
