@@ -378,7 +378,7 @@ class Contract:
         self.w3 = None
 
     def deploy(self, w3):
-        "Deploy Greeter contract on `w3` and return the transaction hash."
+        "Deploy Greeter contract on `w3` and return the receipt."
         if self.contract is None:
             self.w3 = w3
             contract = self.w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
@@ -398,7 +398,7 @@ class Greeter(Contract):
     "Greeter contract."
 
     def transfer(self, string):
-        "Call contract on `w3` and return the transaction hash."
+        "Call contract on `w3` and return the receipt."
         transaction = self.contract.functions.setGreeting(string).buildTransaction(
             {
                 "chainId": self.chain_id,
@@ -414,7 +414,7 @@ class TestRevert(Contract):
     "TestRevert contract."
 
     def transfer(self, value):
-        "Call contract on `w3` and return the transaction hash."
+        "Call contract on `w3` and return the receipt."
         transaction = self.contract.functions.transfer(value).buildTransaction(
             {
                 "chainId": self.chain_id,
