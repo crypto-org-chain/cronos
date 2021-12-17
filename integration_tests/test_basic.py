@@ -357,12 +357,8 @@ def assert_receipt_transaction_and_block(w3, futures):
     receipts = []
     for future in concurrent.futures.as_completed(futures):
         # name = future_to_contract[future]
-        try:
-            data = future.result()
-        except Exception as exc:
-            print("%s" % (exc))
-        else:
-            receipts.append(data)
+        data = future.result()
+        receipts.append(data)
     assert len(receipts) == 4
     # print(receipts)
 
@@ -377,7 +373,7 @@ def assert_receipt_transaction_and_block(w3, futures):
         tx_indexes.remove(transaction_index)
 
     block = w3.eth.get_block(block_number)
-    print(block)
+    # print(block)
 
     transactions = [
         w3.eth.get_transaction_by_block(block_number, receipt["transactionIndex"])
