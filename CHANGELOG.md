@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.6.5
+
+### Bug Fixes
+
+- [cronos#255](https://github.com/crypto-org-chain/cronos/pull/255) fix empty topics in non-breaking way
+- [cronos#270](https://github.com/crypto-org-chain/cronos/pull/270) reject MsgEthereumTx wrapping tx without the extension option.
 
 *November 30, 2021*
 
