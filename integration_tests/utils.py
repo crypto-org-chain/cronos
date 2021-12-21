@@ -313,7 +313,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     return w3.eth.contract(address=address, abi=info["abi"])
 
 
-def send_transaction(w3, tx, key):
+def send_transaction(w3, tx, key=KEYS["validator"]):
     acct = Account.from_key(key)
     tx["from"] = acct.address
     tx = fill_transaction_defaults(w3, tx)
@@ -410,8 +410,8 @@ class Greeter(Contract):
         return receipt
 
 
-class TestRevert(Contract):
-    "TestRevert contract."
+class RevertTestContract(Contract):
+    "RevertTestContract contract."
 
     def transfer(self, value):
         "Call contract on `w3` and return the receipt."
