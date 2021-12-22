@@ -21,9 +21,9 @@ coverage:
         target: 70%
         flags:
           - modules
-      client:
+      clients:
         flags:
-          - client
+          - clients
     changes: false
 
 comment:
