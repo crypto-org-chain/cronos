@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 import toml
@@ -12,6 +11,7 @@ from .gorc import GoRc
 from .network import GravityBridge, setup_cronos_experimental, setup_geth
 from .utils import (
     ADDRS,
+    CONTRACTS,
     KEYS,
     InlineTable,
     add_ini_sections,
@@ -33,7 +33,7 @@ Account.enable_unaudited_hdwallet_features()
 
 
 def cronos_crc20_abi():
-    path = Path(__file__).parent.parent / "x/cronos/types/contracts/ModuleCRC20.json"
+    path = CONTRACTS["ModuleCRC20"]
     return json.load(path.open())["abi"]
 
 
@@ -155,8 +155,7 @@ def gravity(cronos, geth):
 
     contract = deploy_contract(
         geth,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/Gravity.sol/Gravity.json",
+        CONTRACTS["Gravity"],
         (gravity_id.encode(), threshold, eth_addresses, powers),
     )
     print("gravity contract deployed", contract.address)
@@ -196,8 +195,7 @@ def test_gravity_transfer(gravity):
     # deploy test erc20 contract
     erc20 = deploy_contract(
         geth,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+        CONTRACTS["TestERC20A"],
     )
 
     balance = erc20.caller.balanceOf(ADDRS["validator"])
@@ -272,14 +270,12 @@ def test_gov_token_mapping(gravity):
     # deploy test erc20 contract
     erc20 = deploy_contract(
         geth,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+        CONTRACTS["TestERC20A"],
     )
     print("erc20 contract", erc20.address)
     crc20 = deploy_contract(
         cronos_w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+        CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
     denom = f"gravity{erc20.address}"
@@ -349,14 +345,12 @@ def test_direct_token_mapping(gravity):
     # deploy test erc20 contract
     erc20 = deploy_contract(
         geth,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+        CONTRACTS["TestERC20A"],
     )
     print("erc20 contract", erc20.address)
     crc20 = deploy_contract(
         cronos_w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+        CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
     denom = f"gravity{erc20.address}"

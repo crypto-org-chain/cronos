@@ -1,13 +1,12 @@
 import json
 import subprocess
 import time
-from pathlib import Path
 
 import pytest
 from eth_account import Account
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
-from .utils import KEYS, wait_for_port
+from .utils import CONTRACTS, KEYS, wait_for_port
 
 
 @pytest.fixture(scope="module")
@@ -111,10 +110,7 @@ def test_contract(cronos, chainmain, hermes):
     contract_creator_address = account.address
     web3api.eth.get_balance(contract_creator_address)
 
-    contract_path = (
-        Path(__file__).parent / "contracts/artifacts/contracts/Greeter.sol/Greeter.json"
-    )
-    with open(contract_path) as f:
+    with open(CONTRACTS["Greeter"]) as f:
         json_data = f.read()
         contract_json = json.loads(json_data)
 

@@ -11,6 +11,7 @@ from pystarport import cluster, ports
 
 from .utils import (
     ADDRS,
+    CONTRACTS,
     KEYS,
     Greeter,
     RevertTestContract,
@@ -31,8 +32,7 @@ def test_events(cluster, suspend_capture):
     w3 = cluster.w3
     erc20 = deploy_contract(
         w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+        CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).buildTransaction(
@@ -98,8 +98,7 @@ def test_native_call(cronos):
     w3 = cronos.w3
     contract = deploy_contract(
         w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestERC20A.sol/TestERC20A.json",
+        CONTRACTS["TestERC20A"],
     )
 
     amount = 100
@@ -140,8 +139,7 @@ def test_statesync(cronos):
 
     # Deploy greeter contract
     greeter = Greeter(
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+        CONTRACTS["Greeter"],
         KEYS["validator"],
     )
     txhash_1 = greeter.deploy(w3)["transactionHash"].hex()
@@ -301,23 +299,19 @@ def test_transaction(cronos):
     # Deploy multiple contracts
     contracts = {
         "test_revert_1": RevertTestContract(
-            Path(__file__).parent
-            / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+            CONTRACTS["TestRevert"],
             KEYS["validator"],
         ),
         "test_revert_2": RevertTestContract(
-            Path(__file__).parent
-            / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+            CONTRACTS["TestRevert"],
             KEYS["community"],
         ),
         "greeter_1": Greeter(
-            Path(__file__).parent
-            / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+            CONTRACTS["Greeter"],
             KEYS["signer1"],
         ),
         "greeter_2": Greeter(
-            Path(__file__).parent
-            / "contracts/artifacts/contracts/Greeter.sol/Greeter.json",
+            CONTRACTS["Greeter"],
             KEYS["signer2"],
         ),
     }
@@ -399,8 +393,7 @@ def test_exception(cluster):
     w3 = cluster.w3
     contract = deploy_contract(
         w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestRevert.sol/TestRevert.json",
+        CONTRACTS["TestRevert"],
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
@@ -420,8 +413,7 @@ def test_message_call(cronos):
     w3 = cronos.w3
     contract = deploy_contract(
         w3,
-        Path(__file__).parent
-        / "contracts/artifacts/contracts/TestMessageCall.sol/TestMessageCall.json",
+        CONTRACTS["TestMessageCall"],
         key=KEYS["community"],
     )
     iterations = 13000
