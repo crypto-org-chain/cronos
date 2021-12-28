@@ -162,3 +162,5 @@ replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.3
 // https://github.com/crypto-org-chain/ethermint/tree/v0.9.x-cronos
 // FIXME make a tag or point to upstream when ready
 replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62
+
+replace github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v0.0.0-20211202124722-2c356d6d98e4

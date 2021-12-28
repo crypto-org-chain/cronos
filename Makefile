@@ -16,19 +16,30 @@ COVERAGE ?= coverage.txt
 BUILDDIR ?= $(CURDIR)/build
 LEDGER_ENABLED ?= true
 
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=cronos \
-	-X github.com/cosmos/cosmos-sdk/version.AppName=cronosd \
-	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
-
-BUILD_FLAGS := -ldflags '$(ldflags)'
-
 BUILD_TAGS := -tags
 ifeq ($(NETWORK),mainnet)
     BUILD_TAGS := $(BUILD_TAGS) mainnet
 else ifeq ($(NETWORK),testnet)
     BUILD_TAGS := $(BUILD_TAGS) testnet
 endif
+
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=cronos \
+	-X github.com/cosmos/cosmos-sdk/version.AppName=cronosd \
+	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
+
+# handle rocksdb
+ifeq (rocksdb,$(findstring rocksdb,$(COSMOS_BUILD_OPTIONS)))
+  $(info ################################################################)
+  $(info To use rocksdb, you need to install rocksdb first)
+  $(info Please follow this guide https://github.com/rockset/rocksdb-cloud/blob/master/INSTALL.md)
+  $(info ################################################################)
+  CGO_ENABLED=1
+  BUILD_TAGS := $(BUILD_TAGS),rocksdb
+  ldflags += -X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb
+endif
+
+BUILD_FLAGS := -ldflags '$(ldflags)'
 
 ifeq ($(LEDGER_ENABLED),true)
     ifeq ($(OS),Windows_NT)
