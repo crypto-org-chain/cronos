@@ -15,6 +15,7 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    contract_path,
     deploy_contract,
     send_transaction,
     wait_for_block,
@@ -427,3 +428,28 @@ def test_message_call(cronos):
     assert 23828976 == receipt.cumulativeGasUsed
     assert receipt.status == 1, "shouldn't fail"
     assert len(receipt.logs) == iterations
+
+
+def test_suicide(cluster):
+    """
+    test compliance of contract suicide
+    - within the tx, after contract suicide, the code is still available.
+    - after the tx, the code is not available.
+    """
+    w3 = cluster.w3
+    inner = deploy_contract(
+        w3,
+        contract_path("Inner", "TestSuicide.sol"),
+    )
+    outer = deploy_contract(
+        w3,
+        contract_path("Outer", "TestSuicide.sol"),
+    )
+    assert len(w3.eth.get_code(inner.address)) > 0
+    assert len(w3.eth.get_code(outer.address)) > 0
+
+    tx = outer.functions.codesize_after_suicide(inner.address).buildTransaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    assert len(w3.eth.get_code(inner.address)) == 0

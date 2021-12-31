@@ -35,17 +35,31 @@ ACCOUNTS = {
 KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
-TEST_CONTRACT_PATH = Path(__file__).parent / "contracts/artifacts/contracts"
+TEST_CONTRACTS = {
+    "Gravity": "Gravity.sol",
+    "Greeter": "Greeter.sol",
+    "TestERC20A": "TestERC20A.sol",
+    "TestRevert": "TestRevert.sol",
+    "TestERC20Utility": "TestERC20Utility.sol",
+    "TestMessageCall": "TestMessageCall.sol",
+}
+
+
+def contract_path(name, filename):
+    return (
+        Path(__file__).parent
+        / "contracts/artifacts/contracts"
+        / filename
+        / (name + ".json")
+    )
+
+
 CONTRACTS = {
-    "Gravity": TEST_CONTRACT_PATH / "Gravity.sol/Gravity.json",
-    "Greeter": TEST_CONTRACT_PATH / "Greeter.sol/Greeter.json",
     "ModuleCRC20": Path(__file__).parent.parent
     / "x/cronos/types/contracts/ModuleCRC20.json",
-    "TestERC20A": TEST_CONTRACT_PATH / "TestERC20A.sol/TestERC20A.json",
-    "TestRevert": TEST_CONTRACT_PATH / "TestRevert.sol/TestRevert.json",
-    "TestERC20Utility": TEST_CONTRACT_PATH
-    / "TestERC20Utility.sol/TestERC20Utility.json",
-    "TestMessageCall": TEST_CONTRACT_PATH / "TestMessageCall.sol/TestMessageCall.json",
+    **{
+        name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
+    },
 }
 
 
