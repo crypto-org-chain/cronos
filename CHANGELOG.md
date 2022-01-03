@@ -9,6 +9,9 @@
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
 
+### Bug Fixes
+- [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
+
 *November 30, 2021*
 
 ## v0.6.4
