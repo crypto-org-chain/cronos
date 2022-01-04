@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.6;
 
-contract Inner {
+contract Destroyee {
     function destroy() public {
         selfdestruct(payable(msg.sender));
     }
 }
 
-contract Outer {
-    function codesize_after_suicide(Inner inner) public {
-        address addr = address(inner);
-        inner.destroy();
+contract Destroyer {
+    function codesize_after_suicide(Destroyee destroyee) public {
+        address addr = address(destroyee);
+        destroyee.destroy();
         uint _size = 0;
         assembly {
             _size := extcodesize(addr)

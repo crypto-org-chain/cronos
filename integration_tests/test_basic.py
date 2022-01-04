@@ -437,19 +437,19 @@ def test_suicide(cluster):
     - after the tx, the code is not available.
     """
     w3 = cluster.w3
-    inner = deploy_contract(
+    destroyee = deploy_contract(
         w3,
-        contract_path("Inner", "TestSuicide.sol"),
+        contract_path("Destroyee", "TestSuicide.sol"),
     )
-    outer = deploy_contract(
+    destroyer = deploy_contract(
         w3,
-        contract_path("Outer", "TestSuicide.sol"),
+        contract_path("Destroyer", "TestSuicide.sol"),
     )
-    assert len(w3.eth.get_code(inner.address)) > 0
-    assert len(w3.eth.get_code(outer.address)) > 0
+    assert len(w3.eth.get_code(destroyee.address)) > 0
+    assert len(w3.eth.get_code(destroyer.address)) > 0
 
-    tx = outer.functions.codesize_after_suicide(inner.address).buildTransaction()
+    tx = destroyer.functions.codesize_after_suicide(destroyee.address).buildTransaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
-    assert len(w3.eth.get_code(inner.address)) == 0
+    assert len(w3.eth.get_code(destroyee.address)) == 0
