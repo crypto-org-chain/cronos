@@ -8,7 +8,7 @@ contract Destroyee {
 }
 
 contract Destroyer {
-    function codesize_after_suicide(Destroyee destroyee) public {
+    function check_codesize_after_suicide(Destroyee destroyee) public {
         address addr = address(destroyee);
         destroyee.destroy();
         uint _size = 0;

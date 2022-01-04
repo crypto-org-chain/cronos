@@ -448,7 +448,9 @@ def test_suicide(cluster):
     assert len(w3.eth.get_code(destroyee.address)) > 0
     assert len(w3.eth.get_code(destroyer.address)) > 0
 
-    tx = destroyer.functions.codesize_after_suicide(destroyee.address).buildTransaction()
+    tx = destroyer.functions.check_codesize_after_suicide(
+        destroyee.address
+    ).buildTransaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
