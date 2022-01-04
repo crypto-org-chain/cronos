@@ -18,10 +18,7 @@ const DefaultGasCap uint64 = 25000000
 
 // CallEVM execute an evm message from native module
 func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error) {
-	nonce, err := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
-	if err != nil {
-		return nil, nil, err
-	}
+	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
 	msg := ethtypes.NewMessage(
 		types.EVMModuleAddress,
 		to,

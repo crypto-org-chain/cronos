@@ -22,7 +22,6 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
-	txHash := common.BigToHash(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
 	sender := common.BigToAddress(big.NewInt(4))
 	denom := "testdenom"
@@ -40,7 +39,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Topics:  []common.Hash{keeper.SendToAccountEvent.ID},
 					},
 				}
-				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				suite.Require().NoError(err)
 			},
 		},
@@ -59,7 +61,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				suite.Require().Error(err)
 			},
 		},
@@ -86,7 +91,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				suite.Require().NoError(err)
 
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -121,7 +129,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				// should fail, because of not gravity denom name
 				suite.Require().Error(err)
 			},
@@ -153,7 +164,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				suite.Require().NoError(err)
 
 				// sender's balance deducted
@@ -204,7 +218,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Data:    data,
 					},
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, txHash, logs)
+				receipt := &ethtypes.Receipt{
+					Logs: logs,
+				}
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, common.Address{}, nil, receipt)
 				// should fail, because of not ibc denom name
 				suite.Require().Error(err)
 			},

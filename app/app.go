@@ -36,6 +36,7 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/vesting"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	authzmodule "github.com/cosmos/cosmos-sdk/x/authz/module"
@@ -513,152 +514,120 @@ func New(
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
 
-	if experimental {
-		app.mm = module.NewManager(
-			genutil.NewAppModule(
-				app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
-				encodingConfig.TxConfig,
-			),
-			auth.NewAppModule(appCodec, app.AccountKeeper, nil),
-			vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-			bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
-			capability.NewAppModule(appCodec, *app.CapabilityKeeper),
-			crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-			gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-			mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
-			slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-			upgrade.NewAppModule(app.UpgradeKeeper),
-			evidence.NewAppModule(app.EvidenceKeeper),
-			ibc.NewAppModule(app.IBCKeeper),
-			params.NewAppModule(app.ParamsKeeper),
-			feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-			authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-
-			transferModule,
-			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-			feemarket.NewAppModule(app.FeeMarketKeeper),
-			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
-			// this line is used by starport scaffolding # stargate/app/appModule
-			cronosModule,
-		)
-	} else {
-		app.mm = module.NewManager(
-			genutil.NewAppModule(
-				app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
-				encodingConfig.TxConfig,
-			),
-			auth.NewAppModule(appCodec, app.AccountKeeper, nil),
-			vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
-			bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
-			capability.NewAppModule(appCodec, *app.CapabilityKeeper),
-			crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
-			gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
-			mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
-			slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
-			staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
-			upgrade.NewAppModule(app.UpgradeKeeper),
-			evidence.NewAppModule(app.EvidenceKeeper),
-			ibc.NewAppModule(app.IBCKeeper),
-			params.NewAppModule(app.ParamsKeeper),
-			feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
-			authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-
-			transferModule,
-			evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-			feemarket.NewAppModule(app.FeeMarketKeeper),
-			// this line is used by starport scaffolding # stargate/app/appModule
-			cronosModule,
-		)
+	modules := []module.AppModule{
+		genutil.NewAppModule(
+			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
+			encodingConfig.TxConfig,
+		),
+		auth.NewAppModule(appCodec, app.AccountKeeper, nil),
+		vesting.NewAppModule(app.AccountKeeper, app.BankKeeper),
+		bank.NewAppModule(appCodec, app.BankKeeper, app.AccountKeeper),
+		capability.NewAppModule(appCodec, *app.CapabilityKeeper),
+		crisis.NewAppModule(&app.CrisisKeeper, skipGenesisInvariants),
+		gov.NewAppModule(appCodec, app.GovKeeper, app.AccountKeeper, app.BankKeeper),
+		mint.NewAppModule(appCodec, app.MintKeeper, app.AccountKeeper),
+		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		distr.NewAppModule(appCodec, app.DistrKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
+		staking.NewAppModule(appCodec, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
+		upgrade.NewAppModule(app.UpgradeKeeper),
+		evidence.NewAppModule(app.EvidenceKeeper),
+		ibc.NewAppModule(app.IBCKeeper),
+		params.NewAppModule(app.ParamsKeeper),
+		feegrantmodule.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.FeeGrantKeeper, app.interfaceRegistry),
+		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
+		transferModule,
+		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+		feemarket.NewAppModule(app.FeeMarketKeeper),
+		cronosModule,
 	}
 
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	if experimental {
-		app.mm.SetOrderBeginBlockers(
-			upgradetypes.ModuleName,
-			capabilitytypes.ModuleName,
-			evmtypes.ModuleName,
-			minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
-			evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
-			gravitytypes.ModuleName,
-		)
-
-		app.mm.SetOrderEndBlockers(
-			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
-			evmtypes.ModuleName, feemarkettypes.ModuleName,
-			gravitytypes.ModuleName,
-		)
-	} else {
-		app.mm.SetOrderBeginBlockers(
-			upgradetypes.ModuleName,
-			capabilitytypes.ModuleName,
-			evmtypes.ModuleName,
-			minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
-			evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
-		)
-
-		app.mm.SetOrderEndBlockers(
-			crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
-			evmtypes.ModuleName, feemarkettypes.ModuleName,
-		)
+	beginBlockersOrder := []string{
+		upgradetypes.ModuleName,
+		capabilitytypes.ModuleName,
+		evmtypes.ModuleName,
+		minttypes.ModuleName, distrtypes.ModuleName, slashingtypes.ModuleName,
+		evidencetypes.ModuleName, stakingtypes.ModuleName, ibchost.ModuleName,
+		// no-op modules
+		ibctransfertypes.ModuleName,
+		authtypes.ModuleName,
+		banktypes.ModuleName,
+		govtypes.ModuleName,
+		crisistypes.ModuleName,
+		genutiltypes.ModuleName,
+		authz.ModuleName,
+		feegrant.ModuleName,
+		paramstypes.ModuleName,
+		vestingtypes.ModuleName,
+		feemarkettypes.ModuleName,
+		cronostypes.ModuleName,
 	}
-
+	endBlockersOrder := []string{
+		crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
+		evmtypes.ModuleName, feemarkettypes.ModuleName,
+		// no-op modules
+		ibchost.ModuleName,
+		ibctransfertypes.ModuleName,
+		capabilitytypes.ModuleName,
+		authtypes.ModuleName,
+		banktypes.ModuleName,
+		distrtypes.ModuleName,
+		slashingtypes.ModuleName,
+		minttypes.ModuleName,
+		genutiltypes.ModuleName,
+		evidencetypes.ModuleName,
+		authz.ModuleName,
+		feegrant.ModuleName,
+		paramstypes.ModuleName,
+		upgradetypes.ModuleName,
+		vestingtypes.ModuleName,
+		cronostypes.ModuleName,
+	}
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
 	// NOTE: Capability module must occur first so that it can initialize any capabilities
 	// so that other modules that want to create or claim capabilities afterwards in InitChain
 	// can do so safely.
-	if experimental {
-		app.mm.SetOrderInitGenesis(
-			capabilitytypes.ModuleName,
-			authtypes.ModuleName,
-			banktypes.ModuleName,
-			distrtypes.ModuleName,
-			stakingtypes.ModuleName,
-			slashingtypes.ModuleName,
-			govtypes.ModuleName,
-			minttypes.ModuleName,
-			crisistypes.ModuleName,
-			ibchost.ModuleName,
-			genutiltypes.ModuleName,
-			evidencetypes.ModuleName,
-			ibctransfertypes.ModuleName,
-			authz.ModuleName,
-			feegrant.ModuleName,
-			evmtypes.ModuleName,
-			feemarkettypes.ModuleName,
-			gravitytypes.ModuleName,
-			// this line is used by starport scaffolding # stargate/app/initGenesis
-			cronostypes.ModuleName,
-		)
-	} else {
-		app.mm.SetOrderInitGenesis(
-			capabilitytypes.ModuleName,
-			authtypes.ModuleName,
-			banktypes.ModuleName,
-			distrtypes.ModuleName,
-			stakingtypes.ModuleName,
-			slashingtypes.ModuleName,
-			govtypes.ModuleName,
-			minttypes.ModuleName,
-			crisistypes.ModuleName,
-			ibchost.ModuleName,
-			genutiltypes.ModuleName,
-			evidencetypes.ModuleName,
-			ibctransfertypes.ModuleName,
-			authz.ModuleName,
-			feegrant.ModuleName,
-			evmtypes.ModuleName,
-			feemarkettypes.ModuleName,
-			// this line is used by starport scaffolding # stargate/app/initGenesis
-			cronostypes.ModuleName,
-		)
+	initGenesisOrder := []string{
+		capabilitytypes.ModuleName,
+		authtypes.ModuleName,
+		banktypes.ModuleName,
+		distrtypes.ModuleName,
+		stakingtypes.ModuleName,
+		slashingtypes.ModuleName,
+		govtypes.ModuleName,
+		minttypes.ModuleName,
+		crisistypes.ModuleName,
+		ibchost.ModuleName,
+		genutiltypes.ModuleName,
+		evidencetypes.ModuleName,
+		ibctransfertypes.ModuleName,
+		authz.ModuleName,
+		feegrant.ModuleName,
+		paramstypes.ModuleName,
+		upgradetypes.ModuleName,
+		vestingtypes.ModuleName,
+		evmtypes.ModuleName,
+		feemarkettypes.ModuleName,
+		cronostypes.ModuleName,
 	}
+
+	if experimental {
+		modules = append(modules,
+			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
+		)
+		beginBlockersOrder = append(beginBlockersOrder, gravitytypes.ModuleName)
+		endBlockersOrder = append(endBlockersOrder, gravitytypes.ModuleName)
+		initGenesisOrder = append(initGenesisOrder, gravitytypes.ModuleName)
+	}
+
+	app.mm = module.NewManager(modules...)
+	app.mm.SetOrderBeginBlockers(beginBlockersOrder...)
+	app.mm.SetOrderEndBlockers(endBlockersOrder...)
+	app.mm.SetOrderInitGenesis(initGenesisOrder...)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
@@ -703,13 +672,23 @@ func New(
 	app.SetBeginBlocker(app.BeginBlocker)
 
 	// use Ethermint's custom AnteHandler
-	app.SetAnteHandler(
-		evmante.NewAnteHandler(
-			app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.FeeGrantKeeper, app.IBCKeeper.ChannelKeeper,
-			&app.FeeMarketKeeper,
-			encodingConfig.TxConfig.SignModeHandler(),
-		),
-	)
+
+	options := evmante.HandlerOptions{
+		AccountKeeper:    app.AccountKeeper,
+		BankKeeper:       app.BankKeeper,
+		EvmKeeper:        app.EvmKeeper,
+		FeegrantKeeper:   app.FeeGrantKeeper,
+		IBCChannelKeeper: app.IBCKeeper.ChannelKeeper,
+		FeeMarketKeeper:  app.FeeMarketKeeper,
+		SignModeHandler:  encodingConfig.TxConfig.SignModeHandler(),
+		SigGasConsumer:   evmante.DefaultSigVerificationGasConsumer,
+	}
+
+	if err := options.Validate(); err != nil {
+		panic(err)
+	}
+
+	app.SetAnteHandler(evmante.NewAnteHandler(options))
 
 	app.SetEndBlocker(app.EndBlocker)
 
