@@ -147,18 +147,22 @@ require (
 	nhooyr.io/websocket v1.8.6 // indirect
 )
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.33.2
+replace (
 
-replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	// TODO: fix keyring upstream
+	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
 
-// TODO: fix keyring upstream
-replace github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
+	github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.3
 
-// TODO: remove when middleware will be implemented
-replace github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.1-hooks
+	// TODO: remove when middleware will be implemented
+	github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.1-hooks
 
-replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.3
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-// https://github.com/crypto-org-chain/ethermint/tree/v0.9.x-cronos
-// FIXME make a tag or point to upstream when ready
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62
+	github.com/tecbot/gorocksdb => github.com/roysc/gorocksdb v1.1.1
+
+	// https://github.com/crypto-org-chain/ethermint/tree/v0.9.x-cronos
+	// FIXME make a tag or point to upstream when ready
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20211207040748-254df3803d62
+	google.golang.org/grpc => google.golang.org/grpc v1.33.2
+)
