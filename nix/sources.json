@@ -13,15 +13,15 @@
         "version": "hevm/0.49.0"
     },
     "gomod2nix": {
-        "branch": "master",
+        "branch": "fix-regex",
         "description": "Convert applications using Go modules to Nix expressions",
         "homepage": null,
-        "owner": "tweag",
+        "owner": "yihuang",
         "repo": "gomod2nix",
-        "rev": "596d01fd55ed8521853807df1f4e9d858cf75d7e",
-        "sha256": "040xh14gh1x9p80adwfzs21h1hq1di1qkw7jpzyhsm13wv5z2ja2",
+        "rev": "c3f885a5b631427724a88168939c16bbf0b94019",
+        "sha256": "1af8sg6lfzxvhha8rbcaklihdm0q2dy4jgnjax1b4914qzfphcb6",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/596d01fd55ed8521853807df1f4e9d858cf75d7e.tar.gz",
+        "url": "https://github.com/yihuang/gomod2nix/archive/c3f885a5b631427724a88168939c16bbf0b94019.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
