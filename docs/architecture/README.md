@@ -28,3 +28,5 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 | ADR \# | Description | Status |
 | ------ | ----------- | ------ |
 | [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Proposed |
+| [002](./adr-002.md) | Use a custom fork of ibc-go | Proposed |
+| [003](./adr-003.md) | Add Fee Market Module | Proposed |
