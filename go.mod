@@ -158,7 +158,9 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v0.0.0-20211202124722-2c356d6d98e4
+	// Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
+	// See https://github.com/tecbot/gorocksdb/pull/216
+	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
 	// https://github.com/crypto-org-chain/ethermint/tree/v0.9.x-cronos
 	// FIXME make a tag or point to upstream when ready

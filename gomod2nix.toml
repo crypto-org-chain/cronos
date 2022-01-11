@@ -3602,12 +3602,12 @@
     sha256 = "11b4vjldnp6ws52wlqrzsy6nnn5qa2m98wiqvd90nzsh0n3bi9nz"
 
 ["github.com/tecbot/gorocksdb"]
-  sumVersion = "v0.0.0-20211202124722-2c356d6d98e4"
+  sumVersion = "v1.1.1"
   vendorPath = "github.com/cosmos/gorocksdb"
   ["github.com/tecbot/gorocksdb".fetch]
     type = "git"
     url = "https://github.com/cosmos/gorocksdb"
-    rev = "2c356d6d98e4364571350f330ea008765f670856"
+    rev = "44142b447830b99c0dff2fa3e23d9ff7446da974"
     sha256 = "11ibfqxvlc5jvwc88in7xadyahy9804bdbfrbil3h76a7mf7zc7q"
 
 ["github.com/tendermint/btcd"]
