@@ -93,7 +93,7 @@ builds:
     flags:
       - -tags=testnet,ledger,cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-darwin-arm64-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -108,7 +108,7 @@ builds:
     flags:
       - -tags=testnet,ledger,cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-linux-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -123,7 +123,7 @@ builds:
     flags:
       - -tags=testnet,ledger,cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-linux-arm64-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -138,7 +138,7 @@ builds:
     flags:
       - -tags=testnet,ledger,cgo
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-windows-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -154,7 +154,7 @@ builds:
       - -tags=testnet,ledger,cgo
       - -buildmode=exe
     ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
+      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
 
 archives:
 - id: mainnet
