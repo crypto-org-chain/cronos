@@ -156,6 +156,8 @@ replace (
 	// TODO: remove when middleware will be implemented
 	github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.1-hooks
 
+	github.com/enigmampc/btcutil => github.com/scrtlabs/btcutil v1.0.3-0.20200723161021-e2fb6adb2a25
+
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
