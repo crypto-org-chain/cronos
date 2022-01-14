@@ -339,12 +339,17 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     return w3.eth.contract(address=address, abi=info["abi"])
 
 
-def send_transaction(w3, tx, key=KEYS["validator"]):
+def sign_transaction(w3, tx, key=KEYS["validator"]):
+    "fill default fields and sign"
     acct = Account.from_key(key)
     tx["from"] = acct.address
     tx = fill_transaction_defaults(w3, tx)
     tx = fill_nonce(w3, tx)
-    signed = acct.sign_transaction(tx)
+    return acct.sign_transaction(tx)
+
+
+def send_transaction(w3, tx, key=KEYS["validator"]):
+    signed = sign_transaction(w3, tx, key)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     return w3.eth.wait_for_transaction_receipt(txhash)
 
