@@ -83,7 +83,9 @@ def geth(tmp_path_factory):
 
 @pytest.fixture(scope="module", params=[True, False])
 def cronos(request, tmp_path_factory):
-    "start-cronos"
+    """start-cronos
+    params: enable_auto_deployment
+    """
     yield from setup_cronos_experimental(
         tmp_path_factory.mktemp("cronos_experimental"), 26700, request.param
     )

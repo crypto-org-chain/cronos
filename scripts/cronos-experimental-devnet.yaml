@@ -33,6 +33,9 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
+      feemarket:
+        params:
+          no_base_fee: true
       cronos:
         params:
           cronos_admin: crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp
