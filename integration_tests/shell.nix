@@ -9,6 +9,7 @@ pkgs.mkShell {
     pkgs.go-ethereum
     pkgs.pystarport
     pkgs.gorc
+    pkgs.cosmovisor
     pkgs.poetry
     pkgs.yarn
     pkgs.nodejs

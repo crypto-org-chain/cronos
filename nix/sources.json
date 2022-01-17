@@ -1,4 +1,16 @@
 {
+    "cosmos-sdk": {
+        "branch": "v0.45.0-rc1",
+        "description": ":chains: A Framework for Building High Value Public Blockchains :sparkles:",
+        "homepage": "https://cosmos.network/",
+        "owner": "cosmos",
+        "repo": "cosmos-sdk",
+        "rev": "c1c1ad7425292924b77dc632370815088b2d3c58",
+        "sha256": "06m3yfa54adh87lmdifay663w174j2n9mviq6j2bqzq8sq2if2x3",
+        "type": "tarball",
+        "url": "https://github.com/cosmos/cosmos-sdk/archive/c1c1ad7425292924b77dc632370815088b2d3c58.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "dapptools": {
         "branch": "master",
         "description": "Dapp, Seth, Hevm, and more",
