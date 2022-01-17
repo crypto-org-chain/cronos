@@ -563,3 +563,23 @@ def test_batch_tx(cronos):
     ]
     for tx, signed in zip(txs, signed_txs):
         assert tx.hash == signed.hash
+
+
+def test_log0(cluster):
+    """
+    test compliance of empty topics behavior
+    """
+    w3 = cluster.w3
+    contract = deploy_contract(
+        w3,
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+    )
+    tx = contract.functions.test_log0().buildTransaction({"from": ADDRS["validator"]})
+    receipt = send_transaction(w3, tx, KEYS["validator"])
+    assert len(receipt.logs) == 1
+    log = receipt.logs[0]
+    assert log.topics == []
+    assert (
+        log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
+    )

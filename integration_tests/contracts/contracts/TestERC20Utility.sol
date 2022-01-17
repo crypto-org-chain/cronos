@@ -27,4 +27,9 @@ contract TestERC20Utility is ERC20 {
         _burn(msg.sender, total);
         emit __CronosSendToEthereum(recipient, amount, bridge_fee);
     }
+
+    function test_log0() public {
+        bytes32 data = "hello world";
+        log0(bytes32(data));
+    }
 }
