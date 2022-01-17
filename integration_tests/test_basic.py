@@ -104,15 +104,14 @@ def test_native_call(cronos):
 
     amount = 100
 
-    # the coinbase in web3 api is the same address as the validator account in
-    # cosmos api
+    tx = contract.functions.test_native_transfer(amount).buildTransaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
 
     # expect failure, because contract is not connected with native denom yet
     # TODO complete the test after gov managed token mapping is implemented.
-    with pytest.raises(ValueError):
-        contract.functions.test_native_transfer(amount).transact(
-            {"from": w3.eth.coinbase}
-        )
+    assert receipt.status == 0
 
 
 def test_statesync(cronos):

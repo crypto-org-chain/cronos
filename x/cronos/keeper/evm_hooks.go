@@ -4,7 +4,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 )
@@ -25,8 +24,8 @@ func NewLogProcessEvmHook(handlers ...types.EvmLogHandler) *LogProcessEvmHook {
 }
 
 // PostTxProcessing implements EvmHook interface
-func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, stateDB vm.StateDB, txHash common.Hash, logs []*ethtypes.Log) error {
-	for _, log := range logs {
+func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, from common.Address, to *common.Address, receipt *ethtypes.Receipt) error {
+	for _, log := range receipt.Logs {
 		if len(log.Topics) == 0 {
 			continue
 		}
