@@ -63,6 +63,15 @@ import sources.nixpkgs {
         src = sources.rocksdb;
       });
     })
+    (_: pkgs: {
+      cosmovisor = pkgs.buildGo117Module rec {
+        name = "cosmovisor";
+        src = sources.cosmos-sdk + "/cosmovisor";
+        subPackages = [ "./cmd/cosmovisor" ];
+        vendorSha256 = "sha256-OAXWrwpartjgSP7oeNvDJ7cTR9lyYVNhEM8HUnv3acE=";
+        doCheck = false;
+      };
+    })
   ];
   config = { };
   inherit system;

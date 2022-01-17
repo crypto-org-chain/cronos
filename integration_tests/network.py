@@ -172,21 +172,23 @@ class GravityBridge:
         self.contract = contract
 
 
-def setup_custom_cronos(path, base_port, config):
+def setup_custom_cronos(path, base_port, config, post_init=None):
     cmd = [
         "pystarport",
-        "serve",
+        "init",
         "--config",
         config,
         "--data",
         path,
         "--base_port",
         str(base_port),
-        "--quiet",
     ]
     print(*cmd)
+    subprocess.run(cmd, check=True)
+    if post_init is not None:
+        post_init(path, base_port, config)
     proc = subprocess.Popen(
-        cmd,
+        ["pystarport", "start", "--data", path, "--quiet"],
         preexec_fn=os.setsid,
     )
     try:
