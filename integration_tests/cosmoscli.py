@@ -496,11 +496,12 @@ class CosmosCLI:
         )
         return r.decode("utf-8")
 
-    def broadcast_tx(self, tx_file):
-        r = self.raw(
-            "tx", "broadcast", tx_file, node=self.node_rpc, broadcast_mode="block"
+    def broadcast_tx(self, tx_file, **kwargs):
+        kwargs.setdefault("broadcast_mode", "block")
+        kwargs.setdefault("output", "json")
+        return json.loads(
+            self.raw("tx", "broadcast", tx_file, node=self.node_rpc, **kwargs)
         )
-        return r.decode("utf-8")
 
     def unjail(self, addr):
         return json.loads(
@@ -1008,6 +1009,20 @@ class CosmosCLI:
                 denom,
                 contract,
                 "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
+    def build_evm_tx(self, raw_tx: str, **kwargs):
+        return json.loads(
+            self.raw(
+                "tx",
+                "evm",
+                "raw",
+                raw_tx,
+                "-y",
+                "--generate-only",
                 home=self.data_dir,
                 **kwargs,
             )

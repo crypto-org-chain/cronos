@@ -1,4 +1,6 @@
 import concurrent.futures
+import json
+import tempfile
 import time
 from pathlib import Path
 
@@ -15,9 +17,11 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    contract_address,
     contract_path,
     deploy_contract,
     send_transaction,
+    sign_transaction,
     wait_for_block,
     wait_for_port,
 )
@@ -454,6 +458,111 @@ def test_suicide(cluster):
     assert receipt.status == 1
 
     assert len(w3.eth.get_code(destroyee.address)) == 0
+
+
+def test_batch_tx(cronos):
+    "send multiple eth txs in single cosmos tx"
+    w3 = cronos.w3
+    sender = ADDRS["validator"]
+    recipient = ADDRS["community"]
+    nonce = w3.eth.get_transaction_count(sender)
+    info = json.load(open(CONTRACTS["TestERC20Utility"]))
+    contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
+    deploy_tx = contract.constructor().buildTransaction(
+        {"from": sender, "nonce": nonce}
+    )
+    contract = w3.eth.contract(address=contract_address(sender, nonce), abi=info["abi"])
+    transfer_tx1 = contract.functions.transfer(recipient, 1000).buildTransaction(
+        {"from": sender, "nonce": nonce + 1, "gas": 200000}
+    )
+    transfer_tx2 = contract.functions.transfer(recipient, 1000).buildTransaction(
+        {"from": sender, "nonce": nonce + 2, "gas": 200000}
+    )
+
+    signed_txs = [
+        sign_transaction(w3, deploy_tx, KEYS["validator"]),
+        sign_transaction(w3, transfer_tx1, KEYS["validator"]),
+        sign_transaction(w3, transfer_tx2, KEYS["validator"]),
+    ]
+    tmp_txs = [
+        cronos.cosmos_cli().build_evm_tx(signed.rawTransaction.hex())
+        for signed in signed_txs
+    ]
+
+    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
+    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
+    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
+
+    # build batch cosmos tx
+    cosmos_tx = {
+        "body": {
+            "messages": msgs,
+            "memo": "",
+            "timeout_height": "0",
+            "extension_options": [
+                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
+            ],
+            "non_critical_extension_options": [],
+        },
+        "auth_info": {
+            "signer_infos": [],
+            "fee": {
+                "amount": [{"denom": "basetcro", "amount": str(fee)}],
+                "gas_limit": str(gas_limit),
+                "payer": "",
+                "granter": "",
+            },
+        },
+        "signatures": [],
+    }
+    with tempfile.NamedTemporaryFile("w") as fp:
+        json.dump(cosmos_tx, fp)
+        fp.flush()
+        rsp = cronos.cosmos_cli().broadcast_tx(fp.name)
+        assert rsp["code"] == 0, rsp["raw_log"]
+
+    receipts = [
+        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
+    ]
+
+    assert 2000 == contract.caller.balanceOf(recipient)
+
+    # check logs
+    assert receipts[0].contractAddress == contract.address
+
+    assert receipts[0].transactionIndex == 0
+    assert receipts[1].transactionIndex == 1
+    assert receipts[2].transactionIndex == 2
+
+    assert receipts[0].logs[0].logIndex == 0
+    assert receipts[1].logs[0].logIndex == 1
+    assert receipts[2].logs[0].logIndex == 2
+
+    assert receipts[0].cumulativeGasUsed == receipts[0].gasUsed
+    assert receipts[1].cumulativeGasUsed == receipts[0].gasUsed + receipts[1].gasUsed
+    assert (
+        receipts[2].cumulativeGasUsed
+        == receipts[0].gasUsed + receipts[1].gasUsed + receipts[2].gasUsed
+    )
+
+    # check traceTransaction
+    rsps = [
+        w3.provider.make_request("debug_traceTransaction", [signed.hash.hex()])[
+            "result"
+        ]
+        for signed in signed_txs
+    ]
+
+    for rsp, receipt in zip(rsps, receipts):
+        assert not rsp["failed"]
+        assert receipt.gasUsed == rsp["gas"]
+
+    # check get_transaction_by_block
+    txs = [
+        w3.eth.get_transaction_by_block(receipts[0].blockNumber, i) for i in range(3)
+    ]
+    for tx, signed in zip(txs, signed_txs):
+        assert tx.hash == signed.hash
 
 
 def test_log0(cluster):
