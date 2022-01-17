@@ -1,27 +1,21 @@
 import configparser
-import datetime
 import json
 import os
-import re
-import shutil
 import socket
 import subprocess
 import sys
 import time
-import uuid
 from pathlib import Path
 
 import bech32
 import eth_utils
 import rlp
 import toml
-import yaml
 from dateutil.parser import isoparse
 from dotenv import load_dotenv
 from eth_account import Account
 from hexbytes import HexBytes
-from pystarport import cluster, ledger
-from pystarport.ports import rpc_port
+from pystarport import ledger
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
@@ -159,101 +153,6 @@ def w3_wait_for_new_blocks(w3, n):
         cur_height = w3.eth.block_number
         if cur_height - begin_height >= n:
             break
-
-
-def cluster_fixture(
-    config_path,
-    worker_index,
-    data,
-    quiet=False,
-    post_init=None,
-    enable_cov=None,
-    cmd=None,
-):
-    """
-    init a single devnet
-    """
-    if enable_cov is None:
-        enable_cov = os.environ.get("GITHUB_ACTIONS") == "true"
-    base_port = gen_base_port(worker_index)
-    print("init cluster at", data, ", base port:", base_port)
-    cluster.init_cluster(data, config_path, base_port, cmd=cmd)
-
-    config = yaml.safe_load(open(config_path))
-    clis = {}
-    for key in config:
-        if key == "relayer":
-            continue
-
-        chain_id = key
-        chain_data = data / chain_id
-
-        if post_init:
-            post_init(chain_id, chain_data)
-
-        if enable_cov:
-            # replace the first node with the instrumented binary
-            ini = chain_data / cluster.SUPERVISOR_CONFIG_FILE
-            ini.write_text(
-                re.sub(
-                    r"^command = (.*/)?chain-maind",
-                    "command = chain-maind-inst "
-                    "-test.coverprofile=%(here)s/coverage.txt",
-                    ini.read_text(),
-                    count=1,
-                    flags=re.M,
-                )
-            )
-        clis[chain_id] = cluster.ClusterCLI(data, chain_id=chain_id)
-
-    supervisord = cluster.start_cluster(data)
-    if not quiet:
-        tailer = cluster.start_tail_logs_thread(data)
-
-    try:
-        begin = time.time()
-        for cli in clis.values():
-            # wait for first node rpc port available before start testing
-            wait_for_port(rpc_port(cli.config["validators"][0]["base_port"]))
-            # wait for the first block generated before start testing
-            wait_for_block(cli, 2)
-
-        if len(clis) == 1:
-            yield list(clis.values())[0]
-        else:
-            yield clis
-
-        if enable_cov:
-            # wait for server startup complete to generate the coverage report
-            duration = time.time() - begin
-            if duration < 15:
-                time.sleep(15 - duration)
-    finally:
-        supervisord.terminate()
-        supervisord.wait()
-        if not quiet:
-            tailer.stop()
-            tailer.join()
-
-    if enable_cov:
-        # collect the coverage results
-        try:
-            shutil.move(
-                str(chain_data / "coverage.txt"), f"coverage.{uuid.uuid1()}.txt"
-            )
-        except FileNotFoundError:
-            ts = time.time()
-            st = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-            print(st + " FAILED TO FIND COVERAGE")
-            print(os.listdir(chain_data))
-            data = [
-                (int(p), c)
-                for p, c in [
-                    x.rstrip("\n").split(" ", 1)
-                    for x in os.popen("ps h -eo pid:1,command")
-                ]
-            ]
-            print(data)
 
 
 def get_ledger():
