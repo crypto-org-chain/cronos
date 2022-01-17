@@ -12,18 +12,6 @@
         "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
         "version": "hevm/0.49.0"
     },
-    "go-ethereum": {
-        "branch": "v1.10.15",
-        "description": "Official Go implementation of the Ethereum protocol",
-        "homepage": "https://geth.ethereum.org",
-        "owner": "ethereum",
-        "repo": "go-ethereum",
-        "rev": "8be800ffa9c4992666e2620e0ab4725a1a83352b",
-        "sha256": "0f6n9rg42ph47mvykc9f0lf99yzwqy4jm7mlzyks4l6i6fl1g3q1",
-        "type": "tarball",
-        "url": "https://github.com/ethereum/go-ethereum/archive/8be800ffa9c4992666e2620e0ab4725a1a83352b.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "gomod2nix": {
         "branch": "master",
         "description": "Convert applications using Go modules to Nix expressions",
