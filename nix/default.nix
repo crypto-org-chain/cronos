@@ -12,6 +12,13 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
+    (_: pkgs: {
+      go-ethereum = pkgs.callPackage ./go-ethereum.nix {
+        inherit (pkgs.darwin) libobjc;
+        inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
+        buildGoModule = pkgs.buildGo117Module;
+      };
+    }) # update to a version that supports eip-1559
     (_: pkgs: rec {
       buildGoApplication = pkgs.callPackage (import (sources.gomod2nix + "/builder")) {
         go = pkgs.go_1_17;
