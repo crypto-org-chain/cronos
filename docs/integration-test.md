@@ -28,10 +28,30 @@ nix-env -iA cachix -f https://cachix.org/api/v1/install
 ## Configure a binary cache by writing nix.conf and netrc files
 ```shell
 cachix use cronos
-nix path-info --all | grep -v '.drv$' > /tmp/store-path-pre-build
+cachix use dapp  # it's necessary to use dapp's binary cache on new macos system.
 ```
 
-## Run the Integration Test
+## Run All Integration Tests
 ```shell
 make run-integration-tests
+```
+
+## Customize The Test Runner
+
+We use `pytest` to discover the test cases and run them, follow [pytest doc](https://docs.pytest.org/en/6.2.x/contents.html) for more options.
+
+You can invoke `pytest` after entering the nix shell:
+
+```shell
+$ nix-shell integration_tests/shell.nix
+<nix-shell> $ pytest
+```
+
+You can use `-k` to select test cases by patterns in name:
+
+```shell
+<nix-shell> $ # run against cronos only
+<nix-shell> $ pytest -k cronos
+<nix-shell> $ # run against geth only
+<nix-shell> $ pytest -k geth
 ```
