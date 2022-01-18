@@ -5,12 +5,31 @@
 ### State Machine Breaking
 
 - [cronos#241](https://github.com/crypto-org-chain/cronos/pull/241) Update ethermint to main and merged statedb refactoring in custom fork.
+- [cronos#289](https://github.com/crypto-org-chain/cronos/pull/289) Update ethermint to `v0.10.0`, with ibc-go reverted to `v2.0.2`, update cosmos-sdk to `v0.45.0-rc1`, the cronos related changes in the dependencies are:
+  - [ethermint#901](https://github.com/tharsis/ethermint/pull/901) support batch evm tx
+  - [ethermint#849](https://github.com/tharsis/ethermint/pull/849) Change EVM hook interface.
+  - [ethermint#809](https://github.com/tharsis/ethermint/pull/809) fix nonce increment issue when contract deployment tx get reverted.
+  - [ethermint#855](https://github.com/tharsis/ethermint/pull/855) unify base fee related logic in the code.
+  - [ethermint#817](https://github.com/tharsis/ethermint/pull/817) Fix eip-1559 logic related to effectiveGasPrice.
+  - [ethermint#822](https://github.com/tharsis/ethermint/pull/822) Update base fee in begin blocker rather than end blocker.
+  - [cosmos-sdk#10833](https://github.com/cosmos/cosmos-sdk/pull/10833) fix reported tx gas used when block gas limit exceeded.
+  - [cosmos-sdk#10814](https://github.com/cosmos/cosmos-sdk/pull/10814) revert tx when block gas limit exceeded.
+  - [cosmos-sdk#10725](https://github.com/cosmos/cosmos-sdk/pull/10725) populate `ctx.ConsensusParams` for begin/end blockers (fix baseFee calculation in ethermint).
 
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
 
 ### Bug Fixes
 - [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
+
+*December 10, 2021*
+
+## v0.6.5
+
+### Bug Fixes
+
+- [cronos#255](https://github.com/crypto-org-chain/cronos/pull/255) fix empty topics in non-breaking way
+- [cronos#270](https://github.com/crypto-org-chain/cronos/pull/270) reject MsgEthereumTx wrapping tx without the extension option.
 
 *November 30, 2021*
 
