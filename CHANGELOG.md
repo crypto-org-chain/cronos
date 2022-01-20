@@ -5,7 +5,7 @@
 ### State Machine Breaking
 
 - [cronos#241](https://github.com/crypto-org-chain/cronos/pull/241) Update ethermint to main and merged statedb refactoring in custom fork.
-- [cronos#289](https://github.com/crypto-org-chain/cronos/pull/289) Update ethermint to `v0.10.0`, with ibc-go reverted to `v2.0.2`, update cosmos-sdk to `v0.45.0-rc1`, the cronos related changes in the dependencies are:
+- [cronos#289](https://github.com/crypto-org-chain/cronos/pull/289) Update ethermint to `v0.10.0-cronos` which uses ibc-go `v2.0.2` instead of `v3.0.0-alpha2` and include the fixes below:
   - [ethermint#901](https://github.com/tharsis/ethermint/pull/901) support batch evm tx
   - [ethermint#849](https://github.com/tharsis/ethermint/pull/849) Change EVM hook interface.
   - [ethermint#809](https://github.com/tharsis/ethermint/pull/809) fix nonce increment issue when contract deployment tx get reverted.
