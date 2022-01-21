@@ -3668,7 +3668,7 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.10.0-alpha2-cronos"
+  sumVersion = "v0.10.0-alpha1-cronos-2"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
