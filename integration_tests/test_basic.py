@@ -295,8 +295,7 @@ def test_transaction(cronos):
             },
             KEYS["validator"],
         )["transactionHash"]
-    # FIXME https://github.com/tharsis/ethermint/pull/911
-    assert "invalid base fee" in str(exc)
+    assert "insufficient fee" in str(exc)
 
     # check all failed transactions are not included in blockchain
     assert w3.eth.get_block_number() == initial_block_number
