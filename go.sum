@@ -228,8 +228,8 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cosmos/btcutil v1.0.4 h1:n7C2ngKXo7UC9gNyMNLbzqz7Asuf+7Qv4gnX/rOdQ44=
 github.com/cosmos/btcutil v1.0.4/go.mod h1:Ffqc8Hn6TJUdDgHBwIZLtrLQC1KdJ9jGJl/TvgUaxbU=
 github.com/cosmos/cosmos-sdk v0.44.5/go.mod h1:maUA6m2TBxOJZkbwl0eRtEBgTX37kcaiOWU5t1HEGaY=
-github.com/cosmos/cosmos-sdk v0.45.0-rc1 h1:94EoI38gvnkYVUO+w4vBunEFPX8/5S0kwc6QEdkP0mo=
-github.com/cosmos/cosmos-sdk v0.45.0-rc1/go.mod h1:XXS/asyCqWNWkx2rW6pSuen+EVcpAFxq6khrhnZgHaQ=
+github.com/cosmos/cosmos-sdk v0.45.0 h1:DHD+CIRZ+cYgiLXuTEUL/aprnfPsWSwaww/fIZEsZlk=
+github.com/cosmos/cosmos-sdk v0.45.0/go.mod h1:XXS/asyCqWNWkx2rW6pSuen+EVcpAFxq6khrhnZgHaQ=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
@@ -247,8 +247,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsr
 github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos h1:Af2AZ7SgUW8lvZ2tKM2DsykHO0Cci05Ml3A7jhORtuk=
-github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos/go.mod h1:Ru13sUAimNRseyqVneUMta8b+Zi5kbF2mgA+1opZwOY=
+github.com/crypto-org-chain/ethermint v0.10.0-alpha2-cronos h1:aNvY2MpPWzqTnhQdn99DIXEw20i+POXDBWhvBkCTvrU=
+github.com/crypto-org-chain/ethermint v0.10.0-alpha2-cronos/go.mod h1:mDIs9UkvLmjjg6cJX0dyO2GKn0GP6cuq4AfbDnFZl/4=
 github.com/crypto-org-chain/ibc-go/v2 v2.0.2-hooks h1:d2MOrJQE6lZQ+nUznUaSlE8/QQZ4j5rkv5hw2DnCt50=
 github.com/crypto-org-chain/ibc-go/v2 v2.0.2-hooks/go.mod h1:XUmW7wmubCRhIEAGtMGS+5IjiSSmcAwihoN/yPGd6Kk=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
