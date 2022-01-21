@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+*January 21, 2022*
+
+## v0.7.0
 
 ### State Machine Breaking
 
@@ -15,6 +17,7 @@
   - [cosmos-sdk#10833](https://github.com/cosmos/cosmos-sdk/pull/10833) fix reported tx gas used when block gas limit exceeded.
   - [cosmos-sdk#10814](https://github.com/cosmos/cosmos-sdk/pull/10814) revert tx when block gas limit exceeded.
   - [cosmos-sdk#10725](https://github.com/cosmos/cosmos-sdk/pull/10725) populate `ctx.ConsensusParams` for begin/end blockers (fix baseFee calculation in ethermint).
+- [cronos#315](https://github.com/crypto-org-chain/cronos/pull/315) Update cosmos-sdk to `v0.45.0`
 
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
