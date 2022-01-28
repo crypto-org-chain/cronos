@@ -1,0 +1,50 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: setup release environment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |-
+          echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
+      - name: draft release
+        run: make release
+  rocksdb-release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: cachix/install-nix-action@v15
+      - uses: cachix/cachix-action@v10
+        with:
+          name: cronos
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: nix bundle
+        run: |
+          nix bundle .
+          tar cfzh "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz" ./cronosd
+          nix bundle .#cronosd-testnet
+          tar cfzh "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz" ./cronosd
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz" >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+          ls -l "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz"
+          ls -l "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz"
+      - name: release linux rocksdb binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: "${{ env.FILES }}"
