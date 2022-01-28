@@ -19,13 +19,6 @@ jobs:
           echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
       - name: draft release
         run: make release
-  rocksdb-release:
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: true
       - uses: cachix/install-nix-action@v15
       - uses: cachix/cachix-action@v10
         with:
