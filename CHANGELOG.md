@@ -25,6 +25,7 @@
 
 ### Bug Fixes
 - [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
+- [cronos#323](https://github.com/crypto-org-chain/cronos/pull/323) Upgrade gravity bridge to v0.3.9 which contain a bugfix on `batchTxExecuted.`
 
 *December 10, 2021*
 
