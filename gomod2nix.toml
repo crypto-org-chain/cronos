@@ -3098,13 +3098,13 @@
     sha256 = "0f146yjqwx2mr110kl8scjhqd08hys7vr5z0d0a3lskb6yy22gfg"
 
 ["github.com/peggyjv/gravity-bridge/module"]
-  sumVersion = "v0.3.4"
+  sumVersion = "v0.3.9"
   relPath = "module"
   ["github.com/peggyjv/gravity-bridge/module".fetch]
     type = "git"
     url = "https://github.com/peggyjv/gravity-bridge"
-    rev = "19ba1cc74d0fdfd7ba9f3cfcdad354c7259030bc"
-    sha256 = "1kg44miw8z3ydmrzpzlahkwdrqv8lm94b00kl2dvkcwhnga490zd"
+    rev = "fef4573e412be03a622496b0bd24365dd95265b8"
+    sha256 = "11b90iy4h407j84xdjqms1p2hhb3w5wi6jh463bp5akmlajis003"
 
 ["github.com/pelletier/go-toml"]
   sumVersion = "v1.9.4"
