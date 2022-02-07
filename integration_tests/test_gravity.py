@@ -13,7 +13,6 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     KEYS,
-    InlineTable,
     add_ini_sections,
     deploy_contract,
     dump_toml,
@@ -39,11 +38,7 @@ def cronos_crc20_abi():
 
 def gorc_config(keystore, gravity_contract, eth_rpc, cosmos_grpc, metrics_listen):
     return {
-        "keystore": InlineTable(
-            {
-                "File": str(keystore),
-            }
-        ),
+        "keystore": str(keystore),
         "gravity": {
             "contract": gravity_contract,
             "fees_denom": "basetcro",
@@ -141,7 +136,7 @@ def gravity(cronos, geth):
         nonce = int(cli.account(val_acct_addr)["base_account"]["sequence"])
         signature = gorc.sign_validator("eth", val_addr, nonce)
         rsp = cli.set_delegate_keys(
-            val_addr, acc_addr, eth_addr, signature, from_=val_acct_addr
+            val_addr, acc_addr, eth_addr, HexBytes(signature).hex(), from_=val_acct_addr
         )
         assert rsp["code"] == 0, rsp["raw_log"]
     # wait for gravity signer tx get generated
@@ -211,7 +206,7 @@ def test_gravity_transfer(gravity):
     )
     assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
-    denom = "gravity" + erc20.address
+    denom = f"gravity{erc20.address.lower()}"
 
     crc20_contract = None
 
@@ -280,7 +275,7 @@ def test_gov_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
-    denom = f"gravity{erc20.address}"
+    denom = f"gravity{erc20.address.lower()}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
@@ -355,7 +350,7 @@ def test_direct_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
-    denom = f"gravity{erc20.address}"
+    denom = f"gravity{erc20.address.lower()}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
