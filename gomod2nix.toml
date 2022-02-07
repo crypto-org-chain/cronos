@@ -935,12 +935,12 @@
     sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.45.0"
+  sumVersion = "v0.45.1"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "b6c77e6c819f8a51166649eaef125d1bfb276f04"
-    sha256 = "09ns4yfxyfi7c7n5g69zv32m1rdssdl48c1akmv1y2vz6ayz4v02"
+    rev = "2646b474c7beb0c93d4fafd395ef345f41afc251"
+    sha256 = "1z3yvvv7zzmp4likc023xmdmf9z1fjbakbqx6xazqadc5847av5l"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"

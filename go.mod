@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/armon/go-metrics v0.3.10
-	github.com/cosmos/cosmos-sdk v0.45.0
+	github.com/cosmos/cosmos-sdk v0.45.1
 	github.com/cosmos/ibc-go/v2 v2.0.2
 	github.com/ethereum/go-ethereum v1.10.11
 	github.com/gogo/protobuf v1.3.3
@@ -153,7 +153,7 @@ require (
 replace (
 	// TODO: fix keyring upstream
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.0
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.1
 
 	// TODO: remove when middleware will be implemented
 	github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.2-hooks
