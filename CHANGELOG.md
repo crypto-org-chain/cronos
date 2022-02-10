@@ -27,6 +27,7 @@
 - [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
 - [cronos#323](https://github.com/crypto-org-chain/cronos/pull/323) Upgrade gravity bridge to v0.3.9 which contain a bugfix on `batchTxExecuted.`
 - [cronos#324](https://github.com/crypto-org-chain/cronos/pull/324) Update to cosmos-sdk `v0.45.1`, which fixes an OOM issue.
+- [cronos#329](https://github.com/crypto-org-chain/cronos/pull/329) Fix panic of eth_call on blocks prior to upgrade. 
 
 *December 10, 2021*
 
