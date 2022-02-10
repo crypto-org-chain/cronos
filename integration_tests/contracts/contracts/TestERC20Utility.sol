@@ -1,4 +1,4 @@
-pragma solidity ^0.6.6;
+pragma solidity 0.8.10;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // An utility erc20 contract that has a fancy method
@@ -30,6 +30,10 @@ contract TestERC20Utility is ERC20 {
 
     function test_log0() public {
         bytes32 data = "hello world";
-        log0(bytes32(data));
+        assembly {
+            let p := mload(0x20)
+            mstore(p, data)
+            log0(p, 0x20)
+        }
     }
 }

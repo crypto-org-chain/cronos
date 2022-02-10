@@ -7,7 +7,7 @@ export TMPDIR=/tmp
 
 echo "build test contracts"
 cd ../integration_tests/contracts
-yarn
-npx hardhat typechain
+HUSKY_SKIP_INSTALL=1 npm install
+npm run typechain
 cd ..
 nix-shell --run "pytest -vv -s"
