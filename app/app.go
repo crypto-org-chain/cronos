@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -701,7 +702,19 @@ func New(
 	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		// The default genesis parameters of `feemarket` module are fine, because the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price,
 		// so it don't have effect at the beginning, we can always adjust the parameters through the governance later.
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		updatedVM, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return nil, err
+		}
+		// Override feemarket parameters
+		app.FeeMarketKeeper.SetParams(ctx, feemarkettypes.Params{
+			NoBaseFee:                true, // enable later through gov proposal
+			BaseFeeChangeDenominator: ethparams.BaseFeeChangeDenominator,
+			ElasticityMultiplier:     ethparams.ElasticityMultiplier,
+			InitialBaseFee:           ethparams.InitialBaseFee,
+			EnableHeight:             0,
+		})
+		return updatedVM, nil
 	})
 	// this upgrade is for breaking bug fixes on testnet
 	plan0_7_0Rc2HotfixTestnet := "v0.7.0-rc2-hotfix-testnet"
