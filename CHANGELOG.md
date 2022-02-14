@@ -1,5 +1,13 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [cronos#342](https://github.com/crypto-org-chain/cronos/pull/342) support debug query result
+
+*December 21, 2021*
+
 ## v0.6.5
 
 ### Bug Fixes
