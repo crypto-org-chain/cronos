@@ -692,11 +692,16 @@ func New(
 
 	app.SetEndBlocker(app.EndBlocker)
 
-	// upgrade handler
+	// upgrade handlers
 	plan0_7_0 := "v0.7.0"
 	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		// The default genesis parameters of `feemarket` module are fine, because the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price,
 		// so it don't have effect at the beginning, we can always adjust the parameters through the governance later.
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+	// this upgrade is for breaking bug fixes on testnet
+	plan0_7_0HotfixTestnet := "v0.7.0-hotfix-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0HotfixTestnet, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 

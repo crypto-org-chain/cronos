@@ -28,6 +28,7 @@
 - [cronos#323](https://github.com/crypto-org-chain/cronos/pull/323) Upgrade gravity bridge to v0.3.9 which contain a bugfix on `batchTxExecuted.`
 - [cronos#324](https://github.com/crypto-org-chain/cronos/pull/324) Update to cosmos-sdk `v0.45.1`, which fixes an OOM issue.
 - [cronos#329](https://github.com/crypto-org-chain/cronos/pull/329) Fix panic of eth_call on blocks prior to upgrade. 
+- [cronos#340](https://github.com/crypto-org-chain/cronos/pull/340) Update dependencies to include several bug fixes: a) fix subscription deadlock issue in ethermint, b) fix data races `traceContext`.
 
 *December 10, 2021*
 

@@ -21,7 +21,7 @@ require (
 	github.com/tendermint/tm-db v0.6.4
 	github.com/tharsis/ethermint v0.10.0-alpha1
 	google.golang.org/genproto v0.0.0-20211223182754-3ac035c7e7cb
-	google.golang.org/grpc v1.43.0
+	google.golang.org/grpc v1.44.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -153,7 +153,8 @@ require (
 replace (
 	// TODO: fix keyring upstream
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.1
+	// release/v0.45.x branch, TODO use tag when released
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.2-0.20220209090836-4161d2b6022a
 
 	// TODO: remove when middleware will be implemented
 	github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.2-hooks
@@ -164,7 +165,7 @@ replace (
 	// See https://github.com/tecbot/gorocksdb/pull/216
 	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
-	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-4
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-5
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
