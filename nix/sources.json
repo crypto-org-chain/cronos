@@ -90,10 +90,10 @@
         "homepage": null,
         "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "2b5e020e880fec7cfa7fc8142f44251f3acf6a0e",
-        "sha256": "02wzwbnxwdkc7381ab1lymjw0xxn386971ynfsvn4x3i8j35pb79",
+        "rev": "5a2732f7de8dc3db23e44db1cb332926741222c4",
+        "sha256": "0wqkkr7flhvmczw1y2y0v698ywnq6b6rfwhx58r1zg7nwyla32hm",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/2b5e020e880fec7cfa7fc8142f44251f3acf6a0e.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/5a2732f7de8dc3db23e44db1cb332926741222c4.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
         "version": "v0.2.3"
     },
