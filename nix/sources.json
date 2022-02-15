@@ -72,16 +72,28 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/d2f47b7dcd558a7727606319fd8661a4c3311b4a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "poetry2nix": {
+        "branch": "master",
+        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
+        "homepage": "",
+        "owner": "nix-community",
+        "repo": "poetry2nix",
+        "rev": "302a559a298ba39a0bec53f46479da9c5b2558cd",
+        "sha256": "0lqvkyw9qw4rmqd5cv4l67vvj7ngbqpg2jxanxrddn6npjmmlv0j",
+        "type": "tarball",
+        "url": "https://github.com/nix-community/poetry2nix/archive/302a559a298ba39a0bec53f46479da9c5b2558cd.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "pystarport": {
         "branch": "main",
         "description": "pystarport setup and run local devnet for cosmos like blockchains",
         "homepage": null,
         "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "e08c02d64b19140e1473dfe47cdc759001eff505",
-        "sha256": "1h39ckb56br1cgznbr8xw054pg6vixdxhz2vbr4ypgvwh372sd4h",
+        "rev": "2b5e020e880fec7cfa7fc8142f44251f3acf6a0e",
+        "sha256": "02wzwbnxwdkc7381ab1lymjw0xxn386971ynfsvn4x3i8j35pb79",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/refs/tags/v0.2.3.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/2b5e020e880fec7cfa7fc8142f44251f3acf6a0e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
         "version": "v0.2.3"
     },

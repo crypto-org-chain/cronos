@@ -18,15 +18,7 @@ def init_cosmovisor(home):
     """
     cosmovisor = home / "cosmovisor"
     cosmovisor.mkdir()
-    subprocess.run(
-        [
-            "nix-build",
-            Path(__file__).parent / "configs/upgrade-test-package.nix",
-            "-o",
-            cosmovisor / "upgrades",
-        ],
-        check=True,
-    )
+    (cosmovisor / "upgrades").symlink_to("../../../upgrades")
     (cosmovisor / "genesis").symlink_to("./upgrades/genesis")
 
 
@@ -62,11 +54,23 @@ def post_init(path, base_port, config):
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
     path = tmp_path_factory.mktemp("upgrade")
+    cmd = [
+        "nix-build",
+        Path(__file__).parent / "configs/upgrade-test-package.nix",
+        "-o",
+        path / "upgrades",
+    ]
+    print(*cmd)
+    subprocess.run(cmd, check=True)
+    # init with genesis binary
     yield from setup_custom_cronos(
         path,
         26100,
         Path(__file__).parent / "configs/cosmovisor.yaml",
         post_init=post_init,
+        chain_binary=str(
+            path / "upgrades/genesis/bin/cronosd"
+        ),
     )
 
 

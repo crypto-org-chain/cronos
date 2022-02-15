@@ -172,7 +172,7 @@ class GravityBridge:
         self.contract = contract
 
 
-def setup_custom_cronos(path, base_port, config, post_init=None):
+def setup_custom_cronos(path, base_port, config, post_init=None, chain_binary=None):
     cmd = [
         "pystarport",
         "init",
@@ -182,7 +182,10 @@ def setup_custom_cronos(path, base_port, config, post_init=None):
         path,
         "--base_port",
         str(base_port),
+        "--no_remove",
     ]
+    if chain_binary is not None:
+        cmd = cmd[:1] + ["--cmd", chain_binary] + cmd[1:]
     print(*cmd)
     subprocess.run(cmd, check=True)
     if post_init is not None:
