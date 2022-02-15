@@ -6,6 +6,9 @@ cronos_777-1:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
+      feehistory-cap: 100
+      block-range-cap: 10000
+      logs-cap: 10000
   validators:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
