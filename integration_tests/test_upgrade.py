@@ -68,9 +68,7 @@ def custom_cronos(tmp_path_factory):
         26100,
         Path(__file__).parent / "configs/cosmovisor.yaml",
         post_init=post_init,
-        chain_binary=str(
-            path / "upgrades/genesis/bin/cronosd"
-        ),
+        chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
     )
 
 
