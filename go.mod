@@ -164,4 +164,4 @@ replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethere
 // TODO: remove when ibc-go and ethermint upgrades cosmos-sdk
 replace github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.44.2
 
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-6
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-8

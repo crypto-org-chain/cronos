@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+\- (rpc) [cronos#900](https://github.com/crypto-org-chain/cronos/pull/900) newPendingTransactions filter should return ethereum tx hash.
+
 ## v0.6.5
 
 ### Bug Fixes
