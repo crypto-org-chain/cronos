@@ -4,7 +4,7 @@
 
 ### Improvements
 
-- [cronos#345](https://github.com/crypto-org-chain/cronos/pull/345) disable the url query parameter in swagger-ui.
+- [cronos#346](https://github.com/crypto-org-chain/cronos/pull/346) disable the url query parameter in swagger-ui (backport: #345).
 
 ## v0.6.5
 
