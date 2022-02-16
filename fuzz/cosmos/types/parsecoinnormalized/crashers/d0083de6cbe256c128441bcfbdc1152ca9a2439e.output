@@ -1,0 +1,53 @@
+program hanged (timeout 10 seconds)
+
+SIGABRT: abort
+PC=0x1346101 m=0 sigcode=0
+
+goroutine 1 [running]:
+regexp/syntax.(*Inst).MatchRunePos(0x222edc0, 0x6f2)
+	/usr/local/go/src/regexp/syntax/prog.go:248 +0x361 fp=0xc000237b30 sp=0xc000237b08 pc=0x1346101
+regexp.onePassNext(0xc000237c10, 0x0)
+	/usr/local/go/src/regexp/onepass.go:75 +0x3c fp=0xc000237b50 sp=0xc000237b30 pc=0x135135c
+regexp.(*Regexp).doOnePass(0xc000146320, {0x0, 0x0}, {0x0, 0x0, 0x0}, {0xc000d86a00, 0x6d1}, 0x0, 0x6, ...)
+	/usr/local/go/src/regexp/exec.go:473 +0xa05 fp=0xc000237c60 sp=0xc000237b50 pc=0x13501c5
+regexp.(*Regexp).doExecute(0xc000237d27, {0x0, 0x0}, {0x0, 0x106051b, 0xc0000001a0}, {0xc000d86a00, 0xc0000001a0}, 0xc00004c000, 0x6, ...)
+	/usr/local/go/src/regexp/exec.go:532 +0x4f9 fp=0xc000237d18 sp=0xc000237c60 pc=0x1350d19
+regexp.(*Regexp).FindStringSubmatch(0xc000146320, {0xc000d86a00, 0x0})
+	/usr/local/go/src/regexp/regexp.go:1039 +0xad fp=0xc000237dd0 sp=0xc000237d18 pc=0x135be6d
+github.com/cosmos/cosmos-sdk/types.ParseDecCoin({0xc000d86a00, 0xc000d86a00})
+	/Users/johnathanleung/gowork/pkg/mod/github.com/cosmos/cosmos-sdk@v0.44.2/types/dec_coin.go:618 +0x65 fp=0xc000237e58 sp=0xc000237dd0 pc=0x19251e5
+github.com/cosmos/cosmos-sdk/types.ParseCoinNormalized({0xc000d86a00, 0xab50000})
+	/Users/johnathanleung/gowork/pkg/mod/github.com/cosmos/cosmos-sdk@v0.44.2/types/coin.go:689 +0x3a fp=0xc000237e80 sp=0xc000237e58 pc=0x191c75a
+github.com/crypto-org-chain/cronos/fuzz/cosmos/type/ParseCoinNormalized.Fuzz({0xab50000, 0xc000237f10, 0x222f700})
+	/Users/johnathanleung/project/cronos/fuzz/cosmos/type/ParseCoinNormalized/cosmostype.go:8 +0x4a fp=0xc000237ea8 sp=0xc000237e80 pc=0x1936faa
+go-fuzz-dep.Main({0xc000237f68, 0x1, 0x19819a0})
+	go-fuzz-dep/main.go:36 +0x15b fp=0xc000237f50 sp=0xc000237ea8 pc=0x108b7bb
+main.main()
+	github.com/crypto-org-chain/cronos/fuzz/cosmos/type/ParseCoinNormalized/go.fuzz.main/main.go:15 +0x3b fp=0xc000237f80 sp=0xc000237f50 pc=0x193707b
+runtime.main()
+	runtime/proc.go:255 +0x227 fp=0xc000237fe0 sp=0xc000237f80 pc=0x1037a67
+runtime.goexit()
+	runtime/asm_amd64.s:1581 +0x1 fp=0xc000237fe8 sp=0xc000237fe0 pc=0x1065161
+
+rax    0x0
+rbx    0x39
+rcx    0x0
+rdx    0xc00010a740
+rdi    0x6
+rsi    0xc
+rbp    0xc000237b20
+rsp    0xc000237b08
+r8     0x3
+r9     0xab40000
+r10    0x3
+r11    0x3
+r12    0xc00007d500
+r13    0x0
+r14    0xc0000001a0
+r15    0xc000cf4800
+rip    0x1346101
+rflags 0x246
+cs     0x2b
+fs     0x0
+gs     0x0
+exit status 2
