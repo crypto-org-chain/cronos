@@ -2,8 +2,13 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+- (rpc) [cronos#343](https://github.com/crypto-org-chain/cronos/pull/343) newPendingTransactions filter should return ethereum tx hash.
+
 ### Improvements
 
+- [cronos#346](https://github.com/crypto-org-chain/cronos/pull/346) disable the url query parameter in swagger-ui (backport: #345).
 - [cronos#342](https://github.com/crypto-org-chain/cronos/pull/342) support debug query result
 
 *December 21, 2021*
