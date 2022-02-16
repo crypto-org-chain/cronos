@@ -18,10 +18,10 @@
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "67f22dd738d092c6ba88e420350ada0ed4992ae8",
-        "sha256": "0a9rhw6djgcrky5nzly3srsl8095q42f2nyzxyisp9fh9fg70nih",
+        "rev": "fc5adcc53031c5a3934500a57896a840a2bd073d",
+        "sha256": "1af8sg6lfzxvhha8rbcaklihdm0q2dy4jgnjax1b4914qzfphcb6",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/67f22dd738d092c6ba88e420350ada0ed4992ae8.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/fc5adcc53031c5a3934500a57896a840a2bd073d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -73,15 +73,28 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
-        "branch": "main",
+        "branch": "v0.2.3",
         "description": "pystarport setup and run local devnet for cosmos like blockchains",
         "homepage": null,
         "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "a127111b2c23ce167155f7c4f6751e6af894306b",
-        "sha256": "0y4a7v81p4m1fz374b48vzn0jm8j3z287s7gn64w2x53px58c5r4",
+        "rev": "e08c02d64b19140e1473dfe47cdc759001eff505",
+        "sha256": "1h39ckb56br1cgznbr8xw054pg6vixdxhz2vbr4ypgvwh372sd4h",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/a127111b2c23ce167155f7c4f6751e6af894306b.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/e08c02d64b19140e1473dfe47cdc759001eff505.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
+        "version": "v0.2.3"
+    },
+    "rocksdb": {
+        "branch": "v6.27.3",
+        "description": "A library that provides an embeddable, persistent key-value store for fast storage.",
+        "homepage": "http://rocksdb.org",
+        "owner": "facebook",
+        "repo": "rocksdb",
+        "rev": "fcf3d75f3f022a6a55ff1222d6b06f8518d38c7c",
+        "sha256": "1lyqjkja5ig83q6cznnrhv76nrm3sqgrgvwx78pmbsndzddw2yxk",
+        "type": "tarball",
+        "url": "https://github.com/facebook/rocksdb/archive/fcf3d75f3f022a6a55ff1222d6b06f8518d38c7c.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

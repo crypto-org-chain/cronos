@@ -165,3 +165,7 @@ replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethere
 replace github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.44.2
 
 replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-8
+
+// Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
+// See https://github.com/tecbot/gorocksdb/pull/216
+replace github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
