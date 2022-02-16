@@ -16,6 +16,7 @@ pkgs.mkShell {
     pkgs.solc-versions.solc_0_6_8
     pkgs.test-env
     pkgs.nixpkgs-fmt
+    pkgs.rocksdb
     (import ../nix/testenv.nix { inherit pkgs; })
     (import ../nix/chainmain.nix { inherit pkgs; })
     (import ../nix/hermes.nix { inherit pkgs; })
