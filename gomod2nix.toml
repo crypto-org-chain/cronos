@@ -4638,13 +4638,13 @@
     sha256 = "1kmdk3v2a6ygcg2i8jfgz61yzxi4183xgzlaviq9jwsqwc2hj60w"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.7.2-cronos-7"
+  sumVersion = "v0.7.2-cronos-8"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "7386e573a07bc01e13d0ad898a78ea4098d54e0a"
-    sha256 = "1zi3yh0f5r1vy6dpasw22dmxb9x5wnc9dbkq6ijf4221ia91hjqn"
+    rev = "ad83067f4a5f4d72b5bcc64e52da0ae5c8b6d74b"
+    sha256 = "03zzqxf94i4y5lgsr3iwdikbbljw32p78zmqzwikj0jbjb53rrqs"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
