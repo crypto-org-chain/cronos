@@ -22,6 +22,7 @@
 ### Improvements
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
 - [cronos#322](https://github.com/crypto-org-chain/cronos/pull/322) Merge min-gas-price change in ethermint: don't check min-gas-price for EVM tx when feemarket enabled.
+- [cronos#345](https://github.com/crypto-org-chain/cronos/pull/345) disable the url query parameter in swagger-ui.
 
 ### Bug Fixes
 - [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
