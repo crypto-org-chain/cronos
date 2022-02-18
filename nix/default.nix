@@ -12,6 +12,7 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
+    (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
@@ -28,9 +29,9 @@ import sources.nixpkgs {
       };
     })
     (_: pkgs: {
-      pystarport = pkgs.poetry2nix.mkPoetryApplication {
+      pystarport = pkgs.poetry2nix.mkPoetryApplication rec {
         projectDir = sources.pystarport;
-        src = sources.pystarport;
+        src = projectDir;
       };
     })
     (_: pkgs:
