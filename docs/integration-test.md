@@ -45,7 +45,7 @@ make run-integration-tests
 
 ## Customize The Test Runner
 
-To run customize test runner, you can also issue commands separatedly.
+To customize the test runner, you can also issue commands separately.
 
 ### Enter `nix-shell`
 
@@ -72,20 +72,23 @@ We use `pytest` to discover the test cases and run them, follow [pytest doc](htt
 You can invoke `pytest` after entering the nix shell:
 
 ```shell
-$ pytest -s -vv ./integration_tests
+$ cd integration_tests
+$ pytest -s -vv
 ```
 
 You can use `-k` to select test cases by patterns in name:
 
 ```shell
-$ pytest ./integration_tests -k test_basic
+$ cd integration_tests
+$ pytest -k test_basic
 ```
 
 Some test cases will run on both `geth` and `cronos`, you can also select the platform to run using `-k`:
 
 ```shell
+$ cd integration_tests
 $ # run against cronos only
-$ pytest ./integration_tests -k cronos
+$ pytest -k cronos
 $ # run against geth only
-$ pytest ./integration_tests -k geth
+$ pytest -k geth
 ```
