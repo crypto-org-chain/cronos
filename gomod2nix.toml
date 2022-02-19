@@ -867,8 +867,8 @@
   ["github.com/confio/ics23/go".fetch]
     type = "git"
     url = "https://github.com/confio/ics23"
-    rev = "53a3a58ab8d224eef792845a65c7e8fc66712b7d"
-    sha256 = "05132gdwapsc5cx4sgbpicwyzwgwhjhm8nmjljddpyiswql0mv8q"
+    rev = "6cf2f712b5ecccf0a138c29a77b726d57bdaad51"
+    sha256 = "0r1vk5lvjfri57hd5dk75dfiyzz57qaljshw6sr80aj5v8krzxsn"
 
 ["github.com/consensys/bavard"]
   sumVersion = "v0.1.8-0.20210406032232-f3452dc9b572"
@@ -967,12 +967,12 @@
     sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.45.2-0.20220209090836-4161d2b6022a"
+  sumVersion = "v0.45.2-0.20220218085826-7f949c0aa1d6"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "4161d2b6022a59ad859265a0e2483eb8e9b2f84d"
-    sha256 = "10jy4vyxy8xqy0ria0zf5cvkdf6ryfnyv8klvkn0w72qyiy1jxgf"
+    rev = "7f949c0aa1d6350ef3a32c730cc4493bfb64f63e"
+    sha256 = "12qk6y17hzw4dbi2f3n1yq6fdx37mpz69i5n65xrc2yjxwrh5p6g"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -3757,10 +3757,10 @@
 
 ["github.com/tharsis/ethermint"]
   sumVersion = "v0.10.0-alpha1-cronos-6"
-  vendorPath = "github.com/yihuang/ethermint"
+  vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/yihuang/ethermint"
+    url = "https://github.com/crypto-org-chain/ethermint"
     rev = "c627df496803c5b54fcb71b5e4dc1412c7463fa4"
     sha256 = "05yw8vi4ayg8wmk7sa0w14xhs57hchwi5x37yck90cj1yw107zcb"
 
