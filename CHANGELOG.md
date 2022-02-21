@@ -4,6 +4,14 @@
 
 ### Bug Fixes
 
+- (rpc) [cronos#]() fix newPendingTransactions subscription deadlock issue, backport the fix in ethermint.
+
+*February 18, 2022*
+
+## v0.6.6
+
+### Bug Fixes
+
 - (rpc) [cronos#343](https://github.com/crypto-org-chain/cronos/pull/343) newPendingTransactions filter should return ethereum tx hash.
 
 ### Improvements
