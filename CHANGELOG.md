@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- (rpc) [cronos#]() fix newPendingTransactions subscription deadlock issue, backport the fix in ethermint.
+- (rpc) [cronos#352](https://github.com/crypto-org-chain/cronos/pull/352) fix newPendingTransactions subscription deadlock issue, backport the fix in ethermint.
 
 *February 18, 2022*
 
