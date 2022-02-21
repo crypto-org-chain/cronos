@@ -164,7 +164,7 @@ replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethere
 // TODO: remove when ibc-go and ethermint upgrades cosmos-sdk
 replace github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.44.7-0.20220214161517-8a26cd10b4be
 
-replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.7.2-cronos-7.0.20220221042333-8fe755d23a29
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-9
 
 // Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
 // See https://github.com/tecbot/gorocksdb/pull/216
