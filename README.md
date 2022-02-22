@@ -3,6 +3,7 @@ parent:
   order: false
 -->
 
+
 <div align="center">
   <h1> <img src="./assets/cronos.svg" alt="Cronos Logo" width="300px" /> </h1>
 </div>
@@ -29,7 +30,7 @@ parent:
   - [install latest python (for linux)](#install-latest-python-for-linux)
   - [set path (for linux or for mac)](#set-path-for-linux-or-for-mac)
   - [install pystarport](#install-pystarport)
-  - [quitck start](#quitck-start)
+  - [quick start](#quick-start)
   - [get status](#get-status)
   - [stop all](#stop-all)
 - [10. Useful links](#10-useful-links)
@@ -123,7 +124,7 @@ export PATH=/usr/local/bin:$HOME/.local/bin:$PATH
 python3 -m pip install pystarport
 ```
 
-### quitck start
+### quick start
 
 run two nodes devnet
 
