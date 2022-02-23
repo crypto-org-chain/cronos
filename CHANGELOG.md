@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - (rpc) [cronos#352](https://github.com/crypto-org-chain/cronos/pull/352) fix newPendingTransactions subscription deadlock issue, backport the fix in ethermint.
+- (rpc) [cronos#357](https://github.com/crypto-org-chain/cronos/pull/357) fix gasUsed returned by RPC api.
 
 *February 18, 2022*
 
