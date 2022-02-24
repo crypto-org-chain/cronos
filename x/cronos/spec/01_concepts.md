@@ -14,11 +14,11 @@ The Cronos module glues IBC, gravity bridge and ethermint together through hooks
 
 Cronos uses CRO as its gas token.
 
-The CRO assets on the Cronos Chain need to be transferred from the Crypto.org Chain through an IBC channel. The tokens arrive on the Cronos Chain as IBC tokens first, then are automatically converted to the gas token. 
+The CRO assets on the Cronos Chain need to be transferred from the Crypto.org Chain through an IBC channel. The tokens arrived at the Cronos Chain as IBC tokens first, then are automatically converted to the gas token. 
 
 ### Decimal Places Conversion
 
-The CRO on the Crypto.org chain has 8 decimals, while the Cronos gas token has 18 decimals (to keep compatibility with Ethereum). So a conversion is done automatically:
+The CRO on the Crypto.org Chain has 8 decimals, while the Cronos gas token has 18 decimals (to keep compatibility with Ethereum). So a conversion is done automatically:
 
 - When transferring CRO to Cronos chain, the decimal places of the amount are expanded to 18.
 - When transferring CRO from Cronos chain, the amount is truncated to 8 decimals, the remaining part is left in Cronos, so the total value is preserved.
