@@ -27,15 +27,15 @@ jobs:
       - name: nix bundle
         run: |
           nix bundle .
-          tar cfzh "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz" ./cronosd
+          tar cfzh "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz" ./cronosd
           nix bundle .#cronosd-testnet
-          tar cfzh "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz" ./cronosd
+          tar cfzh "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz" ./cronosd
           echo 'FILES<<EOF' >> $GITHUB_ENV
-          echo "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz" >> $GITHUB_ENV
-          echo "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz" >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz" >> $GITHUB_ENV
+          echo "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-          ls -l "${GITHUB_REF##*/}_Linux_x86_64_rocksdb.tar.gz"
-          ls -l "${GITHUB_REF##*/}-testnet_Linux_x86_64_rocksdb.tar.gz"
+          ls -l "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz"
+          ls -l "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz"
       - name: release linux rocksdb binaries
         uses: softprops/action-gh-release@v1
         with:
