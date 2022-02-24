@@ -26,8 +26,8 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: nix bundle
         run: |
-          MAINNET_TAR="$(echo ${GITHUB_REF##*/} | cut -c 2-)-rocksdb_Linux_x86_64.tar.gz"
-          TESTNET_TAR="$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-rocksdb_Linux_x86_64.tar.gz"
+          MAINNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-rocksdb_Linux_x86_64.tar.gz"
+          TESTNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-rocksdb_Linux_x86_64.tar.gz"
           mkdir ./bin
           nix bundle .
           mv ./cronosd ./bin
