@@ -11,7 +11,7 @@ pkgs.mkShell {
     pkgs.gorc
     pkgs.cosmovisor
     pkgs.poetry
-    pkgs.nodejs_latest
+    pkgs.nodejs
     pkgs.git
     pkgs.dapp
     pkgs.solc-versions.solc_0_6_8
