@@ -1,7 +1,12 @@
 # Contributing
 
-Thank you for your interest in contributing to Chain! The goal of the cronos repository is to develop the implementation
-of Crypto.org Cronos Chain to best power its network use cases in payments, finance and digital assets. If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
+Thank you for your interest in contributing to Cronos! The goal of this repository is to develop the implementation of Cronos. 
+Cronos is the first Ethereum-compatible blockchain network built on Cosmos SDK technology. An open-source and permission-less 
+Layer 1 chain, Cronos aims to massively scale the DeFi, GameFi, and overall Web3 user community by providing builders with the 
+ability to instantly port apps and crypto assets from other chains while benefiting from low transaction fees, high throughput, 
+and fast finality. If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
+
+testing
 
 All work on the code base tries to adhere to the "Development Process" described in [The Collective Code Construction Contract (C4)](https://rfc.zeromq.org/spec/42/#24-development-process).
 
