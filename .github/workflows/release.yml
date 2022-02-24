@@ -26,16 +26,21 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: nix bundle
         run: |
+          MAINNET_TAR="$(echo ${GITHUB_REF##*/} | cut -c 2-)-rocksdb_Linux_x86_64.tar.gz"
+          TESTNET_TAR="$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-rocksdb_Linux_x86_64.tar.gz"
+          mkdir ./bin
           nix bundle .
-          tar cfzh "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz" ./cronosd
+          mv ./cronosd ./bin
+          tar cfzh "${MAINNET_TAR}" ./bin
           nix bundle .#cronosd-testnet
-          tar cfzh "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz" ./cronosd
+          mv ./cronosd ./bin
+          tar cfzh "${TESTNET_TAR}" ./bin
           echo 'FILES<<EOF' >> $GITHUB_ENV
-          echo "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz" >> $GITHUB_ENV
-          echo "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz" >> $GITHUB_ENV
+          echo "${MAINNET_TAR}" >> $GITHUB_ENV
+          echo "${TESTNET_TAR}" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-          ls -l "${GITHUB_REF##*/}-rocksdb_Linux_x86_64.tar.gz"
-          ls -l "${GITHUB_REF##*/}-testnet-rocksdb_Linux_x86_64.tar.gz"
+          ls -l "${MAINNET_TAR}"
+          ls -l "${TESTNET_TAR}"
       - name: release linux rocksdb binaries
         uses: softprops/action-gh-release@v1
         with:
