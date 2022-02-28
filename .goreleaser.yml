@@ -203,3 +203,4 @@ snapshot:
 
 release:
   prerelease: true
+  # TODO: use back draft after the issue(softprops/action-gh-release#215) is fixed.
