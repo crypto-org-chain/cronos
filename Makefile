@@ -11,10 +11,6 @@ TESTNET_FLAGS ?=
 
 VERSION := $(shell echo $(shell git describe --tags 2>/dev/null ) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
-NETWORK ?= mainnet
-COVERAGE ?= coverage.txt
-BUILDDIR ?= $(CURDIR)/build
-LEDGER_ENABLED ?= true
 
 # process build tags
 build_tags = netgo

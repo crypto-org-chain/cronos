@@ -202,4 +202,5 @@ snapshot:
   name_template: "{{ .Tag }}-next"
 
 release:
-  draft: true
+  prerelease: true
+  # TODO: use back draft after the issue(softprops/action-gh-release#215) is fixed.
