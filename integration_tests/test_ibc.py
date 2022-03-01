@@ -3,13 +3,11 @@ import subprocess
 import time
 
 import pytest
-from eth_account import Account
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
 from .utils import (
     ADDRS,
     CONTRACTS,
-    KEYS,
     deploy_contract,
     eth_to_bech32,
     send_transaction,
@@ -57,7 +55,7 @@ def test_ibc(cronos, chainmain, hermes):
     # signer2
     coin_receiver = eth_to_bech32(ADDRS["signer2"])
     src_amount = 10
-    dst_amount = src_amount * (10**10)  # the decimal places difference
+    dst_amount = src_amount * (10 ** 10)  # the decimal places difference
     src_denom = "basecro"
     dst_denom = "basetcro"
     # dstchainid srcchainid srcportid srchannelid
@@ -95,7 +93,7 @@ def test_cronos_transfer_tokens(cronos, chainmain, hermes):
 
     coin_receiver = chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
-    src_amount = dst_amount * (10**10)  # the decimal places difference
+    src_amount = dst_amount * (10 ** 10)  # the decimal places difference
 
     # case 1: use cronos cli
     oldbalance = get_balance(chainmain, coin_receiver, "basecro")
@@ -123,7 +121,7 @@ def test_cro_bridge_contract(cronos, chainmain, hermes):
     """
     coin_receiver = chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
-    src_amount = dst_amount * (10**10)  # the decimal places difference
+    src_amount = dst_amount * (10 ** 10)  # the decimal places difference
     oldbalance = get_balance(chainmain, coin_receiver, "basecro")
 
     # case 2: use CroBridge contract
