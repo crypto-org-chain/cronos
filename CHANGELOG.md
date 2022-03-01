@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*March 2, 2022*
+
+## v0.6.7
 
 ### Bug Fixes
 
@@ -8,6 +10,7 @@
 - (rpc) [cronos#357](https://github.com/crypto-org-chain/cronos/pull/357) fix gasUsed returned by RPC api.
 - (rpc) [cronos#363](https://github.com/crypto-org-chain/cronos/pull/363) fix occasional websocket connection closed due to non-eth tx.
 - (rpc) [cronos#372](https://github.com/crypto-org-chain/cronos/pull/372) Problem: transaction count don't match in different json-rpc apis
+- (rpc) [cronos#]() Fix websocket push duplicated messages to client.
 
 *February 18, 2022*
 
