@@ -2,7 +2,6 @@ import asyncio
 import json
 from collections import defaultdict
 
-import pytest
 import websockets
 
 from .network import Cronos
@@ -52,10 +51,10 @@ class Client:
     def sub_qsize(self, sub_id):
         return self._subs[sub_id].qsize()
 
-    async def unsubscribe(self, subID):
+    async def unsubscribe(self, sub_id):
         rpcid = self.gen_id()
         await self._ws.send(
-            json.dumps({"id": rpcid, "method": "eth_unsubscribe", "params": [subID]})
+            json.dumps({"id": rpcid, "method": "eth_unsubscribe", "params": [sub_id]})
         )
         rsp = await self.recv_response(rpcid)
         assert "error" not in rsp
