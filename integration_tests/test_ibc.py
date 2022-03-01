@@ -6,7 +6,16 @@ import pytest
 from eth_account import Account
 
 from .network import setup_chainmain, setup_cronos, setup_hermes
-from .utils import CONTRACTS, KEYS, wait_for_port
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    KEYS,
+    deploy_contract,
+    eth_to_bech32,
+    send_transaction,
+    wait_for_fn,
+    wait_for_port,
+)
 
 
 @pytest.fixture(scope="module")
@@ -28,15 +37,11 @@ def hermes(tmp_path_factory):
 
 
 def get_balance(chain, addr, denom):
-    coins = chain.cosmos_cli(0).balances(addr)
-    for coin in coins:
-        if coin["denom"] == denom:
-            value = int(coin["amount"])
-            return value
-    return 0
+    return chain.cosmos_cli().balance(addr, denom)
 
 
 def test_ibc(cronos, chainmain, hermes):
+    "test sending basecro from crypto-org chain to cronos"
     # wait for hermes
     hermes_rest_port = 3000
     wait_for_port(hermes_rest_port)
@@ -49,9 +54,10 @@ def test_ibc(cronos, chainmain, hermes):
     my_ibc1 = "cronos_777-1"
     my_channel = "channel-0"
     my_config = hermes.configpath
-    # signer21
-    coin_receiver = "crc1q04jewhxw4xxu3vlg3rc85240h9q7ns6hglz0g"
-    src_amount = 5
+    # signer2
+    coin_receiver = eth_to_bech32(ADDRS["signer2"])
+    src_amount = 10
+    dst_amount = src_amount * (10**10)  # the decimal places difference
     src_denom = "basecro"
     dst_denom = "basetcro"
     # dstchainid srcchainid srcportid srchannelid
@@ -62,13 +68,23 @@ def test_ibc(cronos, chainmain, hermes):
     _ = subprocess.getoutput(cmd)
     dstaddr = f"{coin_receiver}"
     olddstbalance = get_balance(cronos, dstaddr, dst_denom)
-    time.sleep(5)
-    newdstbalance = get_balance(cronos, dstaddr, dst_denom)
-    expectedbalance = olddstbalance + src_amount * (10 ** 10)
+    newdstbalance = 0
+
+    def check_balance_change():
+        nonlocal newdstbalance
+        newdstbalance = get_balance(cronos, dstaddr, dst_denom)
+        return newdstbalance != olddstbalance
+
+    wait_for_fn("check balance change", check_balance_change)
+    expectedbalance = olddstbalance + dst_amount
     assert expectedbalance == newdstbalance
 
 
-def test_ibc_reverse(cronos, chainmain, hermes):
+def test_cronos_transfer_tokens(cronos, chainmain, hermes):
+    """
+    test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
+    depends on `test_ibc` to send the original coins.
+    """
     # wait for hermes
     hermes_rest_port = 3000
     wait_for_port(hermes_rest_port)
@@ -77,72 +93,54 @@ def test_ibc_reverse(cronos, chainmain, hermes):
     )
     assert json.loads(output)["status"] == "success"
 
-    # wait for hermes
-    my_ibc0 = "chainmain-1"
-    my_ibc1 = "cronos_777-1"
-    my_channel = "channel-0"
-    my_config = hermes.configpath
-    # signer21
-    coin_receiver = "cro1u08u5dvtnpmlpdq333uj9tcj75yceggszxpnsy"
-    src_amount = 2 * (10 ** 10)
-    src_denom = "basetcro"
-    dst_denom = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD\
-5D19762F541EC971ACB0865"
-    # dstchainid srcchainid srcportid srchannelid
-    # chainmain-1 <- cronos_777-1
-    cmd = f"hermes -c {my_config} tx raw ft-transfer \
-    {my_ibc0} {my_ibc1} transfer {my_channel} {src_amount} \
-    -o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k testkey"
-    _ = subprocess.getoutput(cmd)
-    dstaddr = f"{coin_receiver}"
-    olddstbalance = get_balance(chainmain, dstaddr, dst_denom)
-    time.sleep(5)
-    newdstbalance = get_balance(chainmain, dstaddr, dst_denom)
-    expectedbalance = olddstbalance + src_amount
-    assert expectedbalance == newdstbalance
+    coin_receiver = chainmain.cosmos_cli().address("signer2")
+    dst_amount = 2
+    src_amount = dst_amount * (10**10)  # the decimal places difference
 
-
-def test_contract(cronos, chainmain, hermes):
-    cronos_chainid = 777
-    cronos_gas = 10000000
-    web3api = cronos.w3
-    account = Account.from_key(KEYS["validator"])
-    contract_creator_address = account.address
-    web3api.eth.get_balance(contract_creator_address)
-
-    with open(CONTRACTS["Greeter"]) as f:
-        json_data = f.read()
-        contract_json = json.loads(json_data)
-
-    # precompiled contract
-    bytecode = contract_json["bytecode"]
-    abi = contract_json["abi"]
-
-    web3api.eth.default_account = account
-    # deploy
-    greeter_contract_class = web3api.eth.contract(abi=abi, bytecode=bytecode)
-    nonce = web3api.eth.get_transaction_count(account.address)
-    info = {
-        "from": account.address,
-        "nonce": nonce,
-        "gas": cronos_gas,
-        "chainId": cronos_chainid,
-    }
-    txhash = greeter_contract_class.constructor().transact(info)
-    txreceipt = web3api.eth.wait_for_transaction_receipt(txhash)
-
-    # call contract
-    greeter_contract_instance = web3api.eth.contract(
-        address=txreceipt.contractAddress, abi=abi
+    # case 1: use cronos cli
+    oldbalance = get_balance(chainmain, coin_receiver, "basecro")
+    cli = cronos.cosmos_cli()
+    rsp = cli.transfer_tokens(
+        cli.address("signer2"), coin_receiver, f"{src_amount}basetcro"
     )
-    greeter_call_result = greeter_contract_instance.functions.greet().call(info)
+    assert rsp["code"] == 0, rsp["raw_log"]
 
-    # change
-    nonce = web3api.eth.get_transaction_count(account.address)
-    info["nonce"] = nonce
-    txhash = greeter_contract_instance.functions.setGreeting("world").transact(info)
-    web3api.eth.wait_for_transaction_receipt(txhash)
+    newbalance = 0
 
-    # call contract
-    greeter_call_result = greeter_contract_instance.functions.greet().call(info)
-    assert "world" == greeter_call_result
+    def check_balance_change():
+        nonlocal newbalance
+        newbalance = get_balance(chainmain, coin_receiver, "basecro")
+        return oldbalance != newbalance
+
+    wait_for_fn("check balance change", check_balance_change)
+    assert oldbalance + dst_amount == newbalance
+
+
+def test_cro_bridge_contract(cronos, chainmain, hermes):
+    """
+    test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
+    depends on `test_ibc` to send the original coins.
+    """
+    coin_receiver = chainmain.cosmos_cli().address("signer2")
+    dst_amount = 2
+    src_amount = dst_amount * (10**10)  # the decimal places difference
+    oldbalance = get_balance(chainmain, coin_receiver, "basecro")
+
+    # case 2: use CroBridge contract
+    w3 = cronos.w3
+    contract = deploy_contract(w3, CONTRACTS["CroBridge"])
+    tx = contract.functions.send_cro_to_crypto_org(coin_receiver).buildTransaction(
+        {"from": ADDRS["signer2"], "value": src_amount}
+    )
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    newbalance = 0
+
+    def check_balance_change():
+        nonlocal newbalance
+        newbalance = get_balance(chainmain, coin_receiver, "basecro")
+        return oldbalance != newbalance
+
+    wait_for_fn("check balance change", check_balance_change)
+    assert oldbalance + dst_amount == newbalance

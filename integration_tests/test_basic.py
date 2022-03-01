@@ -332,10 +332,10 @@ def test_transaction(cronos):
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
         futures = []
         futures.append(
-            executor.submit(contracts["test_revert_1"].transfer, 5 * 10 ** 18 - 1)
+            executor.submit(contracts["test_revert_1"].transfer, 5 * 10**18 - 1)
         )
         futures.append(
-            executor.submit(contracts["test_revert_2"].transfer, 5 * 10 ** 18)
+            executor.submit(contracts["test_revert_2"].transfer, 5 * 10**18)
         )
         futures.append(executor.submit(contracts["greeter_1"].transfer, "hello"))
         futures.append(executor.submit(contracts["greeter_2"].transfer, "world"))
@@ -401,15 +401,15 @@ def test_exception(cluster):
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
-            w3, contract.functions.transfer(5 * 10 ** 18 - 1).buildTransaction()
+            w3, contract.functions.transfer(5 * 10**18 - 1).buildTransaction()
         )
     assert 0 == contract.caller.query()
 
     receipt = send_transaction(
-        w3, contract.functions.transfer(5 * 10 ** 18).buildTransaction()
+        w3, contract.functions.transfer(5 * 10**18).buildTransaction()
     )
     assert receipt.status == 1, "should be succesfully"
-    assert 5 * 10 ** 18 == contract.caller.query()
+    assert 5 * 10**18 == contract.caller.query()
 
 
 def test_message_call(cronos):
@@ -583,3 +583,19 @@ def test_log0(cluster):
     assert (
         log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
     )
+
+
+def test_contract(cronos, chainmain, hermes):
+    "test Greeter contract"
+    w3 = cronos.w3
+    contract = deploy_contract(w3, CONTRACTS["Greeter"])
+    assert "Hello" == contract.callers.greet()
+
+    # change
+    tx = contract.functions.setGreeting("world").buildTransaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 0
+
+    # call contract
+    greeter_call_result = contract.callers.greet()
+    assert "world" == greeter_call_result
