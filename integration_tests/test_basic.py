@@ -30,7 +30,6 @@ from .utils import (
 def test_basic(cluster):
     w3 = cluster.w3
     assert w3.eth.chain_id == 777
-    assert w3.eth.get_balance(ADDRS["community"]) == 10000000000000000000000
 
 
 def test_events(cluster, suspend_capture):
@@ -332,10 +331,10 @@ def test_transaction(cronos):
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
         futures = []
         futures.append(
-            executor.submit(contracts["test_revert_1"].transfer, 5 * 10 ** 18 - 1)
+            executor.submit(contracts["test_revert_1"].transfer, 5 * 10**18 - 1)
         )
         futures.append(
-            executor.submit(contracts["test_revert_2"].transfer, 5 * 10 ** 18)
+            executor.submit(contracts["test_revert_2"].transfer, 5 * 10**18)
         )
         futures.append(executor.submit(contracts["greeter_1"].transfer, "hello"))
         futures.append(executor.submit(contracts["greeter_2"].transfer, "world"))
@@ -401,15 +400,15 @@ def test_exception(cluster):
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
-            w3, contract.functions.transfer(5 * 10 ** 18 - 1).buildTransaction()
+            w3, contract.functions.transfer(5 * 10**18 - 1).buildTransaction()
         )
     assert 0 == contract.caller.query()
 
     receipt = send_transaction(
-        w3, contract.functions.transfer(5 * 10 ** 18).buildTransaction()
+        w3, contract.functions.transfer(5 * 10**18).buildTransaction()
     )
     assert receipt.status == 1, "should be succesfully"
-    assert 5 * 10 ** 18 == contract.caller.query()
+    assert 5 * 10**18 == contract.caller.query()
 
 
 def test_message_call(cronos):

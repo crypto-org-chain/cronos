@@ -47,7 +47,7 @@ def geth(tmp_path_factory):
     yield from setup_geth(path, 8545)
 
 
-@pytest.fixture(scope="session", params=["cronos", "geth"])
+@pytest.fixture(scope="session", params=["cronos", "geth", "cronos-ws"])
 def cluster(request, cronos, geth):
     """
     run on both cronos and geth
@@ -57,5 +57,9 @@ def cluster(request, cronos, geth):
         yield cronos
     elif provider == "geth":
         yield geth
+    elif provider == "cronos-ws":
+        cronos_ws = cronos.copy()
+        cronos_ws.use_websocket()
+        yield cronos_ws
     else:
         raise NotImplementedError
