@@ -27,7 +27,7 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 
 | ADR \# | Description | Status |
 | ------ | ----------- | ------ |
-| [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Proposed |
-| [002](./adr-002.md) | Use a custom fork of ibc-go | Proposed |
-| [003](./adr-003.md) | Add Fee Market Module | Proposed |
-| [004](./adr-004.md) | Tokens conversion in Cronos | Proposed |
+| [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Accepted |
+| [002](./adr-002.md) | Use a custom fork of ibc-go | Accepted |
+| [003](./adr-003.md) | Add Fee Market Module | Accepted |
+| [004](./adr-004.md) | Tokens conversion in Cronos | Accepted |
