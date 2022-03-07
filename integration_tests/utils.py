@@ -26,6 +26,8 @@ from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 KEYS = {
     "validator": "826E479F5385C8C32CD96B0C0ACCDB8CC4FA5CACCC1BE54C1E3AA4D676A6EFF5",
     "community": "5D665FBD2FB40CB8E9849263B04457BA46D5F948972D0FE4C1F19B6B0F243574",
+    "signer1": "82f33180c13b553af9046e6d353960165ecbe1c1746b5db38d4343c2fdb0480e",
+    "signer2": "e95790afde7a9eaf910419bbdfb7ef8ed93a6570562f19adc4bb73c29e80cc64",
 }
 ADDRS = {name: Account.from_key(key).address for name, key in KEYS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"

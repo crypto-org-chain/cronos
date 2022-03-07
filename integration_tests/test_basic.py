@@ -246,8 +246,9 @@ def test_tx_inclusion(cronos):
     - check they are included in consecutively blocks without failure.
     """
     w3 = cronos.w3
-    # bigger than block_gas_limit/2, so at most one tx in a block
-    tx_gas_limit = 80000000
+    # this is the biggest allowed in this version of ethermint
+    # need to be bigger than block_gas_limit/2, so at most one tx is allowed in a block
+    tx_gas_limit = 10000000
     amount = 1000
     # use different sender accounts to be able be send concurrently
     signed_txs = []
