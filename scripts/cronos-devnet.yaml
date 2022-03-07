@@ -28,7 +28,7 @@ cronos_777-1:
     consensus_params:
       block:
         max_bytes: "1048576"
-        max_gas: "81500000"
+        max_gas: "19000000"
     app_state:
       evm:
         params:
