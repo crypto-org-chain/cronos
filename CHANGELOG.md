@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- (tx, rpc) [cronos#377](https://github.com/crypto-org-chain/cronos/pull) back port bug fixes in ethermint: a) report correct gasWanted in checkTx, b) add returnValue message on tracing.
+
 *March 2, 2022*
 
 ## v0.6.7

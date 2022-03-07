@@ -13,6 +13,7 @@ from .utils import (
     Greeter,
     deploy_contract,
     send_transaction,
+    sign_transaction,
     wait_for_block,
     wait_for_port,
 )
@@ -237,3 +238,39 @@ def test_log0(cluster):
     assert (
         log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
     )
+
+
+def test_tx_inclusion(cronos):
+    """
+    - send multiple heavy transactions at the same time.
+    - check they are included in consecutively blocks without failure.
+    """
+    w3 = cronos.w3
+    # bigger than block_gas_limit/2, so at most one tx in a block
+    tx_gas_limit = 80000000
+    amount = 1000
+    # use different sender accounts to be able be send concurrently
+    signed_txs = []
+    for account in ["validator", "community", "signer1", "signer2"]:
+        signed_txs.append(
+            sign_transaction(
+                w3,
+                {
+                    "to": ADDRS["validator"],
+                    "value": amount,
+                    "gas": tx_gas_limit,
+                },
+                KEYS[account],
+            )
+        )
+
+    for signed in signed_txs:
+        w3.eth.send_raw_transaction(signed.rawTransaction)
+
+    receipts = [
+        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
+    ]
+
+    # the transactions should be included in differnt but consecutive blocks
+    for receipt, next_receipt in zip(receipts, receipts[1:]):
+        assert next_receipt.blockNumber == receipt.blockNumber + 1

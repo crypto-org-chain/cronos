@@ -453,12 +453,12 @@
     sha256 = "1j6fdr1sg36qy4n4xjl7brq739fpm5npq98cmvklzjc9qrx98nk9"
 
 ["github.com/armon/go-metrics"]
-  sumVersion = "v0.3.9"
+  sumVersion = "v0.3.10"
   ["github.com/armon/go-metrics".fetch]
     type = "git"
     url = "https://github.com/armon/go-metrics"
-    rev = "f792dbc8f4b651df89dc7098fce61ca56a0a2bee"
-    sha256 = "0sbnzw7sdjcf2l6nsxynpv99m6sza1zyakl82by37sqhn60hj9is"
+    rev = "d1e5690ba72f7651735eb0a618d5523a6bdccf58"
+    sha256 = "07ycr1qswxx2r30r1dr27ggnjwxllcab17193sy2hfyps2ka31s2"
 
 ["github.com/armon/go-radix"]
   sumVersion = "v1.0.0"
@@ -2095,12 +2095,12 @@
     sha256 = "1f7pwj793p51nq03jiz834g0qvg502h9asry6nx4pdc10wzx2948"
 
 ["github.com/huin/goupnp"]
-  sumVersion = "v1.0.1-0.20210310174557-0ca763054c88"
+  sumVersion = "v1.0.2"
   ["github.com/huin/goupnp".fetch]
     type = "git"
     url = "https://github.com/huin/goupnp"
-    rev = "0ca763054c8882de233e45d2f61d8be91f86e536"
-    sha256 = "1wxy76z8dw491rck82xd13l90z68zsjhrijcfyn9gy4b1hi6p4dr"
+    rev = "5a0d4bd7ee6bee8e26f24664c8e0d0c8ec3b0a7e"
+    sha256 = "1cv561wlzlzwxwpwirmyck33bhfmgpgv4wfq65wv8wkk6lgvqz0m"
 
 ["github.com/huin/goutil"]
   sumVersion = "v0.0.0-20170803182201-1ca381bf3150"
@@ -2734,12 +2734,12 @@
     sha256 = "058n9bbf536f2nw3pbs7pysrg9cqvgkb28z2zf5wjyrzrknyk53g"
 
 ["github.com/mitchellh/mapstructure"]
-  sumVersion = "v1.4.2"
+  sumVersion = "v1.4.3"
   ["github.com/mitchellh/mapstructure".fetch]
     type = "git"
     url = "https://github.com/mitchellh/mapstructure"
-    rev = "5ac1f6aa4011ece0c4df24a4fe8020a9cc21e393"
-    sha256 = "0akjnwsng42vak978pny84d946fbaj2kgp7fzvx30zpc6fzrmli7"
+    rev = "b9b99d7d59762a5b2a43df840adc318b2fa229ee"
+    sha256 = "0crp7zd5qlvka5pyr42i16ag4dh1swdlzw6pc67i441b33yqbnys"
 
 ["github.com/moby/sys/mountinfo"]
   sumVersion = "v0.4.1"
@@ -3712,13 +3712,13 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.7.2-cronos-12"
+  sumVersion = "v0.7.3-0.20220307013541-e3c38bb961a0"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "2934be7e4cfd5c45f5f0d4ed1027165716dcbf68"
-    sha256 = "1il63wa385yq0cyqb1qdspcfnxsxhrdjwg4f3ypjqr777igb2mvp"
+    rev = "e3c38bb961a0461af6281a5e24616f436cb93fcd"
+    sha256 = "0bqss02021rmkgfmbnkfd2q5aplk5caibpxyb440dahswp0v6r80"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
