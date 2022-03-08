@@ -1027,3 +1027,18 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+
+    def transfer_tokens(self, from_, to, amount, **kwargs):
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "transfer-tokens",
+                from_,
+                to,
+                amount,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
