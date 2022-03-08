@@ -22,14 +22,30 @@ class Cronos:
         self.enable_auto_deployment = json.load(open(base_dir / "genesis.json"))[
             "app_state"
         ]["cronos"]["params"]["enable_auto_deployment"]
+        self._use_websockets = False
+
+    def copy(self):
+        return Cronos(self.base_dir)
+
+    @property
+    def w3_http_endpoint(self, i=0):
+        port = ports.evmrpc_port(self.base_port(i))
+        return f"http://localhost:{port}"
+
+    @property
+    def w3_ws_endpoint(self, i=0):
+        port = ports.evmrpc_ws_port(self.base_port(i))
+        return f"ws://localhost:{port}"
 
     @property
     def w3(self, i=0):
         if self._w3 is None:
-            port = ports.evmrpc_port(self.base_port(i))
-            self._w3 = web3.Web3(
-                web3.providers.HTTPProvider(f"http://localhost:{port}")
-            )
+            if self._use_websockets:
+                self._w3 = web3.Web3(
+                    web3.providers.WebsocketProvider(self.w3_ws_endpoint)
+                )
+            else:
+                self._w3 = web3.Web3(web3.providers.HTTPProvider(self.w3_http_endpoint))
         return self._w3
 
     def base_port(self, i):
@@ -40,6 +56,10 @@ class Cronos:
 
     def cosmos_cli(self, i=0):
         return CosmosCLI(self.base_dir / f"node{i}", self.node_rpc(i), "cronosd")
+
+    def use_websocket(self, use=True):
+        self._w3 = None
+        self._use_websockets = use
 
 
 class Chainmain:
@@ -196,6 +216,7 @@ def setup_custom_cronos(path, base_port, config, post_init=None, chain_binary=No
     )
     try:
         wait_for_port(ports.evmrpc_port(base_port))
+        wait_for_port(ports.evmrpc_ws_port(base_port))
         yield Cronos(path / "cronos_777-1")
     finally:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)

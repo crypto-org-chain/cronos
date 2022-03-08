@@ -1,7 +1,10 @@
 # Contributing
 
-Thank you for your interest in contributing to Chain! The goal of the cronos repository is to develop the implementation
-of Crypto.org Cronos Chain to best power its network use cases in payments, finance and digital assets. If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
+Thank you for your interest in contributing to Cronos! The goal of this repository is to develop the implementation of Cronos. 
+Cronos is the first Ethereum-compatible blockchain network built on Cosmos SDK technology. An open-source and permission-less 
+Layer 1 chain, Cronos aims to massively scale the DeFi, GameFi, and overall Web3 user community by providing builders with the 
+ability to instantly port apps and crypto assets from other chains while benefiting from low transaction fees, high throughput, 
+and fast finality. If you have any questions, feel free to ask on [Discord](https://discord.gg/pahqHz26q4).
 
 All work on the code base tries to adhere to the "Development Process" described in [The Collective Code Construction Contract (C4)](https://rfc.zeromq.org/spec/42/#24-development-process).
 
@@ -11,11 +14,11 @@ All contributors are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ## Requests involving no code changes (e.g. conventions, processes or network parameters)
 
-Requests involving no code changes (e.g. conventions, processes or network parameters) should be posted as [Github Discussions](https://github.com/crypto-org-chain/cronos/discussions) threads to allow for early feedback before e.g. being submitted for formal network governance decisions.
+Requests involving no code changes (e.g. conventions, processes or network parameters) should be posted as [GitHub Discussions](https://github.com/crypto-org-chain/cronos/discussions) threads to allow for early feedback before e.g. being submitted for formal network governance decisions.
 
 ## Feature requests and bug reports
 
-Feature requests and bug reports should be posted as [Github issues](https://github.com/crypto-org-chain/cronos/issues/new/choose).
+Feature requests and bug reports should be posted as [GitHub issues](https://github.com/crypto-org-chain/cronos/issues/new/choose).
 In an issue, please describe what you did, what you expected, and what happened instead.
 
 If you think that you have identified an issue with Chain that might compromise
@@ -28,17 +31,17 @@ When the issue is well understood but the solution leads to a consensus-breaking
 ([ADR](https://github.com/crypto-org-chain/cronos/blob/master/docs/architecture/README.md)). The ADR will help build consensus on an overall strategy to ensure the code base maintains coherence in the larger context. If you are not comfortable with writing an ADR, you can open a less-formal issue and the maintainers will help you turn it into an ADR.
 
 ## Working on issues
-There are several ways to identify an area where you can contribute to Chain:
+There are several ways to identify an area where you can contribute to Cronos:
 
 * You can reach out by sending a message in the developer community communication channel, either with a specific contribution in mind or in general by saying "I want to help!".
-* Occasionally, some issues on Github may be labelled with `help wanted` or `good first issue` tags.
+* Occasionally, some issues on GitHub may be labelled with `help wanted` or `good first issue` tags.
 
 We use the variation of the "fork and pull" model where contributors push changes to their personal fork and create pull requests to bring those changes into the source repository.
 Changes in pull requests should satisfy "Patch Requirements" described in [The Collective Code Construction Contract (C4)](https://rfc.zeromq.org/spec:42/C4/#23-patch-requirements). The code and comments should follow [Effective Go Guide](https://golang.org/doc/effective_go.html) (and [Uber Style Guide](https://github.com/uber-go/guide/blob/master/style.md)). Many of the code style rules are captured by `go fmt`, `golint`, `go vet` and other tools, so we recommend [setting up your editor to do formatting and lint-checking for you](https://github.com/golang/go/wiki/IDEsAndTextEditorPlugins).
 
 Once you identified an issue to work on, this is the summary of your basic steps:
 
-* Fork Chain's repository under your Github account.
+* Fork Chain's repository under your GitHub account.
 
 * Clone your fork locally on your machine.
 
@@ -50,17 +53,17 @@ Once you identified an issue to work on, this is the summary of your basic steps
 
 * Include tests that cover all non-trivial code.
 
-* Check you are working on the latest version on master in Chain's official repository. If not, please pull Chain's official repository's master (upstream) into your fork's master branch, and rebase your committed changes or replay your stashed changes in your branch over the latest changes in the upstream version.
+* Check you are working on the latest version on master in Chain's official repository. If not, please pull Chain's official repository's master (upstream) into your fork's main branch, and rebase your committed changes or replay your stashed changes in your branch over the latest changes in the upstream version.
 
 * Run all tests locally and make sure they pass.
 
 * If your changes are of interest to other developers, please make corresponding changes in the official documentation and the changelog.
 
-* Push your changes to your fork's branch and open the pull request to Chain's repository master branch.
+* Push your changes to your fork's branch and open the pull request to Cronos's repository main branch.
 
 * In the pull request, complete its checklist, add a clear description of the problem your changes solve, and add the following statement to confirm that your contribution is your own original work: "I hereby certify that my contribution is in accordance with the Developer Certificate of Origin (https://developercertificate.org/)."
 
-* The reviewer will either accept and merge your pull request, or leave comments requesting changes via the Github PR interface (you should then make changes by pushing directly to your existing PR branch).
+* The reviewer will either accept and merge your pull request, or leave comments requesting changes via the GitHub PR interface (you should then make changes by pushing directly to your existing PR branch).
 
 ### Changelog
 

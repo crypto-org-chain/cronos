@@ -153,8 +153,7 @@ require (
 replace (
 	// TODO: fix keyring upstream
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
-	// release/v0.45.x branch, TODO use tag when released
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.2-0.20220209090836-4161d2b6022a
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.2-0.20220218085826-7f949c0aa1d6
 
 	// TODO: remove when middleware will be implemented
 	github.com/cosmos/ibc-go/v2 => github.com/crypto-org-chain/ibc-go/v2 v2.0.2-hooks
@@ -165,7 +164,7 @@ replace (
 	// See https://github.com/tecbot/gorocksdb/pull/216
 	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
-	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-6
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-6.0.20220301081024-4ec8b052c769
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

@@ -1,26 +1,32 @@
-{ system ? builtins.currentSystem, pkgs ? import ./nix { inherit system; }, db_backend ? "rocksdb" }:
+{ lib
+, buildGoApplication
+, nix-gitignore
+, rocksdb ? null
+, db_backend ? "rocksdb"
+, network ? "mainnet"  # mainnet|testnet
+}:
 let
   version = "dev";
   pname = "cronosd";
-  tags = pkgs.lib.concatStringsSep "," (
-    [ "mainnet" ]
-    ++ pkgs.lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
+  tags = lib.concatStringsSep "," (
+    [ network ]
+    ++ lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
   );
-  ldflags = pkgs.lib.concatStringsSep "\n" ([
+  ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
     "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${tags}"
-  ] ++ pkgs.lib.lists.optionals (db_backend == "rocksdb") [
+  ] ++ lib.lists.optionals (db_backend == "rocksdb") [
     "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
-  buildInputs = pkgs.lib.lists.optionals (db_backend == "rocksdb") [
-    pkgs.rocksdb
+  buildInputs = lib.lists.optionals (db_backend == "rocksdb") [
+    rocksdb
   ];
 in
-pkgs.buildGoApplication rec {
+buildGoApplication rec {
   inherit pname version buildInputs;
-  src = (pkgs.nix-gitignore.gitignoreSourcePure [
+  src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
     "!/app/"
