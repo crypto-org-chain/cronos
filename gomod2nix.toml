@@ -227,30 +227,6 @@
     rev = "9aa49832a739dcd78a5542ff189fb82c3e423116"
     sha256 = "12klijhq4fckzbhv0cwygbazj6lvhmdqksha9y6jgfmwzv51kwv5"
 
-["github.com/Masterminds/goutils"]
-  sumVersion = "v1.1.1"
-  ["github.com/Masterminds/goutils".fetch]
-    type = "git"
-    url = "https://github.com/Masterminds/goutils"
-    rev = "f1923532a168b8203bfe956d8cd3b17ebece5982"
-    sha256 = "09m4mbcdlv9ng3xcrmjlxi0niavby52y9nl2jhjnbx1xxpjw0jrh"
-
-["github.com/Masterminds/semver"]
-  sumVersion = "v1.5.0"
-  ["github.com/Masterminds/semver".fetch]
-    type = "git"
-    url = "https://github.com/Masterminds/semver"
-    rev = "805c489aa98f412e79eb308a37996bf9d8b1c91e"
-    sha256 = "1i169xscsxsh8lsw8bz2apnsqixld37xdnfh36i30xy5wnf0iwfx"
-
-["github.com/Masterminds/sprig"]
-  sumVersion = "v2.22.0+incompatible"
-  ["github.com/Masterminds/sprig".fetch]
-    type = "git"
-    url = "https://github.com/Masterminds/sprig"
-    rev = "e4c0945838d570720d876a6ad9b4568ed32317b4"
-    sha256 = "09dzwhj4zh3p6f1jhyic16n4qdnvpamz7hyk9fycpm4b1jfq63gd"
-
 ["github.com/Microsoft/go-winio"]
   sumVersion = "v0.5.0"
   ["github.com/Microsoft/go-winio".fetch]
@@ -402,14 +378,6 @@
     url = "https://github.com/antihax/optional"
     rev = "c3f0ba9c1a592b971d66b2787679af55b5c58f21"
     sha256 = "1ix08vl49qxr58rc6201cl97g1yznhhkwvqldslawind99js4rj0"
-
-["github.com/aokoli/goutils"]
-  sumVersion = "v1.1.1"
-  ["github.com/aokoli/goutils".fetch]
-    type = "git"
-    url = "https://github.com/aokoli/goutils"
-    rev = "f1923532a168b8203bfe956d8cd3b17ebece5982"
-    sha256 = "09m4mbcdlv9ng3xcrmjlxi0niavby52y9nl2jhjnbx1xxpjw0jrh"
 
 ["github.com/apache/arrow/go/arrow"]
   sumVersion = "v0.0.0-20191024131854-af6fa24be0db"
@@ -1281,12 +1249,12 @@
     sha256 = "0amjw4x1904r14ps07l3wi5vdph5v2m9c97kkrr567kxr5xpjsv3"
 
 ["github.com/envoyproxy/protoc-gen-validate"]
-  sumVersion = "v0.6.3"
+  sumVersion = "v0.6.2"
   ["github.com/envoyproxy/protoc-gen-validate".fetch]
     type = "git"
     url = "https://github.com/envoyproxy/protoc-gen-validate"
-    rev = "dc51e59d2e463996ef24e45621cf61f95fa64b0f"
-    sha256 = "1618xdiv0ffi72m7kw33ih80l62mvszdmq1h2jgwvq0jsxsc2pr1"
+    rev = "8c0f6372216272771488d63323787e86377aefe0"
+    sha256 = "15n0iimdvirxmd1kyysss8fcnlds316dzh3rfzmcz4k3ip26npw5"
 
 ["github.com/ethereum/go-ethereum"]
   sumVersion = "v1.10.15"
@@ -2126,14 +2094,6 @@
     rev = "a30252cb686a21eb2d0b98132633053ec2f7f1e5"
     sha256 = "1njpzc0pi1acg5zx9y6vj9xi6ksbsc5d387rd6904hy6rh2m6kn0"
 
-["github.com/huandu/xstrings"]
-  sumVersion = "v1.3.2"
-  ["github.com/huandu/xstrings".fetch]
-    type = "git"
-    url = "https://github.com/huandu/xstrings"
-    rev = "52197b1fb3155666d9613b4eb4ed72a86d1f8ab6"
-    sha256 = "0pwar6rc0fqb6pll38a44s81g5kb65vbg71jg5lx8caphjnikq5r"
-
 ["github.com/hudl/fargo"]
   sumVersion = "v1.3.0"
   ["github.com/hudl/fargo".fetch]
@@ -2173,14 +2133,6 @@
     url = "https://github.com/ianlancetaylor/demangle"
     rev = "28f6c0f3b63983aaa99575ca3b693afff7996387"
     sha256 = "0rsq3622gd40f1x1l7caidsxrmzg1993ich2higwd94fqbxs1r83"
-
-["github.com/imdario/mergo"]
-  sumVersion = "v0.3.12"
-  ["github.com/imdario/mergo".fetch]
-    type = "git"
-    url = "https://github.com/imdario/mergo"
-    rev = "29fb3d3bdc5512887f1dc9aedde6a0fed407fa8f"
-    sha256 = "15s6807vcm7xq4l6my7rnw1i7x57712jvdidjli5bip79jfaxw90"
 
 ["github.com/improbable-eng/grpc-web"]
   sumVersion = "v0.15.0"
@@ -2617,12 +2569,12 @@
     sha256 = "1cby9n647v4gh11mpz1dfscks8n0cw0rj8d2hjh4q9mky4m7jzl1"
 
 ["github.com/lyft/protoc-gen-star"]
-  sumVersion = "v0.6.0"
+  sumVersion = "v0.5.3"
   ["github.com/lyft/protoc-gen-star".fetch]
     type = "git"
     url = "https://github.com/lyft/protoc-gen-star"
-    rev = "d186061f0cdc717ce813e52d91c29130e2d1a6bc"
-    sha256 = "0mbgwnd3nhafx9hvjbyyl38x1ch1b4nmk03pisybqfq1qyadx93q"
+    rev = "8ed22a1d0a9ee734c2b61d673e5013a51f3f9bf8"
+    sha256 = "0xzwh1q27c22ja7ixnsal838f638jxljb5hs1z1rn6dxb87wxkz9"
 
 ["github.com/magiconair/properties"]
   sumVersion = "v1.8.5"
@@ -2744,14 +2696,6 @@
     rev = "902dcca838c81f360568876054b74ffcc419e421"
     sha256 = "1x1jq0amsa0jpd4w19saz1wahmd8fb9mzs2ii4wk0mckr30n8nki"
 
-["github.com/mitchellh/copystructure"]
-  sumVersion = "v1.2.0"
-  ["github.com/mitchellh/copystructure".fetch]
-    type = "git"
-    url = "https://github.com/mitchellh/copystructure"
-    rev = "d4ce1f938f7a7ea2a40bff4544b56be9c00b5e84"
-    sha256 = "1izw243b3r03nvgnnxvk706l3s3v3q7k69kq3n4asnzjkcymq7sm"
-
 ["github.com/mitchellh/go-homedir"]
   sumVersion = "v1.1.0"
   ["github.com/mitchellh/go-homedir".fetch]
@@ -2799,14 +2743,6 @@
     url = "https://github.com/mitchellh/pointerstructure"
     rev = "09edf7f47224892e450d1c704156ce2f245efaab"
     sha256 = "1p6rmkwixnyf291v5jc0g72b3krp3awyakfamkq5485gvm8vk0mm"
-
-["github.com/mitchellh/reflectwalk"]
-  sumVersion = "v1.0.2"
-  ["github.com/mitchellh/reflectwalk".fetch]
-    type = "git"
-    url = "https://github.com/mitchellh/reflectwalk"
-    rev = "e0c24fdb021963cd2c4013097a0b993a7c4e344f"
-    sha256 = "1nxgb4gskzv045539vb312n0a443308dvh1akz7vi6x1l0z46zsm"
 
 ["github.com/moby/sys/mountinfo"]
   sumVersion = "v0.4.1"
@@ -2864,14 +2800,6 @@
     url = "https://github.com/mwitkow/go-conntrack"
     rev = "2f068394615f73e460c2f3d2c158b0ad9321cadb"
     sha256 = "0ymjmy12ks7smgwmrwsa5kf07d9w5kpk1dn650azlzr61b561aw7"
-
-["github.com/mwitkow/go-proto-validators"]
-  sumVersion = "v0.3.2"
-  ["github.com/mwitkow/go-proto-validators".fetch]
-    type = "git"
-    url = "https://github.com/mwitkow/go-proto-validators"
-    rev = "32a686adf8b5194d3ea07d632d49b6fb344af678"
-    sha256 = "0flr9964jz4bgzhjpcc54niiy6zg1skf8f8x7bcp2qvbwshxwb44"
 
 ["github.com/mwitkow/grpc-proxy"]
   sumVersion = "v0.0.0-20181017164139-0f1106ef9c76"
@@ -3314,22 +3242,6 @@
     rev = "c20450564cc42983bf923c13f3fda42de709ac13"
     sha256 = "1c1da8i5byvhh4fp3vqjfb65aaksjskn3ggb8wg9hcfzjrhgpz04"
 
-["github.com/pseudomuto/protoc-gen-doc"]
-  sumVersion = "v1.5.0"
-  ["github.com/pseudomuto/protoc-gen-doc".fetch]
-    type = "git"
-    url = "https://github.com/pseudomuto/protoc-gen-doc"
-    rev = "27bd2775ea68088ac52ebc847c7860e4889b981d"
-    sha256 = "1bpb5wv76p0sjffh5d1frbygp3q1p07sdh5c8pznl5bdh5pd7zxq"
-
-["github.com/pseudomuto/protokit"]
-  sumVersion = "v0.2.0"
-  ["github.com/pseudomuto/protokit".fetch]
-    type = "git"
-    url = "https://github.com/pseudomuto/protokit"
-    rev = "c63c13958542d70af1d1ef7826d30b25cd5bf6e9"
-    sha256 = "14l1y989136xmbp5vigr41r594hh9h1nfx8bl5gkjrk585akrmmr"
-
 ["github.com/rakyll/statik"]
   sumVersion = "v0.1.7"
   ["github.com/rakyll/statik".fetch]
@@ -3756,13 +3668,13 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.10.0-alpha1-cronos-6.0.20220301081024-4ec8b052c769"
+  sumVersion = "v0.10.0-alpha1-cronos-7"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ethermint"
-    rev = "4ec8b052c7697732a15b5f83de6e76872a7c881a"
-    sha256 = "0l5b8b5fqr8q561fh5gj6yhrpig11y3iry1qpynxlg3vsbxm10q9"
+    rev = "a50901f33ac94ff846ab4dfe19076d09179e189f"
+    sha256 = "0r6vf7k7l7jw5jhdhy18ivpmqnyd94jsr4dqd8gzvlf8q2zpn39z"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
