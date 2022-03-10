@@ -582,3 +582,19 @@ def test_log0(cluster):
     assert (
         log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
     )
+
+
+def test_contract(cronos):
+    "test Greeter contract"
+    w3 = cronos.w3
+    contract = deploy_contract(w3, CONTRACTS["Greeter"])
+    assert "Hello" == contract.caller.greet()
+
+    # change
+    tx = contract.functions.setGreeting("world").buildTransaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    # call contract
+    greeter_call_result = contract.caller.greet()
+    assert "world" == greeter_call_result

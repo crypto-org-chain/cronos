@@ -32,6 +32,7 @@
 - [cronos#329](https://github.com/crypto-org-chain/cronos/pull/329) Fix panic of eth_call on blocks prior to upgrade. 
 - [cronos#340](https://github.com/crypto-org-chain/cronos/pull/340) Update dependencies to include several bug fixes: a) fix subscription deadlock issue in ethermint, b) fix data races `traceContext`.
 - [cronos#370](https://github.com/crypto-org-chain/cronos/pull/370) Update ethermint to fix a websocket bug, add websockets integration tests.
+- [cronos#378](https://github.com/crypto-org-chain/cronos/pull/378) Backport recent ethermint bug fixes: a) fix tx inclusion issue by report correct gasWanted of eth tx, b) Add buffer to eth_gasPrice response to fix client UX, c) Quick fix for eth_feeHistory when reward is nil, d) add returnValue message on tracing.
 
 *December 10, 2021*
 

@@ -36,6 +36,7 @@ TEST_CONTRACTS = {
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
+    "CroBridge": "CroBridge.sol",
 }
 
 
