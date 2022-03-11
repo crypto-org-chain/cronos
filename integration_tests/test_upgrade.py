@@ -36,7 +36,7 @@ def post_init(path, base_port, config):
     ini_path = path / chain_id / SUPERVISOR_CONFIG_FILE
     ini = configparser.RawConfigParser()
     ini.read_file(ini_path.open())
-    reg = re.compile(fr"^program:{chain_id}-node(\d+)")
+    reg = re.compile(rf"^program:{chain_id}-node(\d+)")
     for section in ini.sections():
         m = reg.match(section)
         if m:
