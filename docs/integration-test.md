@@ -6,26 +6,33 @@ git clone https://github.com/crypto-org-chain/cronos.git
 ```
 
 ## Install [nix](https://nixos.org/download.html)
+
+https://nixos.org/download.html
+
+Multi-user installation:
+
 ```shell
-curl -L https://nixos.org/nix/install | sh -s
+sh <(curl -L https://nixos.org/nix/install) --daemon
 ```
 
-## For macOS (>= 10.15), you need to run the following command instead
-```shell
-curl -L https://nixos.org/nix/install | sh -s -- --darwin-use-unencrypted-nix-store-volume
-```
+Make sure the following line has been added to your shell profile (e.g. `~/.profile`):
 
-## To ensure that the necessary environment variables are set, please add the line to your shell profile (e.g. `~/.profile`)
 ```shell
 source ~/.nix-profile/etc/profile.d/nix.sh
 ```
 
+Then re-login shell, the nix installation is completed.
+
 ## Install [cachix](https://github.com/cachix/cachix)
+
 ```shell
 nix-env -iA cachix -f https://cachix.org/api/v1/install
 ```
 
-## Configure a binary cache by writing nix.conf and netrc files
+## Configure Binary Caches
+
+Binary caches will save a lot of build times.
+
 ```shell
 cachix use cronos
 cachix use dapp  # it's necessary to use dapp's binary cache on new macos system.
@@ -38,20 +45,50 @@ make run-integration-tests
 
 ## Customize The Test Runner
 
+To customize the test runner, you can also issue commands separately.
+
+### Enter `nix-shell`
+
+It'll prepare all dependencies.
+
+```shell
+$ nix-shell integration_tests/shell.nix
+<nix-shell> $
+```
+
+### Compile Test Contracts
+
+```shell
+$ cd integration_tests/contracts
+$ HUSKY_SKIP_INSTALL=1 npm install
+$ npm run typechain
+$ cd ../../
+```
+
+### Run `pytest`
+
 We use `pytest` to discover the test cases and run them, follow [pytest doc](https://docs.pytest.org/en/6.2.x/contents.html) for more options.
 
 You can invoke `pytest` after entering the nix shell:
 
 ```shell
-$ nix-shell integration_tests/shell.nix
-<nix-shell> $ pytest
+$ cd integration_tests
+$ pytest -s -vv
 ```
 
 You can use `-k` to select test cases by patterns in name:
 
 ```shell
-<nix-shell> $ # run against cronos only
-<nix-shell> $ pytest -k cronos
-<nix-shell> $ # run against geth only
-<nix-shell> $ pytest -k geth
+$ cd integration_tests
+$ pytest -k test_basic
+```
+
+Some test cases will run on both `geth` and `cronos`, you can also select the platform to run using `-k`:
+
+```shell
+$ cd integration_tests
+$ # run against cronos only
+$ pytest -k cronos
+$ # run against geth only
+$ pytest -k geth
 ```

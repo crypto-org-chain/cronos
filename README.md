@@ -3,6 +3,7 @@ parent:
   order: false
 -->
 
+
 <div align="center">
   <h1> <img src="./assets/cronos.svg" alt="Cronos Logo" width="300px" /> </h1>
 </div>
@@ -29,7 +30,7 @@ parent:
   - [install latest python (for linux)](#install-latest-python-for-linux)
   - [set path (for linux or for mac)](#set-path-for-linux-or-for-mac)
   - [install pystarport](#install-pystarport)
-  - [quitck start](#quitck-start)
+  - [quick start](#quick-start)
   - [get status](#get-status)
   - [stop all](#stop-all)
 - [10. Useful links](#10-useful-links)
@@ -57,7 +58,7 @@ and the [contributing guidelines](CONTRIBUTING.md) when submitting code.
 
 ## 4. Documentation
 
-[Technical documentation](http://cronos.crypto.org/docs).
+[Technical documentation](http://cronos.org/docs).
 
 <a id="build" />
 
@@ -72,13 +73,13 @@ make build
 
 ## 6. Start a local Development Network and Node
 
-Please follow this [documentation](https://cronos.crypto.org/docs/getting-started/local-devnet.html#devnet-running-latest-development-node) to run a local devnet.
+Please follow this [documentation](https://cronos.org/docs/getting-started/local-devnet.html#devnet-running-latest-development-node) to run a local devnet.
 
 <a id="send-first-transaction" />
 
 ## 7. Send Your First Transaction
 
-After setting the local devnet, you may interact with the your local blockchain by following this [documentation](https://cronos.crypto.org/docs/getting-started/local-devnet.html#interact-with-the-chain).
+After setting the local devnet, you may interact with the your local blockchain by following this [documentation](https://cronos.org/docs/getting-started/local-devnet.html#interact-with-the-chain).
 
 <a id="testing" />
 
@@ -123,7 +124,7 @@ export PATH=/usr/local/bin:$HOME/.local/bin:$PATH
 python3 -m pip install pystarport
 ```
 
-### quitck start
+### quick start
 
 run two nodes devnet
 
@@ -149,10 +150,10 @@ pystarport supervisorctl stop all
 
 ## 10. Useful links
 
-- [Project Website](http://cronos.crypto.org/)
-- [Technical Documentation](http://cronos.crypto.org/docs)
+- [Project Website](http://cronos.org/)
+- [Technical Documentation](http://cronos.org/docs)
 - Community chatrooms (non-technical): [Discord](https://discord.gg/nsp9JTC) [Telegram](https://t.me/CryptoComOfficial)
-- Developer community channel (technical): [![Support Server](https://img.shields.io/discord/783264383978569728.svg?color=7289da&label=Crypto.org Chain =discord =flat-square)](https://discord.gg/pahqHz26q4)
+- Developer community channel (technical): [![Support Server](https://img.shields.io/discord/783264383978569728.svg?color=7289da&label=Cronos&logo=discord&style=flat-square)](https://discord.gg/pahqHz26q4)
 - [Ethermint](https://github.com/tharsis/ethermint) by Tharsis
 - [Cosmos SDK documentation](https://docs.cosmos.network)
 - [Cosmos Discord](https://discord.gg/W8trcGV)

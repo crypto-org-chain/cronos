@@ -23,6 +23,7 @@
 - [cronos#210](https://github.com/crypto-org-chain/cronos/pull/210) re-enabling gravity bridge conditionally
 - [cronos#322](https://github.com/crypto-org-chain/cronos/pull/322) Merge min-gas-price change in ethermint: don't check min-gas-price for EVM tx when feemarket enabled.
 - [cronos#345](https://github.com/crypto-org-chain/cronos/pull/345) disable the url query parameter in swagger-ui.
+- [cronos#328](https://github.com/crypto-org-chain/cronos/pull/328) display detail panic information in query result when `--trace` enabled.
 - [cronos#334](https://github.com/crypto-org-chain/cronos/pull/334) disable feemarket first in v0.7.0 upgrade handler.
 
 ### Bug Fixes
@@ -31,6 +32,8 @@
 - [cronos#324](https://github.com/crypto-org-chain/cronos/pull/324) Update to cosmos-sdk `v0.45.1`, which fixes an OOM issue.
 - [cronos#329](https://github.com/crypto-org-chain/cronos/pull/329) Fix panic of eth_call on blocks prior to upgrade. 
 - [cronos#340](https://github.com/crypto-org-chain/cronos/pull/340) Update dependencies to include several bug fixes: a) fix subscription deadlock issue in ethermint, b) fix data races `traceContext`.
+- [cronos#370](https://github.com/crypto-org-chain/cronos/pull/370) Update ethermint to fix a websocket bug, add websockets integration tests.
+- [cronos#378](https://github.com/crypto-org-chain/cronos/pull/378) Backport recent ethermint bug fixes: a) fix tx inclusion issue by report correct gasWanted of eth tx, b) Add buffer to eth_gasPrice response to fix client UX, c) Quick fix for eth_feeHistory when reward is nil, d) add returnValue message on tracing.
 
 *December 10, 2021*
 
@@ -143,7 +146,7 @@ This version is the same as v0.5.3 with a patched version of ethermint which inc
 *September 21, 2021*
 ## v0.5.3
 
-This version contains several new features, it enables gravity bridge in Cronos and automatic token conversion for bridging tokens to crc20 tokens. It also fix the decimal conversion issues in the CRO tokens from crypto.org chain.
+This version contains several new features, it enables gravity bridge in Cronos and automatic token conversion for bridging tokens to crc20 tokens. It also fixes the decimal conversion issues in the CRO tokens from Crypto.org Chain.
 In addition to that, it also upgrade ethermint to its latest version (v0.5.0.x) which bring several breaking changes (see [changelog](https://github.com/tharsis/ethermint/blob/1a01c6a992c0fb94d70bb1c7127715874cefd057/CHANGELOG.md)).
 
 ### Consensus breaking changes
