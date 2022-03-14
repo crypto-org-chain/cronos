@@ -2,6 +2,12 @@
 
 *March 8, 2022*
 
+## v0.6.9
+
+### Bug Fixes
+
+- [#392](https://github.com/crypto-org-chain/cronos/pull/392) revert the consensus breaking changes in cosmos-sdk
+
 ## v0.6.8
 
 ### Bug Fixes
