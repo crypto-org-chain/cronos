@@ -960,10 +960,10 @@
 
 ["github.com/cosmos/ibc-go/v2"]
   sumVersion = "v2.2.0-hooks"
-  vendorPath = "github.com/yihuang/ibc-go/v2"
+  vendorPath = "github.com/crypto-org-chain/ibc-go/v2"
   ["github.com/cosmos/ibc-go/v2".fetch]
     type = "git"
-    url = "https://github.com/yihuang/ibc-go"
+    url = "https://github.com/crypto-org-chain/ibc-go"
     rev = "9f6d3448fd1af2ade40c4262007ae8c07b938b54"
     sha256 = "1qnvikby6f6xpbr0k54g9pig2r26lzk5ng8i7lgvl9dsmpd6d689"
 
