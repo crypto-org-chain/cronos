@@ -704,8 +704,11 @@ func New(
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 	// this upgrade is for breaking bug fixes on testnet
-	plan0_7_0Rc2HotfixTestnet := "v0.7.0-rc2-hotfix-testnet"
-	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0Rc2HotfixTestnet, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	plan0_7_0Rc3HotfixTestnet := "v0.7.0-rc3-hotfix-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0Rc3HotfixTestnet, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		cp := ctx.ConsensusParams()
+		cp.Block.MaxGas = 10000000
+		app.StoreConsensusParams(ctx, cp)
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 

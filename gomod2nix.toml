@@ -830,13 +830,13 @@
     sha256 = "0ndrqrvq2mczfx9v9dj2jy6nn8ryjn4clfi1zrh2hf1j4h67c89m"
 
 ["github.com/confio/ics23/go"]
-  sumVersion = "v0.6.6"
+  sumVersion = "v0.7.0"
   relPath = "go"
   ["github.com/confio/ics23/go".fetch]
     type = "git"
     url = "https://github.com/confio/ics23"
-    rev = "6cf2f712b5ecccf0a138c29a77b726d57bdaad51"
-    sha256 = "0r1vk5lvjfri57hd5dk75dfiyzz57qaljshw6sr80aj5v8krzxsn"
+    rev = "87a967f735daf436878e57942838cb54c3142660"
+    sha256 = "0npvmlsvjjd9s4ra4h3s9i3ib2gswjvh8jl0d6c94dahrmdp6hip"
 
 ["github.com/consensys/bavard"]
   sumVersion = "v0.1.8-0.20210406032232-f3452dc9b572"
@@ -959,13 +959,13 @@
     sha256 = "115964xzwlr8j0l8f5x0v31f5hnxhd0rh5cvgy560l0dd77i735k"
 
 ["github.com/cosmos/ibc-go/v2"]
-  sumVersion = "v2.0.2-hooks"
+  sumVersion = "v2.2.0-hooks2"
   vendorPath = "github.com/crypto-org-chain/ibc-go/v2"
   ["github.com/cosmos/ibc-go/v2".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/ibc-go"
-    rev = "b9d514d1b37e71bbb78a1b3483dd5b64fd5492eb"
-    sha256 = "0g6zx8p4r6gah1vjsjja34hdri3smnny4j4i7xcl3ar2sw6q8mj9"
+    rev = "a4a2d403ce9f6df63efa196c2b0bfdf659205058"
+    sha256 = "059aqdj683pmz2k2yc12rw1l15vdpbfiky6falbpn3zx8mgap45p"
 
 ["github.com/cosmos/ledger-cosmos-go"]
   sumVersion = "v0.11.1"
