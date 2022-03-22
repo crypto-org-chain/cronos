@@ -12,7 +12,7 @@ from .utils import (
     KEYS,
     Greeter,
     deploy_contract,
-    replace_command_in_supervisor_config,
+    modify_command_in_supervisor_config,
     send_transaction,
     sign_transaction,
     supervisorctl,
@@ -242,7 +242,7 @@ def test_log0(cluster):
     )
 
 
-@pytest.mark.parametrize("max_gas_wanted", [10000000, 5000000, 500000])
+@pytest.mark.parametrize("max_gas_wanted", [10000000, 8000000, 5000000, 500000])
 def test_tx_inclusion(cronos, max_gas_wanted):
     """
     - send multiple heavy transactions at the same time.
@@ -250,9 +250,9 @@ def test_tx_inclusion(cronos, max_gas_wanted):
 
     test against different max-gas-wanted configuration.
     """
-    replace_command_in_supervisor_config(
+    modify_command_in_supervisor_config(
         cronos.base_dir / "tasks.ini",
-        f"cronosd --evm.max-tx-gas-wanted {max_gas_wanted}",
+        lambda cmd: f"{cmd} --evm.max-tx-gas-wanted {max_gas_wanted}",
     )
     supervisorctl(cronos.base_dir / "../tasks.ini", "update")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
@@ -261,6 +261,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     block_gas_limit = 19000000
     tx_gas_limit = 10000000
     max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
+    print("max_tx_in_block", max_tx_in_block)
     amount = 1000
     # use different sender accounts to be able be send concurrently
     signed_txs = []
@@ -294,4 +295,18 @@ def test_tx_inclusion(cronos, max_gas_wanted):
             receipts[2].blockNumber
             == receipts[3].blockNumber
             == receipts[0].blockNumber + 1
+        )
+    elif max_tx_in_block == 3:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+        )
+        assert receipts[3].blockNumber == receipts[0].blockNumber + 1
+    else:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+            == receipts[3].blockNumber
         )
