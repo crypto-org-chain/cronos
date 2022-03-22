@@ -677,6 +677,7 @@ func New(
 
 	// use Ethermint's custom AnteHandler
 
+	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
 	options := evmante.HandlerOptions{
 		AccountKeeper:    app.AccountKeeper,
 		BankKeeper:       app.BankKeeper,
@@ -686,6 +687,7 @@ func New(
 		FeeMarketKeeper:  app.FeeMarketKeeper,
 		SignModeHandler:  encodingConfig.TxConfig.SignModeHandler(),
 		SigGasConsumer:   evmante.DefaultSigVerificationGasConsumer,
+		MaxTxGasWanted:   maxGasWanted,
 	}
 
 	if err := options.Validate(); err != nil {

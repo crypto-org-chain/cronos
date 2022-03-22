@@ -164,7 +164,7 @@ replace (
 	// See https://github.com/tecbot/gorocksdb/pull/216
 	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
-	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-7
+	github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.10.0-alpha1-cronos-7.0.20220324082210-f4db90bb0575
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
