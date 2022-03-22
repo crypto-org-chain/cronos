@@ -444,3 +444,16 @@ class Greeter:
         assert "world" == self.contract.functions.greet().call()
 
         return send_store_tx
+
+
+def replace_command_in_supervisor_config(ini: Path, new: str):
+    "replace the first node with the instrumented binary"
+    ini.write_text(
+        re.sub(
+            r"^command = cronosd",
+            f"command = {new}",
+            ini.read_text(),
+            count=1,
+            flags=re.M,
+        )
+    )

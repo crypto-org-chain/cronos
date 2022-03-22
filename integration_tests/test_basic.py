@@ -12,8 +12,10 @@ from .utils import (
     KEYS,
     Greeter,
     deploy_contract,
+    replace_command_in_supervisor_config,
     send_transaction,
     sign_transaction,
+    supervisorctl,
     wait_for_block,
     wait_for_port,
 )
@@ -240,15 +242,25 @@ def test_log0(cluster):
     )
 
 
-def test_tx_inclusion(cronos):
+@pytest.mark.parametrize("max_gas_wanted", [10000000, 5000000, 500000])
+def test_tx_inclusion(cronos, max_gas_wanted):
     """
     - send multiple heavy transactions at the same time.
     - check they are included in consecutively blocks without failure.
+
+    test against different max-gas-wanted configuration.
     """
+    replace_command_in_supervisor_config(
+        cronos.base_dir / "tasks.ini",
+        f"cronosd --evm.max-tx-gas-wanted {max_gas_wanted}",
+    )
+    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+
     w3 = cronos.w3
-    # this is the biggest allowed in this version of ethermint
-    # need to be bigger than block_gas_limit/2, so at most one tx is allowed in a block
+    block_gas_limit = 19000000
     tx_gas_limit = 10000000
+    max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
     amount = 1000
     # use different sender accounts to be able be send concurrently
     signed_txs = []
@@ -272,6 +284,14 @@ def test_tx_inclusion(cronos):
         w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
     ]
 
-    # the transactions should be included in differnt but consecutive blocks
-    for receipt, next_receipt in zip(receipts, receipts[1:]):
-        assert next_receipt.blockNumber == receipt.blockNumber + 1
+    # the transactions should be included according to max_gas_wanted
+    if max_tx_in_block == 1:
+        for receipt, next_receipt in zip(receipts, receipts[1:]):
+            assert next_receipt.blockNumber == receipt.blockNumber + 1
+    elif max_tx_in_block == 2:
+        assert receipts[0].blockNumber == receipts[1].blockNumber
+        assert (
+            receipts[2].blockNumber
+            == receipts[3].blockNumber
+            == receipts[0].blockNumber + 1
+        )
