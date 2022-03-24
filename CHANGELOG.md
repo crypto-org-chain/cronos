@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#402](https://github.com/crypto-org-chain/cronos/pull/402) Update ethermint to include bug fixes: a) add an configurable upper bound to gasWanted to prevent DoS attack, b) fix eth_sha3 rpc api, c) json-roc server always use local tm rpc client.
+- [#402](https://github.com/crypto-org-chain/cronos/pull/402) Update ethermint to include bug fixes: a) add an configurable upper bound to gasWanted to prevent DoS attack, b) fix eth_sha3 rpc api, c) json-roc server always use local tm rpc client, d) fix tx hash in pending tx filter response.
 
 *March 8, 2022*
 
