@@ -134,7 +134,7 @@ def test_statesync(cronos):
     # Do an ethereum transfer
     tx_value = 10000
     gas_price = w3.eth.gas_price
-    initial_balance = 10000000000000000000000
+    initial_balance = w3.eth.get_balance(ADDRS["community"])
     tx = {"to": ADDRS["community"], "value": tx_value, "gasPrice": gas_price}
     txhash_0 = send_transaction(w3, tx, KEYS["validator"])["transactionHash"].hex()
 
