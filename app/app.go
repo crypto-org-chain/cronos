@@ -552,10 +552,11 @@ func New(
 	app.SetBeginBlocker(app.BeginBlocker)
 
 	// use Ethermint's custom AnteHandler
+	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
 	app.SetAnteHandler(
 		evmante.NewAnteHandler(
 			app.AccountKeeper, app.BankKeeper, app.EvmKeeper, app.FeeGrantKeeper, app.IBCKeeper.ChannelKeeper,
-			encodingConfig.TxConfig.SignModeHandler(),
+			encodingConfig.TxConfig.SignModeHandler(), maxGasWanted,
 		),
 	)
 

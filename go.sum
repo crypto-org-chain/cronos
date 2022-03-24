@@ -236,8 +236,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert h1:HpX2ZybTeAzUSr5wh4oTc3sDtdz/9TH5lKB9BqOVcHE=
 github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert/go.mod h1:Il2o2AOea3kDxkOp7wcVr9btR2Ns4opBi7NQrgV0jUo=
-github.com/crypto-org-chain/ethermint v0.7.2-cronos-13 h1:AS+hg6ExtFcYk2/ojVGbxLUR9wShX0uBeokif4Pgos0=
-github.com/crypto-org-chain/ethermint v0.7.2-cronos-13/go.mod h1:J96LX4KvLyl+5jV6+mt/4l6srtGX/mdDTuqQQuYrdDk=
+github.com/crypto-org-chain/ethermint v0.7.2-cronos-14 h1:PUioE2MuX0SyRIpSt2iWAOXq1N+iSSOuH+j0Jx4E5XQ=
+github.com/crypto-org-chain/ethermint v0.7.2-cronos-14/go.mod h1:J96LX4KvLyl+5jV6+mt/4l6srtGX/mdDTuqQQuYrdDk=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched h1:kr6oQIYOi2VC8SZwkhlUDZE1Omit/YHVysKMgCB2nes=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched/go.mod h1:99onQmSd1GRGOziyGldI41YQb7EESX3Q4H41IfJgIQQ=
 github.com/crypto-org-chain/ibc-go v1.2.1-hooks h1:wuWaQqm/TFKJQwuFgjCPiPumQio+Yik5Z1DObDExrrU=
