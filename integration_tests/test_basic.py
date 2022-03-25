@@ -20,8 +20,10 @@ from .utils import (
     contract_address,
     contract_path,
     deploy_contract,
+    modify_command_in_supervisor_config,
     send_transaction,
     sign_transaction,
+    supervisorctl,
     wait_for_block,
     wait_for_port,
 )
@@ -600,14 +602,26 @@ def test_contract(cronos):
     assert "world" == greeter_call_result
 
 
-def test_tx_inclusion(cronos):
+@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000])
+def test_tx_inclusion(cronos, max_gas_wanted):
     """
     - send multiple heavy transactions at the same time.
     - check they are included in consecutively blocks without failure.
+
+    test against different max-gas-wanted configuration.
     """
+    modify_command_in_supervisor_config(
+        cronos.base_dir / "tasks.ini",
+        lambda cmd: f"{cmd} --evm.max-tx-gas-wanted {max_gas_wanted}",
+    )
+    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+
     w3 = cronos.w3
-    # bigger than block_gas_limit/2, so at most one tx in a block
+    block_gas_limit = 81500000
     tx_gas_limit = 80000000
+    max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
+    print("max_tx_in_block", max_tx_in_block)
     amount = 1000
     # use different sender accounts to be able be send concurrently
     signed_txs = []
@@ -631,6 +645,28 @@ def test_tx_inclusion(cronos):
         w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
     ]
 
-    # the transactions should be included in differnt but consecutive blocks
-    for receipt, next_receipt in zip(receipts, receipts[1:]):
-        assert next_receipt.blockNumber == receipt.blockNumber + 1
+    # the transactions should be included according to max_gas_wanted
+    if max_tx_in_block == 1:
+        for receipt, next_receipt in zip(receipts, receipts[1:]):
+            assert next_receipt.blockNumber == receipt.blockNumber + 1
+    elif max_tx_in_block == 2:
+        assert receipts[0].blockNumber == receipts[1].blockNumber
+        assert (
+            receipts[2].blockNumber
+            == receipts[3].blockNumber
+            == receipts[0].blockNumber + 1
+        )
+    elif max_tx_in_block == 3:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+        )
+        assert receipts[3].blockNumber == receipts[0].blockNumber + 1
+    else:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+            == receipts[3].blockNumber
+        )
