@@ -18,12 +18,12 @@
     "nixpkgs": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-zWSVTYyA0z9QwXX/6X7/BRpSjpNKM3LTHRN/zHsPyDY=",
-        "path": "/nix/store/abgglpb2s3jg3mn7skj7khp9dwy9hnhc-source/nix",
+        "narHash": "sha256-LjxfZmqGhA3ZBxDBJyl0YELvfEtLDLaCbbnAXTtsGRc=",
+        "path": "./nix",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/abgglpb2s3jg3mn7skj7khp9dwy9hnhc-source/nix",
+        "path": "./nix",
         "type": "path"
       }
     },
