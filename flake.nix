@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs = {
-      url = "./nix";
+      url = "path:./nix";
       flake = false;
     };
     flake-utils.url = "github:numtide/flake-utils";
