@@ -60,7 +60,7 @@ type EvmLogHandler interface {
 	// Return the id of the log signature it handles
 	EventID() common.Hash
 	// Process the log
-	Handle(ctx sdk.Context, contract common.Address, data []byte) error
+	Handle(ctx sdk.Context, contract common.Address, data []byte, addLogToReceipt func(logSig common.Hash, logData []byte)) error
 }
 
 // EvmKeeper defines the interface for evm keeper
