@@ -37,15 +37,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "v0.3.8-cronos",
+        "branch": "v2.0.0-cronos",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "9f78dd2e4a57deaf4a886c5a2fb3f7796402647e",
-        "sha256": "0xmv46l1b9bfcp8ym6mf7d3dszh7yqgqlklf98wvp21viv26ci91",
+        "rev": "e7f0bdfe6de37ab078193d2d7e18b8db48b477fb",
+        "sha256": "0hpl2dm9mz6ic41h4lc7k2s2prmzip1cd9bbfsy7624ycl1hkc07",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/9f78dd2e4a57deaf4a886c5a2fb3f7796402647e.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/e7f0bdfe6de37ab078193d2d7e18b8db48b477fb.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -61,15 +61,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "release-21.11",
+        "branch": "master",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "d2f47b7dcd558a7727606319fd8661a4c3311b4a",
-        "sha256": "1kkykw8i80jcnw6iz7a4kndia3fig53jm1kzqi4xbfgxamfwqnzb",
+        "rev": "ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf",
+        "sha256": "0xm133zqg7knn8q6y7a5xd4jnqscxz9wzhf5rxmhs53qkvg7r4a4",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/d2f47b7dcd558a7727606319fd8661a4c3311b4a.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {

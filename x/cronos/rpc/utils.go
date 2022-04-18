@@ -5,7 +5,7 @@ import (
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tharsis/ethermint/rpc/ethereum/backend"
+	"github.com/tharsis/ethermint/rpc/backend"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 

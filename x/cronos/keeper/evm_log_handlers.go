@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 )

@@ -6,12 +6,12 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/ibc-go/v2/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v2/modules/core/02-client/types"
+	"github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v3/modules/core/02-client/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
@@ -51,7 +51,7 @@ type AccountKeeper interface {
 
 // GravityKeeper defines the expected gravity keeper interface
 type GravityKeeper interface {
-	ERC20ToDenomLookup(ctx sdk.Context, tokenContract string) (bool, string)
+	ERC20ToDenomLookup(ctx sdk.Context, tokenContract common.Address) (bool, string)
 	GetParams(ctx sdk.Context) (params gravitytypes.Params)
 }
 
