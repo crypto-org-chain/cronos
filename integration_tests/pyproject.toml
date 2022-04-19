@@ -22,6 +22,7 @@ eth-bloom = "^1.0.4"
 python-dotenv = "^0.19.2"
 pystarport = "^0.2.3"
 websockets = "^9.1"
+toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
 
