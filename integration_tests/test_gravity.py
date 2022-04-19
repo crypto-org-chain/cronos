@@ -122,11 +122,11 @@ def gravity(cronos, geth):
         # fund the orchestrator accounts
         eth_addr = gorc.show_eth_addr("eth")
         print("fund 0.1 eth to address", eth_addr)
-        send_transaction(geth, {"to": eth_addr, "value": 10 ** 17}, KEYS["validator"])
+        send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
         acc_addr = gorc.show_cosmos_addr("cronos")
         print("fund 100cro to address", acc_addr)
         rsp = cronos.cosmos_cli().transfer(
-            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
+            "community", acc_addr, "%dbasetcro" % (100 * (10**18))
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -146,7 +146,7 @@ def gravity(cronos, geth):
     gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
     signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
     powers = [int(signer["power"]) for signer in signer_set]
-    threshold = int(2 ** 32 * 0.66)  # gravity normalize the power to [0, 2**32]
+    threshold = int(2**32 * 0.66)  # gravity normalize the power to [0, 2**32]
     eth_addresses = [signer["ethereum_address"] for signer in signer_set]
     assert sum(powers) >= threshold, "not enough validator on board"
 
