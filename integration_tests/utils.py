@@ -17,7 +17,9 @@ from dotenv import load_dotenv
 from eth_account import Account
 from hexbytes import HexBytes
 from pystarport import ledger
+from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
+from web3.datastructures import AttributeDict
 
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
@@ -393,3 +395,49 @@ def modify_command_in_supervisor_config(ini: Path, fn, **kwargs):
             **kwargs,
         )
     )
+
+
+def build_batch_tx(w3, cli, txs, key=KEYS["validator"]):
+    "return cosmos batch tx and eth tx hashes"
+    signed_txs = [sign_transaction(w3, tx, key) for tx in txs]
+    tmp_txs = [cli.build_evm_tx(signed.rawTransaction.hex()) for signed in signed_txs]
+
+    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
+    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
+    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
+
+    tx_hashes = [signed.hash for signed in signed_txs]
+
+    # build batch cosmos tx
+    return {
+        "body": {
+            "messages": msgs,
+            "memo": "",
+            "timeout_height": "0",
+            "extension_options": [
+                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
+            ],
+            "non_critical_extension_options": [],
+        },
+        "auth_info": {
+            "signer_infos": [],
+            "fee": {
+                "amount": [{"denom": "basetcro", "amount": str(fee)}],
+                "gas_limit": str(gas_limit),
+                "payer": "",
+                "granter": "",
+            },
+        },
+        "signatures": [],
+    }, tx_hashes
+
+
+def get_receipts_by_block(w3, blk):
+    if isinstance(blk, int):
+        blk = hex(blk)
+    rsp = w3.provider.make_request("cronos_getTransactionReceiptsByBlock", [blk])
+    if "error" not in rsp:
+        rsp["result"] = [
+            AttributeDict(receipt_formatter(item)) for item in rsp["result"]
+        ]
+    return rsp

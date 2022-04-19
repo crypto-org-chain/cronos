@@ -123,6 +123,9 @@ import (
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+
+	// force register the extension json-rpc.
+	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 )
 
 const (
