@@ -264,6 +264,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

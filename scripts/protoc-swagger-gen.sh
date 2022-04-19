@@ -32,4 +32,4 @@ install_statik() {
 install_statik
 
 # generate binary for static server
-statik -src=./client/docs/swagger-ui -dest=./client/docs -f
+statik -src=./client/docs/swagger-ui -dest=./client/docs -f -ns cronos

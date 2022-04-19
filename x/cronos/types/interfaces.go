@@ -1,6 +1,9 @@
 package types
 
 import (
+	context "context"
+	"math/big"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/ibc-go/v2/modules/apps/transfer/types"
@@ -41,6 +44,9 @@ type TransferKeeper interface {
 // AccountKeeper defines the expected account keeper interface
 type AccountKeeper interface {
 	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
+
+	GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI
+	SetAccount(ctx sdk.Context, account authtypes.AccountI)
 }
 
 // GravityKeeper defines the expected gravity keeper interface
@@ -62,4 +68,11 @@ type EvmKeeper interface {
 	GetNonce(ctx sdk.Context, addr common.Address) uint64
 	ApplyMessage(ctx sdk.Context, msg core.Message, tracer vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
 	GetParams(ctx sdk.Context) evmtypes.Params
+
+	// to replay the messages
+	EthereumTx(goCtx context.Context, msg *evmtypes.MsgEthereumTx) (*evmtypes.MsgEthereumTxResponse, error)
+	DeductTxCostsFromUserBalance(
+		ctx sdk.Context, msgEthTx evmtypes.MsgEthereumTx, txData evmtypes.TxData, denom string, homestead, istanbul, london bool,
+	) (sdk.Coins, error)
+	ChainID() *big.Int
 }
