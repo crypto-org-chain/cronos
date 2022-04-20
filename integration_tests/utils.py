@@ -235,7 +235,7 @@ def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
 
 def add_ini_sections(inipath, sections):
     ini = configparser.RawConfigParser()
-    ini.read_file(inipath.open())
+    ini.read(inipath)
     for name, value in sections.items():
         ini.add_section(name)
         ini[name].update(value)
@@ -255,7 +255,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     deploy contract and return the deployed contract instance
     """
     acct = Account.from_key(key)
-    info = json.load(open(jsonfile))
+    info = json.loads(jsonfile.read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
     tx = contract.constructor(*args).buildTransaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)

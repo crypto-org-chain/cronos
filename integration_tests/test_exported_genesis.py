@@ -18,7 +18,7 @@ def custom_cronos(tmp_path_factory):
 def test_exported_contract(custom_cronos):
     "demonstrate that contract state can be deployed in genesis"
     w3 = custom_cronos.w3
-    abi = json.load((CONTRACTS["TestERC20Utility"]).open())["abi"]
+    abi = json.loads(CONTRACTS["TestERC20Utility"].read_text())["abi"]
     erc20 = w3.eth.contract(
         address="0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503", abi=abi
     )

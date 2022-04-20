@@ -467,7 +467,7 @@ def test_batch_tx(cronos):
     sender = ADDRS["validator"]
     recipient = ADDRS["community"]
     nonce = w3.eth.get_transaction_count(sender)
-    info = json.load(open(CONTRACTS["TestERC20Utility"]))
+    info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
     deploy_tx = contract.constructor().buildTransaction(
         {"from": sender, "nonce": nonce}

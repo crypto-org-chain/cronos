@@ -53,7 +53,9 @@ class CosmosCLI:
         cmd,
     ):
         self.data_dir = data_dir
-        self._genesis = json.load(open(self.data_dir / "config" / "genesis.json"))
+        self._genesis = json.loads(
+            (self.data_dir / "config" / "genesis.json").read_text()
+        )
         self.chain_id = self._genesis["chain_id"]
         self.node_rpc = node_rpc
         self.raw = ChainCommand(cmd)
