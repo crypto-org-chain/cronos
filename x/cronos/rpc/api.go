@@ -199,7 +199,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				"to":   txData.GetTo(),
 			}
 
-			// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+			// If the to is empty, assume it is a contract creation
 			if txData.GetTo() == nil {
 				receipt["contractAddress"] = crypto.CreateAddress(from, txData.GetNonce())
 			}
