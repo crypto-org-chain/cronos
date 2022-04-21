@@ -18,10 +18,10 @@ class Cronos:
     def __init__(self, base_dir):
         self._w3 = None
         self.base_dir = base_dir
-        self.config = json.load(open(base_dir / "config.json"))
-        self.enable_auto_deployment = json.load(open(base_dir / "genesis.json"))[
-            "app_state"
-        ]["cronos"]["params"]["enable_auto_deployment"]
+        self.config = json.loads((base_dir / "config.json").read_text())
+        self.enable_auto_deployment = json.loads(
+            (base_dir / "genesis.json").read_text()
+        )["app_state"]["cronos"]["params"]["enable_auto_deployment"]
         self._use_websockets = False
 
     def copy(self):
@@ -65,7 +65,7 @@ class Cronos:
 class Chainmain:
     def __init__(self, base_dir):
         self.base_dir = base_dir
-        self.config = json.load(open(base_dir / "config.json"))
+        self.config = json.loads((base_dir / "config.json").read_text())
 
     def base_port(self, i):
         return self.config["validators"][i]["base_port"]

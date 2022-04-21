@@ -27,7 +27,7 @@ def post_init(path, base_port, config):
     prepare cosmovisor for each node
     """
     chain_id = "cronos_777-1"
-    cfg = json.load((path / chain_id / "config.json").open())
+    cfg = json.loads((path / chain_id / "config.json").read_text())
     for i, _ in enumerate(cfg["validators"]):
         home = path / chain_id / f"node{i}"
         init_cosmovisor(home)
@@ -35,7 +35,7 @@ def post_init(path, base_port, config):
     # patch supervisord ini config
     ini_path = path / chain_id / SUPERVISOR_CONFIG_FILE
     ini = configparser.RawConfigParser()
-    ini.read_file(ini_path.open())
+    ini.read(ini_path)
     reg = re.compile(rf"^program:{chain_id}-node(\d+)")
     for section in ini.sections():
         m = reg.match(section)
