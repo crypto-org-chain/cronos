@@ -97,13 +97,13 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 	blockNumber := resBlock.Block.Height
 	blockHash := common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
 
-	blockRes, err := api.clientCtx.Client.BlockResults(api.ctx, blockNum.TmHeight())
+	blockRes, err := api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
 	if err != nil {
-		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
+		api.logger.Debug("failed to retrieve block results", "height", blockNumber, "error", err.Error())
 		return nil, nil
 	}
 
-	baseFee, err := api.backend.BaseFee(blockNum.Int64())
+	baseFee, err := api.backend.BaseFee(blockNumber)
 	if err != nil {
 		return nil, err
 	}
