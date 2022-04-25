@@ -160,10 +160,6 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-	// Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
-	// See https://github.com/tecbot/gorocksdb/pull/216
-	github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
-
 	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-8
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
