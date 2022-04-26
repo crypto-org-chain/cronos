@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -709,13 +710,19 @@ func New(
 			return nil, err
 		}
 		// Override feemarket parameters
+		initialBaseFee := int64(5000000000000)
 		app.FeeMarketKeeper.SetParams(ctx, feemarkettypes.Params{
 			NoBaseFee:                false,
 			BaseFeeChangeDenominator: 100000000,
 			ElasticityMultiplier:     2,
-			InitialBaseFee:           5000000000000,
+			InitialBaseFee:           initialBaseFee,
 			EnableHeight:             0,
 		})
+		app.FeeMarketKeeper.SetBaseFee(ctx, big.NewInt(initialBaseFee))
+		evmParams := app.EvmKeeper.GetParams(ctx)
+		zeroInt := sdk.ZeroInt()
+		evmParams.ChainConfig.LondonBlock = &zeroInt
+		app.EvmKeeper.SetParams(ctx, evmParams)
 		return updatedVM, nil
 	})
 
