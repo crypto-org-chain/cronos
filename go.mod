@@ -160,7 +160,7 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-	github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.10.0-alpha1-cronos-8.0.20220426081631-a178ce6dba6e
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-8.0.20220426081631-a178ce6dba6e
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
