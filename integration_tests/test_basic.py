@@ -527,6 +527,11 @@ def test_batch_tx(cronos):
     for tx, h in zip(txs, tx_hashes):
         assert tx.hash == h
 
+    # check getBlock
+    txs = w3.eth.get_block(receipts[0].blockNumber, True).transactions
+    for i in range(3):
+        assert txs[i].transactionIndex == i
+
 
 def test_failed_transfer_tx(cronos):
     """
