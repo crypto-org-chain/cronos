@@ -7,7 +7,7 @@ cronos_777-1:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
-      api: "eth,net,web3,debug"
+      api: "eth,net,web3,debug,cronos"
   validators:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake

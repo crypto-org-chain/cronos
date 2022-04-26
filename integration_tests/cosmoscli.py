@@ -505,6 +505,12 @@ class CosmosCLI:
             self.raw("tx", "broadcast", tx_file, node=self.node_rpc, **kwargs)
         )
 
+    def broadcast_tx_json(self, tx, **kwargs):
+        with tempfile.NamedTemporaryFile("w") as fp:
+            json.dump(tx, fp)
+            fp.flush()
+            return self.broadcast_tx(fp.name)
+
     def unjail(self, addr):
         return json.loads(
             self.raw(
