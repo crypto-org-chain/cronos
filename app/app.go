@@ -453,6 +453,7 @@ func New(
 		app.TransferKeeper,
 		gravityKeeper,
 		app.EvmKeeper,
+		app.AccountKeeper,
 	)
 	cronosModule := cronos.NewAppModule(appCodec, app.CronosKeeper)
 

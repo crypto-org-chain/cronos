@@ -289,6 +289,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
 			)
 			handler := keeper.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
@@ -378,6 +379,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
 			)
 			handler := keeper.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
