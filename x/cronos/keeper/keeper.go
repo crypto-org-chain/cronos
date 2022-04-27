@@ -30,6 +30,8 @@ type (
 		transferKeeper types.TransferKeeper
 		// ethermint evm keeper
 		evmKeeper *evmkeeper.Keeper
+		// account keeper
+		accountKeeper types.AccountKeeper
 
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
@@ -43,6 +45,7 @@ func NewKeeper(
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
 	evmKeeper *evmkeeper.Keeper,
+	accountKeeper types.AccountKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
 
@@ -59,6 +62,7 @@ func NewKeeper(
 		bankKeeper:     bankKeeper,
 		transferKeeper: transferKeeper,
 		evmKeeper:      evmKeeper,
+		accountKeeper:  accountKeeper,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }

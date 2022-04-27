@@ -21,6 +21,7 @@ require (
 	github.com/tharsis/ethermint v0.7.2
 	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af
 	google.golang.org/grpc v1.42.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -138,7 +139,6 @@ require (
 	golang.org/x/sys v0.0.0-20210903071746-97244b99971b // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.6 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.63.2 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
@@ -164,7 +164,7 @@ replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethere
 // TODO: remove when ibc-go and ethermint upgrades cosmos-sdk
 replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert
 
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-14
+replace github.com/tharsis/ethermint => github.com/yihuang/ethermint v0.7.2-cronos-9.0.20220427040028-1d16a8af7dfc
 
 // Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
 // See https://github.com/tecbot/gorocksdb/pull/216

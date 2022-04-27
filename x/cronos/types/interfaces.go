@@ -37,6 +37,9 @@ type TransferKeeper interface {
 // AccountKeeper defines the expected account keeper interface
 type AccountKeeper interface {
 	GetModuleAccount(ctx sdk.Context, moduleName string) authtypes.ModuleAccountI
+
+	GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI
+	SetAccount(ctx sdk.Context, account authtypes.AccountI)
 }
 
 // EvmLogHandler defines the interface for evm log handler

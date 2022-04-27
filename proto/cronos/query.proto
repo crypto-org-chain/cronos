@@ -1,8 +1,11 @@
 syntax = "proto3";
 package cronos;
 
+import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "ethermint/evm/v1/tx.proto";
 // this line is used by starport scaffolding # 1
 
 option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
@@ -19,11 +22,17 @@ service Query {
         option (google.api.http).get = "/cronos/v1/denom_by_contract/{contract}";
     }
 
+    // ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+    rpc ReplayBlock(ReplayBlockRequest) returns (ReplayBlockResponse) { }
+
     // this line is used by starport scaffolding # 2
 }
 
 // ContractByDenomRequest is the request type of ContractByDenom call
 message ContractByDenomRequest {
+    option (gogoproto.equal) = false;
+    option (gogoproto.goproto_getters) = false;
+
     string denom = 1;
 }
 
@@ -35,12 +44,32 @@ message ContractByDenomResponse {
 
 // DenomByContractRequest is the request type of DenomByContract call
 message DenomByContractRequest {
+    option (gogoproto.equal) = false;
+    option (gogoproto.goproto_getters) = false;
+
     string contract = 1;
 }
 
 // DenomByContractResponse is the response type of DenomByContract call
 message DenomByContractResponse {
     string denom = 1;
+}
+
+// ReplayBlockRequest
+message ReplayBlockRequest {
+    option (gogoproto.equal) = false;
+    option (gogoproto.goproto_getters) = false;
+
+    // the eth messages in the block
+    repeated ethermint.evm.v1.MsgEthereumTx msgs = 1;
+    int64 block_number = 2;
+    string block_hash = 3;
+    google.protobuf.Timestamp block_time = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+}
+
+// ReplayBlockResponse 
+message ReplayBlockResponse {
+  repeated ethermint.evm.v1.MsgEthereumTxResponse responses = 1;
 }
 
 // this line is used by starport scaffolding # 3

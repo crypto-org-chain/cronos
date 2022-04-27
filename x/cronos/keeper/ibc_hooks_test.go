@@ -76,6 +76,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

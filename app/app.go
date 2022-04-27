@@ -110,6 +110,9 @@ import (
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/crypto-org-chain/cronos/client/docs/statik"
+
+	// force register the extension json-rpc.
+	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 )
 
 const (
@@ -388,6 +391,7 @@ func New(
 		app.BankKeeper,
 		app.TransferKeeper,
 		app.EvmKeeper,
+		app.AccountKeeper,
 	)
 	cronosModule := cronos.NewAppModule(appCodec, app.CronosKeeper)
 
