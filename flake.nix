@@ -1,25 +1,34 @@
 {
   inputs = {
-    nixpkgs = {
-      url = "path:./nix";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
+    nix-bundle-exe = {
+      url = "github:3noch/nix-bundle-exe";
       flake = false;
+    };
+    gomod2nix = {
+      url = "github:tweag/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
+    let
+      rev = self.shortRev or "dirty";
+    in
     (flake-utils.lib.eachDefaultSystem
       (system:
         let
           pkgs = import nixpkgs {
             inherit system;
+            overlays = [
+              self.overlay
+            ];
+            config = { };
           };
         in
         rec {
-          packages = {
-            cronosd = pkgs.callPackage ./. { };
-            cronosd-testnet = pkgs.callPackage ./. { network = "testnet"; };
-          };
+          packages = pkgs.cronos-matrix;
           apps = {
             cronosd = {
               type = "app";
@@ -44,5 +53,45 @@
           devShell = devShells.cronosd;
         }
       )
-    );
+    ) // {
+      overlay = final: prev: {
+        buildGoApplication = final.callPackage (import (gomod2nix + "/builder")) {
+          go = final.go_1_17;
+        };
+        bundle-exe = import nix-bundle-exe { pkgs = final; };
+        bundle-exe-tarball = drv:
+          let bundle = final.bundle-exe drv;
+          in
+          final.runCommand bundle.name { } ''
+            "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
+          '';
+      } // (with final;
+        let
+          matrix = lib.cartesianProductOfSets {
+            db_backend = [ "goleveldb" "rocksdb" ];
+            network = [ "mainnet" "testnet" ];
+            relocatable = [ true false ];
+          };
+          binaries = builtins.listToAttrs (builtins.map
+            ({ db_backend, network, relocatable }: {
+              name = builtins.concatStringsSep "-" (
+                [ "cronosd" ] ++
+                lib.optional (network != "mainnet") network ++
+                lib.optional (db_backend != "rocksdb") db_backend ++
+                lib.optional relocatable "tarball"
+              );
+              value =
+                let
+                  cronosd = callPackage ./. { inherit rev db_backend network; };
+                in
+                if relocatable then bundle-exe-tarball cronosd else cronosd;
+            })
+            matrix
+          );
+        in
+        {
+          cronos-matrix = binaries;
+        }
+      );
+    };
 }

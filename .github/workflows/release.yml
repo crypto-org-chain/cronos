@@ -5,7 +5,16 @@ on:
     tags:
       - "v*.*.*"
 jobs:
+  draft-release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: draft release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
   goreleaser:
+    needs: ["draft-release"]
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -17,34 +26,69 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |-
           echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      - name: draft release
+      - name: build and upload goreleaser binaries
         run: make release
+
+  rocksdb-x86_64:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    needs: ["draft-release"]
+    runs-on: ${{ matrix.os }}
+    environment: release
+    steps:
       - uses: cachix/install-nix-action@v16
       - uses: cachix/cachix-action@v10
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: nix bundle
-        env:
-          DB: rocksdb
-          PLATFORM: Linux_x86_64
+      - name: build linux/mac x86_64 rocksdb binaries
         run: |
-          MAINNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-${DB}_${PLATFORM}.tar.gz"
-          TESTNET_TAR="cronos_$(echo ${GITHUB_REF##*/} | cut -c 2-)-testnet-${DB}_${PLATFORM}.tar.gz"
-          mkdir ./bin
-          nix bundle --bundler github:NixOS/bundlers .
-          mv ./arx ./bin/cronosd
-          tar cfzh "${MAINNET_TAR}" ./bin
-          nix bundle --bundler github:NixOS/bundlers .#cronosd-testnet
-          mv ./arx ./bin/cronosd
-          tar cfzh "${TESTNET_TAR}" ./bin
+          PLATFORM="$(uname -s)_x86_64"
+          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+          nix build ${FLAKE}#cronosd-tarball
+          cp result cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz
+          nix build ${FLAKE}#cronosd-testnet-tarball
+          cp result cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz
           echo 'FILES<<EOF' >> $GITHUB_ENV
-          echo "${MAINNET_TAR}" >> $GITHUB_ENV
-          echo "${TESTNET_TAR}" >> $GITHUB_ENV
+          ls -1 *.tar.gz >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-          ls -l "${MAINNET_TAR}"
-          ls -l "${TESTNET_TAR}"
-      - name: release linux rocksdb binaries
+          cat $GITHUB_ENV
+      - name: upload linux/mac x86_64 rocksdb binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: "${{ env.FILES }}"
+
+  rocksdb-aarch64-linux:
+    needs: ["draft-release"]
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: cachix/install-nix-action@v16
+      - run: |
+         DEBIAN_FRONTEND=noninteractive
+         sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+         mkdir -p ~/.config/nix
+         sudo bash -c "echo system-features = aarch64-linux arm-linux >> /etc/nix/nix.conf"
+      - uses: cachix/cachix-action@v10
+        with:
+          name: cronos
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: build linux arm64 rocksdb binaries
+        env:
+          PLATFORM: Linux_arm64
+        run: |
+          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+          nix build --extra-platforms aarch64-linux ${FLAKE}#cronosd-tarball
+          cp result cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz
+          nix build --extra-platforms aarch64-linux ${FLAKE}#cronosd-testnet-tarball
+          cp result cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          ls -1 *.tar.gz >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+          cat $GITHUB_ENV
+      - name: upload linux arm64 rocksdb binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
