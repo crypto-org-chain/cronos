@@ -1,4 +1,3 @@
-dotenv: ../../scripts/.env
 cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
@@ -13,20 +12,14 @@ cronos_777-1:
   validators:
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: ${VALIDATOR1_MNEMONIC}
+      mnemonic: visit craft resemble online window solution west chuckle music diesel vital settle comic tribe project blame bulb armed flower region sausage mercy arrive release
     - coins: 1000000000000000000stake,10000000000000000000000basetcro
       staked: 1000000000000000000stake
-      mnemonic: ${VALIDATOR2_MNEMONIC}
+      mnemonic: direct travel shrug hand twice agent sail sell jump phone velvet pilot mango charge usual multiply orient garment bleak virtual action mention panda vast
   accounts:
     - name: community
       coins: 10000000000000000000000basetcro
-      mnemonic: ${COMMUNITY_MNEMONIC}
-    - name: signer1
-      coins: 20000000000000000000000basetcro
-      mnemonic: ${SIGNER1_MNEMONIC}
-    - name: signer2
-      coins: 30000000000000000000000basetcro
-      mnemonic: ${SIGNER2_MNEMONIC}
+      mnemonic: "notable error gospel wave pair ugly measure elite toddler cost various fly make eye ketchup despair slab throw tribe swarm word fruit into inmate"
 
   genesis:
     consensus_params:
@@ -37,11 +30,6 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
-      cronos:
-        params:
-          cronos_admin: ${CRONOS_ADMIN}
-          enable_auto_deployment: true
-          ibc_cro_denom: ${IBC_CRO_DENOM}
       gov:
         voting_params:
           voting_period: "10s"
