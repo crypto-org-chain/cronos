@@ -6,7 +6,7 @@ from web3._utils.method_formatters import receipt_formatter
 from web3.datastructures import AttributeDict
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
+from .utils import ADDRS, KEYS, deploy_contract, sign_transaction
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +21,8 @@ def test_replay_block(custom_cronos):
     w3: web3.Web3 = custom_cronos.w3
     contract = deploy_contract(
         w3,
-        CONTRACTS["TestMessageCall"],
+        Path(__file__).parent
+        / "contracts/artifacts/contracts/TestMessageCall.sol/TestMessageCall.json",
         key=KEYS["community"],
     )
     iterations = 400
