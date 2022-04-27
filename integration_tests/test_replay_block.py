@@ -74,7 +74,7 @@ def test_replay_block(custom_cronos):
 
     # check the replay receipts are the same
     replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
-    # assert replay_receipts[0].gasUsed == replay_receipts[1].gasUsed == receipt1.gasUsed
+    # assert replay_receipts[0].gasUsed==replay_receipts[1].gasUsed == receipt1.gasUsed
     assert replay_receipts[0].status == replay_receipts[1].status == receipt1.status
     assert (
         replay_receipts[0].logsBloom
