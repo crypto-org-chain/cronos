@@ -92,6 +92,9 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 
 		// increase nonce
 		acc := k.accountKeeper.GetAccount(ctx, msg.GetFrom())
+		if acc == nil {
+			return nil, fmt.Errorf("account not found %s", msg.From)
+		}
 		if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
 			return nil, err
 		}

@@ -84,7 +84,7 @@ func NewCronosAPI(
 	}
 }
 
-func (api *CronosAPI) GetBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
+func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock *coretypes.ResultBlock,
 	blockNumber int64,
 	blockHash string,
@@ -119,7 +119,7 @@ func (api *CronosAPI) GetBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 // GetTransactionReceiptsByBlock returns all the transaction receipts included in the block.
 func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.BlockNumberOrHash) ([]map[string]interface{}, error) {
 	api.logger.Debug("cronos_getTransactionReceiptsByBlock", "blockNrOrHash", blockNrOrHash)
-	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.GetBlockDetail(blockNrOrHash)
+	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.getBlockDetail(blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 // if postUpgrade is true, the tx that exceeded block gas limit is treated as reverted, otherwise as committed.
 func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, postUpgrade bool) ([]map[string]interface{}, error) {
 	api.logger.Debug("cronos_replayBlock", "blockNrOrHash", blockNrOrHash)
-	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.GetBlockDetail(blockNrOrHash)
+	resBlock, blockNumber, blockHash, blockRes, baseFee, err := api.getBlockDetail(blockNrOrHash)
 	if err != nil {
 		return nil, err
 	}
