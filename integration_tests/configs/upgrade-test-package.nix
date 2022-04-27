@@ -7,4 +7,3 @@ pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
   { name = "v0.7.0"; path = current; }
 ]
-

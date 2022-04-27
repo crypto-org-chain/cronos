@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 from dateutil.parser import isoparse
+from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
 from .network import Cronos, setup_custom_cronos
-from .utils import parse_events, wait_for_block, wait_for_block_time
+from .utils import parse_events, wait_for_block, wait_for_block_time, wait_for_port
 
 
 def init_cosmovisor(home):
@@ -113,3 +114,12 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
 
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
+
+    # check feemarket is enabled correctly
+    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    w3 = custom_cronos.w3
+    # check base fee values
+    fee1 = 5000000000000 - 5000000000000 // 100000000
+    fee2 = fee1 - fee1 // 100000000
+    assert w3.eth.get_block(target_height).baseFeePerGas == fee1
+    assert w3.eth.get_block(target_height + 1).baseFeePerGas == fee2

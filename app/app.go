@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -705,17 +706,25 @@ func New(
 	// upgrade handlers
 	plan0_7_0 := "v0.7.0"
 	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		// The default genesis parameters of `feemarket` module are fine, because the `InitialBaseFee (1000000000)` is much lower than the current minimal gas price,
-		// so it don't have effect at the beginning, we can always adjust the parameters through the governance later.
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
-	})
-	// this upgrade is for breaking bug fixes on testnet
-	plan0_7_0Rc3HotfixTestnet := "v0.7.0-rc3-hotfix-testnet"
-	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0Rc3HotfixTestnet, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		cp := ctx.ConsensusParams()
-		cp.Block.MaxGas = 10000000
-		app.StoreConsensusParams(ctx, cp)
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		updatedVM, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return nil, err
+		}
+		// Override feemarket parameters
+		initialBaseFee := int64(5000000000000)
+		app.FeeMarketKeeper.SetParams(ctx, feemarkettypes.Params{
+			NoBaseFee:                false,
+			BaseFeeChangeDenominator: 100000000,
+			ElasticityMultiplier:     2,
+			InitialBaseFee:           initialBaseFee,
+			EnableHeight:             0,
+		})
+		app.FeeMarketKeeper.SetBaseFee(ctx, big.NewInt(initialBaseFee))
+		evmParams := app.EvmKeeper.GetParams(ctx)
+		zeroInt := sdk.ZeroInt()
+		evmParams.ChainConfig.LondonBlock = &zeroInt
+		app.EvmKeeper.SetParams(ctx, evmParams)
+		return updatedVM, nil
 	})
 
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
