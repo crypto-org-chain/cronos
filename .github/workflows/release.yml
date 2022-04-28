@@ -5,16 +5,7 @@ on:
     tags:
       - "v*.*.*"
 jobs:
-  draft-release:
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      - name: draft release
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
   goreleaser:
-    needs: ["draft-release"]
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -33,7 +24,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-    needs: ["draft-release"]
+    needs: ["goreleaser"]
     runs-on: ${{ matrix.os }}
     environment: release
     steps:
@@ -61,7 +52,7 @@ jobs:
           files: "${{ env.FILES }}"
 
   rocksdb-aarch64-linux:
-    needs: ["draft-release"]
+    needs: ["goreleaser"]
     runs-on: ubuntu-latest
     environment: release
     steps:
