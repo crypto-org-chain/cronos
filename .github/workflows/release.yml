@@ -37,9 +37,9 @@ jobs:
         run: |
           PLATFORM="$(uname -s)_x86_64"
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-          nix build ${FLAKE}#cronosd-tarball
+          nix build -L ${FLAKE}#cronosd-tarball
           cp result cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz
-          nix build ${FLAKE}#cronosd-testnet-tarball
+          nix build -L ${FLAKE}#cronosd-testnet-tarball
           cp result cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
@@ -71,9 +71,9 @@ jobs:
           PLATFORM: Linux_arm64
         run: |
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-          nix build --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-tarball
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-tarball
           cp result cronos_${GITHUB_REF_NAME}-rocksdb_${PLATFORM}.tar.gz
-          nix build --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-tarball
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-tarball
           cp result cronos_${GITHUB_REF_NAME}-testnet-rocksdb_${PLATFORM}.tar.gz
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV

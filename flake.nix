@@ -70,21 +70,30 @@
           matrix = lib.cartesianProductOfSets {
             db_backend = [ "goleveldb" "rocksdb" ];
             network = [ "mainnet" "testnet" ];
-            relocatable = [ true false ];
+            pkgtype = [
+              "nix" # normal nix package
+              "bundle" # relocatable bundled package
+              "tarball" # tarball of the bundle, for distribution and checksum
+            ];
           };
           binaries = builtins.listToAttrs (builtins.map
-            ({ db_backend, network, relocatable }: {
+            ({ db_backend, network, pkgtype }: {
               name = builtins.concatStringsSep "-" (
                 [ "cronosd" ] ++
                 lib.optional (network != "mainnet") network ++
                 lib.optional (db_backend != "rocksdb") db_backend ++
-                lib.optional relocatable "tarball"
+                lib.optional (pkgtype != "nix") pkgtype
               );
               value =
                 let
                   cronosd = callPackage ./. { inherit rev db_backend network; };
                 in
-                if relocatable then bundle-exe-tarball cronosd else cronosd;
+                if pkgtype == "bundle" then
+                  bundle-exe cronosd
+                else if pkgtype == "tarball" then
+                  bundle-exe-tarball cronosd
+                else
+                  cronosd;
             })
             matrix
           );
