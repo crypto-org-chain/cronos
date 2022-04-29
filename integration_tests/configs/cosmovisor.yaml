@@ -1,6 +1,7 @@
 dotenv: ../../scripts/.env
 cronos_777-1:
   cmd: cronosd
+  start-flags: "--trace"
   app-config:
     minimum-gas-prices: 5000000000000basetcro
     json-rpc:
