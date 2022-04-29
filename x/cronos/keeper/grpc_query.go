@@ -53,6 +53,8 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 		WithBlockTime(req.BlockTime).
 		WithHeaderHash(common.Hex2Bytes(req.BlockHash))
 
+	k.evmKeeper.WithContext(ctx)
+
 	// load parameters
 	params := k.evmKeeper.GetParams(ctx)
 	chainID := k.evmKeeper.ChainID()
