@@ -124,5 +124,5 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     assert w3.eth.get_block(target_height).baseFeePerGas == fee1
     assert w3.eth.get_block(target_height + 1).baseFeePerGas == fee2
 
-    # query legacy blocks after upgrade
-    assert w3.eth.get_block(target_height - 1).baseFeePerGas is None
+    # query legacy blocks before the upgrade
+    assert "baseFeePerGas" not in w3.eth.get_block(target_height - 1)
