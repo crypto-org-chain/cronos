@@ -271,8 +271,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsr
 github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-8.0.20220426081631-a178ce6dba6e h1:/IvLzce4Bp0noxIL7iPgTB/ShOiMaGDNiapTZgu2JXE=
-github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-8.0.20220426081631-a178ce6dba6e/go.mod h1:diM7A56La2YMnIFA2rB/NPH2PbTYy6aevsgEdj+bJgc=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2 h1:elj+Tb/3O9GA3pv62zkc1B0P8hl1WHmF6vF8PInEJm4=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2/go.mod h1:rAHRlBcRiHPP/JszN+08SJx3pegww9bcVncIb9QLx7I=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
@@ -1160,6 +1158,8 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
+github.com/yihuang/ethermint v0.10.0-alpha1-cronos-8.0.20220429031316-ae1b6f2f1121 h1:2y4AQ105wfysFJEhnqi10+zINdKrKCy7iKwOISGphlg=
+github.com/yihuang/ethermint v0.10.0-alpha1-cronos-8.0.20220429031316-ae1b6f2f1121/go.mod h1:FLjeCtSiiWzDhAKO6usihVrnJwGw88I+KGYfr/geQSs=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
