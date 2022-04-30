@@ -3,10 +3,12 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 var _ types.QueryServer = Keeper{}
@@ -38,5 +40,73 @@ func (k Keeper) DenomByContract(goCtx context.Context, req *types.DenomByContrac
 	}
 	return &types.DenomByContractResponse{
 		Denom: denom,
+	}, nil
+}
+
+// ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest) (*types.ReplayBlockResponse, error) {
+	rsps := make([]*evmtypes.MsgEthereumTxResponse, 0, len(req.Msgs))
+
+	// prepare the block context, the multistore version should be setup already in grpc query context.
+	ctx := sdk.UnwrapSDKContext(goCtx).
+		WithBlockHeight(req.BlockNumber).
+		WithBlockTime(req.BlockTime).
+		WithHeaderHash(common.Hex2Bytes(req.BlockHash))
+
+	k.evmKeeper.WithContext(ctx)
+
+	// load parameters
+	params := k.evmKeeper.GetParams(ctx)
+	chainID := k.evmKeeper.ChainID()
+	// the chain_id is irrelevant here
+	ethCfg := params.ChainConfig.EthereumConfig(chainID)
+
+	blockHeight := big.NewInt(req.BlockNumber)
+	homestead := ethCfg.IsHomestead(blockHeight)
+	istanbul := ethCfg.IsIstanbul(blockHeight)
+	evmDenom := params.EvmDenom
+
+	// we assume the message executions are successful, they are filtered in json-rpc api
+	for _, msg := range req.Msgs {
+		// deduct fee
+		txData, err := evmtypes.UnpackTxData(msg.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		// populate the `From` field
+		if _, err := msg.GetSender(chainID); err != nil {
+			return nil, err
+		}
+
+		if _, err := k.evmKeeper.DeductTxCostsFromUserBalance(
+			ctx,
+			*msg,
+			txData,
+			evmDenom,
+			homestead,
+			istanbul,
+		); err != nil {
+			return nil, err
+		}
+
+		// increase nonce
+		acc := k.accountKeeper.GetAccount(ctx, msg.GetFrom())
+		if acc == nil {
+			return nil, fmt.Errorf("account not found %s", msg.From)
+		}
+		if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
+			return nil, err
+		}
+		k.accountKeeper.SetAccount(ctx, acc)
+
+		rsp, err := k.evmKeeper.EthereumTx(sdk.WrapSDKContext(ctx), msg)
+		if err != nil {
+			return nil, err
+		}
+		rsps = append(rsps, rsp)
+	}
+	return &types.ReplayBlockResponse{
+		Responses: rsps,
 	}, nil
 }
