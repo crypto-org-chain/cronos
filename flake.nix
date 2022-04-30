@@ -2,7 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
     nix-bundle-exe = {
-      url = "github:yihuang/nix-bundle-exe/fix-sign";
+      url = "github:3noch/nix-bundle-exe";
       flake = false;
     };
     gomod2nix = {
