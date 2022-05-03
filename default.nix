@@ -10,7 +10,7 @@ let
   version = "v0.7.0";
   pname = "cronosd";
   tags = lib.concatStringsSep "," (
-    [ network ]
+    [ "ledger" "cgo" network ]
     ++ lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
   );
   ldflags = lib.concatStringsSep "\n" ([
