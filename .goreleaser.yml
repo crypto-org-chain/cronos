@@ -203,3 +203,4 @@ snapshot:
 
 release:
   draft: true
+  mode: append

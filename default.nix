@@ -4,9 +4,10 @@
 , rocksdb ? null
 , db_backend ? "rocksdb"
 , network ? "mainnet"  # mainnet|testnet
+, rev ? "dirty"
 }:
 let
-  version = "dev";
+  version = "v0.7.0";
   pname = "cronosd";
   tags = lib.concatStringsSep "," (
     [ network ]
@@ -17,6 +18,7 @@ let
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
     "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${tags}"
+    "-X github.com/cosmos/cosmos-sdk/version.Commit=${rev}"
   ] ++ lib.lists.optionals (db_backend == "rocksdb") [
     "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
