@@ -123,3 +123,6 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     fee2 = fee1 - fee1 // 100000000
     assert w3.eth.get_block(target_height).baseFeePerGas == fee1
     assert w3.eth.get_block(target_height + 1).baseFeePerGas == fee2
+
+    # query legacy blocks before the upgrade
+    assert "baseFeePerGas" not in w3.eth.get_block(target_height - 1)
