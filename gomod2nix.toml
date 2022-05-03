@@ -3849,7 +3849,7 @@
     sha256 = "0nlf9w791ln0n49fiaczy7bsr0i1cnrrm78frhv4k9kbn13gfpw6"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.10.0-alpha1-cronos-8.0.20220430162531-36b9c095b351"
+  sumVersion = "v0.10.0-alpha1-cronos-9"
   vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
