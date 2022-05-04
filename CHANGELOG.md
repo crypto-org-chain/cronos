@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- []() Add back the latest testnet upgrade handler.
+
 *May 3, 2022*
 
 ## v0.7.0
