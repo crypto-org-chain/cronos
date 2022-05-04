@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- []() Add back the latest testnet upgrade handler.
+- [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
 
 *May 3, 2022*
 
