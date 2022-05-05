@@ -27,5 +27,5 @@ jobs:
           export COSMOS_BUILD_OPTIONS=rocksdb   
           echo $PATH
           go version
-          #make             
+          make             
 
