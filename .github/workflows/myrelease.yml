@@ -30,5 +30,6 @@ jobs:
           echo $PATH
           go version
           wget https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst
-          pacman -U mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst        
+          pacman -U mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst --noconfirm
+          make      
 
