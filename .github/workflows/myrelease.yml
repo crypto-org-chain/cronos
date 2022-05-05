@@ -2,8 +2,9 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - feature/452  
+    
 jobs:
   rocksdb-x86_64:
     strategy:
