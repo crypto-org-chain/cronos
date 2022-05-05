@@ -21,6 +21,11 @@ jobs:
       - shell: msys2 {0}
         run: |
           uname -a
+          export GOROOT=/mingw64/lib/go
+          export GOPATH=$HOME/go
+          export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
           export COSMOS_BUILD_OPTIONS=rocksdb   
-          make             
+          echo $PATH
+          go version
+          #make             
 
