@@ -2,6 +2,7 @@ import enum
 import hashlib
 import json
 import tempfile
+from collections import namedtuple
 
 import bech32
 from dateutil.parser import isoparse
@@ -1012,3 +1013,12 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+
+    def fix_unlucky_tx(self, begin_block, end_block):
+        output = self.raw(
+            "fix-unlucky-tx",
+            begin_block,
+            end_block,
+            home=self.data_dir,
+        )
+        return [tuple(line.split()[1:]) for line in output.split("\n")]
