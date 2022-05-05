@@ -4,13 +4,13 @@ on:
   push:
     branches:
       - feature/452  
-    
+
+          
 jobs:
   rocksdb-x86_64:
     strategy:
       matrix:
         os: [ubuntu-latest]
-    needs: ["goreleaser"]
     runs-on: ${{ matrix.os }}
     environment: release
     steps:
