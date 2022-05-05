@@ -2,20 +2,38 @@ name: release
 
 on:
   push:
-    branches:
-      - feature/452
+    tags:
+      - "v*.*.*"
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  rocksdb-x86_64:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    needs: ["goreleaser"]
+    runs-on: ${{ matrix.os }}
     environment: release
     steps:
-      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v16
+      - uses: cachix/cachix-action@v10
         with:
-          submodules: true
-      - name: setup release environment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      - name: build and upload goreleaser binaries
-        run: make 
+          name: cronos
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: build linux/mac x86_64 rocksdb binaries
+        run: |
+          PLATFORM="$(uname -s)_x86_64"
+          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+          echo "PLATFORM=". $PLATFROM
+          echo "FLAT=". $FLAKE
+          echo "GITHUB_REPOSITORY=". $GITHUB_REPOSITORY
+          echo "GITHUB_REF_NAME=". $GITHUB_REF_NAME
+          nix build -L ${FLAKE}#cronosd-tarball
+          ls result
+          cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          nix build -L ${FLAKE}#cronosd-testnet-tarball
+          ls result
+          cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          ls -1 *.tar.gz >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+          cat $GITHUB_ENV
+      
