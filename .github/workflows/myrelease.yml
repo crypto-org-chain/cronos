@@ -27,14 +27,11 @@ jobs:
           echo "FLAT=". $FLAKE
           echo "GITHUB_REPOSITORY=". $GITHUB_REPOSITORY
           echo "GITHUB_REF_NAME=". $GITHUB_REF_NAME
-          nix build -L ${FLAKE}#cronosd-tarball
-          ls result
-          cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-          nix build -L ${FLAKE}#cronosd-testnet-tarball
-          ls result
-          cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
-          echo 'FILES<<EOF' >> $GITHUB_ENV
-          ls -1 *.tar.gz >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-          cat $GITHUB_ENV
-      
+          echo ${FLAKE}#cronosd-tarball
+          echo cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          echo ${FLAKE}#cronosd-testnet-tarball
+          echo cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
+          echo 'FILES<<EOF' 
+          echo $GITHUB_ENV
+          ls -1 *.tar.gz 
+          echo 'EOF'
