@@ -25,6 +25,8 @@ jobs:
           export GOPATH=$HOME/go
           export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
           export COSMOS_BUILD_OPTIONS=rocksdb   
+          export CGO_CFLAGS="-I/mingw64/include/rocksdb" 
+          export CGO_LDFLAGS="-L/mingw64/lib -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd" 
           echo $PATH
           go version
           make             
