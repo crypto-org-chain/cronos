@@ -15,9 +15,9 @@ jobs:
           submodules: true
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: MSYS
           update: true
-          install: msys2-devel base-devel mingw-w64-cross-gcc mingw-w64-x86_64-rocksdb  mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn        
+          install: git msys2-devel base-devel mingw-w64-cross-gcc mingw-w64-x86_64-rocksdb  mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn        
       - shell: msys2 {0}
         run: |
           uname -a
