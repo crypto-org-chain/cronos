@@ -125,7 +125,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	for i, tx := range resBlock.Block.Txs {
 		txResult := blockRes.TxsResults[i]
 		if TxExceedsBlockGasLimit(txResult) {
-			// the tx with ExceedBlockGasLimitErrorPrefix error should not be ignored because:
+			// the tx with ExceedBlockGasLimitError error should not be ignored because:
 			// 1) before the 0.7.0 upgrade, the tx is committed successfully.
 			// 2) after the upgrade, the tx is failed but fee deducted and nonce increased.
 			// there's at most one such case in each block, and it should be the last tx in the block.
