@@ -50,7 +50,10 @@ jobs:
           tar cvfz ../cronos.tar.gz *
           cd ..
           ls -la ./cronos.tar.gz
+          echo "OK"
       - name: upload 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: softprops/action-gh-release@v1
         with: 
           files: |
