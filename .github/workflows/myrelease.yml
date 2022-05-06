@@ -50,7 +50,7 @@ jobs:
           tar cvfz ../cronos.tar.gz *
           cd ..
           ls -la ./cronos.tar.gz
-          echo "OK2"
+          echo "OK3"
       - name: upload 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
