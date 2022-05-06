@@ -82,17 +82,24 @@ def test_replay_block(custom_cronos):
     assert "error" not in rsp, rsp["error"]
     assert 2 == len(rsp["result"])
 
+    # gas used by the second tx
+    exp_gas_used2 = 753876
+
     # check the replay receipts are the same
     replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
-    # assert replay_receipts[0].gasUsed==replay_receipts[1].gasUsed == receipt1.gasUsed
+    assert replay_receipts[0].gasUsed == receipt1.gasUsed
+    assert replay_receipts[1].gasUsed == exp_gas_used2
     assert replay_receipts[0].status == replay_receipts[1].status == receipt1.status
     assert (
         replay_receipts[0].logsBloom
         == replay_receipts[1].logsBloom
         == receipt1.logsBloom
     )
-    # assert replay_receipts[0].cumulativeGasUsed == receipt1.cumulativeGasUsed
-    # assert replay_receipts[1].cumulativeGasUsed == receipt1.cumulativeGasUsed * 2
+    assert replay_receipts[0].cumulativeGasUsed == receipt1.cumulativeGasUsed
+    assert (
+        replay_receipts[1].cumulativeGasUsed
+        == receipt1.cumulativeGasUsed + exp_gas_used2
+    )
 
     # check the postUpgrade mode
     rsp = w3.provider.make_request(
@@ -110,7 +117,7 @@ def test_replay_block(custom_cronos):
     supervisorctl(custom_cronos.base_dir / "../tasks.ini", "stop", "cronos_777-1-node0")
     results = custom_cronos.cosmos_cli().fix_unlucky_tx(begin_height, end_height)
     # the second tx is patched
-    assert results[0].hash == txhashes[1]
+    assert results[0][0] == txhashes[1].hex()
     # start the node0 again
     supervisorctl(
         custom_cronos.base_dir / "../tasks.ini", "start", "cronos_777-1-node0"
@@ -121,6 +128,5 @@ def test_replay_block(custom_cronos):
     receipt = w3.eth.get_transaction_receipt(txhashes[1])
     # check the receipt is the same as a successful one
     assert receipt.status == 1
-    assert receipt.gasUsed == receipt1.gasUsed
+    assert receipt.gasUsed == exp_gas_used2
     assert receipt.logsBloom == receipt1.logsBloom
-    assert receipt.logs == receipt1.logs

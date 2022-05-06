@@ -2,7 +2,6 @@ import enum
 import hashlib
 import json
 import tempfile
-from collections import namedtuple
 
 import bech32
 from dateutil.parser import isoparse
@@ -1020,5 +1019,5 @@ class CosmosCLI:
             begin_block,
             end_block,
             home=self.data_dir,
-        )
+        ).decode()
         return [tuple(line.split()[1:]) for line in output.split("\n")]
