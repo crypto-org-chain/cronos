@@ -21,6 +21,8 @@ jobs:
           update: false
           install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-rocksdb  mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn        
       - name: get rocksdb & build
+        env:
+          PLATFORM: Windows_x86_64
         shell: msys2 {0}
         run: |
           uname -a
@@ -50,7 +52,7 @@ jobs:
           tar cvfz ../cronos.tar.gz *
           cd ..
           ls -la ./cronos.tar.gz
-          cp ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
           ls -la cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
           echo "OK"
           echo 'FILES<<EOF' >> $GITHUB_ENV
