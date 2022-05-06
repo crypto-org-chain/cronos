@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -17,6 +18,7 @@ import (
 	tmnode "github.com/tendermint/tendermint/node"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/indexer/sink/psql"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
 	tmstore "github.com/tendermint/tendermint/store"
@@ -53,7 +55,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
-			tmDB, err := openTMDB(ctx.Config)
+			chainID, err := cmd.Flags().GetString(flags.FlagChainID)
+			if err != nil {
+				return err
+			}
+
+			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
 			}
@@ -116,6 +123,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID")
 
 	return cmd
 }
@@ -131,7 +139,7 @@ type tmDB struct {
 	txIndexer  txindex.TxIndexer
 }
 
-func openTMDB(cfg *tmcfg.Config) (*tmDB, error) {
+func openTMDB(cfg *tmcfg.Config, chainID string) (*tmDB, error) {
 	// open tendermint db
 	tmdb, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "blockstore", Config: cfg})
 	if err != nil {
@@ -145,15 +153,37 @@ func openTMDB(cfg *tmcfg.Config) (*tmDB, error) {
 	}
 	stateStore := sm.NewStore(stateDB)
 
-	store, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "tx_index", Config: cfg})
+	txIndexer, err := newTxIndexer(cfg, chainID)
 	if err != nil {
 		return nil, err
 	}
-	txIndexer := kv.NewTxIndex(store)
 
 	return &tmDB{
 		blockStore, stateStore, txIndexer,
 	}, nil
+}
+
+func newTxIndexer(config *tmcfg.Config, chainID string) (txindex.TxIndexer, error) {
+	switch config.TxIndex.Indexer {
+	case "kv":
+		store, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "tx_index", Config: config})
+		if err != nil {
+			return nil, err
+		}
+
+		return kv.NewTxIndex(store), nil
+	case "psql":
+		if config.TxIndex.PsqlConn == "" {
+			return nil, errors.New(`no psql-conn is set for the "psql" indexer`)
+		}
+		es, err := psql.NewEventSink(config.TxIndex.PsqlConn, chainID)
+		if err != nil {
+			return nil, fmt.Errorf("creating psql indexer: %w", err)
+		}
+		return es.TxIndexer(), nil
+	default:
+		return nil, fmt.Errorf("unsupported tx indexer backend %s", config.TxIndex.Indexer)
+	}
 }
 
 func findUnluckyTx(blockResult *tmstate.ABCIResponses) int {
@@ -165,9 +195,8 @@ func findUnluckyTx(blockResult *tmstate.ABCIResponses) int {
 	return -1
 }
 
+// replay the tx and return the result
 func (db *tmDB) replayTx(anApp *app.App, height int64, txIndex int, initialHeight int64) (*abci.TxResult, error) {
-	// replay the tx and patch tx result
-	// replay and patch block
 	block := db.blockStore.LoadBlock(height)
 	if block == nil {
 		return nil, fmt.Errorf("block %d not found", height)
@@ -195,10 +224,10 @@ func (db *tmDB) replayTx(anApp *app.App, height int64, txIndex int, initialHeigh
 		LastCommitInfo:      commitInfo,
 	})
 
-	// replay tx with infinite block gas meter, before v0.7.0 upgrade those unlucky txs are committed successfully.
+	// replay with infinite block gas meter, before v0.7.0 upgrade those unlucky txs are committed successfully.
 	anApp.WithBlockGasMeter(sdk.NewInfiniteGasMeter())
 
-	// run txs of block
+	// run the predecessor txs
 	for _, tx := range block.Txs[:txIndex] {
 		anApp.DeliverTx(abci.RequestDeliverTx{Tx: tx})
 	}
