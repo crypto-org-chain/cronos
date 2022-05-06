@@ -162,7 +162,7 @@ replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.3
 replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.3-patched
 
 // TODO: remove when ibc-go and ethermint upgrades cosmos-sdk
-replace github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk v0.44.6-cronos-revert.0.20220506005923-c996096695d0
+replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert-2
 
 replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-15
 

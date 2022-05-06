@@ -950,11 +950,11 @@
     sha256 = "0nxbn0m7lr4dg0yrwnvlkfiyg3ndv8vdpssjx7b714nivpc6ar0y"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.44.6-cronos-revert.0.20220506005923-c996096695d0"
-  vendorPath = "github.com/yihuang/cosmos-sdk"
+  sumVersion = "v0.44.6-cronos-revert-2"
+  vendorPath = "github.com/crypto-org-chain/cosmos-sdk"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
-    url = "https://github.com/yihuang/cosmos-sdk"
+    url = "https://github.com/crypto-org-chain/cosmos-sdk"
     rev = "c996096695d04bb847994689b0e5b58d637f6b64"
     sha256 = "19llii0jpsg8fa035q5wgjbb4lr270v5ywpscrlvnfjqmpk8263n"
 
