@@ -51,12 +51,17 @@ jobs:
           cd ..
           ls -la ./cronos.tar.gz
           cp ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          ls -la cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
           echo "OK"
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          ls -1 *.tar.gz >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+          cat $GITHUB_ENV
       - name: upload 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         uses: softprops/action-gh-release@v1
         with: 
-          files: |
-            cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz    
+          draft: true
+          files: "${{ env.FILES }}"          
 
