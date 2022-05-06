@@ -112,6 +112,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				tx, err := clientCtx.TxConfig.TxDecoder()(result.Tx)
 				if err != nil {
 					fmt.Println("can't parse the patched tx", result.Height, result.Index)
+					continue
 				}
 				for _, msg := range tx.GetMsgs() {
 					ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
