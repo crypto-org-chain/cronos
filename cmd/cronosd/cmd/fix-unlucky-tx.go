@@ -8,9 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
@@ -83,9 +85,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 			encCfg := app.MakeEncodingConfig()
 
 			appCreator := func() *app.App {
+				cms := rootmulti.NewStore(db)
+				cms.SetLazyLoading(true)
 				return app.New(
 					log.NewNopLogger(), db, nil, false, nil,
 					ctx.Config.RootDir, 0, encCfg, ctx.Viper,
+					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
 			}
 
