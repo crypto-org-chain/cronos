@@ -10,15 +10,18 @@ jobs:
     runs-on: windows-latest
     environment: release    
     steps:
-      - uses: actions/checkout@v2
+      - name: get source
+        uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: msys2/setup-msys2@v2
+      - name: setup msys2
+        uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64          
           update: false
           install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-rocksdb  mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn        
-      - shell: msys2 {0}
+      - name: get rocksdb & build
+        shell: msys2 {0}
         run: |
           uname -a
           export GOROOT=/mingw64/lib/go
@@ -47,4 +50,9 @@ jobs:
           tar cvfz ../cronos.tar.gz *
           cd ..
           ls -la ./cronos.tar.gz
+      - name: upload 
+        uses: softprops/action-gh-release@v1
+        with: 
+          files: |
+            cronos.tar.gz    
 
