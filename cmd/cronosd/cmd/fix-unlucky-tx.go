@@ -82,10 +82,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 
 			encCfg := app.MakeEncodingConfig()
 
-			anApp := app.New(
-				log.NewNopLogger(), db, nil, false, nil,
-				ctx.Config.RootDir, 0, encCfg, ctx.Viper,
-			)
+			appCreator := func() *app.App {
+				return app.New(
+					log.NewNopLogger(), db, nil, false, nil,
+					ctx.Config.RootDir, 0, encCfg, ctx.Viper,
+				)
+			}
 
 			for height := startHeight; height <= endHeight; height++ {
 				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
@@ -99,7 +101,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 					continue
 				}
 
-				result, err := tmDB.replayTx(anApp, height, txIndex, state.InitialHeight)
+				result, err := tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
 				if err != nil {
 					return err
 				}
@@ -197,11 +199,12 @@ func findUnluckyTx(blockResult *tmstate.ABCIResponses) int {
 }
 
 // replay the tx and return the result
-func (db *tmDB) replayTx(anApp *app.App, height int64, txIndex int, initialHeight int64) (*abci.TxResult, error) {
+func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, initialHeight int64) (*abci.TxResult, error) {
 	block := db.blockStore.LoadBlock(height)
 	if block == nil {
 		return nil, fmt.Errorf("block %d not found", height)
 	}
+	anApp := appCreator()
 	if err := anApp.LoadHeight(block.Header.Height - 1); err != nil {
 		return nil, err
 	}
