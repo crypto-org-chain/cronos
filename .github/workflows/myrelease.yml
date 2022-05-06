@@ -50,6 +50,7 @@ jobs:
           tar cvfz ../cronos.tar.gz *
           cd ..
           ls -la ./cronos.tar.gz
+          cp ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
           echo "OK"
       - name: upload 
         env:
@@ -57,5 +58,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with: 
           files: |
-            cronos.tar.gz    
+            cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz    
 
