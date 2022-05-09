@@ -45,7 +45,8 @@ const (
 func FixUnluckyTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix-unlucky-tx",
-		Short: "Fix tx execution result of false-failed tx",
+		Short: "Fix tx execution result of false-failed tx before v0.7.0 upgrade.",
+		Long:  "Fix tx execution result of false-failed tx before v0.7.0 upgrade.\nWARNING: don't use this command to patch blocks generated after v0.7.0 upgrade",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
