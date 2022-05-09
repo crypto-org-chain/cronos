@@ -110,7 +110,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				}
 
 				if printBlockNumbers {
-					fmt.Println(txIndex)
+					fmt.Println(height, txIndex)
 					return nil
 				}
 
@@ -191,7 +191,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print block numbers without replay and patch")
+	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
 	cmd.Flags().Int(FlagEndBlock, -1, "The end of the block range to iterate, inclusive")
