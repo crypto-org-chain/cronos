@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -32,28 +34,20 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/rpc"
 )
 
+const (
+	FlagPrintBlockNumbers = "print-block-numbers"
+	FlagBlocksFile        = "blocks-file"
+	FlagStartBlock        = "start-block"
+	FlagEndBlock          = "end-block"
+)
+
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
 func FixUnluckyTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix-unlucky-tx [start-block] [end-block]",
 		Short: "Fix tx execution result of false-failed tx",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			startHeight, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return err
-			}
-			if startHeight < 1 {
-				return fmt.Errorf("invalid block start-block: %d", startHeight)
-			}
-			endHeight, err := strconv.ParseInt(args[1], 10, 64)
-			if err != nil {
-				return err
-			}
-			if endHeight < startHeight {
-				return fmt.Errorf("invalid end-block %d, smaller than start-block", endHeight)
-			}
-
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
@@ -61,8 +55,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			dryRun, err := cmd.Flags().GetBool(flags.FlagDryRun)
+			if err != nil {
+				return err
+			}
+			printBlockNumbers, err := cmd.Flags().GetBool(FlagPrintBlockNumbers)
 			if err != nil {
 				return err
 			}
@@ -77,12 +74,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := openAppDB(ctx.Config.RootDir)
+			appDB, err := openAppDB(ctx.Config.RootDir)
 			if err != nil {
 				return err
 			}
 			defer func() {
-				if err := db.Close(); err != nil {
+				if err := appDB.Close(); err != nil {
 					ctx.Logger.With("error", err).Error("error closing db")
 				}
 			}()
@@ -90,16 +87,17 @@ func FixUnluckyTxCmd() *cobra.Command {
 			encCfg := app.MakeEncodingConfig()
 
 			appCreator := func() *app.App {
-				cms := rootmulti.NewStore(db)
+				cms := rootmulti.NewStore(appDB)
 				cms.SetLazyLoading(true)
 				return app.New(
-					log.NewNopLogger(), db, nil, false, nil,
+					log.NewNopLogger(), appDB, nil, false, nil,
 					ctx.Config.RootDir, 0, encCfg, ctx.Viper,
 					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
 			}
 
-			for height := startHeight; height <= endHeight; height++ {
+			// replay and patch a single block
+			processBlock := func(height int64) error {
 				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
 				if err != nil {
 					return err
@@ -108,7 +106,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 				txIndex := findUnluckyTx(blockResult)
 				if txIndex < 0 {
 					// no unlucky tx in the block
-					continue
+					return nil
+				}
+
+				if printBlockNumbers {
+					fmt.Println(txIndex)
+					return nil
 				}
 
 				result, err := tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
@@ -128,7 +131,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				tx, err := clientCtx.TxConfig.TxDecoder()(result.Tx)
 				if err != nil {
 					fmt.Println("can't parse the patched tx", result.Height, result.Index)
-					continue
+					return nil
 				}
 				for _, msg := range tx.GetMsgs() {
 					ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
@@ -136,12 +139,59 @@ func FixUnluckyTxCmd() *cobra.Command {
 						fmt.Println("patched", ethMsg.Hash, result.Height, result.Index)
 					}
 				}
+				return nil
 			}
+
+			blocksFile, err := cmd.Flags().GetString(FlagBlocksFile)
+			if len(blocksFile) > 0 {
+				// read block numbers from file, one number per line
+				file, err := os.Open(blocksFile)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				scanner := bufio.NewScanner(file)
+				for scanner.Scan() {
+					blockNumber, err := strconv.ParseInt(scanner.Text(), 10, 64)
+					if err != nil {
+						return err
+					}
+					if err := processBlock(blockNumber); err != nil {
+						return err
+					}
+				}
+			} else {
+				startHeight, err := cmd.Flags().GetInt(FlagStartBlock)
+				if err != nil {
+					return err
+				}
+				endHeight, err := cmd.Flags().GetInt(FlagEndBlock)
+				if err != nil {
+					return err
+				}
+				if startHeight < 1 {
+					return fmt.Errorf("invalid start-block: %d", startHeight)
+				}
+				if endHeight < startHeight {
+					return fmt.Errorf("invalid end-block %d, smaller than start-block", endHeight)
+				}
+
+				for height := startHeight; height <= endHeight; height++ {
+					if err := processBlock(int64(height)); err != nil {
+						return err
+					}
+				}
+			}
+
 			return nil
 		},
 	}
-	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID")
-	cmd.Flags().Bool(flags.FlagDryRun, false, "Replay and print the result of the problematic tx without actually patch the database")
+	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
+	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
+	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print block numbers without replay and patch")
+	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
+	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
+	cmd.Flags().Int(FlagEndBlock, -1, "The end of the block range to iterate, inclusive")
 
 	return cmd
 }
