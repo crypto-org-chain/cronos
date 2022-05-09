@@ -143,6 +143,9 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 
 			blocksFile, err := cmd.Flags().GetString(FlagBlocksFile)
+			if err != nil {
+				return err
+			}
 			if len(blocksFile) > 0 {
 				// read block numbers from file, one number per line
 				file, err := os.Open(blocksFile)
