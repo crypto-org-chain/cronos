@@ -44,7 +44,7 @@ const (
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
 func FixUnluckyTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fix-unlucky-tx [start-block] [end-block]",
+		Use:   "fix-unlucky-tx",
 		Short: "Fix tx execution result of false-failed tx",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
