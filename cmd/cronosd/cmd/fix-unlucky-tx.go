@@ -62,6 +62,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 				return err
 			}
 
+			dryRun, err := cmd.Flags().GetBool(flags.FlagDryRun)
+			if err != nil {
+				return err
+			}
+
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
@@ -111,6 +116,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return err
 				}
 
+				if dryRun {
+					clientCtx.PrintProto(result)
+					return nil
+				}
+
 				if err := tmDB.patchDB(blockResult, result); err != nil {
 					return err
 				}
@@ -132,6 +142,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID")
+	cmd.Flags().Bool(flags.FlagDryRun, false, "Replay and print the result of the problamatic tx without actually patch the database")
 
 	return cmd
 }
