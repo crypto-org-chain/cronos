@@ -14,6 +14,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
@@ -123,16 +124,14 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	var msgs []*evmtypes.MsgEthereumTx
 	for i, tx := range resBlock.Block.Txs {
 		txResult := blockRes.TxsResults[i]
-		if txResult.Code != 0 {
-			if strings.Contains(txResult.Log, ExceedBlockGasLimitError) {
-				// the tx with ExceedBlockGasLimitErrorPrefix error should not be ignored because:
-				// 1) before the 0.7.0 upgrade, the tx is committed successfully.
-				// 2) after the upgrade, the tx is failed but fee deducted and nonce increased.
-				// there's at most one such case in each block, and it should be the last tx in the block.
-				blockGasLimitExceeded = true
-			} else {
-				continue
-			}
+		if TxExceedsBlockGasLimit(txResult) {
+			// the tx with ExceedBlockGasLimitError error should not be ignored because:
+			// 1) before the 0.7.0 upgrade, the tx is committed successfully.
+			// 2) after the upgrade, the tx is failed but fee deducted and nonce increased.
+			// there's at most one such case in each block, and it should be the last tx in the block.
+			blockGasLimitExceeded = true
+		} else if txResult.Code != 0 {
+			continue
 		}
 
 		tx, err := api.clientCtx.TxConfig.TxDecoder()(tx)
@@ -267,4 +266,9 @@ func (api *CronosAPI) getBlockNumber(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	default:
 		return rpctypes.EthEarliestBlockNumber, nil
 	}
+}
+
+// TxExceedsBlockGasLimit returns true if tx's execution exceeds block gas limit
+func TxExceedsBlockGasLimit(result *abci.ResponseDeliverTx) bool {
+	return result.Code == 11 && strings.Contains(result.Log, ExceedBlockGasLimitError)
 }

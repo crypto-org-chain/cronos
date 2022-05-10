@@ -234,8 +234,10 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:ma
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert h1:HpX2ZybTeAzUSr5wh4oTc3sDtdz/9TH5lKB9BqOVcHE=
-github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert/go.mod h1:Il2o2AOea3kDxkOp7wcVr9btR2Ns4opBi7NQrgV0jUo=
+github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert-2 h1:tuJ/dswS4DP1+R7A8rb96VOtczhT0gj0mIu4jZoQV+g=
+github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert-2/go.mod h1:Il2o2AOea3kDxkOp7wcVr9btR2Ns4opBi7NQrgV0jUo=
+github.com/crypto-org-chain/ethermint v0.7.2-cronos-15 h1:O1ZFh8cSa/7lBLqwZOatqSX4EhbW7dzaNhxMdD3gCb0=
+github.com/crypto-org-chain/ethermint v0.7.2-cronos-15/go.mod h1:J96LX4KvLyl+5jV6+mt/4l6srtGX/mdDTuqQQuYrdDk=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched h1:kr6oQIYOi2VC8SZwkhlUDZE1Omit/YHVysKMgCB2nes=
 github.com/crypto-org-chain/go-ethereum v1.10.3-patched/go.mod h1:99onQmSd1GRGOziyGldI41YQb7EESX3Q4H41IfJgIQQ=
 github.com/crypto-org-chain/ibc-go v1.2.1-hooks h1:wuWaQqm/TFKJQwuFgjCPiPumQio+Yik5Z1DObDExrrU=
@@ -1024,8 +1026,6 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/xtaci/kcp-go v5.4.20+incompatible/go.mod h1:bN6vIwHQbfHaHtFpEssmWsN45a+AZwO7eyRCmEIbtvE=
 github.com/xtaci/lossyconn v0.0.0-20190602105132-8df528c0c9ae/go.mod h1:gXtu8J62kEgmN++bm9BVICuT/e8yiLI2KFobd/TRFsE=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/ethermint v0.7.2-cronos-9.0.20220427040028-1d16a8af7dfc h1:GrArNwTT2sxt+Chp2nGydAjWtiFqm/Y7thcm6IM+Mlk=
-github.com/yihuang/ethermint v0.7.2-cronos-9.0.20220427040028-1d16a8af7dfc/go.mod h1:J96LX4KvLyl+5jV6+mt/4l6srtGX/mdDTuqQQuYrdDk=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

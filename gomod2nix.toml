@@ -950,13 +950,13 @@
     sha256 = "0nxbn0m7lr4dg0yrwnvlkfiyg3ndv8vdpssjx7b714nivpc6ar0y"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.44.6-cronos-revert"
+  sumVersion = "v0.44.6-cronos-revert-2"
   vendorPath = "github.com/crypto-org-chain/cosmos-sdk"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/cosmos-sdk"
-    rev = "0bb0c08fb303e20b70d17e85401d02c08f8fdbfd"
-    sha256 = "0lnhfx2q8zq9b00pp4rgh8zf68j1y07grz6lgky94j80qrmjzzpi"
+    rev = "c996096695d04bb847994689b0e5b58d637f6b64"
+    sha256 = "19llii0jpsg8fa035q5wgjbb4lr270v5ywpscrlvnfjqmpk8263n"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -3705,11 +3705,11 @@
     sha256 = "1sgjf2vaq554ybc0cwkzn17cz2ibzph2rq0dgaw21c2hym09437x"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.7.2-cronos-9.0.20220427040028-1d16a8af7dfc"
-  vendorPath = "github.com/yihuang/ethermint"
+  sumVersion = "v0.7.2-cronos-15"
+  vendorPath = "github.com/crypto-org-chain/ethermint"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
-    url = "https://github.com/yihuang/ethermint"
+    url = "https://github.com/crypto-org-chain/ethermint"
     rev = "1d16a8af7dfc173d872f3ed439219421151e2d01"
     sha256 = "0h6nk3brk98pi7snn6dpj02l6kcp77xdf8w4v6xia1wsj065rgsx"
 

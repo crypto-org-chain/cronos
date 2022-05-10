@@ -1012,3 +1012,12 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+
+    def fix_unlucky_tx(self, start_block, end_block):
+        output = self.raw(
+            "fix-unlucky-tx",
+            start_block=start_block,
+            end_block=end_block,
+            home=self.data_dir,
+        ).decode()
+        return [tuple(line.split()[1:]) for line in output.split("\n")]
