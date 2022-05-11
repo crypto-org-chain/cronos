@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +42,7 @@ const (
 	FlagBlocksFile        = "blocks-file"
 	FlagStartBlock        = "start-block"
 	FlagEndBlock          = "end-block"
+	FlagConcurrency       = "concurrency"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
@@ -147,47 +151,88 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if len(blocksFile) > 0 {
-				// read block numbers from file, one number per line
-				file, err := os.Open(blocksFile)
-				if err != nil {
-					return err
-				}
-				defer file.Close()
-				scanner := bufio.NewScanner(file)
-				for scanner.Scan() {
-					blockNumber, err := strconv.ParseInt(scanner.Text(), 10, 64)
+			concurrency, err := cmd.Flags().GetInt(FlagConcurrency)
+			if err != nil {
+				return err
+			}
+
+			blockChan := make(chan int64, concurrency)
+			var wg sync.WaitGroup
+			ctCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			for i := 0; i < concurrency; i++ {
+				wg.Add(1)
+				go func(wg *sync.WaitGroup) {
+					defer wg.Done()
+					for {
+						select {
+						case <-ctCtx.Done():
+							return
+						case blockNum, ok := <-blockChan:
+							if !ok {
+								return
+							}
+
+							if err := processBlock(blockNum); err != nil {
+								cancel()
+								return
+							}
+						}
+					}
+				}(&wg)
+			}
+
+			findBlock := func() error {
+				if len(blocksFile) > 0 {
+					// read block numbers from file, one number per line
+					file, err := os.Open(blocksFile)
 					if err != nil {
 						return err
 					}
-					if err := processBlock(blockNumber); err != nil {
+					defer file.Close()
+					scanner := bufio.NewScanner(file)
+					for scanner.Scan() {
+						blockNumber, err := strconv.ParseInt(scanner.Text(), 10, 64)
+						if err != nil {
+							return err
+						}
+						blockChan <- blockNumber
+					}
+				} else {
+					startHeight, err := cmd.Flags().GetInt(FlagStartBlock)
+					if err != nil {
 						return err
 					}
-				}
-			} else {
-				startHeight, err := cmd.Flags().GetInt(FlagStartBlock)
-				if err != nil {
-					return err
-				}
-				endHeight, err := cmd.Flags().GetInt(FlagEndBlock)
-				if err != nil {
-					return err
-				}
-				if startHeight < 1 {
-					return fmt.Errorf("invalid start-block: %d", startHeight)
-				}
-				if endHeight < startHeight {
-					return fmt.Errorf("invalid end-block %d, smaller than start-block", endHeight)
-				}
+					endHeight, err := cmd.Flags().GetInt(FlagEndBlock)
+					if err != nil {
+						return err
+					}
+					if startHeight < 1 {
+						return fmt.Errorf("invalid start-block: %d", startHeight)
+					}
+					if endHeight < startHeight {
+						return fmt.Errorf("invalid end-block %d, smaller than start-block", endHeight)
+					}
 
-				for height := startHeight; height <= endHeight; height++ {
-					if err := processBlock(int64(height)); err != nil {
-						return err
+					for height := startHeight; height <= endHeight; height++ {
+						blockChan <- int64(height)
 					}
 				}
+				return nil
 			}
 
-			return nil
+			go func() {
+				err := findBlock()
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+				}
+				close(blockChan)
+			}()
+
+			wg.Wait()
+
+			return ctCtx.Err()
 		},
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
@@ -196,6 +241,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
 	cmd.Flags().Int(FlagEndBlock, -1, "The end of the block range to iterate, inclusive")
+	cmd.Flags().Int(FlagConcurrency, runtime.NumCPU(), "Define how many workers run in concurrency")
 
 	return cmd
 }
