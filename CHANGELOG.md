@@ -1,5 +1,14 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#470](https://github.com/crypto-org-chain/cronos/pull/470) Run the tasks in `fix-unlucky-tx` command in parallel.
+- [#472](https://github.com/crypto-org-chain/cronos/pull/472) `fix-unlucky-tx` command supports `null` tendermint tx indexer.
+
+*May 10, 2022*
+
 ## v0.6.10
 
 ### Bug Fixes
