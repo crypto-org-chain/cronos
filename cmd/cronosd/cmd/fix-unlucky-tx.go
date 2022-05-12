@@ -28,6 +28,7 @@ import (
 	"github.com/tendermint/tendermint/state/indexer/sink/psql"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
+	"github.com/tendermint/tendermint/state/txindex/null"
 	tmstore "github.com/tendermint/tendermint/store"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
@@ -300,7 +301,7 @@ func newTxIndexer(config *tmcfg.Config, chainID string) (txindex.TxIndexer, erro
 		}
 		return es.TxIndexer(), nil
 	default:
-		return nil, fmt.Errorf("unsupported tx indexer backend %s", config.TxIndex.Indexer)
+		return &null.TxIndex{}, nil
 	}
 }
 
