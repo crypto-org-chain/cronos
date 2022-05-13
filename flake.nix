@@ -10,9 +10,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
+    rocksdb-src = {
+      url = "github:facebook/rocksdb/v6.29.5";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, rocksdb-src }:
     let
       rev = self.shortRev or "dirty";
     in
@@ -65,6 +69,11 @@
           final.runCommand bundle.name { } ''
             "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
           '';
+        rocksdb = prev.rocksdb.overrideAttrs (old: rec {
+          pname = "rocksdb";
+          version = "6.29.5";
+          src = rocksdb-src;
+        });
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
@@ -86,7 +95,10 @@
               );
               value =
                 let
-                  cronosd = callPackage ./. { inherit rev db_backend network; };
+                  cronosd = callPackage ./. {
+                    inherit rev db_backend network;
+                    rocksdb = rocksdb.override { enableJemalloc = true; };
+                  };
                 in
                 if pkgtype == "bundle" then
                   bundle-exe cronosd
