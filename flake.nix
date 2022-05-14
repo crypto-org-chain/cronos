@@ -63,7 +63,7 @@
           let bundle = final.bundle-exe drv;
           in
           final.runCommand bundle.name { } ''
-            "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
+            "${final.gnutar}/bin/tar" cfzv $out -C ${bundle} .
           '';
       } // (with final;
         let
