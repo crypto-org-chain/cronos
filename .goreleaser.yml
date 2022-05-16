@@ -3,21 +3,6 @@ before:
   - go mod download
 
 builds:
-  - id: "cronosd-darwin"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=o64-clang
-      - CXX=o64-clang++
-    goos:
-      - darwin
-    goarch:
-      - amd64
-    flags:
-        - -tags=ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-darwin-arm64"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -27,36 +12,6 @@ builds:
       - CXX=oa64-clang++
     goos:
       - darwin
-    goarch:
-      - arm64
-    flags:
-      - -tags=ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-linux"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=gcc
-      - CXX=g++
-    goos:
-      - linux
-    goarch:
-      - amd64
-    flags:
-      - -tags=ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-linux-arm64"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=aarch64-linux-gnu-gcc
-      - CXX=aarch64-linux-gnu-g++
-    goos:
-      - linux
     goarch:
       - arm64
     flags:
@@ -79,21 +34,6 @@ builds:
       - -buildmode=exe
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-darwin-testnet"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=o64-clang
-      - CXX=o64-clang++
-    goos:
-      - darwin
-    goarch:
-      - amd64
-    flags:
-      - -tags=testnet,ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-darwin-arm64-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -103,36 +43,6 @@ builds:
       - CXX=oa64-clang++
     goos:
       - darwin
-    goarch:
-      - arm64
-    flags:
-      - -tags=testnet,ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-linux-testnet"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=gcc
-      - CXX=g++
-    goos:
-      - linux
-    goarch:
-      - amd64
-    flags:
-      - -tags=testnet,ledger,cgo
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-linux-arm64-testnet"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=aarch64-linux-gnu-gcc
-      - CXX=aarch64-linux-gnu-g++
-    goos:
-      - linux
     goarch:
       - arm64
     flags:
@@ -161,35 +71,27 @@ archives:
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
   replacements:
     darwin: Darwin
-    linux: Linux
     windows: Windows
     amd64: x86_64
   format_overrides:
     - goos: windows
       format: zip
   builds:
-  - cronosd-darwin
   - cronosd-darwin-arm64
   - cronosd-windows
-  - cronosd-linux
-  - cronosd-linux-arm64
 - id: testnet
   name_template: '{{ .ProjectName }}_{{ .Version }}-testnet_{{ .Os }}_{{ .Arch }}'
   replacements:
     darwin: Darwin
-    linux: Linux
     windows: Windows
     amd64: x86_64
   format_overrides:
     - goos: windows
       format: zip
   builds:
-    - cronosd-darwin-testnet
     - cronosd-darwin-arm64-testnet
     - cronosd-windows-testnet
-    - cronosd-linux-testnet
-    - cronosd-linux-arm64-testnet
-  
+ 
 checksum:
   name_template: 'checksums.txt'
 changelog:

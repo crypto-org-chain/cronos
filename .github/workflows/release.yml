@@ -29,6 +29,8 @@ jobs:
     environment: release
     steps:
       - uses: cachix/install-nix-action@v16
+        with:
+          nix_path: nixpkgs=channel:nixos-21.11
       - uses: cachix/cachix-action@v10
         with:
           name: cronos
@@ -36,13 +38,27 @@ jobs:
       - name: build linux/mac x86_64 rocksdb binaries
         run: |
           PLATFORM="$(uname -s)_x86_64"
+          BUILD_TYPE="tarball"
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-          nix build -L ${FLAKE}#cronosd-tarball
+
+          nix build -L ${FLAKE}#cronosd-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-          nix build -L ${FLAKE}#cronosd-testnet-tarball
+
+          nix build -L ${FLAKE}#cronosd-goleveldb-$BUILD_TYPE
+          cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
+
+          nix build -L ${FLAKE}#cronosd-testnet-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
+
+          nix build -L ${FLAKE}#cronosd-testnet-goleveldb-$BUILD_TYPE
+          cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
+
+          nix-env -iA coreutils
+          sha256sum *.tar.gz > checksums-x86-64.txt
+
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload linux/mac x86_64 rocksdb binaries
@@ -70,13 +86,26 @@ jobs:
         env:
           PLATFORM: Linux_arm64
         run: |
+          BUILD_TYPE="tarball"
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-tarball
+
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-tarball
+
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-goleveldb-$BUILD_TYPE
+          cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
+
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
+
+          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-goleveldb-$BUILD_TYPE
+          cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
+
+          sha256sum *.tar.gz > checksums-aarch64-linux.txt
+
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload linux arm64 rocksdb binaries

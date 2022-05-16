@@ -47,4 +47,11 @@ buildGoApplication rec {
     -ldflags=
     ${ldflags}
   '';
+
+  meta = with lib; {
+    description = "Official implementation of the Cronos blockchain protocol";
+    homepage = "https://cronos.org/";
+    license = licenses.asl20;
+    mainProgram = "cronosd";
+  };
 }
