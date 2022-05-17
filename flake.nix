@@ -60,7 +60,7 @@
         make-tarball = drv: with final; runCommand drv.name { } ''
           "${gnutar}/bin/tar" cfv - -C ${drv} \
             --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
-            | "${gzip}/bin/gzip -9 $out"
+            | "${gzip}/bin/gzip" -9 > $out
         '';
       } // (with final;
         let
