@@ -53,7 +53,7 @@ jobs:
           nix build -L ${FLAKE}#cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
-          nix-env -iA coreutils
+          nix-env -i coreutils -f '<nixpkgs>'
           sha256sum *.tar.gz > checksums-x86-64.txt
 
           echo 'FILES<<EOF' >> $GITHUB_ENV
