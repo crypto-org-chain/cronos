@@ -93,7 +93,7 @@ archives:
     - cronosd-windows-testnet
  
 checksum:
-  name_template: 'checksums.txt'
+  name_template: 'checksums-others.txt'
 changelog:
   sort: asc
   filters:

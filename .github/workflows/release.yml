@@ -54,7 +54,7 @@ jobs:
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
           nix-env -i coreutils -f '<nixpkgs>'
-          sha256sum *.tar.gz > checksums-x86-64.txt
+          sha256sum *.tar.gz > "checksums-$PLATFORM.txt"
 
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
@@ -101,7 +101,7 @@ jobs:
           nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
-          sha256sum *.tar.gz > checksums-aarch64-linux.txt
+          sha256sum *.tar.gz > checksums-$PLATFORM.txt
 
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
