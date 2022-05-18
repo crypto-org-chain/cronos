@@ -6,6 +6,10 @@
 
 - [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
 
+### Improvements
+
+- []() Add rollback command.
+
 *May 3, 2022*
 
 ## v0.7.0
