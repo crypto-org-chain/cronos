@@ -632,14 +632,6 @@
     rev = "59de210119f50cedaa42d175dc88b6335fcf63f6"
     sha256 = "0r9f7lvz6znl7yr6njg77m8hj472yhdshf1qaybwyw7j8as6c4r3"
 
-["github.com/bketelsen/crypt"]
-  sumVersion = "v0.0.3-0.20200106085610-5cbc8cc4026c"
-  ["github.com/bketelsen/crypt".fetch]
-    type = "git"
-    url = "https://github.com/bketelsen/crypt"
-    rev = "5cbc8cc4026c0c1d3bf9c5d4e5a30398f99c99a9"
-    sha256 = "006772d50c73llgz8chvynndk28qxcyr1fd18sm0b5w1g1rdw2wp"
-
 ["github.com/bmizerany/pat"]
   sumVersion = "v0.0.0-20170815010413-6226ea591a40"
   ["github.com/bmizerany/pat".fetch]
@@ -663,15 +655,6 @@
     url = "https://github.com/btcsuite/btcd"
     rev = "2f508b3f86ed9ef87bcf3426b87b6c0dc0d3632c"
     sha256 = "1hznnrl1pi5nyh6xm05wmb8knq1sm44pz4w998q01lqfpyc56z86"
-
-["github.com/btcsuite/btcd/chaincfg"]
-  sumVersion = "v1.0.1"
-  relPath = "chaincfg"
-  ["github.com/btcsuite/btcd/chaincfg".fetch]
-    type = "git"
-    url = "https://github.com/btcsuite/btcd"
-    rev = "fc36cb25a4bdc6d989f9161552e7b0fe08b02939"
-    sha256 = "0j6s4zh3bb42lihiiqmdd8wd6fvdqpa1x7hmvq2jvfpg47ng12md"
 
 ["github.com/btcsuite/btcd/chaincfg/chainhash"]
   sumVersion = "v1.0.1"
@@ -974,12 +957,12 @@
     sha256 = "13d5l6p6c5wvkr6vn9hkhz9c593qifn7fgx0hg4d6jcvg1y0bnm2"
 
 ["github.com/coreos/etcd"]
-  sumVersion = "v3.3.13+incompatible"
+  sumVersion = "v3.3.10+incompatible"
   ["github.com/coreos/etcd".fetch]
     type = "git"
     url = "https://github.com/coreos/etcd"
-    rev = "98d308426819d892e149fe45f6fd542464cb1f9d"
-    sha256 = "1kac4qfr83f2hdz35403f1ald05wc85vvhw79vxb431n61jvyaqy"
+    rev = "27fc7e2296f506182f58ce846e48f36b34fe6842"
+    sha256 = "1x2ii1hj8jraba8rbxz6dmc03y3sjxdnzipdvg6fywnlq1f3l3wl"
 
 ["github.com/coreos/go-etcd"]
   sumVersion = "v2.0.0+incompatible"
@@ -1030,12 +1013,13 @@
     sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.45.4"
+  sumVersion = "v0.44.4-0.20220518122256-e49cc20318cf"
+  vendorPath = "github.com/crypto-org-chain/cosmos-sdk"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
-    url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "ad9e5620fb3445c716e9de45cfcdb56e8f1745bf"
-    sha256 = "0ykh1rd3qidwbcmas644p1f016ym85b22ivmhshdbhms38aqbkyj"
+    url = "https://github.com/crypto-org-chain/cosmos-sdk"
+    rev = "e49cc20318cf13f81e3563a7a9139013bec0ec92"
+    sha256 = "12wjjzlc2wqmkg22fn2nb7gigsiw9xvnykbcma2bsgn8a08b3f9r"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -1472,12 +1456,12 @@
     sha256 = "0d5njmwkfq2809vlimnlvy8ir6kln0c4cgdwr680fwsclpbr43qs"
 
 ["github.com/fsnotify/fsnotify"]
-  sumVersion = "v1.5.1"
+  sumVersion = "v1.5.4"
   ["github.com/fsnotify/fsnotify".fetch]
     type = "git"
     url = "https://github.com/fsnotify/fsnotify"
-    rev = "466b39d216616549a37ee93c7c47775f6a010790"
-    sha256 = "0xpdprvab4zgn5igymc5468hk5s429cqyxml9xjsk0cn53rikj87"
+    rev = "0f4b979323bea7ee6677faa4a88078ec558b1b80"
+    sha256 = "076q5iibk03m5njqah4xwm6dz7ywyn7bdyis97gg09n0j2g8iyw8"
 
 ["github.com/gballet/go-libpcsclite"]
   sumVersion = "v0.0.0-20190607065134-2772fd86a8ff"
@@ -1569,12 +1553,12 @@
     sha256 = "15cm24sjyvwxpprfha2k0s3c1hhpg5y2kljnw04hayfyazqc79wl"
 
 ["github.com/go-kit/log"]
-  sumVersion = "v0.2.0"
+  sumVersion = "v0.2.1"
   ["github.com/go-kit/log".fetch]
     type = "git"
     url = "https://github.com/go-kit/log"
-    rev = "71fa7d7d64785c98d3814e53b3544fd8cccff897"
-    sha256 = "13gbqrwvqy9j903j44x0kix5gnn34a8hl8skbdijy7arpkxpj6h3"
+    rev = "0b69c7049332e99c25d5fd0f4d08317cfe45e7d8"
+    sha256 = "1xjv2g1cd1iaghhm1c1zw0lcz89a9zq5xradyjipvrbqxbxckqm6"
 
 ["github.com/go-logfmt/logfmt"]
   sumVersion = "v0.5.1"
@@ -2687,12 +2671,12 @@
     sha256 = "1d4g1vkhc1180l1n7q48vl84b27c7cziywml78cyijbcdz2f8vim"
 
 ["github.com/lib/pq"]
-  sumVersion = "v1.10.4"
+  sumVersion = "v1.10.6"
   ["github.com/lib/pq".fetch]
     type = "git"
     url = "https://github.com/lib/pq"
-    rev = "8446d16b8935fdf2b5c0fe333538ac395e3e1e4b"
-    sha256 = "0kdr257l1gq82bx2g3qjab6haj31ib8ljbyaa1rg1xsva5j17ngx"
+    rev = "8c6de565f76fb5cd40a5c1b8ce583fbc3ba1bd0e"
+    sha256 = "0qf9xd8g1750q2hcn04r7086lv009bj0ddrsn8xc57v67zk3vglc"
 
 ["github.com/libp2p/go-buffer-pool"]
   sumVersion = "v0.0.2"
@@ -3404,12 +3388,12 @@
     sha256 = "0nri6hkfb0z3dkxf2fsfidr4bxbn91rjsqhg5s0c2jplf0aclppz"
 
 ["github.com/prometheus/client_golang"]
-  sumVersion = "v1.12.1"
+  sumVersion = "v1.12.2"
   ["github.com/prometheus/client_golang".fetch]
     type = "git"
     url = "https://github.com/prometheus/client_golang"
-    rev = "2e1c4818ccfdcf953ce399cadad615ff2bed968c"
-    sha256 = "0d46nindizpjgdygryc140fd94j1qfkzwyzwh9p2g3zp6v4fw0s1"
+    rev = "e203144f43306c1f344fbc548fd02c4b79962e30"
+    sha256 = "0caz7dxlfqc1x05rdk6bsgjbrz2v0sswnkk17sp8j57zqb44gk3p"
 
 ["github.com/prometheus/client_model"]
   sumVersion = "v0.2.0"
@@ -3852,12 +3836,13 @@
     sha256 = "1zcms3l5fihzg8nf4vhdk18qpn1jkbm3rpkjfpskfcrgzlxk6vi5"
 
 ["github.com/tendermint/tendermint"]
-  sumVersion = "v0.34.19"
+  sumVersion = "v0.34.14-0.20220518061324-81344ac9464d"
+  vendorPath = "github.com/yihuang/tendermint"
   ["github.com/tendermint/tendermint".fetch]
     type = "git"
-    url = "https://github.com/tendermint/tendermint"
-    rev = "2f231ceb952a2426cf3c0abaf0b455aadd11e5b2"
-    sha256 = "1j04xnaf2l1swj5rfijiq7632v6nnj8mvn0gmd6qbqjgy5q47frm"
+    url = "https://github.com/yihuang/tendermint"
+    rev = "81344ac9464db02421fa115041f162ab9ace9372"
+    sha256 = "1hskmlkvlypymxf6arwkc9linvh7kqqlxs0913bf4vlcgs851wvp"
 
 ["github.com/tendermint/tm-db"]
   sumVersion = "v0.6.7"
@@ -3868,12 +3853,12 @@
     sha256 = "0nlf9w791ln0n49fiaczy7bsr0i1cnrrm78frhv4k9kbn13gfpw6"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.6.1-0.20220503175102-93d15db4d086"
+  sumVersion = "v0.6.1-0.20220519101126-9edc87d1147f"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "93d15db4d086d65eb0a7bee744b453e5ae416ac0"
-    sha256 = "1ppxkqcxpbz7di7v43nxdrd3m97bxyz0i07y2pxqr7xla4vdardm"
+    rev = "9edc87d1147f3513d99370f41f7547c993e54572"
+    sha256 = "142bynf016f3g5k9dvzi057yk4zyckdah3lgs773p1ygspkwvl0d"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"
