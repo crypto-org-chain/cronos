@@ -18,8 +18,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 	evmrpc "github.com/tharsis/ethermint/rpc"
-	"github.com/tharsis/ethermint/rpc/ethereum/backend"
-	rpctypes "github.com/tharsis/ethermint/rpc/ethereum/types"
+	"github.com/tharsis/ethermint/rpc/backend"
+	rpctypes "github.com/tharsis/ethermint/rpc/types"
 	ethermint "github.com/tharsis/ethermint/types"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
@@ -41,12 +41,12 @@ func init() {
 
 // CreateCronosRPCAPIs creates extension json-rpc apis
 func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient) []rpc.API {
-	evmBackend := backend.NewEVMBackend(ctx, ctx.Logger, clientCtx)
+	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx)
 	return []rpc.API{
 		{
 			Namespace: CronosNamespace,
 			Version:   apiVersion,
-			Service:   NewCronosAPI(ctx.Logger, clientCtx, evmBackend),
+			Service:   NewCronosAPI(ctx.Logger, clientCtx, *evmBackend),
 			Public:    true,
 		},
 	}

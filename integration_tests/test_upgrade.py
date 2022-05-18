@@ -73,6 +73,7 @@ def custom_cronos(tmp_path_factory):
     )
 
 
+@pytest.mark.skip(reason="change to v0.8.0 upgrade test in the future")
 def test_cosmovisor_upgrade(custom_cronos: Cronos):
     """
     - propose an upgrade and pass it

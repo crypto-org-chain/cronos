@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	rpctypes "github.com/tharsis/ethermint/rpc/ethereum/types"
+	rpctypes "github.com/tharsis/ethermint/rpc/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"

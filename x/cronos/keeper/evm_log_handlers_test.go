@@ -12,8 +12,8 @@ import (
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	gravitykeeper "github.com/peggyjv/gravity-bridge/module/x/gravity/keeper"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+	gravitykeeper "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/keeper"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 )
 
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {

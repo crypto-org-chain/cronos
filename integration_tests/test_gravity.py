@@ -206,7 +206,7 @@ def test_gravity_transfer(gravity):
     )
     assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
-    denom = f"gravity{erc20.address.lower()}"
+    denom = f"gravity{erc20.address}"
 
     crc20_contract = None
 
@@ -275,7 +275,7 @@ def test_gov_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
-    denom = f"gravity{erc20.address.lower()}"
+    denom = f"gravity{erc20.address}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
@@ -350,7 +350,7 @@ def test_direct_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc20 contract", crc20.address)
-    denom = f"gravity{erc20.address.lower()}"
+    denom = f"gravity{erc20.address}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
