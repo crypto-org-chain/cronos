@@ -4,7 +4,11 @@ name: Run Lint
 # running if no *.{go, mod, sum} files have been changed.
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
   push:
+    paths-ignore:
+      - 'docs/**'
     branches:
       - main
 jobs:
