@@ -6,7 +6,7 @@
 
 - `geth`, the go-ethereum binary.
 - `cronosd`, the cronos node binary.
-- `orchestrator`, the gravity bridge orchestrator cli, build from the [crypto-org fork](https://github.com/crypto-org-chain/gravity-bridge/tree/cronos/orchestrator/orchestrator).
+- `gorc`, the gravity bridge orchestrator cli, built from the [crypto-org fork](https://github.com/crypto-org-chain/gravity-bridge/tree/v2.0.0-cronos/orchestrator/gorc).
 - `pystarport`, a tool to run local cosmos devnet.
 - `start-geth`/`start-cronos`, convenient scripts to start the local devnets.
 
@@ -31,9 +31,76 @@ above.
 
 ## Generate Orchestrator Keys
 
-You need to prepare two accounts for the orchestrator, one for ethereum and one for cronos, you can also use a same
-private key for both accounts. You should transfer some funds to these accounts, so the orchestrator can cover the gas
-fees of messages relaying later.
+
+You need to prepare two accounts for the orchestrator, one for ethereum and one for cronos. You should transfer some funds to these accounts, so the orchestrator can cover the gas fees of message relaying later.
+
+### Creating the config:
+
+We will use the below `config.toml` to specify the directory where the keys will be generated and some of the configs needed to run the orchestrator. Creating a `gorc.toml` file in the same directory as `gorc` and paste the following config:
+
+
+```toml
+keystore = "/tmp/keystore"
+
+[gravity]
+contract = "0x0000000000000000000000000000000000000000" # TO BE UPDATED - gravity contract address on Ethereum network
+fees_denom = "basetcro"
+
+[ethereum]
+key_derivation_path = "m/44'/60'/0'/0/0"
+rpc = "http://localhost:8545" # TO BE UPDATED - EVM RPC of Ethereum node
+
+[cosmos]
+gas_price = { amount = 5000000000000, denom = "basetcro" }
+grpc = "http://localhost:9090" # TO BE UPDATED - GRPC of Cronos node
+key_derivation_path = "m/44'/60'/0'/0/0"
+prefix = "tcrc"
+
+[metrics]
+listen_addr = "127.0.0.1:3000"
+```
+
+The keys below will be created in `/tmp/keystore` directory.
+
+
+### Creating a Cronos account:
+
+```shell
+gorc -c gorc.toml keys cosmos add orch_cro
+```
+
+Sample output:
+```
+**Important** record this bip39-mnemonic in a safe place:
+lava ankle enlist blame vast blush proud split position just want cinnamon virtual velvet rubber essence picture print arrest away size tip exotic crouch
+orch_cro        tcrc1ypvpyjcny3m0wl5hjwld2vw8gus2emtzmur4he
+```
+
+### Creating an Ethereum account:
+
+Using the `gorc` binary, you can run:
+
+```shell
+gorc -c gorc.toml keys eth add orch_eth
+```
+
+Sample out:
+```
+**Important** record this bip39-mnemonic in a safe place:
+more topic panther diesel grace chaos stereo timber tired settle target carbon scare essence hobby worry sword vibrant fruit update acquire release art drift
+0x838a3EC266ddb27f5924989505cBFa15fAf88603
+```
+The second line is the mnemonic and the third one is the public address.
+
+To get the private key (optional), in Python shell:
+
+```python
+from eth_account import Account
+Account.enable_unaudited_hdwallet_features()
+my_acct = Account.from_mnemonic("mystery exotic patch broom sweet sense grocery carpet assist oxygen fault peanut muffin hole popular excite apart fetch lens palace soccer paddle gaze focus") # please use your own mnemnoic
+print(my_acct.privateKey.hex()) # Ethereum private key. Keep private and secure e.g. '0xe9580d74831b9611c9680ecde4ea016dee55643fe86901708bafd90a8ef716b6'
+```
+Note that `eth_account` python package needs to be installed.
 
 ## Sign Validator Address
 
@@ -93,13 +160,9 @@ releases](https://github.com/PeggyJV/gravity-bridge/releases).
 ## Run Orchestrator
 
 ```shell
-$ orchestrator --cosmos-phrase="{mnemonic_phrase_of_cronos_acount}" \
-    --ethereum-key={private_key_of_ethereum_account} \
-    --cosmos-grpc=http://localhost:{cronos_grpc_port} \
-    --ethereum-rpc={ethereum_web3_endpoint} \
-    --address-prefix=crc --fees=basetcro \
-    --contract-address={gravity_contract_address} \
-    --metrics-listen 127.0.0.1:3000 --hd-wallet-path="m/44'/60'/0'/0/0"
+./gorc -c ./gorc.toml orchestrator start \
+		--cosmos-key="orch_cro" \
+		--ethereum-key="orch_eth"
 ```
 
 After all the orchestrator processes run, the gravity bridge between ethereum and cronos is setup succesfully.
