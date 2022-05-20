@@ -3,8 +3,12 @@ on:
   pull_request:
     paths-ignore:
       - 'docs/**'
+  push:
+    paths-ignore:
+      - 'docs/**'
     branches:
       - main
+      - release/**
 
 jobs:
   cleanup-runs:

@@ -11,6 +11,8 @@ on:
       - 'docs/**'
     branches:
       - main
+      - release/**
+
 jobs:
   golangci:
     name: Run golangci-lint
