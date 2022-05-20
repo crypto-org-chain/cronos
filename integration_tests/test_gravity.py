@@ -232,10 +232,13 @@ def test_gravity_transfer(gravity):
     def get_id_from_receipt(receipt):
         "check the id after sendToEthereum call"
         for _, log in enumerate(receipt.logs):
-            if log.topics[0] == HexBytes(abi.event_signature_to_log_topic("__CronosSendToEthereumResponse(uint256)")):
+            if log.topics[0] == HexBytes(
+                abi.event_signature_to_log_topic(
+                    "__CronosSendToEthereumResponse(uint256)"
+                )
+            ):
                 return log.data
         return "0x0000000000000000000000000000000000000000000000000000000000000000"
-
 
     if gravity.cronos.enable_auto_deployment:
         wait_for_fn("send-to-crc20", check_auto_deployment)
@@ -245,10 +248,15 @@ def test_gravity_transfer(gravity):
             ADDRS["validator"], amount, 0
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
-        # CRC20 emit 3 logs for send_to_ethereum: burn, __CronosSendToEthereum and __CronosSendToEthereumResponse
+        # CRC20 emit 3 logs for send_to_ethereum:
+        # burn
+        # __CronosSendToEthereum
+        # __CronosSendToEthereumResponse
         assert len(txreceipt.logs) == 3
-        assert get_id_from_receipt(txreceipt) \
-               == "0x0000000000000000000000000000000000000000000000000000000000000001", "should be able to get id"
+        assert (
+            get_id_from_receipt(txreceipt)
+            == "0x0000000000000000000000000000000000000000000000000000000000000001"
+        ), "should be able to get id"
         assert txreceipt.status == 1, "should success"
     else:
         wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
