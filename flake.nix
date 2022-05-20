@@ -6,7 +6,8 @@
       flake = false;
     };
     gomod2nix = {
-      url = "github:tweag/gomod2nix";
+      # https://github.com/tweag/gomod2nix/pull/38
+      url = "github:yihuang/gomod2nix/demonstrate-error";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
