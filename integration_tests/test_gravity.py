@@ -248,7 +248,7 @@ def test_gravity_transfer(gravity):
         # CRC20 emit 3 logs for send_to_ethereum: burn, __CronosSendToEthereum and __CronosSendToEthereumResponse
         assert len(txreceipt.logs) == 3
         assert get_id_from_receipt(txreceipt) \
-               == "0x0000000000000000000000000000000000000000000000000000000000000001", "should be about to get id"
+               == "0x0000000000000000000000000000000000000000000000000000000000000001", "should be able to get id"
         assert txreceipt.status == 1, "should success"
     else:
         wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
@@ -265,7 +265,7 @@ def test_gravity_transfer(gravity):
     wait_for_fn("send-to-ethereum", check)
 
 
-def gov_token_mapping(gravity):
+def test_gov_token_mapping(gravity):
     """
     Test adding a token mapping through gov module
     - deploy test erc20 contract on geth
@@ -340,7 +340,7 @@ def gov_token_mapping(gravity):
     wait_for_fn("check balance on cronos", check)
 
 
-def direct_token_mapping(gravity):
+def test_direct_token_mapping(gravity):
     """
     Test adding a token mapping directly
     - deploy test erc20 contract on geth
