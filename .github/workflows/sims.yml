@@ -8,7 +8,7 @@ on:
       - release/**
     paths-ignore:
       - 'docs/**'
-  push:
+  pull-request:
     paths-ignore:
       - 'docs/**'
 
