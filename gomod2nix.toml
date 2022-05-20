@@ -1030,12 +1030,13 @@
     sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.45.4"
+  sumVersion = "v0.44.4-0.20220518050709-bd4ca739c699"
+  vendorPath = "github.com/crypto-org-chain/cosmos-sdk"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
-    url = "https://github.com/cosmos/cosmos-sdk"
-    rev = "ad9e5620fb3445c716e9de45cfcdb56e8f1745bf"
-    sha256 = "0ykh1rd3qidwbcmas644p1f016ym85b22ivmhshdbhms38aqbkyj"
+    url = "https://github.com/crypto-org-chain/cosmos-sdk"
+    rev = "bd4ca739c699553043160431ea6a6310da77aeff"
+    sha256 = "0wc79srk4j9y5k8dn7xd08m1a0a3gvgnyi559z2qm2apkwdm9j4q"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
@@ -1472,12 +1473,12 @@
     sha256 = "0d5njmwkfq2809vlimnlvy8ir6kln0c4cgdwr680fwsclpbr43qs"
 
 ["github.com/fsnotify/fsnotify"]
-  sumVersion = "v1.5.1"
+  sumVersion = "v1.5.4"
   ["github.com/fsnotify/fsnotify".fetch]
     type = "git"
     url = "https://github.com/fsnotify/fsnotify"
-    rev = "466b39d216616549a37ee93c7c47775f6a010790"
-    sha256 = "0xpdprvab4zgn5igymc5468hk5s429cqyxml9xjsk0cn53rikj87"
+    rev = "0f4b979323bea7ee6677faa4a88078ec558b1b80"
+    sha256 = "076q5iibk03m5njqah4xwm6dz7ywyn7bdyis97gg09n0j2g8iyw8"
 
 ["github.com/gballet/go-libpcsclite"]
   sumVersion = "v0.0.0-20190607065134-2772fd86a8ff"
@@ -1569,12 +1570,12 @@
     sha256 = "15cm24sjyvwxpprfha2k0s3c1hhpg5y2kljnw04hayfyazqc79wl"
 
 ["github.com/go-kit/log"]
-  sumVersion = "v0.2.0"
+  sumVersion = "v0.2.1"
   ["github.com/go-kit/log".fetch]
     type = "git"
     url = "https://github.com/go-kit/log"
-    rev = "71fa7d7d64785c98d3814e53b3544fd8cccff897"
-    sha256 = "13gbqrwvqy9j903j44x0kix5gnn34a8hl8skbdijy7arpkxpj6h3"
+    rev = "0b69c7049332e99c25d5fd0f4d08317cfe45e7d8"
+    sha256 = "1xjv2g1cd1iaghhm1c1zw0lcz89a9zq5xradyjipvrbqxbxckqm6"
 
 ["github.com/go-logfmt/logfmt"]
   sumVersion = "v0.5.1"
@@ -2687,12 +2688,12 @@
     sha256 = "1d4g1vkhc1180l1n7q48vl84b27c7cziywml78cyijbcdz2f8vim"
 
 ["github.com/lib/pq"]
-  sumVersion = "v1.10.4"
+  sumVersion = "v1.10.6"
   ["github.com/lib/pq".fetch]
     type = "git"
     url = "https://github.com/lib/pq"
-    rev = "8446d16b8935fdf2b5c0fe333538ac395e3e1e4b"
-    sha256 = "0kdr257l1gq82bx2g3qjab6haj31ib8ljbyaa1rg1xsva5j17ngx"
+    rev = "8c6de565f76fb5cd40a5c1b8ce583fbc3ba1bd0e"
+    sha256 = "0qf9xd8g1750q2hcn04r7086lv009bj0ddrsn8xc57v67zk3vglc"
 
 ["github.com/libp2p/go-buffer-pool"]
   sumVersion = "v0.0.2"
@@ -3404,12 +3405,12 @@
     sha256 = "0nri6hkfb0z3dkxf2fsfidr4bxbn91rjsqhg5s0c2jplf0aclppz"
 
 ["github.com/prometheus/client_golang"]
-  sumVersion = "v1.12.1"
+  sumVersion = "v1.12.2"
   ["github.com/prometheus/client_golang".fetch]
     type = "git"
     url = "https://github.com/prometheus/client_golang"
-    rev = "2e1c4818ccfdcf953ce399cadad615ff2bed968c"
-    sha256 = "0d46nindizpjgdygryc140fd94j1qfkzwyzwh9p2g3zp6v4fw0s1"
+    rev = "e203144f43306c1f344fbc548fd02c4b79962e30"
+    sha256 = "0caz7dxlfqc1x05rdk6bsgjbrz2v0sswnkk17sp8j57zqb44gk3p"
 
 ["github.com/prometheus/client_model"]
   sumVersion = "v0.2.0"
@@ -3852,12 +3853,12 @@
     sha256 = "1zcms3l5fihzg8nf4vhdk18qpn1jkbm3rpkjfpskfcrgzlxk6vi5"
 
 ["github.com/tendermint/tendermint"]
-  sumVersion = "v0.34.19"
+  sumVersion = "v0.34.20-0.20220517115723-e6f071164839"
   ["github.com/tendermint/tendermint".fetch]
     type = "git"
     url = "https://github.com/tendermint/tendermint"
-    rev = "2f231ceb952a2426cf3c0abaf0b455aadd11e5b2"
-    sha256 = "1j04xnaf2l1swj5rfijiq7632v6nnj8mvn0gmd6qbqjgy5q47frm"
+    rev = "e6f07116483973914eb1c71ade39b0499f84bbe2"
+    sha256 = "1ayhsmzac4nam4s621qss2ym4mdqwq1nrv5farxv8cnjlsc826hb"
 
 ["github.com/tendermint/tm-db"]
   sumVersion = "v0.6.7"
@@ -3868,12 +3869,12 @@
     sha256 = "0nlf9w791ln0n49fiaczy7bsr0i1cnrrm78frhv4k9kbn13gfpw6"
 
 ["github.com/tharsis/ethermint"]
-  sumVersion = "v0.6.1-0.20220503175102-93d15db4d086"
+  sumVersion = "v0.6.1-0.20220519101126-9edc87d1147f"
   ["github.com/tharsis/ethermint".fetch]
     type = "git"
     url = "https://github.com/tharsis/ethermint"
-    rev = "93d15db4d086d65eb0a7bee744b453e5ae416ac0"
-    sha256 = "1ppxkqcxpbz7di7v43nxdrd3m97bxyz0i07y2pxqr7xla4vdardm"
+    rev = "9edc87d1147f3513d99370f41f7547c993e54572"
+    sha256 = "142bynf016f3g5k9dvzi057yk4zyckdah3lgs773p1ygspkwvl0d"
 
 ["github.com/tidwall/gjson"]
   sumVersion = "v1.6.7"

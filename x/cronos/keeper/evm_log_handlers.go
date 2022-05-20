@@ -150,7 +150,7 @@ func (h SendToAccountHandler) EventID() common.Hash {
 	return SendToAccountEvent.ID
 }
 
-func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(logSig common.Hash, logData []byte)) error {
+func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendToAccountEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -192,7 +192,11 @@ func (h SendToEthereumHandler) EventID() common.Hash {
 }
 
 // Handle `__CronosSendToEthereum` log only if gravity is activated.
-func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, addLogToReceipt func(logSig common.Hash, logData []byte)) error {
+func (h SendToEthereumHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", SendToEthereumEventName)
 	}
@@ -228,8 +232,8 @@ func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, 
 		return err
 	}
 
-	logData, _ := SendToEthereumResponseEvent.Inputs.Pack(resp.Id)
-	addLogToReceipt(SendToEthereumResponseEvent.ID, logData)
+	logData, _ := SendToEthereumResponseEvent.Inputs.Pack(big.NewInt(int64(resp.Id)))
+	addLogToReceipt(contract, SendToEthereumResponseEvent.ID, logData)
 	return nil
 }
 
@@ -250,7 +254,7 @@ func (h SendToIbcHandler) EventID() common.Hash {
 	return SendToIbcEvent.ID
 }
 
-func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(logSig common.Hash, logData []byte)) error {
+func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -301,7 +305,7 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 	return SendCroToIbcEvent.ID
 }
 
-func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(logSig common.Hash, logData []byte)) error {
+func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore

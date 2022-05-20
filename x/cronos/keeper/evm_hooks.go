@@ -45,20 +45,20 @@ func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, msg core.Message, r
 }
 
 // newFuncAddLogToReceipt return a function to add additional logs to the receipt
-func newFuncAddLogToReceipt(receipt *ethtypes.Receipt) func(logSig common.Hash, logData []byte) {
-	return func(logSig common.Hash, logData []byte) {
+func newFuncAddLogToReceipt(receipt *ethtypes.Receipt) func(contractAddress common.Address, logSig common.Hash, logData []byte) {
+	return func(contractAddress common.Address, logSig common.Hash, logData []byte) {
 		if receipt.BlockNumber == nil {
 			return
 		}
 		newLog := &ethtypes.Log{
-			Address:     receipt.ContractAddress,
+			Address:     contractAddress,
 			Topics:      []common.Hash{logSig},
 			Data:        logData,
 			BlockNumber: receipt.BlockNumber.Uint64(),
 			TxHash:      receipt.TxHash,
 			TxIndex:     receipt.TransactionIndex,
 			BlockHash:   receipt.BlockHash,
-			Index:       uint(len(receipt.Logs) + 1),
+			Index:       uint(len(receipt.Logs)),
 			Removed:     false,
 		}
 
