@@ -7,6 +7,7 @@
 
 ### Improvements
 
+- [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
 - [cronos#481](https://github.com/crypto-org-chain/cronos/pull/481/) Add rollback command.
 
 *May 3, 2022*
