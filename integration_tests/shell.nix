@@ -4,7 +4,9 @@ pkgs.mkShell {
     pkgs.jq
     pkgs.go
     pkgs.gomod2nix
-    (pkgs.callPackage ../. { }) # cronosd
+    (pkgs.callPackage ../. {
+      rocksdb = pkgs.rocksdb.override { enableJemalloc = true; };
+    }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
     pkgs.pystarport
