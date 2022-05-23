@@ -664,15 +664,6 @@
     rev = "2f508b3f86ed9ef87bcf3426b87b6c0dc0d3632c"
     sha256 = "1hznnrl1pi5nyh6xm05wmb8knq1sm44pz4w998q01lqfpyc56z86"
 
-["github.com/btcsuite/btcd/chaincfg"]
-  sumVersion = "v1.0.1"
-  relPath = "chaincfg"
-  ["github.com/btcsuite/btcd/chaincfg".fetch]
-    type = "git"
-    url = "https://github.com/btcsuite/btcd"
-    rev = "fc36cb25a4bdc6d989f9161552e7b0fe08b02939"
-    sha256 = "0j6s4zh3bb42lihiiqmdd8wd6fvdqpa1x7hmvq2jvfpg47ng12md"
-
 ["github.com/btcsuite/btcd/chaincfg/chainhash"]
   sumVersion = "v1.0.1"
   relPath = "chaincfg/chainhash"

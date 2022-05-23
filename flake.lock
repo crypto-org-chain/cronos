@@ -23,15 +23,16 @@
         "utils": "utils"
       },
       "locked": {
-        "lastModified": 1641803356,
-        "narHash": "sha256-ZjF43cckJLJCV9I+SXwTGNQGI52KrYwUhLt/R83TyKk=",
-        "owner": "tweag",
+        "lastModified": 1653039717,
+        "narHash": "sha256-igeJsyvoKBQqRSQS7QEFzaLUc5AxXIZPaqO9qpx3HmY=",
+        "owner": "yihuang",
         "repo": "gomod2nix",
-        "rev": "fc5adcc53031c5a3934500a57896a840a2bd073d",
+        "rev": "6cdf8f60e20bfc5c58c51242bd7f329f6c5ff4b2",
         "type": "github"
       },
       "original": {
-        "owner": "tweag",
+        "owner": "yihuang",
+        "ref": "demonstrate-error",
         "repo": "gomod2nix",
         "type": "github"
       }
