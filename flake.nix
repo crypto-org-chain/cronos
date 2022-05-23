@@ -15,6 +15,10 @@
   outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
     let
       rev = self.shortRev or "dirty";
+      mkApp = drv: {
+        type = "app";
+        program = "${drv}/bin/${drv.meta.mainProgram}";
+      };
     in
     (flake-utils.lib.eachDefaultSystem
       (system:
@@ -30,14 +34,8 @@
         rec {
           packages = pkgs.cronos-matrix;
           apps = {
-            cronosd = {
-              type = "app";
-              program = "${packages.cronosd}/bin/cronosd";
-            };
-            cronosd-testnet = {
-              type = "app";
-              program = "${packages.cronosd-testnet}/bin/cronosd";
-            };
+            cronosd = mkApp packages.cronosd;
+            cronosd-testnet = mkApp packages.cronosd-testnet;
           };
           defaultPackage = packages.cronosd;
           defaultApp = apps.cronosd;
@@ -59,12 +57,13 @@
           go = final.go_1_17;
         };
         bundle-exe = import nix-bundle-exe { pkgs = final; };
-        bundle-exe-tarball = drv:
-          let bundle = final.bundle-exe drv;
-          in
-          final.runCommand bundle.name { } ''
-            "${final.gnutar}/bin/tar" cfzhv $out -C ${bundle} .
-          '';
+        # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
+        # reset the ownership and permissions to make the extract result more normal.
+        make-tarball = drv: with final; runCommand drv.name { } ''
+          "${gnutar}/bin/tar" cfv - -C ${drv} \
+            --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
+            | "${gzip}/bin/gzip" -9 > $out
+        '';
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
@@ -87,11 +86,12 @@
               value =
                 let
                   cronosd = callPackage ./. { inherit rev db_backend network; };
+                  bundle = bundle-exe cronosd;
                 in
                 if pkgtype == "bundle" then
-                  bundle-exe cronosd
+                  bundle
                 else if pkgtype == "tarball" then
-                  bundle-exe-tarball cronosd
+                  make-tarball bundle
                 else
                   cronosd;
             })
