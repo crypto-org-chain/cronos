@@ -1,7 +1,11 @@
 name: integration tests
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
   push:
+    paths-ignore:
+      - 'docs/**'
     branches:
       - main
       - release/**

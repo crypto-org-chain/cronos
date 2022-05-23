@@ -39,11 +39,11 @@
     "nix-bundle-exe": {
       "flake": false,
       "locked": {
-        "lastModified": 1651240934,
-        "narHash": "sha256-oLM2nqdxzCqNTxGtgFjIltOy5fU8iRiurKMBRExbUIY=",
+        "lastModified": 1652837534,
+        "narHash": "sha256-tdGPrIW+36z6e1W7Vni8ioUs4/h62I0fbMR2dymoBDo=",
         "owner": "3noch",
         "repo": "nix-bundle-exe",
-        "rev": "7cae51b738ba32db00f5d280513f8d118670d3f6",
+        "rev": "c083d398032871b1cee49d9325e81aa12abf429a",
         "type": "github"
       },
       "original": {
@@ -68,12 +68,30 @@
         "type": "github"
       }
     },
+    "rocksdb-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1648583659,
+        "narHash": "sha256-m6twgWcPTVD6uzcLuskKX6voeq7qAF3rozfLqSakI7s=",
+        "owner": "facebook",
+        "repo": "rocksdb",
+        "rev": "da11a59034584ea2d0911268b8136e5249d6b692",
+        "type": "github"
+      },
+      "original": {
+        "owner": "facebook",
+        "ref": "v6.29.5",
+        "repo": "rocksdb",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "gomod2nix": "gomod2nix",
         "nix-bundle-exe": "nix-bundle-exe",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "rocksdb-src": "rocksdb-src"
       }
     },
     "utils": {

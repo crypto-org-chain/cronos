@@ -10,7 +10,7 @@ let
   version = "v0.7.0";
   pname = "cronosd";
   tags = lib.concatStringsSep "," (
-    [ "ledger" "cgo" network ]
+    [ "ledger" "netgo" network ]
     ++ lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
   );
   ldflags = lib.concatStringsSep "\n" ([
@@ -47,4 +47,11 @@ buildGoApplication rec {
     -ldflags=
     ${ldflags}
   '';
+
+  meta = with lib; {
+    description = "Official implementation of the Cronos blockchain protocol";
+    homepage = "https://cronos.org/";
+    license = licenses.asl20;
+    mainProgram = "cronosd";
+  };
 }
