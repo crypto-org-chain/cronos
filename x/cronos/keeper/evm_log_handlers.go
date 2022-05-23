@@ -20,10 +20,11 @@ var (
 )
 
 const (
-	SendToAccountEventName  = "__CronosSendToAccount"
-	SendToEthereumEventName = "__CronosSendToEthereum"
-	SendToIbcEventName      = "__CronosSendToIbc"
-	SendCroToIbcEventName   = "__CronosSendCroToIbc"
+	SendToAccountEventName          = "__CronosSendToAccount"
+	SendToEthereumEventName         = "__CronosSendToEthereum"
+	SendToEthereumResponseEventName = "__CronosSendToEthereumResponse"
+	SendToIbcEventName              = "__CronosSendToIbc"
+	SendCroToIbcEventName           = "__CronosSendCroToIbc"
 )
 
 var (
@@ -34,6 +35,10 @@ var (
 	// SendToEthereumEvent represent the signature of
 	// `event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee)`
 	SendToEthereumEvent abi.Event
+
+	// SendToEthereumResponseEvent represent the signature of
+	// `event __CronosSendToEthereumResponse(uint256 id)`
+	SendToEthereumResponseEvent abi.Event
 
 	// SendToIbcEvent represent the signature of
 	// `event __CronosSendToIbc(string recipient, uint256 amount)`
@@ -76,6 +81,16 @@ func init() {
 			Indexed: false,
 		}, abi.Argument{
 			Name:    "bridge_fee",
+			Type:    uint256Type,
+			Indexed: false,
+		}},
+	)
+	SendToEthereumResponseEvent = abi.NewEvent(
+		SendToEthereumResponseEventName,
+		SendToEthereumResponseEventName,
+		false,
+		abi.Arguments{abi.Argument{
+			Name:    "id",
 			Type:    uint256Type,
 			Indexed: false,
 		}},
@@ -135,7 +150,7 @@ func (h SendToAccountHandler) EventID() common.Hash {
 	return SendToAccountEvent.ID
 }
 
-func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendToAccountEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -177,7 +192,11 @@ func (h SendToEthereumHandler) EventID() common.Hash {
 }
 
 // Handle `__CronosSendToEthereum` log only if gravity is activated.
-func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendToEthereumHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", SendToEthereumEventName)
 	}
@@ -208,10 +227,13 @@ func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, 
 		Amount:            sdk.NewCoin(denom, amount),
 		BridgeFee:         sdk.NewCoin(denom, bridgeFee),
 	}
-	_, err = h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
+	resp, err := h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
 	if err != nil {
 		return err
 	}
+
+	logData, _ := SendToEthereumResponseEvent.Inputs.Pack(big.NewInt(int64(resp.Id)))
+	addLogToReceipt(contract, SendToEthereumResponseEvent.ID, logData)
 	return nil
 }
 
@@ -232,7 +254,7 @@ func (h SendToIbcHandler) EventID() common.Hash {
 	return SendToIbcEvent.ID
 }
 
-func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -283,7 +305,7 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 	return SendCroToIbcEvent.ID
 }
 
-func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte, _ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
