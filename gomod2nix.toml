@@ -1021,13 +1021,13 @@
     sha256 = "10x22k92ra1sdddj2pksprfhsm683sldflcnjm8nfz4rjjhjwkay"
 
 ["github.com/cosmos/cosmos-sdk"]
-  sumVersion = "v0.44.4-0.20220518122256-e49cc20318cf"
+  sumVersion = "v0.44.4-0.20220523112537-614906d69177"
   vendorPath = "github.com/crypto-org-chain/cosmos-sdk"
   ["github.com/cosmos/cosmos-sdk".fetch]
     type = "git"
     url = "https://github.com/crypto-org-chain/cosmos-sdk"
-    rev = "e49cc20318cf13f81e3563a7a9139013bec0ec92"
-    sha256 = "12wjjzlc2wqmkg22fn2nb7gigsiw9xvnykbcma2bsgn8a08b3f9r"
+    rev = "614906d69177db9555ea16ebb3e895b2f4617ff3"
+    sha256 = "07ivk405vyqk244qcrla0xvkhfp10ljpqga3fgq4mndabvcjlw3f"
 
 ["github.com/cosmos/go-bip39"]
   sumVersion = "v1.0.0"
