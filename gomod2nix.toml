@@ -381,9 +381,9 @@ schema = 1
     version = "v1.0.4"
     hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.44.4-0.20220518050709-bd4ca739c699"
-    hash = "sha256-0OOp+sU2sXXMWHW2wiF/uwsnyL+FyhY6ZEfA86qiRZI="
-    replaced = "github.com/crypto-org-chain/cosmos-sdk"
+    version = "v0.45.5-0.20220523154235-2921a1c3c918"
+    hash = "sha256-0HYbtx3fccZX78Hmdw7C8QK1OfLIWthDWYiT8Tm6mPo="
+    replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -550,8 +550,8 @@ schema = 1
     version = "v0.0.0-20171204163338-bcd34c9993f8"
     hash = "sha256-Sx911OBB67XYUSbjoGtJ5I/WL+aXR67FpCu4wiwQqhQ="
   [mod."github.com/frankban/quicktest"]
-    version = "v1.11.3"
-    hash = "sha256-Gg+S16VMcweQybw9RhiwdJockd/U1kh3AkhgN3mVtjQ="
+    version = "v1.14.3"
+    hash = "sha256-WCIb0lIRAaluIhKSUJNKpnNt4/mOII8/SwVXUeY9NWQ="
   [mod."github.com/fsnotify/fsnotify"]
     version = "v1.5.4"
     hash = "sha256-iPuInpDAJvDeSTr6to713J/fTOWdQIWlLXWAuWIs2Bw="
@@ -983,8 +983,8 @@ schema = 1
     version = "v0.0.0-20140226030751-b84e30acd515"
     hash = "sha256-CePQbqWGtS8qP/Av9pkLiqZwH6RaZQff/s1l+1//jQo="
   [mod."github.com/kr/pretty"]
-    version = "v0.2.1"
-    hash = "sha256-HhaxBizBlvhiQ+tuByY69++QCtB+gt6t0A/h5A347m8="
+    version = "v0.3.0"
+    hash = "sha256-5KfVas96NAU7pmN2ZOwQFFpUeagiJTqYKBLxq5aM5W4="
   [mod."github.com/kr/pty"]
     version = "v1.1.1"
     hash = "sha256-AVeS+ivwNzIrgWQaLtsmO2f2MYGpxIVqdac/EzaYI1Q="
@@ -1308,8 +1308,8 @@ schema = 1
     version = "v1.2.0"
     hash = "sha256-yDnHsLw8KF4zfbJska1igIo4IbVpGDq+vH3+YV5jCgk="
   [mod."github.com/rogpeppe/go-internal"]
-    version = "v1.3.0"
-    hash = "sha256-JgiasZeXDy10syy7wmXtqRffDY7CJ1o5VNY+FmmAjVU="
+    version = "v1.6.1"
+    hash = "sha256-1IBwoA4d15vIBLjkGGVuBoNXh/jTRh74bu/pFe7dQgI="
   [mod."github.com/rs/cors"]
     version = "v1.8.2"
     hash = "sha256-FxBbQVb8zIoDGGaAJKfsYV0+POkh1tyX7P6A/Lk5Vsc="
@@ -1386,8 +1386,8 @@ schema = 1
     version = "v1.8.2"
     hash = "sha256-ERuG4GK1LOn72DRbT9URpo1QoVIm2A3mPtlf+xSPgx8="
   [mod."github.com/spf13/cast"]
-    version = "v1.4.1"
-    hash = "sha256-jaY+/RKUviKnE2h8Ly5cdZYinSE0uc32FW6+xfZ1Ghs="
+    version = "v1.5.0"
+    hash = "sha256-Pdp+wC5FWqyJKzyYHb7JCcV9BoJk/sxQw6nLyuLJvuQ="
   [mod."github.com/spf13/cobra"]
     version = "v1.4.0"
     hash = "sha256-I6j9sD61Ztcc2W/WGeWo3ggYtnGTxNxZ2EFPdtO0UEY="
@@ -1449,8 +1449,9 @@ schema = 1
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.6.1-0.20220519101126-9edc87d1147f"
-    hash = "sha256-XIL+YoJYS8AJxA1U2weo6OUBnCdolM4eaIa6+QoaCjc="
+    version = "v0.6.1-0.20220524095547-ddf6424cd561"
+    hash = "sha256-4vrhomQbPEXvzzzbbXKXupJF+8kcnYgirld615001AQ="
+    replaced = "github.com/yihuang/ethermint"
   [mod."github.com/tidwall/gjson"]
     version = "v1.6.7"
     hash = "sha256-GL6MI9oNq+Pjxai9RtDPBeSpIuMTPQZPsB2vcntCBr8="
