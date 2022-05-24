@@ -1068,4 +1068,4 @@ class CosmosCLI:
                 min_block_height=1,
                 home=self.data_dir,
             ).decode()
-            return [tuple(line.split()[1:]) for line in output.split("\n")]
+            return [tuple(line.split()[1:]) for line in output.split("\n") if line]

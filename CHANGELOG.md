@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
+- [cronos#503](https://github.com/crypto-org-chain/cronos/pull/503) Fix failed tx are ignored in json-rpc apis (backport #502).
 
 ### Improvements
 

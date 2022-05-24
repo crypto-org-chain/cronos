@@ -128,8 +128,20 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 	cumulativeGasUsed := uint64(0)
 	for i, tx := range resBlock.Block.Txs {
 		txResult := blockRes.TxsResults[i]
-		if txResult.Code != 0 && txResult.Log != "" {
-			// skip failed transaction
+
+		// don't ignore the txs which exceed block gas limit.
+		if !backend.TxSuccessOrExceedsBlockGasLimit(txResult) {
+			continue
+		}
+
+		parsedTxs, err := rpctypes.ParseTxResult(txResult)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse tx events: %d:%d, %v", resBlock.Block.Height, i, err)
+		}
+
+		if len(parsedTxs.Txs) == 0 {
+			// not an evm tx
+			cumulativeGasUsed += uint64(txResult.GasUsed)
 			continue
 		}
 
@@ -139,14 +151,16 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 			return nil, fmt.Errorf("failed to decode tx: %w", err)
 		}
 
-		msgEvents, err := ParseEthTxEvents(txResult.Events)
-		if err != nil {
-			api.logger.Debug("parse tx events failed", "txIndex", txIndex, "error", err.Error())
-			return nil, fmt.Errorf("failed to parse tx events: %d %w", txIndex, err)
+		if len(parsedTxs.Txs) != len(tx.GetMsgs()) {
+			return nil, fmt.Errorf("wrong number of tx events: %d", txIndex)
 		}
 
-		if len(msgEvents) != len(tx.GetMsgs()) {
-			return nil, fmt.Errorf("wrong number of tx events: %d", txIndex)
+		if txResult.Code != 0 {
+			// tx failed, we should return gas limit as gas used, because that's how the fee get deducted.
+			for j := 0; j < len(parsedTxs.Txs); j++ {
+				gasLimit := tx.GetMsgs()[j].(*evmtypes.MsgEthereumTx).GetGas()
+				parsedTxs.Txs[j].GasUsed = gasLimit
+			}
 		}
 
 		msgCumulativeGasUsed := uint64(0)
@@ -163,17 +177,11 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, err
 			}
 
-			var gasUsed uint64
-			if len(tx.GetMsgs()) == 1 {
-				// backward compatibility
-				gasUsed = uint64(txResult.GasUsed)
-			} else {
-				gasUsed = msgEvents[msgIndex].GasUsed
-			}
+			parsedTx := parsedTxs.GetTxByMsgIndex(msgIndex)
 
 			// Get the transaction result from the log
 			var status hexutil.Uint
-			if msgEvents[msgIndex].Failed {
+			if txResult.Code != 0 || parsedTx.Failed {
 				status = hexutil.Uint(ethtypes.ReceiptStatusFailed)
 			} else {
 				status = hexutil.Uint(ethtypes.ReceiptStatusSuccessful)
@@ -184,12 +192,15 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, err
 			}
 
-			logs := msgEvents[msgIndex].Logs
+			logs, err := parsedTx.ParseTxLogs()
+			if err != nil {
+				api.logger.Debug("failed to parse logs", "block", resBlock.Block.Height, "txIndex", txIndex, "msgIndex", msgIndex, "error", err.Error())
+			}
 			if logs == nil {
 				logs = []*ethtypes.Log{}
 			}
 			// msgCumulativeGasUsed includes gas used by the current tx
-			msgCumulativeGasUsed += gasUsed
+			msgCumulativeGasUsed += parsedTx.GasUsed
 			receipt := map[string]interface{}{
 				// Consensus fields: These fields are defined by the Yellow Paper
 				"status":            status,
@@ -201,7 +212,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				// They are stored in the chain database.
 				"transactionHash": ethMsg.Hash,
 				"contractAddress": nil,
-				"gasUsed":         hexutil.Uint64(gasUsed),
+				"gasUsed":         hexutil.Uint64(parsedTx.GasUsed),
 				"type":            hexutil.Uint(txData.TxType()),
 
 				// Inclusion information: These fields provide information about the inclusion of the
