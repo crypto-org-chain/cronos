@@ -4,13 +4,10 @@ import (
 	context "context"
 	"math/big"
 
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v3/modules/core/02-client/types"
-	ibcexported "github.com/cosmos/ibc-go/v3/modules/core/exported"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -78,11 +75,4 @@ type EvmKeeper interface {
 		ctx sdk.Context, msgEthTx evmtypes.MsgEthereumTx, txData evmtypes.TxData, denom string, homestead, istanbul, london bool,
 	) (sdk.Coins, error)
 	ChainID() *big.Int
-}
-
-// ICS4Wrapper defines the expected ICS4Wrapper for middleware
-type ICS4Wrapper interface {
-	WriteAcknowledgement(ctx sdk.Context, chanCap *capabilitytypes.Capability, packet ibcexported.PacketI, acknowledgement ibcexported.Acknowledgement) error
-	SendPacket(ctx sdk.Context, channelCap *capabilitytypes.Capability, packet ibcexported.PacketI) error
-	GetAppVersion(ctx sdk.Context, portID, channelID string) (string, bool)
 }

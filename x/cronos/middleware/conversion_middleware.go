@@ -137,8 +137,8 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			if err != nil {
 				return err
 			}
-			// Only in case it is not source chain, we need to convert the voucher
-			if !transferTypes.SenderChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+			// Only in case when the token comes from source
+			if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 				err = im.convertVouchers(ctx, data)
 				if err != nil {
 					return err
@@ -164,8 +164,8 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		// Only in case it is not source chain, we need to convert the voucher
-		if !transferTypes.SenderChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+		// Only in case when the token comes from source
+		if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 			err = im.convertVouchers(ctx, data)
 			if err != nil {
 				return err
