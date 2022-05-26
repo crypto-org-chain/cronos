@@ -1,6 +1,9 @@
 package keeper_test
 
 import (
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"math/big"
 	"testing"
 	"time"
@@ -185,4 +188,83 @@ func (suite *KeeperTestSuite) MintCoinsToModule(module string, coins sdk.Coins) 
 
 func (suite *KeeperTestSuite) GetBalance(address sdk.AccAddress, denom string) sdk.Coin {
 	return suite.app.BankKeeper.GetBalance(suite.ctx, address, denom)
+}
+
+func (suite *KeeperTestSuite) TestOnRecvVouchers() {
+	privKey, err := ethsecp256k1.GenerateKey()
+	suite.Require().NoError(err)
+	address := sdk.AccAddress(privKey.PubKey().Address())
+
+	testCases := []struct {
+		name      string
+		coins     sdk.Coins
+		malleate  func()
+		postCheck func()
+	}{
+		{
+			"state reverted after error",
+			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123)), sdk.NewCoin("bad", sdk.NewInt(10))),
+			func() {
+				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
+				// Verify balance IBC coin pre operation
+				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(sdk.NewInt(123), ibcCroCoin.Amount)
+				// Verify balance EVM coin pre operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
+				suite.Require().Equal(sdk.NewInt(0), evmCoin.Amount)
+			},
+			func() {
+				// Verify balance IBC coin post operation
+				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(sdk.NewInt(123), ibcCroCoin.Amount)
+				// Verify balance EVM coin post operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
+				suite.Require().Equal(sdk.NewInt(0), evmCoin.Amount)
+			},
+		},
+		{
+			"state committed upon success",
+			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))),
+			func() {
+				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
+				// Verify balance IBC coin pre operation
+				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(sdk.NewInt(123), ibcCroCoin.Amount)
+				// Verify balance EVM coin pre operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
+				suite.Require().Equal(sdk.NewInt(0), evmCoin.Amount)
+			},
+			func() {
+				// Verify balance IBC coin post operation
+				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
+				suite.Require().Equal(sdk.NewInt(0), ibcCroCoin.Amount)
+				// Verify balance EVM coin post operation
+				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
+				suite.Require().Equal(sdk.NewInt(1230000000000), evmCoin.Amount)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset
+			// Create Cronos Keeper with mock transfer keeper
+			cronosKeeper := *cronosmodulekeeper.NewKeeper(
+				app.MakeEncodingConfig().Marshaler,
+				suite.app.GetKey(types.StoreKey),
+				suite.app.GetKey(types.MemStoreKey),
+				suite.app.GetSubspace(types.ModuleName),
+				suite.app.BankKeeper,
+				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
+				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
+			)
+			suite.app.CronosKeeper = cronosKeeper
+
+			tc.malleate()
+			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			tc.postCheck()
+		})
+	}
 }
