@@ -11,17 +11,16 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
 
-
 // IBCConversionModule implements the ICS26 interface.
 type IBCConversionModule struct {
-	app    porttypes.IBCModule
+	app          porttypes.IBCModule
 	cronoskeeper cronoskeeper.Keeper
 }
 
 // NewIBCConversionModule creates a new IBCModule given the keeper and underlying application
 func NewIBCConversionModule(app porttypes.IBCModule, ck cronoskeeper.Keeper) IBCConversionModule {
 	return IBCConversionModule{
-		app:    app,
+		app:          app,
 		cronoskeeper: ck,
 	}
 }
@@ -80,7 +79,7 @@ func (im IBCConversionModule) OnChanCloseInit(
 	portID,
 	channelID string,
 ) error {
-	return im.app.OnChanCloseInit(ctx, portID, channelID);
+	return im.app.OnChanCloseInit(ctx, portID, channelID)
 }
 
 // OnChanCloseConfirm implements the IBCModule interface
@@ -89,7 +88,7 @@ func (im IBCConversionModule) OnChanCloseConfirm(
 	portID,
 	channelID string,
 ) error {
-	return im.app.OnChanCloseConfirm(ctx, portID, channelID);
+	return im.app.OnChanCloseConfirm(ctx, portID, channelID)
 }
 
 // OnRecvPacket implements the IBCModule interface.
@@ -158,7 +157,7 @@ func (im IBCConversionModule) OnTimeoutPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) error {
-	err :=  im.app.OnTimeoutPacket(ctx, packet, relayer)
+	err := im.app.OnTimeoutPacket(ctx, packet, relayer)
 	// If no error on the refund
 	if err == nil {
 		data, err := im.getFungibleTokenPacketData(packet)

@@ -2,8 +2,9 @@ package types
 
 import (
 	context "context"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	"math/big"
+
+	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
