@@ -712,6 +712,7 @@ func New(
 		transferModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
+		cronos.NewAppModule(appCodec, app.CronosKeeper),
 	)
 
 	app.sm.RegisterStoreDecoders()
