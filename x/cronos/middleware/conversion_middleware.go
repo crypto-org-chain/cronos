@@ -106,7 +106,12 @@ func (im IBCConversionModule) OnRecvPacket(
 		}
 		// We need to convert the voucher only in case the receiver is "not" the source chain
 		if !transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-			err = im.convertVouchers(ctx, data)
+			sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
+			// NOTE: sourcePrefix contains the trailing "/"
+			prefixedDenom := sourcePrefix + data.Denom
+			// construct the denomination trace from the full raw denomination
+			denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
+			err = im.convertVouchers(ctx, data, denomTrace.IBCDenom(), false)
 			if err != nil {
 				return transferTypes.NewErrorAcknowledgement(err)
 			}
@@ -137,9 +142,11 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			if err != nil {
 				return err
 			}
-			// Only in case when the token comes from source
+			// Only in case the token is originated from the receiver chain
 			if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-				err = im.convertVouchers(ctx, data)
+				// parse the denomination from the full denom path
+				trace := transferTypes.ParseDenomTrace(data.Denom)
+				err = im.convertVouchers(ctx, data, trace.BaseDenom, true)
 				if err != nil {
 					return err
 				}
@@ -164,9 +171,11 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		// Only in case when the token comes from source
+		// Only in case the token is originated from the receiver chain
 		if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-			err = im.convertVouchers(ctx, data)
+			// parse the denomination from the full denom path
+			trace := transferTypes.ParseDenomTrace(data.Denom)
+			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
 			if err != nil {
 				return err
 			}
@@ -185,16 +194,19 @@ func (im IBCConversionModule) getFungibleTokenPacketData(packet channeltypes.Pac
 	return data, nil
 }
 
-func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferTypes.FungibleTokenPacketData) error {
-	// parse the denomination from the full denom path
-	trace := transferTypes.ParseDenomTrace(data.Denom)
+func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferTypes.FungibleTokenPacketData, denom string, isSender bool) error {
+
 	// parse the transfer amount
 	transferAmount, ok := sdk.NewIntFromString(data.Amount)
 	if !ok {
 		return sdkerrors.Wrapf(transferTypes.ErrInvalidAmount,
 			"unable to parse transfer amount (%s) into sdk.Int in middleware", data.Amount)
 	}
-	token := sdk.NewCoin(trace.IBCDenom(), transferAmount)
-	im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Sender)
+	token := sdk.NewCoin(denom, transferAmount)
+	if isSender {
+		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Sender)
+	} else {
+		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Receiver)
+	}
 	return nil
 }
