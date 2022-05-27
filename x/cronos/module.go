@@ -183,12 +183,12 @@ func (am AppModule) EndBlock(_ sdk.Context, _ abci.RequestEndBlock) []abci.Valid
 	return []abci.ValidatorUpdate{}
 }
 
-// RandomizedParams creates randomized evm param changes for the simulator.
+// RandomizedParams creates randomized cronos param changes for the simulator.
 func (AppModule) RandomizedParams(r *rand.Rand) []simtypes.ParamChange {
 	return nil
 }
 
-// RegisterStoreDecoder registers a decoder for evm module's types
+// RegisterStoreDecoder registers a decoder for cronos module's types
 func (am AppModule) RegisterStoreDecoder(sdr sdk.StoreDecoderRegistry) {
 	sdr[types.StoreKey] = simulation.NewDecodeStore()
 }
@@ -198,12 +198,12 @@ func (AppModule) ProposalContents(simState module.SimulationState) []simtypes.We
 	return nil
 }
 
-// GenerateGenesisState creates a randomized GenState of the evm module.
+// GenerateGenesisState creates a randomized GenState of the cronos module.
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 	simulation.RandomizedGenState(simState)
 }
 
-// WeightedOperations returns the all the evm module operations with their respective weights.
+// WeightedOperations returns the all the cronos module operations with their respective weights.
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	return simulation.WeightedOperations(
 		simState.AppParams, simState.Cdc, &am.keeper,

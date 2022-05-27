@@ -24,18 +24,10 @@ const (
 )
 
 const (
-	WeightMsgEthCreateContract = 100
+	WeightMsgEthCreateContract = 50
 )
 
-// type simulateContext struct {
-// 	context sdk.Context
-// 	bapp    *baseapp.BaseApp
-// 	rand    *rand.Rand
-// 	keeper  *keeper.Keeper
-// }
-
-// WeightedOperations generate Two kinds of operations: SimulateEthSimpleTransfer, SimulateEthCreateContract.
-// Contract call operations work as the future operations of SimulateEthCreateContract.
+// WeightedOperations generate SimulateUpdateTokenMapping operation.
 func WeightedOperations(
 	appParams simtypes.AppParams, cdc codec.JSONCodec, k *keeper.Keeper,
 ) simulation.WeightedOperations {
@@ -57,6 +49,7 @@ func WeightedOperations(
 	}
 }
 
+// SimulateUpdateTokenMapping generate mocked MsgUpdateTokenMapping message, apply the message and assert the results.
 func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 	return func(
 		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
