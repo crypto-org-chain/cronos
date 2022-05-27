@@ -157,9 +157,6 @@ replace (
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.44.4-0.20220518050709-bd4ca739c699
 
-	// TODO: remove when middleware will be implemented
-	github.com/cosmos/ibc-go/v3 => github.com/crypto-org-chain/ibc-go/v3 v3.0.0-hooks
-
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// TODO: remove when gravity update dependencies
