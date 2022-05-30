@@ -9,7 +9,7 @@
     gomod2nix = {
       url = "github:tweag/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
+      inputs.utils.follows = "flake-utils";
     };
     rocksdb-src = {
       url = "github:facebook/rocksdb/v6.29.5";
