@@ -7,21 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/types/kv"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/tharsis/ethermint/x/evm/types"
 )
 
 // TestDecodeStore tests that evm simulation decoder decodes the key value pairs as expected.
 func TestDecodeStore(t *testing.T) {
 	dec := NewDecodeStore()
 
-	hash := common.BytesToHash([]byte("hash"))
-	code := common.Bytes2Hex([]byte{1, 2, 3})
+	contract := common.HexToAddress("0xabc")
+	denom := types.IbcCroDenomDefaultValue
 
 	kvPairs := kv.Pairs{
 		Pairs: []kv.Pair{
-			{Key: types.KeyPrefixCode, Value: common.FromHex(code)},
-			{Key: types.KeyPrefixStorage, Value: hash.Bytes()},
+			{Key: types.KeyPrefixDenomToAutoContract, Value: contract.Bytes()},
+			{Key: types.KeyPrefixDenomToExternalContract, Value: contract.Bytes()},
+			{Key: types.KeyPrefixContractToDenom, Value: []byte(denom)},
 		},
 	}
 
@@ -29,8 +30,9 @@ func TestDecodeStore(t *testing.T) {
 		name        string
 		expectedLog string
 	}{
-		{"Code", fmt.Sprintf("%v\n%v", code, code)},
-		{"Storage", fmt.Sprintf("%v\n%v", hash, hash)},
+		{"ExternalContract", fmt.Sprintf("%v\n%v", contract, contract)},
+		{"AutoContract", fmt.Sprintf("%v\n%v", contract, contract)},
+		{"Denom", fmt.Sprintf("%v\n%v", denom, denom)},
 		{"other", ""},
 	}
 	for i, tt := range tests {
