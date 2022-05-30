@@ -25,7 +25,11 @@ import (
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
-const ExceedBlockGasLimitError = "out of gas in location: block gas meter; gasWanted:"
+const (
+	FlagMinBlockHeight = "min-block-height"
+
+	ExceedBlockGasLimitError = "out of gas in location: block gas meter; gasWanted:"
+)
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
 func FixUnluckyTxCmd() *cobra.Command {
@@ -37,6 +41,16 @@ func FixUnluckyTxCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
+
+			minBlockHeight, err := cmd.Flags().GetInt(FlagMinBlockHeight)
+			if err != nil {
+				return err
+			}
+
+			chainID, err := cmd.Flags().GetString(flags.FlagChainID)
+			if err != nil {
+				return err
+			}
 
 			var blocksFile io.Reader
 			if args[0] == "-" {
@@ -57,9 +71,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return err
 				}
 
-				chainID, err := cmd.Flags().GetString(flags.FlagChainID)
-				if err != nil {
-					return err
+				if blockNumber < int64(minBlockHeight) {
+					return fmt.Errorf("block number is generated before v0.7.0 upgrade: %d", blockNumber)
 				}
 
 				tmDB, err := openTMDB(ctx.Config, chainID)
@@ -146,6 +159,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
+	cmd.Flags().Int(FlagMinBlockHeight, 2693800, "The block height v0.7.0 upgrade executed, will reject block heights smaller than this.")
 
 	return cmd
 }
