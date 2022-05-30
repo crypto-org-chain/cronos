@@ -1,9 +1,8 @@
 
 
-# Gravity Bridge Testnet Deployment Guide
+# Gravity Bridge Testnet Orchestrator Deployment Guide
 
-This guide is intended to assist the community validators with setting up Gravity Orchestrator between `Cronos Gravity Testnet2` and `Ethereum` Kovan testnet.
-
+This guide is intended to assist the community validators with setting up Gravity Orchestrator and Relayer (jointly, in one process) between `Cronos Gravity Testnet2` and `Ethereum` Kovan testnet. The default orchestrator start command includes running a relayer. However, they are two different processes. You can read more about Gravity Bridge [here](https://blog.althea.net/how-gravity-works/).
 
 ## Prerequisites
 
@@ -116,9 +115,11 @@ gorc -c gorc.toml orchestrator start \
 
 The orchestrator is running now.
 
-## Run Orchestrator as a Service (Linux only)
+**Important**: By default, starting the orchestrator as shown above will also start the relayer. If you want to run the orchestrator without the relayer, you can pass `--orchestrator-only`. Alternatively, if you want to run the relayer without the orchestrator, please follow [relayer-only-deployment-guide](testnet-relayer-only-deployment-guide.md).
 
-To set up the Orchestrator as a service, you can run:
+## Run gorc as a Service (Linux only)
+
+To set up the Orchestrator (and relayer) as a service, you can run:
 
 ```bash
 	bash <(curl -s -L https://raw.githubusercontent.com/crypto-org-chain/cronos/main/docs/gravity-bridge/systemd/setup-gorc-service.sh) -t orchestrator

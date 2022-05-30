@@ -1,6 +1,6 @@
 
 
-# Gravity Bridge Testnet Deployment Guide
+# Gravity Bridge Testnet Relayer Deployment Guide
 
 This guide is intended to assist the community validators with setting up Gravity Relayer between `Cronos Gravity Testnet2` and `Ethereum` Kovan testnet.
 
