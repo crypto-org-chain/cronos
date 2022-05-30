@@ -119,13 +119,13 @@
     sha256 = "1agn2nzmm1dkwggm4w7h4bnrav4n5jrl0vqbqy2s49vqlr8zirn6"
 
 ["github.com/Azure/azure-sdk-for-go/sdk/azcore"]
-  sumVersion = "v0.19.0"
+  sumVersion = "v0.21.1"
   relPath = "sdk/azcore"
   ["github.com/Azure/azure-sdk-for-go/sdk/azcore".fetch]
     type = "git"
     url = "https://github.com/Azure/azure-sdk-for-go"
-    rev = "bbf5386148ebae79096e2880c17ef89a15e472e9"
-    sha256 = "13pca9br86l16dici7daynkrrih9pqjajgy0pd8yjj2x6qg2i85s"
+    rev = "d60b30110c3b107203725c8c60cf8152c0a7414b"
+    sha256 = "14g5646d3hshqngkv3glxwiv6vilx9ja5i788vyycayzpmglrff7"
 
 ["github.com/Azure/azure-sdk-for-go/sdk/azidentity"]
   sumVersion = "v0.11.0"
@@ -137,13 +137,22 @@
     sha256 = "0sjlm2ghysq0mqsninnn7wmpylh3dnacigib6697bi3g4b7xixni"
 
 ["github.com/Azure/azure-sdk-for-go/sdk/internal"]
-  sumVersion = "v0.7.0"
+  sumVersion = "v0.8.3"
   relPath = "sdk/internal"
   ["github.com/Azure/azure-sdk-for-go/sdk/internal".fetch]
     type = "git"
     url = "https://github.com/Azure/azure-sdk-for-go"
-    rev = "1eb47c16ddfd8feeb2cb4ff1698e1a3f3e1765ab"
-    sha256 = "0j1dnznjy9nfpy8yggiy0yyg412rcmpc9ny4z1z58ghfwzclimsc"
+    rev = "85b31d5be94b8a279429349f769e1519afbc3326"
+    sha256 = "196q7gcir6m5dpqabi39skzy2h8vmpaqd9gq5p044a1cxdgfksh3"
+
+["github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"]
+  sumVersion = "v0.3.0"
+  relPath = "sdk/storage/azblob"
+  ["github.com/Azure/azure-sdk-for-go/sdk/storage/azblob".fetch]
+    type = "git"
+    url = "https://github.com/Azure/azure-sdk-for-go"
+    rev = "5b8bb8b1cef11fcfe68014a6bc9de754daed9b39"
+    sha256 = "1p5fzx9sgly0g8k0hz9rmpc5aynbxyr0gxakxqb28vf7k4q9ivx6"
 
 ["github.com/Azure/azure-storage-blob-go"]
   sumVersion = "v0.7.0"
@@ -664,6 +673,15 @@
     rev = "2f508b3f86ed9ef87bcf3426b87b6c0dc0d3632c"
     sha256 = "1hznnrl1pi5nyh6xm05wmb8knq1sm44pz4w998q01lqfpyc56z86"
 
+["github.com/btcsuite/btcd/btcec/v2"]
+  sumVersion = "v2.1.2"
+  relPath = "btcec"
+  ["github.com/btcsuite/btcd/btcec/v2".fetch]
+    type = "git"
+    url = "https://github.com/btcsuite/btcd"
+    rev = "74e9690d0e402446c3c366d595123e7219f8cce7"
+    sha256 = "1bvdg0l39wylyqdk4zzb824rxa3cbn9rnpqc1izg17jy6nb5jgac"
+
 ["github.com/btcsuite/btcd/chaincfg/chainhash"]
   sumVersion = "v1.0.1"
   relPath = "chaincfg/chainhash"
@@ -1149,6 +1167,24 @@
     rev = "645e1ba83b7fdd0baab3f586c30a4d1619c71f99"
     sha256 = "09s1mqk25plfk86dcpvgnsjm9yy0xzc0cxq5cc7d0lrc36k4mchh"
 
+["github.com/decred/dcrd/crypto/blake256"]
+  sumVersion = "v1.0.0"
+  relPath = "crypto/blake256"
+  ["github.com/decred/dcrd/crypto/blake256".fetch]
+    type = "git"
+    url = "https://github.com/decred/dcrd"
+    rev = "5c3e0d6454001c8d14fcf06be94381d93991aaea"
+    sha256 = "0m2mxrkbnr4dfan9ljxq9dd5hhqmpx5n9pd4hnwn5mlj4zgv018a"
+
+["github.com/decred/dcrd/dcrec/secp256k1/v4"]
+  sumVersion = "v4.0.1"
+  relPath = "dcrec/secp256k1"
+  ["github.com/decred/dcrd/dcrec/secp256k1/v4".fetch]
+    type = "git"
+    url = "https://github.com/decred/dcrd"
+    rev = "1eff7272fddf441a1c722617337a8c44f9cec634"
+    sha256 = "08g04nmc7hxya9xr2ycyqbwagcldzas3d2ibf3dlmmya54nfg4b6"
+
 ["github.com/decred/dcrd/lru"]
   sumVersion = "v1.0.0"
   relPath = "lru"
@@ -1367,12 +1403,12 @@
     sha256 = "15n0iimdvirxmd1kyysss8fcnlds316dzh3rfzmcz4k3ip26npw5"
 
 ["github.com/ethereum/go-ethereum"]
-  sumVersion = "v1.10.16"
+  sumVersion = "v1.10.17"
   ["github.com/ethereum/go-ethereum".fetch]
     type = "git"
     url = "https://github.com/ethereum/go-ethereum"
-    rev = "20356e57b119b4e70ce47665a71964434e15200d"
-    sha256 = "0vq3an4g8w6js4bkzs3k8xsa9whm822380r71c0b6w5n33dfm9pi"
+    rev = "25c9b49fdb74931137431c24cf28d3c65f9420d2"
+    sha256 = "0hhx9prx8bic3w6dh25zi5144gv2favm16srcimwa1zrlzgib0xq"
 
 ["github.com/facebookgo/ensure"]
   sumVersion = "v0.0.0-20200202191622-63f1cf65ac4c"
@@ -1737,12 +1773,12 @@
     sha256 = "0jmhiv9gq0a6brs9p8dk9phafs62yggyhlav07cqwakcq70ss6r2"
 
 ["github.com/golang-jwt/jwt/v4"]
-  sumVersion = "v4.0.0"
+  sumVersion = "v4.3.0"
   ["github.com/golang-jwt/jwt/v4".fetch]
     type = "git"
     url = "https://github.com/golang-jwt/jwt"
-    rev = "2ebb50f957d606de5909fcf9ed49f9af3bc35e97"
-    sha256 = "0vc122v3aycq3g9mgaxs5cbs5p762n2x61nxhsniw1x2cz7jgwcv"
+    rev = "279dd197202aacaf886935f01015376ea9739c0c"
+    sha256 = "1xkc89ya78wzmiraxlfqfk630dygf0g06bkrdwg0nzbxm258fcy6"
 
 ["github.com/golang-sql/civil"]
   sumVersion = "v0.0.0-20190719163853-cb61b32ac6fe"
@@ -2253,12 +2289,12 @@
     sha256 = "18pk1b5yybkghrjxskgssz8gzpv37k8w7gk0cldhcnffx85rqi0m"
 
 ["github.com/huin/goupnp"]
-  sumVersion = "v1.0.2"
+  sumVersion = "v1.0.3-0.20220313090229-ca81a64b4204"
   ["github.com/huin/goupnp".fetch]
     type = "git"
     url = "https://github.com/huin/goupnp"
-    rev = "5a0d4bd7ee6bee8e26f24664c8e0d0c8ec3b0a7e"
-    sha256 = "1cv561wlzlzwxwpwirmyck33bhfmgpgv4wfq65wv8wkk6lgvqz0m"
+    rev = "ca81a64b4204ca0b3f8c77bdfc9d297aa49e049a"
+    sha256 = "0fp48dfsq41rbz7nff31ns3yvgcb2kr6a6y2mzixzq2qvh4z23wl"
 
 ["github.com/huin/goutil"]
   sumVersion = "v0.0.0-20170803182201-1ca381bf3150"
