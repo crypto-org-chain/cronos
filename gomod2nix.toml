@@ -166,7 +166,7 @@ schema = 1
     hash = "sha256-rDjWSO+3w0rbVUBkqSK647yQvo4D4iJVT7XvXg9jsAw="
   [mod."github.com/apache/thrift"]
     version = "v0.13.0"
-    hash = "sha256-hyU7JrTccjRaMGaxKM3/1gUAj+H2icRcy93LTZ9iXEY="
+    hash = "sha256-7YbRWRTYVF1bWyFvkpxvMvcP2NzbV00zOHBT/Sxt8x8="
   [mod."github.com/aristanetworks/goarista"]
     version = "v0.0.0-20170210015632-ea17b1a17847"
     hash = "sha256-Q2lPiyxbQ6h0EYmJgOVmkbmx44ZvcuTfprEhO06Ys0w="
@@ -190,7 +190,7 @@ schema = 1
     hash = "sha256-qd4LhYF3pE6qtIwMIuR0KwpIMVc1+tG6lrL1lJ/BPxE="
   [mod."github.com/aws/aws-sdk-go"]
     version = "v1.40.45"
-    hash = "sha256-ivRtLTF9UOAkaENjf2Q/kDk77Dzq2lBKsY00Sx6hnZE="
+    hash = "sha256-7m4jOfXs356SUZG9tR+z3Yfa/O0CorkSkOXg/AmbqRM="
   [mod."github.com/aws/aws-sdk-go-v2"]
     version = "v1.9.1"
     hash = "sha256-92PzisvrWbywQFjOdJfAZblBG+OQ8vD4CuUpgmASdic="
