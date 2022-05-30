@@ -21,14 +21,7 @@ import sources.nixpkgs {
         buildGoModule = pkgs.buildGo117Module;
       };
     }) # update to a version that supports eip-1559
-    (_: pkgs: rec {
-      buildGoApplication = pkgs.callPackage (import (sources.gomod2nix + "/builder")) {
-        go = pkgs.go_1_17;
-      };
-      gomod2nix = pkgs.callPackage (import (sources.gomod2nix)) {
-        inherit buildGoApplication;
-      };
-    })
+    (import (sources.gomod2nix + "/overlay.nix"))
     (_: pkgs: {
       pystarport = pkgs.poetry2nix.mkPoetryApplication rec {
         projectDir = sources.pystarport;
