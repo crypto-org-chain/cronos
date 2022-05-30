@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/armon/go-metrics v0.3.10
-	github.com/cosmos/cosmos-sdk v0.44.6
+	github.com/cosmos/cosmos-sdk v0.44.8
 	github.com/cosmos/ibc-go v1.2.2
 	github.com/ethereum/go-ethereum v1.10.3
 	github.com/gogo/protobuf v1.3.3
@@ -164,10 +164,9 @@ replace github.com/cosmos/iavl => github.com/cosmos/iavl v0.17.3
 
 replace github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.3-patched
 
-// TODO: remove when ibc-go and ethermint upgrades cosmos-sdk
-replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert-2
+replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.44.6-cronos-revert-3
 
-replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-15
+replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.7.2-cronos-16
 
 // Note: gorocksdb bindings for OptimisticTransactionDB are not merged upstream, so we use a fork
 // See https://github.com/tecbot/gorocksdb/pull/216

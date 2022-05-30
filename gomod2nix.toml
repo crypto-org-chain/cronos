@@ -288,8 +288,8 @@ schema = 1
     version = "v4.1.1"
     hash = "sha256-35Dk9c8Om+NSVKGwu8MwJkB8ig8mDLRviCIYbIRAgiE="
   [mod."github.com/census-instrumentation/opencensus-proto"]
-    version = "v0.2.1"
-    hash = "sha256-3RWTfGGuKbkrOQ91ociOgp9igGvU/FAv3NAidPVoYP8="
+    version = "v0.3.0"
+    hash = "sha256-BsfAB8Mnqc/LFUjUrCT/WpkcYtdSyba4Zu+BnCmgND0="
   [mod."github.com/cespare/cp"]
     version = "v0.1.0"
     hash = "sha256-qdow9I3rcjR+ujugwPGvEouvyBvsLl91ElslXFDq5vQ="
@@ -330,8 +330,11 @@ schema = 1
     version = "v0.14.0"
     hash = "sha256-Hf7FF+fdWlfGD7ZLyVAYTYsro3up0SWm5HLxDeOAcnQ="
   [mod."github.com/cncf/udpa/go"]
-    version = "v0.0.0-20191209042840-269d4d468f6f"
-    hash = "sha256-JlRNsGlsFT/TOvrZlXVainUeZqZPthB+WsXMY2RXZlU="
+    version = "v0.0.0-20210930031921-04548b0d99d4"
+    hash = "sha256-3E8BNhFNIdSJg92cUmfB2fAUawpcQPQxtSDO8S5h7Is="
+  [mod."github.com/cncf/xds/go"]
+    version = "v0.0.0-20211130200136-a8f946100490"
+    hash = "sha256-sOPZexmRrwJhseoipmYfzBj7E/0SOM4GqaoCQl9cOPA="
   [mod."github.com/cockroachdb/datadriven"]
     version = "v0.0.0-20190809214429-80d97fb3cbaa"
     hash = "sha256-l9bswpYsaqhhls7BsJjfhbpDBEreIQtKNjHDn9Tcamc="
@@ -377,9 +380,12 @@ schema = 1
   [mod."github.com/coreos/pkg"]
     version = "v0.0.0-20180928190104-399ea9e2e55f"
     hash = "sha256-R4EcMkhMPi5fSE5SU8Oa1FlvP5VEysXPaX9GYqnW15w="
+  [mod."github.com/cosmos/btcutil"]
+    version = "v1.0.4"
+    hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.44.6-cronos-revert-2"
-    hash = "sha256-GT71vvtYOmoRdjnfqotqtzGzNokRhvkd/6MCDcc2u1U="
+    version = "v0.44.6-cronos-revert-3"
+    hash = "sha256-2Cr4vqe2wFHf+qRKr46nJFc3bpwuT9Jind4MECp7Teo="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -495,11 +501,11 @@ schema = 1
     version = "v1.0.3-0.20200723161021-e2fb6adb2a25"
     hash = "sha256-P/InSruANXRmm2oWS7c/bf/iofpnP/Ybp0H2uQiJfXQ="
   [mod."github.com/envoyproxy/go-control-plane"]
-    version = "v0.9.4"
-    hash = "sha256-CQ4+UStz40aYqT2hGGNw85EG1Q0N0sQ2CLNOpPyAJfY="
+    version = "v0.10.1"
+    hash = "sha256-KcJc43L8PsQ3dV8h0Jdf8qtdu+i+QRv/l+9QJRDIPNM="
   [mod."github.com/envoyproxy/protoc-gen-validate"]
-    version = "v0.1.0"
-    hash = "sha256-2htufg3hdOHfbDVI5wFpsuaiDIhH6O1taUGJMdVbjlQ="
+    version = "v0.6.2"
+    hash = "sha256-XgiUXrMbyDG21jTUe7gy8N158xco9SHPhxoce10LFpY="
   [mod."github.com/ethereum/go-ethereum"]
     version = "v1.10.3-patched"
     hash = "sha256-ykNt92URbiimFDzA6F1BQxMGSh65yoBiciafG/WRKXg="
@@ -832,6 +838,9 @@ schema = 1
   [mod."github.com/huin/goutil"]
     version = "v0.0.0-20170803182201-1ca381bf3150"
     hash = "sha256-Irhe+oNPd4KmxBtm5Ou8hMrP09yPWOw7Fyxip5nykCo="
+  [mod."github.com/iancoleman/strcase"]
+    version = "v0.2.0"
+    hash = "sha256-sjzaiANgbiiT9+xh09AwcQGQMGYNrMGiPzDl8L+x7mU="
   [mod."github.com/ianlancetaylor/demangle"]
     version = "v0.0.0-20200824232613-28f6c0f3b639"
     hash = "sha256-A+Wg+8KOpMZfhAKyOFIK79fcdYuKHRp6cIC0J4QZWGc="
@@ -1012,6 +1021,9 @@ schema = 1
   [mod."github.com/lucasjones/reggen"]
     version = "v0.0.0-20180717132126-cdb49ff09d77"
     hash = "sha256-gX55KvGzJkyghKIhmQFnwCI9mXYt/FtDgI/sQ4xNfrE="
+  [mod."github.com/lyft/protoc-gen-star"]
+    version = "v0.5.3"
+    hash = "sha256-6c/OD1q9GZvDDxqWJWmXaBiHBqJK2x6PkkKwI3CA/Hc="
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="
@@ -1447,8 +1459,8 @@ schema = 1
     version = "v0.6.6"
     hash = "sha256-NJN6mkyW8xW3e5lNfOyoUZ2qVZxMo/pR33ftg8voxOU="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.7.2-cronos-15"
-    hash = "sha256-t4YWYQaB3MBQVZYv/2KdJrUD3X2U5QDjy0pM0OiIj3c="
+    version = "v0.7.2-cronos-16"
+    hash = "sha256-Nzr9B9lxlJCO3sKBzASNzG3/LYPpRD42/V8zwxWH2+o="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/tidwall/gjson"]
     version = "v1.6.7"
@@ -1564,6 +1576,9 @@ schema = 1
   [mod."go.opencensus.io"]
     version = "v0.23.0"
     hash = "sha256-R3O9GyNtv6j0ic7s+2xkLLaLzbJEop0Otj1nJDFBjsg="
+  [mod."go.opentelemetry.io/proto/otlp"]
+    version = "v0.7.0"
+    hash = "sha256-B6Z7QlMn8wI7MCggPzXUsl5JOrhjv/w+tlnT6d7IHo0="
   [mod."go.uber.org/atomic"]
     version = "v1.9.0"
     hash = "sha256-D8OtLaViqPShz1w8ijhIHmjw9xVaRu0qD2hXKj63r4Q="
@@ -1595,8 +1610,8 @@ schema = 1
     version = "v0.0.0-20190719004257-d2bd2a29d028"
     hash = "sha256-At0uE2mTr/GHCyF4U8Z+AiU2jlvBVQuX25tooo2ll6M="
   [mod."golang.org/x/mod"]
-    version = "v0.4.2"
-    hash = "sha256-AMaxD67GPHd887NjhG6ANFtFUPIgHs+hadJ82NJk7Go="
+    version = "v0.5.0"
+    hash = "sha256-damNokM4TXu0CM0ts35eW+lKSv7KaqOINYNzEj1fkpw="
   [mod."golang.org/x/net"]
     version = "v0.0.0-20220412020605-290c469a71a5"
     hash = "sha256-4Z9LUUjudqepQZDNOkRcyCGULUzDx+7Faea/kWlmu64="
@@ -1673,12 +1688,6 @@ schema = 1
   [mod."gopkg.in/gcfg.v1"]
     version = "v1.2.3"
     hash = "sha256-+viy8UzF1dvwI53s4vcjE1UCGXGhmo4uXdNyZiNPrpg="
-  [mod."gopkg.in/go-playground/assert.v1"]
-    version = "v1.2.1"
-    hash = "sha256-9SYLM6GItl90ggSFWIGK5dxS3siUpmAilw2oO/2risA="
-  [mod."gopkg.in/go-playground/validator.v9"]
-    version = "v9.29.1"
-    hash = "sha256-q73DVsqbXK7kChfwztEhT90vi6fLUezdfXwIJcsmENo="
   [mod."gopkg.in/ini.v1"]
     version = "v1.66.4"
     hash = "sha256-PZ5vwf47Pjv7lzaUlm/mIdkIfnwEpmSNYG1UIfGh3M4="
