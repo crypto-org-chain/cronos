@@ -40,10 +40,10 @@ func TestRandomizedGenState(t *testing.T) {
 	var cronosGenesis types.GenesisState
 	simState.Cdc.MustUnmarshalJSON(simState.GenState[types.ModuleName], &cronosGenesis)
 
-	require.Equal(t, simulation.GenIbcCroDenom(r), cronosGenesis.Params.GetIbcCroDenom())
-	require.Equal(t, simulation.GenIbcTimeout(r), cronosGenesis.Params.GetIbcTimeout())
-	require.Equal(t, simulation.GenCronosAdmin(r, &simState), cronosGenesis.Params.GetCronosAdmin())
-	require.Equal(t, simulation.GenEnableAutoDeployment(r), cronosGenesis.Params.GetEnableAutoDeployment())
+	require.Equal(t, "ibc/7939cb6694d2c422acd208a0072939487f6999eb9d18a44784045d87f3c67cf2", cronosGenesis.Params.GetIbcCroDenom())
+	require.Equal(t, uint64(0x68255aaf95e94627), cronosGenesis.Params.GetIbcTimeout())
+	require.Equal(t, "cosmos1tnh2q55v8wyygtt9srz5safamzdengsnqeycj3", cronosGenesis.Params.GetCronosAdmin())
+	require.Equal(t, true, cronosGenesis.Params.GetEnableAutoDeployment())
 
 	require.Equal(t, len(cronosGenesis.ExternalContracts), 0)
 	require.Equal(t, len(cronosGenesis.AutoContracts), 0)
