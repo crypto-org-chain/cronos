@@ -18,10 +18,10 @@
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fc5adcc53031c5a3934500a57896a840a2bd073d",
-        "sha256": "1af8sg6lfzxvhha8rbcaklihdm0q2dy4jgnjax1b4914qzfphcb6",
+        "rev": "79e326c33566edaa7c1f1971f8cddea9aaeed794",
+        "sha256": "1p92zf7xq3xssfhmrk4hpkqn12daxh2w40qw1v0svrwcajr46alb",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/fc5adcc53031c5a3934500a57896a840a2bd073d.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/79e326c33566edaa7c1f1971f8cddea9aaeed794.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
