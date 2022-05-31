@@ -36,7 +36,7 @@ You need to prepare two accounts for the orchestrator, one for ethereum and one 
 
 ### Creating the config:
 
-We will use the below `config.toml` to specify the directory where the keys will be generated and some of the configs needed to run the orchestrator. Creating a `gorc.toml` file in the same directory as `gorc` and paste the following config:
+We will use the below `config.toml` to specify the directory where the keys will be generated and some of the configs needed to run the orchestrator. Create a `gorc.toml` file in the same directory as `gorc` and paste the following config:
 
 
 ```toml
