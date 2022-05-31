@@ -1,7 +1,9 @@
 import enum
 import hashlib
 import json
+import os
 import tempfile
+import time
 
 import bech32
 from dateutil.parser import isoparse
@@ -239,6 +241,12 @@ class CosmosCLI:
             self.raw(
                 "query", "auth", "account", addr, output="json", node=self.node_rpc
             )
+        )
+
+    def txs(self, events: str):
+        "/tx_search"
+        return json.loads(
+            self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
         )
 
     def total_supply(self):
@@ -1050,3 +1058,16 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+
+    def fix_unlucky_tx(self, start_block, end_block):
+        with tempfile.NamedTemporaryFile("w") as fp:
+            for i in range(start_block, end_block + 1):
+                print(i, file=fp)
+            fp.flush()
+            output = self.raw(
+                "fix-unlucky-tx",
+                fp.name,
+                min_block_height=1,
+                home=self.data_dir,
+            ).decode()
+            return [tuple(line.split()[1:]) for line in output.split("\n")]

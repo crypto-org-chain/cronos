@@ -1,12 +1,22 @@
+import time
 from pathlib import Path
 
 import pytest
 import web3
+from pystarport import ports
 from web3._utils.method_formatters import receipt_formatter
 from web3.datastructures import AttributeDict
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    KEYS,
+    deploy_contract,
+    sign_transaction,
+    supervisorctl,
+    wait_for_port,
+)
 
 
 @pytest.fixture(scope="module")
@@ -19,6 +29,8 @@ def custom_cronos(tmp_path_factory):
 
 def test_replay_block(custom_cronos):
     w3: web3.Web3 = custom_cronos.w3
+    cli = custom_cronos.cosmos_cli()
+    begin_height = cli.block_height()
     contract = deploy_contract(
         w3,
         CONTRACTS["TestMessageCall"],
@@ -71,9 +83,13 @@ def test_replay_block(custom_cronos):
     assert "error" not in rsp, rsp["error"]
     assert 2 == len(rsp["result"])
 
+    # gas used by the second tx
+    exp_gas_used2 = 758376
+
     # check the replay receipts are the same
     replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
-    assert replay_receipts[0].gasUsed == replay_receipts[1].gasUsed == receipt1.gasUsed
+    assert replay_receipts[0].gasUsed == receipt1.gasUsed
+    assert replay_receipts[1].gasUsed == exp_gas_used2
     assert replay_receipts[0].status == replay_receipts[1].status == receipt1.status
     assert (
         replay_receipts[0].logsBloom
@@ -81,7 +97,10 @@ def test_replay_block(custom_cronos):
         == receipt1.logsBloom
     )
     assert replay_receipts[0].cumulativeGasUsed == receipt1.cumulativeGasUsed
-    assert replay_receipts[1].cumulativeGasUsed == receipt1.cumulativeGasUsed * 2
+    assert (
+        replay_receipts[1].cumulativeGasUsed
+        == receipt1.cumulativeGasUsed + exp_gas_used2
+    )
 
     # check the postUpgrade mode
     rsp = w3.provider.make_request(
@@ -92,3 +111,20 @@ def test_replay_block(custom_cronos):
     replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
     assert replay_receipts[1].status == 0
     assert replay_receipts[1].gasUsed == gas_limit
+
+    # patch the unlucky tx with the new cli command
+    # stop the node0
+    end_height = cli.block_height()
+    supervisorctl(custom_cronos.base_dir / "../tasks.ini", "stop", "cronos_777-1-node0")
+    cli = custom_cronos.cosmos_cli()
+    results = cli.fix_unlucky_tx(begin_height, end_height)
+    # the second tx is patched
+    assert results[0][1] == txhashes[1].hex()
+    # start the node0 again
+    supervisorctl(
+        custom_cronos.base_dir / "../tasks.ini", "start", "cronos_777-1-node0"
+    )
+    # wait for json-rpc port
+    wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
+    # check the tx indexer
+    print(cli.txs(f"ethereum_tx.ethereumTxHash={txhashes[1]}"))
