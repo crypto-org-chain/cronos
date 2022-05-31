@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import pytest
@@ -124,7 +123,7 @@ def test_replay_block(custom_cronos):
     supervisorctl(
         custom_cronos.base_dir / "../tasks.ini", "start", "cronos_777-1-node0"
     )
-    # wait for json-rpc port
+    # wait for tm-rpc port
     wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
     # check the tx indexer
-    print(cli.txs(f"ethereum_tx.ethereumTxHash={txhashes[1]}"))
+    assert len(cli.txs(f"ethereum_tx.ethereumTxHash={txhashes[1].hex()}")["txs"]) == 1
