@@ -246,7 +246,7 @@ func (h SendToEthereumHandler) Handle(
 	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 	bridgeFee := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 
-	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
 	// First, transfer the coin to user so that he will be able to cancel later on
 	if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender.Bytes(), coins); err != nil {
 		return err
