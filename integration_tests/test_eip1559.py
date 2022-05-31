@@ -65,3 +65,39 @@ def test_base_fee_adjustment(cluster):
         fee = w3.eth.get_block(begin + 1 + i).baseFeePerGas
         assert fee == adjust_base_fee(parent_fee, blk.gasLimit, 0)
         parent_fee = fee
+
+
+def test_recommended_fee_per_gas(cluster):
+    """The recommended base fee per gas returned by eth_gasPrice is
+    base fee of the block just produced + eth_maxPriorityFeePerGas (the buffer).\n
+    Verify the calculation of recommended base fee per gas (eth_gasPrice)
+    """
+    w3 = cluster.w3
+
+    recommended_base_fee_per_gas = w3.eth.gas_price
+    latest_block = w3.eth.get_block("latest")
+    base_fee = latest_block["baseFeePerGas"]
+    buffer_fee = w3.eth.max_priority_fee
+
+    assert recommended_base_fee_per_gas == base_fee + buffer_fee, (
+        f"eth_gasPrice is not the {latest_block['number']} block's "
+        "base fee plus eth_maxPriorityFeePerGas"
+    )
+
+
+def test_current_fee_per_gas_should_not_be_smaller_than_next_block_base_fee(cluster):
+    """The recommended base fee per gas returned by eth_gasPrice should
+    be bigger than or equal to the base fee per gas of the next block, \n
+    otherwise the tx does not meet the requirement to be included in the next block.\n
+    """
+    w3 = cluster.w3
+
+    base_block = w3.eth.block_number
+    recommended_base_fee = w3.eth.gas_price
+
+    w3_wait_for_block(w3, base_block + 1)
+    next_block = w3.eth.get_block(base_block + 1)
+    assert recommended_base_fee >= next_block["baseFeePerGas"], (
+        f"recommended base fee: {recommended_base_fee} is smaller than "
+        f"next block {next_block['number']} base fee: {next_block['baseFeePerGas']}"
+    )
