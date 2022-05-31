@@ -273,7 +273,6 @@ func (h SendToEthereumHandler) Handle(
 type CancelSendToEthereumHandler struct {
 	gravitySrv    gravitytypes.MsgServer
 	cronosKeeper  Keeper
-	bankKeeper    types.BankKeeper
 	gravityKeeper types.GravityKeeper
 }
 
@@ -348,7 +347,10 @@ func (h CancelSendToEthereumHandler) Handle(
 	}
 	refundAmount := sdk.NewCoins(sdk.NewCoin(denom, send.Erc20Token.Amount.Add(send.Erc20Fee.Amount)))
 	// If cancel has no error, we need to convert back the native token to evm tokens
-	h.cronosKeeper.ConvertVouchersToEvmCoins(ctx, sender.String(), refundAmount)
+	err = h.cronosKeeper.ConvertVouchersToEvmCoins(ctx, sender.String(), refundAmount)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
