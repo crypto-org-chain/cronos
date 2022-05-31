@@ -64,6 +64,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 				blocksFile = fp
 			}
 
+			tmDB, err := openTMDB(ctx.Config, chainID)
+			if err != nil {
+				return err
+			}
+
 			scanner := bufio.NewScanner(blocksFile)
 			for scanner.Scan() {
 				blockNumber, err := strconv.ParseInt(scanner.Text(), 10, 64)
@@ -73,11 +78,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 
 				if blockNumber < int64(minBlockHeight) {
 					return fmt.Errorf("block number is generated before v0.7.0 upgrade: %d", blockNumber)
-				}
-
-				tmDB, err := openTMDB(ctx.Config, chainID)
-				if err != nil {
-					return err
 				}
 
 				// load results
