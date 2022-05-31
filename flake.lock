@@ -20,19 +20,20 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "utils": "utils"
+        "utils": [
+          "flake-utils"
+        ]
       },
       "locked": {
-        "lastModified": 1653039717,
-        "narHash": "sha256-igeJsyvoKBQqRSQS7QEFzaLUc5AxXIZPaqO9qpx3HmY=",
-        "owner": "yihuang",
+        "lastModified": 1653934437,
+        "narHash": "sha256-BJVDE3y/IfHHPjRymJWEIcDooaAIleH6Hy+pkLxst3E=",
+        "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "6cdf8f60e20bfc5c58c51242bd7f329f6c5ff4b2",
+        "rev": "fb910de8cc78c3e820d24f9b718614ea255af469",
         "type": "github"
       },
       "original": {
-        "owner": "yihuang",
-        "ref": "demonstrate-error",
+        "owner": "tweag",
         "repo": "gomod2nix",
         "type": "github"
       }
@@ -93,21 +94,6 @@
         "nix-bundle-exe": "nix-bundle-exe",
         "nixpkgs": "nixpkgs",
         "rocksdb-src": "rocksdb-src"
-      }
-    },
-    "utils": {
-      "locked": {
-        "lastModified": 1623875721,
-        "narHash": "sha256-A8BU7bjS5GirpAUv4QA+QnJ4CceLHkcXdRp4xITDB0s=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "f7e004a55b120c02ecb6219596820fcd32ca8772",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "type": "github"
       }
     }
   },
