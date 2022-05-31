@@ -41,7 +41,7 @@ def test_replay_block(custom_cronos):
             contract.functions.test(iterations).buildTransaction(
                 {
                     "nonce": nonce + 1,
-                    "gas": gas_limit,
+                    "gas": gas_limit + 1,
                     "gasPrice": gas_price,
                 }
             ),
@@ -70,8 +70,8 @@ def test_replay_block(custom_cronos):
 
     # the second tx should fail and cost the whole gasLimit
     assert receipt2.status == 0
-    assert receipt2.gasUsed == gas_limit
-    assert receipt2.cumulativeGasUsed == receipt1.cumulativeGasUsed + gas_limit
+    assert receipt2.gasUsed == gas_limit + 1
+    assert receipt2.cumulativeGasUsed == receipt1.cumulativeGasUsed + gas_limit + 1
 
     # check get block apis
     assert w3.eth.get_block(receipt1.blockNumber).transactions == [
@@ -116,4 +116,4 @@ def test_replay_block(custom_cronos):
     assert 2 == len(rsp["result"])
     replay_receipts = [AttributeDict(receipt_formatter(item)) for item in rsp["result"]]
     assert replay_receipts[1].status == 0
-    assert replay_receipts[1].gasUsed == gas_limit
+    assert replay_receipts[1].gasUsed == gas_limit + 1
