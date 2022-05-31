@@ -61,7 +61,7 @@ CONTRACTS = {
 }
 
 
-def wait_for_fn(name, fn, *, timeout=120, interval=1):
+def wait_for_fn(name, fn, *, timeout=240, interval=1):
     for i in range(int(timeout / interval)):
         result = fn()
         print("check", name, result)
