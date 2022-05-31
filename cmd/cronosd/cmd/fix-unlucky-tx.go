@@ -137,7 +137,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							fmt.Println("patched", blockNumber, msg.(*evmtypes.MsgEthereumTx).Hash)
 						}
 						break
-					} else if txResult.Code != 0 {
+					} else if txResult.Code == 0 {
 						// find the correct tx index
 						for _, evt := range txResult.Events {
 							if evt.Type == evmtypes.TypeMsgEthereumTx {
