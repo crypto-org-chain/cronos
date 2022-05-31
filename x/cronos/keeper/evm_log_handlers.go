@@ -241,20 +241,21 @@ func (h SendToEthereumHandler) Handle(
 		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
 	}
 
-	contractAddr := sdk.AccAddress(contract.Bytes())
+	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
+	senderCosmosAddr := sdk.AccAddress(sender.Bytes())
 	ethRecipient := unpacked[0].(common.Address)
 	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 	bridgeFee := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
 	// First, transfer the coin to user so that he will be able to cancel later on
-	if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender.Bytes(), coins); err != nil {
+	if err = h.bankKeeper.SendCoins(ctx, contractCosmosAddr, sender.Bytes(), coins); err != nil {
 		return err
 	}
 
 	// Initialize a gravity transfer
 	msg := gravitytypes.MsgSendToEthereum{
-		Sender:            sender.String(),
+		Sender:            senderCosmosAddr.String(),
 		EthereumRecipient: ethRecipient.Hex(),
 		Amount:            sdk.NewCoin(denom, amount),
 		BridgeFee:         sdk.NewCoin(denom, bridgeFee),

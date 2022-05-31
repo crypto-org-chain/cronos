@@ -18,6 +18,7 @@ import (
 
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
+	sender := common.BigToAddress(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
 	denom := "testdenom"
 	var data []byte
@@ -82,7 +83,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			handler := keeper.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -97,6 +98,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
+	sender := common.BigToAddress(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
 	invalidDenom := "testdenom"
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
@@ -173,7 +175,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 				// query unbatched SendToEthereum message exist
 				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
-					SenderAddress: sdk.AccAddress(contract.Bytes()).String(),
+					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
 				})
 				suite.Require().Equal(1, len(rsp.SendToEthereums))
 				suite.Require().NoError(err)
@@ -186,9 +188,10 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
 			handler := keeper.NewSendToEthereumHandler(
-				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper), suite.app.CronosKeeper)
+				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
+				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -293,7 +296,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 			)
 			handler := keeper.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -383,7 +386,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			)
 			handler := keeper.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
