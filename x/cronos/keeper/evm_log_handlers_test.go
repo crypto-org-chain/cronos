@@ -396,3 +396,118 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 		})
 	}
 }
+
+func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
+	suite.SetupTest()
+
+	contract := common.BigToAddress(big.NewInt(1))
+	sender := common.BigToAddress(big.NewInt(2))
+	invalidDenom := "testdenom"
+	validDenom := "gravity0x0000000000000000000000000000000000000000"
+	var data []byte
+
+	testCases := []struct {
+		msg       string
+		malleate  func()
+		postcheck func()
+		error     error
+	}{
+		{
+			"non gravity denom, expect fail",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+					big.NewInt(1),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
+		},
+		{
+			"non associated coin denom, expect fail",
+			func() {
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+					big.NewInt(1),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+		},
+		{
+			"success cancel send to ethereum",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
+				suite.Require().Equal(coin, balance)
+
+				// First add a SendToEthereum transaction
+				gravityMsgServer := gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper)
+				msg := gravitytypes.MsgSendToEthereum{
+					Sender:            sdk.AccAddress(sender.Bytes()).String(),
+					EthereumRecipient: "",
+					Amount:            sdk.NewCoin(validDenom, sdk.NewInt(99)),
+					BridgeFee:         sdk.NewCoin(validDenom, sdk.NewInt(1)),
+				}
+				resp, err := gravityMsgServer.SendToEthereum(sdk.WrapSDKContext(suite.ctx), &msg)
+				suite.Require().NoError(err)
+				// check sender's balance deducted
+				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
+
+				// Then cancel the SendToEthereum transaction
+				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+					big.NewInt(int64(resp.Id)),
+				)
+				data = input
+			},
+			func() {
+				// sender's balance refunded
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(100)), balance)
+				// query unbatched SendToEthereum message does not exist
+				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
+					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
+				})
+				suite.Require().Equal(0, len(rsp.SendToEthereums))
+				suite.Require().NoError(err)
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
+			suite.SetupTest()
+			handler := keeper.NewCancelSendToEthereumHandler(
+				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
+				suite.app.CronosKeeper, suite.app.GravityKeeper)
+			tc.malleate()
+			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			if tc.error != nil {
+				suite.Require().EqualError(err, tc.error.Error())
+			} else {
+				suite.Require().NoError(err)
+				tc.postcheck()
+			}
+		})
+	}
+}

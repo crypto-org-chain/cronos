@@ -320,6 +320,7 @@ func (h CancelSendToEthereumHandler) Handle(
 	}
 
 	id := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
+	senderCosmosAddr := sdk.AccAddress(sender.Bytes())
 
 	// Need to retrieve the batch to get the amount to refund
 	var unbatched []*gravitytypes.SendToEthereum
@@ -339,7 +340,7 @@ func (h CancelSendToEthereumHandler) Handle(
 	}
 
 	msg := gravitytypes.MsgCancelSendToEthereum{
-		Sender: sender.String(),
+		Sender: senderCosmosAddr.String(),
 		Id:     id.Uint64(),
 	}
 	_, err = h.gravitySrv.CancelSendToEthereum(sdk.WrapSDKContext(ctx), &msg)
@@ -348,7 +349,7 @@ func (h CancelSendToEthereumHandler) Handle(
 	}
 	refundAmount := sdk.NewCoins(sdk.NewCoin(denom, send.Erc20Token.Amount.Add(send.Erc20Fee.Amount)))
 	// If cancel has no error, we need to convert back the native token to evm tokens
-	err = h.cronosKeeper.ConvertVouchersToEvmCoins(ctx, sender.String(), refundAmount)
+	err = h.cronosKeeper.ConvertVouchersToEvmCoins(ctx, senderCosmosAddr.String(), refundAmount)
 	if err != nil {
 		return err
 	}
