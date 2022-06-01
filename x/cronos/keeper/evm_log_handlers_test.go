@@ -470,6 +470,9 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				resp, err := gravityMsgServer.SendToEthereum(sdk.WrapSDKContext(suite.ctx), &msg)
 				suite.Require().NoError(err)
 				// check sender's balance deducted
+				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
+				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
+				// check contract's balance empty
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 
@@ -480,7 +483,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				data = input
 			},
 			func() {
-				// sender's balance refunded
+				// sender's balance should be refunded and then send to the contract address
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(100)), balance)
 				// query unbatched SendToEthereum message does not exist
