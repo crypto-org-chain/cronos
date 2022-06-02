@@ -31,4 +31,4 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 | [002](./adr-002.md) | Use a custom fork of ibc-go | Accepted |
 | [003](./adr-003.md) | Add Fee Market Module | Accepted |
 | [004](./adr-004.md) | Tokens conversion in Cronos | Accepted |
-| [005](./adr-005.md) | Cross-chain Validation for Gravity Bridge | Proposed |
+| [005](./adr-005.md) | Cross-chain Validation for Gravity Bridge | Rejected |
