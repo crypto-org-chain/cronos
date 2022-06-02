@@ -123,11 +123,11 @@ def gravity(cronos, geth):
         # fund the orchestrator accounts
         eth_addr = gorc.show_eth_addr("eth")
         print("fund 0.1 eth to address", eth_addr)
-        send_transaction(geth, {"to": eth_addr, "value": 10 ** 17}, KEYS["validator"])
+        send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
         acc_addr = gorc.show_cosmos_addr("cronos")
         print("fund 100cro to address", acc_addr)
         rsp = cronos.cosmos_cli().transfer(
-            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
+            "community", acc_addr, "%dbasetcro" % (100 * (10**18))
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -147,7 +147,7 @@ def gravity(cronos, geth):
     gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
     signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
     powers = [int(signer["power"]) for signer in signer_set]
-    threshold = int(2 ** 32 * 0.66)  # gravity normalize the power to [0, 2**32]
+    threshold = int(2**32 * 0.66)  # gravity normalize the power to [0, 2**32]
     eth_addresses = [signer["ethereum_address"] for signer in signer_set]
     assert sum(powers) >= threshold, "not enough validator on board"
 
@@ -233,9 +233,9 @@ def test_gravity_transfer(gravity):
         "check the id after sendToEthereum call"
         for _, log in enumerate(receipt.logs):
             if log.topics[0] == HexBytes(
-                    abi.event_signature_to_log_topic(
-                        "__CronosSendToEthereumResponse(uint256)"
-                    )
+                abi.event_signature_to_log_topic(
+                    "__CronosSendToEthereumResponse(uint256)"
+                )
             ):
                 return log.data
         return "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -254,8 +254,8 @@ def test_gravity_transfer(gravity):
         # __CronosSendToEthereumResponse
         assert len(txreceipt.logs) == 3
         assert (
-                get_id_from_receipt(txreceipt)
-                == "0x0000000000000000000000000000000000000000000000000000000000000001"
+            get_id_from_receipt(txreceipt)
+            == "0x0000000000000000000000000000000000000000000000000000000000000001"
         ), "should be able to get id"
         assert txreceipt.status == 1, "should success"
     else:
@@ -323,7 +323,7 @@ def test_gov_token_mapping(gravity):
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     assert (
-            int(cli.query_tally(proposal_id)["yes"]) == cli.staking_pool()
+        int(cli.query_tally(proposal_id)["yes"]) == cli.staking_pool()
     ), "all validators should have voted yes"
     print("wait for proposal to be activated")
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
@@ -427,9 +427,7 @@ def test_gravity_cancel_transfer(gravity):
 
         print("send to cronos crc20")
         recipient = HexBytes(ADDRS["community"])
-        send_to_cosmos(
-            gravity.contract, erc20, recipient, amount, KEYS["validator"]
-        )
+        send_to_cosmos(gravity.contract, erc20, recipient, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         denom = f"gravity{erc20.address}"
@@ -454,19 +452,20 @@ def test_gravity_cancel_transfer(gravity):
             "check the id after sendToEthereum call"
             for _, log in enumerate(receipt.logs):
                 if log.topics[0] == HexBytes(
-                        abi.event_signature_to_log_topic(
-                            "__CronosSendToEthereumResponse(uint256)"
-                        )
+                    abi.event_signature_to_log_topic(
+                        "__CronosSendToEthereumResponse(uint256)"
+                    )
                 ):
                     return log.data
             return "0x0000000000000000000000000000000000000000000000000000000000000000"
 
         wait_for_fn("send-to-crc20", check_auto_deployment)
 
-        def checkFund():
+        def check_fund():
             v = crc20_contract.caller.balanceOf(ADDRS["community"])
             return v == amount
-        wait_for_fn("send-to-ethereum", checkFund)
+
+        wait_for_fn("send-to-ethereum", check_fund)
 
         # send it back to erc20
         tx = crc20_contract.functions.send_to_ethereum(
@@ -481,10 +480,11 @@ def test_gravity_cancel_transfer(gravity):
         tx_id = get_id_from_receipt(txreceipt)
         assert txreceipt.status == 1, "should success"
 
-        def checkDeduction():
+        def check_deduction():
             v = crc20_contract.caller.balanceOf(ADDRS["community"])
             return v == 0
-        wait_for_fn("check deduction", checkDeduction)
+
+        wait_for_fn("check deduction", check_deduction)
 
         # Cancel the send_to_ethereum
         canceltx = cancel_contract.functions.cancelTransaction(
@@ -494,7 +494,8 @@ def test_gravity_cancel_transfer(gravity):
         print("canceltxreceipt", canceltxreceipt)
         assert canceltxreceipt.status == 1, "should success"
 
-        def checkRefund():
+        def check_refund():
             v = crc20_contract.caller.balanceOf(ADDRS["community"])
             return v == amount
-        wait_for_fn("cancel-send-to-ethereum", checkRefund)
+
+        wait_for_fn("cancel-send-to-ethereum", check_refund)
