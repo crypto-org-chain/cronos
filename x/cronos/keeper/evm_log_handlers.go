@@ -296,7 +296,7 @@ func (h CancelSendToEthereumHandler) EventID() common.Hash {
 func (h CancelSendToEthereumHandler) Handle(
 	ctx sdk.Context,
 	sender common.Address,
-	contract common.Address,
+	_ common.Address,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	if h.gravitySrv == nil {
@@ -308,15 +308,6 @@ func (h CancelSendToEthereumHandler) Handle(
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
 		return nil
-	}
-
-	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found {
-		return fmt.Errorf("contract %s is not connected to native token", contract)
-	}
-
-	if !types.IsValidGravityDenom(denom) {
-		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
 	}
 
 	id := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
@@ -337,6 +328,11 @@ func (h CancelSendToEthereumHandler) Handle(
 	}
 	if send == nil {
 		return fmt.Errorf("id not found or the transaction is already included in a batch")
+	}
+
+	_, denom := h.gravityKeeper.ERC20ToDenomLookup(ctx, common.HexToAddress(send.Erc20Token.Contract))
+	if !types.IsValidGravityDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", send.Erc20Token.Contract)
 	}
 
 	msg := gravitytypes.MsgCancelSendToEthereum{

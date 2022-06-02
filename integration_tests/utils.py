@@ -40,6 +40,7 @@ TEST_CONTRACTS = {
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
     "CroBridge": "CroBridge.sol",
+    "CronosGravityCancellation": "CronosGravityCancellation.sol",
 }
 
 

@@ -402,7 +402,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
-	invalidDenom := "testdenom"
+	random := common.BigToAddress(big.NewInt(3))
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
 
@@ -413,14 +413,14 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 		error     error
 	}{
 		{
-			"non gravity denom, expect fail",
+			"id not found",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
-				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
 				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), invalidDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
 				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
@@ -429,25 +429,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
-		},
-		{
-			"non associated coin denom, expect fail",
-			func() {
-				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
-				suite.Require().NoError(err)
-
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), invalidDenom)
-				suite.Require().Equal(coin, balance)
-
-				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
-					big.NewInt(1),
-				)
-				data = input
-			},
-			func() {},
-			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+			errors.New("id not found or the transaction is already included in a batch"),
 		},
 		{
 			"success cancel send to ethereum",
@@ -504,7 +486,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, sender, random, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
