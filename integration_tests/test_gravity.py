@@ -83,7 +83,7 @@ def cronos(request, tmp_path_factory):
     params: enable_auto_deployment
     """
     yield from setup_cronos_experimental(
-        tmp_path_factory.mktemp("cronos_experimental"), 26700, request.param
+        tmp_path_factory.mktemp("cronos_experimental"), 26600, request.param
     )
 
 
