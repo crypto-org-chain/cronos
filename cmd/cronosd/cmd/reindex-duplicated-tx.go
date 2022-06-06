@@ -28,7 +28,7 @@ const (
 func ReindexDuplicatedTx() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reindex-duplicated-tx",
-		Short: "Reindex tx that suffer from tendermint duplicated tx issue",
+		Short: "Reindex tx that suffer from tendermint duplicated tx issue, it can handle both v0.6.x and v0.7.x blocks.",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
