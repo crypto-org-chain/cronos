@@ -37,6 +37,7 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
+          min_gas_multiplier: "0"
       cronos:
         params:
           cronos_admin: ${CRONOS_ADMIN}
