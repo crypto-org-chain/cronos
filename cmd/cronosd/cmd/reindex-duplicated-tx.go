@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -15,14 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmcfg "github.com/tendermint/tendermint/config"
-	tmnode "github.com/tendermint/tendermint/node"
-	sm "github.com/tendermint/tendermint/state"
-	"github.com/tendermint/tendermint/state/indexer/sink/psql"
-	"github.com/tendermint/tendermint/state/txindex"
-	"github.com/tendermint/tendermint/state/txindex/kv"
-	"github.com/tendermint/tendermint/state/txindex/null"
-	tmstore "github.com/tendermint/tendermint/store"
 )
 
 const (
@@ -195,57 +186,4 @@ func ReindexDuplicatedTx() *cobra.Command {
 	cmd.Flags().Int(FlagConcurrency, runtime.NumCPU(), "Define how many workers run in concurrency")
 
 	return cmd
-}
-
-type tmDB struct {
-	blockStore *tmstore.BlockStore
-	stateStore sm.Store
-	txIndexer  txindex.TxIndexer
-}
-
-func openTMDB(cfg *tmcfg.Config, chainID string) (*tmDB, error) {
-	// open tendermint db
-	tmdb, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "blockstore", Config: cfg})
-	if err != nil {
-		return nil, err
-	}
-	blockStore := tmstore.NewBlockStore(tmdb)
-
-	stateDB, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "state", Config: cfg})
-	if err != nil {
-		return nil, err
-	}
-	stateStore := sm.NewStore(stateDB)
-
-	txIndexer, err := newTxIndexer(cfg, chainID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &tmDB{
-		blockStore, stateStore, txIndexer,
-	}, nil
-}
-
-func newTxIndexer(config *tmcfg.Config, chainID string) (txindex.TxIndexer, error) {
-	switch config.TxIndex.Indexer {
-	case "kv":
-		store, err := tmnode.DefaultDBProvider(&tmnode.DBContext{ID: "tx_index", Config: config})
-		if err != nil {
-			return nil, err
-		}
-
-		return kv.NewTxIndex(store), nil
-	case "psql":
-		if config.TxIndex.PsqlConn == "" {
-			return nil, errors.New(`no psql-conn is set for the "psql" indexer`)
-		}
-		es, err := psql.NewEventSink(config.TxIndex.PsqlConn, chainID)
-		if err != nil {
-			return nil, fmt.Errorf("creating psql indexer: %w", err)
-		}
-		return es.TxIndexer(), nil
-	default:
-		return &null.TxIndex{}, nil
-	}
 }
