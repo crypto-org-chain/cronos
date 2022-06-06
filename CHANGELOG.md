@@ -5,6 +5,10 @@
 ### State Machine Breaking
 - [cronos#429](https://github.com/crypto-org-chain/cronos/pull/429) Update ethermint to main, ibc-go to v3.0.0, cosmos sdk to v0.45.4 and gravity to latest, remove v0.7.0 related upgradeHandler.
 
+### Bug Fixes
+
+- [cronos#502](https://github.com/crypto-org-chain/cronos/pull/502) Fix failed tx are ignored in json-rpc apis.
+
 ### Improvements
 - [cronos#418](https://github.com/crypto-org-chain/cronos/pull/418) Support logs in evm-hooks and return id for SendToEthereum events
 - [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
