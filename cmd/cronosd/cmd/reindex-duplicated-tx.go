@@ -54,9 +54,6 @@ func ReindexDuplicatedTx() *cobra.Command {
 					return err
 				}
 				block := tmDB.blockStore.LoadBlock(height)
-				if err != nil {
-					return err
-				}
 				if block == nil {
 					return fmt.Errorf("block not found: %d", height)
 				}
