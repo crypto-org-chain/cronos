@@ -136,6 +136,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		FixUnluckyTxCmd(),
+		ReindexDuplicatedTx(),
 	)
 
 	// add rosetta
