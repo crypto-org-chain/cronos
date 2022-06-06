@@ -38,9 +38,6 @@ func ReindexDuplicatedTx() *cobra.Command {
 				return err
 			}
 			printTxs, err := cmd.Flags().GetBool(FlagPrintTxs)
-			if err != nil {
-				return err
-			}
 
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
