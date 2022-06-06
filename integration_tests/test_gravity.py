@@ -83,7 +83,7 @@ def cronos(request, tmp_path_factory):
     params: enable_auto_deployment
     """
     yield from setup_cronos_experimental(
-        tmp_path_factory.mktemp("cronos_experimental"), 26700, request.param
+        tmp_path_factory.mktemp("cronos_experimental"), 26600, request.param
     )
 
 
@@ -172,6 +172,7 @@ def gravity(cronos, geth):
                 f'gorc -c "{gorc_config_path}" orchestrator start '
                 "--cosmos-key cronos --ethereum-key eth"
             ),
+            "environment": "RUST_BACKTRACE=full",
             "autostart": "true",
             "autorestart": "true",
             "startsecs": "3",
