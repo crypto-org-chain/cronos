@@ -2,6 +2,16 @@ name: Sims
 # Sims workflow runs multiple types of simulations (nondeterminism, import-export, after-import, multi-seed-short)
 # This workflow will run on main and release branches, if a .go, .mod or .sum file have been changed
 on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+    branches:
+      - main
+      - release/**
+    tags:
+      - "*"
+  pull_request:
+    types: auto_merge_enabled
   issue_comment:
     types: [created, edited]
 
