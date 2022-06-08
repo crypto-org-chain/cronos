@@ -6,6 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -20,11 +26,6 @@ import (
 	"github.com/tendermint/tendermint/state/txindex/null"
 	tmstore "github.com/tendermint/tendermint/store"
 	evmtypes "github.com/tharsis/ethermint/x/evm/types"
-	"os"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 const (
