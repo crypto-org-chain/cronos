@@ -1,9 +1,9 @@
 #!/bin/sh
 make -C contracts
 cat contracts/out/dapp.sol.json | \
-    jq '.contracts."src/ModuleCRC21.sol".ModuleCRC21' | \
+    jq '.contracts."src/ModuleCRC20.sol".ModuleCRC20' | \
     jq '{abi, bin: .evm.bytecode.object}' \
-    > x/cronos/types/contracts/ModuleCRC21.json
+    > x/cronos/types/contracts/ModuleCRC20.json
 cat contracts/out/dapp.sol.json | \
     jq '.contracts."src/ModuleCRC21.sol".ModuleCRC21' | \
     jq '{abi, bin: .evm.bytecode.object}' \
