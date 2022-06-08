@@ -32,8 +32,8 @@ pytestmark = pytest.mark.gravity
 Account.enable_unaudited_hdwallet_features()
 
 
-def cronos_crc20_abi():
-    path = CONTRACTS["ModuleCRC20"]
+def cronos_crc21_abi():
+    path = CONTRACTS["ModuleCRC21"]
     return json.load(path.open())["abi"]
 
 
@@ -209,21 +209,21 @@ def test_gravity_transfer(gravity):
 
     denom = f"gravity{erc20.address}"
 
-    crc20_contract = None
+    crc21_contract = None
 
     def check_auto_deployment():
         "check crc20 contract auto deployed, and the crc20 balance"
-        nonlocal crc20_contract
+        nonlocal crc21_contract
         try:
             rsp = cli.query_contract_by_denom(denom)
         except AssertionError:
             # not deployed yet
             return False
         assert len(rsp["auto_contract"]) > 0
-        crc20_contract = cronos_w3.eth.contract(
-            address=rsp["auto_contract"], abi=cronos_crc20_abi()
+        crc21_contract = cronos_w3.eth.contract(
+            address=rsp["auto_contract"], abi=cronos_crc21_abi()
         )
-        return crc20_contract.caller.balanceOf(recipient) == amount
+        return crc21_contract.caller.balanceOf(recipient) == amount
 
     def check_gravity_native_tokens():
         "check the balance of gravity native token"
@@ -244,7 +244,7 @@ def test_gravity_transfer(gravity):
         wait_for_fn("send-to-crc20", check_auto_deployment)
 
         # send it back to erc20
-        tx = crc20_contract.functions.send_to_ethereum(
+        tx = crc21_contract.functions.send_to_ethereum_v2(
             ADDRS["validator"], amount, 0
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
@@ -291,11 +291,11 @@ def test_gov_token_mapping(gravity):
         CONTRACTS["TestERC20A"],
     )
     print("erc20 contract", erc20.address)
-    crc20 = deploy_contract(
+    crc21 = deploy_contract(
         cronos_w3,
         CONTRACTS["TestERC20Utility"],
     )
-    print("crc20 contract", crc20.address)
+    print("crc21 contract", crc21.address)
     denom = f"gravity{erc20.address}"
 
     print("check the contract mapping not exists yet")
@@ -303,7 +303,7 @@ def test_gov_token_mapping(gravity):
         cli.query_contract_by_denom(denom)
 
     rsp = cli.gov_propose_token_mapping_change(
-        denom, crc20.address, from_="community", deposit="1basetcro"
+        denom, crc21.address, from_="community", deposit="1basetcro"
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -332,7 +332,7 @@ def test_gov_token_mapping(gravity):
     print("check the contract mapping exists now")
     rsp = cli.query_contract_by_denom(denom)
     print("contract", rsp)
-    assert rsp["contract"] == crc20.address
+    assert rsp["contract"] == crc21.address
 
     print("try to send token from ethereum to cronos")
     txreceipt = send_to_cosmos(
@@ -341,7 +341,7 @@ def test_gov_token_mapping(gravity):
     assert txreceipt.status == 1
 
     def check():
-        balance = crc20.caller.balanceOf(ADDRS["community"])
+        balance = crc21.caller.balanceOf(ADDRS["community"])
         print("crc20 balance", balance)
         return balance == 10
 
@@ -366,28 +366,28 @@ def test_direct_token_mapping(gravity):
         CONTRACTS["TestERC20A"],
     )
     print("erc20 contract", erc20.address)
-    crc20 = deploy_contract(
+    crc21 = deploy_contract(
         cronos_w3,
         CONTRACTS["TestERC20Utility"],
     )
-    print("crc20 contract", crc20.address)
+    print("crc21 contract", crc21.address)
     denom = f"gravity{erc20.address}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
         cli.query_contract_by_denom(denom)
 
-    rsp = cli.update_token_mapping(denom, crc20.address, from_="community")
+    rsp = cli.update_token_mapping(denom, crc21.address, from_="community")
     assert rsp["code"] != 0, "should not have the permission"
 
-    rsp = cli.update_token_mapping(denom, crc20.address, from_="validator")
+    rsp = cli.update_token_mapping(denom, crc21.address, from_="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
 
     print("check the contract mapping exists now")
     rsp = cli.query_contract_by_denom(denom)
     print("contract", rsp)
-    assert rsp["contract"] == crc20.address
+    assert rsp["contract"] == crc21.address
 
     print("try to send token from ethereum to cronos")
     txreceipt = send_to_cosmos(
@@ -396,7 +396,7 @@ def test_direct_token_mapping(gravity):
     assert txreceipt.status == 1
 
     def check():
-        balance = crc20.caller.balanceOf(ADDRS["community"])
+        balance = crc21.caller.balanceOf(ADDRS["community"])
         print("crc20 balance", balance)
         return balance == 10
 
@@ -425,28 +425,28 @@ def test_gravity_cancel_transfer(gravity):
         assert balance == 100000000000000000000000000
         amount = 1000
 
-        print("send to cronos crc20")
+        print("send to cronos crc21")
         recipient = HexBytes(ADDRS["community"])
         send_to_cosmos(gravity.contract, erc20, recipient, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         denom = f"gravity{erc20.address}"
 
-        crc20_contract = None
+        crc21_contract = None
 
         def check_auto_deployment():
-            "check crc20 contract auto deployed, and the crc20 balance"
-            nonlocal crc20_contract
+            "check crc21 contract auto deployed, and the crc21 balance"
+            nonlocal crc21_contract
             try:
                 rsp = cli.query_contract_by_denom(denom)
             except AssertionError:
                 # not deployed yet
                 return False
             assert len(rsp["auto_contract"]) > 0
-            crc20_contract = cronos_w3.eth.contract(
-                address=rsp["auto_contract"], abi=cronos_crc20_abi()
+            crc21_contract = cronos_w3.eth.contract(
+                address=rsp["auto_contract"], abi=cronos_crc21_abi()
             )
-            return crc20_contract.caller.balanceOf(recipient) == amount
+            return crc21_contract.caller.balanceOf(recipient) == amount
 
         def get_id_from_receipt(receipt):
             "check the id after sendToEthereum call"
@@ -462,13 +462,13 @@ def test_gravity_cancel_transfer(gravity):
         wait_for_fn("send-to-crc20", check_auto_deployment)
 
         def check_fund():
-            v = crc20_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(ADDRS["community"])
             return v == amount
 
         wait_for_fn("send-to-ethereum", check_fund)
 
         # send it back to erc20
-        tx = crc20_contract.functions.send_to_ethereum(
+        tx = crc21_contract.functions.send_to_ethereum_v2(
             ADDRS["validator"], amount, 0
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
@@ -481,7 +481,7 @@ def test_gravity_cancel_transfer(gravity):
         assert txreceipt.status == 1, "should success"
 
         def check_deduction():
-            v = crc20_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(ADDRS["community"])
             return v == 0
 
         wait_for_fn("check deduction", check_deduction)
@@ -495,7 +495,7 @@ def test_gravity_cancel_transfer(gravity):
         assert canceltxreceipt.status == 1, "should success"
 
         def check_refund():
-            v = crc20_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(ADDRS["community"])
             return v == amount
 
         wait_for_fn("cancel-send-to-ethereum", check_refund)

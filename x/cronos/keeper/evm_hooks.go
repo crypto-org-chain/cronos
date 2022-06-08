@@ -36,7 +36,7 @@ func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, msg core.Message, r
 		if !ok {
 			continue
 		}
-		err := handler.Handle(ctx, msg.From(), log.Address, log.Data, addLogToReceiptFunc)
+		err := handler.Handle(ctx, log.Address, log.Data, addLogToReceiptFunc)
 		if err != nil {
 			return err
 		}

@@ -61,7 +61,7 @@ type EvmLogHandler interface {
 	// Return the id of the log signature it handles
 	EventID() common.Hash
 	// Process the log
-	Handle(ctx sdk.Context, sender common.Address, contract common.Address, data []byte,
+	Handle(ctx sdk.Context, contract common.Address, data []byte,
 		addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error
 }
 

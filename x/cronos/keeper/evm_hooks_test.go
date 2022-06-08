@@ -2,8 +2,6 @@ package keeper_test
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
@@ -28,18 +26,6 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 	sender := common.BigToAddress(big.NewInt(4))
 	denom := "testdenom"
 
-	signer := ethtypes.MakeSigner(&params.ChainConfig{}, new(big.Int).SetUint64(1))
-	tx := ethtypes.NewTx(&ethtypes.LegacyTx{
-		Nonce:    1,
-		Value:    big.NewInt(1),
-		Gas:      100,
-		GasPrice: big.NewInt(1),
-		Data:     nil,
-	})
-	privateKey, _ := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
-	signedTx, _ := ethtypes.SignTx(tx, ethtypes.NewEIP155Signer(nil), privateKey)
-	msg, _ := signedTx.AsMessage(signer, nil)
-
 	testCases := []struct {
 		msg      string
 		malleate func()
@@ -56,7 +42,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 			},
 		},
@@ -78,7 +64,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().Error(err)
 			},
 		},
@@ -108,7 +94,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -124,13 +110,14 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
 				coin := sdk.NewCoin(denom, sdk.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
 				data, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -146,7 +133,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				// should fail, because of not gravity denom name
 				suite.Require().Error(err)
 			},
@@ -166,6 +153,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				suite.Require().Equal(coin, balance)
 
 				data, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -181,15 +169,15 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 
-				// sender's balance deducted
+				// contract's balance deducted
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(sdk.NewCoin(denom, sdk.NewInt(0)), balance)
 				// query unbatched SendToEthereum message exist
 				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
-					SenderAddress: sdk.AccAddress(msg.From().Bytes()).String(),
+					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
 				})
 				suite.Require().Equal(1, len(rsp.SendToEthereums))
 			},
@@ -236,7 +224,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, msg, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				// should fail, because of not ibc denom name
 				suite.Require().Error(err)
 			},

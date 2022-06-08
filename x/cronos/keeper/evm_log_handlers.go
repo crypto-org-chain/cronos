@@ -78,6 +78,10 @@ func init() {
 		SendToEthereumEventName,
 		false,
 		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
 			Name:    "recipient",
 			Type:    addressType,
 			Indexed: false,
@@ -106,6 +110,10 @@ func init() {
 		CancelSendToEthereumEventName,
 		false,
 		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
 			Name:    "id",
 			Type:    uint256Type,
 			Indexed: false,
@@ -168,7 +176,6 @@ func (h SendToAccountHandler) EventID() common.Hash {
 
 func (h SendToAccountHandler) Handle(
 	ctx sdk.Context,
-	_ common.Address,
 	contract common.Address,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
@@ -217,7 +224,6 @@ func (h SendToEthereumHandler) EventID() common.Hash {
 // Handle `__CronosSendToEthereum` log only if gravity is activated.
 func (h SendToEthereumHandler) Handle(
 	ctx sdk.Context,
-	sender common.Address,
 	contract common.Address,
 	data []byte,
 	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
@@ -242,10 +248,10 @@ func (h SendToEthereumHandler) Handle(
 	}
 
 	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
-	senderCosmosAddr := sdk.AccAddress(sender.Bytes())
-	ethRecipient := unpacked[0].(common.Address)
-	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
-	bridgeFee := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	ethRecipient := unpacked[1].(common.Address)
+	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	bridgeFee := sdk.NewIntFromBigInt(unpacked[3].(*big.Int))
 
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
 	// First, transfer the coin to user so that he will be able to cancel later on
@@ -295,7 +301,6 @@ func (h CancelSendToEthereumHandler) EventID() common.Hash {
 // Handle `__CronosCancelSendToEthereum` log only if gravity is activated.
 func (h CancelSendToEthereumHandler) Handle(
 	ctx sdk.Context,
-	sender common.Address,
 	_ common.Address,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
@@ -310,8 +315,8 @@ func (h CancelSendToEthereumHandler) Handle(
 		return nil
 	}
 
-	id := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
-	senderCosmosAddr := sdk.AccAddress(sender.Bytes())
+	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	id := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 
 	// Need to retrieve the batch to get the amount to refund
 	var unbatched []*gravitytypes.SendToEthereum
@@ -371,7 +376,6 @@ func (h SendToIbcHandler) EventID() common.Hash {
 
 func (h SendToIbcHandler) Handle(
 	ctx sdk.Context,
-	_ common.Address,
 	contract common.Address,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
@@ -427,7 +431,6 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 
 func (h SendCroToIbcHandler) Handle(
 	ctx sdk.Context,
-	_ common.Address,
 	contract common.Address,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {

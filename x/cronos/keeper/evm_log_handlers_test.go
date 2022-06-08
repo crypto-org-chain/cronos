@@ -18,7 +18,6 @@ import (
 
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
-	sender := common.BigToAddress(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
 	denom := "testdenom"
 	var data []byte
@@ -83,7 +82,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			handler := keeper.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -122,6 +121,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				suite.Require().Equal(coin, balance)
 
 				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -142,6 +142,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				suite.Require().Equal(coin, balance)
 
 				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -163,6 +164,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				suite.Require().Equal(coin, balance)
 
 				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
@@ -191,7 +193,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -296,7 +298,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 			)
 			handler := keeper.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -386,7 +388,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			)
 			handler := keeper.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -424,6 +426,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				suite.Require().Equal(coin, balance)
 
 				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+					sender,
 					big.NewInt(1),
 				)
 				data = input
@@ -460,6 +463,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 
 				// Then cancel the SendToEthereum transaction
 				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+					sender,
 					big.NewInt(int64(resp.Id)),
 				)
 				data = input
@@ -486,7 +490,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, sender, random, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, random, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
