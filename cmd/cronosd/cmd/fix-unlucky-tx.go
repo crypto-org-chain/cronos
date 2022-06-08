@@ -28,9 +28,9 @@ import (
 )
 
 const (
-	FlagMinBlockHeight = "min-block-height"
+	FlagMinBlockHeight       = "min-block-height"
 	ExceedBlockGasLimitError = "out of gas in location: block gas meter; gasWanted:"
-	FlagPrintBlockNumbers = "print-block-numbers"
+	FlagPrintBlockNumbers    = "print-block-numbers"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
