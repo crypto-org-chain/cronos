@@ -19,7 +19,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'issue_comment' && github.event.comment.body == '/runsim'
+      (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim') ||
+      github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - name: Check if organization member
         uses: JamesSingleton/is-organization-member@main
