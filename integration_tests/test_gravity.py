@@ -230,11 +230,11 @@ def test_gravity_transfer(gravity):
         return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
 
     def get_id_from_receipt(receipt):
-        "check the id after sendToEthereum call"
+        "check the id after sendToChain call"
         for _, log in enumerate(receipt.logs):
             if log.topics[0] == HexBytes(
                 abi.event_signature_to_log_topic(
-                    "__CronosSendToEthereumResponse(uint256)"
+                    "__CronosSendToChainResponse(uint256)"
                 )
             ):
                 return log.data
@@ -244,14 +244,14 @@ def test_gravity_transfer(gravity):
         wait_for_fn("send-to-crc20", check_auto_deployment)
 
         # send it back to erc20
-        tx = crc21_contract.functions.send_to_ethereum_v2(
-            ADDRS["validator"], amount, 0
+        tx = crc21_contract.functions.send_to_chain(
+            ADDRS["validator"], amount, 0, 1
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
-        # CRC20 emit 3 logs for send_to_ethereum:
+        # CRC20 emit 3 logs for send_to_chain:
         # burn
-        # __CronosSendToEthereum
-        # __CronosSendToEthereumResponse
+        # __CronosSendToChain
+        # __CronosSendToChainResponse
         assert len(txreceipt.logs) == 3
         assert (
             get_id_from_receipt(txreceipt)
@@ -449,11 +449,11 @@ def test_gravity_cancel_transfer(gravity):
             return crc21_contract.caller.balanceOf(recipient) == amount
 
         def get_id_from_receipt(receipt):
-            "check the id after sendToEthereum call"
+            "check the id after sendToChain call"
             for _, log in enumerate(receipt.logs):
                 if log.topics[0] == HexBytes(
                     abi.event_signature_to_log_topic(
-                        "__CronosSendToEthereumResponse(uint256)"
+                        "__CronosSendToChainResponse(uint256)"
                     )
                 ):
                     return log.data
@@ -468,14 +468,14 @@ def test_gravity_cancel_transfer(gravity):
         wait_for_fn("send-to-ethereum", check_fund)
 
         # send it back to erc20
-        tx = crc21_contract.functions.send_to_ethereum_v2(
-            ADDRS["validator"], amount, 0
+        tx = crc21_contract.functions.send_to_chain(
+            ADDRS["validator"], amount, 0, 1
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
-        # CRC20 emit 3 logs for send_to_ethereum:
+        # CRC20 emit 3 logs for send_to_chain:
         # burn
-        # __CronosSendToEthereum
-        # __CronosSendToEthereumResponse
+        # __CronosSendToChain
+        # __CronosSendToChainResponse
         assert len(txreceipt.logs) == 3
         tx_id = get_id_from_receipt(txreceipt)
         assert txreceipt.status == 1, "should success"
@@ -486,7 +486,7 @@ def test_gravity_cancel_transfer(gravity):
 
         wait_for_fn("check deduction", check_deduction)
 
-        # Cancel the send_to_ethereum
+        # Cancel the send_to_chain
         canceltx = cancel_contract.functions.cancelTransaction(
             int(tx_id, base=16)
         ).buildTransaction({"from": ADDRS["community"]})

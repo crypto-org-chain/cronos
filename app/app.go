@@ -488,8 +488,8 @@ func New(
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewSendToEthereumHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewCancelSendToEthereumHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
+		cronoskeeper.NewSendToChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
+		cronoskeeper.NewCancelSendToChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
 		cronoskeeper.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
 		cronoskeeper.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
 	))

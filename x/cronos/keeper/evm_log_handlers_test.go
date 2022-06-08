@@ -93,7 +93,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
+func (suite *KeeperTestSuite) TestSendToChainHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
@@ -120,16 +120,40 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+				input, err := keeper.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
+					big.NewInt(1),
 				)
 				data = input
 			},
 			func() {},
 			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
+		},
+		{
+			"non supported network id",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToChainEvent.Inputs.Pack(
+					sender,
+					recipient,
+					coin.Amount.BigInt(),
+					big.NewInt(0),
+					big.NewInt(100),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("only ethereum network is not supported"),
 		},
 		{
 			"non associated coin denom, expect fail",
@@ -141,11 +165,12 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+				input, err := keeper.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
+					big.NewInt(1),
 				)
 				data = input
 			},
@@ -153,7 +178,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
 		},
 		{
-			"success send to ethereum",
+			"success send to chain",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
 				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
@@ -163,11 +188,12 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToEthereumEvent.Inputs.Pack(
+				input, err := keeper.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
+					big.NewInt(1),
 				)
 				data = input
 			},
@@ -189,7 +215,7 @@ func (suite *KeeperTestSuite) TestSendToEthereumHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := keeper.NewSendToEthereumHandler(
+			handler := keeper.NewSendToChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
@@ -399,7 +425,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
+func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
@@ -425,7 +451,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+				input, err := keeper.CancelSendToChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(1),
 				)
@@ -435,7 +461,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 			errors.New("id not found or the transaction is already included in a batch"),
 		},
 		{
-			"success cancel send to ethereum",
+			"success cancel send to chain",
 			func() {
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
 				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
@@ -444,7 +470,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				// First add a SendToEthereum transaction
+				// First add a SendToChain transaction
 				gravityMsgServer := gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper)
 				msg := gravitytypes.MsgSendToEthereum{
 					Sender:            sdk.AccAddress(sender.Bytes()).String(),
@@ -461,8 +487,8 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 
-				// Then cancel the SendToEthereum transaction
-				input, err := keeper.CancelSendToEthereumEvent.Inputs.Pack(
+				// Then cancel the SendToChain transaction
+				input, err := keeper.CancelSendToChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(int64(resp.Id)),
 				)
@@ -472,7 +498,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 				// sender's balance should be refunded and then send to the contract address
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(100)), balance)
-				// query unbatched SendToEthereum message does not exist
+				// query unbatched SendToChain message does not exist
 				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
 					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
 				})
@@ -486,7 +512,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEthereumHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := keeper.NewCancelSendToEthereumHandler(
+			handler := keeper.NewCancelSendToChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()

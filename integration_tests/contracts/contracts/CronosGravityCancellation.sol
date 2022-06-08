@@ -2,10 +2,10 @@ pragma solidity ^0.6.6;
 
 contract CronosGravityCancellation {
 
-    event __CronosCancelSendToEthereum(address sender, uint256 id);
+    event __CronosCancelSendToChain(address sender, uint256 id);
 
-    // Cancel a send to ethereum transaction considering if it hasnt been batched yet.
+    // Cancel a send to chain transaction considering if it hasnt been batched yet.
     function cancelTransaction(uint256 id) public {
-        emit __CronosCancelSendToEthereum(msg.sender, id);
+        emit __CronosCancelSendToChain(msg.sender, id);
     }
 }
