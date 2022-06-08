@@ -256,10 +256,10 @@ func (h SendToChainHandler) Handle(
 	ethRecipient := unpacked[1].(common.Address)
 	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 	bridgeFee := sdk.NewIntFromBigInt(unpacked[3].(*big.Int))
-	chainId := sdk.NewIntFromBigInt(unpacked[4].(*big.Int))
+	chainID := sdk.NewIntFromBigInt(unpacked[4].(*big.Int))
 
-	if !chainId.Equal(sdk.NewInt(1)) && !chainId.Equal(sdk.NewInt(3)) &&
-		!chainId.Equal(sdk.NewInt(4)) && !chainId.Equal(sdk.NewInt(5)) {
+	if !chainID.Equal(sdk.NewInt(1)) && !chainID.Equal(sdk.NewInt(3)) &&
+		!chainID.Equal(sdk.NewInt(4)) && !chainID.Equal(sdk.NewInt(5)) {
 		return fmt.Errorf("only ethereum network is not supported")
 	}
 
