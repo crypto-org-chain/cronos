@@ -233,9 +233,7 @@ def test_gravity_transfer(gravity):
         "check the id after sendToChain call"
         for _, log in enumerate(receipt.logs):
             if log.topics[0] == HexBytes(
-                abi.event_signature_to_log_topic(
-                    "__CronosSendToChainResponse(uint256)"
-                )
+                abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
             ):
                 return log.data
         return "0x0000000000000000000000000000000000000000000000000000000000000000"
