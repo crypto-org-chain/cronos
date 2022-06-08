@@ -90,6 +90,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 							return nil
 						}
 
+						if printBlockNumbers {
+							fmt.Println(height)
+							return nil
+						}
+
 						// load raw tx
 						blk := tmDB.blockStore.LoadBlock(height)
 						if blk == nil {
@@ -118,11 +123,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 							txResult.Events = append(txResult.Events, evt)
 						}
 
-						if printBlockNumbers {
-							fmt.Println(height)
-							return nil
-						}
-
 						if dryRun {
 							return clientCtx.PrintProto(txResult)
 						}
@@ -143,6 +143,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 						}
 						return nil
 					} else if txResult.Code == 0 {
+						if printBlockNumbers {
+							continue
+						}
+
 						// find the correct tx index
 						for _, evt := range txResult.Events {
 							if evt.Type == evmtypes.TypeMsgEthereumTx {
@@ -252,7 +256,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Int(FlagMinBlockHeight, 2693800, "The block height v0.7.0 upgrade executed, will reject block heights smaller than this.")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
+	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number without patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
 	cmd.Flags().Int(FlagEndBlock, -1, "The end of the block range to iterate, inclusive")
