@@ -37,7 +37,7 @@ const (
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
 func FixUnluckyTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fix-unlucky-tx [blocks-file]",
+		Use:   "fix-unlucky-tx",
 		Short: "Fix tx execution result of false-failed tx after v0.7.0 upgrade, \"-\" means stdin.",
 		Long:  "Fix tx execution result of false-failed tx after v0.7.0 upgrade.\nWARNING: don't use this command to patch blocks generated before v0.7.0 upgrade",
 		Args:  cobra.ExactArgs(0),

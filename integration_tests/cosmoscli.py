@@ -1064,7 +1064,7 @@ class CosmosCLI:
             fp.flush()
             output = self.raw(
                 "fix-unlucky-tx",
-                fp.name,
+                blocks_file=fp.name,
                 min_block_height=1,
                 home=self.data_dir,
             ).decode()
