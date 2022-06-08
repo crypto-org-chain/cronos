@@ -32,3 +32,4 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 | [003](./adr-003.md) | Add Fee Market Module | Accepted |
 | [004](./adr-004.md) | Tokens conversion in Cronos | Accepted |
 | [005](./adr-005.md) | Cross-chain Validation for Gravity Bridge | Rejected |
+| [006](./adr-006.md) | Migrating CRC20 contract to CRC21 standard | Proposed |
