@@ -43,6 +43,12 @@ type CompiledContract struct {
 const EVMModuleName = "cronos-evm"
 
 var (
+	//go:embed contracts/ModuleCRC20.json
+	cronosCRC20JSON []byte
+
+	// ModuleCRC20Contract is the compiled cronos crc20 contract
+	ModuleCRC20Contract CompiledContract
+
 	//go:embed contracts/ModuleCRC21.json
 	cronosCRC21JSON []byte
 
@@ -56,7 +62,16 @@ var (
 func init() {
 	EVMModuleAddress = common.BytesToAddress(authtypes.NewModuleAddress(EVMModuleName).Bytes())
 
-	err := json.Unmarshal(cronosCRC21JSON, &ModuleCRC21Contract)
+	err := json.Unmarshal(cronosCRC20JSON, &ModuleCRC20Contract)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(ModuleCRC20Contract.Bin) == 0 {
+		panic("load contract failed")
+	}
+
+	err = json.Unmarshal(cronosCRC21JSON, &ModuleCRC21Contract)
 	if err != nil {
 		panic(err)
 	}

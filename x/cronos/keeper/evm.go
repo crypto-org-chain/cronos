@@ -40,7 +40,7 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 
 // CallModuleCRC20 call a method of ModuleCRC20 contract
 func (k Keeper) CallModuleCRC20(ctx sdk.Context, contract common.Address, method string, args ...interface{}) ([]byte, error) {
-	data, err := types.ModuleCRC21Contract.ABI.Pack(method, args...)
+	data, err := types.ModuleCRC20Contract.ABI.Pack(method, args...)
 	if err != nil {
 		return nil, err
 	}
