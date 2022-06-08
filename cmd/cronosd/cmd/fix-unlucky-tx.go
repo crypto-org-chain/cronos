@@ -40,7 +40,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 		Use:   "fix-unlucky-tx [blocks-file]",
 		Short: "Fix tx execution result of false-failed tx after v0.7.0 upgrade, \"-\" means stdin.",
 		Long:  "Fix tx execution result of false-failed tx after v0.7.0 upgrade.\nWARNING: don't use this command to patch blocks generated before v0.7.0 upgrade",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
@@ -119,7 +119,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 						}
 
 						if printBlockNumbers {
-							fmt.Println(height, txIndex)
+							fmt.Println(height)
 							return nil
 						}
 
