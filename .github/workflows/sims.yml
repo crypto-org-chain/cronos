@@ -42,6 +42,7 @@ jobs:
         run: exit 1
       - name: Comment PR for Sim test started
         uses: allthatjazzleo/actions-pull-request-add-comment@master
+        if: github.event_name == 'issue_comment'
         with:
           message: |
             Simulation tests started and triggered by `/runsim`. 
