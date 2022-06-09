@@ -86,11 +86,7 @@ func ReindexDuplicatedTx() *cobra.Command {
 						if err := tmDB.txIndexer.Index(result); err != nil {
 							return err
 						}
-						// get indexed tx again after reindex
-						indexed, err = tmDB.txIndexer.Get(txHash)
-						if err != nil {
-							return err
-						}
+						continue
 					}
 
 					if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
