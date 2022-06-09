@@ -106,13 +106,15 @@ func FixUnluckyTxCmd() *cobra.Command {
 							return err
 						}
 
+						if _, ok := tx.GetMsgs()[0].(*evmtypes.MsgEthereumTx); !ok {
+							 // ignore non-eth tx
+							break
+						}
+
 						txIndex++
 						for msgIndex, msg := range tx.GetMsgs() {
 							ethTxIndex := txIndex + int64(msgIndex)
-							ethTx, ok := msg.(*evmtypes.MsgEthereumTx)
-							if !ok {
-								continue
-							}
+							ethTx := msg.(*evmtypes.MsgEthereumTx)
 							evt := abci.Event{
 								Type: evmtypes.TypeMsgEthereumTx,
 								Attributes: []abci.EventAttribute{
