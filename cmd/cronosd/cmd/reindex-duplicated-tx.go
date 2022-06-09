@@ -87,9 +87,7 @@ func ReindexDuplicatedTx() *cobra.Command {
 							return err
 						}
 						continue
-					}
-
-					if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
+					}else if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
 						if printTxs {
 							fmt.Println(height, txIndex)
 							continue
