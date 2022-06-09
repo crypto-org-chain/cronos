@@ -46,8 +46,14 @@ var (
 	//go:embed contracts/ModuleCRC20.json
 	cronosCRC20JSON []byte
 
-	// ModuleCRC20Contract is the compiled cronos erc20 contract
+	// ModuleCRC20Contract is the compiled cronos crc20 contract
 	ModuleCRC20Contract CompiledContract
+
+	//go:embed contracts/ModuleCRC21.json
+	cronosCRC21JSON []byte
+
+	// ModuleCRC21Contract is the compiled cronos crc21 contract
+	ModuleCRC21Contract CompiledContract
 
 	// EVMModuleAddress is the native module address for EVM
 	EVMModuleAddress common.Address
@@ -62,6 +68,15 @@ func init() {
 	}
 
 	if len(ModuleCRC20Contract.Bin) == 0 {
+		panic("load contract failed")
+	}
+
+	err = json.Unmarshal(cronosCRC21JSON, &ModuleCRC21Contract)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(ModuleCRC21Contract.Bin) == 0 {
 		panic("load contract failed")
 	}
 }
