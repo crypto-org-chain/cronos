@@ -478,11 +478,9 @@ def test_gravity_cancel_transfer(gravity):
         tx_id = get_id_from_receipt(txreceipt)
         assert txreceipt.status == 1, "should success"
 
-        def check_deduction():
-            v = crc21_contract.caller.balanceOf(ADDRS["community"])
-            return v == 0
-
-        wait_for_fn("check deduction", check_deduction)
+        # Check_deduction
+        balance_after_send = crc21_contract.caller.balanceOf(ADDRS["community"])
+        assert balance_after_send == 0
 
         # Cancel the send_to_chain
         canceltx = cancel_contract.functions.cancelTransaction(

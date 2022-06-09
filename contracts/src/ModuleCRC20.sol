@@ -38,7 +38,7 @@ contract ModuleCRC20 is DSToken  {
         unsafe_burn(addr, amount);
     }
 
-    // DEPRECATED: send to ethereum through gravity bridge
+    // send to ethereum through gravity bridge
     function send_to_ethereum(address recipient, uint amount, uint bridge_fee) external {
         unsafe_burn(msg.sender, add(amount, bridge_fee));
         emit __CronosSendToEthereum(recipient, amount, bridge_fee);
