@@ -107,7 +107,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 						}
 
 						if _, ok := tx.GetMsgs()[0].(*evmtypes.MsgEthereumTx); !ok {
-							 // ignore non-eth tx
+							// ignore non-eth tx
 							break
 						}
 
