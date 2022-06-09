@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.5
+	github.com/stretchr/testify v1.8.0
 	github.com/tendermint/tendermint v0.34.20-0.20220517115723-e6f071164839
 	github.com/tendermint/tm-db v0.6.7
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
@@ -164,3 +164,5 @@ replace (
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
+
+replace github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220704063219-8a5e97edeb5f

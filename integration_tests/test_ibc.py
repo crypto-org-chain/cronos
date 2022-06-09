@@ -99,9 +99,7 @@ def test_cronos_transfer_tokens(cronos, chainmain, hermes):
     oldbalance = get_balance(chainmain, coin_receiver, "basecro")
     cli = cronos.cosmos_cli()
     rsp = cli.transfer_tokens(
-        cli.address("signer2"),
-        coin_receiver,
-        f"{src_amount}basetcro",
+        cli.address("signer2"), coin_receiver, f"{src_amount}basetcro", gas=300000
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 

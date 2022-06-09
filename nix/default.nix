@@ -54,7 +54,7 @@ import sources.nixpkgs {
     (_: pkgs: {
       rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.27.3";
+        version = "6.29.5";
         src = sources.rocksdb;
       });
     })

@@ -215,7 +215,7 @@ def gravity(cronos, geth):
                 f'gorc -c "{gorc_config_path}" orchestrator start '
                 "--cosmos-key cronos --ethereum-key eth"
             ),
-            "environment": "RUST_BACKTRACE=full",
+            "environment": "RUST_BACKTRACE=full,COLORBT_SHOW_HIDDEN=1",
             "autostart": "true",
             "autorestart": "true",
             "startsecs": "3",
