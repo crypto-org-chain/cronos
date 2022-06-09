@@ -8,7 +8,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/cosmos/ibc-go/v5 v5.0.0-beta1
 	github.com/ethereum/go-ethereum v1.10.19
-	github.com/evmos/ethermint v0.6.1-0.20220810223338-b1cd16e5bfb1
+	github.com/evmos/ethermint v0.6.1-0.20220814092117-f11bc3559467
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0

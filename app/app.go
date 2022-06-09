@@ -644,7 +644,10 @@ func New(
 		minttypes.ModuleName,
 		crisistypes.ModuleName,
 		ibchost.ModuleName,
+		// evm module denomination is used by the feemarket module, in AnteHandle
 		evmtypes.ModuleName,
+		// NOTE: feemarket need to be initialized before genutil module:
+		// gentx transactions use MinGasPriceDecorator.AnteHandle
 		feemarkettypes.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
