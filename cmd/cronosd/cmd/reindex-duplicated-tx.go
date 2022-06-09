@@ -65,6 +65,26 @@ func ReindexDuplicatedTx() *cobra.Command {
 					if err != nil {
 						return err
 					}
+
+					if indexed == nil {
+						if printTxs {
+							fmt.Printf("%d, txhash: %X was not indexed\n", height, tx.Hash())
+							continue
+						}
+						// reindex the tx
+						result := &abci.TxResult{
+							Height: height,
+							Index:  uint32(txIndex),
+							Tx:     tx,
+							Result: *txResult,
+						}
+
+						if err := tmDB.txIndexer.Index(result); err != nil {
+							return err
+						}
+						continue
+					}
+
 					if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
 						if printTxs {
 							fmt.Println(height, txIndex)
