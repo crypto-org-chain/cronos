@@ -315,7 +315,7 @@ func (h CancelSendToChainHandler) Handle(
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
 	if h.gravitySrv == nil {
-		return fmt.Errorf("native action %s is not implemented", SendToChainEventName)
+		return fmt.Errorf("native action %s is not implemented", CancelSendToChainEventName)
 	}
 
 	unpacked, err := CancelSendToChainEvent.Inputs.Unpack(data)
