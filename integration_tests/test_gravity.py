@@ -168,8 +168,8 @@ def gravity(cronos, geth):
 
         programs[f"program:{chain_id}-orchestrator{i}"] = {
             "command": (
-                f'gorc -c "{gorc_config_path}" orchestrator start '
-                "--cosmos-key cronos --ethereum-key eth"
+                f'bash -c \'sleep 5 && gorc -c "{gorc_config_path}" orchestrator start '
+                "--cosmos-key cronos --ethereum-key eth'"
             ),
             "environment": "RUST_BACKTRACE=full",
             "autostart": "true",
