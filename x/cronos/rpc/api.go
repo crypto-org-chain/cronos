@@ -14,14 +14,14 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
+	evmrpc "github.com/evmos/ethermint/rpc"
+	"github.com/evmos/ethermint/rpc/backend"
+	rpctypes "github.com/evmos/ethermint/rpc/types"
+	ethermint "github.com/evmos/ethermint/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/tendermint/tendermint/libs/log"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
-	evmrpc "github.com/tharsis/ethermint/rpc"
-	"github.com/tharsis/ethermint/rpc/backend"
-	rpctypes "github.com/tharsis/ethermint/rpc/types"
-	ethermint "github.com/tharsis/ethermint/types"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 const (
@@ -40,8 +40,8 @@ func init() {
 }
 
 // CreateCronosRPCAPIs creates extension json-rpc apis
-func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient) []rpc.API {
-	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx)
+func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient, allowUnprotectedTxs bool) []rpc.API {
+	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx, allowUnprotectedTxs)
 	return []rpc.API{
 		{
 			Namespace: CronosNamespace,
@@ -93,13 +93,9 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	err error,
 ) {
 	var blockNum rpctypes.BlockNumber
-	blockNum, err = api.getBlockNumber(blockNrOrHash)
+	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
-		return
-	}
-	resBlock, err = api.clientCtx.Client.Block(api.ctx, blockNum.TmHeight())
-	if err != nil {
-		api.logger.Debug("block not found", "height", blockNum, "error", err.Error())
+		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
 		return
 	}
 	blockNumber = resBlock.Block.Height
@@ -109,7 +105,11 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
 		return
 	}
-	baseFee, err = api.backend.BaseFee(blockNumber)
+	blockRes, err = api.backend.GetTendermintBlockResultByNumber(&blockNumber)
+	if err != nil {
+		return
+	}
+	baseFee, err = api.backend.BaseFee(blockRes)
 	if err != nil {
 		return
 	}
@@ -390,20 +390,18 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	return receipts, nil
 }
 
-// getBlockNumber returns the BlockNumber from BlockNumberOrHash
-func (api *CronosAPI) getBlockNumber(blockNrOrHash rpctypes.BlockNumberOrHash) (rpctypes.BlockNumber, error) {
-	switch {
-	case blockNrOrHash.BlockHash == nil && blockNrOrHash.BlockNumber == nil:
-		return rpctypes.EthEarliestBlockNumber, fmt.Errorf("types BlockHash and BlockNumber cannot be both nil")
-	case blockNrOrHash.BlockHash != nil:
-		blockHeader, err := api.backend.HeaderByHash(*blockNrOrHash.BlockHash)
-		if err != nil {
-			return rpctypes.EthEarliestBlockNumber, err
+// getBlock returns the BlockNumber from BlockNumberOrHash
+func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *coretypes.ResultBlock, err error) {
+	if blockNrOrHash.BlockHash != nil {
+		blk, err = api.backend.GetTendermintBlockByHash(*blockNrOrHash.BlockHash)
+	} else {
+		var blockNumber rpctypes.BlockNumber
+		if blockNrOrHash.BlockNumber != nil {
+			blockNumber = *blockNrOrHash.BlockNumber
+		} else if blockNrOrHash.BlockHash == nil && blockNrOrHash.BlockNumber == nil {
+			return nil, fmt.Errorf("types BlockHash and BlockNumber cannot be both nil")
 		}
-		return rpctypes.NewBlockNumber(blockHeader.Number), nil
-	case blockNrOrHash.BlockNumber != nil:
-		return *blockNrOrHash.BlockNumber, nil
-	default:
-		return rpctypes.EthEarliestBlockNumber, nil
+		blk, err = api.backend.GetTendermintBlockByNumber(blockNumber)
 	}
+	return
 }

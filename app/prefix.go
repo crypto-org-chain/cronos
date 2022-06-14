@@ -3,7 +3,7 @@ package app
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
-	ethcfg "github.com/tharsis/ethermint/cmd/config"
+	ethcfg "github.com/evmos/ethermint/cmd/config"
 )
 
 func SetConfig() {
