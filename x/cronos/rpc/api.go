@@ -93,23 +93,19 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	err error,
 ) {
 	var blockNum rpctypes.BlockNumber
-	blockNum, err = api.getBlockNumber(blockNrOrHash)
+	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
-		return
-	}
-	resBlock, err = api.clientCtx.Client.Block(api.ctx, blockNum.TmHeight())
-	if err != nil {
-		api.logger.Debug("block not found", "height", blockNum, "error", err.Error())
+		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
 		return
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
-	blockRes, err = api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
+	blockRes, err = api.backend.GetTendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
 		return
 	}
-	baseFee, err = api.backend.BaseFee(blockNumber)
+	baseFee, err = api.backend.BaseFee(blockRes)
 	if err != nil {
 		return
 	}
@@ -390,20 +386,18 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	return receipts, nil
 }
 
-// getBlockNumber returns the BlockNumber from BlockNumberOrHash
-func (api *CronosAPI) getBlockNumber(blockNrOrHash rpctypes.BlockNumberOrHash) (rpctypes.BlockNumber, error) {
-	switch {
-	case blockNrOrHash.BlockHash == nil && blockNrOrHash.BlockNumber == nil:
-		return rpctypes.EthEarliestBlockNumber, fmt.Errorf("types BlockHash and BlockNumber cannot be both nil")
-	case blockNrOrHash.BlockHash != nil:
-		blockHeader, err := api.backend.HeaderByHash(*blockNrOrHash.BlockHash)
-		if err != nil {
-			return rpctypes.EthEarliestBlockNumber, err
+// getBlock returns the BlockNumber from BlockNumberOrHash
+func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *coretypes.ResultBlock, err error) {
+	if blockNrOrHash.BlockHash != nil {
+		blk, err = api.backend.GetTendermintBlockByHash(*blockNrOrHash.BlockHash)
+	} else {
+		var blockNumber rpctypes.BlockNumber
+		if blockNrOrHash.BlockNumber != nil {
+			blockNumber = *blockNrOrHash.BlockNumber
+		} else if blockNrOrHash.BlockHash == nil && blockNrOrHash.BlockNumber == nil {
+			return nil, fmt.Errorf("types BlockHash and BlockNumber cannot be both nil")
 		}
-		return rpctypes.NewBlockNumber(blockHeader.Number), nil
-	case blockNrOrHash.BlockNumber != nil:
-		return *blockNrOrHash.BlockNumber, nil
-	default:
-		return rpctypes.EthEarliestBlockNumber, nil
+		blk, err = api.backend.GetTendermintBlockByNumber(blockNumber)
 	}
+	return
 }
