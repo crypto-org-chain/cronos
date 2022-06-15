@@ -1,8 +1,8 @@
 import json
 
 import pytest
-import toml
 import sha3
+import toml
 from dateutil.parser import isoparse
 from eth_account.account import Account
 from eth_utils import abi
@@ -166,10 +166,11 @@ def gravity(cronos, geth):
 
     # make all the orchestrator "Relayer" roles
     k_relayer = sha3.keccak_256()
-    k_relayer.update(b'RELAYER')
+    k_relayer.update(b"RELAYER")
     for _, address in enumerate(eth_addresses):
-        set_role_tx = contract.functions.grantRole(k_relayer.hexdigest(), address).buildTransaction(
-            {"from": admin.address})
+        set_role_tx = contract.functions.grantRole(
+            k_relayer.hexdigest(), address
+        ).buildTransaction({"from": admin.address})
         set_role_receipt = send_transaction(geth, set_role_tx, admin.key)
         print("set_role_tx", set_role_receipt)
 
