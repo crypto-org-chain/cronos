@@ -2,6 +2,7 @@ import json
 
 import pytest
 import toml
+import sha3
 from dateutil.parser import isoparse
 from eth_account.account import Account
 from eth_utils import abi
@@ -143,6 +144,11 @@ def gravity(cronos, geth):
     # wait for gravity signer tx get generated
     wait_for_new_blocks(cli, 2)
 
+    # create admin account and fund it
+    admin, _ = Account.create_with_mnemonic()
+    print("fund 0.1 eth to address", admin.address)
+    send_transaction(geth, {"to": admin.address, "value": 10**17}, KEYS["validator"])
+
     # deploy gravity contract to geth
     gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
     signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
@@ -153,10 +159,19 @@ def gravity(cronos, geth):
 
     contract = deploy_contract(
         geth,
-        CONTRACTS["Gravity"],
-        (gravity_id.encode(), threshold, eth_addresses, powers),
+        CONTRACTS["CronosGravity"],
+        (gravity_id.encode(), threshold, eth_addresses, powers, admin.address),
     )
     print("gravity contract deployed", contract.address)
+
+    # make all the orchestrator "Relayer" roles
+    k_relayer = sha3.keccak_256()
+    k_relayer.update(b'RELAYER')
+    for _, address in enumerate(eth_addresses):
+        set_role_tx = contract.functions.grantRole(k_relayer.hexdigest(), address).buildTransaction(
+            {"from": admin.address})
+        set_role_receipt = send_transaction(geth, set_role_tx, admin.key)
+        print("set_role_tx", set_role_receipt)
 
     # start orchestrator:
     # a) add process into the supervisord config file
