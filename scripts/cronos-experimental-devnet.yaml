@@ -31,6 +31,8 @@ cronos_777-1:
       block:
         max_bytes: "1048576"
         max_gas: "81500000"
+        # increase block time to reduce the likelihood that tx is immediately included in batch for integration tests and making the cancellation impossible
+        time_iota_ms: "2000"
     app_state:
       evm:
         params:

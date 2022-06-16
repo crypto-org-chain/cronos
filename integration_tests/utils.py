@@ -33,13 +33,14 @@ KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
 TEST_CONTRACTS = {
-    "Gravity": "Gravity.sol",
+    "CronosGravity": "CronosGravity.sol",
     "Greeter": "Greeter.sol",
     "TestERC20A": "TestERC20A.sol",
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
     "CroBridge": "CroBridge.sol",
+    "CronosGravityCancellation": "CronosGravityCancellation.sol",
 }
 
 
@@ -55,6 +56,8 @@ def contract_path(name, filename):
 CONTRACTS = {
     "ModuleCRC20": Path(__file__).parent.parent
     / "x/cronos/types/contracts/ModuleCRC20.json",
+    "ModuleCRC21": Path(__file__).parent.parent
+    / "x/cronos/types/contracts/ModuleCRC21.json",
     **{
         name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
     },

@@ -52,6 +52,7 @@ type AccountKeeper interface {
 // GravityKeeper defines the expected gravity keeper interface
 type GravityKeeper interface {
 	ERC20ToDenomLookup(ctx sdk.Context, tokenContract common.Address) (bool, string)
+	IterateUnbatchedSendToEthereums(ctx sdk.Context, cb func(*gravitytypes.SendToEthereum) bool)
 	GetParams(ctx sdk.Context) (params gravitytypes.Params)
 }
 
@@ -60,7 +61,8 @@ type EvmLogHandler interface {
 	// Return the id of the log signature it handles
 	EventID() common.Hash
 	// Process the log
-	Handle(ctx sdk.Context, contract common.Address, data []byte, addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error
+	Handle(ctx sdk.Context, contract common.Address, data []byte,
+		addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error
 }
 
 // EvmKeeper defines the interface for evm keeper

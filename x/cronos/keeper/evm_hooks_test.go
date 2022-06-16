@@ -110,22 +110,24 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
 				coin := sdk.NewCoin(denom, sdk.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err := suite.MintCoins(sdk.AccAddress(sender.Bytes()), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToEthereumEvent.Inputs.Pack(
+				data, err := keeper.SendToChainEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
+					big.NewInt(1),
 				)
 				suite.Require().NoError(err)
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToEthereumEvent.ID},
+						Topics:  []common.Hash{keeper.SendToChainEvent.ID},
 						Data:    data,
 					},
 				}
@@ -138,7 +140,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			},
 		},
 		{
-			"success send to ethereum",
+			"success send to chain",
 			func() {
 				suite.SetupTest()
 				denom := "gravity0x0000000000000000000000000000000000000000"
@@ -151,16 +153,18 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToEthereumEvent.Inputs.Pack(
+				data, err := keeper.SendToChainEvent.Inputs.Pack(
+					sender,
 					recipient,
 					coin.Amount.BigInt(),
 					big.NewInt(0),
+					big.NewInt(1),
 				)
 				suite.Require().NoError(err)
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToEthereumEvent.ID},
+						Topics:  []common.Hash{keeper.SendToChainEvent.ID},
 						Data:    data,
 					},
 				}
@@ -170,12 +174,12 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 
-				// sender's balance deducted
+				// contract's balance deducted
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(sdk.NewCoin(denom, sdk.NewInt(0)), balance)
 				// query unbatched SendToEthereum message exist
 				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
-					SenderAddress: sdk.AccAddress(contract.Bytes()).String(),
+					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
 				})
 				suite.Require().Equal(1, len(rsp.SendToEthereums))
 			},

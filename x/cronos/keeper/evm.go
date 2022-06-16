@@ -54,13 +54,13 @@ func (k Keeper) CallModuleCRC20(ctx sdk.Context, contract common.Address, method
 	return res.Ret, nil
 }
 
-// DeployModuleCRC20 deploy an embed erc20 contract
-func (k Keeper) DeployModuleCRC20(ctx sdk.Context, denom string) (common.Address, error) {
-	ctor, err := types.ModuleCRC20Contract.ABI.Pack("", denom, uint8(0))
+// DeployModuleCRC21 deploy an embed crc21 contract
+func (k Keeper) DeployModuleCRC21(ctx sdk.Context, denom string) (common.Address, error) {
+	ctor, err := types.ModuleCRC21Contract.ABI.Pack("", denom, uint8(0))
 	if err != nil {
 		return common.Address{}, err
 	}
-	data := types.ModuleCRC20Contract.Bin
+	data := types.ModuleCRC21Contract.Bin
 	data = append(data, ctor...)
 
 	msg, res, err := k.CallEVM(ctx, nil, data, big.NewInt(0))
@@ -87,7 +87,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC20(ctx sdk.Context, sender common.Addr
 		if !autoDeploy {
 			return fmt.Errorf("no contract found for the denom %s", coin.Denom)
 		}
-		contract, err = k.DeployModuleCRC20(ctx, coin.Denom)
+		contract, err = k.DeployModuleCRC21(ctx, coin.Denom)
 		if err != nil {
 			return err
 		}
