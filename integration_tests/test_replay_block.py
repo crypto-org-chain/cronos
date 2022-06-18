@@ -13,7 +13,7 @@ from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
 def custom_cronos(tmp_path_factory):
     path = tmp_path_factory.mktemp("cronos")
     yield from setup_custom_cronos(
-        path, 26000, Path(__file__).parent / "configs/low_block_gas_limit.yaml"
+        path, 26000, Path(__file__).parent / "configs/low_block_gas_limit.jsonnet"
     )
 
 

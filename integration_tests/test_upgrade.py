@@ -67,7 +67,7 @@ def custom_cronos(tmp_path_factory):
     yield from setup_custom_cronos(
         path,
         26100,
-        Path(__file__).parent / "configs/cosmovisor.yaml",
+        Path(__file__).parent / "configs/cosmovisor.jsonnet",
         post_init=post_init,
         chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
     )
