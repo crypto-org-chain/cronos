@@ -66,10 +66,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf",
-        "sha256": "0xm133zqg7knn8q6y7a5xd4jnqscxz9wzhf5rxmhs53qkvg7r4a4",
+        "rev": "cb058dc7ea65b3f853672386433ca628a1fced1f",
+        "sha256": "18f97s87f1yvvnv800w0rlwsgsgv4yc3763syw4z5m7kywxqmr4j",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/cb058dc7ea65b3f853672386433ca628a1fced1f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
@@ -78,24 +78,23 @@
         "homepage": "",
         "owner": "nix-community",
         "repo": "poetry2nix",
-        "rev": "302a559a298ba39a0bec53f46479da9c5b2558cd",
-        "sha256": "0lqvkyw9qw4rmqd5cv4l67vvj7ngbqpg2jxanxrddn6npjmmlv0j",
+        "rev": "ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07",
+        "sha256": "139gv4bpcgkgjj1ykc01xx5w70ilzaz0a83ynv22xq2vin5g0r10",
         "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/302a559a298ba39a0bec53f46479da9c5b2558cd.tar.gz",
+        "url": "https://github.com/nix-community/poetry2nix/archive/ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
-        "branch": "main",
+        "branch": "jsonnet-config-simplify",
         "description": "pystarport setup and run local devnet for cosmos like blockchains",
         "homepage": null,
-        "owner": "crypto-com",
+        "owner": "mmsqe",
         "repo": "pystarport",
-        "rev": "5a2732f7de8dc3db23e44db1cb332926741222c4",
-        "sha256": "0wqkkr7flhvmczw1y2y0v698ywnq6b6rfwhx58r1zg7nwyla32hm",
+        "rev": "67ae84773512d122d24870be73b9a4baae063f02",
+        "sha256": "0iahr8x4ix1jq0y5x8zpfx58mqnphgblqp8qlxjrjh4qq8xkqzxn",
         "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/5a2732f7de8dc3db23e44db1cb332926741222c4.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "version": "v0.2.3"
+        "url": "https://github.com/mmsqe/pystarport/archive/67ae84773512d122d24870be73b9a4baae063f02.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "rocksdb": {
         "branch": "v6.29.5",

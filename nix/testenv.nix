@@ -30,9 +30,9 @@ pkgs.poetry2nix.mkPoetryEnv {
       }
     );
 
-    pyparsing = super.pyparsing.overridePythonAttrs (
+    pystarport = super.pystarport.overridePythonAttrs (
       old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.flit-core ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.poetry ];
       }
     );
 
