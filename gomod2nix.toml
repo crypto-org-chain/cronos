@@ -1226,7 +1226,7 @@ schema = 1
     version = "v1.2.0"
     hash = "sha256-zz0hvDdrajoUaOCXvI/2EIGGoWQa0QlCyFV0jqU3JDg="
   [mod."github.com/peggyjv/gravity-bridge/module/v2"]
-    version = "v2.0.0-20220617023452-3631a2500c1e"
+    version = "v2.0.0-20220620100333-f9256032790b"
     hash = "sha256-vL15/ET8MqtFex0VL9rMizy1Iq2XqnCiIbmaECSVfIs="
     replaced = "github.com/crypto-org-chain/gravity-bridge/module/v2"
   [mod."github.com/pelletier/go-toml"]
