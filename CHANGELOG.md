@@ -9,6 +9,7 @@
 ### Bug Fixes
 
 - [cronos#502](https://github.com/crypto-org-chain/cronos/pull/502) Fix failed tx are ignored in json-rpc apis.
+- [cronos#556](https://github.com/crypto-org-chain/cronos/pull/556) Bump gravity bridge module version to include bugfixes (including grpc endpoint)
 
 ### Improvements
 - [cronos#418](https://github.com/crypto-org-chain/cronos/pull/418) Support logs in evm-hooks and return id for SendToEthereum events
