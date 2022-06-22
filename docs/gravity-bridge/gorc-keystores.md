@@ -6,7 +6,7 @@ This guide shows how to configure the different keystores with gorc.
 
 ### Prerequisites
 
- - `gorc`, the gravity bridge orchestrator cli, build instructions can be found [here](gorc-build.md).
+ - `gorc`, the gravity bridge orchestrator cli, build instructions can be found [here](gorc-build.md). Alternatively, you can download Linux x86_64 binary from [here](https://github.com/crypto-org-chain/cronos/releases/tag/v0.8.0-gravity-alpha0).
  - Above binaries setup in `PATH`.
 
 
