@@ -2,7 +2,7 @@
 
 # Pioneer11 Relayer Deployment Guide
 
-This guide is intended to assist the community validators with setting up Gravity Relayer between `Cronos Pioneer11` and `Ethereum Ropsten` testnet.
+This guide is intended to assist the community validators with setting up Gravity Relayer between `Cronos Pioneer11` and `Ethereum Goerli` testnet.
 
 
 ## Prerequisites
@@ -28,7 +28,7 @@ Please follow the [gorc-keystores](gorc-keystores.md) guide for this step. Note 
 
 ## Transfer funds to Relayer accounts
 
-You should transfer funds to the Ethereum account generated earlier. Gravity Bridge is deployed between the `Cronos Pioneer11` and the `Ethereum Ropsten` testnet.
+You should transfer funds to the Ethereum account generated earlier. Gravity Bridge is deployed between the `Cronos Pioneer11` and the `Ethereum Goerli` testnet.
 
 
 ## Trial Run Relayer

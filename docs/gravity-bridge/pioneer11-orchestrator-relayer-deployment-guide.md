@@ -2,7 +2,7 @@
 
 # Pioneer11 Orchestrator Deployment Guide
 
-This guide is intended to assist the community validators with setting up Gravity Orchestrator and Relayer (jointly, in one process) between `Cronos Pioneer11` and `Ethereum Ropsten` testnet. The default orchestrator start command includes running a relayer. However, they are two different processes. You can read more about Gravity Bridge [here](https://blog.althea.net/how-gravity-works/).
+This guide is intended to assist the community validators with setting up Gravity Orchestrator and Relayer (jointly, in one process) between `Cronos Pioneer11` and `Ethereum Goerli` testnet. The default orchestrator start command includes running a relayer. However, they are two different processes. You can read more about Gravity Bridge [here](https://blog.althea.net/how-gravity-works/).
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Please follow the [gorc-keystores](gorc-keystores.md) guide for this step.
 
 ## Transfer funds to orchestrator accounts
 
-You should transfer funds to the Ethereum and Cronos accounts generated earlier. Gravity Bridge is deployed between the `Cronos Pioneer11` and the `Ethereum Ropsten` testnet.
+You should transfer funds to the Ethereum and Cronos accounts generated earlier. Gravity Bridge is deployed between the `Cronos Pioneer11` and the `Ethereum Goerli` testnet.
 
 
 ## Sign Validator Address
