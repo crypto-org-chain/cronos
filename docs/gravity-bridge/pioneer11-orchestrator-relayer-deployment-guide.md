@@ -19,7 +19,7 @@ You can use a nodes as a service provider as discussed [here](https://ethereum.o
 
 ### Binaries
 
--  `cronosd` version: `0.8.0` , the cronos node binary found at https://github.com/crypto-org-chain/cronos/releases/tag/v0.8.0-gravity-alpha0.
+-  `cronosd` version: `0.8.0` , the cronos node binary found at https://github.com/crypto-org-chain/cronos/releases/tag/v0.8.0-gravaity-alpha0. You will need to use one of the testnet binaries according to your OS/ Arch.
 
 - `gorc`, the gravity bridge orchestrator cli, build instructions can be found [here](gorc-build.md). Alternatively, you can download Linux x86_64 binary from [here](https://github.com/crypto-org-chain/gravity-bridge/releases/tag/v2.0.0-cronos-alpha0)
 
@@ -110,10 +110,10 @@ You might also need to set `--chain-id pioneereleventestnet_340-1` and `--fees`.
 
 ## Trial Run Orchestrator
 
-In order to run the orchestrator, you will need to set RELYAER_API_URL environment variable to point to Cronos public relayer API:
+In order to run the orchestrator, you will need to set RELAYER_API_URL environment variable to point to Cronos public relayer API:
 
 ```bash
-	export RELYAER_API_URL=https://cronos.org/pioneer11/relayer
+	export RELAYER_API_URL=https://cronos.org/pioneer11/relayer
 ```
 
 To read more about the relayer modes, you can check out [gravity-bridge-relayer-modes.md](gravity-bridge-relayer-modes.md).
