@@ -1,24 +1,27 @@
 
 
-# Gravity Bridge Testnet Orchestrator Deployment Guide
+# Pioneer11 Orchestrator Deployment Guide
 
-This guide is intended to assist the community validators with setting up Gravity Orchestrator and Relayer (jointly, in one process) between `Cronos Gravity Testnet2` and `Ethereum` Kovan testnet. The default orchestrator start command includes running a relayer. However, they are two different processes. You can read more about Gravity Bridge [here](https://blog.althea.net/how-gravity-works/).
+This guide is intended to assist the community validators with setting up Gravity Orchestrator and Relayer (jointly, in one process) between `Cronos Pioneer11` and `Ethereum Goerli` testnet. The default orchestrator start command includes running a relayer. However, they are two different processes. You can read more about Gravity Bridge [here](https://blog.althea.net/how-gravity-works/).
 
 ## Prerequisites
 
 ### Validator
 
-You should have a validator running in `Cronos Gravity Testnet2` network.
+You should have a validator running in `Cronos Pioneer11` network.
 
 ### Ethereum node
 
-You need to have access to the EVM RPC endpoint of an Ethereum node. Or host your own node with [go-ethereum](https://github.com/ethereum/go-ethereum/) or [openethereum](https://github.com/openethereum/openethereum).
+You need to have access to the EVM RPC endpoint of an Ethereum node or host your own node with [go-ethereum](https://github.com/ethereum/go-ethereum/) or [openethereum](https://github.com/openethereum/openethereum).
+
+You can use a nodes as a service provider as discussed [here](https://ethereum.org/en/developers/docs/nodes-and-clients/nodes-as-a-service/).
+
 
 ### Binaries
 
--  `cronosd` version: `0.7.0` , the cronos node binary found at https://github.com/crypto-org-chain/cronos/releases/tag/v0.7.0.
+-  `cronosd` version: `0.8.0` , the cronos node binary found at https://github.com/crypto-org-chain/cronos/releases/tag/v0.8.0-gravity-alpha0. You will need to use one of the testnet binaries according to your OS/ Arch.
 
-- `gorc`, the gravity bridge orchestrator cli, build instructions can be found [here](gorc-build.md).
+- `gorc`, the gravity bridge orchestrator cli, build instructions can be found [here](gorc-build.md). Alternatively, you can download Linux x86_64 binary from [here](https://github.com/crypto-org-chain/gravity-bridge/releases/tag/v2.0.0-cronos-alpha0)
 
 - Above binaries setup in `PATH`.
 
@@ -30,7 +33,7 @@ Please follow the [gorc-keystores](gorc-keystores.md) guide for this step.
 
 ## Transfer funds to orchestrator accounts
 
-You should transfer funds to the Ethereum and Cronos accounts generated earlier. Gravity Bridge is deployed between the `Cronos Gravity Testnet2` and the `Ethereum` Kovan testnet.
+You should transfer funds to the Ethereum and Cronos accounts generated earlier. Gravity Bridge is deployed between the `Cronos Pioneer11` and the `Ethereum Goerli` testnet.
 
 
 ## Sign Validator Address
@@ -102,20 +105,31 @@ cronosd tx gravity set-delegate-keys $val_address  $orchestrator_cronos_address 
 
 ```
 
-You might also need to set `--chain-id cronosgravitytestnet_340-2` and `--fees`.
+You might also need to set `--chain-id pioneereleventestnet_340-1` and `--fees`.
 
 
 ## Trial Run Orchestrator
 
+In order to run the orchestrator, you will need to set RELAYER_API_URL environment variable to point to Cronos public relayer API:
+
+```bash
+	export RELAYER_API_URL=https://cronos.org/pioneer11/relayer
+```
+
+To read more about the relayer modes, you can check out [gravity-bridge-relayer-modes.md](gravity-bridge-relayer-modes.md).
+
+To run the orchestrator:
+
 ```bash
 gorc -c gorc.toml orchestrator start \
 		--cosmos-key="orch_cro" \
-		--ethereum-key="orch_eth"
+		--ethereum-key="orch_eth" \
+		--mode Api
 ```
 
 The orchestrator is running now.
 
-**Important**: By default, starting the orchestrator as shown above will also start the relayer. If you want to run the orchestrator without the relayer, you can pass `--orchestrator-only`. Alternatively, if you want to run the relayer without the orchestrator, please follow [relayer-only-deployment-guide](testnet-relayer-only-deployment-guide.md).
+**Important**: By default, starting the orchestrator as shown above will also start the relayer. If you want to run the orchestrator without the relayer, you can pass `--orchestrator-only`. Alternatively, if you want to run the relayer without the orchestrator, please follow [relayer-only-deployment-guide](pioneer11-relayer-only-deployment-guide.md).
 
 ## Run gorc as a Service (Linux only)
 

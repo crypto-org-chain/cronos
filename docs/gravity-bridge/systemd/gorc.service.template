@@ -4,6 +4,8 @@ Description=gorc
 ConditionPathExists=<GORC_BINARY>
 After=network.target
 
+Environment="RELAYER_API_URL=https://cronos.org/pioneer11/relayer"
+
 [Service]
 Type=simple
 User=<GORC_USER>
