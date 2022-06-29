@@ -471,12 +471,6 @@ def test_gravity_cancel_transfer(gravity):
 
         wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
-        def check_fund():
-            v = crc21_contract.caller.balanceOf(community)
-            return v == amount
-
-        wait_for_fn("send-to-ethereum", check_fund)
-
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
             ADDRS["validator"], amount, 0, 1
