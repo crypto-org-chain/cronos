@@ -441,8 +441,8 @@ def test_gravity_cancel_transfer(gravity):
         amount = 1000
 
         print("send to cronos crc21")
-        recipient = HexBytes(ADDRS["community"])
-        send_to_cosmos(gravity.contract, erc20, recipient, amount, KEYS["validator"])
+        community = HexBytes(ADDRS["community"])
+        send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         denom = f"gravity{erc20.address}"
@@ -461,7 +461,7 @@ def test_gravity_cancel_transfer(gravity):
             crc21_contract = cronos_w3.eth.contract(
                 address=rsp["auto_contract"], abi=cronos_crc21_abi()
             )
-            return crc21_contract.caller.balanceOf(recipient) == amount
+            return crc21_contract.caller.balanceOf(community) == amount
 
         def get_id_from_receipt(receipt):
             "check the id after sendToChain call"
@@ -477,7 +477,7 @@ def test_gravity_cancel_transfer(gravity):
         wait_for_fn("send-to-crc20", check_auto_deployment)
 
         def check_fund():
-            v = crc21_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(community)
             return v == amount
 
         wait_for_fn("send-to-ethereum", check_fund)
@@ -485,7 +485,7 @@ def test_gravity_cancel_transfer(gravity):
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
             ADDRS["validator"], amount, 0, 1
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).buildTransaction({"from": community})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_chain:
         # burn
@@ -496,19 +496,19 @@ def test_gravity_cancel_transfer(gravity):
         assert txreceipt.status == 1, "should success"
 
         # Check_deduction
-        balance_after_send = crc21_contract.caller.balanceOf(ADDRS["community"])
+        balance_after_send = crc21_contract.caller.balanceOf(community)
         assert balance_after_send == 0
 
         # Cancel the send_to_chain
         canceltx = cancel_contract.functions.cancelTransaction(
             int(tx_id, base=16)
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).buildTransaction({"from": community})
         canceltxreceipt = send_transaction(cronos_w3, canceltx, KEYS["community"])
         print("canceltxreceipt", canceltxreceipt)
         assert canceltxreceipt.status == 1, "should success"
 
         def check_refund():
-            v = crc21_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(community)
             return v == amount
 
         wait_for_fn("cancel-send-to-ethereum", check_refund)
