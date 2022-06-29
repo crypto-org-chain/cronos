@@ -71,6 +71,22 @@ def update_gravity_contract(tomlfile, contract):
     tomlfile.write_text(dump_toml(obj))
 
 
+def check_auto_deployment(cli, denom, cronos_w3, recipient, amount):
+    "check crc21 contract auto deployed, and the crc21 balance"
+    try:
+        rsp = cli.query_contract_by_denom(denom)
+    except AssertionError:
+        # not deployed yet
+        return None
+    assert len(rsp["auto_contract"]) > 0
+    crc21_contract = cronos_w3.eth.contract(
+        address=rsp["auto_contract"], abi=cronos_crc21_abi()
+    )
+    if crc21_contract.caller.balanceOf(recipient) == amount:
+        return crc21_contract
+    return None
+
+
 @pytest.fixture(scope="module")
 def geth(tmp_path_factory):
     "start-geth"
@@ -226,22 +242,6 @@ def test_gravity_transfer(gravity):
 
     denom = f"gravity{erc20.address}"
 
-    crc21_contract = None
-
-    def check_auto_deployment():
-        "check crc20 contract auto deployed, and the crc20 balance"
-        nonlocal crc21_contract
-        try:
-            rsp = cli.query_contract_by_denom(denom)
-        except AssertionError:
-            # not deployed yet
-            return False
-        assert len(rsp["auto_contract"]) > 0
-        crc21_contract = cronos_w3.eth.contract(
-            address=rsp["auto_contract"], abi=cronos_crc21_abi()
-        )
-        return crc21_contract.caller.balanceOf(recipient) == amount
-
     def check_gravity_native_tokens():
         "check the balance of gravity native token"
         return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
@@ -256,7 +256,13 @@ def test_gravity_transfer(gravity):
         return "0x0000000000000000000000000000000000000000000000000000000000000000"
 
     if gravity.cronos.enable_auto_deployment:
-        wait_for_fn("send-to-crc20", check_auto_deployment)
+        crc21_contract = None
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(cli, denom, cronos_w3, recipient, amount)
+            return crc21_contract
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
@@ -421,7 +427,6 @@ def test_direct_token_mapping(gravity):
 def test_gravity_cancel_transfer(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
-        cli = gravity.cronos.cosmos_cli()
         cronos_w3 = gravity.cronos.w3
 
         # deploy test erc20 contract
@@ -445,24 +450,6 @@ def test_gravity_cancel_transfer(gravity):
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
-        denom = f"gravity{erc20.address}"
-
-        crc21_contract = None
-
-        def check_auto_deployment():
-            "check crc21 contract auto deployed, and the crc21 balance"
-            nonlocal crc21_contract
-            try:
-                rsp = cli.query_contract_by_denom(denom)
-            except AssertionError:
-                # not deployed yet
-                return False
-            assert len(rsp["auto_contract"]) > 0
-            crc21_contract = cronos_w3.eth.contract(
-                address=rsp["auto_contract"], abi=cronos_crc21_abi()
-            )
-            return crc21_contract.caller.balanceOf(community) == amount
-
         def get_id_from_receipt(receipt):
             "check the id after sendToChain call"
             for _, log in enumerate(receipt.logs):
@@ -473,8 +460,16 @@ def test_gravity_cancel_transfer(gravity):
                 ):
                     return log.data
             return "0x0000000000000000000000000000000000000000000000000000000000000000"
+        
+        cli = gravity.cronos.cosmos_cli()
+        denom = f"gravity{erc20.address}"
+        crc21_contract = None
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(cli, denom, cronos_w3, community, amount)
+            return crc21_contract
 
-        wait_for_fn("send-to-crc20", check_auto_deployment)
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
         def check_fund():
             v = crc21_contract.caller.balanceOf(community)
