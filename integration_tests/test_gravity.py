@@ -89,10 +89,11 @@ def check_auto_deployment(cli, denom, cronos_w3, recipient, amount):
 
 def get_id_from_receipt(receipt):
     "check the id after sendToChain call"
+    target = HexBytes(
+        abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
+    )
     for _, log in enumerate(receipt.logs):
-        if log.topics[0] == HexBytes(
-            abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
-        ):
+        if log.topics[0] == target:
             return log.data
     return "0x0000000000000000000000000000000000000000000000000000000000000000"
 
