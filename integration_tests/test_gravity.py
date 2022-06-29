@@ -428,6 +428,7 @@ def test_direct_token_mapping(gravity):
 def test_gravity_cancel_transfer(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
         cronos_w3 = gravity.cronos.w3
 
         # deploy test erc20 contract
@@ -445,13 +446,17 @@ def test_gravity_cancel_transfer(gravity):
         balance = erc20.caller.balanceOf(ADDRS["validator"])
         assert balance == 100000000000000000000000000
         amount = 1000
+        
+        current_block = int(cli.status()["SyncInfo"]["latest_block_height"])
+        batch_block = 10
+        diff_block = batch_block - current_block % batch_block
+        wait_for_new_blocks(cli, diff_block)
 
         print("send to cronos crc21")
         community = HexBytes(ADDRS["community"])
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
         
-        cli = gravity.cronos.cosmos_cli()
         denom = f"gravity{erc20.address}"
         crc21_contract = None
         def local_check_auto_deployment():
