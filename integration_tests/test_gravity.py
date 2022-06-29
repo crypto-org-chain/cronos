@@ -258,9 +258,12 @@ def test_gravity_transfer(gravity):
 
     if gravity.cronos.enable_auto_deployment:
         crc21_contract = None
+
         def local_check_auto_deployment():
             nonlocal crc21_contract
-            crc21_contract = check_auto_deployment(cli, denom, cronos_w3, recipient, amount)
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, recipient, amount
+            )
             return crc21_contract
 
         wait_for_fn("send-to-crc21", local_check_auto_deployment)
@@ -446,7 +449,7 @@ def test_gravity_cancel_transfer(gravity):
         balance = erc20.caller.balanceOf(ADDRS["validator"])
         assert balance == 100000000000000000000000000
         amount = 1000
-        
+
         current_block = int(cli.status()["SyncInfo"]["latest_block_height"])
         batch_block = 10
         diff_block = batch_block - current_block % batch_block
@@ -456,12 +459,15 @@ def test_gravity_cancel_transfer(gravity):
         community = HexBytes(ADDRS["community"])
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
-        
+
         denom = f"gravity{erc20.address}"
         crc21_contract = None
+
         def local_check_auto_deployment():
             nonlocal crc21_contract
-            crc21_contract = check_auto_deployment(cli, denom, cronos_w3, community, amount)
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, community, amount
+            )
             return crc21_contract
 
         wait_for_fn("send-to-crc21", local_check_auto_deployment)
