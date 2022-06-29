@@ -87,6 +87,16 @@ def check_auto_deployment(cli, denom, cronos_w3, recipient, amount):
     return None
 
 
+def get_id_from_receipt(receipt):
+    "check the id after sendToChain call"
+    for _, log in enumerate(receipt.logs):
+        if log.topics[0] == HexBytes(
+            abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
+        ):
+            return log.data
+    return "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+
 @pytest.fixture(scope="module")
 def geth(tmp_path_factory):
     "start-geth"
@@ -245,15 +255,6 @@ def test_gravity_transfer(gravity):
     def check_gravity_native_tokens():
         "check the balance of gravity native token"
         return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
-
-    def get_id_from_receipt(receipt):
-        "check the id after sendToChain call"
-        for _, log in enumerate(receipt.logs):
-            if log.topics[0] == HexBytes(
-                abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
-            ):
-                return log.data
-        return "0x0000000000000000000000000000000000000000000000000000000000000000"
 
     if gravity.cronos.enable_auto_deployment:
         crc21_contract = None
@@ -449,17 +450,6 @@ def test_gravity_cancel_transfer(gravity):
         community = HexBytes(ADDRS["community"])
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
-
-        def get_id_from_receipt(receipt):
-            "check the id after sendToChain call"
-            for _, log in enumerate(receipt.logs):
-                if log.topics[0] == HexBytes(
-                    abi.event_signature_to_log_topic(
-                        "__CronosSendToChainResponse(uint256)"
-                    )
-                ):
-                    return log.data
-            return "0x0000000000000000000000000000000000000000000000000000000000000000"
         
         cli = gravity.cronos.cosmos_cli()
         denom = f"gravity{erc20.address}"
