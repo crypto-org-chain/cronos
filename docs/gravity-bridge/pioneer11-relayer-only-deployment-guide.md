@@ -36,7 +36,7 @@ You should transfer funds to the Ethereum account generated earlier. Gravity Bri
 In order to run the relayer, you will need to set RELAYER_API_URL environment variable to point to Cronos public relayer API:
 
 ```bash
-export RELAYER_API_URL=https://cronos.org/pioneer11/relayer
+export RELAYER_API_URL=https://cronos.org/pioneer11/relayer/relayer
 ```
 
 To read more about the relayer modes, you can check out [gravity-bridge-relayer-modes.md](gravity-bridge-relayer-modes.md).

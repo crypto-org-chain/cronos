@@ -12,7 +12,7 @@ ExecStart=<GORC_BINARY> -c <GORC_BINARY_DIR>/gorc.toml <GORC_START_COMMAND>
 Restart=on-failure
 RestartSec=10
 
-Environment="RELAYER_API_URL=https://cronos.org/pioneer11/relayer"
+Environment="RELAYER_API_URL=https://cronos.org/pioneer11/relayer/relayer"
 
 [Install]
 WantedBy=multi-user.target
