@@ -16,8 +16,8 @@ require (
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.5
-	github.com/tendermint/tendermint v0.34.19
+	github.com/stretchr/testify v1.8.0
+	github.com/tendermint/tendermint v0.34.20-rc0.0.20220630153554-17f4ea3680de
 	github.com/tendermint/tm-db v0.6.7
 	github.com/tharsis/ethermint v0.10.0-alpha1
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
@@ -162,9 +162,9 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
+	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.20-rc0.0.20220630153554-17f4ea3680de
+
 	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-10
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
-
-replace github.com/tendermint/tendermint => github.com/crypto-org-chain/tendermint v0.34.20-0.20220630092134-c8c4a9fc4851
