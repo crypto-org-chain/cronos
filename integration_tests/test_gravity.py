@@ -451,11 +451,6 @@ def test_gravity_cancel_transfer(gravity):
         assert balance == 100000000000000000000000000
         amount = 1000
 
-        current_block = int(cli.status()["SyncInfo"]["latest_block_height"])
-        batch_block = 10
-        diff_block = batch_block - current_block % batch_block
-        wait_for_new_blocks(cli, diff_block)
-
         print("send to cronos crc21")
         community = HexBytes(ADDRS["community"])
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
@@ -472,6 +467,15 @@ def test_gravity_cancel_transfer(gravity):
             return crc21_contract
 
         wait_for_fn("send-to-crc21", local_check_auto_deployment)
+
+        # batch are created every 10 blocks, wait til block number reaches
+        # a multiple of 10 to lower the chance to have the transaction include
+        # in the batch right away
+        current_block = cronos_w3.eth.get_block_number()
+        print("current_block: ", current_block)
+        batch_block = 10
+        diff_block = batch_block - current_block % batch_block
+        wait_for_new_blocks(cli, diff_block)
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
