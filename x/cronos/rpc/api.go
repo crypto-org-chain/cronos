@@ -100,13 +100,9 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
-	blockRes, err = api.clientCtx.Client.BlockResults(api.ctx, &blockNumber)
-	if err != nil {
-		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
-		return
-	}
 	blockRes, err = api.backend.GetTendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
+		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
 		return
 	}
 	baseFee, err = api.backend.BaseFee(blockRes)
