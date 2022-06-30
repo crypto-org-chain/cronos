@@ -82,7 +82,9 @@ def test_mempool(cronos_mempool):
     for i in range(5):
         wait_for_new_blocks(cli, 1, 0.1)
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
+        print(f"all pending tx hash after {i+1} block: {all_pending}")
         for hash in all_pending:
             sended_hash_set.remove(hash)
-        print(f"all pending tx hash after {i+1} block: {all_pending}")
+        if len(sended_hash_set) == 0:
+            break
     assert len(sended_hash_set) == 0
