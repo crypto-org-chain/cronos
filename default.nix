@@ -8,7 +8,7 @@
 , rev ? "dirty"
 }:
 let
-  version = "v0.7.0";
+  version = "v0.8.0";
   pname = "cronosd";
   tags = lib.concatStringsSep "," (
     [ "ledger" "netgo" network ]

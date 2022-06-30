@@ -15,6 +15,7 @@ In order to build the binary, we will need to first clone the repository:
 ```bash
 git clone https://github.com/crypto-org-chain/gravity-bridge.git
 cd gravity-bridge
+git checkout v2.0.0-cronos-alpha0
 ```
 
 Then, we can build with cargo:
