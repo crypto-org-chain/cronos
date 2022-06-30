@@ -15,8 +15,8 @@ require (
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.5
-	github.com/tendermint/tendermint v0.34.19
+	github.com/stretchr/testify v1.8.0
+	github.com/tendermint/tendermint v0.34.20-rc0.0.20220630153554-17f4ea3680de
 	github.com/tendermint/tm-db v0.6.6
 	github.com/tharsis/ethermint v0.7.2
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
@@ -173,4 +173,4 @@ replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0
 // See https://github.com/tecbot/gorocksdb/pull/216
 replace github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
-replace github.com/tendermint/tendermint => github.com/crypto-org-chain/tendermint v0.34.20-0.20220630092134-c8c4a9fc4851
+replace github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.20-rc0.0.20220630153554-17f4ea3680de

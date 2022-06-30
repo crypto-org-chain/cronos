@@ -1778,8 +1778,8 @@ schema = 1
     version = "v0.4.0"
     hash = "sha256-W6ycaeD/okr4udpCAGDsByr3OmiR0fuBzJUXHaHEFC0="
   [mod."github.com/stretchr/testify"]
-    version = "v1.7.5"
-    hash = "sha256-XLXQfoP1BQPOHsewXV8VNRWeb0275PlFRSL906eUxnI="
+    version = "v1.8.0"
+    hash = "sha256-LDxBAebK+A06y4vbH7cd1sVBOameIY81Xm8/9OPZh7o="
   [mod."github.com/subosito/gotenv"]
     version = "v1.4.0"
     hash = "sha256-H5mdiXO7LZ7ggJMjeiOLGWa1UbweXy/10KwEpFOrPv8="
@@ -1809,9 +1809,9 @@ schema = 1
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.20-0.20220630092134-c8c4a9fc4851"
-    hash = "sha256-AoUsNE+oELIQuCQPUUZXIxXsJ1RHUCzaEGWMhKgqE9Y="
-    replaced = "github.com/crypto-org-chain/tendermint"
+    version = "v0.34.20-rc0.0.20220630153554-17f4ea3680de"
+    hash = "sha256-19B4E/sR9wX1jistbJUPo9H78jgQKT9ikkivTGT7Ce4="
+    replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.6"
     hash = "sha256-NJN6mkyW8xW3e5lNfOyoUZ2qVZxMo/pR33ftg8voxOU="
