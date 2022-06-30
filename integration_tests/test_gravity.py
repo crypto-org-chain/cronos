@@ -71,6 +71,33 @@ def update_gravity_contract(tomlfile, contract):
     tomlfile.write_text(dump_toml(obj))
 
 
+def check_auto_deployment(cli, denom, cronos_w3, recipient, amount):
+    "check crc21 contract auto deployed, and the crc21 balance"
+    try:
+        rsp = cli.query_contract_by_denom(denom)
+    except AssertionError:
+        # not deployed yet
+        return None
+    assert len(rsp["auto_contract"]) > 0
+    crc21_contract = cronos_w3.eth.contract(
+        address=rsp["auto_contract"], abi=cronos_crc21_abi()
+    )
+    if crc21_contract.caller.balanceOf(recipient) == amount:
+        return crc21_contract
+    return None
+
+
+def get_id_from_receipt(receipt):
+    "check the id after sendToChain call"
+    target = HexBytes(
+        abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
+    )
+    for _, log in enumerate(receipt.logs):
+        if log.topics[0] == target:
+            return log.data
+    return "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+
 @pytest.fixture(scope="module")
 def geth(tmp_path_factory):
     "start-geth"
@@ -226,37 +253,21 @@ def test_gravity_transfer(gravity):
 
     denom = f"gravity{erc20.address}"
 
-    crc21_contract = None
-
-    def check_auto_deployment():
-        "check crc20 contract auto deployed, and the crc20 balance"
-        nonlocal crc21_contract
-        try:
-            rsp = cli.query_contract_by_denom(denom)
-        except AssertionError:
-            # not deployed yet
-            return False
-        assert len(rsp["auto_contract"]) > 0
-        crc21_contract = cronos_w3.eth.contract(
-            address=rsp["auto_contract"], abi=cronos_crc21_abi()
-        )
-        return crc21_contract.caller.balanceOf(recipient) == amount
-
     def check_gravity_native_tokens():
         "check the balance of gravity native token"
         return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
 
-    def get_id_from_receipt(receipt):
-        "check the id after sendToChain call"
-        for _, log in enumerate(receipt.logs):
-            if log.topics[0] == HexBytes(
-                abi.event_signature_to_log_topic("__CronosSendToChainResponse(uint256)")
-            ):
-                return log.data
-        return "0x0000000000000000000000000000000000000000000000000000000000000000"
-
     if gravity.cronos.enable_auto_deployment:
-        wait_for_fn("send-to-crc20", check_auto_deployment)
+        crc21_contract = None
+
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, recipient, amount
+            )
+            return crc21_contract
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
@@ -441,51 +452,35 @@ def test_gravity_cancel_transfer(gravity):
         amount = 1000
 
         print("send to cronos crc21")
-        recipient = HexBytes(ADDRS["community"])
-        send_to_cosmos(gravity.contract, erc20, recipient, amount, KEYS["validator"])
+        community = HexBytes(ADDRS["community"])
+        send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         denom = f"gravity{erc20.address}"
-
         crc21_contract = None
 
-        def check_auto_deployment():
-            "check crc21 contract auto deployed, and the crc21 balance"
+        def local_check_auto_deployment():
             nonlocal crc21_contract
-            try:
-                rsp = cli.query_contract_by_denom(denom)
-            except AssertionError:
-                # not deployed yet
-                return False
-            assert len(rsp["auto_contract"]) > 0
-            crc21_contract = cronos_w3.eth.contract(
-                address=rsp["auto_contract"], abi=cronos_crc21_abi()
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, community, amount
             )
-            return crc21_contract.caller.balanceOf(recipient) == amount
+            return crc21_contract
 
-        def get_id_from_receipt(receipt):
-            "check the id after sendToChain call"
-            for _, log in enumerate(receipt.logs):
-                if log.topics[0] == HexBytes(
-                    abi.event_signature_to_log_topic(
-                        "__CronosSendToChainResponse(uint256)"
-                    )
-                ):
-                    return log.data
-            return "0x0000000000000000000000000000000000000000000000000000000000000000"
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
-        wait_for_fn("send-to-crc20", check_auto_deployment)
-
-        def check_fund():
-            v = crc21_contract.caller.balanceOf(ADDRS["community"])
-            return v == amount
-
-        wait_for_fn("send-to-ethereum", check_fund)
+        # batch are created every 10 blocks, wait til block number reaches
+        # a multiple of 10 to lower the chance to have the transaction include
+        # in the batch right away
+        current_block = cronos_w3.eth.get_block_number()
+        print("current_block: ", current_block)
+        batch_block = 10
+        diff_block = batch_block - current_block % batch_block
+        wait_for_new_blocks(cli, diff_block)
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_chain(
             ADDRS["validator"], amount, 0, 1
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).buildTransaction({"from": community})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_chain:
         # burn
@@ -496,19 +491,19 @@ def test_gravity_cancel_transfer(gravity):
         assert txreceipt.status == 1, "should success"
 
         # Check_deduction
-        balance_after_send = crc21_contract.caller.balanceOf(ADDRS["community"])
+        balance_after_send = crc21_contract.caller.balanceOf(community)
         assert balance_after_send == 0
 
         # Cancel the send_to_chain
         canceltx = cancel_contract.functions.cancelTransaction(
             int(tx_id, base=16)
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).buildTransaction({"from": community})
         canceltxreceipt = send_transaction(cronos_w3, canceltx, KEYS["community"])
         print("canceltxreceipt", canceltxreceipt)
         assert canceltxreceipt.status == 1, "should success"
 
         def check_refund():
-            v = crc21_contract.caller.balanceOf(ADDRS["community"])
+            v = crc21_contract.caller.balanceOf(community)
             return v == amount
 
         wait_for_fn("cancel-send-to-ethereum", check_refund)
