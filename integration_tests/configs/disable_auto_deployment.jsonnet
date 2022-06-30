@@ -1,5 +1,4 @@
 local config = import 'default.jsonnet';
-local Utils = import 'utils.jsonnet';
 
 config {
   'cronos_777-1'+: {
@@ -10,11 +9,11 @@ config {
         api:: super['api'],
       },
     },
-    accounts: Utils.accounts([{
+    accounts: [{
       name: 'community',
       coins: '10000000000000000000000basetcro',
       mnemonic: '${COMMUNITY_MNEMONIC}',
-    }]),
+    }],
     genesis+: {
       consensus_params:: super['consensus_params'],
       app_state+: {

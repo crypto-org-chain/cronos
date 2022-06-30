@@ -1,5 +1,3 @@
-local Utils = import 'utils.jsonnet';
-
 {
   dotenv: '../../scripts/.env',
   'cronos_777-1': {
@@ -14,11 +12,16 @@ local Utils = import 'utils.jsonnet';
         api: 'eth,net,web3,debug,cronos',
       },
     },
-    validators: Utils.validators([
-      '${VALIDATOR1_MNEMONIC}',
-      '${VALIDATOR2_MNEMONIC}',
-    ]),
-    accounts: Utils.accounts([{
+    validators: [{
+      coins: '1000000000000000000stake,10000000000000000000000basetcro',
+      staked: '1000000000000000000stake',
+      mnemonic: '${VALIDATOR1_MNEMONIC}',
+    }, {
+      coins: '1000000000000000000stake,10000000000000000000000basetcro',
+      staked: '1000000000000000000stake',
+      mnemonic: '${VALIDATOR2_MNEMONIC}',
+    }],
+    accounts: [{
       name: 'community',
       coins: '10000000000000000000000basetcro',
       mnemonic: '${COMMUNITY_MNEMONIC}',
@@ -30,7 +33,7 @@ local Utils = import 'utils.jsonnet';
       name: 'signer2',
       coins: '30000000000000000000000basetcro',
       mnemonic: '${SIGNER2_MNEMONIC}',
-    }]),
+    }],
     genesis: {
       consensus_params: {
         block: {
