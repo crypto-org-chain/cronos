@@ -84,19 +84,6 @@
         "url": "https://github.com/nix-community/poetry2nix/archive/302a559a298ba39a0bec53f46479da9c5b2558cd.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "pystarport": {
-        "branch": "main",
-        "description": "pystarport setup and run local devnet for cosmos like blockchains",
-        "homepage": null,
-        "owner": "crypto-com",
-        "repo": "pystarport",
-        "rev": "5a2732f7de8dc3db23e44db1cb332926741222c4",
-        "sha256": "0wqkkr7flhvmczw1y2y0v698ywnq6b6rfwhx58r1zg7nwyla32hm",
-        "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/5a2732f7de8dc3db23e44db1cb332926741222c4.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "version": "v0.2.3"
-    },
     "rocksdb": {
         "branch": "v6.29.5",
         "description": "A library that provides an embeddable, persistent key-value store for fast storage.",
