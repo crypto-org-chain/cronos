@@ -30,6 +30,7 @@ pkgs.buildGoApplication rec {
     "!go.sum"
     "!gomod2nix.toml"
   ] ./.);
+  go = pkgs.go_1_17;
   modules = ./gomod2nix.toml;
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
