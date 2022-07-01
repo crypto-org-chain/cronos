@@ -25,11 +25,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1653934437,
-        "narHash": "sha256-BJVDE3y/IfHHPjRymJWEIcDooaAIleH6Hy+pkLxst3E=",
+        "lastModified": 1655245309,
+        "narHash": "sha256-d/YPoQ/vFn1+GTmSdvbSBSTOai61FONxB4+Lt6w/IVI=",
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fb910de8cc78c3e820d24f9b718614ea255af469",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
         "type": "github"
       },
       "original": {
