@@ -66,10 +66,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "cb058dc7ea65b3f853672386433ca628a1fced1f",
-        "sha256": "18f97s87f1yvvnv800w0rlwsgsgv4yc3763syw4z5m7kywxqmr4j",
+        "rev": "ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf",
+        "sha256": "0xm133zqg7knn8q6y7a5xd4jnqscxz9wzhf5rxmhs53qkvg7r4a4",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/cb058dc7ea65b3f853672386433ca628a1fced1f.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
@@ -85,15 +85,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "pystarport": {
-        "branch": "jsonnet-config-simplify",
+        "branch": "main",
         "description": "pystarport setup and run local devnet for cosmos like blockchains",
         "homepage": null,
-        "owner": "mmsqe",
+        "owner": "crypto-com",
         "repo": "pystarport",
-        "rev": "67ae84773512d122d24870be73b9a4baae063f02",
-        "sha256": "0iahr8x4ix1jq0y5x8zpfx58mqnphgblqp8qlxjrjh4qq8xkqzxn",
+        "rev": "dd759fdfb2e1a7320133a315817ae45c849efb8b",
+        "sha256": "038sz8qk6fns5p7rf2dnmvg4yw44ba4kmi6gz3fv9vjhgkiixq2d",
         "type": "tarball",
-        "url": "https://github.com/mmsqe/pystarport/archive/67ae84773512d122d24870be73b9a4baae063f02.tar.gz",
+        "url": "https://github.com/crypto-com/pystarport/archive/dd759fdfb2e1a7320133a315817ae45c849efb8b.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "rocksdb": {
