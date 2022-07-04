@@ -78,9 +78,9 @@ def test_mempool(cronos_mempool):
     print(f"all send tx hash: f{sended_hash_set}")
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
-    # check after max 5 blocks
-    for i in range(5):
-        wait_for_new_blocks(cli, 1, 0.1)
+    # check after max 10 blocks
+    for i in range(10):
+        wait_for_new_blocks(cli, 1, 0)
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
         print(f"all pending tx hash after {i+1} block: {all_pending}")
         for hash in all_pending:
