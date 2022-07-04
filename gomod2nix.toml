@@ -1,4 +1,4 @@
-schema = 1
+schema = 3
 
 [mod]
   [mod."4d63.com/gochecknoglobals"]
@@ -1865,6 +1865,7 @@ schema = 1
   [mod."github.com/tendermint/tendermint"]
     version = "v0.34.20-rc0.0.20220630153554-17f4ea3680de"
     hash = "sha256-19B4E/sR9wX1jistbJUPo9H78jgQKT9ikkivTGT7Ce4="
+    replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
@@ -1878,8 +1879,8 @@ schema = 1
     version = "v1.4.11"
     hash = "sha256-WLzChh6OfePXm6rv+jNHCS0IA57z3hEKcaCKg84LILY="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.10.0-alpha1-cronos-10"
-    hash = "sha256-EfYOvGreGToosDcqg1MBCHwSRSFdBIVvMlXIlYFFH0A="
+    version = "v0.10.0-cronos.0.20220630073727-4a4fd6003e12"
+    hash = "sha256-23OXZLkqPiwgpa3BcRan/MC7I6hsVm91VWuawOynpu0="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/tidwall/gjson"]
     version = "v1.6.7"
