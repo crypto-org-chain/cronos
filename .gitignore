@@ -21,4 +21,3 @@ __pycache__
 
 # yaml for test
 integration_tests/configs/*.yaml
-integration_tests/configs/yaml_doc.jsonnet

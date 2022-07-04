@@ -1,6 +1,0 @@
-#!/bin/bash
-
-set +e
-
-name=$1
-sed -e "s/\${file}/${name}/" -e "s/\${file}/${name}/" yaml_doc.jsonnet.template > yaml_doc.jsonnet && jsonnet yaml_doc.jsonnet -m . -S

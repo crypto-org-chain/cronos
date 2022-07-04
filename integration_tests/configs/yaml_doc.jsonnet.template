@@ -1,3 +1,0 @@
-{
-   '${file}.yaml': std.manifestYamlDoc(import './${file}.jsonnet', true, false)
-}

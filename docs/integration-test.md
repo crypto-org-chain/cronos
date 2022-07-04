@@ -93,8 +93,7 @@ $ # run against geth only
 $ pytest -k geth
 ```
 
-### Generate `test yamls`
+### Print `test config`
 ```shell
-$ cd integration_tests/configs
-$ bash generate-test-yamls default
+$ jsonnet integration_tests/configs/default.jsonnet | yq -P 
 ```
