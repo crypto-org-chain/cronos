@@ -14,7 +14,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
 type CronosTestSuite struct {

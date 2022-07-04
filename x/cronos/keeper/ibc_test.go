@@ -12,7 +12,7 @@ import (
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"

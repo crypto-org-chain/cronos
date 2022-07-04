@@ -1,4 +1,4 @@
-dotenv: .env
+dotenv: ../../scripts/.env
 cronos_777-1:
   cmd: cronosd
   start-flags: "--trace"
@@ -6,6 +6,9 @@ cronos_777-1:
     minimum-gas-prices: 0basetcro
     index-events:
       - ethereum_tx.ethereumTxHash
+    pruning: "everything"
+    state-sync:
+      snapshot-interval: 0
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
@@ -27,6 +30,7 @@ cronos_777-1:
     - name: signer2
       coins: 30000000000000000000000basetcro
       mnemonic: ${SIGNER2_MNEMONIC}
+
 
   genesis:
     consensus_params:

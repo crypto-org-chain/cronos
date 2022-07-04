@@ -9,7 +9,6 @@ pkgs.mkShell {
     }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
-    pkgs.pystarport
     pkgs.gorc
     pkgs.cosmovisor
     pkgs.poetry

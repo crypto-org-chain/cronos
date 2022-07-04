@@ -36,5 +36,10 @@ pkgs.poetry2nix.mkPoetryEnv {
       }
     );
 
+    pystarport = super.pystarport.overridePythonAttrs (
+      old: {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.poetry ];
+      }
+    );
   });
 }
