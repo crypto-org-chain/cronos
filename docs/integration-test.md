@@ -92,3 +92,9 @@ $ pytest -k cronos
 $ # run against geth only
 $ pytest -k geth
 ```
+
+### Generate `test yamls`
+```shell
+$ cd integration_tests/configs
+$ bash generate-test-yamls default
+```
