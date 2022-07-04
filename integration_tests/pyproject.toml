@@ -24,6 +24,7 @@ pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "m
 websockets = "^9.1"
 toml = "^0.10.2"
 pysha3 = "^1.0.2"
+jsonnet = "^0.18.0"
 
 [tool.poetry.dev-dependencies]
 

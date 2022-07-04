@@ -25,7 +25,7 @@ def cronos(request, tmp_path_factory):
     yield from setup_custom_cronos(
         tmp_path_factory.mktemp("pruned"),
         26900,
-        Path(__file__).parent / "configs/pruned-node.yaml",
+        Path(__file__).parent / "configs/pruned-node.jsonnet",
     )
 
 

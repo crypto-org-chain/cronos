@@ -18,7 +18,7 @@ from .utils import (
 def cronos_mempool(tmp_path_factory):
     path = tmp_path_factory.mktemp("cronos-mempool")
     yield from setup_custom_cronos(
-        path, 26300, Path(__file__).parent / "configs/long_timeout_commit.yaml"
+        path, 26300, Path(__file__).parent / "configs/long_timeout_commit.jsonnet"
     )
 
 
@@ -61,7 +61,7 @@ def test_mempool(cronos_mempool):
     print(f"block number start: {block_num_0}")
     nonce_begin = w3.eth.get_transaction_count(address_from)
 
-    sended_hash_list = []
+    sended_hash_set = set()
     for i in range(5):
         nonce = nonce_begin + i
         tx = {
@@ -72,15 +72,19 @@ def test_mempool(cronos_mempool):
         }
         signed = sign_transaction(w3, tx, key_from)
         txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        sended_hash_list.append(txhash)
+        sended_hash_set.add(txhash)
     block_num_1 = w3.eth.get_block_number()
     assert block_num_1 == block_num_0
-    print(f"all send tx hash: f{sended_hash_list}")
+    print(f"all send tx hash: f{sended_hash_set}")
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
-    # check after 1 block
-    wait_for_new_blocks(cli, 1)
-    all_pending = w3.eth.get_filter_changes(filter.filter_id)
-    print(f"all pending tx hash after 1 block: {all_pending}")
-    for tx in sended_hash_list:
-        assert tx in all_pending
+    # check after max 10 blocks
+    for i in range(10):
+        all_pending = w3.eth.get_filter_changes(filter.filter_id)
+        print(f"all pending tx hash after {i+1} block: {all_pending}")
+        for hash in all_pending:
+            sended_hash_set.discard(hash)
+        if len(sended_hash_set) == 0:
+            break
+        wait_for_new_blocks(cli, 1, 0.1)
+    assert len(sended_hash_set) == 0
