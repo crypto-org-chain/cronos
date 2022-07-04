@@ -386,7 +386,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	return receipts, nil
 }
 
-// getBlock returns the BlockNumber from BlockNumberOrHash
+// getBlock returns the block from BlockNumberOrHash
 func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *coretypes.ResultBlock, err error) {
 	if blockNrOrHash.BlockHash != nil {
 		blk, err = api.backend.GetTendermintBlockByHash(*blockNrOrHash.BlockHash)

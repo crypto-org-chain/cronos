@@ -66,6 +66,14 @@ def test_pruned_node(cronos):
     }
     assert expect_log.items() <= txreceipt.logs[0].items()
 
+    # check get_balance and eth_call don't work on pruned state
+    with pytest.raises(Exception):
+        w3.eth.get_balance(ADDRS["validator"], block_identifier=txreceipt.blockNumber)
+    with pytest.raises(Exception):
+        erc20.caller(block_identifier=txreceipt.blockNumber).balanceOf(
+            ADDRS["validator"]
+        )
+
     # check block bloom
     block = w3.eth.get_block(txreceipt.blockNumber)
     assert "baseFeePerGas" in block
