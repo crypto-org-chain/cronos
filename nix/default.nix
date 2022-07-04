@@ -22,13 +22,7 @@ import sources.nixpkgs {
       };
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
-    (_: pkgs: {
-      pystarport = pkgs.poetry2nix.mkPoetryApplication rec {
-        projectDir = sources.pystarport;
-        src = projectDir;
-      };
-    })
-    (_: pkgs:
+    (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;
         config = {

@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 )
 
 // BankKeeper defines the expected interface needed to retrieve account balances.

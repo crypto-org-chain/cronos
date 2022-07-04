@@ -1,6 +1,7 @@
 import enum
 import hashlib
 import json
+import subprocess
 import tempfile
 
 import bech32
@@ -37,10 +38,10 @@ class ChainCommand:
     def __init__(self, cmd):
         self.cmd = cmd
 
-    def __call__(self, cmd, *args, stdin=None, **kwargs):
+    def __call__(self, cmd, *args, stdin=None, stderr=subprocess.STDOUT, **kwargs):
         "execute chain-maind"
         args = " ".join(build_cli_args_safe(cmd, *args, **kwargs))
-        return interact(f"{self.cmd} {args}", input=stdin)
+        return interact(f"{self.cmd} {args}", input=stdin, stderr=stderr)
 
 
 class CosmosCLI:
@@ -1037,6 +1038,10 @@ class CosmosCLI:
         )
 
     def transfer_tokens(self, from_, to, amount, **kwargs):
+        default_kwargs = {
+            "gas": "auto",
+            "gas_adjustment": "1.5",
+        }
         return json.loads(
             self.raw(
                 "tx",
@@ -1047,6 +1052,7 @@ class CosmosCLI:
                 amount,
                 "-y",
                 home=self.data_dir,
-                **kwargs,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
             )
         )

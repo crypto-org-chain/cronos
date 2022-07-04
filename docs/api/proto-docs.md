@@ -17,6 +17,8 @@
     - [ContractByDenomResponse](#cronos.ContractByDenomResponse)
     - [DenomByContractRequest](#cronos.DenomByContractRequest)
     - [DenomByContractResponse](#cronos.DenomByContractResponse)
+    - [ReplayBlockRequest](#cronos.ReplayBlockRequest)
+    - [ReplayBlockResponse](#cronos.ReplayBlockResponse)
   
     - [Query](#cronos.Query)
   
@@ -202,6 +204,39 @@ DenomByContractResponse is the response type of DenomByContract call
 
 
 
+
+<a name="cronos.ReplayBlockRequest"></a>
+
+### ReplayBlockRequest
+ReplayBlockRequest
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `msgs` | [ethermint.evm.v1.MsgEthereumTx](#ethermint.evm.v1.MsgEthereumTx) | repeated | the eth messages in the block |
+| `block_number` | [int64](#int64) |  |  |
+| `block_hash` | [string](#string) |  |  |
+| `block_time` | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
+
+
+
+
+
+
+<a name="cronos.ReplayBlockResponse"></a>
+
+### ReplayBlockResponse
+ReplayBlockResponse
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `responses` | [ethermint.evm.v1.MsgEthereumTxResponse](#ethermint.evm.v1.MsgEthereumTxResponse) | repeated |  |
+
+
+
+
+
  <!-- end messages -->
 
  <!-- end enums -->
@@ -218,6 +253,7 @@ Query defines the gRPC querier service.
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
 | `ContractByDenom` | [ContractByDenomRequest](#cronos.ContractByDenomRequest) | [ContractByDenomResponse](#cronos.ContractByDenomResponse) | ContractByDenom queries contract addresses by native denom | GET|/cronos/v1/contract_by_denom/{denom}|
 | `DenomByContract` | [DenomByContractRequest](#cronos.DenomByContractRequest) | [DenomByContractResponse](#cronos.DenomByContractResponse) | DenomByContract queries native denom by contract address | GET|/cronos/v1/denom_by_contract/{contract}|
+| `ReplayBlock` | [ReplayBlockRequest](#cronos.ReplayBlockRequest) | [ReplayBlockResponse](#cronos.ReplayBlockResponse) | ReplayBlock replay the eth messages in the block to recover the results of false-failed txs. | |
 
  <!-- end services -->
 
