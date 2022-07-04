@@ -11,6 +11,7 @@ from .utils import (
     deploy_contract,
     sign_transaction,
     wait_for_new_blocks,
+    build_batch_tx,
 )
 
 
@@ -61,24 +62,24 @@ def test_mempool(cronos_mempool):
     print(f"block number start: {block_num_0}")
     nonce_begin = w3.eth.get_transaction_count(address_from)
 
-    sended_hash_set = set()
+    txs_to_send = []
     for i in range(5):
         nonce = nonce_begin + i
-        tx = {
+        txs_to_send.append({
             "to": address_to,
             "value": 10000,
             "gasPrice": gas_price,
             "nonce": nonce,
-        }
-        signed = sign_transaction(w3, tx, key_from)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        sended_hash_set.add(txhash)
-    block_num_1 = w3.eth.get_block_number()
-    assert block_num_1 == block_num_0
-    print(f"all send tx hash: f{sended_hash_set}")
-    all_pending = w3.eth.get_filter_changes(filter.filter_id)
-    assert len(all_pending) == 0
+        })
+
+    txs, tx_hashes = build_batch_tx(
+        w3, cli, txs_to_send, key_from
+    )
+    print(f"all send tx hash: f{tx_hashes}")
+    cli.broadcast_tx_json(txs)
+    assert len(tx_hashes) == 5
     # check after max 10 blocks
+    sended_hash_set = set(tx_hashes)
     for i in range(10):
         wait_for_new_blocks(cli, 1, 0)
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
