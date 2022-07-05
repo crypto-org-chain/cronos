@@ -10,6 +10,9 @@
         address: '0.0.0.0:{EVMRPC_PORT}',
         'ws-address': '0.0.0.0:{EVMRPC_PORT_WS}',
         api: 'eth,net,web3,debug,cronos',
+        'feehistory-cap': 100,
+        'block-range-cap': 10000,
+        'logs-cap': 10000,
       },
     },
     validators: [{
