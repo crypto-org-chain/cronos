@@ -21,7 +21,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // StateFn returns the initial application state using a genesis or the simulation parameters.
@@ -131,7 +131,7 @@ func StateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes
 
 		evmStateBz, ok := rawState[evmtypes.ModuleName]
 		if !ok {
-			panic("staking genesis state is missing")
+			panic("evm genesis state is missing")
 		}
 
 		evmState := new(evmtypes.GenesisState)
