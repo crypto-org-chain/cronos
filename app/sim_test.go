@@ -7,14 +7,13 @@ import (
 	"os"
 	"testing"
 
+	ethermintapp "github.com/evmos/ethermint/app"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
-	ethermintapp "github.com/tharsis/ethermint/app"
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/store"
