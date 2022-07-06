@@ -390,8 +390,8 @@ func (db *tmDB) getFilePath(height int64, name string) (string, error) {
 
 func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	errors := make(chan error)
-	results1 := make(chan []byte)
-	results2 := make(chan []byte)
+	results1 := make(chan []byte, 1)
+	results2 := make(chan []byte, 1)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func(wg *sync.WaitGroup) {
