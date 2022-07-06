@@ -2,28 +2,30 @@ package cmd
 
 import (
 	"bufio"
+	"compress/zlib"
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/libs/protoio"
 	tmnode "github.com/tendermint/tendermint/node"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -81,6 +83,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if exportOnly || patchFromFile {
+				if err := createPatchFolder(); err != nil {
+					return err
+				}
+			}
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
@@ -112,7 +119,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
 			}
-
 			// replay and patch a single block
 			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
@@ -268,6 +274,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 	return cmd
 }
 
+func createPatchFolder() error {
+	return os.MkdirAll("patch", os.ModePerm)
+}
+
 func openAppDB(rootDir string) (dbm.DB, error) {
 	dataDir := filepath.Join(rootDir, "data")
 	return sdk.NewLevelDB("application", dataDir)
@@ -382,73 +392,33 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 	}, nil
 }
 
-func (db *tmDB) getFilePath(height int64, name string) (string, error) {
-	folder := fmt.Sprintf("patch/%s", name)
-	err := os.MkdirAll(folder, os.ModePerm)
-	return fmt.Sprintf("%s/%d.out", folder, height), err
-}
-
 func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
-	errors := make(chan error)
-	results1 := make(chan []byte, 1)
-	results2 := make(chan []byte, 1)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
-		path, err := db.getFilePath(height, "result")
-		if err != nil {
-			errors <- err
-			return
-		}
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			errors <- err
-			return
-		}
-		results1 <- data
-	}(&wg)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
-		path, err := db.getFilePath(height, "blockResult")
-		if err != nil {
-			errors <- err
-			return
-		}
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			errors <- err
-			return
-		}
-		results2 <- data
-	}(&wg)
-	go func() {
-		wg.Wait()
-		close(errors)
-	}()
-	var err error
-	for anErr := range errors {
-		if anErr != nil {
-			err = anErr
-		}
-	}
+	fi, err := os.Open(fmt.Sprintf("patch/%d.out", height))
 	if err != nil {
 		return nil, err
 	}
-
-	data1 := <-results1
-	var res abci.TxResult
-	err = res.Unmarshal(data1)
+	defer func() {
+		if err := fi.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	chunkReader := bufio.NewReader(fi)
+	zReader, err := zlib.NewReader(chunkReader)
+	if err != nil {
+		return nil, err
+	}
+	maxItemSize := int(64e6)
+	protoReader := protoio.NewDelimitedReader(zReader, maxItemSize)
+	res := abci.TxResult{}
+	_, err = protoReader.ReadMsg(&res)
 	if err != nil {
 		return nil, err
 	}
 	if err := db.txIndexer.Index(&res); err != nil {
 		return nil, err
 	}
-
-	data2 := <-results2
-	var blockRes tmstate.ABCIResponses
-	err = blockRes.Unmarshal(data2)
+	blockRes := tmstate.ABCIResponses{}
+	_, err = protoReader.ReadMsg(&blockRes)
 	if err != nil {
 		return nil, err
 	}
@@ -459,52 +429,52 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	return &res, nil
 }
 
-func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) (resultErr error) {
+func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) error {
 	if exportOnly {
-		errors := make(chan error)
-		var wg sync.WaitGroup
-		wg.Add(2)
-		go func(wg *sync.WaitGroup) {
-			defer wg.Done()
-			data, err := proto.Marshal(result)
-			if err == nil {
-				resultPath, err := db.getFilePath(height, "result")
-				if err != nil {
-					errors <- err
-					return
-				}
-				err = ioutil.WriteFile(resultPath, data, 0600)
-			}
-			if err != nil {
-				fmt.Printf("err when write result file: %v\n", err)
-				errors <- err
-			}
-		}(&wg)
-		go func(wg *sync.WaitGroup) {
-			defer wg.Done()
-			data, err := proto.Marshal(blockResult)
-			if err == nil {
-				blockResultPath, err := db.getFilePath(height, "blockResult")
-				if err != nil {
-					errors <- err
-					return
-				}
-				err = ioutil.WriteFile(blockResultPath, data, 0600)
-			}
-			if err != nil {
-				fmt.Printf("err when write block result file: %v\n", err)
-				errors <- err
-			}
-		}(&wg)
-
+		chunkSize := uint64(10e6)
+		bufferSize := int(chunkSize)
+		ch := make(chan io.ReadCloser)
+		chErr := make(chan error)
 		go func() {
-			wg.Wait()
-			close(errors)
+			chunkWriter := snapshots.NewChunkWriter(ch, chunkSize)
+			bufWriter := bufio.NewWriterSize(chunkWriter, bufferSize)
+			zWriter, err := zlib.NewWriterLevel(bufWriter, 7)
+			if err != nil {
+				chErr <- err
+				close(ch)
+				return
+			}
+			protoWriter := protoio.NewDelimitedWriter(zWriter)
+			_, err = protoWriter.WriteMsg(result)
+			if err != nil {
+				chErr <- err
+				close(ch)
+				return
+			}
+			_, err = protoWriter.WriteMsg(blockResult)
+			if err != nil {
+				chErr <- err
+				close(ch)
+				return
+			}
+			_ = protoWriter.Close()
+			_ = zWriter.Close()
+			_ = bufWriter.Flush()
+			_ = chunkWriter.Close()
+			chErr <- nil
 		}()
-
-		for resultErr = range errors {
+		f, err := os.OpenFile(fmt.Sprintf("patch/%d.out", height), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			return err
 		}
-		return
+		defer f.Close()
+		for chunkBody := range ch {
+			_, err = io.Copy(f, chunkBody)
+			if err != nil {
+				return err
+			}
+		}
+		return <-chErr
 	}
 	if err := db.txIndexer.Index(result); err != nil {
 		return err
