@@ -201,6 +201,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							}
 
 							if err := processBlock(blockNum); err != nil {
+								fmt.Printf("error when processBlock: %d %+v\n", blockNum, err)
 								cancel()
 								return
 							}
