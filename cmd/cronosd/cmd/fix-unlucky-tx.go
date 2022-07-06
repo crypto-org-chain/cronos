@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -44,6 +46,7 @@ const (
 	FlagStartBlock        = "start-block"
 	FlagEndBlock          = "end-block"
 	FlagConcurrency       = "concurrency"
+	FlagExportOnly        = "export-only"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
@@ -69,7 +72,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
+			exportOnly, err := cmd.Flags().GetBool(FlagExportOnly)
+			if err != nil {
+				return err
+			}
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
@@ -129,7 +135,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return clientCtx.PrintProto(result)
 				}
 
-				if err := tmDB.patchDB(blockResult, result); err != nil {
+				if err := tmDB.patchDB(blockResult, result, height, exportOnly); err != nil {
 					return err
 				}
 
@@ -238,6 +244,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
+	cmd.Flags().Bool(FlagExportOnly, false, "Export the execution result of the problematic txs without patch the database")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
@@ -361,7 +368,50 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 	}, nil
 }
 
-func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult) error {
+func (db *tmDB) getFilePath(height int64, folder string) string {
+	return fmt.Sprintf("patch/%s/%d.out", folder, height)
+}
+
+func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) (err error) {
+	if exportOnly {
+		resultPath := db.getFilePath(height, "result")
+		blockResultPath := db.getFilePath(height, "blockResult")
+
+		errors := make(chan error)
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			data, err := proto.Marshal(result)
+			if err == nil {
+				err = ioutil.WriteFile(resultPath, data, 0644)
+			}
+			if err != nil {
+				fmt.Printf("err when write result file: %v\n", err)
+				errors <- err
+			}
+		}(&wg)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			data, err := proto.Marshal(blockResult)
+			if err == nil {
+				err = ioutil.WriteFile(blockResultPath, data, 0644)
+			}
+			if err != nil {
+				fmt.Printf("err when write block result file: %v\n", err)
+				errors <- err
+			}
+		}(&wg)
+
+		go func() {
+			wg.Wait()
+			close(errors)
+		}()
+
+		for err = range errors {
+		}
+		return
+	}
 	if err := db.txIndexer.Index(result); err != nil {
 		return err
 	}
