@@ -473,7 +473,7 @@ func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResul
 					errors <- err
 					return
 				}
-				err = ioutil.WriteFile(resultPath, data, 0644)
+				err = ioutil.WriteFile(resultPath, data, 0600)
 			}
 			if err != nil {
 				fmt.Printf("err when write result file: %v\n", err)
@@ -489,7 +489,7 @@ func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResul
 					errors <- err
 					return
 				}
-				err = ioutil.WriteFile(blockResultPath, data, 0644)
+				err = ioutil.WriteFile(blockResultPath, data, 0600)
 			}
 			if err != nil {
 				fmt.Printf("err when write block result file: %v\n", err)
