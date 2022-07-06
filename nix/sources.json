@@ -54,10 +54,10 @@
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fb910de8cc78c3e820d24f9b718614ea255af469",
-        "sha256": "0wdpdjy91a9g3zxf3588l2hyih11hjarhwil7v3z28dzgh9l7584",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
+        "sha256": "0li17ynbg2wg0xqy655m5rmcw905sbv7d4ir35z7s5pg1yhhzxkp",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/fb910de8cc78c3e820d24f9b718614ea255af469.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/40d32f82fc60d66402eb0972e6e368aeab3faf58.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -85,15 +85,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "master",
+        "branch": "apple-sdk-11-x86_64",
         "description": "Nix Packages collection",
         "homepage": "",
-        "owner": "NixOS",
+        "owner": "yihuang",
         "repo": "nixpkgs",
-        "rev": "ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf",
-        "sha256": "0xm133zqg7knn8q6y7a5xd4jnqscxz9wzhf5rxmhs53qkvg7r4a4",
+        "rev": "f7e7545a9b298352d1736788f9727052e00eba76",
+        "sha256": "0a2yadryj7cg1s6hxa1sch5g29mfqmbbmmlbrsvljy24zj5wyy6v",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf.tar.gz",
+        "url": "https://github.com/yihuang/nixpkgs/archive/f7e7545a9b298352d1736788f9727052e00eba76.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
