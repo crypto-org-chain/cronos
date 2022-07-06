@@ -389,32 +389,66 @@ func (db *tmDB) getFilePath(height int64, name string) (string, error) {
 }
 
 func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
-	path, err := db.getFilePath(height, "result")
+	errors := make(chan error)
+	results1 := make(chan []byte)
+	results2 := make(chan []byte)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		path, err := db.getFilePath(height, "result")
+		if err != nil {
+			errors <- err
+			return
+		}
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			errors <- err
+			return
+		}
+		results1 <- data
+	}(&wg)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		path, err := db.getFilePath(height, "blockResult")
+		if err != nil {
+			errors <- err
+			return
+		}
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			errors <- err
+			return
+		}
+		results2 <- data
+	}(&wg)
+	go func() {
+		wg.Wait()
+		close(errors)
+	}()
+	var err error
+	for anErr := range errors {
+		if anErr != nil {
+			err = anErr
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+
+	data1 := <-results1
 	var res abci.TxResult
-	err = res.Unmarshal(data)
+	err = res.Unmarshal(data1)
 	if err != nil {
 		return nil, err
 	}
 	if err := db.txIndexer.Index(&res); err != nil {
 		return nil, err
 	}
-	path, err = db.getFilePath(height, "blockResult")
-	if err != nil {
-		return nil, err
-	}
-	data, err = ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+
+	data2 := <-results2
 	var blockRes tmstate.ABCIResponses
-	err = blockRes.Unmarshal(data)
+	err = blockRes.Unmarshal(data2)
 	if err != nil {
 		return nil, err
 	}
