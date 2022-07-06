@@ -382,12 +382,17 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 	}, nil
 }
 
-func (db *tmDB) getFilePath(height int64, folder string) string {
-	return fmt.Sprintf("patch/%s/%d.out", folder, height)
+func (db *tmDB) getFilePath(height int64, name string) (string, error) {
+	folder := fmt.Sprintf("patch/%s", name)
+	err := os.MkdirAll(folder, os.ModePerm)
+	return fmt.Sprintf("%s/%d.out", folder, height), err
 }
 
 func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
-	path := db.getFilePath(height, "result")
+	path, err := db.getFilePath(height, "result")
+	if err != nil {
+		return nil, err
+	}
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -400,7 +405,10 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	if err := db.txIndexer.Index(&res); err != nil {
 		return nil, err
 	}
-	path = db.getFilePath(height, "blockResult")
+	path, err = db.getFilePath(height, "blockResult")
+	if err != nil {
+		return nil, err
+	}
 	data, err = ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -417,11 +425,8 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	return &res, nil
 }
 
-func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) (err error) {
+func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) (resultErr error) {
 	if exportOnly {
-		resultPath := db.getFilePath(height, "result")
-		blockResultPath := db.getFilePath(height, "blockResult")
-
 		errors := make(chan error)
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -429,6 +434,11 @@ func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResul
 			defer wg.Done()
 			data, err := proto.Marshal(result)
 			if err == nil {
+				resultPath, err := db.getFilePath(height, "result")
+				if err != nil {
+					errors <- err
+					return
+				}
 				err = ioutil.WriteFile(resultPath, data, 0644)
 			}
 			if err != nil {
@@ -440,6 +450,11 @@ func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResul
 			defer wg.Done()
 			data, err := proto.Marshal(blockResult)
 			if err == nil {
+				blockResultPath, err := db.getFilePath(height, "blockResult")
+				if err != nil {
+					errors <- err
+					return
+				}
 				err = ioutil.WriteFile(blockResultPath, data, 0644)
 			}
 			if err != nil {
@@ -453,7 +468,7 @@ func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResul
 			close(errors)
 		}()
 
-		for err = range errors {
+		for resultErr = range errors {
 		}
 		return
 	}
