@@ -47,6 +47,7 @@ const (
 	FlagEndBlock          = "end-block"
 	FlagConcurrency       = "concurrency"
 	FlagExportOnly        = "export-only"
+	FlagPatchFromFile     = "patch-from-file"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
@@ -73,6 +74,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 				return err
 			}
 			exportOnly, err := cmd.Flags().GetBool(FlagExportOnly)
+			if err != nil {
+				return err
+			}
+			patchFromFile, err := cmd.Flags().GetBool(FlagPatchFromFile)
 			if err != nil {
 				return err
 			}
@@ -109,34 +114,42 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 
 			// replay and patch a single block
-			processBlock := func(height int64) error {
-				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
-				if err != nil {
-					return err
-				}
+			processBlock := func(height int64) (err error) {
+				var result *abci.TxResult
+				if patchFromFile {
+					result, err = tmDB.patchFromFile(height)
+					if err != nil {
+						return err
+					}
+				} else {
+					blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
+					if err != nil {
+						return err
+					}
 
-				txIndex := findUnluckyTx(blockResult)
-				if txIndex < 0 {
-					// no unlucky tx in the block
-					return nil
-				}
+					txIndex := findUnluckyTx(blockResult)
+					if txIndex < 0 {
+						// no unlucky tx in the block
+						return nil
+					}
 
-				if printBlockNumbers {
-					fmt.Println(height, txIndex)
-					return nil
-				}
+					if printBlockNumbers {
+						fmt.Println(height, txIndex)
+						return nil
+					}
 
-				result, err := tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
-				if err != nil {
-					return err
-				}
+					result, err = tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
+					if err != nil {
+						return err
+					}
 
-				if dryRun {
-					return clientCtx.PrintProto(result)
-				}
+					if dryRun {
+						return clientCtx.PrintProto(result)
+					}
 
-				if err := tmDB.patchDB(blockResult, result, height, exportOnly); err != nil {
-					return err
+					if err := tmDB.patchDB(blockResult, result, height, exportOnly); err != nil {
+						return err
+					}
 				}
 
 				// decode the tx to get eth tx hashes to log
@@ -245,6 +258,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
 	cmd.Flags().Bool(FlagExportOnly, false, "Export the execution result of the problematic txs without patch the database")
+	cmd.Flags().Bool(FlagPatchFromFile, false, "Patch the database from exported files of the problematic txs")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
@@ -370,6 +384,37 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 
 func (db *tmDB) getFilePath(height int64, folder string) string {
 	return fmt.Sprintf("patch/%s/%d.out", folder, height)
+}
+
+func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
+	path := db.getFilePath(height, "result")
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var res abci.TxResult
+	err = res.Unmarshal(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.txIndexer.Index(&res); err != nil {
+		return nil, err
+	}
+	path = db.getFilePath(height, "blockResult")
+	data, err = ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var blockRes tmstate.ABCIResponses
+	err = blockRes.Unmarshal(data)
+	if err != nil {
+		return nil, err
+	}
+	blockRes.DeliverTxs[res.Index] = &res.Result
+	if err := db.stateStore.SaveABCIResponses(res.Height, &blockRes); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64, exportOnly bool) (err error) {
