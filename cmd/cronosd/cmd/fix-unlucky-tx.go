@@ -288,6 +288,10 @@ func createPatchFolder() error {
 	return os.MkdirAll("patch", os.ModePerm)
 }
 
+func getPatchFile(height int64) string {
+	return fmt.Sprintf("patch/%d.out", height)
+}
+
 func openAppDB(rootDir string) (dbm.DB, error) {
 	dataDir := filepath.Join(rootDir, "data")
 	return sdk.NewLevelDB("application", dataDir)
@@ -403,7 +407,7 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 }
 
 func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
-	fi, err := os.Open(fmt.Sprintf("patch/%d.out", height))
+	fi, err := os.Open(getPatchFile(height))
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +468,7 @@ func (db *tmDB) exportPatchFile(blockResult *tmstate.ABCIResponses, result *abci
 		_ = chunkWriter.Close()
 		chErr <- nil
 	}()
-	f, err := os.OpenFile(fmt.Sprintf("patch/%d.out", height), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(getPatchFile(height), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
