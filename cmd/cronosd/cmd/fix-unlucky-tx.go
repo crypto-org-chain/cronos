@@ -398,11 +398,7 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := fi.Close(); err != nil {
-			panic(err)
-		}
-	}()
+	defer fi.Close()
 	chunkReader := bufio.NewReader(fi)
 	zReader, err := zlib.NewReader(chunkReader)
 	if err != nil {
