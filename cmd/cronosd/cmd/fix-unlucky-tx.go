@@ -161,7 +161,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							return err
 						}
 					} else {
-						if err := tmDB.patchDB(blockResult, result, height); err != nil {
+						if err := tmDB.patchDB(blockResult, result); err != nil {
 							return err
 						}
 					}
@@ -439,7 +439,7 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	return &res, nil
 }
 
-func (db *tmDB) exportPatchFile(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64) error {
+func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, height int64) error {
 	chunkSize := uint64(10e6)
 	bufferSize := int(chunkSize)
 	ch := make(chan io.ReadCloser)
@@ -482,7 +482,7 @@ func (db *tmDB) exportPatchFile(blockResult *tmstate.ABCIResponses, result *abci
 	return <-chErr
 }
 
-func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult, height int64) error {
+func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult) error {
 	if err := db.txIndexer.Index(result); err != nil {
 		return err
 	}
