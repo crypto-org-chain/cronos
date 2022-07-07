@@ -49,7 +49,7 @@ const (
 	FlagStartBlock        = "start-block"
 	FlagEndBlock          = "end-block"
 	FlagConcurrency       = "concurrency"
-	FlagExportOnly        = "export-only"
+	FlagExportToFile      = "export-to-file"
 	FlagPatchFromFile     = "patch-from-file"
 )
 
@@ -60,7 +60,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 		Short: "Fix tx execution result of false-failed tx before v0.7.0 upgrade.",
 		Long:  "Fix tx execution result of false-failed tx before v0.7.0 upgrade.\nWARNING: don't use this command to patch blocks generated after v0.7.0 upgrade",
 		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (returnErr error) {
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
@@ -76,18 +76,13 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			exportOnly, err := cmd.Flags().GetBool(FlagExportOnly)
+			exportToFile, err := cmd.Flags().GetString(FlagExportToFile)
 			if err != nil {
 				return err
 			}
-			patchFromFile, err := cmd.Flags().GetBool(FlagPatchFromFile)
+			patchFromFile, err := cmd.Flags().GetString(FlagPatchFromFile)
 			if err != nil {
 				return err
-			}
-			if exportOnly || patchFromFile {
-				if err := createPatchFolder(); err != nil {
-					return err
-				}
 			}
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
@@ -122,10 +117,28 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 			// replay and patch a single block
 			action := "patched"
+			chIO := make(chan io.ReadCloser)
+			if exportToFile != "" {
+				f, err := os.OpenFile(exportToFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+				if err != nil {
+					return err
+				}
+				defer func() {
+					returnErr = f.Close()
+				}()
+				go func() {
+					for chunkBody := range chIO {
+						_, err = io.Copy(f, chunkBody)
+						if err != nil {
+							return
+						}
+					}
+				}()
+			}
 			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
-				if patchFromFile {
-					result, err = tmDB.patchFromFile(height)
+				if patchFromFile != "" {
+					result, err = tmDB.patchFromFile(patchFromFile)
 					if err != nil {
 						return err
 					}
@@ -155,9 +168,9 @@ func FixUnluckyTxCmd() *cobra.Command {
 						return clientCtx.PrintProto(result)
 					}
 
-					if exportOnly {
+					if exportToFile != "" {
 						action = "exported"
-						if err := tmDB.exportPatchFile(blockResult, result, height); err != nil {
+						if err := tmDB.exportPatchFile(blockResult, result, chIO); err != nil {
 							return err
 						}
 					} else {
@@ -273,8 +286,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagExportOnly, false, "Export the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagPatchFromFile, false, "Patch the database from exported files of the problematic txs")
+	cmd.Flags().String(FlagExportToFile, "", "Export the execution result of the problematic txs to a file without patch the database")
+	cmd.Flags().String(FlagPatchFromFile, "", "Patch the database from exported file of the problematic txs")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
@@ -286,10 +299,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 
 func createPatchFolder() error {
 	return os.MkdirAll("patch", os.ModePerm)
-}
-
-func getPatchFile(height int64) string {
-	return fmt.Sprintf("patch/%d.out", height)
 }
 
 func openAppDB(rootDir string) (dbm.DB, error) {
@@ -406,8 +415,8 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 	}, nil
 }
 
-func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
-	fi, err := os.Open(getPatchFile(height))
+func (db *tmDB) patchFromFile(path string) (*abci.TxResult, error) {
+	fi, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -439,18 +448,16 @@ func (db *tmDB) patchFromFile(height int64) (*abci.TxResult, error) {
 	return &res, nil
 }
 
-func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, height int64) error {
+func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, chIo chan io.ReadCloser) error {
 	chunkSize := uint64(10e6)
 	bufferSize := int(chunkSize)
-	ch := make(chan io.ReadCloser)
 	chErr := make(chan error)
 	go func() {
-		chunkWriter := snapshots.NewChunkWriter(ch, chunkSize)
+		chunkWriter := snapshots.NewChunkWriter(chIo, chunkSize)
 		bufWriter := bufio.NewWriterSize(chunkWriter, bufferSize)
 		zWriter, err := zlib.NewWriterLevel(bufWriter, 7)
 		if err != nil {
 			chErr <- err
-			close(ch)
 			return
 		}
 		protoWriter := protoio.NewDelimitedWriter(zWriter)
@@ -458,7 +465,6 @@ func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message,
 			_, err = protoWriter.WriteMsg(res)
 			if err != nil {
 				chErr <- err
-				close(ch)
 				return
 			}
 		}
@@ -468,17 +474,6 @@ func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message,
 		_ = chunkWriter.Close()
 		chErr <- nil
 	}()
-	f, err := os.OpenFile(getPatchFile(height), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	for chunkBody := range ch {
-		_, err = io.Copy(f, chunkBody)
-		if err != nil {
-			return err
-		}
-	}
 	return <-chErr
 }
 
