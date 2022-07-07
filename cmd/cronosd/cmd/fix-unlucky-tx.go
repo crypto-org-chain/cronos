@@ -118,12 +118,15 @@ func FixUnluckyTxCmd() *cobra.Command {
 			// replay and patch a single block
 			action := "patched"
 			chIO := make(chan io.ReadCloser)
+			chunkSize := uint64(10e6)
+			chunkWriter := snapshots.NewChunkWriter(chIO, chunkSize)
 			if exportToFile != "" {
 				f, err := os.OpenFile(exportToFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 				if err != nil {
 					return err
 				}
 				defer func() {
+					chunkWriter.Close()
 					returnErr = f.Close()
 				}()
 				go func() {
@@ -170,7 +173,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 
 					if exportToFile != "" {
 						action = "exported"
-						if err := tmDB.exportPatchFile(blockResult, result, chIO); err != nil {
+						if err := tmDB.exportPatchFile(blockResult, result, chunkWriter); err != nil {
 							return err
 						}
 					} else {
@@ -444,12 +447,11 @@ func (db *tmDB) patchFromFile(path string) (*abci.TxResult, error) {
 	return &res, nil
 }
 
-func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, chIo chan io.ReadCloser) error {
+func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, chunkWriter io.Writer) error {
 	chunkSize := uint64(10e6)
 	bufferSize := int(chunkSize)
 	chErr := make(chan error)
 	go func() {
-		chunkWriter := snapshots.NewChunkWriter(chIo, chunkSize)
 		bufWriter := bufio.NewWriterSize(chunkWriter, bufferSize)
 		zWriter, err := zlib.NewWriterLevel(bufWriter, 7)
 		if err != nil {
@@ -467,7 +469,6 @@ func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message,
 		_ = protoWriter.Close()
 		_ = zWriter.Close()
 		_ = bufWriter.Flush()
-		_ = chunkWriter.Close()
 		chErr <- nil
 	}()
 	return <-chErr
