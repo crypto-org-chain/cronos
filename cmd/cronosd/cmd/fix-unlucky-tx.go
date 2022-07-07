@@ -297,10 +297,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 	return cmd
 }
 
-func createPatchFolder() error {
-	return os.MkdirAll("patch", os.ModePerm)
-}
-
 func openAppDB(rootDir string) (dbm.DB, error) {
 	dataDir := filepath.Join(rootDir, "data")
 	return sdk.NewLevelDB("application", dataDir)
