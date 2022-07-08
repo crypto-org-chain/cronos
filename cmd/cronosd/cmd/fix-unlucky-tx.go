@@ -123,7 +123,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			action := "patched"
 			var f *os.File
 			if exportToFile != "" {
-				f, err = os.OpenFile(exportToFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+				f, err = os.Create(exportToFile)
 				if err != nil {
 					return err
 				}
