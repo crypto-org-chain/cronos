@@ -92,6 +92,7 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
+        max_gas: 500000,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
@@ -105,6 +106,7 @@ config {
       },
       {
         id: 'chainmain-1',
+        max_gas: 500000,
         gas_price: {
           price: 1000000,
           denom: 'basecro',

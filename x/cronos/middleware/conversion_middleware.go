@@ -4,10 +4,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	transferTypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v3/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v3/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v3/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v4/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v4/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
 
@@ -35,7 +35,7 @@ func (im IBCConversionModule) OnChanOpenInit(
 	chanCap *capabilitytypes.Capability,
 	counterparty channeltypes.Counterparty,
 	version string,
-) error {
+) (string, error) {
 	return im.app.OnChanOpenInit(ctx, order, connectionHops, portID, channelID, chanCap, counterparty, version)
 }
 
@@ -101,8 +101,8 @@ func (im IBCConversionModule) OnRecvPacket(
 	if ack.Success() {
 		data, err := im.getFungibleTokenPacketData(packet)
 		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(
-				"cannot unmarshal ICS-20 transfer packet data in middleware")
+			return channeltypes.NewErrorAcknowledgement(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest,
+				"cannot unmarshal ICS-20 transfer packet data in middleware"))
 		}
 		// We need to convert the voucher only in case the receiver is "not" the source chain
 		if !transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
@@ -113,7 +113,7 @@ func (im IBCConversionModule) OnRecvPacket(
 			denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
 			err = im.convertVouchers(ctx, data, denomTrace.IBCDenom(), false)
 			if err != nil {
-				return transferTypes.NewErrorAcknowledgement(err)
+				return channeltypes.NewErrorAcknowledgement(err)
 			}
 		}
 	}
