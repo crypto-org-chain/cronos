@@ -262,7 +262,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			suite.SetupTest() // reset
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
-				app.MakeEncodingConfig().Marshaler,
+				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),

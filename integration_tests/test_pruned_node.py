@@ -44,11 +44,14 @@ def test_pruned_node(cronos):
     )
     signed = sign_transaction(w3, tx, KEYS["validator"])
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    exp_gas_used = 51520
 
     print("wait for prunning happens")
     wait_for_new_blocks(cronos.cosmos_cli(0), 10)
 
+    print("wait for transaction receipt", txhash.hex())
     txreceipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert txreceipt.gasUsed == exp_gas_used
     assert len(txreceipt.logs) == 1
     expect_log = {
         "address": erc20.address,
@@ -90,7 +93,7 @@ def test_pruned_node(cronos):
     exp_tx = AttributeDict(
         {
             "from": "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2",
-            "gas": 51520,
+            "gas": exp_gas_used,
             "input": (
                 "0xa9059cbb000000000000000000000000378c50d9264c63f3f92b806d4ee56e"
                 "9d86ffb3ec000000000000000000000000000000000000000000000000000000"

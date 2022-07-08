@@ -2,7 +2,7 @@ cronos_777-1:
   cmd: cronosd
   start-flags: "--trace --unsafe-experimental"
   app-config:
-    minimum-gas-prices: 5000000000000basetcro
+    minimum-gas-prices: 100000000000basetcro
     index-events:
       - ethereum_tx.ethereumTxHash
     json-rpc:

@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/spf13/cobra"
@@ -124,7 +124,7 @@ func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 			fmt.Sprintf(`Submit a token mapping change proposal.
 
 Example:
-$ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0000 --from=<key_or_address>
+$ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0000...0000 --from=<key_or_address>
 `,
 				version.AppName,
 			),

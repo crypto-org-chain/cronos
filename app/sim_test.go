@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	ethermintapp "github.com/evmos/ethermint/app"
+	evmante "github.com/evmos/ethermint/app/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -20,6 +21,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/store"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
@@ -43,8 +45,8 @@ func init() {
 }
 
 type StoreKeysPrefixes struct {
-	A        sdk.StoreKey
-	B        sdk.StoreKey
+	A        storetypes.StoreKey
+	B        storetypes.StoreKey
 	Prefixes [][]byte
 }
 
@@ -58,6 +60,32 @@ func fauxMerkleModeOpt(bapp *baseapp.BaseApp) {
 // inter-block write-through cache.
 func interBlockCacheOpt() func(*baseapp.BaseApp) {
 	return baseapp.SetInterBlockCache(store.NewCommitKVStoreCacheManager())
+}
+
+// NewSimApp disable feemarket on native tx, otherwise the cosmos-sdk simulation tests will fail.
+func NewSimApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*baseapp.BaseApp)) (*App, error) {
+	encodingConfig := MakeEncodingConfig()
+	app := New(logger, db, nil, false, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, encodingConfig, EmptyAppOptions{}, baseAppOptions...)
+	// disable feemarket on native tx
+	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
+		AccountKeeper:   app.AccountKeeper,
+		BankKeeper:      app.BankKeeper,
+		SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
+		FeegrantKeeper:  app.FeeGrantKeeper,
+		SigGasConsumer:  evmante.DefaultSigVerificationGasConsumer,
+		IBCKeeper:       app.IBCKeeper,
+		EvmKeeper:       app.EvmKeeper,
+		FeeMarketKeeper: app.FeeMarketKeeper,
+		MaxTxGasWanted:  0,
+	})
+	if err != nil {
+		return nil, err
+	}
+	app.SetAnteHandler(anteHandler)
+	if err := app.LoadLatestVersion(); err != nil {
+		return nil, err
+	}
+	return app, nil
 }
 
 func TestFullAppSimulation(t *testing.T) {
@@ -74,7 +102,8 @@ func TestFullAppSimulation(t *testing.T) {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	app := New(logger, db, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, fauxMerkleModeOpt)
+	app, err := NewSimApp(logger, db, fauxMerkleModeOpt)
+	require.NoError(t, err)
 	require.Equal(t, Name, app.Name())
 
 	// run randomized simulation
@@ -114,7 +143,8 @@ func TestAppImportExport(t *testing.T) {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	app := New(logger, db, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, fauxMerkleModeOpt)
+	app, err := NewSimApp(logger, db, fauxMerkleModeOpt)
+	require.NoError(t, err)
 	require.Equal(t, Name, app.Name())
 
 	// Run randomized simulation
@@ -154,7 +184,8 @@ func TestAppImportExport(t *testing.T) {
 		require.NoError(t, os.RemoveAll(newDir))
 	}()
 
-	newApp := New(log.NewNopLogger(), newDB, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, fauxMerkleModeOpt)
+	newApp, err := NewSimApp(log.NewNopLogger(), newDB, fauxMerkleModeOpt)
+	require.NoError(t, err)
 	require.Equal(t, Name, newApp.Name())
 
 	var genesisState simapp.GenesisState
@@ -233,7 +264,8 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	app := New(logger, db, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, fauxMerkleModeOpt)
+	app, err := NewSimApp(logger, db, fauxMerkleModeOpt)
+	require.NoError(t, err)
 	require.Equal(t, Name, app.Name())
 
 	// Run randomized simulation
@@ -278,7 +310,8 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		require.NoError(t, os.RemoveAll(newDir))
 	}()
 
-	newApp := New(log.NewNopLogger(), newDB, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, fauxMerkleModeOpt)
+	newApp, err := NewSimApp(log.NewNopLogger(), newDB, fauxMerkleModeOpt)
+	require.NoError(t, err)
 	require.Equal(t, Name, newApp.Name())
 
 	newApp.InitChain(abci.RequestInitChain{
@@ -330,14 +363,15 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 
 			db := dbm.NewMemDB()
-			app := New(logger, db, nil, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, MakeEncodingConfig(), EmptyAppOptions{}, interBlockCacheOpt())
+			app, err := NewSimApp(logger, db, interBlockCacheOpt())
+			require.NoError(t, err)
 
 			fmt.Printf(
 				"running non-determinism simulation; seed %d: %d/%d, attempt: %d/%d\n",
 				config.Seed, i+1, numSeeds, j+1, numTimesToRunPerSeed,
 			)
 
-			_, _, err := simulation.SimulateFromSeed(
+			_, _, err = simulation.SimulateFromSeed(
 				t,
 				os.Stdout,
 				app.BaseApp,

@@ -339,7 +339,6 @@ def test_gov_token_mapping(gravity):
 
     # get proposal_id
     ev = parse_events(rsp["logs"])["submit_proposal"]
-    assert ev["proposal_type"] == "TokenMappingChange", rsp
     proposal_id = ev["proposal_id"]
     print("gov proposal submitted", proposal_id)
 
@@ -353,7 +352,7 @@ def test_gov_token_mapping(gravity):
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     assert (
-        int(cli.query_tally(proposal_id)["yes"]) == cli.staking_pool()
+        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
     ), "all validators should have voted yes"
     print("wait for proposal to be activated")
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))

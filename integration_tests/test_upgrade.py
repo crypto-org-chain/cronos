@@ -83,8 +83,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-    plan_name = "v0.8.0"
-    rsp = cli.gov_propose(
+
+    plan_name = "v0.9.0"
+    rsp = cli.gov_propose_v0_7(
         "community",
         "software-upgrade",
         {
@@ -112,6 +113,13 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     proposal = cli.query_proposal(proposal_id)
     assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
 
+    # update cli chain binary
+    custom_cronos.chain_binary = (
+        Path(custom_cronos.chain_binary).parent.parent.parent
+        / f"{plan_name}/bin/cronosd"
+    )
+    cli = custom_cronos.cosmos_cli()
+
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
     wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
@@ -119,3 +127,6 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_icacontroller_params() == {"controller_enabled": True}
     assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
+
+    # test migrate keystore
+    cli.migrate_keystore()

@@ -45,9 +45,7 @@ type KeeperTestSuite struct {
 	address common.Address
 }
 
-func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
-	checkTx := false
-
+func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 	// account key
 	priv, err := ethsecp256k1.GenerateKey()
 	require.NoError(t, err)
@@ -58,8 +56,8 @@ func (suite *KeeperTestSuite) DoSetupTest(t require.TestingT) {
 	require.NoError(t, err)
 	consAddress := sdk.ConsAddress(priv.PubKey().Address())
 
-	suite.app = app.Setup(checkTx, sdk.AccAddress(suite.address.Bytes()).String(), true)
-	suite.ctx = suite.app.NewContext(checkTx, tmproto.Header{
+	suite.app = app.Setup(t, sdk.AccAddress(suite.address.Bytes()).String(), true)
+	suite.ctx = suite.app.NewContext(false, tmproto.Header{
 		Height:          1,
 		ChainID:         app.TestAppChainID,
 		Time:            time.Now().UTC(),
@@ -263,7 +261,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			suite.SetupTest() // reset
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
-				app.MakeEncodingConfig().Marshaler,
+				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),
@@ -407,7 +405,7 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			suite.SetupTest() // reset
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
-				app.MakeEncodingConfig().Marshaler,
+				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),

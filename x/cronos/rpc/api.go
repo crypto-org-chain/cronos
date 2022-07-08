@@ -209,7 +209,6 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				"transactionHash": ethMsg.Hash,
 				"contractAddress": nil,
 				"gasUsed":         hexutil.Uint64(parsedTx.GasUsed),
-				"type":            hexutil.Uint(txData.TxType()),
 
 				// Inclusion information: These fields provide information about the inclusion of the
 				// transaction corresponding to this receipt.
@@ -228,7 +227,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 			}
 
 			if dynamicTx, ok := txData.(*evmtypes.DynamicFeeTx); ok {
-				receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.GetEffectiveGasPrice(baseFee))
+				receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.EffectiveGasPrice(baseFee))
 			}
 
 			receipts = append(receipts, receipt)
@@ -364,7 +363,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 		}
 
 		if dynamicTx, ok := txData.(*evmtypes.DynamicFeeTx); ok {
-			receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.GetEffectiveGasPrice(baseFee))
+			receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.EffectiveGasPrice(baseFee))
 		}
 
 		receipts = append(receipts, receipt)

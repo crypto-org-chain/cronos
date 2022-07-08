@@ -75,7 +75,6 @@
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
-            db_backend = [ "goleveldb" "rocksdb" ];
             network = [ "mainnet" "testnet" ];
             pkgtype = [
               "nix" # normal nix package
@@ -84,17 +83,16 @@
             ];
           };
           binaries = builtins.listToAttrs (builtins.map
-            ({ db_backend, network, pkgtype }: {
+            ({ network, pkgtype }: {
               name = builtins.concatStringsSep "-" (
                 [ "cronosd" ] ++
                 lib.optional (network != "mainnet") network ++
-                lib.optional (db_backend != "rocksdb") db_backend ++
                 lib.optional (pkgtype != "nix") pkgtype
               );
               value =
                 let
                   cronosd = callPackage ./. {
-                    inherit rev db_backend network;
+                    inherit rev network;
                   };
                   bundle = bundle-exe cronosd;
                 in
