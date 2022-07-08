@@ -1,6 +1,8 @@
+from pathlib import Path
+
 import pytest
 
-from .network import setup_cronos, setup_geth
+from .network import setup_cronos, setup_custom_cronos, setup_geth
 
 
 def pytest_configure(config):
@@ -35,10 +37,17 @@ def suspend_capture(pytestconfig):
     yield SuspendGuard()
 
 
-@pytest.fixture(scope="session")
-def cronos(tmp_path_factory):
-    path = tmp_path_factory.mktemp("cronos")
-    yield from setup_cronos(path, 26650)
+@pytest.fixture(scope="session", params=[True])
+def cronos(request, tmp_path_factory):
+    enable_indexer = request.param
+    if enable_indexer:
+        path = tmp_path_factory.mktemp("indexer")
+        yield from setup_custom_cronos(
+            path, 26900, Path(__file__).parent / "configs/enable-indexer.yaml"
+        )
+    else:
+        path = tmp_path_factory.mktemp("cronos")
+        yield from setup_cronos(path, 26650)
 
 
 @pytest.fixture(scope="session")

@@ -36,10 +36,23 @@ pkgs.poetry2nix.mkPoetryEnv {
       }
     );
 
-    pystarport = super.pystarport.overridePythonAttrs (
+    jsonschema = super.jsonschema.overridePythonAttrs (
       old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.poetry ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.hatchling self.hatch-vcs ];
       }
     );
+
+    pystarport = super.pystarport.overridePythonAttrs (
+      old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ self.poetry ];
+      }
+    );
+
+    ordered-set = super.ordered-set.overridePythonAttrs (
+      old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ self.flit-core ];
+      }
+    );
+
   });
 }
