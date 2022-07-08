@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"bufio"
-	"compress/zlib"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,7 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -122,84 +121,68 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 			// replay and patch a single block
 			action := "patched"
-			chIO := make(chan io.ReadCloser)
-			chunkSize := uint64(10e6)
-			chunkWriter := snapshots.NewChunkWriter(chIO, chunkSize)
+			var f *os.File
 			if exportToFile != "" {
-				f, err := os.OpenFile(exportToFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+				f, err = os.OpenFile(exportToFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 				if err != nil {
 					return err
 				}
 				defer func() {
-					chunkWriter.Close()
 					returnErr = f.Close()
 				}()
-				go func() {
-					for chunkBody := range chIO {
-						_, err = io.Copy(f, chunkBody)
-						if err != nil {
-							return
-						}
-					}
-				}()
+			}
+			if patchFromFile != "" {
+				err := tmDB.patchFromFile(clientCtx.TxConfig, patchFromFile)
+				if err != nil {
+					return err
+				}
 			}
 			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
-				if patchFromFile != "" {
-					result, err = tmDB.patchFromFile(patchFromFile)
-					if err != nil {
+				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
+				if err != nil {
+					return err
+				}
+				block := tmDB.blockStore.LoadBlock(height)
+				if block == nil {
+					return fmt.Errorf("block %d not found", height)
+				}
+				txIndex := findUnluckyTx(blockResult)
+				if txIndex < 0 {
+					// no unlucky tx in the block
+					return nil
+				}
+
+				if printBlockNumbers {
+					fmt.Println(height, txIndex)
+					return nil
+				}
+
+				result, err = tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
+				if err != nil {
+					return err
+				}
+
+				if dryRun {
+					return clientCtx.PrintProto(result)
+				}
+
+				if exportToFile != "" {
+					action = "exported"
+					var buf bytes.Buffer
+					if err := tmDB.exportPatchFile(blockResult, result, &buf); err != nil {
+						return err
+					}
+					if _, err := buf.WriteTo(f); err != nil {
 						return err
 					}
 				} else {
-					blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
-					if err != nil {
+					if err := tmDB.patchDB(blockResult, result); err != nil {
 						return err
 					}
-
-					txIndex := findUnluckyTx(blockResult)
-					if txIndex < 0 {
-						// no unlucky tx in the block
-						return nil
-					}
-
-					if printBlockNumbers {
-						fmt.Println(height, txIndex)
-						return nil
-					}
-
-					result, err = tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
-					if err != nil {
-						return err
-					}
-
-					if dryRun {
-						return clientCtx.PrintProto(result)
-					}
-
-					if exportToFile != "" {
-						action = "exported"
-						if err := tmDB.exportPatchFile(blockResult, result, chunkWriter); err != nil {
-							return err
-						}
-					} else {
-						if err := tmDB.patchDB(blockResult, result); err != nil {
-							return err
-						}
-					}
 				}
 
-				// decode the tx to get eth tx hashes to log
-				tx, err := clientCtx.TxConfig.TxDecoder()(result.Tx)
-				if err != nil {
-					fmt.Println("can't parse the patched tx", result.Height, result.Index)
-					return nil
-				}
-				for _, msg := range tx.GetMsgs() {
-					ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
-					if ok {
-						fmt.Println(action, ethMsg.Hash, result.Height, result.Index)
-					}
-				}
+				logTnxHash(clientCtx.TxConfig, result, action)
 				return nil
 			}
 
@@ -419,61 +402,66 @@ func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, 
 	}, nil
 }
 
-func (db *tmDB) patchFromFile(path string) (*abci.TxResult, error) {
-	fi, err := os.Open(path)
+// decode the tx to get eth tx hashes to log
+func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) {
+	tx, err := txConfig.TxDecoder()(result.Tx)
 	if err != nil {
-		return nil, err
+		fmt.Println("can't parse the patched tx", result.Height, result.Index)
+		return
 	}
-	defer fi.Close()
-	chunkReader := bufio.NewReader(fi)
-	zReader, err := zlib.NewReader(chunkReader)
-	if err != nil {
-		return nil, err
+	for _, msg := range tx.GetMsgs() {
+		ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
+		if ok {
+			fmt.Println(action, ethMsg.Hash, result.Height, result.Index)
+		}
 	}
-	maxItemSize := int(64e6)
-	protoReader := protoio.NewDelimitedReader(zReader, maxItemSize)
-	res := abci.TxResult{}
-	_, err = protoReader.ReadMsg(&res)
-	if err != nil {
-		return nil, err
-	}
-	if err := db.txIndexer.Index(&res); err != nil {
-		return nil, err
-	}
-	blockRes := tmstate.ABCIResponses{}
-	_, err = protoReader.ReadMsg(&blockRes)
-	if err != nil {
-		return nil, err
-	}
-	blockRes.DeliverTxs[res.Index] = &res.Result
-	if err := db.stateStore.SaveABCIResponses(res.Height, &blockRes); err != nil {
-		return nil, err
-	}
-	return &res, nil
 }
 
-func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, chunkWriter io.Writer) error {
-	chunkSize := uint64(10e6)
-	bufferSize := int(chunkSize)
+func (db *tmDB) patchFromFile(txConfig client.TxConfig, path string) error {
+	fi, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer fi.Close()
+	maxItemSize := int(64e6)
+	protoReader := protoio.NewDelimitedReader(fi, maxItemSize)
+	for {
+		res := abci.TxResult{}
+		_, err = protoReader.ReadMsg(&res)
+		if err != nil {
+			if io.EOF == err {
+				return nil
+			}
+			return err
+		}
+		if err := db.txIndexer.Index(&res); err != nil {
+			return err
+		}
+		blockRes := tmstate.ABCIResponses{}
+		_, err = protoReader.ReadMsg(&blockRes)
+		if err != nil {
+			return err
+		}
+		blockRes.DeliverTxs[res.Index] = &res.Result
+		if err := db.stateStore.SaveABCIResponses(res.Height, &blockRes); err != nil {
+			return err
+		}
+		logTnxHash(txConfig, &res, "patched")
+	}
+}
+
+func (db *tmDB) exportPatchFile(blockResult proto.Message, result proto.Message, writer io.Writer) error {
 	chErr := make(chan error)
 	go func() {
-		bufWriter := bufio.NewWriterSize(chunkWriter, bufferSize)
-		zWriter, err := zlib.NewWriterLevel(bufWriter, 7)
-		if err != nil {
-			chErr <- err
-			return
-		}
-		protoWriter := protoio.NewDelimitedWriter(zWriter)
+		protoWriter := protoio.NewDelimitedWriter(writer)
 		for _, res := range []proto.Message{result, blockResult} {
-			_, err = protoWriter.WriteMsg(res)
+			_, err := protoWriter.WriteMsg(res)
 			if err != nil {
 				chErr <- err
 				return
 			}
 		}
 		_ = protoWriter.Close()
-		_ = zWriter.Close()
-		_ = bufWriter.Flush()
 		chErr <- nil
 	}()
 	return <-chErr
