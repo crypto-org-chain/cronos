@@ -1,4 +1,4 @@
-schema = 1
+schema = 3
 
 [mod]
   [mod."bazil.org/fuse"]
