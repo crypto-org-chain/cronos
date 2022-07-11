@@ -117,7 +117,7 @@ def test_replay_block(custom_cronos):
     supervisorctl(custom_cronos.base_dir / "../tasks.ini", "stop", "cronos_777-1-node0")
     results = custom_cronos.cosmos_cli().fix_unlucky_tx(begin_height, end_height)
     # the second tx is patched
-    assert results[0][0] == txhashes[1].hex()
+    assert results[0][2] == txhashes[1].hex()
     # start the node0 again
     supervisorctl(
         custom_cronos.base_dir / "../tasks.ini", "start", "cronos_777-1-node0"
