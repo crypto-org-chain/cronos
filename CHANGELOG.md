@@ -7,6 +7,7 @@
 - [#470](https://github.com/crypto-org-chain/cronos/pull/470) Run the tasks in `fix-unlucky-tx` command in parallel.
 - [#472](https://github.com/crypto-org-chain/cronos/pull/472) `fix-unlucky-tx` command supports `null` tendermint tx indexer.
 - [#524](https://github.com/crypto-org-chain/cronos/pull/524) Fix tendermint duplicated tx issue.
+- [#571](https://github.com/crypto-org-chain/cronos/pull/571) Support stdout and stdin patch result.
 
 *May 10, 2022*
 
