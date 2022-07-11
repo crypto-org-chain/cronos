@@ -85,15 +85,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "apple-sdk-11-x86_64",
+        "branch": "master",
         "description": "Nix Packages collection",
         "homepage": "",
-        "owner": "yihuang",
+        "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f7e7545a9b298352d1736788f9727052e00eba76",
-        "sha256": "0a2yadryj7cg1s6hxa1sch5g29mfqmbbmmlbrsvljy24zj5wyy6v",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
+        "sha256": "1lsa3sjwp1v3nv2jjpkl5lf9dncplwihmavasalg9fq1217pmzmb",
         "type": "tarball",
-        "url": "https://github.com/yihuang/nixpkgs/archive/f7e7545a9b298352d1736788f9727052e00eba76.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/f904e3562aabca382d12f8471ca2330b3f82899a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:yihuang/nixpkgs/apple-sdk-11-x86_64";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -31,12 +31,14 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              # https://github.com/NixOS/nixpkgs/pull/176661
-              (final: _: {
-                inherit (final.callPackage "${gomod2nix}/builder" (final.lib.optionalAttrs final.stdenv.isDarwin {
-                  inherit (final.darwin.apple_sdk_11_0) stdenv;
-                })) buildGoApplication mkGoEnv;
-              })
+              # https://github.com/NixOS/nixpkgs/pull/179622
+              (import ./nix/go_1_18_overlay.nix)
+              (final: prev:
+                (import "${gomod2nix}/overlay.nix")
+                  (final // {
+                    inherit (final.darwin.apple_sdk_11_0) callPackage;
+                  })
+                  prev)
               self.overlay
             ];
             config = { };

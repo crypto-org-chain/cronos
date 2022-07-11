@@ -22,7 +22,14 @@ import sources.nixpkgs {
       };
       flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
-    (import (sources.gomod2nix + "/overlay.nix"))
+    # https://github.com/NixOS/nixpkgs/pull/179622
+    (import ./go_1_18_overlay.nix)
+    (final: prev:
+      (import "${sources.gomod2nix}/overlay.nix")
+        (final // {
+          inherit (final.darwin.apple_sdk_11_0) callPackage;
+        })
+        prev)
     (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;

@@ -56,16 +56,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1657271632,
-        "narHash": "sha256-23jPi/xEeEm3zovWulbFribxCmQ6qA6NDo8d6XNTXig=",
-        "owner": "yihuang",
+        "lastModified": 1657502824,
+        "narHash": "sha256-q/56TxABu/So0mqrCiOnl9mWHC10XinFtmOHy6UeStM=",
+        "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "f7e7545a9b298352d1736788f9727052e00eba76",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
         "type": "github"
       },
       "original": {
-        "owner": "yihuang",
-        "ref": "apple-sdk-11-x86_64",
+        "owner": "NixOS",
+        "ref": "master",
         "repo": "nixpkgs",
         "type": "github"
       }
