@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	evmtypes "github.com/tharsis/ethermint/x/evm/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -22,8 +22,8 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/version"
-	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
-	ethermint "github.com/tharsis/ethermint/types"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
 )

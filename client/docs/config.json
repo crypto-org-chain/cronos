@@ -32,7 +32,8 @@
       "url": "./tmp-swagger-gen/ethermint/feemarket/v1/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "EvmParams2"
+          "Params": "EvmParams2",
+          "BaseFee": "EvmBaseFee"
         }
       }
     },

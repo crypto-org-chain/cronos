@@ -37,7 +37,6 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
-          min_gas_multiplier: "0"
       cronos:
         params:
           cronos_admin: ${CRONOS_ADMIN}
@@ -59,3 +58,4 @@ cronos_777-1:
         params:
           no_base_fee: false
           base_fee: "100000000000"
+          min_gas_multiplier: "0"

@@ -67,13 +67,12 @@ def custom_cronos(tmp_path_factory):
     yield from setup_custom_cronos(
         path,
         26100,
-        Path(__file__).parent / "configs/cosmovisor.yaml",
+        Path(__file__).parent / "configs/cosmovisor.jsonnet",
         post_init=post_init,
         chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
     )
 
 
-@pytest.mark.skip(reason="change to v0.8.0 upgrade test in the future")
 def test_cosmovisor_upgrade(custom_cronos: Cronos):
     """
     - propose an upgrade and pass it
@@ -84,7 +83,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-    plan_name = "v0.7.0"
+    plan_name = "v0.8.0"
     rsp = cli.gov_propose(
         "community",
         "software-upgrade",
@@ -115,15 +114,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
 
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
+    wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
 
-    # check feemarket is enabled correctly
-    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
-    w3 = custom_cronos.w3
-    # check base fee values
-    fee1 = 5000000000000 - 5000000000000 // 100000000
-    fee2 = fee1 - fee1 // 100000000
-    assert w3.eth.get_block(target_height).baseFeePerGas == fee1
-    assert w3.eth.get_block(target_height + 1).baseFeePerGas == fee2
-
-    # query legacy blocks before the upgrade
-    assert "baseFeePerGas" not in w3.eth.get_block(target_height - 1)
+    # check ica controller is enabled
+    assert cli.query_icacontroller_params() == {"controller_enabled": True}
+    assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}

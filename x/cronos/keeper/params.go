@@ -7,7 +7,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	transferTypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
-	evmTypes "github.com/tharsis/ethermint/x/evm/types"
+	evmTypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // GetParams returns the total set of cronos parameters.

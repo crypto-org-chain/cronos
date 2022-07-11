@@ -1,4 +1,16 @@
 {
+    "chain-main": {
+        "branch": "master",
+        "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
+        "homepage": "https://crypto.org",
+        "owner": "crypto-org-chain",
+        "repo": "chain-main",
+        "rev": "a7ac0c321e98b93c3bcfa4c98a69c313183190d8",
+        "sha256": "05ylri22w49i8r0z6zyb446jbs5wvm8y51gf21yl4ysqj65ad054",
+        "type": "tarball",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/a7ac0c321e98b93c3bcfa4c98a69c313183190d8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "cosmos-sdk": {
         "branch": "v0.45.0",
         "description": ":chains: A Framework for Building High Value Public Blockchains :sparkles:",
@@ -23,6 +35,18 @@
         "url": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
         "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
         "version": "hevm/0.49.0"
+    },
+    "flake-compat": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "b4a34015c698c7793d592d66adbab377907a2be8",
+        "sha256": "1qc703yg0babixi6wshn5wm2kgl5y1drcswgszh4xxzbrwkk9sv7",
+        "type": "tarball",
+        "url": "https://github.com/edolstra/flake-compat/archive/b4a34015c698c7793d592d66adbab377907a2be8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gomod2nix": {
         "branch": "master",
@@ -78,24 +102,11 @@
         "homepage": "",
         "owner": "nix-community",
         "repo": "poetry2nix",
-        "rev": "302a559a298ba39a0bec53f46479da9c5b2558cd",
-        "sha256": "0lqvkyw9qw4rmqd5cv4l67vvj7ngbqpg2jxanxrddn6npjmmlv0j",
+        "rev": "ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07",
+        "sha256": "139gv4bpcgkgjj1ykc01xx5w70ilzaz0a83ynv22xq2vin5g0r10",
         "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/302a559a298ba39a0bec53f46479da9c5b2558cd.tar.gz",
+        "url": "https://github.com/nix-community/poetry2nix/archive/ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "pystarport": {
-        "branch": "main",
-        "description": "pystarport setup and run local devnet for cosmos like blockchains",
-        "homepage": null,
-        "owner": "crypto-com",
-        "repo": "pystarport",
-        "rev": "5a2732f7de8dc3db23e44db1cb332926741222c4",
-        "sha256": "0wqkkr7flhvmczw1y2y0v698ywnq6b6rfwhx58r1zg7nwyla32hm",
-        "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/5a2732f7de8dc3db23e44db1cb332926741222c4.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "version": "v0.2.3"
     },
     "rocksdb": {
         "branch": "v6.29.5",

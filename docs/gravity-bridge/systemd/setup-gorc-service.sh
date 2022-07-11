@@ -60,14 +60,14 @@ download_service() {
 gather_relayer_info() {
     read -p 'Please input relayer ethereum key name: ' ethKey
     echo "eth key: $ethKey"
-    GORC_START_COMMAND="relayer start --ethereum-key \"$ethKey\""
+    GORC_START_COMMAND="relayer start --mode Api --ethereum-key \"$ethKey\""
 }
 
 gather_orchestrator_info() {
     read -p 'Please input orchestrator ethereum key name: ' ethKey
     read -p 'Please input orchestrator cronos key name: ' croKey
     echo "cronos key: $croKey eth key: $ethKey"
-    GORC_START_COMMAND="orchestrator start --cosmos-key=\"$croKey\" --ethereum-key=\"$ethKey\""
+    GORC_START_COMMAND="orchestrator start --mode Api --cosmos-key=\"$croKey\" --ethereum-key=\"$ethKey\""
 }
 
 setup_service() {

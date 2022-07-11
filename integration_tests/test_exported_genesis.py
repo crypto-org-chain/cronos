@@ -11,7 +11,7 @@ from .utils import ADDRS, CONTRACTS
 def custom_cronos(tmp_path_factory):
     path = tmp_path_factory.mktemp("cronos")
     yield from setup_custom_cronos(
-        path, 26000, Path(__file__).parent / "configs/genesis_token_mapping.yaml"
+        path, 26000, Path(__file__).parent / "configs/genesis_token_mapping.jsonnet"
     )
 
 

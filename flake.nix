@@ -67,7 +67,7 @@
             --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
             | "${gzip}/bin/gzip" -9 > $out
         '';
-        rocksdb = prev.rocksdb.overrideAttrs (old: rec {
+        rocksdb = (prev.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
           pname = "rocksdb";
           version = "6.29.5";
           src = rocksdb-src;
@@ -95,7 +95,6 @@
                 let
                   cronosd = callPackage ./. {
                     inherit rev db_backend network;
-                    rocksdb = rocksdb.override { enableJemalloc = true; };
                   };
                   bundle = bundle-exe cronosd;
                 in

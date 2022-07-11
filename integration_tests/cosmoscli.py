@@ -1,6 +1,7 @@
 import enum
 import hashlib
 import json
+import subprocess
 import tempfile
 
 import bech32
@@ -37,10 +38,10 @@ class ChainCommand:
     def __init__(self, cmd):
         self.cmd = cmd
 
-    def __call__(self, cmd, *args, stdin=None, **kwargs):
+    def __call__(self, cmd, *args, stdin=None, stderr=subprocess.STDOUT, **kwargs):
         "execute chain-maind"
         args = " ".join(build_cli_args_safe(cmd, *args, **kwargs))
-        return interact(f"{self.cmd} {args}", input=stdin)
+        return interact(f"{self.cmd} {args}", input=stdin, stderr=stderr)
 
 
 class CosmosCLI:
@@ -1037,6 +1038,10 @@ class CosmosCLI:
         )
 
     def transfer_tokens(self, from_, to, amount, **kwargs):
+        default_kwargs = {
+            "gas": "auto",
+            "gas_adjustment": "1.5",
+        }
         return json.loads(
             self.raw(
                 "tx",
@@ -1047,6 +1052,124 @@ class CosmosCLI:
                 amount,
                 "-y",
                 home=self.data_dir,
-                **kwargs,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ica_register_account(self, connid, **kwargs):
+        "execute on host chain to attach an account to the connection"
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "icactl",
+                "register-account",
+                connid,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ica_submit_tx(self, connid, tx, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "icactl",
+                "submit-tx",
+                connid,
+                tx,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ica_query_account(self, connid, owner, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "icactl",
+                "interchain-account-address",
+                connid,
+                owner,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_query_channels(self, connid, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "connections",
+                connid,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_query_ack(self, port_id, channel_id, packet_seq, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "packet-ack",
+                port_id,
+                channel_id,
+                packet_seq,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_icactl_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "icactl",
+                "params",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_icacontroller_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "interchain-accounts",
+                "controller",
+                "params",
+                **(default_kwargs | kwargs),
             )
         )
