@@ -122,7 +122,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 			// replay and patch a single block
 			if stdinPatch {
-				err := tmDB.patchFromImport(clientCtx.TxConfig, os.Stdin)
+				err := tmDB.PatchFromImport(clientCtx.TxConfig, os.Stdin)
 				if err != nil {
 					return err
 				}
@@ -409,7 +409,7 @@ func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) 
 	}
 }
 
-func (db *tmDB) patchFromImport(txConfig client.TxConfig, reader io.Reader) error {
+func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader) error {
 	maxItemSize := int(64e6)
 	protoReader := protoio.NewDelimitedReader(reader, maxItemSize)
 	var err error
