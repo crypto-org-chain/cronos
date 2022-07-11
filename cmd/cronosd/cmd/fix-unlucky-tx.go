@@ -50,8 +50,8 @@ const (
 	FlagStartBlock        = "start-block"
 	FlagEndBlock          = "end-block"
 	FlagConcurrency       = "concurrency"
-	FlagStdoutPatch       = "stdout-patch"
-	FlagStdinPatch        = "stdin-patch"
+	FlagExportToFile      = "export-to-file"
+	FlagPatchFromFile     = "patch-from-file"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
@@ -81,11 +81,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			stdoutPatch, err := cmd.Flags().GetBool(FlagStdoutPatch)
+			exportToFile, err := cmd.Flags().GetBool(FlagExportToFile)
 			if err != nil {
 				return err
 			}
-			stdinPatch, err := cmd.Flags().GetBool(FlagStdinPatch)
+			patchFromFile, err := cmd.Flags().GetBool(FlagPatchFromFile)
 			if err != nil {
 				return err
 			}
@@ -121,7 +121,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				)
 			}
 			// replay and patch a single block
-			if stdinPatch {
+			if patchFromFile {
 				err := tmDB.PatchFromImport(clientCtx.TxConfig, os.Stdin)
 				if err != nil {
 					return err
@@ -159,7 +159,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return clientCtx.PrintProto(result)
 				}
 
-				if stdoutPatch {
+				if exportToFile {
 					action = "exported"
 					var buf bytes.Buffer
 					if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
@@ -269,8 +269,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagStdoutPatch, false, "Stdout the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagStdinPatch, false, "Patch the database from stdin of the problematic txs")
+	cmd.Flags().Bool(FlagExportToFile, false, "Stdout the execution result of the problematic txs without patch the database")
+	cmd.Flags().Bool(FlagPatchFromFile, false, "Patch the database from stdin of the problematic txs")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
