@@ -162,7 +162,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				if stdoutPatch {
 					action = "exported"
 					var buf bytes.Buffer
-					if err := tmDB.patchToExport(blockResult, result, &buf); err != nil {
+					if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
 						return err
 					}
 					if _, err := buf.WriteTo(os.Stdout); err != nil {
@@ -438,7 +438,7 @@ func (db *tmDB) patchFromImport(txConfig client.TxConfig, reader io.Reader) erro
 	}
 }
 
-func (db *tmDB) patchToExport(blockResult proto.Message, result proto.Message, writer io.Writer) error {
+func (db *tmDB) PatchToExport(blockResult proto.Message, result proto.Message, writer io.Writer) error {
 	chErr := make(chan error)
 	go func() {
 		protoWriter := protoio.NewDelimitedWriter(writer)
