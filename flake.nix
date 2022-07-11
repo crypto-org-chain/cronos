@@ -33,12 +33,11 @@
             overlays = [
               # https://github.com/NixOS/nixpkgs/pull/179622
               (import ./nix/go_1_18_overlay.nix)
-              (final: prev:
-                (import "${gomod2nix}/overlay.nix")
-                  (final // {
-                    inherit (final.darwin.apple_sdk_11_0) callPackage;
-                  })
-                  prev)
+              (final: prev: gomod2nix.overlays.default
+                (final // {
+                  inherit (final.darwin.apple_sdk_11_0) callPackage;
+                })
+                prev)
               self.overlay
             ];
             config = { };
