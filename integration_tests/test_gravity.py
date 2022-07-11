@@ -507,3 +507,61 @@ def test_gravity_cancel_transfer(gravity):
             return v == amount
 
         wait_for_fn("cancel-send-to-ethereum", check_refund)
+
+
+def test_gravity_blacklist(gravity):
+    if gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
+        cronos_w3 = gravity.cronos.w3
+
+        # deploy test erc20 contract
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestERC20A"],
+        )
+
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+        amount = 1000
+
+        print("send to cronos crc20")
+        recipient = HexBytes(ADDRS["community"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, recipient, amount, KEYS["validator"]
+        )
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        denom = f"gravity{erc20.address}"
+
+        def check_gravity_native_tokens():
+            "check the balance of gravity native token"
+            return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
+
+        crc21_contract = None
+
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, recipient, amount
+            )
+            return crc21_contract
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
+
+        # send to a blacklisted address
+        tx = crc21_contract.functions.send_to_chain(
+            "0x000000000000000000000000000000000000dEaD", amount, 0, 1
+        ).buildTransaction({"from": ADDRS["community"]})
+        txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
+        assert txreceipt.status == 0, "should fail"
+
+        # send to a normal address
+        tx2 = crc21_contract.functions.send_to_chain(
+            "0x0000000000000000000000000000000000000001", amount, 0, 1
+        ).buildTransaction({"from": ADDRS["community"]})
+        txreceipt2 = send_transaction(cronos_w3, tx2, KEYS["community"])
+        assert txreceipt2.status == 1, "should pass"
+
+
+

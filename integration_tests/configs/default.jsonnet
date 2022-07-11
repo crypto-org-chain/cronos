@@ -71,6 +71,13 @@
             ],
           },
         },
+        gravity: {
+          params: {
+            ethereum_blacklist: [
+              '0x000000000000000000000000000000000000dEaD',
+            ]
+          },
+        },
         transfer: {
           params: {
             receive_enabled: true,
