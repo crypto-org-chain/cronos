@@ -81,11 +81,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			exportToFile, err := cmd.Flags().GetBool(FlagExportToFile)
+			exportToFile, err := cmd.Flags().GetString(FlagExportToFile)
 			if err != nil {
 				return err
 			}
-			patchFromFile, err := cmd.Flags().GetBool(FlagPatchFromFile)
+			patchFromFile, err := cmd.Flags().GetString(FlagPatchFromFile)
 			if err != nil {
 				return err
 			}
@@ -120,15 +120,40 @@ func FixUnluckyTxCmd() *cobra.Command {
 					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
 			}
+			std := "-"
 			// replay and patch a single block
-			if patchFromFile {
-				err := tmDB.PatchFromImport(clientCtx.TxConfig, os.Stdin)
+			if patchFromFile != "" {
+				if patchFromFile == std {
+					err := tmDB.PatchFromImport(clientCtx.TxConfig, os.Stdin)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+				fi, err := os.Open(patchFromFile)
+				if err != nil {
+					return err
+				}
+				defer func() {
+					returnErr = fi.Close()
+				}()
+				err = tmDB.PatchFromImport(clientCtx.TxConfig, fi)
 				if err != nil {
 					return err
 				}
 				return nil
 			}
 			action := "patched"
+			var f *os.File
+			if exportToFile != "" && exportToFile != std {
+				f, err = os.Create(exportToFile)
+				if err != nil {
+					return err
+				}
+				defer func() {
+					returnErr = f.Close()
+				}()
+			}
 			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
 				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
@@ -159,14 +184,24 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return clientCtx.PrintProto(result)
 				}
 
-				if exportToFile {
+				if exportToFile != "" {
 					action = "exported"
-					var buf bytes.Buffer
-					if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
-						return err
-					}
-					if _, err := buf.WriteTo(os.Stdout); err != nil {
-						return err
+					if exportToFile == std {
+						var buf bytes.Buffer
+						if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
+							return err
+						}
+						if _, err := buf.WriteTo(os.Stdout); err != nil {
+							return err
+						}
+					} else {
+						var buf bytes.Buffer
+						if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
+							return err
+						}
+						if _, err := buf.WriteTo(f); err != nil {
+							return err
+						}
 					}
 				} else {
 					if err := tmDB.patchDB(blockResult, result); err != nil {
@@ -269,8 +304,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagExportToFile, false, "Stdout the execution result of the problematic txs without patch the database")
-	cmd.Flags().Bool(FlagPatchFromFile, false, "Patch the database from stdin of the problematic txs")
+	cmd.Flags().String(FlagExportToFile, "", "Stdout the execution result of the problematic txs without patch the database")
+	cmd.Flags().String(FlagPatchFromFile, "", "Patch the database from stdin of the problematic txs")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
