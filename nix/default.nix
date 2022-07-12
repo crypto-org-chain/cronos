@@ -12,7 +12,6 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
       go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {

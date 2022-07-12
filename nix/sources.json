@@ -96,18 +96,6 @@
         "url": "https://github.com/NixOS/nixpkgs/archive/f904e3562aabca382d12f8471ca2330b3f82899a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "poetry2nix": {
-        "branch": "master",
-        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
-        "homepage": "",
-        "owner": "nix-community",
-        "repo": "poetry2nix",
-        "rev": "ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07",
-        "sha256": "139gv4bpcgkgjj1ykc01xx5w70ilzaz0a83ynv22xq2vin5g0r10",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "rocksdb": {
         "branch": "v6.29.5",
         "description": "A library that provides an embeddable, persistent key-value store for fast storage.",
