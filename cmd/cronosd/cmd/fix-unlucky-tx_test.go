@@ -47,7 +47,14 @@ func mockResult(txGen client.TxConfig) *abci.TxResult {
 func getExpected(result *abci.TxResult, blockRes *tmstate.ABCIResponses) []byte {
 	expected := new(bytes.Buffer)
 	protoWriter := protoio.NewDelimitedWriter(expected)
-	for _, res := range []proto.Message{result, blockRes} {
+	results := make([]proto.Message, 0)
+	if result != nil {
+		results = append(results, result)
+	}
+	if blockRes != nil {
+		results = append(results, blockRes)
+	}
+	for _, res := range results {
 		_, err := protoWriter.WriteMsg(res)
 		if err != nil {
 			log.Fatal(err)
@@ -57,14 +64,18 @@ func getExpected(result *abci.TxResult, blockRes *tmstate.ABCIResponses) []byte 
 	return expected.Bytes()
 }
 
-func TestPatchToExport(t *testing.T) {
-	encCfg := simapp.MakeTestEncodingConfig()
+func mockTmDb() *tmDB {
 	db := tmdb.NewMemDB()
-	tmDB := &tmDB{
+	return &tmDB{
 		blockStore: tmstore.NewBlockStore(db),
 		stateStore: sm.NewStore(db),
 		txIndexer:  kv.NewTxIndex(db),
 	}
+}
+
+func TestPatchToExport(t *testing.T) {
+	encCfg := simapp.MakeTestEncodingConfig()
+	tmDB := mockTmDb()
 	t.Run("TestPatchToExport", func(t *testing.T) {
 		blockRes := mockBlockResult()
 		res := mockResult(encCfg.TxConfig)
@@ -77,14 +88,10 @@ func TestPatchToExport(t *testing.T) {
 }
 
 func TestPatchFromImport(t *testing.T) {
-	db := tmdb.NewMemDB()
-	tmDB := &tmDB{
-		blockStore: tmstore.NewBlockStore(db),
-		stateStore: sm.NewStore(db),
-		txIndexer:  kv.NewTxIndex(db),
-	}
+	tmDB := mockTmDb()
 	encCfg := simapp.MakeTestEncodingConfig()
-	t.Run("TestPatchFromImport", func(t *testing.T) {
+
+	t.Run("happy flow", func(t *testing.T) {
 		res := mockResult(encCfg.TxConfig)
 		blockRes := mockBlockResult()
 		blockRes.DeliverTxs[res.Index] = &res.Result
@@ -102,5 +109,19 @@ func TestPatchFromImport(t *testing.T) {
 		blockResProto, _ := blockRes.Marshal()
 		newBlockResProto, _ := newBlockRes.Marshal()
 		require.Equal(t, blockResProto, newBlockResProto, "check block result")
+	})
+
+	t.Run("wrong object type", func(t *testing.T) {
+		blockRes := mockBlockResult()
+		expected := getExpected(nil, blockRes)
+		err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected))
+		require.EqualError(t, err, "proto: wrong wireType = 2 for field Height")
+	})
+
+	t.Run("wrong last object", func(t *testing.T) {
+		res := mockResult(encCfg.TxConfig)
+		expected := getExpected(res, nil)
+		err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected))
+		require.EqualError(t, err, "EOF")
 	})
 }
