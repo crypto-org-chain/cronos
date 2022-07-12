@@ -24,7 +24,6 @@ config {
           },
         },
         transfer:: super['transfer'],
-        gravity:: super['gravity'],
       },
     },
   },

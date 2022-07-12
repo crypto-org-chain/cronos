@@ -160,7 +160,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// TODO: remove when gravity update dependencies
-	github.com/peggyjv/gravity-bridge/module/v2 => github.com/thomas-nguy/gravity-bridge/module/v2 v2.0.0-20220711033559-f4f24666894f
+	github.com/peggyjv/gravity-bridge/module/v2 => github.com/thomas-nguy/gravity-bridge/module/v2 v2.0.0-20220712080745-443a67c8e9e6
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

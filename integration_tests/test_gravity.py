@@ -549,9 +549,9 @@ def test_gravity_blacklist(gravity):
 
         wait_for_fn("send-to-crc21", local_check_auto_deployment)
 
-        # send to a blacklisted address
+        # send to a blacklisted address, by default, zero address is in the blacklist
         tx = crc21_contract.functions.send_to_chain(
-            "0x000000000000000000000000000000000000dEaD", amount, 0, 1
+            "0x0000000000000000000000000000000000000000", amount, 0, 1
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         assert txreceipt.status == 0, "should fail"
@@ -562,6 +562,3 @@ def test_gravity_blacklist(gravity):
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt2 = send_transaction(cronos_w3, tx2, KEYS["community"])
         assert txreceipt2.status == 1, "should pass"
-
-
-

@@ -50,9 +50,6 @@ cronos_777-1:
           min_deposit:
             - denom: "basetcro"
               amount: "1"
-      gravity:
-        params:
-          ethereum_blacklist: ["0x000000000000000000000000000000000000dEaD"]
       transfer:
         params:
           receive_enabled: true
