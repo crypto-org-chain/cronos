@@ -1,12 +1,13 @@
 package keeper_test
 
 import (
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"math/big"
 	"testing"
 	"time"
+
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -16,14 +17,14 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	ethermint "github.com/evmos/ethermint/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/version"
-	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
 )

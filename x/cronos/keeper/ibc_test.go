@@ -3,7 +3,6 @@ package keeper_test
 import (
 	"errors"
 	"fmt"
-
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,7 +17,6 @@ import (
 const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
-
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())
@@ -136,7 +134,6 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 }
 
 func (suite *KeeperTestSuite) TestIbcTransferCoins() {
-
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := sdk.AccAddress(privKey.PubKey().Address())

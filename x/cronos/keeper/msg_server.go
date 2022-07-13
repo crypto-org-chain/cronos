@@ -34,7 +34,8 @@ func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertV
 		sdk.NewEvent(
 			sdk.EventTypeMessage,
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-		)},
+		),
+	},
 	)
 
 	return &types.MsgConvertVouchersResponse{}, nil
@@ -53,7 +54,8 @@ func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferT
 		sdk.NewEvent(
 			sdk.EventTypeMessage,
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-		)},
+		),
+	},
 	)
 	return &types.MsgTransferTokensResponse{}, nil
 }

@@ -20,8 +20,10 @@ var (
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
 )
 
-const IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
-const IbcTimeoutDefaultValue = uint64(86400000000000) // 1 day
+const (
+	IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
+	IbcTimeoutDefaultValue  = uint64(86400000000000) // 1 day
+)
 
 // ParamKeyTable returns the parameter key table.
 func ParamKeyTable() paramtypes.KeyTable {

@@ -50,7 +50,6 @@ func NewKeeper(
 	accountKeeper types.AccountKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
-
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
@@ -186,7 +185,8 @@ func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address c
 func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
-	receiver string) {
+	receiver string,
+) {
 	cacheCtx, commit := ctx.CacheContext()
 	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
 	if err == nil {
