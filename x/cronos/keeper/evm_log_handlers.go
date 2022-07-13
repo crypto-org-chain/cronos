@@ -182,7 +182,8 @@ func (h SendToAccountHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
 	data []byte,
-	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendToAccountEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -230,7 +231,8 @@ func (h SendToChainHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
 	data []byte,
-	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
+	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", SendToChainEventName)
 	}
@@ -296,7 +298,8 @@ type CancelSendToChainHandler struct {
 func NewCancelSendToChainHandler(
 	gravitySrv gravitytypes.MsgServer,
 	cronosKeeper Keeper,
-	gravityKeeper types.GravityKeeper) *CancelSendToChainHandler {
+	gravityKeeper types.GravityKeeper,
+) *CancelSendToChainHandler {
 	return &CancelSendToChainHandler{
 		gravitySrv:    gravitySrv,
 		cronosKeeper:  cronosKeeper,
@@ -313,7 +316,8 @@ func (h CancelSendToChainHandler) Handle(
 	ctx sdk.Context,
 	_ common.Address,
 	data []byte,
-	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", CancelSendToChainEventName)
 	}
@@ -388,7 +392,8 @@ func (h SendToIbcHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
 	data []byte,
-	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -443,7 +448,8 @@ func (h SendCroToIbcHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
 	data []byte,
-	_ func(contractAddress common.Address, logSig common.Hash, logData []byte)) error {
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore

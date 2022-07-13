@@ -10,7 +10,6 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestGetSourceChannelID() {
-
 	testCases := []struct {
 		name          string
 		ibcDenom      string

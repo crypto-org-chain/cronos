@@ -128,7 +128,6 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 	relayer sdk.AccAddress,
 ) error {
 	err := im.app.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
-
 	if err != nil {
 		// Call the middle ware only at the "refund" case
 		var ack channeltypes.Acknowledgement
@@ -195,7 +194,6 @@ func (im IBCConversionModule) getFungibleTokenPacketData(packet channeltypes.Pac
 }
 
 func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferTypes.FungibleTokenPacketData, denom string, isSender bool) error {
-
 	// parse the transfer amount
 	transferAmount, ok := sdk.NewIntFromString(data.Amount)
 	if !ok {
