@@ -140,17 +140,21 @@ func FixUnluckyTxCmd() *cobra.Command {
 				return tmDB.PatchFromImport(clientCtx.TxConfig, fi)
 			}
 			action := "patched"
-			var f *os.File
-			if exportToFile != "" && exportToFile != std {
-				f, err = os.Create(exportToFile)
-				if err != nil {
-					return err
-				}
-				defer func() {
-					if err := f.Close(); returnErr == nil {
-						returnErr = err
+			var f io.Writer
+			if exportToFile != "" {
+				if exportToFile != std {
+					f, err = os.Create(exportToFile)
+					if err != nil {
+						return err
 					}
-				}()
+					defer func() {
+						if err := f.(*os.File).Close(); returnErr == nil {
+							returnErr = err
+						}
+					}()
+				} else {
+					f = os.Stdout
+				}
 			}
 			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
@@ -185,16 +189,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 				if exportToFile != "" {
 					action = "exported"
 					var buf bytes.Buffer
-					var w io.Writer
 					if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
 						return err
 					}
-					if exportToFile == std {
-						w = os.Stdout
-					} else {
-						w = f
-					}
-					if _, err := buf.WriteTo(w); err != nil {
+					if _, err := buf.WriteTo(f); err != nil {
 						return err
 					}
 				} else {
