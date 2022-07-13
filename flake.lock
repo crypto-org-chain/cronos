@@ -25,11 +25,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1653934437,
-        "narHash": "sha256-BJVDE3y/IfHHPjRymJWEIcDooaAIleH6Hy+pkLxst3E=",
+        "lastModified": 1655245309,
+        "narHash": "sha256-d/YPoQ/vFn1+GTmSdvbSBSTOai61FONxB4+Lt6w/IVI=",
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fb910de8cc78c3e820d24f9b718614ea255af469",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
         "type": "github"
       },
       "original": {
@@ -56,16 +56,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1651059350,
-        "narHash": "sha256-OWvs6t92u9s78L+lj58pkbau5gtz1Ra1AjNcYiIIAd0=",
+        "lastModified": 1657502824,
+        "narHash": "sha256-q/56TxABu/So0mqrCiOnl9mWHC10XinFtmOHy6UeStM=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "269d35f70441a61bf1bd25350449a3518bfe7f7e",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "release-21.11",
+        "ref": "master",
         "repo": "nixpkgs",
         "type": "github"
       }

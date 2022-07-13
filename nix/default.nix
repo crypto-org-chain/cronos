@@ -12,9 +12,8 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
-      go = pkgs.go_1_17;
+      go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
@@ -22,7 +21,14 @@ import sources.nixpkgs {
       };
       flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
-    (import (sources.gomod2nix + "/overlay.nix"))
+    # https://github.com/NixOS/nixpkgs/pull/179622
+    (import ./go_1_18_overlay.nix)
+    (final: prev:
+      (import "${sources.gomod2nix}/overlay.nix")
+        (final // {
+          inherit (final.darwin.apple_sdk_11_0) callPackage;
+        })
+        prev)
     (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;

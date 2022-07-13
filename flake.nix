@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -31,7 +31,13 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              gomod2nix.overlays.default
+              # https://github.com/NixOS/nixpkgs/pull/179622
+              (import ./nix/go_1_18_overlay.nix)
+              (final: prev: gomod2nix.overlays.default
+                (final // {
+                  inherit (final.darwin.apple_sdk_11_0) callPackage;
+                })
+                prev)
               self.overlay
             ];
             config = { };
@@ -48,7 +54,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_17
+                go_1_18
                 rocksdb
                 gomod2nix
               ];

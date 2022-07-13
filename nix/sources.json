@@ -54,10 +54,10 @@
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fb910de8cc78c3e820d24f9b718614ea255af469",
-        "sha256": "0wdpdjy91a9g3zxf3588l2hyih11hjarhwil7v3z28dzgh9l7584",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
+        "sha256": "0li17ynbg2wg0xqy655m5rmcw905sbv7d4ir35z7s5pg1yhhzxkp",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/fb910de8cc78c3e820d24f9b718614ea255af469.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/40d32f82fc60d66402eb0972e6e368aeab3faf58.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -90,22 +90,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf",
-        "sha256": "0xm133zqg7knn8q6y7a5xd4jnqscxz9wzhf5rxmhs53qkvg7r4a4",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
+        "sha256": "1lsa3sjwp1v3nv2jjpkl5lf9dncplwihmavasalg9fq1217pmzmb",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/ff29d2caa935a8e6216380dfcd7ee714fd8bd5bf.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "poetry2nix": {
-        "branch": "master",
-        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
-        "homepage": "",
-        "owner": "nix-community",
-        "repo": "poetry2nix",
-        "rev": "ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07",
-        "sha256": "139gv4bpcgkgjj1ykc01xx5w70ilzaz0a83ynv22xq2vin5g0r10",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/ea3bd4eb70a3f9ead0dd88dab23e42c542e69c07.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/f904e3562aabca382d12f8471ca2330b3f82899a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "rocksdb": {
