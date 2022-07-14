@@ -22,6 +22,7 @@ jobs:
       (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim') ||
       github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
+      # if we could have secrets.ORG_READ_BOT_PAT, we can check against team rather than organization.
       - name: Check if organization member
         uses: JamesSingleton/is-organization-member@main
         id: checkMember
@@ -30,7 +31,7 @@ jobs:
           organization: crypto-org-chain
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Comment PR for authentication failure
-        uses: allthatjazzleo/actions-pull-request-add-comment@master
+        uses: crypto-org-chain/actions-pull-request-add-comment@master
         if: steps.checkMember.outputs.result == 'false'
         with:
           message: |
@@ -46,7 +47,7 @@ jobs:
         with:
           message: |
             Simulation tests started and triggered by `/runsim`. 
-            Can further check progress [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            Can check further progress [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2.1.3
@@ -66,7 +67,7 @@ jobs:
       - name: Display go version
         run: go version
       - name: Install runsim
-        run: export GO111MODULE="on" && go get github.com/cosmos/tools/cmd/runsim@v1.0.0
+        run: export GO111MODULE="on" && go install github.com/cosmos/tools/cmd/runsim@v1.0.0
       - uses: actions/cache@v2.1.6
         with:
           path: ~/go/bin
@@ -82,7 +83,9 @@ jobs:
           go-version: 1.18
       - name: Display go version
         run: go version
-      - uses: adu-crypto/get-diff-action@master
+      # the original repo technote-space does not include auto_merge_enabled into target events
+      # we can move back after this pr merged: https://github.com/technote-space/get-diff-action/pull/193
+      - uses: adu-crypto/get-diff-action@gh-actions
         with:
           PATTERNS: |
             **/**.go
@@ -93,13 +96,15 @@ jobs:
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
       - name: test-sim-nondeterminism
         run: |
           make test-sim-nondeterminism
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
 
   test-sim-import-export:
     runs-on: ubuntu-latest
@@ -111,26 +116,28 @@ jobs:
           go-version: 1.18
       - name: Display go version
         run: go version
-      - uses: adu-crypto/get-diff-action@master
+      # the original repo technote-space does not include auto_merge_enabled into target events
+      # we can move back after this pr merged: https://github.com/technote-space/get-diff-action/pull/193
+      - uses: adu-crypto/get-diff-action@gh-actions
         with:
-          SUFFIX_FILTER: |
+          PATTERNS: |
             **/**.go
             go.mod
             go.sum
-          SET_ENV_NAME_INSERTIONS: 1
-          SET_ENV_NAME_LINES: 1
         if: github.event_name == 'push' || github.event_name == 'pull_request'
       - uses: actions/cache@v2.1.6
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
       - name: test-sim-import-export
         run: |
           make test-sim-import-export
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
 
   test-sim-after-import:
     runs-on: ubuntu-latest
@@ -142,26 +149,28 @@ jobs:
           go-version: 1.18
       - name: Display go version
         run: go version
-      - uses: adu-crypto/get-diff-action@master
+      # the original repo technote-space does not include auto_merge_enabled into target events
+      # we can move back after this pr merged: https://github.com/technote-space/get-diff-action/pull/193
+      - uses: adu-crypto/get-diff-action@gh-actions
         with:
-          SUFFIX_FILTER: |
+          PATTERNS: |
             **/**.go
             go.mod
             go.sum
-          SET_ENV_NAME_INSERTIONS: 1
-          SET_ENV_NAME_LINES: 1
         if: github.event_name == 'push' || github.event_name == 'pull_request'
       - uses: actions/cache@v2.1.6
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
       - name: test-sim-after-import
         run: |
           make test-sim-after-import
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
 
   test-sim-multi-seed-short:
     runs-on: ubuntu-latest
@@ -173,23 +182,25 @@ jobs:
           go-version: 1.18
       - name: Display go version
         run: go version
-      - uses: adu-crypto/get-diff-action@master
+      # the original repo technote-space does not include auto_merge_enabled into target events
+      # we can move back after this pr merged: https://github.com/technote-space/get-diff-action/pull/193
+      - uses: adu-crypto/get-diff-action@gh-actions
         with:
-          SUFFIX_FILTER: |
+          PATTERNS: |
             **/**.go
             go.mod
             go.sum
-          SET_ENV_NAME_INSERTIONS: 1
-          SET_ENV_NAME_LINES: 1
         if: github.event_name == 'push' || github.event_name == 'pull_request'
       - uses: actions/cache@v2.1.6
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
       - name: test-sim-multi-seed-short
         run: |
           make test-sim-multi-seed-short
-        if: (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-        (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+        if: >-
+          (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
+          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
