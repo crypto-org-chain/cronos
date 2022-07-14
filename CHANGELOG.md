@@ -7,6 +7,7 @@
 - [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
 - [cronos#503](https://github.com/crypto-org-chain/cronos/pull/503) Fix failed tx are ignored in json-rpc apis (backport #502).
 - [#526](https://github.com/crypto-org-chain/cronos/pull/526) Fix tendermint duplicated tx issue.
+- [#]() Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
 
 ### Improvements
 
