@@ -65,6 +65,7 @@ func mockTmDb() *tmDB {
 type MockTxResult struct {
 	Origin                    *abci.TxResult
 	ReplayedResponseDeliverTx *abci.ResponseDeliverTx
+	NoIndexed                 bool
 }
 
 func TestFindUnluckyTx(t *testing.T) {
@@ -112,10 +113,10 @@ func TestFindUnluckyTx(t *testing.T) {
 			1,
 		},
 		{
-			"find unlucky tx when indexed as fail",
+			"find unlucky tx when no indexed",
 			[]MockTxResult{
 				{Origin: mockResult(encCfg.TxConfig, 0, true)},
-				{Origin: mockResult(encCfg.TxConfig, 1, false), ReplayedResponseDeliverTx: mockResponseDeliverTx(false)},
+				{Origin: mockResult(encCfg.TxConfig, 1, false), NoIndexed: true},
 				{Origin: mockResult(encCfg.TxConfig, 2, false)},
 			},
 			1,
@@ -137,8 +138,10 @@ func TestFindUnluckyTx(t *testing.T) {
 				if txResults.ReplayedResponseDeliverTx != nil {
 					txResult.Result = *txResults.ReplayedResponseDeliverTx
 				}
-				err := tmDB.txIndexer.Index(txResult)
-				require.NoError(t, err)
+				if !txResults.NoIndexed {
+					err := tmDB.txIndexer.Index(txResult)
+					require.NoError(t, err)
+				}
 			}
 			txIndex, err := tmDB.FindUnluckyTx(blockRes, block)
 			require.NoError(t, err)
