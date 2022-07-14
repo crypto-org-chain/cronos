@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,7 +22,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
-	"github.com/tendermint/tendermint/libs/log"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmnode "github.com/tendermint/tendermint/node"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -96,7 +97,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				cms := rootmulti.NewStore(appDB)
 				cms.SetLazyLoading(true)
 				return app.New(
-					log.NewNopLogger(), appDB, nil, false, nil,
+					tmlog.NewNopLogger(), appDB, nil, false, nil,
 					ctx.Config.RootDir, 0, encCfg, ctx.Viper,
 					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
@@ -322,7 +323,7 @@ func (db *tmDB) FindUnluckyTx(blockResult *tmstate.ABCIResponses, block *tmtypes
 				return -1, err
 			}
 			if indexed != nil && indexed.Result.IsOK() {
-				fmt.Printf("skip %x at index %d for height %d\n", txHash, txIndex, block.Height)
+				log.Printf("skip %x at index %d for height %d\n", txHash, txIndex, block.Height)
 				continue
 			}
 			return txIndex, nil

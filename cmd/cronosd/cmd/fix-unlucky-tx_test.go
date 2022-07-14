@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	"fmt"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -64,12 +68,18 @@ type MockTxResult struct {
 }
 
 func TestFindUnluckyTx(t *testing.T) {
+	// rm time prefix in test
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
+	defer func() {
+		log.SetOutput(os.Stderr)
+	}()
 	encCfg := simapp.MakeTestEncodingConfig()
 	tmDB := mockTmDb()
 	testCases := []struct {
-		name       string
-		txResults  []MockTxResult
-		expTxIndex int
+		name           string
+		txResults      []MockTxResult
+		expTxIndex     int
+		expSkipTxIndex int
 	}{
 		{
 			"no unlucky tx",
@@ -79,15 +89,17 @@ func TestFindUnluckyTx(t *testing.T) {
 				{Origin: mockResult(encCfg.TxConfig, 2, true)},
 			},
 			-1,
+			-1,
 		},
 		{
 			"find unlucky tx",
 			[]MockTxResult{
 				{Origin: mockResult(encCfg.TxConfig, 0, true)},
-				{Origin: mockResult(encCfg.TxConfig, 1, false)},
+				{Origin: mockResult(encCfg.TxConfig, 1, true)},
 				{Origin: mockResult(encCfg.TxConfig, 2, false)},
 			},
-			1,
+			2,
+			-1,
 		},
 		{
 			"find unlucky tx when indexed as success",
@@ -97,6 +109,7 @@ func TestFindUnluckyTx(t *testing.T) {
 				{Origin: mockResult(encCfg.TxConfig, 2, false)},
 			},
 			2,
+			1,
 		},
 		{
 			"find unlucky tx when indexed as fail",
@@ -106,10 +119,14 @@ func TestFindUnluckyTx(t *testing.T) {
 				{Origin: mockResult(encCfg.TxConfig, 2, false)},
 			},
 			1,
+			-1,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			log.SetOutput(&buf)
+
 			block := &types.Block{}
 			blockRes := mockBlockResult()
 			for _, txResults := range tc.txResults {
@@ -126,6 +143,10 @@ func TestFindUnluckyTx(t *testing.T) {
 			txIndex, err := tmDB.FindUnluckyTx(blockRes, block)
 			require.NoError(t, err)
 			require.Equal(t, txIndex, tc.expTxIndex)
+			if tc.expSkipTxIndex >= 0 {
+				tx := block.Txs[tc.expSkipTxIndex]
+				require.Equal(t, buf.String(), fmt.Sprintf("skip %x at index %d for height %d\n", tx.Hash(), tc.expSkipTxIndex, block.Height))
+			}
 		})
 	}
 }
