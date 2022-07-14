@@ -166,18 +166,19 @@ func FixUnluckyTxCmd() *cobra.Command {
 				if block == nil {
 					return fmt.Errorf("block %d not found", height)
 				}
-				txIndex := findUnluckyTx(blockResult)
+				txIndex, err := tmDB.FindUnluckyTx(blockResult, block)
+				if err != nil {
+					return err
+				}
 				if txIndex < 0 {
 					// no unlucky tx in the block
 					return nil
 				}
-
 				if printBlockNumbers {
 					log.Println(height, txIndex)
 					return nil
 				}
-
-				result, err = tmDB.replayTx(appCreator, height, txIndex, state.InitialHeight)
+				result, err = tmDB.replayTx(appCreator, block, txIndex, state.InitialHeight)
 				if err != nil {
 					return err
 				}
@@ -365,21 +366,27 @@ func newTxIndexer(config *tmcfg.Config, chainID string) (txindex.TxIndexer, erro
 	}
 }
 
-func findUnluckyTx(blockResult *tmstate.ABCIResponses) int {
+func (db *tmDB) FindUnluckyTx(blockResult *tmstate.ABCIResponses, block *tmtypes.Block) (int, error) {
 	for txIndex, txResult := range blockResult.DeliverTxs {
 		if rpc.TxExceedsBlockGasLimit(txResult) {
-			return txIndex
+			tx := block.Txs[txIndex]
+			txHash := tx.Hash()
+			indexed, err := db.txIndexer.Get(txHash)
+			if err != nil {
+				return -1, err
+			}
+			if indexed != nil && indexed.Result.IsOK() {
+				log.Printf("skip %x at index %d for height %d\n", txHash, txIndex, block.Height)
+				continue
+			}
+			return txIndex, nil
 		}
 	}
-	return -1
+	return -1, nil
 }
 
 // replay the tx and return the result
-func (db *tmDB) replayTx(appCreator func() *app.App, height int64, txIndex int, initialHeight int64) (*abci.TxResult, error) {
-	block := db.blockStore.LoadBlock(height)
-	if block == nil {
-		return nil, fmt.Errorf("block %d not found", height)
-	}
+func (db *tmDB) replayTx(appCreator func() *app.App, block *tmtypes.Block, txIndex int, initialHeight int64) (*abci.TxResult, error) {
 	anApp := appCreator()
 	if err := anApp.LoadHeight(block.Header.Height - 1); err != nil {
 		return nil, err
