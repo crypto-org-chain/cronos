@@ -2,7 +2,7 @@ package simulation_test
 
 import (
 	"encoding/json"
-	"math/rand" //#nosec G404
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"

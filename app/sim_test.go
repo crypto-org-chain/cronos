@@ -3,10 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
-
-	"math/rand" //#nosec G404
 
 	ethermintapp "github.com/evmos/ethermint/app"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"

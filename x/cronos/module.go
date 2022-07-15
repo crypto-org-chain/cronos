@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"math/rand" //#nosec G404
+	"math/rand"
 
 	// this line is used by starport scaffolding # 1
 

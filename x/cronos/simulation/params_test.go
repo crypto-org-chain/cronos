@@ -2,7 +2,7 @@ package simulation_test
 
 import (
 	"fmt"
-	"math/rand" //#nosec G404
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
