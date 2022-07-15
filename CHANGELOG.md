@@ -8,6 +8,7 @@
 - [cronos#503](https://github.com/crypto-org-chain/cronos/pull/503) Fix failed tx are ignored in json-rpc apis (backport #502).
 - [#526](https://github.com/crypto-org-chain/cronos/pull/526) Fix tendermint duplicated tx issue.
 - [#584](https://github.com/crypto-org-chain/cronos/pull/584) Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
+- [#587](https://github.com/crypto-org-chain/cronos/pull/587) Unlucky tx patch cmd recompute eth tx hash.
 
 ### Improvements
 
