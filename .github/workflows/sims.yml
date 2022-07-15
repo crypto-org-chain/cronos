@@ -23,24 +23,22 @@ jobs:
       github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       # if we could have secrets.ORG_READ_BOT_PAT, we can check against team rather than organization.
-      - name: Check if organization member
-        uses: JamesSingleton/is-organization-member@main
+      - uses: tspascoal/get-user-teams-membership@v1.0.2
         id: checkMember
+        if: github.event_name == 'issue_comment'
         with:
           username: ${{ github.actor }}
-          organization: crypto-org-chain
-          token: ${{ secrets.GITHUB_TOKEN }}
-        if: github.event_name == 'issue_comment'
+          team: 'cronos-dev'
+          GITHUB_TOKEN: ${{ secrets.ORG_READ_BOT_PAT }}
       - name: Comment PR for authentication failure
         uses: crypto-org-chain/actions-pull-request-add-comment@master
-        if: (steps.checkMember.outputs.result == 'false') && (github.event_name == 'issue_comment')
+        if: (steps.checkMember.outputs.isTeamMember == 'false') && (github.event_name == 'issue_comment')
         with:
           message: |
-            Sorry only crypto-org-chain member could run simulations by '/runsim'. 
-            If you are a crypto-org-chain member, please set your membership visibility to `public` in this [page](https://github.com/orgs/crypto-org-chain/people).
+            Sorry only cronos-dev team member could run simulations by '/runsim'. 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Fail and exit the job if authentication failed
-        if: (steps.checkMember.outputs.result == 'false') && (github.event_name == 'issue_comment')
+        if: (steps.checkMember.outputs.isTeamMember == 'false') && (github.event_name == 'issue_comment')
         run: exit 1
       - name: Comment PR for Sim test started
         uses: allthatjazzleo/actions-pull-request-add-comment@master
