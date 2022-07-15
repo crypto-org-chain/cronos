@@ -15,7 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
@@ -112,7 +111,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							break
 						}
 
-						var hashes []common.Hash
+						var hashes []string
 						txIndex++
 						for msgIndex, msg := range tx.GetMsgs() {
 							ethTxIndex := txIndex + int64(msgIndex)
