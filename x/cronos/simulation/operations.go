@@ -2,7 +2,7 @@ package simulation
 
 import (
 	"errors"
-	"math/rand" //#nosec
+	"math/rand" //#nosec G404
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"

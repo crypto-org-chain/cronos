@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"math/rand" //#nosec
+	"math/rand" //#nosec G404
 
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"

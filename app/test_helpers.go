@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-
-	"math/rand" //#nosec
 	"strconv"
 	"testing"
 	"time"
+
+	"math/rand" //#nosec G404
 
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/crypto-org-chain/cronos/x/cronos"
