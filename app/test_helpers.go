@@ -6,8 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	/* #nosec */
-	"math/rand"
+	"math/rand" //#nosec
 	"strconv"
 	"testing"
 	"time"

@@ -6,8 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	/* #nosec */
-	"math/rand"
+	"math/rand" //#nosec
 	"time"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"

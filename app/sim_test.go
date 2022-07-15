@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	/* #nosec */
-	"math/rand"
+	"math/rand" //#nosec
 	"os"
 	"testing"
 
