@@ -31,9 +31,7 @@ const (
 func WeightedOperations(
 	appParams simtypes.AppParams, cdc codec.JSONCodec, k *keeper.Keeper,
 ) simulation.WeightedOperations {
-	var (
-		weightMsgUpdateTokenMapping int
-	)
+	var weightMsgUpdateTokenMapping int
 
 	appParams.GetOrGenerate(cdc, OpWeightMsgUpdateTokenMapping, &weightMsgUpdateTokenMapping, nil,
 		func(_ *rand.Rand) {
