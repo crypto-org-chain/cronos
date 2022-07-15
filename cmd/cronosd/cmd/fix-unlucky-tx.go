@@ -2,16 +2,20 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
+	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -23,6 +27,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/libs/protoio"
 	tmnode "github.com/tendermint/tendermint/node"
 	tmstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	sm "github.com/tendermint/tendermint/state"
@@ -45,6 +50,8 @@ const (
 	FlagStartBlock        = "start-block"
 	FlagEndBlock          = "end-block"
 	FlagConcurrency       = "concurrency"
+	FlagExportToFile      = "export-to-file"
+	FlagPatchFromFile     = "patch-from-file"
 )
 
 // FixUnluckyTxCmd update the tx execution result of false-failed tx in tendermint db
@@ -54,7 +61,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 		Short: "Fix tx execution result of false-failed tx before v0.7.0 upgrade.",
 		Long:  "Fix tx execution result of false-failed tx before v0.7.0 upgrade.\nWARNING: don't use this command to patch blocks generated after v0.7.0 upgrade",
 		Args:  cobra.ExactArgs(0),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (returnErr error) {
+			now := time.Now()
+			defer func() {
+				log.Println("total time: ", time.Since(now))
+			}()
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
@@ -70,7 +81,14 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
+			exportToFile, err := cmd.Flags().GetString(FlagExportToFile)
+			if err != nil {
+				return err
+			}
+			patchFromFile, err := cmd.Flags().GetString(FlagPatchFromFile)
+			if err != nil {
+				return err
+			}
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
@@ -102,9 +120,43 @@ func FixUnluckyTxCmd() *cobra.Command {
 					func(baseApp *baseapp.BaseApp) { baseApp.SetCMS(cms) },
 				)
 			}
-
+			const std = "-"
 			// replay and patch a single block
-			processBlock := func(height int64) error {
+			if patchFromFile != "" {
+				var fi io.Reader
+				if patchFromFile != std {
+					fi, err = os.Open(patchFromFile)
+					if err != nil {
+						return err
+					}
+					defer func() {
+						if err := fi.(*os.File).Close(); returnErr == nil {
+							returnErr = err
+						}
+					}()
+				} else {
+					fi = os.Stdin
+				}
+				return tmDB.PatchFromImport(clientCtx.TxConfig, fi)
+			}
+			action := "patched"
+			var f io.Writer
+			if exportToFile != "" {
+				if exportToFile != std {
+					f, err = os.Create(exportToFile)
+					if err != nil {
+						return err
+					}
+					defer func() {
+						if err := f.(*os.File).Close(); returnErr == nil {
+							returnErr = err
+						}
+					}()
+				} else {
+					f = os.Stdout
+				}
+			}
+			processBlock := func(height int64) (err error) {
 				var result *abci.TxResult
 				blockResult, err := tmDB.stateStore.LoadABCIResponses(height)
 				if err != nil {
@@ -122,12 +174,10 @@ func FixUnluckyTxCmd() *cobra.Command {
 					// no unlucky tx in the block
 					return nil
 				}
-
 				if printBlockNumbers {
-					fmt.Println(height, txIndex)
+					log.Println(height, txIndex)
 					return nil
 				}
-
 				result, err = tmDB.replayTx(appCreator, block, txIndex, state.InitialHeight)
 				if err != nil {
 					return err
@@ -137,22 +187,22 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return clientCtx.PrintProto(result)
 				}
 
-				if err := tmDB.patchDB(blockResult, result); err != nil {
-					return err
-				}
-
-				// decode the tx to get eth tx hashes to log
-				tx, err := clientCtx.TxConfig.TxDecoder()(result.Tx)
-				if err != nil {
-					fmt.Println("can't parse the patched tx", result.Height, result.Index)
-					return nil
-				}
-				for _, msg := range tx.GetMsgs() {
-					ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
-					if ok {
-						fmt.Println("patched", ethMsg.Hash, result.Height, result.Index)
+				if exportToFile != "" {
+					action = "exported"
+					var buf bytes.Buffer
+					if err := tmDB.PatchToExport(blockResult, result, &buf); err != nil {
+						return err
+					}
+					if _, err := buf.WriteTo(f); err != nil {
+						return err
+					}
+				} else {
+					if err := tmDB.patchDB(blockResult, result); err != nil {
+						return err
 					}
 				}
+
+				logTnxHash(clientCtx.TxConfig, result, action)
 				return nil
 			}
 
@@ -184,6 +234,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							}
 
 							if err := processBlock(blockNum); err != nil {
+								log.Printf("error when processBlock: %d %+v\n", blockNum, err)
 								cancel()
 								return
 							}
@@ -246,6 +297,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Bool(flags.FlagDryRun, false, "Print the execution result of the problematic txs without patch the database")
+	cmd.Flags().String(FlagExportToFile, "", "Export the execution result of the problematic txs without patch the database")
+	cmd.Flags().String(FlagPatchFromFile, "", "Patch the database from execution result of the problematic txs")
 	cmd.Flags().Bool(FlagPrintBlockNumbers, false, "Print the problematic block number and tx index without replay and patch")
 	cmd.Flags().String(FlagBlocksFile, "", "Read block numbers from a file instead of iterating all the blocks")
 	cmd.Flags().Int(FlagStartBlock, 1, "The start of the block range to iterate, inclusive")
@@ -373,6 +426,67 @@ func (db *tmDB) replayTx(appCreator func() *app.App, block *tmtypes.Block, txInd
 		Tx:     block.Txs[txIndex],
 		Result: rsp,
 	}, nil
+}
+
+// decode the tx to get eth tx hashes to log
+func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) {
+	tx, err := txConfig.TxDecoder()(result.Tx)
+	if err != nil {
+		log.Println("can't parse the patched tx", result.Height, result.Index)
+		return
+	}
+	for _, msg := range tx.GetMsgs() {
+		ethMsg, ok := msg.(*evmtypes.MsgEthereumTx)
+		if ok {
+			log.Println(action, ethMsg.Hash, result.Height, result.Index)
+		}
+	}
+}
+
+func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader) error {
+	maxItemSize := int(64e6)
+	protoReader := protoio.NewDelimitedReader(reader, maxItemSize)
+	var err error
+	for {
+		res := abci.TxResult{}
+		_, err = protoReader.ReadMsg(&res)
+		if err != nil {
+			if io.EOF == err {
+				return nil
+			}
+			return err
+		}
+		if err := db.txIndexer.Index(&res); err != nil {
+			return err
+		}
+		blockRes := tmstate.ABCIResponses{}
+		_, err = protoReader.ReadMsg(&blockRes)
+		if err != nil {
+			return err
+		}
+		blockRes.DeliverTxs[res.Index] = &res.Result
+		if err := db.stateStore.SaveABCIResponses(res.Height, &blockRes); err != nil {
+			return err
+		}
+		logTnxHash(txConfig, &res, "import patched")
+	}
+}
+
+func (db *tmDB) PatchToExport(blockResult proto.Message, result proto.Message, writer io.Writer) error {
+	chErr := make(chan error)
+	go func() {
+		protoWriter := protoio.NewDelimitedWriter(writer)
+		for _, res := range []proto.Message{result, blockResult} {
+			_, err := protoWriter.WriteMsg(res)
+			if err != nil {
+				chErr <- err
+				return
+			}
+		}
+		_ = protoWriter.Close()
+		chErr <- nil
+	}()
+	return <-chErr
 }
 
 func (db *tmDB) patchDB(blockResult *tmstate.ABCIResponses, result *abci.TxResult) error {
