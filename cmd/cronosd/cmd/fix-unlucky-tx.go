@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmcfg "github.com/tendermint/tendermint/config"
@@ -111,14 +112,17 @@ func FixUnluckyTxCmd() *cobra.Command {
 							break
 						}
 
+						var hashes []common.Hash
 						txIndex++
 						for msgIndex, msg := range tx.GetMsgs() {
 							ethTxIndex := txIndex + int64(msgIndex)
 							ethTx := msg.(*evmtypes.MsgEthereumTx)
+							txHash := ethTx.AsTransaction().Hash().Hex()
+							hashes = append(hashes, txHash)
 							evt := abci.Event{
 								Type: evmtypes.TypeMsgEthereumTx,
 								Attributes: []abci.EventAttribute{
-									{Key: []byte(evmtypes.AttributeKeyEthereumTxHash), Value: []byte(ethTx.Hash), Index: true},
+									{Key: []byte(evmtypes.AttributeKeyEthereumTxHash), Value: []byte(txHash), Index: true},
 									{Key: []byte(evmtypes.AttributeKeyTxIndex), Value: []byte(strconv.FormatInt(ethTxIndex, 10)), Index: true},
 								},
 							}
@@ -140,8 +144,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 						}); err != nil {
 							return err
 						}
-						for _, msg := range tx.GetMsgs() {
-							fmt.Println("patched", height, msg.(*evmtypes.MsgEthereumTx).Hash)
+						for _, txHash := range hashes {
+							fmt.Println("patched", height, txHash)
 						}
 						return nil
 					} else if txResult.Code == 0 {
