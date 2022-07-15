@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	/* #nosec */
 	"math/rand"
 
 	"github.com/cosmos/cosmos-sdk/types/module"

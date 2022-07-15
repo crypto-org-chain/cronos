@@ -2,6 +2,7 @@ package simulation_test
 
 import (
 	"encoding/json"
+	/* #nosec */
 	"math/rand"
 	"testing"
 

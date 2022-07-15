@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+
+	/* #nosec */
 	"math/rand"
 	"time"
 

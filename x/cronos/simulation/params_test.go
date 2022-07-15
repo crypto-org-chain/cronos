@@ -2,6 +2,7 @@ package simulation_test
 
 import (
 	"fmt"
+	/* #nosec */
 	"math/rand"
 	"testing"
 

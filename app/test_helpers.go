@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
+	/* #nosec */
 	"math/rand"
 	"strconv"
 	"testing"

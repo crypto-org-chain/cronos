@@ -3,6 +3,8 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+
+	/* #nosec */
 	"math/rand"
 	"os"
 	"testing"
