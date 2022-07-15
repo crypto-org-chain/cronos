@@ -30,16 +30,17 @@ jobs:
           username: ${{ github.actor }}
           organization: crypto-org-chain
           token: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'issue_comment'
       - name: Comment PR for authentication failure
         uses: crypto-org-chain/actions-pull-request-add-comment@master
-        if: steps.checkMember.outputs.result == 'false'
+        if: (steps.checkMember.outputs.result == 'false') && (github.event_name == 'issue_comment')
         with:
           message: |
             Sorry only crypto-org-chain member could run simulations by '/runsim'. 
             If you are a crypto-org-chain member, please set your membership visibility to `public` in this [page](https://github.com/orgs/crypto-org-chain/people).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Fail and exit the job if authentication failed
-        if: steps.checkMember.outputs.result == 'false'
+        if: (steps.checkMember.outputs.result == 'false') && (github.event_name == 'issue_comment')
         run: exit 1
       - name: Comment PR for Sim test started
         uses: allthatjazzleo/actions-pull-request-add-comment@master
