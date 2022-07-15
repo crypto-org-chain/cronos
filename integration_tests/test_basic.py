@@ -690,3 +690,19 @@ def test_tx_inclusion(cronos, max_gas_wanted):
             == receipts[2].blockNumber
             == receipts[3].blockNumber
         )
+
+
+def test_replay_protection(cronos):
+    w3 = cronos.w3
+    # https://etherscan.io/tx/0x06d2fa464546e99d2147e1fc997ddb624cec9c8c5e25a050cc381ee8a384eed3
+    raw = (
+        (
+            Path(__file__).parent / "configs/replay-tx-0x"
+            "06d2fa464546e99d2147e1fc997ddb62"
+            "4cec9c8c5e25a050cc381ee8a384eed3.tx"
+        )
+        .read_text()
+        .strip()
+    )
+    with pytest.raises(Exception, match="eth tx is not replay-protected"):
+        w3.eth.send_raw_transaction(HexBytes(raw))
