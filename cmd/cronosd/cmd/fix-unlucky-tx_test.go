@@ -108,26 +108,40 @@ func TestPatchFromImport(t *testing.T) {
 	tmDB := mockTmDb()
 	encCfg := simapp.MakeTestEncodingConfig()
 
-	t.Run("happy flow", func(t *testing.T) {
-		res := mockResult(encCfg.TxConfig, 0, true)
-		blockRes := mockBlockResult()
-		blockRes.DeliverTxs = append(blockRes.DeliverTxs, mockResponseDeliverTx(false))
-		blockRes.DeliverTxs[res.Index] = &res.Result
-		expected := getExpected(res, blockRes)
-		err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected))
-		require.NoError(t, err, "import error")
-		txHash := types.Tx(res.Tx).Hash()
-		newRes, err := tmDB.txIndexer.Get(txHash)
-		require.NoError(t, err, "get tx result")
-		resultProto, _ := res.Marshal()
-		newResProto, _ := newRes.Marshal()
-		require.Equal(t, resultProto, newResProto, "check tx result")
-		newBlockRes, err := tmDB.stateStore.LoadABCIResponses(res.Height)
-		require.NoError(t, err, "get block rseult")
-		blockResProto, _ := blockRes.Marshal()
-		newBlockResProto, _ := newBlockRes.Marshal()
-		require.Equal(t, blockResProto, newBlockResProto, "check block result")
-	})
+	testCases := []struct {
+		name  string
+		match bool
+	}{
+		{
+			"res match block res",
+			true,
+		},
+		{
+			"res do not match block res",
+			false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := mockResult(encCfg.TxConfig, 0, true)
+			blockRes := mockBlockResult()
+			blockRes.DeliverTxs = append(blockRes.DeliverTxs, mockResponseDeliverTx(tc.match), mockResponseDeliverTx(false))
+			expected := getExpected(res, blockRes)
+			err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected))
+			require.NoError(t, err, "import error")
+			txHash := types.Tx(res.Tx).Hash()
+			newRes, err := tmDB.txIndexer.Get(txHash)
+			require.NoError(t, err, "get tx result")
+			resultProto, _ := res.Marshal()
+			newResProto, _ := newRes.Marshal()
+			require.Equal(t, resultProto, newResProto, "check tx result")
+			newBlockRes, err := tmDB.stateStore.LoadABCIResponses(res.Height)
+			require.NoError(t, err, "get block rseult")
+			blockResProto, _ := blockRes.Marshal()
+			newBlockResProto, _ := newBlockRes.Marshal()
+			require.Equal(t, blockResProto, newBlockResProto, "check block result")
+		})
+	}
 
 	t.Run("wrong object type", func(t *testing.T) {
 		blockRes := mockBlockResult()
