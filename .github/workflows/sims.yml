@@ -18,6 +18,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     if: >-
       (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim') ||
       github.event_name == 'push' || github.event_name == 'pull_request'
