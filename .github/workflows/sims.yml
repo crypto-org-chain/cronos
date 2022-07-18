@@ -48,7 +48,33 @@ jobs:
             Simulation tests started and triggered by `/runsim`. 
             Can check further progress [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v2
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.0
+        if: github.event_name == 'issue_comment'
+        with:
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Comment PR informations
+        id: pr_data
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+      - name: Checkout Comment PR Branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'issue_comment'
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_data.outputs.repo_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      - name: Normal check out code
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+        if: github.event_name == 'push' || github.event_name == 'pull_request' 
       - uses: actions/setup-go@v2.1.3
         with:
           go-version: 1.18
@@ -76,10 +102,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2.1.3
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.0
+        if: github.event_name == 'issue_comment'
         with:
-          go-version: 1.18
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Comment PR informations
+        id: pr_data
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.3
+      - name: Checkout Comment PR Branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'issue_comment'
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_data.outputs.repo_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      - name: Normal check out code
+        uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        with:
+          submodules: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -109,10 +161,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2.1.3
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.0
+        if: github.event_name == 'issue_comment'
         with:
-          go-version: 1.18
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Comment PR informations
+        id: pr_data
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.3
+      - name: Checkout Comment PR Branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'issue_comment'
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_data.outputs.repo_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      - name: Normal check out code
+        uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        with:
+          submodules: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -142,10 +220,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2.1.3
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.0
+        if: github.event_name == 'issue_comment'
         with:
-          go-version: 1.18
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Comment PR informations
+        id: pr_data
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.3
+      - name: Checkout Comment PR Branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'issue_comment'
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_data.outputs.repo_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      - name: Normal check out code
+        uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        with:
+          submodules: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -175,10 +279,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2.1.3
+      - name: Github API Request
+        id: request
+        uses: octokit/request-action@v2.0.0
+        if: github.event_name == 'issue_comment'
         with:
-          go-version: 1.18
+          route: ${{ github.event.issue.pull_request.url }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Comment PR informations
+        id: pr_data
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.3
+      - name: Checkout Comment PR Branch
+        uses: actions/checkout@v2
+        if: github.event_name == 'issue_comment'
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ steps.pr_data.outputs.repo_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      - name: Normal check out code
+        uses: actions/checkout@v2
+        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        with:
+          submodules: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
