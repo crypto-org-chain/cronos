@@ -89,6 +89,12 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			concurrency, err := cmd.Flags().GetInt(FlagConcurrency)
+			if err != nil {
+				return err
+			}
+
 			tmDB, err := openTMDB(ctx.Config, chainID)
 			if err != nil {
 				return err
@@ -123,7 +129,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			const std = "-"
 			// replay and patch a single block
 			if patchFromFile != "" {
-				var fi io.Reader
+				var fi io.ReadSeeker
 				if patchFromFile != std {
 					fi, err = os.Open(patchFromFile)
 					if err != nil {
@@ -137,7 +143,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 				} else {
 					fi = os.Stdin
 				}
-				return tmDB.PatchFromImport(clientCtx.TxConfig, fi)
+				return tmDB.PatchFromImport(clientCtx.TxConfig, fi, concurrency)
 			}
 			action := "patched"
 			var f io.Writer
@@ -207,10 +213,6 @@ func FixUnluckyTxCmd() *cobra.Command {
 			}
 
 			blocksFile, err := cmd.Flags().GetString(FlagBlocksFile)
-			if err != nil {
-				return err
-			}
-			concurrency, err := cmd.Flags().GetInt(FlagConcurrency)
 			if err != nil {
 				return err
 			}
@@ -443,32 +445,136 @@ func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) 
 	}
 }
 
-func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader) error {
+func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, concurrency int) (returnErr error) {
 	maxItemSize := int(64e6)
-	protoReader := protoio.NewDelimitedReader(reader, maxItemSize)
-	var err error
+	protoReader := NewDelimitedReader(reader, maxItemSize)
+
+	type importData struct {
+		TxResultData    []byte
+		BlockResultData []byte
+	}
+	chData := make(chan *importData)
+	chError := make(chan error)
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			batch := new(txindex.Batch)
+			heights := make([]int64, 0)
+			blockResultBytes := make([][]byte, 0)
+			saveBatch := func() error {
+				if len(batch.Ops) == 0 {
+					return nil
+				}
+				log.Println("add txResult batch")
+				err := db.txIndexer.AddBatch(batch)
+				log.Println("added txResult batch")
+				if err == nil {
+					log.Println("save abci batch")
+					err = db.stateStore.SaveBatchABCIResponseBytes(heights, blockResultBytes)
+					log.Println("saved abci batch")
+				}
+				if err == nil {
+					batch.Ops = nil
+					heights = nil
+					blockResultBytes = nil
+				}
+				return err
+			}
+			defer wg.Done()
+			for {
+				select {
+				case data, ok := <-chData:
+					var fns []func() error
+					if !ok {
+						fns = []func() error{
+							saveBatch,
+						}
+					} else {
+						fns = []func() error{
+							func() error {
+								res := new(abci.TxResult)
+								err := res.Unmarshal(data.TxResultData)
+								if err == nil {
+									batch.Ops = append(batch.Ops, res)
+									heights = append(heights, res.Height)
+									blockResultBytes = append(blockResultBytes, data.BlockResultData)
+									logTnxHash(txConfig, res, "import patched")
+								}
+								return err
+							},
+							func() error {
+								if len(batch.Ops) >= 10 {
+									return saveBatch()
+								}
+								return nil
+							},
+						}
+					}
+					for _, fn := range fns {
+						if err := fn(); err != nil {
+							chError <- err
+							cancel()
+							return
+						}
+					}
+					if !ok {
+						return
+					}
+
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(&wg)
+	}
+
+	go func() {
+		for returnErr = range chError {
+		}
+	}()
+
 	for {
-		res := abci.TxResult{}
-		_, err = protoReader.ReadMsg(&res)
+		_, _, txResultData, err := protoReader.ReadNextLength(false)
 		if err != nil {
 			if io.EOF == err {
-				return nil
+				break
 			}
-			return err
+			chError <- err
+			break
 		}
-		if err := db.txIndexer.Index(&res); err != nil {
-			return err
-		}
-		blockRes := tmstate.ABCIResponses{}
-		_, err = protoReader.ReadMsg(&blockRes)
+
+		_, _, blockResultData, err := protoReader.ReadNextLength(false)
 		if err != nil {
-			return err
+			chError <- err
+			break
 		}
-		if err := db.stateStore.SaveABCIResponses(res.Height, &blockRes); err != nil {
-			return err
-		}
-		logTnxHash(txConfig, &res, "import patched")
+
+		func() {
+			for {
+				select {
+				case chData <- &importData{
+					TxResultData:    txResultData,
+					BlockResultData: blockResultData,
+				}:
+					log.Println("send import data:", len(txResultData), len(blockResultData))
+					return
+
+				default:
+				}
+
+				if ctx.Err() != nil {
+					break
+				}
+			}
+		}()
 	}
+	close(chData)
+	wg.Wait()
+	close(chError)
+	return returnErr
 }
 
 func (db *tmDB) PatchToExport(blockResult proto.Message, result proto.Message, writer io.Writer) error {

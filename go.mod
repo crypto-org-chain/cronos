@@ -20,7 +20,7 @@ require (
 	github.com/tendermint/tm-db v0.6.6
 	github.com/tharsis/ethermint v0.7.2
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -93,7 +93,7 @@ require (
 	github.com/keybase/go-keychain v0.0.0-20190712205309-48d3d31d256d // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/lib/pq v1.10.6 // indirect
-	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
+	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -173,4 +173,4 @@ replace github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0
 // See https://github.com/tecbot/gorocksdb/pull/216
 replace github.com/tecbot/gorocksdb => github.com/cosmos/gorocksdb v1.1.1
 
-replace github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.20-rc0.0.20220630153554-17f4ea3680de
+replace github.com/tendermint/tendermint => github.com/mmsqe/tendermint v0.34.20-rc2
