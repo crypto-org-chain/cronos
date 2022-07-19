@@ -448,13 +448,12 @@ func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) 
 func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, concurrency int) (returnErr error) {
 	maxItemSize := int(64e6)
 	protoReader := NewDelimitedReader(reader, maxItemSize)
-	var err error
 
 	type importData struct {
-		Result      *abci.TxResult
-		BlockResult *tmstate.ABCIResponses
+		TxResultData    []byte
+		BlockResultData []byte
 	}
-	chData := make(chan importData)
+	chData := make(chan *importData)
 	chError := make(chan error, concurrency+1)
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -469,15 +468,19 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 					if !ok {
 						return
 					}
-					if err := db.txIndexer.Index(data.Result); err != nil {
-						chError <- err
-						cancel()
-						return
-					}
-					if err := db.stateStore.SaveABCIResponses(data.Result.Height, data.BlockResult); err != nil {
-						chError <- err
-						cancel()
-						return
+					res := new(abci.TxResult)
+					blockRes := new(tmstate.ABCIResponses)
+					for _, fn := range []func() error{
+						func() error { return res.Unmarshal(data.TxResultData) },
+						func() error { return blockRes.Unmarshal(data.BlockResultData) },
+						func() error { return db.txIndexer.Index(res) },
+						func() error { return db.stateStore.SaveABCIResponses(res.Height, blockRes) },
+					} {
+						if err := fn(); err != nil {
+							chError <- err
+							cancel()
+							return
+						}
 					}
 				case <-ctx.Done():
 					return
@@ -493,11 +496,7 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 	}()
 
 	for {
-		data := importData{
-			Result:      new(abci.TxResult),
-			BlockResult: new(tmstate.ABCIResponses),
-		}
-		_, err = protoReader.ReadMsg(data.Result)
+		_, _, txResultData, err := protoReader.ReadNextLength(false)
 		if err != nil {
 			if io.EOF == err {
 				break
@@ -506,7 +505,7 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 			break
 		}
 
-		_, err = protoReader.ReadMsg(data.BlockResult)
+		_, _, blockResultData, err := protoReader.ReadNextLength(false)
 		if err != nil {
 			chError <- err
 			break
@@ -515,8 +514,11 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 		func() {
 			for {
 				select {
-				case chData <- data:
-					logTnxHash(txConfig, data.Result, "import patched")
+				case chData <- &importData{
+					TxResultData:    txResultData,
+					BlockResultData: blockResultData,
+				}:
+					log.Println("send import data:", len(txResultData), len(blockResultData))
 					return
 
 				default:
