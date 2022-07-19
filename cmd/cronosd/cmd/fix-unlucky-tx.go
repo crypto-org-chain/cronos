@@ -129,7 +129,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			const std = "-"
 			// replay and patch a single block
 			if patchFromFile != "" {
-				var fi io.Reader
+				var fi io.ReadSeeker
 				if patchFromFile != std {
 					fi, err = os.Open(patchFromFile)
 					if err != nil {
@@ -445,7 +445,7 @@ func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) 
 	}
 }
 
-func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader, concurrency int) (returnErr error) {
+func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, concurrency int) (returnErr error) {
 	maxItemSize := int(64e6)
 	protoReader := NewDelimitedReader(reader, maxItemSize)
 	var err error
