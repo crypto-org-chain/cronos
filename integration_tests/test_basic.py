@@ -704,5 +704,7 @@ def test_replay_protection(cronos):
         .read_text()
         .strip()
     )
-    with pytest.raises(Exception, match="eth tx is not replay-protected"):
+    with pytest.raises(
+        Exception, match="only replay-protected (EIP-155) transactions allowed over RPC"
+    ):
         w3.eth.send_raw_transaction(HexBytes(raw))
