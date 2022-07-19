@@ -454,34 +454,76 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 		BlockResultData []byte
 	}
 	chData := make(chan *importData)
-	chError := make(chan error, concurrency+1)
+	chError := make(chan error)
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup) {
+			batch := new(txindex.Batch)
+			heights := make([]int64, 0)
+			blockResultBytes := make([][]byte, 0)
+			saveBatch := func() error {
+				if len(batch.Ops) == 0 {
+					return nil
+				}
+				log.Println("add txResult batch")
+				err := db.txIndexer.AddBatch(batch)
+				log.Println("added txResult batch")
+				if err == nil {
+					log.Println("save abci batch")
+					err = db.stateStore.SaveBatchABCIResponseBytes(heights, blockResultBytes)
+					log.Println("saved abci batch")
+				}
+				if err == nil {
+					batch.Ops = nil
+					heights = nil
+					blockResultBytes = nil
+				}
+				return err
+			}
 			defer wg.Done()
 			for {
 				select {
 				case data, ok := <-chData:
+					var fns []func() error
 					if !ok {
-						return
+						fns = []func() error{
+							saveBatch,
+						}
+					} else {
+						fns = []func() error{
+							func() error {
+								res := new(abci.TxResult)
+								err := res.Unmarshal(data.TxResultData)
+								if err == nil {
+									batch.Ops = append(batch.Ops, res)
+									heights = append(heights, res.Height)
+									blockResultBytes = append(blockResultBytes, data.BlockResultData)
+									logTnxHash(txConfig, res, "import patched")
+								}
+								return err
+							},
+							func() error {
+								if len(batch.Ops) >= 10 {
+									return saveBatch()
+								}
+								return nil
+							},
+						}
 					}
-					res := new(abci.TxResult)
-					blockRes := new(tmstate.ABCIResponses)
-					for _, fn := range []func() error{
-						func() error { return res.Unmarshal(data.TxResultData) },
-						func() error { return blockRes.Unmarshal(data.BlockResultData) },
-						func() error { return db.txIndexer.Index(res) },
-						func() error { return db.stateStore.SaveABCIResponses(res.Height, blockRes) },
-					} {
+					for _, fn := range fns {
 						if err := fn(); err != nil {
 							chError <- err
 							cancel()
 							return
 						}
 					}
+					if !ok {
+						return
+					}
+
 				case <-ctx.Done():
 					return
 				}
@@ -491,7 +533,6 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.ReadSeeker, 
 
 	go func() {
 		for returnErr = range chError {
-			break
 		}
 	}()
 
