@@ -81,7 +81,7 @@ func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 		}
 
 		txGen := simappparams.MakeTestEncodingConfig().TxConfig
-		tx, err := helpers.GenTx(
+		tx, err := helpers.GenSignedMockTx(
 			r,
 			txGen,
 			[]sdk.Msg{msg},
@@ -96,7 +96,7 @@ func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
 		}
 
-		_, _, err = app.Deliver(txGen.TxEncoder(), tx)
+		_, _, err = app.SimDeliver(txGen.TxEncoder(), tx)
 		if simAccount.Address.String() != cronosAdmin && errors.Is(err, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")) {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unauthorized tx should fail"), nil, nil
 		}
