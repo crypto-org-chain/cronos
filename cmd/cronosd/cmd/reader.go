@@ -11,7 +11,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-type varintReader struct {
+type VarintReader struct {
 	r       io.ReadSeeker
 	buf     []byte
 	maxSize int
@@ -40,15 +40,15 @@ func (r *byteReader) ReadByte() (byte, error) {
 	return r.buf[0], nil
 }
 
-func NewDelimitedReader(r io.ReadSeeker, maxSize int) *varintReader {
+func NewDelimitedReader(r io.ReadSeeker, maxSize int) *VarintReader {
 	var closer io.Closer
 	if c, ok := r.(io.Closer); ok {
 		closer = c
 	}
-	return &varintReader{r, nil, maxSize, closer}
+	return &VarintReader{r, nil, maxSize, closer}
 }
 
-func (r *varintReader) ReadNextLength(seekOnly bool) (int, int, []byte, error) {
+func (r *VarintReader) ReadNextLength(seekOnly bool) (int, int, []byte, error) {
 	byteReader := newByteReader(r.r)
 	l, err := binary.ReadUvarint(byteReader)
 	n := byteReader.bytesRead
@@ -75,7 +75,7 @@ func (r *varintReader) ReadNextLength(seekOnly bool) (int, int, []byte, error) {
 	return n, length, buf, err
 }
 
-func (r *varintReader) ReadMsgWithLength(length int, msg proto.Message) (int, error) {
+func (r *VarintReader) ReadMsgWithLength(length int, msg proto.Message) (int, error) {
 	if len(r.buf) < length {
 		r.buf = make([]byte, length)
 	}
@@ -92,7 +92,7 @@ func (r *varintReader) ReadMsgWithLength(length int, msg proto.Message) (int, er
 	return nr, err
 }
 
-func (r *varintReader) ReadMsg(msg proto.Message) (int, error) {
+func (r *VarintReader) ReadMsg(msg proto.Message) (int, error) {
 	byteReader := newByteReader(r.r)
 	l, err := binary.ReadUvarint(byteReader)
 	n := byteReader.bytesRead
@@ -125,7 +125,7 @@ func (r *varintReader) ReadMsg(msg proto.Message) (int, error) {
 	return n, err
 }
 
-func (r *varintReader) Close() error {
+func (r *VarintReader) Close() error {
 	if r.closer != nil {
 		return r.closer.Close()
 	}
