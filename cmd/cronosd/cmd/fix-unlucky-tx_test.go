@@ -144,19 +144,30 @@ func TestPatchFromImport(t *testing.T) {
 		})
 	}
 
-	t.Run("wrong object type", func(t *testing.T) {
-		blockRes := mockBlockResult()
-		expected := getExpected(nil, blockRes)
-		err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected), concurrency)
-		require.EqualError(t, err, "proto: wrong wireType = 2 for field Index")
-	})
+	invalidTstCases := []struct {
+		name     string
+		res      *abci.TxResult
+		blockRes *tmstate.ABCIResponses
+	}{
+		{
+			"invalid tx result",
+			nil,
+			mockBlockResult(),
+		},
+		{
+			"invalid block result",
+			mockResult(encCfg.TxConfig, 0, true),
+			nil,
+		},
+	}
 
-	t.Run("wrong last object", func(t *testing.T) {
-		res := mockResult(encCfg.TxConfig, 0, true)
-		expected := getExpected(res, nil)
-		err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected), concurrency)
-		require.EqualError(t, err, "EOF")
-	})
+	for _, tc := range invalidTstCases {
+		t.Run(tc.name, func(t *testing.T) {
+			expected := getExpected(tc.res, tc.blockRes)
+			err := tmDB.PatchFromImport(encCfg.TxConfig, bytes.NewReader(expected), concurrency)
+			require.EqualError(t, err, "EOF")
+		})
+	}
 }
 
 func TestFindUnluckyTx(t *testing.T) {
