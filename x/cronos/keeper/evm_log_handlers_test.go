@@ -99,6 +99,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
+	zeroAddress := common.BigToAddress(big.NewInt(0))
 	invalidDenom := "testdenom"
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
@@ -209,6 +210,29 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				suite.Require().NoError(err)
 			},
 			nil,
+		},
+		{
+			"blacklisted address, expect fail",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(coin, balance)
+
+				input, err := keeper.SendToChainEvent.Inputs.Pack(
+					sender,
+					zeroAddress,
+					coin.Amount.BigInt(),
+					big.NewInt(0),
+					big.NewInt(1),
+				)
+				data = input
+			},
+			func() {},
+			errors.New("destination address is invalid or blacklisted"),
 		},
 	}
 
@@ -474,7 +498,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				gravityMsgServer := gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper)
 				msg := gravitytypes.MsgSendToEthereum{
 					Sender:            sdk.AccAddress(sender.Bytes()).String(),
-					EthereumRecipient: "",
+					EthereumRecipient: random.Hex(),
 					Amount:            sdk.NewCoin(validDenom, sdk.NewInt(99)),
 					BridgeFee:         sdk.NewCoin(validDenom, sdk.NewInt(1)),
 				}
