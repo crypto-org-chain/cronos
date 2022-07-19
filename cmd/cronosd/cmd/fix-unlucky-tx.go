@@ -447,7 +447,7 @@ func logTnxHash(txConfig client.TxConfig, result *abci.TxResult, action string) 
 
 func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader, concurrency int) (returnErr error) {
 	maxItemSize := int(64e6)
-	protoReader := protoio.NewDelimitedReader(reader, maxItemSize)
+	protoReader := NewDelimitedReader(reader, maxItemSize)
 	var err error
 
 	type importData struct {
@@ -528,7 +528,6 @@ func (db *tmDB) PatchFromImport(txConfig client.TxConfig, reader io.Reader, conc
 			}
 		}()
 	}
-
 	close(chData)
 	wg.Wait()
 	close(chError)
