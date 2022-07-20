@@ -240,8 +240,8 @@ schema = 3
     version = "v1.10.6"
     hash = "sha256-8EhFwY/9YH5L/fd6l2beOnC3VvpegRAmCCsnDVJBqBM="
   [mod."github.com/libp2p/go-buffer-pool"]
-    version = "v0.0.2"
-    hash = "sha256-dcgL4tAHDJsevnvwIAXZmtKqB9h4986go/Yn3IlfPAY="
+    version = "v0.1.0"
+    hash = "sha256-wQqGTtRWsfR9n0O/SXHVgECebbnNmHddxJIbG63OJBQ="
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="
@@ -369,9 +369,8 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.20-rc0.0.20220630153554-17f4ea3680de"
-    hash = "sha256-19B4E/sR9wX1jistbJUPo9H78jgQKT9ikkivTGT7Ce4="
-    replaced = "github.com/tendermint/tendermint"
+    version = "v0.34.20"
+    hash = "sha256-j1PyOLf8xG9BLtnmDWEagqWvOOi7248bvx4VmB5bu/c="
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
