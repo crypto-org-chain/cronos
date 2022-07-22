@@ -4,15 +4,24 @@ name: Run Lint
 # running if no *.{go, mod, sum} files have been changed.
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
   push:
+    paths-ignore:
+      - 'docs/**'
     branches:
       - main
+      - release/**
+
 jobs:
   golangci:
     name: Run golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
       - uses: actions/checkout@v2.3.4
       - uses: technote-space/get-diff-action@v5
         with:
@@ -20,10 +29,10 @@ jobs:
             .go
             .mod
             .sum
-      - uses: golangci/golangci-lint-action@v2.5.2
+      - uses: golangci/golangci-lint-action@v3
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.29
+          version: v1.45
           args: --timeout 10m
           github-token: ${{ secrets.GITHUB_TOKEN }}
         # Check only if there are differences in the source code

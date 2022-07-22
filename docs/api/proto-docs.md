@@ -17,6 +17,8 @@
     - [ContractByDenomResponse](#cronos.ContractByDenomResponse)
     - [DenomByContractRequest](#cronos.DenomByContractRequest)
     - [DenomByContractResponse](#cronos.DenomByContractResponse)
+    - [ReplayBlockRequest](#cronos.ReplayBlockRequest)
+    - [ReplayBlockResponse](#cronos.ReplayBlockResponse)
   
     - [Query](#cronos.Query)
   
@@ -29,6 +31,28 @@
     - [MsgUpdateTokenMappingResponse](#cronos.MsgUpdateTokenMappingResponse)
   
     - [Msg](#cronos.Msg)
+  
+- [icactl/v1/params.proto](#icactl/v1/params.proto)
+    - [Params](#cronos.icactl.v1.Params)
+  
+- [icactl/v1/genesis.proto](#icactl/v1/genesis.proto)
+    - [GenesisState](#cronos.icactl.v1.GenesisState)
+  
+- [icactl/v1/query.proto](#icactl/v1/query.proto)
+    - [QueryInterchainAccountAddressRequest](#cronos.icactl.v1.QueryInterchainAccountAddressRequest)
+    - [QueryInterchainAccountAddressResponse](#cronos.icactl.v1.QueryInterchainAccountAddressResponse)
+    - [QueryParamsRequest](#cronos.icactl.v1.QueryParamsRequest)
+    - [QueryParamsResponse](#cronos.icactl.v1.QueryParamsResponse)
+  
+    - [Query](#cronos.icactl.v1.Query)
+  
+- [icactl/v1/tx.proto](#icactl/v1/tx.proto)
+    - [MsgRegisterAccount](#cronos.icactl.v1.MsgRegisterAccount)
+    - [MsgRegisterAccountResponse](#cronos.icactl.v1.MsgRegisterAccountResponse)
+    - [MsgSubmitTx](#cronos.icactl.v1.MsgSubmitTx)
+    - [MsgSubmitTxResponse](#cronos.icactl.v1.MsgSubmitTxResponse)
+  
+    - [Msg](#cronos.icactl.v1.Msg)
   
 - [Scalar Value Types](#scalar-value-types)
 
@@ -202,6 +226,39 @@ DenomByContractResponse is the response type of DenomByContract call
 
 
 
+
+<a name="cronos.ReplayBlockRequest"></a>
+
+### ReplayBlockRequest
+ReplayBlockRequest
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `msgs` | [ethermint.evm.v1.MsgEthereumTx](#ethermint.evm.v1.MsgEthereumTx) | repeated | the eth messages in the block |
+| `block_number` | [int64](#int64) |  |  |
+| `block_hash` | [string](#string) |  |  |
+| `block_time` | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
+
+
+
+
+
+
+<a name="cronos.ReplayBlockResponse"></a>
+
+### ReplayBlockResponse
+ReplayBlockResponse
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `responses` | [ethermint.evm.v1.MsgEthereumTxResponse](#ethermint.evm.v1.MsgEthereumTxResponse) | repeated |  |
+
+
+
+
+
  <!-- end messages -->
 
  <!-- end enums -->
@@ -218,6 +275,7 @@ Query defines the gRPC querier service.
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
 | `ContractByDenom` | [ContractByDenomRequest](#cronos.ContractByDenomRequest) | [ContractByDenomResponse](#cronos.ContractByDenomResponse) | ContractByDenom queries contract addresses by native denom | GET|/cronos/v1/contract_by_denom/{denom}|
 | `DenomByContract` | [DenomByContractRequest](#cronos.DenomByContractRequest) | [DenomByContractResponse](#cronos.DenomByContractResponse) | DenomByContract queries native denom by contract address | GET|/cronos/v1/denom_by_contract/{contract}|
+| `ReplayBlock` | [ReplayBlockRequest](#cronos.ReplayBlockRequest) | [ReplayBlockResponse](#cronos.ReplayBlockResponse) | ReplayBlock replay the eth messages in the block to recover the results of false-failed txs. | |
 
  <!-- end services -->
 
@@ -326,6 +384,232 @@ Msg defines the Cronos Msg service
 | `ConvertVouchers` | [MsgConvertVouchers](#cronos.MsgConvertVouchers) | [MsgConvertVouchersResponse](#cronos.MsgConvertVouchersResponse) | ConvertVouchers defines a method for converting ibc voucher to cronos evm coins. | |
 | `TransferTokens` | [MsgTransferTokens](#cronos.MsgTransferTokens) | [MsgTransferTokensResponse](#cronos.MsgTransferTokensResponse) | TransferTokens defines a method to transfer cronos evm coins to another chain through IBC | |
 | `UpdateTokenMapping` | [MsgUpdateTokenMapping](#cronos.MsgUpdateTokenMapping) | [MsgUpdateTokenMappingResponse](#cronos.MsgUpdateTokenMappingResponse) | UpdateTokenMapping defines a method to update token mapping | |
+
+ <!-- end services -->
+
+
+
+<a name="icactl/v1/params.proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## icactl/v1/params.proto
+
+
+
+<a name="cronos.icactl.v1.Params"></a>
+
+### Params
+Params defines the parameters for the module.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `minTimeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | minTimeoutDuration defines the minimum value of packet timeout when submitting transactions to host chain on behalf of interchain account |
+
+
+
+
+
+ <!-- end messages -->
+
+ <!-- end enums -->
+
+ <!-- end HasExtensions -->
+
+ <!-- end services -->
+
+
+
+<a name="icactl/v1/genesis.proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## icactl/v1/genesis.proto
+
+
+
+<a name="cronos.icactl.v1.GenesisState"></a>
+
+### GenesisState
+GenesisState defines the icactl module's genesis state.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `params` | [Params](#cronos.icactl.v1.Params) |  | params defines the genesis parameters |
+
+
+
+
+
+ <!-- end messages -->
+
+ <!-- end enums -->
+
+ <!-- end HasExtensions -->
+
+ <!-- end services -->
+
+
+
+<a name="icactl/v1/query.proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## icactl/v1/query.proto
+
+
+
+<a name="cronos.icactl.v1.QueryInterchainAccountAddressRequest"></a>
+
+### QueryInterchainAccountAddressRequest
+QueryInterchainAccountAddressRequest defines the request for the InterchainAccountAddress query.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `connectionId` | [string](#string) |  |  |
+| `owner` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cronos.icactl.v1.QueryInterchainAccountAddressResponse"></a>
+
+### QueryInterchainAccountAddressResponse
+QueryInterchainAccountAddressResponse defines the response for the InterchainAccountAddress query.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `interchainAccountAddress` | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="cronos.icactl.v1.QueryParamsRequest"></a>
+
+### QueryParamsRequest
+QueryParamsRequest is request type for the Query/Params RPC method.
+
+
+
+
+
+
+<a name="cronos.icactl.v1.QueryParamsResponse"></a>
+
+### QueryParamsResponse
+QueryParamsResponse is response type for the Query/Params RPC method.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `params` | [Params](#cronos.icactl.v1.Params) |  | params holds all the parameters of this module. |
+
+
+
+
+
+ <!-- end messages -->
+
+ <!-- end enums -->
+
+ <!-- end HasExtensions -->
+
+
+<a name="cronos.icactl.v1.Query"></a>
+
+### Query
+Query defines the gRPC querier service.
+
+| Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
+| ----------- | ------------ | ------------- | ------------| ------- | -------- |
+| `Params` | [QueryParamsRequest](#cronos.icactl.v1.QueryParamsRequest) | [QueryParamsResponse](#cronos.icactl.v1.QueryParamsResponse) | Parameters queries the parameters of the module. | GET|/cronos/icactl/v1/params|
+| `InterchainAccountAddress` | [QueryInterchainAccountAddressRequest](#cronos.icactl.v1.QueryInterchainAccountAddressRequest) | [QueryInterchainAccountAddressResponse](#cronos.icactl.v1.QueryInterchainAccountAddressResponse) | InterchainAccountAddress queries the interchain account address for given `connectionId` and `owner` | GET|/cronos/icactl/v1/interchain_account_address/{connectionId}/{owner}|
+
+ <!-- end services -->
+
+
+
+<a name="icactl/v1/tx.proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## icactl/v1/tx.proto
+
+
+
+<a name="cronos.icactl.v1.MsgRegisterAccount"></a>
+
+### MsgRegisterAccount
+MsgRegisterAccount defines the request message for MsgRegisterAccount
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `owner` | [string](#string) |  | owner represents the owner of the interchain account |
+| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+
+
+
+
+
+
+<a name="cronos.icactl.v1.MsgRegisterAccountResponse"></a>
+
+### MsgRegisterAccountResponse
+MsgRegisterAccountResponse defines the response message for MsgRegisterAccount
+
+
+
+
+
+
+<a name="cronos.icactl.v1.MsgSubmitTx"></a>
+
+### MsgSubmitTx
+MsgSubmitTx defines the request message for MsgSubmitTx
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `owner` | [string](#string) |  | owner represents the owner of the interchain account |
+| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+| `msgs` | [google.protobuf.Any](#google.protobuf.Any) | repeated | msgs represents the transactions to be submitted to the host chain |
+| `timeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | timeoutDuration represents the timeout duration for the IBC packet from last block |
+
+
+
+
+
+
+<a name="cronos.icactl.v1.MsgSubmitTxResponse"></a>
+
+### MsgSubmitTxResponse
+MsgSubmitTxResponse defines the response message for MsgSubmitTx
+
+
+
+
+
+ <!-- end messages -->
+
+ <!-- end enums -->
+
+ <!-- end HasExtensions -->
+
+
+<a name="cronos.icactl.v1.Msg"></a>
+
+### Msg
+Msg defines the Msg service.
+
+| Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
+| ----------- | ------------ | ------------- | ------------| ------- | -------- |
+| `RegisterAccount` | [MsgRegisterAccount](#cronos.icactl.v1.MsgRegisterAccount) | [MsgRegisterAccountResponse](#cronos.icactl.v1.MsgRegisterAccountResponse) | RegisterAccount registers an interchain account on host chain with given `connectionId` | |
+| `SubmitTx` | [MsgSubmitTx](#cronos.icactl.v1.MsgSubmitTx) | [MsgSubmitTxResponse](#cronos.icactl.v1.MsgSubmitTxResponse) | SubmitTx submits a transaction to the host chain on behalf of interchain account | |
 
  <!-- end services -->
 

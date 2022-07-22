@@ -10,7 +10,6 @@ import (
 )
 
 func (suite *KeeperTestSuite) TestGetSourceChannelID() {
-
 	testCases := []struct {
 		name          string
 		ibcDenom      string
@@ -46,6 +45,7 @@ func (suite *KeeperTestSuite) TestGetSourceChannelID() {
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

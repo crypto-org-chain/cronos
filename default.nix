@@ -4,19 +4,19 @@
 , rocksdb ? null
 , db_backend ? "rocksdb"
 , network ? "mainnet"  # mainnet|testnet
+, rev ? "dirty"
 }:
 let
-  version = "dev";
+  version = "v0.8.0";
   pname = "cronosd";
-  tags = lib.concatStringsSep "," (
-    [ network ]
-    ++ lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
-  );
+  tags = [ "ledger" "netgo" network ]
+    ++ lib.lists.optional (db_backend == "rocksdb") "rocksdb";
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
-    "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${tags}"
+    "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${lib.concatStringsSep "," tags}"
+    "-X github.com/cosmos/cosmos-sdk/version.Commit=${rev}"
   ] ++ lib.lists.optionals (db_backend == "rocksdb") [
     "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
@@ -25,7 +25,7 @@ let
   ];
 in
 buildGoApplication rec {
-  inherit pname version buildInputs;
+  inherit pname version buildInputs tags ldflags;
   src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
@@ -40,9 +40,11 @@ buildGoApplication rec {
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
   CGO_ENABLED = "1";
-  buildFlags = "-tags=${tags}";
-  buildFlagsArray = ''
-    -ldflags=
-    ${ldflags}
-  '';
+
+  meta = with lib; {
+    description = "Official implementation of the Cronos blockchain protocol";
+    homepage = "https://cronos.org/";
+    license = licenses.asl20;
+    mainProgram = "cronosd";
+  };
 }

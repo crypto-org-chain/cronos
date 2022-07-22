@@ -92,3 +92,8 @@ $ pytest -k cronos
 $ # run against geth only
 $ pytest -k geth
 ```
+
+### Print `test config`
+```shell
+$ jsonnet integration_tests/configs/default.jsonnet | yq -P 
+```

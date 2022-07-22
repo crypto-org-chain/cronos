@@ -7,23 +7,26 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/x/gravity/types"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
 var (
 	_ types.EvmLogHandler = SendToAccountHandler{}
-	_ types.EvmLogHandler = SendToEthereumHandler{}
+	_ types.EvmLogHandler = SendToChainHandler{}
+	_ types.EvmLogHandler = CancelSendToChainHandler{}
 	_ types.EvmLogHandler = SendToIbcHandler{}
 	_ types.EvmLogHandler = SendCroToIbcHandler{}
 )
 
 const (
-	SendToAccountEventName  = "__CronosSendToAccount"
-	SendToEthereumEventName = "__CronosSendToEthereum"
-	SendToIbcEventName      = "__CronosSendToIbc"
-	SendCroToIbcEventName   = "__CronosSendCroToIbc"
+	SendToAccountEventName       = "__CronosSendToAccount"
+	SendToChainEventName         = "__CronosSendToChain"
+	SendToChainResponseEventName = "__CronosSendToChainResponse"
+	CancelSendToChainEventName   = "__CronosCancelSendToChain"
+	SendToIbcEventName           = "__CronosSendToIbc"
+	SendCroToIbcEventName        = "__CronosSendCroToIbc"
 )
 
 var (
@@ -31,9 +34,17 @@ var (
 	// `event __CronosSendToAccount(address recipient, uint256 amount)`
 	SendToAccountEvent abi.Event
 
-	// SendToEthereumEvent represent the signature of
-	// `event __CronosSendToEthereum(address recipient, uint256 amount, uint256 bridge_fee)`
-	SendToEthereumEvent abi.Event
+	// SendToChainEvent represent the signature of
+	// `event __CronosSendToChain(address recipient, uint256 amount, uint256 bridge_fee)`
+	SendToChainEvent abi.Event
+
+	// SendToChainResponseEvent represent the signature of
+	// `event __CronosSendToChainResponse(uint256 id)`
+	SendToChainResponseEvent abi.Event
+
+	// CancelSendToChainEvent represent the signature of
+	// `event __CronosCancelSendToChain(uint256 id)`
+	CancelSendToChainEvent abi.Event
 
 	// SendToIbcEvent represent the signature of
 	// `event __CronosSendToIbc(string recipient, uint256 amount)`
@@ -62,11 +73,15 @@ func init() {
 			Indexed: false,
 		}},
 	)
-	SendToEthereumEvent = abi.NewEvent(
-		SendToEthereumEventName,
-		SendToEthereumEventName,
+	SendToChainEvent = abi.NewEvent(
+		SendToChainEventName,
+		SendToChainEventName,
 		false,
 		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
 			Name:    "recipient",
 			Type:    addressType,
 			Indexed: false,
@@ -76,6 +91,34 @@ func init() {
 			Indexed: false,
 		}, abi.Argument{
 			Name:    "bridge_fee",
+			Type:    uint256Type,
+			Indexed: false,
+		}, abi.Argument{
+			Name:    "chain_id",
+			Type:    uint256Type,
+			Indexed: false,
+		}},
+	)
+	SendToChainResponseEvent = abi.NewEvent(
+		SendToChainResponseEventName,
+		SendToChainResponseEventName,
+		false,
+		abi.Arguments{abi.Argument{
+			Name:    "id",
+			Type:    uint256Type,
+			Indexed: false,
+		}},
+	)
+	CancelSendToChainEvent = abi.NewEvent(
+		CancelSendToChainEventName,
+		CancelSendToChainEventName,
+		false,
+		abi.Arguments{abi.Argument{
+			Name:    "sender",
+			Type:    addressType,
+			Indexed: false,
+		}, abi.Argument{
+			Name:    "id",
 			Type:    uint256Type,
 			Indexed: false,
 		}},
@@ -135,7 +178,12 @@ func (h SendToAccountHandler) EventID() common.Hash {
 	return SendToAccountEvent.ID
 }
 
-func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendToAccountHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendToAccountEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -159,30 +207,37 @@ func (h SendToAccountHandler) Handle(ctx sdk.Context, contract common.Address, d
 	return nil
 }
 
-// SendToEthereumHandler handles `__CronosSendToEthereum` log
-type SendToEthereumHandler struct {
+// SendToChainHandler handles `__CronosSendToChain` log
+type SendToChainHandler struct {
 	gravitySrv   gravitytypes.MsgServer
+	bankKeeper   types.BankKeeper
 	cronosKeeper Keeper
 }
 
-func NewSendToEthereumHandler(gravitySrv gravitytypes.MsgServer, cronosKeeper Keeper) *SendToEthereumHandler {
-	return &SendToEthereumHandler{
+func NewSendToChainHandler(gravitySrv gravitytypes.MsgServer, bankKeeper types.BankKeeper, cronosKeeper Keeper) *SendToChainHandler {
+	return &SendToChainHandler{
 		gravitySrv:   gravitySrv,
+		bankKeeper:   bankKeeper,
 		cronosKeeper: cronosKeeper,
 	}
 }
 
-func (h SendToEthereumHandler) EventID() common.Hash {
-	return SendToEthereumEvent.ID
+func (h SendToChainHandler) EventID() common.Hash {
+	return SendToChainEvent.ID
 }
 
-// Handle `__CronosSendToEthereum` log only if gravity is activated.
-func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+// Handle `__CronosSendToChain` log only if gravity is activated.
+func (h SendToChainHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	if h.gravitySrv == nil {
-		return fmt.Errorf("native action %s is not implemented", SendToEthereumEventName)
+		return fmt.Errorf("native action %s is not implemented", SendToChainEventName)
 	}
 
-	unpacked, err := SendToEthereumEvent.Inputs.Unpack(data)
+	unpacked, err := SendToChainEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
@@ -198,17 +253,118 @@ func (h SendToEthereumHandler) Handle(ctx sdk.Context, contract common.Address, 
 		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
 	}
 
-	contractAddr := sdk.AccAddress(contract.Bytes())
-	ethRecipient := unpacked[0].(common.Address)
-	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
-	bridgeFee := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
+	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	ethRecipient := unpacked[1].(common.Address)
+	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	bridgeFee := sdk.NewIntFromBigInt(unpacked[3].(*big.Int))
+	chainID := sdk.NewIntFromBigInt(unpacked[4].(*big.Int))
+
+	if !chainID.Equal(sdk.NewInt(1)) && !chainID.Equal(sdk.NewInt(3)) &&
+		!chainID.Equal(sdk.NewInt(4)) && !chainID.Equal(sdk.NewInt(5)) {
+		return fmt.Errorf("only ethereum network is not supported")
+	}
+
+	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
+	// First, transfer the coin to user so that he will be able to cancel later on
+	if err = h.bankKeeper.SendCoins(ctx, contractCosmosAddr, senderCosmosAddr.Bytes(), coins); err != nil {
+		return err
+	}
+
+	// Initialize a gravity transfer
 	msg := gravitytypes.MsgSendToEthereum{
-		Sender:            contractAddr.String(),
+		Sender:            senderCosmosAddr.String(),
 		EthereumRecipient: ethRecipient.Hex(),
 		Amount:            sdk.NewCoin(denom, amount),
 		BridgeFee:         sdk.NewCoin(denom, bridgeFee),
 	}
-	_, err = h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
+	resp, err := h.gravitySrv.SendToEthereum(sdk.WrapSDKContext(ctx), &msg)
+	if err != nil {
+		return err
+	}
+
+	logData, _ := SendToChainResponseEvent.Inputs.Pack(big.NewInt(int64(resp.Id)))
+	addLogToReceipt(contract, SendToChainResponseEvent.ID, logData)
+	return nil
+}
+
+// CancelSendToChainHandler handles `__CronosCancelSendToChain` log
+type CancelSendToChainHandler struct {
+	gravitySrv    gravitytypes.MsgServer
+	cronosKeeper  Keeper
+	gravityKeeper types.GravityKeeper
+}
+
+func NewCancelSendToChainHandler(
+	gravitySrv gravitytypes.MsgServer,
+	cronosKeeper Keeper,
+	gravityKeeper types.GravityKeeper,
+) *CancelSendToChainHandler {
+	return &CancelSendToChainHandler{
+		gravitySrv:    gravitySrv,
+		cronosKeeper:  cronosKeeper,
+		gravityKeeper: gravityKeeper,
+	}
+}
+
+func (h CancelSendToChainHandler) EventID() common.Hash {
+	return CancelSendToChainEvent.ID
+}
+
+// Handle `__CronosCancelSendToChain` log only if gravity is activated.
+func (h CancelSendToChainHandler) Handle(
+	ctx sdk.Context,
+	_ common.Address,
+	data []byte,
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
+	if h.gravitySrv == nil {
+		return fmt.Errorf("native action %s is not implemented", CancelSendToChainEventName)
+	}
+
+	unpacked, err := CancelSendToChainEvent.Inputs.Unpack(data)
+	if err != nil {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		return nil
+	}
+
+	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
+	id := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+
+	// Need to retrieve the batch to get the amount to refund
+	var unbatched []*gravitytypes.SendToEthereum
+	h.gravityKeeper.IterateUnbatchedSendToEthereums(ctx, func(ste *gravitytypes.SendToEthereum) bool {
+		unbatched = append(unbatched, ste)
+		return false
+	})
+
+	var send *gravitytypes.SendToEthereum
+	for _, ste := range unbatched {
+		if ste.Id == id.Uint64() {
+			send = ste
+		}
+	}
+	if send == nil {
+		return fmt.Errorf("id not found or the transaction is already included in a batch")
+	}
+
+	_, denom := h.gravityKeeper.ERC20ToDenomLookup(ctx, common.HexToAddress(send.Erc20Token.Contract))
+	if !types.IsValidGravityDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", send.Erc20Token.Contract)
+	}
+
+	msg := gravitytypes.MsgCancelSendToEthereum{
+		Sender: senderCosmosAddr.String(),
+		Id:     id.Uint64(),
+	}
+	_, err = h.gravitySrv.CancelSendToEthereum(sdk.WrapSDKContext(ctx), &msg)
+	if err != nil {
+		return err
+	}
+	refundAmount := sdk.NewCoins(sdk.NewCoin(denom, send.Erc20Token.Amount.Add(send.Erc20Fee.Amount)))
+	// If cancel has no error, we need to convert back the native token to evm tokens
+	err = h.cronosKeeper.ConvertVouchersToEvmCoins(ctx, senderCosmosAddr.String(), refundAmount)
 	if err != nil {
 		return err
 	}
@@ -232,7 +388,12 @@ func (h SendToIbcHandler) EventID() common.Hash {
 	return SendToIbcEvent.ID
 }
 
-func (h SendToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendToIbcHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -283,7 +444,12 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 	return SendCroToIbcEvent.ID
 }
 
-func (h SendCroToIbcHandler) Handle(ctx sdk.Context, contract common.Address, data []byte) error {
+func (h SendCroToIbcHandler) Handle(
+	ctx sdk.Context,
+	contract common.Address,
+	data []byte,
+	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
+) error {
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore

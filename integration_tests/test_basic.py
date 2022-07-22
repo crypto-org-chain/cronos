@@ -1,6 +1,5 @@
 import concurrent.futures
 import json
-import tempfile
 import time
 from pathlib import Path
 
@@ -17,11 +16,15 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    build_batch_tx,
     contract_address,
     contract_path,
     deploy_contract,
+    get_receipts_by_block,
+    modify_command_in_supervisor_config,
     send_transaction,
     sign_transaction,
+    supervisorctl,
     wait_for_block,
     wait_for_port,
 )
@@ -331,10 +334,10 @@ def test_transaction(cronos):
     with concurrent.futures.ThreadPoolExecutor(4) as executor:
         futures = []
         futures.append(
-            executor.submit(contracts["test_revert_1"].transfer, 5 * (10 ** 18) - 1)
+            executor.submit(contracts["test_revert_1"].transfer, 5 * (10**18) - 1)
         )
         futures.append(
-            executor.submit(contracts["test_revert_2"].transfer, 5 * (10 ** 18))
+            executor.submit(contracts["test_revert_2"].transfer, 5 * (10**18))
         )
         futures.append(executor.submit(contracts["greeter_1"].transfer, "hello"))
         futures.append(executor.submit(contracts["greeter_2"].transfer, "world"))
@@ -400,15 +403,15 @@ def test_exception(cluster):
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
-            w3, contract.functions.transfer(5 * (10 ** 18) - 1).buildTransaction()
+            w3, contract.functions.transfer(5 * (10**18) - 1).buildTransaction()
         )
     assert 0 == contract.caller.query()
 
     receipt = send_transaction(
-        w3, contract.functions.transfer(5 * (10 ** 18)).buildTransaction()
+        w3, contract.functions.transfer(5 * (10**18)).buildTransaction()
     )
     assert receipt.status == 1, "should be succesfully"
-    assert 5 * (10 ** 18) == contract.caller.query()
+    assert 5 * (10**18) == contract.caller.query()
 
 
 def test_message_call(cronos):
@@ -462,10 +465,11 @@ def test_suicide(cluster):
 def test_batch_tx(cronos):
     "send multiple eth txs in single cosmos tx"
     w3 = cronos.w3
+    cli = cronos.cosmos_cli()
     sender = ADDRS["validator"]
     recipient = ADDRS["community"]
     nonce = w3.eth.get_transaction_count(sender)
-    info = json.load(open(CONTRACTS["TestERC20Utility"]))
+    info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
     deploy_tx = contract.constructor().buildTransaction(
         {"from": sender, "nonce": nonce}
@@ -478,51 +482,13 @@ def test_batch_tx(cronos):
         {"from": sender, "nonce": nonce + 2, "gas": 200000}
     )
 
-    signed_txs = [
-        sign_transaction(w3, deploy_tx, KEYS["validator"]),
-        sign_transaction(w3, transfer_tx1, KEYS["validator"]),
-        sign_transaction(w3, transfer_tx2, KEYS["validator"]),
-    ]
-    tmp_txs = [
-        cronos.cosmos_cli().build_evm_tx(signed.rawTransaction.hex())
-        for signed in signed_txs
-    ]
+    cosmos_tx, tx_hashes = build_batch_tx(
+        w3, cli, [deploy_tx, transfer_tx1, transfer_tx2]
+    )
+    rsp = cli.broadcast_tx_json(cosmos_tx)
+    assert rsp["code"] == 0, rsp["raw_log"]
 
-    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
-    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
-    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
-
-    # build batch cosmos tx
-    cosmos_tx = {
-        "body": {
-            "messages": msgs,
-            "memo": "",
-            "timeout_height": "0",
-            "extension_options": [
-                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
-            ],
-            "non_critical_extension_options": [],
-        },
-        "auth_info": {
-            "signer_infos": [],
-            "fee": {
-                "amount": [{"denom": "basetcro", "amount": str(fee)}],
-                "gas_limit": str(gas_limit),
-                "payer": "",
-                "granter": "",
-            },
-        },
-        "signatures": [],
-    }
-    with tempfile.NamedTemporaryFile("w") as fp:
-        json.dump(cosmos_tx, fp)
-        fp.flush()
-        rsp = cronos.cosmos_cli().broadcast_tx(fp.name)
-        assert rsp["code"] == 0, rsp["raw_log"]
-
-    receipts = [
-        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
-    ]
+    receipts = [w3.eth.wait_for_transaction_receipt(h) for h in tx_hashes]
 
     assert 2000 == contract.caller.balanceOf(recipient)
 
@@ -546,10 +512,8 @@ def test_batch_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [signed.hash.hex()])[
-            "result"
-        ]
-        for signed in signed_txs
+        w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
+        for h in tx_hashes
     ]
 
     for rsp, receipt in zip(rsps, receipts):
@@ -560,8 +524,66 @@ def test_batch_tx(cronos):
     txs = [
         w3.eth.get_transaction_by_block(receipts[0].blockNumber, i) for i in range(3)
     ]
-    for tx, signed in zip(txs, signed_txs):
-        assert tx.hash == signed.hash
+    for tx, h in zip(txs, tx_hashes):
+        assert tx.hash == h
+
+    # check getBlock
+    txs = w3.eth.get_block(receipts[0].blockNumber, True).transactions
+    for i in range(3):
+        assert txs[i].transactionIndex == i
+
+
+def test_failed_transfer_tx(cronos):
+    """
+    It's possible to include a failed transfer transaction in batch tx
+    """
+    w3 = cronos.w3
+    cli = cronos.cosmos_cli()
+    sender = ADDRS["community"]
+    recipient = ADDRS["validator"]
+    nonce = w3.eth.get_transaction_count(sender)
+    half_balance = w3.eth.get_balance(sender) // 3 + 1
+
+    # build batch tx, the third tx will fail, but will be included in block
+    # because of the batch tx.
+    transfer1 = {"from": sender, "nonce": nonce, "to": recipient, "value": half_balance}
+    transfer2 = {
+        "from": sender,
+        "nonce": nonce + 1,
+        "to": recipient,
+        "value": half_balance,
+    }
+    transfer3 = {
+        "from": sender,
+        "nonce": nonce + 2,
+        "to": recipient,
+        "value": half_balance,
+    }
+    cosmos_tx, tx_hashes = build_batch_tx(
+        w3, cli, [transfer1, transfer2, transfer3], KEYS["community"]
+    )
+    rsp = cli.broadcast_tx_json(cosmos_tx)
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    receipts = [w3.eth.wait_for_transaction_receipt(h) for h in tx_hashes]
+    assert receipts[0].status == receipts[1].status == 1
+    assert receipts[2].status == 0
+
+    # test the cronos_getTransactionReceiptsByBlock api
+    rsp = get_receipts_by_block(w3, receipts[0].blockNumber)
+    assert "error" not in rsp, rsp["error"]
+    assert len(receipts) == len(rsp["result"])
+    for a, b in zip(receipts, rsp["result"]):
+        assert a == b
+
+    # check traceTransaction
+    rsps = [
+        w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
+        for h in tx_hashes
+    ]
+    for rsp, receipt in zip(rsps, receipts):
+        assert receipt.status == (not rsp["failed"])
+        assert receipt.gasUsed == rsp["gas"]
 
 
 def test_log0(cluster):
@@ -598,3 +620,73 @@ def test_contract(cronos):
     # call contract
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
+
+
+@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000])
+def test_tx_inclusion(cronos, max_gas_wanted):
+    """
+    - send multiple heavy transactions at the same time.
+    - check they are included in consecutively blocks without failure.
+
+    test against different max-gas-wanted configuration.
+    """
+    modify_command_in_supervisor_config(
+        cronos.base_dir / "tasks.ini",
+        lambda cmd: f"{cmd} --evm.max-tx-gas-wanted {max_gas_wanted}",
+    )
+    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+
+    w3 = cronos.w3
+    block_gas_limit = 81500000
+    tx_gas_limit = 80000000
+    max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
+    print("max_tx_in_block", max_tx_in_block)
+    amount = 1000
+    # use different sender accounts to be able be send concurrently
+    signed_txs = []
+    for account in ["validator", "community", "signer1", "signer2"]:
+        signed_txs.append(
+            sign_transaction(
+                w3,
+                {
+                    "to": ADDRS["validator"],
+                    "value": amount,
+                    "gas": tx_gas_limit,
+                },
+                KEYS[account],
+            )
+        )
+
+    for signed in signed_txs:
+        w3.eth.send_raw_transaction(signed.rawTransaction)
+
+    receipts = [
+        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
+    ]
+
+    # the transactions should be included according to max_gas_wanted
+    if max_tx_in_block == 1:
+        for receipt, next_receipt in zip(receipts, receipts[1:]):
+            assert next_receipt.blockNumber == receipt.blockNumber + 1
+    elif max_tx_in_block == 2:
+        assert receipts[0].blockNumber == receipts[1].blockNumber
+        assert (
+            receipts[2].blockNumber
+            == receipts[3].blockNumber
+            == receipts[0].blockNumber + 1
+        )
+    elif max_tx_in_block == 3:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+        )
+        assert receipts[3].blockNumber == receipts[0].blockNumber + 1
+    else:
+        assert (
+            receipts[0].blockNumber
+            == receipts[1].blockNumber
+            == receipts[2].blockNumber
+            == receipts[3].blockNumber
+        )

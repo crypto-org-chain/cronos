@@ -1,6 +1,7 @@
 import configparser
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -16,7 +17,9 @@ from dotenv import load_dotenv
 from eth_account import Account
 from hexbytes import HexBytes
 from pystarport import ledger
+from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
+from web3.datastructures import AttributeDict
 
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
@@ -30,13 +33,14 @@ KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
 TEST_CONTRACTS = {
-    "Gravity": "Gravity.sol",
+    "CronosGravity": "CronosGravity.sol",
     "Greeter": "Greeter.sol",
     "TestERC20A": "TestERC20A.sol",
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
     "CroBridge": "CroBridge.sol",
+    "CronosGravityCancellation": "CronosGravityCancellation.sol",
 }
 
 
@@ -52,13 +56,15 @@ def contract_path(name, filename):
 CONTRACTS = {
     "ModuleCRC20": Path(__file__).parent.parent
     / "x/cronos/types/contracts/ModuleCRC20.json",
+    "ModuleCRC21": Path(__file__).parent.parent
+    / "x/cronos/types/contracts/ModuleCRC21.json",
     **{
         name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
     },
 }
 
 
-def wait_for_fn(name, fn, *, timeout=120, interval=1):
+def wait_for_fn(name, fn, *, timeout=240, interval=1):
     for i in range(int(timeout / interval)):
         result = fn()
         print("check", name, result)
@@ -85,10 +91,10 @@ def wait_for_block(cli, height, timeout=240):
         raise TimeoutError(f"wait for block {height} timeout")
 
 
-def wait_for_new_blocks(cli, n):
+def wait_for_new_blocks(cli, n, sleep=0.5):
     begin_height = int((cli.status())["SyncInfo"]["latest_block_height"])
     while True:
-        time.sleep(0.5)
+        time.sleep(sleep)
         cur_height = int((cli.status())["SyncInfo"]["latest_block_height"])
         if cur_height - begin_height >= n:
             break
@@ -234,7 +240,7 @@ def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
 
 def add_ini_sections(inipath, sections):
     ini = configparser.RawConfigParser()
-    ini.read_file(inipath.open())
+    ini.read(inipath)
     for name, value in sections.items():
         ini.add_section(name)
         ini[name].update(value)
@@ -254,7 +260,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     deploy contract and return the deployed contract instance
     """
     acct = Account.from_key(key)
-    info = json.load(open(jsonfile))
+    info = json.loads(jsonfile.read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
     tx = contract.constructor(*args).buildTransaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
@@ -379,3 +385,62 @@ class RevertTestContract(Contract):
         )
         receipt = send_transaction(self.w3, transaction, self.private_key)
         return receipt
+
+
+def modify_command_in_supervisor_config(ini: Path, fn, **kwargs):
+    "replace the first node with the instrumented binary"
+    ini.write_text(
+        re.sub(
+            r"^command = (cronosd .*$)",
+            lambda m: f"command = {fn(m.group(1))}",
+            ini.read_text(),
+            flags=re.M,
+            **kwargs,
+        )
+    )
+
+
+def build_batch_tx(w3, cli, txs, key=KEYS["validator"]):
+    "return cosmos batch tx and eth tx hashes"
+    signed_txs = [sign_transaction(w3, tx, key) for tx in txs]
+    tmp_txs = [cli.build_evm_tx(signed.rawTransaction.hex()) for signed in signed_txs]
+
+    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
+    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
+    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
+
+    tx_hashes = [signed.hash for signed in signed_txs]
+
+    # build batch cosmos tx
+    return {
+        "body": {
+            "messages": msgs,
+            "memo": "",
+            "timeout_height": "0",
+            "extension_options": [
+                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
+            ],
+            "non_critical_extension_options": [],
+        },
+        "auth_info": {
+            "signer_infos": [],
+            "fee": {
+                "amount": [{"denom": "basetcro", "amount": str(fee)}],
+                "gas_limit": str(gas_limit),
+                "payer": "",
+                "granter": "",
+            },
+        },
+        "signatures": [],
+    }, tx_hashes
+
+
+def get_receipts_by_block(w3, blk):
+    if isinstance(blk, int):
+        blk = hex(blk)
+    rsp = w3.provider.make_request("cronos_getTransactionReceiptsByBlock", [blk])
+    if "error" not in rsp:
+        rsp["result"] = [
+            AttributeDict(receipt_formatter(item)) for item in rsp["result"]
+        ]
+    return rsp

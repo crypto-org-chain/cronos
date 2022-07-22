@@ -1,4 +1,16 @@
 {
+    "chain-main": {
+        "branch": "master",
+        "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
+        "homepage": "https://crypto.org",
+        "owner": "crypto-org-chain",
+        "repo": "chain-main",
+        "rev": "a7ac0c321e98b93c3bcfa4c98a69c313183190d8",
+        "sha256": "05ylri22w49i8r0z6zyb446jbs5wvm8y51gf21yl4ysqj65ad054",
+        "type": "tarball",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/a7ac0c321e98b93c3bcfa4c98a69c313183190d8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "cosmos-sdk": {
         "branch": "v0.45.0",
         "description": ":chains: A Framework for Building High Value Public Blockchains :sparkles:",
@@ -24,28 +36,40 @@
         "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
         "version": "hevm/0.49.0"
     },
+    "flake-compat": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "b4a34015c698c7793d592d66adbab377907a2be8",
+        "sha256": "1qc703yg0babixi6wshn5wm2kgl5y1drcswgszh4xxzbrwkk9sv7",
+        "type": "tarball",
+        "url": "https://github.com/edolstra/flake-compat/archive/b4a34015c698c7793d592d66adbab377907a2be8.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "gomod2nix": {
         "branch": "master",
         "description": "Convert applications using Go modules to Nix expressions",
         "homepage": null,
         "owner": "tweag",
         "repo": "gomod2nix",
-        "rev": "fc5adcc53031c5a3934500a57896a840a2bd073d",
-        "sha256": "1af8sg6lfzxvhha8rbcaklihdm0q2dy4jgnjax1b4914qzfphcb6",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
+        "sha256": "0li17ynbg2wg0xqy655m5rmcw905sbv7d4ir35z7s5pg1yhhzxkp",
         "type": "tarball",
-        "url": "https://github.com/tweag/gomod2nix/archive/fc5adcc53031c5a3934500a57896a840a2bd073d.tar.gz",
+        "url": "https://github.com/tweag/gomod2nix/archive/40d32f82fc60d66402eb0972e6e368aeab3faf58.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "v0.3.8-cronos",
+        "branch": "v2.0.0-cronos",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "9f78dd2e4a57deaf4a886c5a2fb3f7796402647e",
-        "sha256": "0xmv46l1b9bfcp8ym6mf7d3dszh7yqgqlklf98wvp21viv26ci91",
+        "rev": "e7f0bdfe6de37ab078193d2d7e18b8db48b477fb",
+        "sha256": "0hpl2dm9mz6ic41h4lc7k2s2prmzip1cd9bbfsy7624ycl1hkc07",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/9f78dd2e4a57deaf4a886c5a2fb3f7796402647e.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/e7f0bdfe6de37ab078193d2d7e18b8db48b477fb.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -61,52 +85,27 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "release-21.11",
+        "branch": "master",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "d2f47b7dcd558a7727606319fd8661a4c3311b4a",
-        "sha256": "1kkykw8i80jcnw6iz7a4kndia3fig53jm1kzqi4xbfgxamfwqnzb",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
+        "sha256": "1lsa3sjwp1v3nv2jjpkl5lf9dncplwihmavasalg9fq1217pmzmb",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/d2f47b7dcd558a7727606319fd8661a4c3311b4a.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/f904e3562aabca382d12f8471ca2330b3f82899a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "poetry2nix": {
-        "branch": "master",
-        "description": "Convert poetry projects to nix automagically [maintainer=@adisbladis] ",
-        "homepage": "",
-        "owner": "nix-community",
-        "repo": "poetry2nix",
-        "rev": "302a559a298ba39a0bec53f46479da9c5b2558cd",
-        "sha256": "0lqvkyw9qw4rmqd5cv4l67vvj7ngbqpg2jxanxrddn6npjmmlv0j",
-        "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/302a559a298ba39a0bec53f46479da9c5b2558cd.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "pystarport": {
-        "branch": "main",
-        "description": "pystarport setup and run local devnet for cosmos like blockchains",
-        "homepage": null,
-        "owner": "crypto-com",
-        "repo": "pystarport",
-        "rev": "5a2732f7de8dc3db23e44db1cb332926741222c4",
-        "sha256": "0wqkkr7flhvmczw1y2y0v698ywnq6b6rfwhx58r1zg7nwyla32hm",
-        "type": "tarball",
-        "url": "https://github.com/crypto-com/pystarport/archive/5a2732f7de8dc3db23e44db1cb332926741222c4.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
-        "version": "v0.2.3"
     },
     "rocksdb": {
-        "branch": "v6.27.3",
+        "branch": "v6.29.5",
         "description": "A library that provides an embeddable, persistent key-value store for fast storage.",
         "homepage": "http://rocksdb.org",
         "owner": "facebook",
         "repo": "rocksdb",
-        "rev": "fcf3d75f3f022a6a55ff1222d6b06f8518d38c7c",
-        "sha256": "1lyqjkja5ig83q6cznnrhv76nrm3sqgrgvwx78pmbsndzddw2yxk",
+        "rev": "da11a59034584ea2d0911268b8136e5249d6b692",
+        "sha256": "1fr3lhkakjrplgmms07amrxfiasz1b4vl2rppgx50k8gcy0p1awv",
         "type": "tarball",
-        "url": "https://github.com/facebook/rocksdb/archive/fcf3d75f3f022a6a55ff1222d6b06f8518d38c7c.tar.gz",
+        "url": "https://github.com/facebook/rocksdb/archive/da11a59034584ea2d0911268b8136e5249d6b692.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

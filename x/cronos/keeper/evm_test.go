@@ -5,14 +5,14 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
 func (suite *KeeperTestSuite) TestDeployContract() {
 	suite.SetupTest()
 	keeper := suite.app.CronosKeeper
 
-	_, err := keeper.DeployModuleCRC20(suite.ctx, "test")
+	_, err := keeper.DeployModuleCRC21(suite.ctx, "test")
 	suite.Require().NoError(err)
 }
 

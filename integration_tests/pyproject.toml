@@ -8,10 +8,10 @@ authors = ["chain-dev <chain@crypto.com>"]
 python = "^3.8"
 pytest = "^7.0.1"
 pytest-github-actions-annotate-failures = "^0.1.1"
-flake8 = "^3.8.4"
-black = "^20.8b1"
-flake8-black = "^0.2.1"
-flake8-isort = "^4.0.0"
+flake8 = "^4.0.1"
+black = "^22.3.0"
+flake8-black = "^0.3.2"
+flake8-isort = "^4.1.1"
 pep8-naming = "^0.11.1"
 protobuf = "^3.13.0"
 grpcio = "^1.33.2"
@@ -20,8 +20,11 @@ python-dateutil = "^2.8.1"
 web3 = "^5.20.1"
 eth-bloom = "^1.0.4"
 python-dotenv = "^0.19.2"
-pystarport = "^0.2.3"
+pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 websockets = "^9.1"
+toml = "^0.10.2"
+pysha3 = "^1.0.2"
+jsonnet = "^0.18.0"
 
 [tool.poetry.dev-dependencies]
 

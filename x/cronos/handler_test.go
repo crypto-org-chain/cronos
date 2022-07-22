@@ -12,9 +12,9 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	"github.com/tharsis/ethermint/crypto/ethsecp256k1"
 )
 
 type CronosTestSuite struct {
@@ -38,7 +38,6 @@ func (suite *CronosTestSuite) SetupTest() {
 	suite.app = app.Setup(false, suite.address.String(), true)
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
 	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
-
 }
 
 func (suite *CronosTestSuite) TestInvalidMsg() {

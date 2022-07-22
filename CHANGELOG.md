@@ -1,6 +1,23 @@
 # Changelog
 
-*January 21, 2022*
+## Unreleased
+
+### State Machine Breaking
+- [cronos#429](https://github.com/crypto-org-chain/cronos/pull/429) Update ethermint to main, ibc-go to v3.0.0, cosmos sdk to v0.45.4 and gravity to latest, remove v0.7.0 related upgradeHandler.
+- [cronos#532](https://github.com/crypto-org-chain/cronos/pull/532) Add SendtoChain and CancelSendToChain support from evm call.
+
+### Bug Fixes
+
+- [cronos#502](https://github.com/crypto-org-chain/cronos/pull/502) Fix failed tx are ignored in json-rpc apis.
+- [cronos#556](https://github.com/crypto-org-chain/cronos/pull/556) Bump gravity bridge module version to include bugfixes (including grpc endpoint)
+
+### Improvements
+- [cronos#418](https://github.com/crypto-org-chain/cronos/pull/418) Support logs in evm-hooks and return id for SendToEthereum events
+- [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
+- [cronos#511](https://github.com/crypto-org-chain/cronos/pull/511) Replace ibc-hook with ibc middleware, use ibc-go upstream version.
+- [cronos#550](https://github.com/crypto-org-chain/cronos/pull/550) Support basic json-rpc apis on pruned nodes.
+
+*May 3, 2022*
 
 ## v0.7.0
 
@@ -24,6 +41,7 @@
 - [cronos#322](https://github.com/crypto-org-chain/cronos/pull/322) Merge min-gas-price change in ethermint: don't check min-gas-price for EVM tx when feemarket enabled.
 - [cronos#345](https://github.com/crypto-org-chain/cronos/pull/345) disable the url query parameter in swagger-ui.
 - [cronos#328](https://github.com/crypto-org-chain/cronos/pull/328) display detail panic information in query result when `--trace` enabled.
+- [cronos#441](https://github.com/crypto-org-chain/cronos/pull/441) Update cosmos-sdk to `v0.45.4`
 
 ### Bug Fixes
 - [cronos#287](https://github.com/crypto-org-chain/cronos/pull/287) call upgrade handler before sealing app
@@ -33,6 +51,7 @@
 - [cronos#340](https://github.com/crypto-org-chain/cronos/pull/340) Update dependencies to include several bug fixes: a) fix subscription deadlock issue in ethermint, b) fix data races `traceContext`.
 - [cronos#370](https://github.com/crypto-org-chain/cronos/pull/370) Update ethermint to fix a websocket bug, add websockets integration tests.
 - [cronos#378](https://github.com/crypto-org-chain/cronos/pull/378) Backport recent ethermint bug fixes: a) fix tx inclusion issue by report correct gasWanted of eth tx, b) Add buffer to eth_gasPrice response to fix client UX, c) Quick fix for eth_feeHistory when reward is nil, d) add returnValue message on tracing.
+- [cronos#446](https://github.com/crypto-org-chain/cronos/pull/446) Fix failure of query legacy block after upgrade.
 
 *December 10, 2021*
 

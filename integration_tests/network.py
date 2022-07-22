@@ -2,7 +2,6 @@ import json
 import os
 import signal
 import subprocess
-import time
 from pathlib import Path
 
 import tomlkit
@@ -18,10 +17,10 @@ class Cronos:
     def __init__(self, base_dir):
         self._w3 = None
         self.base_dir = base_dir
-        self.config = json.load(open(base_dir / "config.json"))
-        self.enable_auto_deployment = json.load(open(base_dir / "genesis.json"))[
-            "app_state"
-        ]["cronos"]["params"]["enable_auto_deployment"]
+        self.config = json.loads((base_dir / "config.json").read_text())
+        self.enable_auto_deployment = json.loads(
+            (base_dir / "genesis.json").read_text()
+        )["app_state"]["cronos"]["params"]["enable_auto_deployment"]
         self._use_websockets = False
 
     def copy(self):
@@ -65,7 +64,7 @@ class Cronos:
 class Chainmain:
     def __init__(self, base_dir):
         self.base_dir = base_dir
-        self.config = json.load(open(base_dir / "config.json"))
+        self.config = json.loads((base_dir / "config.json").read_text())
 
     def base_port(self, i):
         return self.config["validators"][i]["base_port"]
@@ -78,23 +77,10 @@ class Chainmain:
 
 
 class Hermes:
-    def __init__(self, base_dir):
-        self.base_dir = base_dir
-        configpath = base_dir / "config.toml"
-        with open(configpath) as f:
-            a = f.read()
-            b = tomlkit.loads(a)
-        self.config = b
-        self.configpath = configpath
-
-    def base_port(self, i):
-        return self.config["validators"][i]["base_port"]
-
-    def node_rpc(self, i):
-        return "tcp://127.0.0.1:%d" % ports.rpc_port(self.base_port(i))
-
-    def cosmos_cli(self, i=0):
-        return CosmosCLI(self.base_dir / f"node{i}", self.node_rpc(i), "cronosd")
+    def __init__(self, config: Path):
+        self.configpath = config
+        self.config = tomlkit.loads(config.read_text())
+        self.port = 3000
 
 
 class Geth:
@@ -106,7 +92,7 @@ def setup_cronos(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
         "../scripts/cronos-devnet.yaml"
         if enable_auto_deployment
-        else "configs/disable_auto_deployment.yaml"
+        else "configs/disable_auto_deployment.jsonnet"
     )
     yield from setup_custom_cronos(path, base_port, cfg)
 
@@ -115,41 +101,9 @@ def setup_cronos_experimental(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
         "../scripts/cronos-experimental-devnet.yaml"
         if enable_auto_deployment
-        else "configs/disable_auto_deployment.yaml"
+        else "configs/disable_auto_deployment.jsonnet"
     )
     yield from setup_custom_cronos(path, base_port, cfg)
-
-
-def setup_chainmain(path, base_port):
-    cmd = ["start-chainmain", path, "--base_port", str(base_port)]
-    print(*cmd)
-    proc = subprocess.Popen(
-        cmd,
-        preexec_fn=os.setsid,
-    )
-    try:
-        wait_for_port(base_port)
-        yield Chainmain(path / "chainmain-1")
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
-
-
-def setup_hermes(path):
-    cmd = ["start-hermes", path]
-    proc = subprocess.Popen(
-        cmd,
-        preexec_fn=os.setsid,
-    )
-    try:
-        # wait_for_port(base_port)
-        time.sleep(4)
-        yield Hermes(path)
-    finally:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        # proc.terminate()
-        proc.wait()
 
 
 def setup_geth(path, base_port):

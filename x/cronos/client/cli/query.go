@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
+	rpctypes "github.com/evmos/ethermint/rpc/types"
 	"github.com/spf13/cobra"
-	rpctypes "github.com/tharsis/ethermint/rpc/ethereum/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"

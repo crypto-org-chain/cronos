@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 from dateutil.parser import isoparse
+from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
 from .network import Cronos, setup_custom_cronos
-from .utils import parse_events, wait_for_block, wait_for_block_time
+from .utils import parse_events, wait_for_block, wait_for_block_time, wait_for_port
 
 
 def init_cosmovisor(home):
@@ -27,7 +28,7 @@ def post_init(path, base_port, config):
     prepare cosmovisor for each node
     """
     chain_id = "cronos_777-1"
-    cfg = json.load((path / chain_id / "config.json").open())
+    cfg = json.loads((path / chain_id / "config.json").read_text())
     for i, _ in enumerate(cfg["validators"]):
         home = path / chain_id / f"node{i}"
         init_cosmovisor(home)
@@ -35,8 +36,8 @@ def post_init(path, base_port, config):
     # patch supervisord ini config
     ini_path = path / chain_id / SUPERVISOR_CONFIG_FILE
     ini = configparser.RawConfigParser()
-    ini.read_file(ini_path.open())
-    reg = re.compile(fr"^program:{chain_id}-node(\d+)")
+    ini.read(ini_path)
+    reg = re.compile(rf"^program:{chain_id}-node(\d+)")
     for section in ini.sections():
         m = reg.match(section)
         if m:
@@ -66,7 +67,7 @@ def custom_cronos(tmp_path_factory):
     yield from setup_custom_cronos(
         path,
         26100,
-        Path(__file__).parent / "configs/cosmovisor.yaml",
+        Path(__file__).parent / "configs/cosmovisor.jsonnet",
         post_init=post_init,
         chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
     )
@@ -82,7 +83,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-    plan_name = "v0.7.0"
+    plan_name = "v0.8.0"
     rsp = cli.gov_propose(
         "community",
         "software-upgrade",
@@ -113,3 +114,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
 
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
+    wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
+
+    # check ica controller is enabled
+    assert cli.query_icacontroller_params() == {"controller_enabled": True}
+    assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}

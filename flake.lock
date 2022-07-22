@@ -15,22 +15,85 @@
         "type": "github"
       }
     },
-    "nixpkgs": {
-      "flake": false,
+    "gomod2nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "utils": [
+          "flake-utils"
+        ]
+      },
       "locked": {
-        "narHash": "sha256-zWSVTYyA0z9QwXX/6X7/BRpSjpNKM3LTHRN/zHsPyDY=",
-        "path": "/nix/store/abgglpb2s3jg3mn7skj7khp9dwy9hnhc-source/nix",
-        "type": "path"
+        "lastModified": 1655245309,
+        "narHash": "sha256-d/YPoQ/vFn1+GTmSdvbSBSTOai61FONxB4+Lt6w/IVI=",
+        "owner": "tweag",
+        "repo": "gomod2nix",
+        "rev": "40d32f82fc60d66402eb0972e6e368aeab3faf58",
+        "type": "github"
       },
       "original": {
-        "path": "/nix/store/abgglpb2s3jg3mn7skj7khp9dwy9hnhc-source/nix",
-        "type": "path"
+        "owner": "tweag",
+        "repo": "gomod2nix",
+        "type": "github"
+      }
+    },
+    "nix-bundle-exe": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1652837534,
+        "narHash": "sha256-tdGPrIW+36z6e1W7Vni8ioUs4/h62I0fbMR2dymoBDo=",
+        "owner": "3noch",
+        "repo": "nix-bundle-exe",
+        "rev": "c083d398032871b1cee49d9325e81aa12abf429a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "3noch",
+        "repo": "nix-bundle-exe",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1657502824,
+        "narHash": "sha256-q/56TxABu/So0mqrCiOnl9mWHC10XinFtmOHy6UeStM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "f904e3562aabca382d12f8471ca2330b3f82899a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "rocksdb-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1648583659,
+        "narHash": "sha256-m6twgWcPTVD6uzcLuskKX6voeq7qAF3rozfLqSakI7s=",
+        "owner": "facebook",
+        "repo": "rocksdb",
+        "rev": "da11a59034584ea2d0911268b8136e5249d6b692",
+        "type": "github"
+      },
+      "original": {
+        "owner": "facebook",
+        "ref": "v6.29.5",
+        "repo": "rocksdb",
+        "type": "github"
       }
     },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "gomod2nix": "gomod2nix",
+        "nix-bundle-exe": "nix-bundle-exe",
+        "nixpkgs": "nixpkgs",
+        "rocksdb-src": "rocksdb-src"
       }
     }
   },
