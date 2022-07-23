@@ -7,7 +7,7 @@
       flake = false;
     };
     gomod2nix = {
-      url = "github:tweag/gomod2nix";
+      url = "github:yihuang/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.utils.follows = "flake-utils";
     };
@@ -31,13 +31,7 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              # https://github.com/NixOS/nixpkgs/pull/179622
-              (import ./nix/go_1_18_overlay.nix)
-              (final: prev: gomod2nix.overlays.default
-                (final // {
-                  inherit (final.darwin.apple_sdk_11_0) callPackage;
-                })
-                prev)
+              gomod2nix.overlays.default
               self.overlay
             ];
             config = { };
