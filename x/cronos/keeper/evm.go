@@ -56,7 +56,7 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 
 // DeployModuleCRC21 deploy an embed crc21 contract
 func (k Keeper) DeployModuleCRC21(ctx sdk.Context, denom string) (common.Address, error) {
-	ctor, err := types.ModuleCRC21Contract.ABI.Pack("", denom, uint8(0), true)
+	ctor, err := types.ModuleCRC21Contract.ABI.Pack("", denom, uint8(0), false)
 	if err != nil {
 		return common.Address{}, err
 	}
