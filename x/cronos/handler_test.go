@@ -140,7 +140,7 @@ func (suite *CronosTestSuite) TestUpdateTokenMapping() {
 	denom := "gravity0x6E7eef2b30585B2A4D45Ba9312015d5354FDB067"
 	contract := "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2"
 
-	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract)
+	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract, "", 0)
 	handler := cronos.NewHandler(suite.app.CronosKeeper)
 	_, err := handler(suite.ctx, msg)
 	suite.Require().NoError(err)

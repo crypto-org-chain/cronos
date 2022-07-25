@@ -16,7 +16,7 @@ const (
 	gravityDenomPrefix = "gravity0x"
 	gravityDenomLen    = len(gravityDenomPrefix) + 40
 	cronosDenomPrefix  = "cronos0x"
-	cronosDenomLen     = len(gravityDenomPrefix) + 40
+	cronosDenomLen     = len(cronosDenomPrefix) + 40
 )
 
 // IsValidIBCDenom returns true if denom is a valid ibc denom

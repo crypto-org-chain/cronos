@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -108,12 +107,18 @@ func CmdSendToCryptoOrg() *cobra.Command {
 	return cmd
 }
 
+// TokenMappingChangeProposalTxCmd flags
+const (
+	FlagSymbol  = "symbol"
+	FlagDecimal = "decimals"
+)
+
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
 // a token mapping change proposal governance transaction.
 func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "token-mapping-change [denom] [contract] [symbol] [decimal]",
-		Args:  cobra.ExactArgs(4),
+		Use:   "token-mapping-change [denom] [contract]",
+		Args:  cobra.ExactArgs(2),
 		Short: "Submit a token mapping change proposal",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Submit a token mapping change proposal.
@@ -146,13 +151,27 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 				contract = &addr
 			}
 
-			decimal, err := strconv.ParseUint(args[3], 10, 32)
-			if err != nil {
-				return err
+			denom := args[0]
+			if !types.IsValidCoinDenom(denom) {
+				return fmt.Errorf("invalid coin denom: %s", denom)
+			}
+
+			symbol := ""
+			decimal := uint(0)
+			if types.IsSourceCoin(denom) {
+				symbol, err = cmd.Flags().GetString(FlagSymbol)
+				if err != nil {
+					return err
+				}
+
+				decimal, err = cmd.Flags().GetUint(FlagDecimal)
+				if err != nil {
+					return err
+				}
 			}
 
 			content := types.NewTokenMappingChangeProposal(
-				title, description, args[0], args[2], uint32(decimal), contract,
+				title, description, args[0], symbol, uint32(decimal), contract,
 			)
 
 			from := clientCtx.GetFromAddress()
@@ -178,6 +197,8 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")
 	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description")
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
+	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
+	cmd.Flags().Uint(FlagDecimal, 0, "The coin decimal")
 
 	return cmd
 }
@@ -194,7 +215,26 @@ func CmdUpdateTokenMapping() *cobra.Command {
 				return err
 			}
 
-			msg := types.NewMsgUpdateTokenMapping(clientCtx.GetFromAddress().String(), args[0], args[1])
+			denom := args[0]
+			if !types.IsValidCoinDenom(denom) {
+				return fmt.Errorf("invalid coin denom: %s", denom)
+			}
+
+			symbol := ""
+			decimal := uint(0)
+			if types.IsSourceCoin(denom) {
+				symbol, err = cmd.Flags().GetString(FlagSymbol)
+				if err != nil {
+					return err
+				}
+
+				decimal, err = cmd.Flags().GetUint(FlagDecimal)
+				if err != nil {
+					return err
+				}
+			}
+
+			msg := types.NewMsgUpdateTokenMapping(clientCtx.GetFromAddress().String(), denom, args[1], symbol, uint32(decimal))
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -203,6 +243,8 @@ func CmdUpdateTokenMapping() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
+	cmd.Flags().Uint(FlagDecimal, 0, "The coin decimal")
 
 	return cmd
 }

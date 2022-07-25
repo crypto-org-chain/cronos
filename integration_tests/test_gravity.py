@@ -329,7 +329,7 @@ def test_gov_token_mapping(gravity):
         cli.query_contract_by_denom(denom)
 
     rsp = cli.gov_propose_token_mapping_change(
-        denom, crc21.address, from_="community", deposit="1basetcro"
+        denom, crc21.address, "", 0, from_="community", deposit="1basetcro"
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -403,10 +403,10 @@ def test_direct_token_mapping(gravity):
     with pytest.raises(AssertionError):
         cli.query_contract_by_denom(denom)
 
-    rsp = cli.update_token_mapping(denom, crc21.address, from_="community")
+    rsp = cli.update_token_mapping(denom, crc21.address, "", 0, from_="community")
     assert rsp["code"] != 0, "should not have the permission"
 
-    rsp = cli.update_token_mapping(denom, crc21.address, from_="validator")
+    rsp = cli.update_token_mapping(denom, crc21.address, "", 0, from_="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
 

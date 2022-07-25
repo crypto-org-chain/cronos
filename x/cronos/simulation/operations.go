@@ -72,7 +72,7 @@ func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 		r.Read(contractBytes)
 		contract := common.BytesToAddress(contractBytes).String()
 
-		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract)
+		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract, "", 0)
 
 		coin := k.GetBalance(ctx, simAccount.Address, sdk.DefaultBondDenom)
 		fees, err := simtypes.RandomFees(r, ctx, []sdk.Coin{coin})

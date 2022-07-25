@@ -107,7 +107,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 			return err
 		}
 		// unlock crc tokens
-		_, err = k.CallModuleCRC21(ctx, contract, "transfer_by_cronos_module", sender, coin.Amount.BigInt())
+		_, err = k.CallModuleCRC21(ctx, contract, "transfer_from_cronos_module", sender, coin.Amount.BigInt())
 		if err != nil {
 			return err
 		}

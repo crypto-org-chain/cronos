@@ -119,11 +119,13 @@ func (msg *MsgTransferTokens) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateTokenMapping{}
 
 // NewMsgUpdateTokenMapping ...
-func NewMsgUpdateTokenMapping(admin string, denom string, contract string) *MsgUpdateTokenMapping {
+func NewMsgUpdateTokenMapping(admin string, denom string, contract string, symbol string, decimal uint32) *MsgUpdateTokenMapping {
 	return &MsgUpdateTokenMapping{
 		Sender:   admin,
 		Denom:    denom,
 		Contract: contract,
+		Symbol:   symbol,
+		Decimal:  decimal,
 	}
 }
 
