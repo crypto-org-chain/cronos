@@ -249,8 +249,8 @@ func (h SendToChainHandler) Handle(
 		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 
-	if !types.IsValidGravityDenom(denom) {
-		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", contract)
+	if !types.IsValidGravityDenom(denom) && !types.IsValidCronosDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is neither a gravity voucher or a cronos token", contract)
 	}
 
 	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
@@ -266,11 +266,21 @@ func (h SendToChainHandler) Handle(
 	}
 
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
-	// First, transfer the coin to user so that he will be able to cancel later on
-	if err = h.bankKeeper.SendCoins(ctx, contractCosmosAddr, senderCosmosAddr.Bytes(), coins); err != nil {
-		return err
+	if types.IsSourceCoin(denom) {
+		// it is a source token, we need to mint coins
+		if err = h.bankKeeper.MintCoins(ctx, types.ModuleName, coins); err != nil {
+			return err
+		}
+		// send the coin to the user
+		if err = h.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, senderCosmosAddr.Bytes(), coins); err != nil {
+			return err
+		}
+	} else {
+		// send coins from contract address to user address so that he will be able to cancel later on
+		if err = h.bankKeeper.SendCoins(ctx, contractCosmosAddr, senderCosmosAddr.Bytes(), coins); err != nil {
+			return err
+		}
 	}
-
 	// Initialize a gravity transfer
 	msg := gravitytypes.MsgSendToEthereum{
 		Sender:            senderCosmosAddr.String(),
@@ -406,8 +416,8 @@ func (h SendToIbcHandler) Handle(
 		return fmt.Errorf("contract %s is not connected to native token", contract)
 	}
 
-	if !types.IsValidIBCDenom(denom) {
-		return fmt.Errorf("the native token associated with the contract %s is not an ibc voucher", contract)
+	if !types.IsValidIBCDenom(denom) && !types.IsValidCronosDenom(denom) {
+		return fmt.Errorf("the native token associated with the contract %s is neither an ibc voucher or a cronos token", contract)
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
@@ -416,9 +426,20 @@ func (h SendToIbcHandler) Handle(
 	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 
-	// First, transfer IBC coin to user so that he will be the refunded address if transfer fails
-	if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender, coins); err != nil {
-		return err
+	if types.IsSourceCoin(denom) {
+		// it is a source token, we need to mint coins
+		if err = h.bankKeeper.MintCoins(ctx, types.ModuleName, coins); err != nil {
+			return err
+		}
+		// send the coin to the user
+		if err = h.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, sender, coins); err != nil {
+			return err
+		}
+	} else {
+		// First, transfer IBC coin to user so that he will be the refunded address if transfer fails
+		if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender, coins); err != nil {
+			return err
+		}
 	}
 	// Initiate IBC transfer from sender account
 	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {

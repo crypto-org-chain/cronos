@@ -85,7 +85,7 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 	}
 	addr := common.BytesToAddress(cosmosAddr.Bytes())
 	enableAutoDeployment := k.GetParams(ctx).EnableAutoDeployment
-	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, enableAutoDeployment)
+	err = k.ConvertCoinFromNativeToCRC21(ctx, addr, coin, enableAutoDeployment)
 	if err != nil {
 		return err
 	}

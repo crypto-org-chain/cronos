@@ -2,9 +2,11 @@ package keeper
 
 import (
 	"fmt"
-
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	"strings"
 
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -206,4 +208,68 @@ func (k Keeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) s
 
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
+}
+
+// RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
+func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
+	if types.IsSourceCoin(msg.Denom) {
+		contract := types.GetContractAddressFromDenom(msg.Denom)
+		// we check that denom use the same contract address in checksum format
+		if contract != common.HexToAddress(msg.Contract).Hex() {
+			return sdkerrors.Wrapf(
+				sdkerrors.ErrInvalidRequest,
+				"coin denom %s does not match with contract address %s", msg.Denom, msg.Contract)
+		}
+
+		// check that the coin is registered, otherwise register it
+		metadata, exist := k.bankKeeper.GetDenomMetaData(ctx, msg.Denom)
+		if !exist {
+			// create new metadata
+			metadata = banktypes.Metadata{
+				Base: msg.Denom,
+				Name: msg.Denom,
+			}
+		}
+		// update existing metadata
+		metadata.Symbol = msg.Symbol
+		metadata.Display = strings.ToLower(msg.Symbol)
+		if msg.Decimal != 0 {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+				{
+					Denom:    metadata.Display,
+					Exponent: msg.Decimal,
+				},
+			}
+		} else {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+			}
+		}
+		k.bankKeeper.SetDenomMetaData(ctx, metadata)
+
+		// update the mapping
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(contract)); err != nil {
+			return err
+		}
+	} else {
+		if len(msg.Contract) == 0 {
+			// delete existing mapping
+			k.DeleteExternalContractForDenom(ctx, msg.Denom)
+		} else {
+			// update the mapping
+			contract := common.HexToAddress(msg.Contract)
+			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

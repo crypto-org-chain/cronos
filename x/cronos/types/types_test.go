@@ -42,7 +42,7 @@ func Test_IsValidGravityDenom(t *testing.T) {
 	}
 }
 
-func Test_IsValidDenomToWrap(t *testing.T) {
+func Test_IsValidCoinDenom(t *testing.T) {
 	tests := []struct {
 		name    string
 		denom   string
@@ -58,7 +58,7 @@ func Test_IsValidDenomToWrap(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.success, IsValidDenomToWrap(tt.denom))
+			require.Equal(t, tt.success, IsValidCoinDenom(tt.denom))
 		})
 	}
 }

@@ -23,6 +23,8 @@ type (
 		Description string         `json:"description" yaml:"description"`
 		Denom       string         `json:"denom" yaml:"denom"`
 		Contract    string         `json:"contract" yaml:"contract"`
+		Symbol      string         `json:"symbol" yaml:"symbol"`
+		Decimal     uint32         `json:"decimal" yaml:"decimal"`
 		Proposer    sdk.AccAddress `json:"proposer" yaml:"proposer"`
 		Deposit     sdk.Coins      `json:"deposit" yaml:"deposit"`
 	}
@@ -55,7 +57,7 @@ func postProposalHandlerFn(clientCtx client.Context) http.HandlerFunc {
 			contract = &addr
 		}
 
-		content := types.NewTokenMappingChangeProposal(req.Title, req.Description, req.Denom, contract)
+		content := types.NewTokenMappingChangeProposal(req.Title, req.Description, req.Denom, req.Symbol, req.Decimal, contract)
 
 		msg, err := govtypes.NewMsgSubmitProposal(content, req.Deposit, req.Proposer)
 		if rest.CheckBadRequestError(w, err) {

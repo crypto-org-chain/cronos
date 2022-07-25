@@ -2,6 +2,7 @@ package types
 
 import (
 	context "context"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -24,6 +25,9 @@ type BankKeeper interface {
 	MintCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error
 	BurnCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error
 	SendCoins(ctx sdk.Context, senderAddr sdk.AccAddress, recipientAddr sdk.AccAddress, amt sdk.Coins) error
+
+	GetDenomMetaData(ctx sdk.Context, denom string) (banktypes.Metadata, bool)
+	SetDenomMetaData(ctx sdk.Context, denomMetaData banktypes.Metadata)
 }
 
 // TransferKeeper defines the expected interface needed to transfer coin through IBC.

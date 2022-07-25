@@ -35,30 +35,30 @@ func (suite *KeeperTestSuite) TestTokenConversion() {
 	suite.Require().NoError(err)
 
 	// send to erc20
-	err = keeper.ConvertCoinsFromNativeToCRC20(suite.ctx, address, coins, true)
+	err = keeper.ConvertCoinsFromNativeToCRC21(suite.ctx, address, coins, true)
 	suite.Require().NoError(err)
 
 	// check erc20 balance
 	contract, found := keeper.GetContractByDenom(suite.ctx, denom)
 	suite.Require().True(found)
 
-	ret, err := keeper.CallModuleCRC20(suite.ctx, contract, "balanceOf", address)
+	ret, err := keeper.CallModuleCRC21(suite.ctx, contract, "balanceOf", address)
 	suite.Require().NoError(err)
 	suite.Require().Equal(amount, big.NewInt(0).SetBytes(ret))
 
-	ret, err = keeper.CallModuleCRC20(suite.ctx, contract, "totalSupply")
+	ret, err = keeper.CallModuleCRC21(suite.ctx, contract, "totalSupply")
 	suite.Require().NoError(err)
 	suite.Require().Equal(amount, big.NewInt(0).SetBytes(ret))
 
 	// convert back to native
-	err = keeper.ConvertCoinFromCRC20ToNative(suite.ctx, contract, address, coins[0].Amount)
+	err = keeper.ConvertCoinFromCRC21ToNative(suite.ctx, contract, address, coins[0].Amount)
 	suite.Require().NoError(err)
 
-	ret, err = keeper.CallModuleCRC20(suite.ctx, contract, "balanceOf", address)
+	ret, err = keeper.CallModuleCRC21(suite.ctx, contract, "balanceOf", address)
 	suite.Require().NoError(err)
 	suite.Require().Equal(0, big.NewInt(0).Cmp(big.NewInt(0).SetBytes(ret)))
 
-	ret, err = keeper.CallModuleCRC20(suite.ctx, contract, "totalSupply")
+	ret, err = keeper.CallModuleCRC21(suite.ctx, contract, "totalSupply")
 	suite.Require().NoError(err)
 	suite.Require().Equal(0, big.NewInt(0).Cmp(big.NewInt(0).SetBytes(ret)))
 

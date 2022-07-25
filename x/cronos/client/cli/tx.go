@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -111,8 +112,8 @@ func CmdSendToCryptoOrg() *cobra.Command {
 // a token mapping change proposal governance transaction.
 func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "token-mapping-change [denom] [contract]",
-		Args:  cobra.ExactArgs(2),
+		Use:   "token-mapping-change [denom] [contract] [symbol] [decimal]",
+		Args:  cobra.ExactArgs(4),
 		Short: "Submit a token mapping change proposal",
 		Long: strings.TrimSpace(
 			fmt.Sprintf(`Submit a token mapping change proposal.
@@ -145,8 +146,13 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 				contract = &addr
 			}
 
+			decimal, err := strconv.ParseUint(args[3], 10, 32)
+			if err != nil {
+				return err
+			}
+
 			content := types.NewTokenMappingChangeProposal(
-				title, description, args[0], contract,
+				title, description, args[0], args[2], uint32(decimal), contract,
 			)
 
 			from := clientCtx.GetFromAddress()

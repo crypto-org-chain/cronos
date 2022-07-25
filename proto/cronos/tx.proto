@@ -48,6 +48,9 @@ message MsgUpdateTokenMapping {
     string sender = 1;
     string denom = 2;
     string contract = 3;
+    // only when updating cronos (source) tokens
+    string symbol = 4;
+    uint32 decimal = 5;
 }
 
 // MsgUpdateTokenMappingResponse defines the response type
