@@ -2,6 +2,8 @@ local config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
+    cmd: 'cronosd',
+    'start-flags': '--trace --log_level info',
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
@@ -98,6 +100,7 @@ config {
             pk_type: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
           },
         },
+        max_gas: 500000,
         gas_price: {
           price: 10000000000000,
           denom: 'basetcro',
