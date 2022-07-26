@@ -36,6 +36,7 @@ TEST_CONTRACTS = {
     "CronosGravity": "CronosGravity.sol",
     "Greeter": "Greeter.sol",
     "TestERC20A": "TestERC20A.sol",
+    "TestERC21Source": "TestERC21Source.sol",
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",

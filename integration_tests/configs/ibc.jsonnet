@@ -5,6 +5,15 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    genesis: {
+      app_state: {
+        cronos: {
+          params: {
+            ibc_cro_denom: 'ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865'
+          }
+        }
+      }
+    }
   },
   'chainmain-1': {
     cmd: 'chain-maind',

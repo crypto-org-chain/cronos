@@ -992,6 +992,18 @@ class CosmosCLI:
             )
         )
 
+    def query_denom_by_contract(self, contract: str):
+        "query denom by contract"
+        return json.loads(
+            self.raw(
+                "query",
+                "cronos",
+                "denom-by-contract",
+                contract,
+                home=self.data_dir,
+            )
+        )
+
     def gov_propose_token_mapping_change(
         self, denom, contract, symbol, decimal, **kwargs
     ):

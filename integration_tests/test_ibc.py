@@ -70,7 +70,11 @@ def get_balance(chain, addr, denom):
     return chain.cosmos_cli().balance(addr, denom)
 
 
-def test_ibc(ibc):
+def get_balances(chain, addr):
+    return chain.cosmos_cli().balances(addr)
+
+
+def asd(ibc):
     "test sending basecro from crypto-org chain to cronos"
     # wait for hermes
     output = subprocess.getoutput(
@@ -110,7 +114,7 @@ def test_ibc(ibc):
     assert expectedbalance == newdstbalance
 
 
-def test_cronos_transfer_tokens(ibc):
+def cronos_transfer_tokens(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
@@ -145,7 +149,7 @@ def test_cronos_transfer_tokens(ibc):
     assert oldbalance + dst_amount == newbalance
 
 
-def test_cro_bridge_contract(ibc):
+def cro_bridge_contract(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
     depends on `test_ibc` to send the original coins.
@@ -175,7 +179,7 @@ def test_cro_bridge_contract(ibc):
     assert oldbalance + dst_amount == newbalance
 
 
-def test_ica(ibc, tmp_path):
+def ica(ibc, tmp_path):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -261,3 +265,54 @@ def test_ica(ibc, tmp_path):
 
     # check if the funds are reduced in interchain account
     assert cli_host.balance(ica_address, denom="basecro") == 50000000
+
+
+def test_cronos_transfer_source_tokens(ibc):
+    """
+    test sending crc20 tokens originated from cronos to crypto-org-chain
+    """
+    output = subprocess.getoutput(
+        f"curl -s -X GET 'http://127.0.0.1:{ibc.hermes.port}/state' | jq"
+    )
+    assert json.loads(output)["status"] == "success"
+
+    # deploy crc21 contract
+    w3 = ibc.cronos.w3
+    contract = deploy_contract(w3, CONTRACTS["TestERC21Source"])
+
+    # setup the contract mapping
+    cli = ibc.cronos.cosmos_cli()
+
+    print("crc21 contract", contract.address)
+    denom = f"cronos{contract.address}"
+
+    print("check the contract mapping not exists yet")
+    with pytest.raises(AssertionError):
+        cli.query_contract_by_denom(denom)
+
+    rsp = cli.update_token_mapping(denom, contract.address, "DOG", 6, from_="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+
+    print("check the contract mapping exists now")
+    rsp = cli.query_denom_by_contract(contract.address)
+    assert rsp["denom"] == denom
+
+    # send token to crypto.org
+    coin_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    amount = 1000
+    tx = contract.functions.send_to_ibc(
+        coin_receiver, amount
+    ).buildTransaction({"from": ADDRS["validator"]})
+    txreceipt = send_transaction(w3, tx)
+    assert txreceipt.status == 1, "should success"
+
+    # check balance
+    def check_balance_change():
+        balances = get_balances(ibc.chainmain, coin_receiver)
+        print("balances", balances)
+        return 0 == 1
+
+    wait_for_fn("check balance change", check_balance_change)
+    assert 0 == 1
+
