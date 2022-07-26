@@ -3,6 +3,7 @@ package keeper
 import (
 	"fmt"
 
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
@@ -31,6 +32,8 @@ type (
 		gravityKeeper types.GravityKeeper
 		// ethermint evm keeper
 		evmKeeper types.EvmKeeper
+		// account keeper
+		accountKeeper types.AccountKeeper
 
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
@@ -45,9 +48,9 @@ func NewKeeper(
 	transferKeeper types.TransferKeeper,
 	gravityKeeper types.GravityKeeper,
 	evmKeeper types.EvmKeeper,
+	accountKeeper types.AccountKeeper,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
-
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
@@ -62,6 +65,7 @@ func NewKeeper(
 		transferKeeper: transferKeeper,
 		gravityKeeper:  gravityKeeper,
 		evmKeeper:      evmKeeper,
+		accountKeeper:  accountKeeper,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }
@@ -176,4 +180,30 @@ func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address c
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+}
+
+// OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure
+func (k Keeper) OnRecvVouchers(
+	ctx sdk.Context,
+	tokens sdk.Coins,
+	receiver string,
+) {
+	cacheCtx, commit := ctx.CacheContext()
+	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
+	if err == nil {
+		commit()
+		ctx.EventManager().EmitEvents(cacheCtx.EventManager().Events())
+	} else {
+		k.Logger(ctx).Error(
+			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
+				receiver, tokens.String(), err))
+	}
+}
+
+func (k Keeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	return k.bankKeeper.GetBalance(ctx, addr, denom)
+}
+
+func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI {
+	return k.accountKeeper.GetAccount(ctx, addr)
 }

@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   title: Cosmos SDK - Legacy REST and gRPC Gateway docs
-  description: 'A REST interface for state queries, legacy transactions'
+  description: A REST interface for state queries, legacy transactions
   version: 1.0.0
 paths:
   /node_info:
@@ -59,7 +59,7 @@ paths:
                     type: string
                   listen_addr:
                     type: string
-                    example: '192.168.56.1:26656'
+                    example: 192.168.56.1:26656
                   version:
                     description: Tendermint version
                     type: string
@@ -73,7 +73,7 @@ paths:
                         example: 'on'
                       rpc_address:
                         type: string
-                        example: 'tcp://0.0.0.0:26657'
+                        example: tcp://0.0.0.0:26657
         '500':
           description: Failed to query node status
   /syncing:
@@ -337,7 +337,7 @@ paths:
                                 7uTC74QlknqYWEwg7Vn6M8Om7FuZ0EO4bjvuj6rwH1mTUJrRuMMZvAAqT9VjNgP0RA/TDp6u/92AqrZfXJSpBQ==
         '500':
           description: Server internal error
-  '/blocks/{height}':
+  /blocks/{height}:
     get:
       summary: Get a block at a certain height
       tags:
@@ -627,7 +627,7 @@ paths:
                       example: '1000'
         '500':
           description: Server internal error
-  '/validatorsets/{height}':
+  /validatorsets/{height}:
     get:
       summary: Get a validator set a certain height
       tags:
@@ -674,7 +674,7 @@ paths:
           description: Block at height not available
         '500':
           description: Server internal error
-  '/txs/{hash}':
+  /txs/{hash}:
     get:
       deprecated: true
       summary: Get a Tx by hash
@@ -1233,7 +1233,7 @@ paths:
           description: The tx was malformated
         '500':
           description: Server internal error
-  '/bank/balances/{address}':
+  /bank/balances/{address}:
     get:
       deprecated: true
       summary: Get the account balances
@@ -1264,7 +1264,7 @@ paths:
                   example: '50'
         '500':
           description: Server internal error
-  '/bank/accounts/{address}/transfers':
+  /bank/accounts/{address}/transfers:
     post:
       deprecated: true
       summary: Send coins from one account to another
@@ -1297,7 +1297,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -1422,7 +1422,7 @@ paths:
                       example: '50'
         '500':
           description: Internal Server Error
-  '/bank/total/{denomination}':
+  /bank/total/{denomination}:
     parameters:
       - in: path
         name: denomination
@@ -1446,7 +1446,7 @@ paths:
           description: Invalid coin denomination
         '500':
           description: Internal Server Error
-  '/auth/accounts/{address}':
+  /auth/accounts/{address}:
     get:
       deprecated: true
       summary: Get the account information on blockchain
@@ -1498,7 +1498,7 @@ paths:
                     type: string
         '500':
           description: Server internel error
-  '/staking/delegators/{delegatorAddr}/delegations':
+  /staking/delegators/{delegatorAddr}/delegations:
     parameters:
       - in: path
         name: delegatorAddr
@@ -1558,7 +1558,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -1670,7 +1670,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/delegations/{validatorAddr}':
+  /staking/delegators/{delegatorAddr}/delegations/{validatorAddr}:
     parameters:
       - in: path
         name: delegatorAddr
@@ -1716,7 +1716,7 @@ paths:
           description: Invalid delegator address or validator address
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/unbonding_delegations':
+  /staking/delegators/{delegatorAddr}/unbonding_delegations:
     parameters:
       - in: path
         name: delegatorAddr
@@ -1773,7 +1773,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -1885,7 +1885,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/unbonding_delegations/{validatorAddr}':
+  /staking/delegators/{delegatorAddr}/unbonding_delegations/{validatorAddr}:
     parameters:
       - in: path
         name: delegatorAddr
@@ -1966,7 +1966,7 @@ paths:
               $ref: '#/definitions/Redelegation'
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/redelegations':
+  /staking/delegators/{delegatorAddr}/redelegations:
     parameters:
       - in: path
         name: delegatorAddr
@@ -1993,7 +1993,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -2101,7 +2101,7 @@ paths:
           description: Invalid delegator address or redelegation request body
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/validators':
+  /staking/delegators/{delegatorAddr}/validators:
     parameters:
       - in: path
         name: delegatorAddr
@@ -2184,7 +2184,7 @@ paths:
           description: Invalid delegator address
         '500':
           description: Internal Server Error
-  '/staking/delegators/{delegatorAddr}/validators/{validatorAddr}':
+  /staking/delegators/{delegatorAddr}/validators/{validatorAddr}:
     parameters:
       - in: path
         name: delegatorAddr
@@ -2365,7 +2365,7 @@ paths:
                       example: '1970-01-01T00:00:00Z'
         '500':
           description: Internal Server Error
-  '/staking/validators/{validatorAddr}':
+  /staking/validators/{validatorAddr}:
     parameters:
       - in: path
         name: validatorAddr
@@ -2446,7 +2446,7 @@ paths:
           description: Invalid validator address
         '500':
           description: Internal Server Error
-  '/staking/validators/{validatorAddr}/delegations':
+  /staking/validators/{validatorAddr}/delegations:
     parameters:
       - in: path
         name: validatorAddr
@@ -2488,7 +2488,7 @@ paths:
           description: Invalid validator address
         '500':
           description: Internal Server Error
-  '/staking/validators/{validatorAddr}/unbonding_delegations':
+  /staking/validators/{validatorAddr}/unbonding_delegations:
     parameters:
       - in: path
         name: validatorAddr
@@ -2627,7 +2627,7 @@ paths:
           description: Invalid validator public key for one of the validators
         '500':
           description: Internal Server Error
-  '/slashing/validators/{validatorAddr}/unjail':
+  /slashing/validators/{validatorAddr}/unjail:
     post:
       deprecated: true
       summary: Unjail a jailed validator
@@ -2813,7 +2813,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -3030,7 +3030,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -3154,7 +3154,7 @@ paths:
           description: Invalid proposal body
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}':
+  /gov/proposals/{proposalId}:
     get:
       deprecated: true
       summary: Query a proposal
@@ -3219,7 +3219,7 @@ paths:
           description: Invalid proposal id
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/proposer':
+  /gov/proposals/{proposalId}/proposer:
     get:
       deprecated: true
       summary: Query proposer
@@ -3248,7 +3248,7 @@ paths:
           description: Invalid proposal ID
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/deposits':
+  /gov/proposals/{proposalId}/deposits:
     get:
       deprecated: true
       summary: Query deposits
@@ -3325,7 +3325,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -3429,7 +3429,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/deposits/{depositor}':
+  /gov/proposals/{proposalId}/deposits/{depositor}:
     get:
       deprecated: true
       summary: Query deposit
@@ -3480,7 +3480,7 @@ paths:
           description: Found no deposit
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/votes':
+  /gov/proposals/{proposalId}/votes:
     get:
       deprecated: true
       summary: Query voters
@@ -3549,7 +3549,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -3645,7 +3645,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/votes/{voter}':
+  /gov/proposals/{proposalId}/votes/{voter}:
     get:
       deprecated: true
       summary: Query vote
@@ -3685,7 +3685,7 @@ paths:
           description: Found no vote
         '500':
           description: Internal Server Error
-  '/gov/proposals/{proposalId}/tally':
+  /gov/proposals/{proposalId}/tally:
     get:
       deprecated: true
       summary: Get a proposal's tally result at the current time
@@ -3817,7 +3817,7 @@ paths:
           description: Found no voting parameters
         '500':
           description: Internal Server Error
-  '/distribution/delegators/{delegatorAddr}/rewards':
+  /distribution/delegators/{delegatorAddr}/rewards:
     parameters:
       - in: path
         name: delegatorAddr
@@ -3900,7 +3900,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -3989,7 +3989,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/distribution/delegators/{delegatorAddr}/rewards/{validatorAddr}':
+  /distribution/delegators/{delegatorAddr}/rewards/{validatorAddr}:
     parameters:
       - in: path
         name: delegatorAddr
@@ -4053,7 +4053,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -4142,7 +4142,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/distribution/delegators/{delegatorAddr}/withdraw_address':
+  /distribution/delegators/{delegatorAddr}/withdraw_address:
     parameters:
       - in: path
         name: delegatorAddr
@@ -4195,7 +4195,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -4288,7 +4288,7 @@ paths:
           description: Key password is wrong
         '500':
           description: Internal Server Error
-  '/distribution/validators/{validatorAddr}':
+  /distribution/validators/{validatorAddr}:
     parameters:
       - in: path
         name: validatorAddr
@@ -4340,7 +4340,7 @@ paths:
           description: Invalid validator address
         '500':
           description: Internal Server Error
-  '/distribution/validators/{validatorAddr}/outstanding_rewards':
+  /distribution/validators/{validatorAddr}/outstanding_rewards:
     parameters:
       - in: path
         name: validatorAddr
@@ -4371,7 +4371,7 @@ paths:
                   example: '50'
         '500':
           description: Internal Server Error
-  '/distribution/validators/{validatorAddr}/rewards':
+  /distribution/validators/{validatorAddr}/rewards:
     parameters:
       - in: path
         name: validatorAddr
@@ -4429,7 +4429,7 @@ paths:
                     description: Sender address or Keybase name to generate a transaction
                   memo:
                     type: string
-                    example: "Sent via Cosmos Voyager \U0001F680"
+                    example: Sent via Cosmos Voyager 🚀
                   chain_id:
                     type: string
                     example: Cosmos-Hub
@@ -4620,7 +4620,7 @@ paths:
             type: string
         '500':
           description: Internal Server Error
-  '/cronos/v1/contract_by_denom/{denom}':
+  /cronos/v1/contract_by_denom/{denom}:
     get:
       summary: ContractByDenom queries contract addresses by native denom
       operationId: ContractByDenom
@@ -4638,7 +4638,7 @@ paths:
               ContractByDenomRequest is the response type of ContractByDenom
               call
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -4656,9 +4656,176 @@ paths:
                   properties:
                     type_url:
                       type: string
+                      description: >-
+                        A URL/resource name that uniquely identifies the type of
+                        the serialized
+
+                        protocol buffer message. This string must contain at
+                        least
+
+                        one "/" character. The last segment of the URL's path
+                        must represent
+
+                        the fully qualified name of the type (as in
+
+                        `path/google.protobuf.Duration`). The name should be in
+                        a canonical form
+
+                        (e.g., leading "." is not accepted).
+
+
+                        In practice, teams usually precompile into the binary
+                        all types that they
+
+                        expect it to use in the context of Any. However, for
+                        URLs which use the
+
+                        scheme `http`, `https`, or no scheme, one can optionally
+                        set up a type
+
+                        server that maps type URLs to message definitions as
+                        follows:
+
+
+                        * If no scheme is provided, `https` is assumed.
+
+                        * An HTTP GET on the URL must yield a
+                        [google.protobuf.Type][]
+                          value in binary format, or produce an error.
+                        * Applications are allowed to cache lookup results based
+                        on the
+                          URL, or have them precompiled into a binary to avoid any
+                          lookup. Therefore, binary compatibility needs to be preserved
+                          on changes to types. (Use versioned type names to manage
+                          breaking changes.)
+
+                        Note: this functionality is not currently available in
+                        the official
+
+                        protobuf release, and it is not used for type URLs
+                        beginning with
+
+                        type.googleapis.com.
+
+
+                        Schemes other than `http`, `https` (or the empty scheme)
+                        might be
+
+                        used with implementation specific semantics.
                     value:
                       type: string
                       format: byte
+                      description: >-
+                        Must be a valid serialized protocol buffer of the above
+                        specified type.
+                  description: >-
+                    `Any` contains an arbitrary serialized protocol buffer
+                    message along with a
+
+                    URL that describes the type of the serialized message.
+
+
+                    Protobuf library provides support to pack/unpack Any values
+                    in the form
+
+                    of utility functions or additional generated methods of the
+                    Any type.
+
+
+                    Example 1: Pack and unpack a message in C++.
+
+                        Foo foo = ...;
+                        Any any;
+                        any.PackFrom(foo);
+                        ...
+                        if (any.UnpackTo(&foo)) {
+                          ...
+                        }
+
+                    Example 2: Pack and unpack a message in Java.
+
+                        Foo foo = ...;
+                        Any any = Any.pack(foo);
+                        ...
+                        if (any.is(Foo.class)) {
+                          foo = any.unpack(Foo.class);
+                        }
+
+                     Example 3: Pack and unpack a message in Python.
+
+                        foo = Foo(...)
+                        any = Any()
+                        any.Pack(foo)
+                        ...
+                        if any.Is(Foo.DESCRIPTOR):
+                          any.Unpack(foo)
+                          ...
+
+                     Example 4: Pack and unpack a message in Go
+
+                         foo := &pb.Foo{...}
+                         any, err := ptypes.MarshalAny(foo)
+                         ...
+                         foo := &pb.Foo{}
+                         if err := ptypes.UnmarshalAny(any, foo); err != nil {
+                           ...
+                         }
+
+                    The pack methods provided by protobuf library will by
+                    default use
+
+                    'type.googleapis.com/full.type.name' as the type URL and the
+                    unpack
+
+                    methods only use the fully qualified type name after the
+                    last '/'
+
+                    in the type URL, for example "foo.bar.com/x/y.z" will yield
+                    type
+
+                    name "y.z".
+
+
+
+                    JSON
+
+                    ====
+
+                    The JSON representation of an `Any` value uses the regular
+
+                    representation of the deserialized, embedded message, with
+                    an
+
+                    additional field `@type` which contains the type URL.
+                    Example:
+
+                        package google.profile;
+                        message Person {
+                          string first_name = 1;
+                          string last_name = 2;
+                        }
+
+                        {
+                          "@type": "type.googleapis.com/google.profile.Person",
+                          "firstName": <string>,
+                          "lastName": <string>
+                        }
+
+                    If the embedded message type is well-known and has a custom
+                    JSON
+
+                    representation, that representation will be embedded adding
+                    a field
+
+                    `value` which holds the custom JSON in addition to the
+                    `@type`
+
+                    field. Example (for message [google.protobuf.Duration][]):
+
+                        {
+                          "@type": "type.googleapis.com/google.protobuf.Duration",
+                          "value": "1.212s"
+                        }
       parameters:
         - name: denom
           in: path
@@ -4666,7 +4833,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cronos/v1/denom_by_contract/{contract}':
+  /cronos/v1/denom_by_contract/{contract}:
     get:
       summary: DenomByContract queries native denom by contract address
       operationId: DenomByContract
@@ -4682,7 +4849,7 @@ paths:
               DenomByContractResponse is the response type of DenomByContract
               call
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -4700,9 +4867,176 @@ paths:
                   properties:
                     type_url:
                       type: string
+                      description: >-
+                        A URL/resource name that uniquely identifies the type of
+                        the serialized
+
+                        protocol buffer message. This string must contain at
+                        least
+
+                        one "/" character. The last segment of the URL's path
+                        must represent
+
+                        the fully qualified name of the type (as in
+
+                        `path/google.protobuf.Duration`). The name should be in
+                        a canonical form
+
+                        (e.g., leading "." is not accepted).
+
+
+                        In practice, teams usually precompile into the binary
+                        all types that they
+
+                        expect it to use in the context of Any. However, for
+                        URLs which use the
+
+                        scheme `http`, `https`, or no scheme, one can optionally
+                        set up a type
+
+                        server that maps type URLs to message definitions as
+                        follows:
+
+
+                        * If no scheme is provided, `https` is assumed.
+
+                        * An HTTP GET on the URL must yield a
+                        [google.protobuf.Type][]
+                          value in binary format, or produce an error.
+                        * Applications are allowed to cache lookup results based
+                        on the
+                          URL, or have them precompiled into a binary to avoid any
+                          lookup. Therefore, binary compatibility needs to be preserved
+                          on changes to types. (Use versioned type names to manage
+                          breaking changes.)
+
+                        Note: this functionality is not currently available in
+                        the official
+
+                        protobuf release, and it is not used for type URLs
+                        beginning with
+
+                        type.googleapis.com.
+
+
+                        Schemes other than `http`, `https` (or the empty scheme)
+                        might be
+
+                        used with implementation specific semantics.
                     value:
                       type: string
                       format: byte
+                      description: >-
+                        Must be a valid serialized protocol buffer of the above
+                        specified type.
+                  description: >-
+                    `Any` contains an arbitrary serialized protocol buffer
+                    message along with a
+
+                    URL that describes the type of the serialized message.
+
+
+                    Protobuf library provides support to pack/unpack Any values
+                    in the form
+
+                    of utility functions or additional generated methods of the
+                    Any type.
+
+
+                    Example 1: Pack and unpack a message in C++.
+
+                        Foo foo = ...;
+                        Any any;
+                        any.PackFrom(foo);
+                        ...
+                        if (any.UnpackTo(&foo)) {
+                          ...
+                        }
+
+                    Example 2: Pack and unpack a message in Java.
+
+                        Foo foo = ...;
+                        Any any = Any.pack(foo);
+                        ...
+                        if (any.is(Foo.class)) {
+                          foo = any.unpack(Foo.class);
+                        }
+
+                     Example 3: Pack and unpack a message in Python.
+
+                        foo = Foo(...)
+                        any = Any()
+                        any.Pack(foo)
+                        ...
+                        if any.Is(Foo.DESCRIPTOR):
+                          any.Unpack(foo)
+                          ...
+
+                     Example 4: Pack and unpack a message in Go
+
+                         foo := &pb.Foo{...}
+                         any, err := ptypes.MarshalAny(foo)
+                         ...
+                         foo := &pb.Foo{}
+                         if err := ptypes.UnmarshalAny(any, foo); err != nil {
+                           ...
+                         }
+
+                    The pack methods provided by protobuf library will by
+                    default use
+
+                    'type.googleapis.com/full.type.name' as the type URL and the
+                    unpack
+
+                    methods only use the fully qualified type name after the
+                    last '/'
+
+                    in the type URL, for example "foo.bar.com/x/y.z" will yield
+                    type
+
+                    name "y.z".
+
+
+
+                    JSON
+
+                    ====
+
+                    The JSON representation of an `Any` value uses the regular
+
+                    representation of the deserialized, embedded message, with
+                    an
+
+                    additional field `@type` which contains the type URL.
+                    Example:
+
+                        package google.profile;
+                        message Person {
+                          string first_name = 1;
+                          string last_name = 2;
+                        }
+
+                        {
+                          "@type": "type.googleapis.com/google.profile.Person",
+                          "firstName": <string>,
+                          "lastName": <string>
+                        }
+
+                    If the embedded message type is well-known and has a custom
+                    JSON
+
+                    representation, that representation will be embedded adding
+                    a field
+
+                    `value` which holds the custom JSON in addition to the
+                    `@type`
+
+                    field. Example (for message [google.protobuf.Duration][]):
+
+                        {
+                          "@type": "type.googleapis.com/google.protobuf.Duration",
+                          "value": "1.212s"
+                        }
       parameters:
         - name: contract
           in: path
@@ -4710,7 +5044,7 @@ paths:
           type: string
       tags:
         - Query
-  '/ethermint/evm/v1/account/{address}':
+  /ethermint/evm/v1/account/{address}:
     get:
       summary: Account queries an Ethereum account.
       operationId: Account
@@ -4734,7 +5068,7 @@ paths:
               QueryAccountResponse is the response type for the Query/Account
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -4930,7 +5264,7 @@ paths:
           type: string
       tags:
         - Query
-  '/ethermint/evm/v1/balances/{address}':
+  /ethermint/evm/v1/balances/{address}:
     get:
       summary: |-
         Balance queries the balance of a the EVM denomination for a single
@@ -4949,7 +5283,7 @@ paths:
               QueryBalanceResponse is the response type for the Query/Balance
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -5145,7 +5479,215 @@ paths:
           type: string
       tags:
         - Query
-  '/ethermint/evm/v1/codes/{address}':
+  /ethermint/evm/v1/base_fee:
+    get:
+      summary: >-
+        BaseFee queries the base fee of the parent block of the current block,
+
+        it's similar to feemarket module's method, but also checks london
+        hardfork status.
+      operationId: BaseFee
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              base_fee:
+                type: string
+            description: BaseFeeResponse returns the EIP1559 base fee.
+        default:
+          description: An unexpected error response
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                      description: >-
+                        A URL/resource name that uniquely identifies the type of
+                        the serialized
+
+                        protocol buffer message. This string must contain at
+                        least
+
+                        one "/" character. The last segment of the URL's path
+                        must represent
+
+                        the fully qualified name of the type (as in
+
+                        `path/google.protobuf.Duration`). The name should be in
+                        a canonical form
+
+                        (e.g., leading "." is not accepted).
+
+
+                        In practice, teams usually precompile into the binary
+                        all types that they
+
+                        expect it to use in the context of Any. However, for
+                        URLs which use the
+
+                        scheme `http`, `https`, or no scheme, one can optionally
+                        set up a type
+
+                        server that maps type URLs to message definitions as
+                        follows:
+
+
+                        * If no scheme is provided, `https` is assumed.
+
+                        * An HTTP GET on the URL must yield a
+                        [google.protobuf.Type][]
+                          value in binary format, or produce an error.
+                        * Applications are allowed to cache lookup results based
+                        on the
+                          URL, or have them precompiled into a binary to avoid any
+                          lookup. Therefore, binary compatibility needs to be preserved
+                          on changes to types. (Use versioned type names to manage
+                          breaking changes.)
+
+                        Note: this functionality is not currently available in
+                        the official
+
+                        protobuf release, and it is not used for type URLs
+                        beginning with
+
+                        type.googleapis.com.
+
+
+                        Schemes other than `http`, `https` (or the empty scheme)
+                        might be
+
+                        used with implementation specific semantics.
+                    value:
+                      type: string
+                      format: byte
+                      description: >-
+                        Must be a valid serialized protocol buffer of the above
+                        specified type.
+                  description: >-
+                    `Any` contains an arbitrary serialized protocol buffer
+                    message along with a
+
+                    URL that describes the type of the serialized message.
+
+
+                    Protobuf library provides support to pack/unpack Any values
+                    in the form
+
+                    of utility functions or additional generated methods of the
+                    Any type.
+
+
+                    Example 1: Pack and unpack a message in C++.
+
+                        Foo foo = ...;
+                        Any any;
+                        any.PackFrom(foo);
+                        ...
+                        if (any.UnpackTo(&foo)) {
+                          ...
+                        }
+
+                    Example 2: Pack and unpack a message in Java.
+
+                        Foo foo = ...;
+                        Any any = Any.pack(foo);
+                        ...
+                        if (any.is(Foo.class)) {
+                          foo = any.unpack(Foo.class);
+                        }
+
+                     Example 3: Pack and unpack a message in Python.
+
+                        foo = Foo(...)
+                        any = Any()
+                        any.Pack(foo)
+                        ...
+                        if any.Is(Foo.DESCRIPTOR):
+                          any.Unpack(foo)
+                          ...
+
+                     Example 4: Pack and unpack a message in Go
+
+                         foo := &pb.Foo{...}
+                         any, err := ptypes.MarshalAny(foo)
+                         ...
+                         foo := &pb.Foo{}
+                         if err := ptypes.UnmarshalAny(any, foo); err != nil {
+                           ...
+                         }
+
+                    The pack methods provided by protobuf library will by
+                    default use
+
+                    'type.googleapis.com/full.type.name' as the type URL and the
+                    unpack
+
+                    methods only use the fully qualified type name after the
+                    last '/'
+
+                    in the type URL, for example "foo.bar.com/x/y.z" will yield
+                    type
+
+                    name "y.z".
+
+
+
+                    JSON
+
+                    ====
+
+                    The JSON representation of an `Any` value uses the regular
+
+                    representation of the deserialized, embedded message, with
+                    an
+
+                    additional field `@type` which contains the type URL.
+                    Example:
+
+                        package google.profile;
+                        message Person {
+                          string first_name = 1;
+                          string last_name = 2;
+                        }
+
+                        {
+                          "@type": "type.googleapis.com/google.profile.Person",
+                          "firstName": <string>,
+                          "lastName": <string>
+                        }
+
+                    If the embedded message type is well-known and has a custom
+                    JSON
+
+                    representation, that representation will be embedded adding
+                    a field
+
+                    `value` which holds the custom JSON in addition to the
+                    `@type`
+
+                    field. Example (for message [google.protobuf.Duration][]):
+
+                        {
+                          "@type": "type.googleapis.com/google.protobuf.Duration",
+                          "value": "1.212s"
+                        }
+      tags:
+        - Query
+  /ethermint/evm/v1/codes/{address}:
     get:
       summary: Code queries the balance of all coins for a single account.
       operationId: Code
@@ -5163,7 +5705,7 @@ paths:
               QueryCodeResponse is the response type for the Query/Code RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -5359,7 +5901,7 @@ paths:
           type: string
       tags:
         - Query
-  '/ethermint/evm/v1/cosmos_account/{address}':
+  /ethermint/evm/v1/cosmos_account/{address}:
     get:
       summary: CosmosAccount queries an Ethereum account's Cosmos Address.
       operationId: CosmosAccount
@@ -5386,7 +5928,7 @@ paths:
 
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -5598,7 +6140,7 @@ paths:
                 title: the estimated gas
             title: EstimateGasResponse defines EstimateGas response
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -5837,7 +6379,7 @@ paths:
                     data:
                       type: string
                       format: byte
-                      title: 'supplied by the contract, usually ABI-encoded'
+                      title: supplied by the contract, usually ABI-encoded
                     block_number:
                       type: string
                       format: uint64
@@ -5858,6 +6400,7 @@ paths:
                       title: index of the log in the block
                     removed:
                       type: boolean
+                      format: boolean
                       description: >-
                         The Removed field is true if this log was reverted due
                         to a chain
@@ -5896,7 +6439,7 @@ paths:
                 title: gas consumed by the transaction
             description: MsgEthereumTxResponse defines the Msg/EthereumTx response type.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -6122,11 +6665,13 @@ paths:
                       transitions.
                   enable_create:
                     type: boolean
+                    format: boolean
                     title: >-
                       enable create toggles state transitions that use the
                       vm.Create function
                   enable_call:
                     type: boolean
+                    format: boolean
                     title: >-
                       enable call toggles state transitions that use the vm.Call
                       function
@@ -6152,6 +6697,7 @@ paths:
                         title: TheDAO hard-fork switch block (nil no fork)
                       dao_fork_support:
                         type: boolean
+                        format: boolean
                         title: >-
                           Whether the nodes supports or opposes the DAO
                           hard-fork
@@ -6201,27 +6747,40 @@ paths:
                         title: >-
                           Berlin switch block (nil = no fork, 0 = already on
                           berlin)
-                      catalyst_block:
-                        type: string
-                        title: >-
-                          Catalyst switch block (nil = no fork, 0 = already on
-                          catalyst)
                       london_block:
                         type: string
                         title: >-
                           London switch block (nil = no fork, 0 = already on
                           london)
+                      arrow_glacier_block:
+                        type: string
+                        title: >-
+                          Eip-4345 (bomb delay) switch block (nil = no fork, 0 =
+                          already activated)
+                      merge_fork_block:
+                        type: string
+                        title: >-
+                          EIP-3675 (TheMerge) switch block (nil = no fork, 0 =
+                          already in merge proceedings)
                     description: >-
                       ChainConfig defines the Ethereum ChainConfig parameters
                       using *sdk.Int values
 
                       instead of *big.Int.
+                  allow_unprotected_txs:
+                    type: boolean
+                    format: boolean
+                    description: >-
+                      Allow unprotected transactions defines if replay-protected
+                      (i.e non EIP155 
+
+                      signed) transactions can be executed on the state machine.
                 title: Params defines the EVM module parameters
             description: >-
               QueryParamsResponse defines the response type for querying x/evm
               parameters.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -6411,7 +6970,7 @@ paths:
                         }
       tags:
         - Query
-  '/ethermint/evm/v1/storage/{address}/{key}':
+  /ethermint/evm/v1/storage/{address}/{key}:
     get:
       summary: Storage queries the balance of all coins for a single account.
       operationId: Storage
@@ -6432,7 +6991,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -6635,6 +7194,380 @@ paths:
           type: string
       tags:
         - Query
+  /ethermint/evm/v1/trace_block:
+    get:
+      summary: >-
+        TraceBlock implements the `debug_traceBlockByNumber` and
+        `debug_traceBlockByHash` rpc api
+      operationId: TraceBlock
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              data:
+                type: string
+                format: byte
+            title: QueryTraceBlockResponse defines TraceBlock response
+        default:
+          description: An unexpected error response
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                      description: >-
+                        A URL/resource name that uniquely identifies the type of
+                        the serialized
+
+                        protocol buffer message. This string must contain at
+                        least
+
+                        one "/" character. The last segment of the URL's path
+                        must represent
+
+                        the fully qualified name of the type (as in
+
+                        `path/google.protobuf.Duration`). The name should be in
+                        a canonical form
+
+                        (e.g., leading "." is not accepted).
+
+
+                        In practice, teams usually precompile into the binary
+                        all types that they
+
+                        expect it to use in the context of Any. However, for
+                        URLs which use the
+
+                        scheme `http`, `https`, or no scheme, one can optionally
+                        set up a type
+
+                        server that maps type URLs to message definitions as
+                        follows:
+
+
+                        * If no scheme is provided, `https` is assumed.
+
+                        * An HTTP GET on the URL must yield a
+                        [google.protobuf.Type][]
+                          value in binary format, or produce an error.
+                        * Applications are allowed to cache lookup results based
+                        on the
+                          URL, or have them precompiled into a binary to avoid any
+                          lookup. Therefore, binary compatibility needs to be preserved
+                          on changes to types. (Use versioned type names to manage
+                          breaking changes.)
+
+                        Note: this functionality is not currently available in
+                        the official
+
+                        protobuf release, and it is not used for type URLs
+                        beginning with
+
+                        type.googleapis.com.
+
+
+                        Schemes other than `http`, `https` (or the empty scheme)
+                        might be
+
+                        used with implementation specific semantics.
+                    value:
+                      type: string
+                      format: byte
+                      description: >-
+                        Must be a valid serialized protocol buffer of the above
+                        specified type.
+                  description: >-
+                    `Any` contains an arbitrary serialized protocol buffer
+                    message along with a
+
+                    URL that describes the type of the serialized message.
+
+
+                    Protobuf library provides support to pack/unpack Any values
+                    in the form
+
+                    of utility functions or additional generated methods of the
+                    Any type.
+
+
+                    Example 1: Pack and unpack a message in C++.
+
+                        Foo foo = ...;
+                        Any any;
+                        any.PackFrom(foo);
+                        ...
+                        if (any.UnpackTo(&foo)) {
+                          ...
+                        }
+
+                    Example 2: Pack and unpack a message in Java.
+
+                        Foo foo = ...;
+                        Any any = Any.pack(foo);
+                        ...
+                        if (any.is(Foo.class)) {
+                          foo = any.unpack(Foo.class);
+                        }
+
+                     Example 3: Pack and unpack a message in Python.
+
+                        foo = Foo(...)
+                        any = Any()
+                        any.Pack(foo)
+                        ...
+                        if any.Is(Foo.DESCRIPTOR):
+                          any.Unpack(foo)
+                          ...
+
+                     Example 4: Pack and unpack a message in Go
+
+                         foo := &pb.Foo{...}
+                         any, err := ptypes.MarshalAny(foo)
+                         ...
+                         foo := &pb.Foo{}
+                         if err := ptypes.UnmarshalAny(any, foo); err != nil {
+                           ...
+                         }
+
+                    The pack methods provided by protobuf library will by
+                    default use
+
+                    'type.googleapis.com/full.type.name' as the type URL and the
+                    unpack
+
+                    methods only use the fully qualified type name after the
+                    last '/'
+
+                    in the type URL, for example "foo.bar.com/x/y.z" will yield
+                    type
+
+                    name "y.z".
+
+
+
+                    JSON
+
+                    ====
+
+                    The JSON representation of an `Any` value uses the regular
+
+                    representation of the deserialized, embedded message, with
+                    an
+
+                    additional field `@type` which contains the type URL.
+                    Example:
+
+                        package google.profile;
+                        message Person {
+                          string first_name = 1;
+                          string last_name = 2;
+                        }
+
+                        {
+                          "@type": "type.googleapis.com/google.profile.Person",
+                          "firstName": <string>,
+                          "lastName": <string>
+                        }
+
+                    If the embedded message type is well-known and has a custom
+                    JSON
+
+                    representation, that representation will be embedded adding
+                    a field
+
+                    `value` which holds the custom JSON in addition to the
+                    `@type`
+
+                    field. Example (for message [google.protobuf.Duration][]):
+
+                        {
+                          "@type": "type.googleapis.com/google.protobuf.Duration",
+                          "value": "1.212s"
+                        }
+      parameters:
+        - name: trace_config.tracer
+          description: custom javascript tracer.
+          in: query
+          required: false
+          type: string
+        - name: trace_config.timeout
+          description: >-
+            overrides the default timeout of 5 seconds for JavaScript-based
+            tracing
+
+            calls.
+          in: query
+          required: false
+          type: string
+        - name: trace_config.reexec
+          description: number of blocks the tracer is willing to go back.
+          in: query
+          required: false
+          type: string
+          format: uint64
+        - name: trace_config.disable_stack
+          description: disable stack capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.disable_storage
+          description: disable storage capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.debug
+          description: print output during capture end.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.limit
+          description: maximum length of output, but zero means unlimited.
+          in: query
+          required: false
+          type: integer
+          format: int32
+        - name: trace_config.overrides.homestead_block
+          description: Homestead switch block (nil no fork, 0 = already homestead).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.dao_fork_block
+          description: TheDAO hard-fork switch block (nil no fork).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.dao_fork_support
+          description: Whether the nodes supports or opposes the DAO hard-fork.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.overrides.eip150_block
+          description: >-
+            EIP150 implements the Gas price changes
+
+            (https://github.com/ethereum/EIPs/issues/150) EIP150 HF block (nil
+            no fork).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.eip150_hash
+          description: >-
+            EIP150 HF hash (needed for header only clients as only gas pricing
+            changed).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.eip155_block
+          description: EIP155Block HF block.
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.eip158_block
+          description: EIP158 HF block.
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.byzantium_block
+          description: Byzantium switch block (nil no fork, 0 = already on byzantium).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.constantinople_block
+          description: Constantinople switch block (nil no fork, 0 = already activated).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.petersburg_block
+          description: Petersburg switch block (nil same as Constantinople).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.istanbul_block
+          description: Istanbul switch block (nil no fork, 0 = already on istanbul).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.muir_glacier_block
+          description: >-
+            Eip-2384 (bomb delay) switch block (nil no fork, 0 = already
+            activated).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.berlin_block
+          description: Berlin switch block (nil = no fork, 0 = already on berlin).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.london_block
+          description: London switch block (nil = no fork, 0 = already on london).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.arrow_glacier_block
+          description: >-
+            Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+            activated).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.merge_fork_block
+          description: >-
+            EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in
+            merge proceedings).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.enable_memory
+          description: enable memory capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.enable_return_data
+          description: enable return data capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: block_number
+          description: block number.
+          in: query
+          required: false
+          type: string
+          format: int64
+        - name: block_hash
+          description: block hex hash.
+          in: query
+          required: false
+          type: string
+        - name: block_time
+          description: block time.
+          in: query
+          required: false
+          type: string
+          format: date-time
+      tags:
+        - Query
   /ethermint/evm/v1/trace_tx:
     get:
       summary: TraceTx implements the `debug_traceTransaction` rpc api
@@ -6651,7 +7584,7 @@ paths:
                 title: response serialized in bytes
             title: QueryTraceTxResponse defines TraceTx response
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -6919,12 +7852,6 @@ paths:
           in: query
           required: false
           type: string
-        - name: tx_index
-          description: transaction index.
-          in: query
-          required: false
-          type: string
-          format: uint64
         - name: trace_config.tracer
           description: custom javascript tracer.
           in: query
@@ -6933,7 +7860,9 @@ paths:
         - name: trace_config.timeout
           description: >-
             overrides the default timeout of 5 seconds for JavaScript-based
-            tracing calls.
+            tracing
+
+            calls.
           in: query
           required: false
           type: string
@@ -6943,39 +7872,32 @@ paths:
           required: false
           type: string
           format: uint64
-        - name: trace_config.disable_memory
-          description: disable memory capture.
-          in: query
-          required: false
-          type: boolean
         - name: trace_config.disable_stack
           description: disable stack capture.
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: trace_config.disable_storage
           description: disable storage capture.
           in: query
           required: false
           type: boolean
-        - name: trace_config.disable_return_data
-          description: disable return data capture.
-          in: query
-          required: false
-          type: boolean
+          format: boolean
         - name: trace_config.debug
           description: print output during capture end.
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: trace_config.limit
-          description: 'maximum length of output, but zero means unlimited.'
+          description: maximum length of output, but zero means unlimited.
           in: query
           required: false
           type: integer
           format: int32
         - name: trace_config.overrides.homestead_block
-          description: 'Homestead switch block (nil no fork, 0 = already homestead).'
+          description: Homestead switch block (nil no fork, 0 = already homestead).
           in: query
           required: false
           type: string
@@ -6989,6 +7911,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: trace_config.overrides.eip150_block
           description: >-
             EIP150 implements the Gas price changes
@@ -7016,12 +7939,12 @@ paths:
           required: false
           type: string
         - name: trace_config.overrides.byzantium_block
-          description: 'Byzantium switch block (nil no fork, 0 = already on byzantium).'
+          description: Byzantium switch block (nil no fork, 0 = already on byzantium).
           in: query
           required: false
           type: string
         - name: trace_config.overrides.constantinople_block
-          description: 'Constantinople switch block (nil no fork, 0 = already activated).'
+          description: Constantinople switch block (nil no fork, 0 = already activated).
           in: query
           required: false
           type: string
@@ -7031,7 +7954,7 @@ paths:
           required: false
           type: string
         - name: trace_config.overrides.istanbul_block
-          description: 'Istanbul switch block (nil no fork, 0 = already on istanbul).'
+          description: Istanbul switch block (nil no fork, 0 = already on istanbul).
           in: query
           required: false
           type: string
@@ -7043,23 +7966,61 @@ paths:
           required: false
           type: string
         - name: trace_config.overrides.berlin_block
-          description: 'Berlin switch block (nil = no fork, 0 = already on berlin).'
-          in: query
-          required: false
-          type: string
-        - name: trace_config.overrides.catalyst_block
-          description: 'Catalyst switch block (nil = no fork, 0 = already on catalyst).'
+          description: Berlin switch block (nil = no fork, 0 = already on berlin).
           in: query
           required: false
           type: string
         - name: trace_config.overrides.london_block
-          description: 'London switch block (nil = no fork, 0 = already on london).'
+          description: London switch block (nil = no fork, 0 = already on london).
           in: query
           required: false
           type: string
+        - name: trace_config.overrides.arrow_glacier_block
+          description: >-
+            Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+            activated).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.overrides.merge_fork_block
+          description: >-
+            EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in
+            merge proceedings).
+          in: query
+          required: false
+          type: string
+        - name: trace_config.enable_memory
+          description: enable memory capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: trace_config.enable_return_data
+          description: enable return data capture.
+          in: query
+          required: false
+          type: boolean
+          format: boolean
+        - name: block_number
+          description: block number of requested transaction.
+          in: query
+          required: false
+          type: string
+          format: int64
+        - name: block_hash
+          description: block hex hash of requested transaction.
+          in: query
+          required: false
+          type: string
+        - name: block_time
+          description: block time of requested transaction.
+          in: query
+          required: false
+          type: string
+          format: date-time
       tags:
         - Query
-  '/ethermint/evm/v1/validator_account/{cons_address}':
+  /ethermint/evm/v1/validator_account/{cons_address}:
     get:
       summary: >-
         ValidatorAccount queries an Ethereum account's from a validator
@@ -7090,7 +8051,7 @@ paths:
               QueryValidatorAccountResponse is the response type for the
               Query/ValidatorAccount RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -7286,10 +8247,10 @@ paths:
           type: string
       tags:
         - Query
-  /feemarket/evm/v1/base_fee:
+  /ethermint/feemarket/v1/base_fee:
     get:
       summary: BaseFee queries the base fee of the parent block of the current block.
-      operationId: BaseFee
+      operationId: EvmBaseFee
       responses:
         '200':
           description: A successful response.
@@ -7300,7 +8261,7 @@ paths:
                 type: string
             description: BaseFeeResponse returns the EIP1559 base fee.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -7323,7 +8284,7 @@ paths:
                       format: byte
       tags:
         - Query
-  /feemarket/evm/v1/block_gas:
+  /ethermint/feemarket/v1/block_gas:
     get:
       summary: BlockGas queries the gas used at a given block height
       operationId: BlockGas
@@ -7338,7 +8299,7 @@ paths:
                 format: int64
             description: QueryBlockGasResponse returns block gas used for a given height.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -7361,7 +8322,7 @@ paths:
                       format: byte
       tags:
         - Query
-  /feemarket/evm/v1/params:
+  /ethermint/feemarket/v1/params:
     get:
       summary: Params queries the parameters of x/feemarket module.
       operationId: EvmParams2
@@ -7377,6 +8338,7 @@ paths:
                 properties:
                   no_base_fee:
                     type: boolean
+                    format: boolean
                     title: >-
                       no base fee forces the EIP-1559 base fee to 0 (needed for
                       0 price calls)
@@ -7385,27 +8347,42 @@ paths:
                     format: int64
                     description: >-
                       base fee change denominator bounds the amount the base fee
-                      can change between blocks.
+                      can change
+
+                      between blocks.
                   elasticity_multiplier:
                     type: integer
                     format: int64
                     description: >-
                       elasticity multiplier bounds the maximum gas limit an
-                      EIP-1559 block may have.
-                  initial_base_fee:
-                    type: string
-                    format: int64
-                    description: initial base fee for EIP-1559 blocks.
+                      EIP-1559 block may
+
+                      have.
                   enable_height:
                     type: string
                     format: int64
                     description: height at which the base fee calculation is enabled.
+                  base_fee:
+                    type: string
+                    description: base fee for EIP-1559 blocks.
+                  min_gas_price:
+                    type: string
+                    title: >-
+                      min_gas_price defines the minimum gas price value for
+                      cosmos and eth transactions
+                  min_gas_multiplier:
+                    type: string
+                    title: >-
+                      min gas denominator bounds the minimum gasUsed to be
+                      charged
+
+                      to senders based on GasLimit
                 title: Params defines the EVM module parameters
             description: >-
               QueryParamsResponse defines the response type for querying x/evm
               parameters.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -7638,7 +8615,7 @@ paths:
               QueryAccountsResponse is the response type for the Query/Accounts
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -7873,6 +8850,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -7880,9 +8858,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/auth/v1beta1/accounts/{address}':
+  /cosmos/auth/v1beta1/accounts/{address}:
     get:
       summary: Account returns account details based on address.
       operationId: AuthAccount
@@ -8067,7 +9046,7 @@ paths:
               QueryAccountResponse is the response type for the Query/Account
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -8296,7 +9275,7 @@ paths:
               QueryParamsResponse is the response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -8486,7 +9465,7 @@ paths:
                         }
       tags:
         - Query
-  '/cosmos/bank/v1beta1/balances/{address}':
+  /cosmos/bank/v1beta1/balances/{address}:
     get:
       summary: AllBalances queries the balance of all coins for a single account.
       operationId: AllBalances
@@ -8538,7 +9517,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -8611,6 +9590,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -8618,9 +9598,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/bank/v1beta1/balances/{address}/{denom}':
+  /cosmos/bank/v1beta1/balances/{address}/{denom}:
     get:
       summary: Balance queries the balance of a single coin for a single account.
       operationId: BankBalance
@@ -8649,7 +9630,7 @@ paths:
               QueryBalanceResponse is the response type for the Query/Balance
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -8791,7 +9772,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -8859,6 +9840,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -8866,9 +9848,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/bank/v1beta1/denoms_metadata/{denom}':
+  /cosmos/bank/v1beta1/denoms_metadata/{denom}:
     get:
       summary: DenomsMetadata queries the client metadata of a given coin denomination.
       operationId: DenomMetadata
@@ -8951,7 +9934,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -9002,6 +9985,7 @@ paths:
                           type: string
                         enabled:
                           type: boolean
+                          format: boolean
                       description: >-
                         SendEnabled maps coin denom to a send_enabled status
                         (whether a denom is
@@ -9009,12 +9993,13 @@ paths:
                         sendable).
                   default_send_enabled:
                     type: boolean
+                    format: boolean
                 description: Params defines the parameters for the bank module.
             description: >-
               QueryParamsResponse defines the response type for querying x/bank
               parameters.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -9089,7 +10074,7 @@ paths:
 
               method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -9157,6 +10142,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -9164,9 +10150,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/bank/v1beta1/supply/{denom}':
+  /cosmos/bank/v1beta1/supply/{denom}:
     get:
       summary: SupplyOf queries the supply of a single coin.
       operationId: SupplyOf
@@ -9195,7 +10182,7 @@ paths:
               QuerySupplyOfResponse is the response type for the Query/SupplyOf
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -9792,7 +10779,7 @@ paths:
               GetLatestBlockResponse is the response type for the
               Query/GetLatestBlock RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -9982,7 +10969,7 @@ paths:
                         }
       tags:
         - Service
-  '/cosmos/base/tendermint/v1beta1/blocks/{height}':
+  /cosmos/base/tendermint/v1beta1/blocks/{height}:
     get:
       summary: GetBlockByHeight queries block for given height.
       operationId: GetBlockByHeight
@@ -10550,7 +11537,7 @@ paths:
               GetBlockByHeightResponse is the response type for the
               Query/GetBlockByHeight RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -10828,7 +11815,7 @@ paths:
               GetNodeInfoResponse is the request type for the Query/GetNodeInfo
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -11030,11 +12017,12 @@ paths:
             properties:
               syncing:
                 type: boolean
+                format: boolean
             description: >-
               GetSyncingResponse is the response type for the Query/GetSyncing
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -11450,7 +12438,7 @@ paths:
               GetLatestValidatorSetResponse is the response type for the
               Query/GetValidatorSetByHeight RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -11685,6 +12673,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -11692,9 +12681,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Service
-  '/cosmos/base/tendermint/v1beta1/validatorsets/{height}':
+  /cosmos/base/tendermint/v1beta1/validatorsets/{height}:
     get:
       summary: GetValidatorSetByHeight queries validator-set at a given height.
       operationId: GetValidatorSetByHeight
@@ -11920,7 +12910,7 @@ paths:
               GetValidatorSetByHeightResponse is the response type for the
               Query/GetValidatorSetByHeight RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12160,6 +13150,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -12167,6 +13158,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Service
   /cosmos/distribution/v1beta1/community_pool:
@@ -12204,7 +13196,7 @@ paths:
 
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12227,7 +13219,7 @@ paths:
                       format: byte
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards':
+  /cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards:
     get:
       summary: |-
         DelegationTotalRewards queries the total rewards accrued by a each
@@ -12291,7 +13283,7 @@ paths:
               QueryDelegationTotalRewardsResponse is the response type for the
               Query/DelegationTotalRewards RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12320,7 +13312,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards/{validator_address}':
+  /cosmos/distribution/v1beta1/delegators/{delegator_address}/rewards/{validator_address}:
     get:
       summary: DelegationRewards queries the total rewards accrued by a delegation.
       operationId: DelegationRewards
@@ -12353,7 +13345,7 @@ paths:
               QueryDelegationRewardsResponse is the response type for the
               Query/DelegationRewards RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12387,7 +13379,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/delegators/{delegator_address}/validators':
+  /cosmos/distribution/v1beta1/delegators/{delegator_address}/validators:
     get:
       summary: DelegatorValidators queries the validators of a delegator.
       operationId: DelegatorValidators
@@ -12408,7 +13400,7 @@ paths:
               QueryDelegatorValidatorsResponse is the response type for the
               Query/DelegatorValidators RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12437,7 +13429,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/delegators/{delegator_address}/withdraw_address':
+  /cosmos/distribution/v1beta1/delegators/{delegator_address}/withdraw_address:
     get:
       summary: DelegatorWithdrawAddress queries withdraw address of a delegator.
       operationId: DelegatorWithdrawAddress
@@ -12454,7 +13446,7 @@ paths:
               QueryDelegatorWithdrawAddressResponse is the response type for the
               Query/DelegatorWithdrawAddress RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12505,11 +13497,12 @@ paths:
                     type: string
                   withdraw_addr_enabled:
                     type: boolean
+                    format: boolean
             description: >-
               QueryParamsResponse is the response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12532,7 +13525,7 @@ paths:
                       format: byte
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/validators/{validator_address}/commission':
+  /cosmos/distribution/v1beta1/validators/{validator_address}/commission:
     get:
       summary: ValidatorCommission queries accumulated commission for a validator.
       operationId: ValidatorCommission
@@ -12568,7 +13561,7 @@ paths:
               QueryValidatorCommissionResponse is the response type for the
               Query/ValidatorCommission RPC method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12597,7 +13590,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/validators/{validator_address}/outstanding_rewards':
+  /cosmos/distribution/v1beta1/validators/{validator_address}/outstanding_rewards:
     get:
       summary: ValidatorOutstandingRewards queries rewards of a validator address.
       operationId: ValidatorOutstandingRewards
@@ -12640,7 +13633,7 @@ paths:
 
               Query/ValidatorOutstandingRewards RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12669,7 +13662,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/distribution/v1beta1/validators/{validator_address}/slashes':
+  /cosmos/distribution/v1beta1/validators/{validator_address}/slashes:
     get:
       summary: ValidatorSlashes queries slash events of a validator.
       operationId: ValidatorSlashes
@@ -12722,7 +13715,7 @@ paths:
               QueryValidatorSlashesResponse is the response type for the
               Query/ValidatorSlashes RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -12811,6 +13804,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -12818,6 +13812,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
   /cosmos/evidence/v1beta1/evidence:
@@ -13032,7 +14027,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -13267,6 +14262,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -13274,9 +14270,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/evidence/v1beta1/evidence/{evidence_hash}':
+  /cosmos/evidence/v1beta1/evidence/{evidence_hash}:
     get:
       summary: Evidence queries evidence based on evidence hash.
       operationId: Evidence
@@ -13461,7 +14458,7 @@ paths:
               QueryEvidenceResponse is the response type for the Query/Evidence
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -13658,7 +14655,7 @@ paths:
           format: byte
       tags:
         - Query
-  '/cosmos/gov/v1beta1/params/{params_type}':
+  /cosmos/gov/v1beta1/params/{params_type}:
     get:
       summary: Params queries all parameters of the gov module.
       operationId: GovParams
@@ -13731,7 +14728,7 @@ paths:
               QueryParamsResponse is the response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -14222,7 +15219,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -14493,6 +15490,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -14500,9 +15498,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}:
     get:
       summary: Proposal queries proposal details based on ProposalID.
       operationId: Proposal
@@ -14768,7 +15767,7 @@ paths:
               QueryProposalResponse is the response type for the Query/Proposal
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -14965,7 +15964,7 @@ paths:
           format: uint64
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}/deposits':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}/deposits:
     get:
       summary: Deposits queries all deposits of a single proposal.
       operationId: Deposits
@@ -15030,7 +16029,7 @@ paths:
               QueryDepositsResponse is the response type for the Query/Deposits
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -15271,6 +16270,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -15278,9 +16278,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}/deposits/{depositor}':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}/deposits/{depositor}:
     get:
       summary: >-
         Deposit queries single deposit information based proposalID,
@@ -15326,7 +16327,7 @@ paths:
               QueryDepositResponse is the response type for the Query/Deposit
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -15528,7 +16529,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}/tally':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}/tally:
     get:
       summary: TallyResult queries the tally of a proposal vote.
       operationId: TallyResult
@@ -15556,7 +16557,7 @@ paths:
               QueryTallyResultResponse is the response type for the Query/Tally
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -15753,7 +16754,7 @@ paths:
           format: uint64
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}/votes':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}/votes:
     get:
       summary: Votes queries votes of a given proposal.
       operationId: Votes
@@ -15847,7 +16848,7 @@ paths:
               QueryVotesResponse is the response type for the Query/Votes RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16088,6 +17089,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -16095,11 +17097,12 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/gov/v1beta1/proposals/{proposal_id}/votes/{voter}':
+  /cosmos/gov/v1beta1/proposals/{proposal_id}/votes/{voter}:
     get:
-      summary: 'Vote queries voted information based on proposalID, voterAddr.'
+      summary: Vote queries voted information based on proposalID, voterAddr.
       operationId: Vote
       responses:
         '200':
@@ -16170,7 +17173,7 @@ paths:
               QueryVoteResponse is the response type for the Query/Vote RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16392,7 +17395,7 @@ paths:
               QueryAnnualProvisionsResponse is the response type for the
               Query/AnnualProvisions RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16435,7 +17438,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16495,7 +17498,7 @@ paths:
               QueryParamsResponse is the response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16544,7 +17547,7 @@ paths:
               QueryParamsResponse is response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16612,7 +17615,7 @@ paths:
               QueryParamsResponse is the response type for the Query/Params RPC
               method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16678,6 +17681,7 @@ paths:
                         liveness downtime.
                     tombstoned:
                       type: boolean
+                      format: boolean
                       description: >-
                         Whether or not a validator has been tombstoned (killed
                         out of validator set). It is set
@@ -16731,7 +17735,7 @@ paths:
 
               method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16799,6 +17803,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -16806,9 +17811,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/slashing/v1beta1/signing_infos/{cons_address}':
+  /cosmos/slashing/v1beta1/signing_infos/{cons_address}:
     get:
       summary: SigningInfo queries the signing info of given cons address
       operationId: SigningInfo
@@ -16849,6 +17855,7 @@ paths:
                       liveness downtime.
                   tombstoned:
                     type: boolean
+                    format: boolean
                     description: >-
                       Whether or not a validator has been tombstoned (killed out
                       of validator set). It is set
@@ -16877,7 +17884,7 @@ paths:
 
               method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -16906,7 +17913,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/staking/v1beta1/delegations/{delegator_addr}':
+  /cosmos/staking/v1beta1/delegations/{delegator_addr}:
     get:
       summary: >-
         DelegatorDelegations queries all delegations of a given delegator
@@ -16993,7 +18000,7 @@ paths:
               QueryDelegatorDelegationsResponse is response type for the
               Query/DelegatorDelegations RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -17233,6 +18240,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -17240,9 +18248,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/delegators/{delegator_addr}/redelegations':
+  /cosmos/staking/v1beta1/delegators/{delegator_addr}/redelegations:
     get:
       summary: Redelegations queries redelegations of given address.
       operationId: Redelegations
@@ -17389,7 +18398,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -17639,6 +18648,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -17646,9 +18656,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/delegators/{delegator_addr}/unbonding_delegations':
+  /cosmos/staking/v1beta1/delegators/{delegator_addr}/unbonding_delegations:
     get:
       summary: >-
         DelegatorUnbondingDelegations queries all unbonding delegations of a
@@ -17737,7 +18748,7 @@ paths:
 
               Query/UnbondingDelegatorDelegations RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -17977,6 +18988,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -17984,9 +18996,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators':
+  /cosmos/staking/v1beta1/delegators/{delegator_addr}/validators:
     get:
       summary: |-
         DelegatorValidators queries all validators info for given delegator
@@ -18187,6 +19200,7 @@ paths:
                             }
                     jailed:
                       type: boolean
+                      format: boolean
                       description: >-
                         jailed defined whether the validator has been jailed
                         from bonded status or not.
@@ -18333,7 +19347,7 @@ paths:
               QueryDelegatorValidatorsResponse is response type for the
               Query/DelegatorValidators RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -18573,6 +19587,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -18580,9 +19595,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/{validator_addr}':
+  /cosmos/staking/v1beta1/delegators/{delegator_addr}/validators/{validator_addr}:
     get:
       summary: |-
         DelegatorValidator queries validator info for given delegator validator
@@ -18779,6 +19795,7 @@ paths:
                           }
                   jailed:
                     type: boolean
+                    format: boolean
                     description: >-
                       jailed defined whether the validator has been jailed from
                       bonded status or not.
@@ -18905,7 +19922,7 @@ paths:
               QueryDelegatorValidatorResponse response type for the
               Query/DelegatorValidator RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -19106,7 +20123,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/staking/v1beta1/historical_info/{height}':
+  /cosmos/staking/v1beta1/historical_info/{height}:
     get:
       summary: HistoricalInfo queries the historical info for given height.
       operationId: HistoricalInfo
@@ -19387,6 +20404,7 @@ paths:
                                 }
                         jailed:
                           type: boolean
+                          format: boolean
                           description: >-
                             jailed defined whether the validator has been jailed
                             from bonded status or not.
@@ -19517,7 +20535,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -19754,7 +20772,7 @@ paths:
               QueryParamsResponse is response type for the Query/Params RPC
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -19964,7 +20982,7 @@ paths:
                     type: string
             description: QueryPoolResponse is response type for the Query/Pool RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -20353,6 +21371,7 @@ paths:
                             }
                     jailed:
                       type: boolean
+                      format: boolean
                       description: >-
                         jailed defined whether the validator has been jailed
                         from bonded status or not.
@@ -20499,7 +21518,7 @@ paths:
               QueryValidatorsResponse is response type for the Query/Validators
               RPC method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -20739,6 +21758,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -20746,9 +21766,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/validators/{validator_addr}':
+  /cosmos/staking/v1beta1/validators/{validator_addr}:
     get:
       summary: Validator queries validator info for given validator address.
       operationId: Validator
@@ -20943,6 +21964,7 @@ paths:
                           }
                   jailed:
                     type: boolean
+                    format: boolean
                     description: >-
                       jailed defined whether the validator has been jailed from
                       bonded status or not.
@@ -21069,7 +22091,7 @@ paths:
               QueryValidatorResponse is response type for the Query/Validator
               RPC method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -21265,7 +22287,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/staking/v1beta1/validators/{validator_addr}/delegations':
+  /cosmos/staking/v1beta1/validators/{validator_addr}/delegations:
     get:
       summary: ValidatorDelegations queries delegate info for given validator.
       operationId: ValidatorDelegations
@@ -21347,7 +22369,7 @@ paths:
               QueryValidatorDelegationsResponse is response type for the
               Query/ValidatorDelegations RPC method
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -21587,6 +22609,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -21594,9 +22617,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}':
+  /cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}:
     get:
       summary: Delegation queries delegate info for given validator delegator pair.
       operationId: Delegation
@@ -21658,7 +22682,7 @@ paths:
               QueryDelegationResponse is response type for the Query/Delegation
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -21859,7 +22883,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation':
+  /cosmos/staking/v1beta1/validators/{validator_addr}/delegations/{delegator_addr}/unbonding_delegation:
     get:
       summary: |-
         UnbondingDelegation queries unbonding info for given validator delegator
@@ -21924,7 +22948,7 @@ paths:
 
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -22125,7 +23149,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/staking/v1beta1/validators/{validator_addr}/unbonding_delegations':
+  /cosmos/staking/v1beta1/validators/{validator_addr}/unbonding_delegations:
     get:
       summary: >-
         ValidatorUnbondingDelegations queries unbonding delegations of a
@@ -22212,7 +23236,7 @@ paths:
 
               Query/ValidatorUnbondingDelegations RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -22452,6 +23476,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -22459,6 +23484,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
   /cosmos/tx/v1beta1/simulate:
@@ -22523,6 +23549,7 @@ paths:
                                 format: byte
                               index:
                                 type: boolean
+                                format: boolean
                             description: >-
                               EventAttribute is a single key-value pair,
                               associated with an event.
@@ -22543,7 +23570,7 @@ paths:
               SimulateResponse is the response type for the
               Service.SimulateRPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -22749,7 +23776,7 @@ paths:
           schema:
             $ref: '#/definitions/cosmos.tx.v1beta1.GetTxsEventResponse'
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -22992,6 +24019,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -22999,6 +24027,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: order_by
           description: |2-
              - ORDER_BY_UNSPECIFIED: ORDER_BY_UNSPECIFIED specifies an unknown sorting order. OrderBy defaults to ASC in this case.
@@ -23042,7 +24071,7 @@ paths:
                     description: Response code.
                   data:
                     type: string
-                    description: 'Result bytes, if any.'
+                    description: Result bytes, if any.
                   raw_log:
                     type: string
                     description: >-
@@ -23303,7 +24332,7 @@ paths:
               BroadcastTxResponse is the response type for the
               Service.BroadcastTx method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -23528,7 +24557,7 @@ paths:
               RPC method.
       tags:
         - Service
-  '/cosmos/tx/v1beta1/txs/{hash}':
+  /cosmos/tx/v1beta1/txs/{hash}:
     get:
       summary: GetTx fetches a tx by hash.
       operationId: GetTx
@@ -23538,7 +24567,7 @@ paths:
           schema:
             $ref: '#/definitions/cosmos.tx.v1beta1.GetTxResponse'
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -23728,13 +24757,13 @@ paths:
                         }
       parameters:
         - name: hash
-          description: 'hash is the tx hash to query, encoded as a hex string.'
+          description: hash is the tx hash to query, encoded as a hex string.
           in: path
           required: true
           type: string
       tags:
         - Service
-  '/cosmos/upgrade/v1beta1/applied_plan/{name}':
+  /cosmos/upgrade/v1beta1/applied_plan/{name}:
     get:
       summary: AppliedPlan queries a previously applied upgrade plan by its name.
       operationId: AppliedPlan
@@ -23754,7 +24783,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -24191,7 +25220,7 @@ paths:
 
               method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -24413,7 +25442,7 @@ paths:
 
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -24612,7 +25641,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/upgrade/v1beta1/upgraded_consensus_state/{last_height}':
+  /cosmos/upgrade/v1beta1/upgraded_consensus_state/{last_height}:
     get:
       summary: |-
         UpgradedConsensusState queries the consensus state that will serve
@@ -24635,7 +25664,7 @@ paths:
 
               RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -24836,7 +25865,7 @@ paths:
         - Query
   /cosmos/authz/v1beta1/grants:
     get:
-      summary: 'Returns list of `Authorization`, granted to the grantee by the granter.'
+      summary: Returns list of `Authorization`, granted to the grantee by the granter.
       operationId: Grants
       responses:
         '200':
@@ -25057,7 +26086,7 @@ paths:
               QueryGrantsResponse is the response type for the
               Query/Authorizations RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -25307,6 +26336,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -25314,9 +26344,10 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
-  '/cosmos/feegrant/v1beta1/allowance/{granter}/{grantee}':
+  /cosmos/feegrant/v1beta1/allowance/{granter}/{grantee}:
     get:
       summary: Allowance returns fee granted to the grantee by the granter.
       operationId: Allowance
@@ -25415,7 +26446,7 @@ paths:
               QueryAllowanceResponse is the response type for the
               Query/Allowance RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -25620,7 +26651,7 @@ paths:
           type: string
       tags:
         - Query
-  '/cosmos/feegrant/v1beta1/allowances/{grantee}':
+  /cosmos/feegrant/v1beta1/allowances/{grantee}:
     get:
       summary: Allowances returns all the grants for address.
       operationId: Allowances
@@ -25741,7 +26772,7 @@ paths:
               QueryAllowancesResponse is the response type for the
               Query/Allowances RPC method.
         default:
-          description: An unexpected error response.
+          description: An unexpected error response
           schema:
             type: object
             properties:
@@ -25980,6 +27011,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
         - name: pagination.reverse
           description: >-
             reverse is set to true if results are to be returned in the
@@ -25987,6 +27019,7 @@ paths:
           in: query
           required: false
           type: boolean
+          format: boolean
       tags:
         - Query
 securityDefinitions:
@@ -26902,7 +27935,7 @@ definitions:
         description: Sender address or Keybase name to generate a transaction
       memo:
         type: string
-        example: "Sent via Cosmos Voyager \U0001F680"
+        example: Sent via Cosmos Voyager 🚀
       chain_id:
         type: string
         example: Cosmos-Hub
@@ -27284,6 +28317,407 @@ definitions:
       denom:
         type: string
     title: DenomByContractResponse is the response type of DenomByContract call
+  cronos.ReplayBlockResponse:
+    type: object
+    properties:
+      responses:
+        type: array
+        items:
+          type: object
+          properties:
+            hash:
+              type: string
+              title: >-
+                ethereum transaction hash in hex format. This hash differs from
+                the
+
+                Tendermint sha256 hash of the transaction bytes. See
+
+                https://github.com/tendermint/tendermint/issues/6539 for
+                reference
+            logs:
+              type: array
+              items:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    title: address of the contract that generated the event
+                  topics:
+                    type: array
+                    items:
+                      type: string
+                    description: list of topics provided by the contract.
+                  data:
+                    type: string
+                    format: byte
+                    title: supplied by the contract, usually ABI-encoded
+                  block_number:
+                    type: string
+                    format: uint64
+                    title: block in which the transaction was included
+                  tx_hash:
+                    type: string
+                    title: hash of the transaction
+                  tx_index:
+                    type: string
+                    format: uint64
+                    title: index of the transaction in the block
+                  block_hash:
+                    type: string
+                    title: hash of the block in which the transaction was included
+                  index:
+                    type: string
+                    format: uint64
+                    title: index of the log in the block
+                  removed:
+                    type: boolean
+                    format: boolean
+                    description: >-
+                      The Removed field is true if this log was reverted due to
+                      a chain
+
+                      reorganisation. You must pay attention to this field if
+                      you receive logs
+
+                      through a filter query.
+                description: >-
+                  Log represents an protobuf compatible Ethereum Log that
+                  defines a contract
+
+                  log event. These events are generated by the LOG opcode and
+                  stored/indexed by
+
+                  the node.
+              description: >-
+                logs contains the transaction hash and the proto-compatible
+                ethereum
+
+                logs.
+            ret:
+              type: string
+              format: byte
+              title: >-
+                returned data from evm function (result or data supplied with
+                revert
+
+                opcode)
+            vm_error:
+              type: string
+              title: vm error is the error returned by vm execution
+            gas_used:
+              type: string
+              format: uint64
+              title: gas consumed by the transaction
+          description: MsgEthereumTxResponse defines the Msg/EthereumTx response type.
+    title: ReplayBlockResponse
+  ethermint.evm.v1.Log:
+    type: object
+    properties:
+      address:
+        type: string
+        title: address of the contract that generated the event
+      topics:
+        type: array
+        items:
+          type: string
+        description: list of topics provided by the contract.
+      data:
+        type: string
+        format: byte
+        title: supplied by the contract, usually ABI-encoded
+      block_number:
+        type: string
+        format: uint64
+        title: block in which the transaction was included
+      tx_hash:
+        type: string
+        title: hash of the transaction
+      tx_index:
+        type: string
+        format: uint64
+        title: index of the transaction in the block
+      block_hash:
+        type: string
+        title: hash of the block in which the transaction was included
+      index:
+        type: string
+        format: uint64
+        title: index of the log in the block
+      removed:
+        type: boolean
+        format: boolean
+        description: >-
+          The Removed field is true if this log was reverted due to a chain
+
+          reorganisation. You must pay attention to this field if you receive
+          logs
+
+          through a filter query.
+    description: >-
+      Log represents an protobuf compatible Ethereum Log that defines a contract
+
+      log event. These events are generated by the LOG opcode and stored/indexed
+      by
+
+      the node.
+  ethermint.evm.v1.MsgEthereumTx:
+    type: object
+    properties:
+      data:
+        type: object
+        properties:
+          type_url:
+            type: string
+            description: >-
+              A URL/resource name that uniquely identifies the type of the
+              serialized
+
+              protocol buffer message. This string must contain at least
+
+              one "/" character. The last segment of the URL's path must
+              represent
+
+              the fully qualified name of the type (as in
+
+              `path/google.protobuf.Duration`). The name should be in a
+              canonical form
+
+              (e.g., leading "." is not accepted).
+
+
+              In practice, teams usually precompile into the binary all types
+              that they
+
+              expect it to use in the context of Any. However, for URLs which
+              use the
+
+              scheme `http`, `https`, or no scheme, one can optionally set up a
+              type
+
+              server that maps type URLs to message definitions as follows:
+
+
+              * If no scheme is provided, `https` is assumed.
+
+              * An HTTP GET on the URL must yield a [google.protobuf.Type][]
+                value in binary format, or produce an error.
+              * Applications are allowed to cache lookup results based on the
+                URL, or have them precompiled into a binary to avoid any
+                lookup. Therefore, binary compatibility needs to be preserved
+                on changes to types. (Use versioned type names to manage
+                breaking changes.)
+
+              Note: this functionality is not currently available in the
+              official
+
+              protobuf release, and it is not used for type URLs beginning with
+
+              type.googleapis.com.
+
+
+              Schemes other than `http`, `https` (or the empty scheme) might be
+
+              used with implementation specific semantics.
+          value:
+            type: string
+            format: byte
+            description: >-
+              Must be a valid serialized protocol buffer of the above specified
+              type.
+        description: >-
+          `Any` contains an arbitrary serialized protocol buffer message along
+          with a
+
+          URL that describes the type of the serialized message.
+
+
+          Protobuf library provides support to pack/unpack Any values in the
+          form
+
+          of utility functions or additional generated methods of the Any type.
+
+
+          Example 1: Pack and unpack a message in C++.
+
+              Foo foo = ...;
+              Any any;
+              any.PackFrom(foo);
+              ...
+              if (any.UnpackTo(&foo)) {
+                ...
+              }
+
+          Example 2: Pack and unpack a message in Java.
+
+              Foo foo = ...;
+              Any any = Any.pack(foo);
+              ...
+              if (any.is(Foo.class)) {
+                foo = any.unpack(Foo.class);
+              }
+
+           Example 3: Pack and unpack a message in Python.
+
+              foo = Foo(...)
+              any = Any()
+              any.Pack(foo)
+              ...
+              if any.Is(Foo.DESCRIPTOR):
+                any.Unpack(foo)
+                ...
+
+           Example 4: Pack and unpack a message in Go
+
+               foo := &pb.Foo{...}
+               any, err := ptypes.MarshalAny(foo)
+               ...
+               foo := &pb.Foo{}
+               if err := ptypes.UnmarshalAny(any, foo); err != nil {
+                 ...
+               }
+
+          The pack methods provided by protobuf library will by default use
+
+          'type.googleapis.com/full.type.name' as the type URL and the unpack
+
+          methods only use the fully qualified type name after the last '/'
+
+          in the type URL, for example "foo.bar.com/x/y.z" will yield type
+
+          name "y.z".
+
+
+
+          JSON
+
+          ====
+
+          The JSON representation of an `Any` value uses the regular
+
+          representation of the deserialized, embedded message, with an
+
+          additional field `@type` which contains the type URL. Example:
+
+              package google.profile;
+              message Person {
+                string first_name = 1;
+                string last_name = 2;
+              }
+
+              {
+                "@type": "type.googleapis.com/google.profile.Person",
+                "firstName": <string>,
+                "lastName": <string>
+              }
+
+          If the embedded message type is well-known and has a custom JSON
+
+          representation, that representation will be embedded adding a field
+
+          `value` which holds the custom JSON in addition to the `@type`
+
+          field. Example (for message [google.protobuf.Duration][]):
+
+              {
+                "@type": "type.googleapis.com/google.protobuf.Duration",
+                "value": "1.212s"
+              }
+        title: inner transaction data
+      size:
+        type: number
+        format: double
+        title: encoded storage size of the transaction
+      hash:
+        type: string
+        title: transaction hash in hex format
+      from:
+        type: string
+        title: |-
+          ethereum signer address in hex format. This address value is checked
+          against the address derived from the signature (V, R, S) using the
+          secp256k1 elliptic curve
+    description: MsgEthereumTx encapsulates an Ethereum transaction as an SDK message.
+  ethermint.evm.v1.MsgEthereumTxResponse:
+    type: object
+    properties:
+      hash:
+        type: string
+        title: |-
+          ethereum transaction hash in hex format. This hash differs from the
+          Tendermint sha256 hash of the transaction bytes. See
+          https://github.com/tendermint/tendermint/issues/6539 for reference
+      logs:
+        type: array
+        items:
+          type: object
+          properties:
+            address:
+              type: string
+              title: address of the contract that generated the event
+            topics:
+              type: array
+              items:
+                type: string
+              description: list of topics provided by the contract.
+            data:
+              type: string
+              format: byte
+              title: supplied by the contract, usually ABI-encoded
+            block_number:
+              type: string
+              format: uint64
+              title: block in which the transaction was included
+            tx_hash:
+              type: string
+              title: hash of the transaction
+            tx_index:
+              type: string
+              format: uint64
+              title: index of the transaction in the block
+            block_hash:
+              type: string
+              title: hash of the block in which the transaction was included
+            index:
+              type: string
+              format: uint64
+              title: index of the log in the block
+            removed:
+              type: boolean
+              format: boolean
+              description: >-
+                The Removed field is true if this log was reverted due to a
+                chain
+
+                reorganisation. You must pay attention to this field if you
+                receive logs
+
+                through a filter query.
+          description: >-
+            Log represents an protobuf compatible Ethereum Log that defines a
+            contract
+
+            log event. These events are generated by the LOG opcode and
+            stored/indexed by
+
+            the node.
+        description: |-
+          logs contains the transaction hash and the proto-compatible ethereum
+          logs.
+      ret:
+        type: string
+        format: byte
+        title: |-
+          returned data from evm function (result or data supplied with revert
+          opcode)
+      vm_error:
+        type: string
+        title: vm error is the error returned by vm execution
+      gas_used:
+        type: string
+        format: uint64
+        title: gas consumed by the transaction
+    description: MsgEthereumTxResponse defines the Msg/EthereumTx response type.
   google.protobuf.Any:
     type: object
     properties:
@@ -27618,12 +29052,13 @@ definitions:
     properties:
       homestead_block:
         type: string
-        title: 'Homestead switch block (nil no fork, 0 = already homestead)'
+        title: Homestead switch block (nil no fork, 0 = already homestead)
       dao_fork_block:
         type: string
         title: TheDAO hard-fork switch block (nil no fork)
       dao_fork_support:
         type: boolean
+        format: boolean
         title: Whether the nodes supports or opposes the DAO hard-fork
       eip150_block:
         type: string
@@ -27645,16 +29080,16 @@ definitions:
         title: EIP158 HF block
       byzantium_block:
         type: string
-        title: 'Byzantium switch block (nil no fork, 0 = already on byzantium)'
+        title: Byzantium switch block (nil no fork, 0 = already on byzantium)
       constantinople_block:
         type: string
-        title: 'Constantinople switch block (nil no fork, 0 = already activated)'
+        title: Constantinople switch block (nil no fork, 0 = already activated)
       petersburg_block:
         type: string
         title: Petersburg switch block (nil same as Constantinople)
       istanbul_block:
         type: string
-        title: 'Istanbul switch block (nil no fork, 0 = already on istanbul)'
+        title: Istanbul switch block (nil no fork, 0 = already on istanbul)
       muir_glacier_block:
         type: string
         title: >-
@@ -27662,13 +29097,20 @@ definitions:
           activated)
       berlin_block:
         type: string
-        title: 'Berlin switch block (nil = no fork, 0 = already on berlin)'
-      catalyst_block:
-        type: string
-        title: 'Catalyst switch block (nil = no fork, 0 = already on catalyst)'
+        title: Berlin switch block (nil = no fork, 0 = already on berlin)
       london_block:
         type: string
-        title: 'London switch block (nil = no fork, 0 = already on london)'
+        title: London switch block (nil = no fork, 0 = already on london)
+      arrow_glacier_block:
+        type: string
+        title: >-
+          Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+          activated)
+      merge_fork_block:
+        type: string
+        title: >-
+          EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in merge
+          proceedings)
     description: >-
       ChainConfig defines the Ethereum ChainConfig parameters using *sdk.Int
       values
@@ -27682,311 +29124,6 @@ definitions:
         format: uint64
         title: the estimated gas
     title: EstimateGasResponse defines EstimateGas response
-  ethermint.evm.v1.Log:
-    type: object
-    properties:
-      address:
-        type: string
-        title: address of the contract that generated the event
-      topics:
-        type: array
-        items:
-          type: string
-        description: list of topics provided by the contract.
-      data:
-        type: string
-        format: byte
-        title: 'supplied by the contract, usually ABI-encoded'
-      block_number:
-        type: string
-        format: uint64
-        title: block in which the transaction was included
-      tx_hash:
-        type: string
-        title: hash of the transaction
-      tx_index:
-        type: string
-        format: uint64
-        title: index of the transaction in the block
-      block_hash:
-        type: string
-        title: hash of the block in which the transaction was included
-      index:
-        type: string
-        format: uint64
-        title: index of the log in the block
-      removed:
-        type: boolean
-        description: >-
-          The Removed field is true if this log was reverted due to a chain
-
-          reorganisation. You must pay attention to this field if you receive
-          logs
-
-          through a filter query.
-    description: >-
-      Log represents an protobuf compatible Ethereum Log that defines a contract
-
-      log event. These events are generated by the LOG opcode and stored/indexed
-      by
-
-      the node.
-  ethermint.evm.v1.MsgEthereumTx:
-    type: object
-    properties:
-      data:
-        type: object
-        properties:
-          type_url:
-            type: string
-            description: >-
-              A URL/resource name that uniquely identifies the type of the
-              serialized
-
-              protocol buffer message. This string must contain at least
-
-              one "/" character. The last segment of the URL's path must
-              represent
-
-              the fully qualified name of the type (as in
-
-              `path/google.protobuf.Duration`). The name should be in a
-              canonical form
-
-              (e.g., leading "." is not accepted).
-
-
-              In practice, teams usually precompile into the binary all types
-              that they
-
-              expect it to use in the context of Any. However, for URLs which
-              use the
-
-              scheme `http`, `https`, or no scheme, one can optionally set up a
-              type
-
-              server that maps type URLs to message definitions as follows:
-
-
-              * If no scheme is provided, `https` is assumed.
-
-              * An HTTP GET on the URL must yield a [google.protobuf.Type][]
-                value in binary format, or produce an error.
-              * Applications are allowed to cache lookup results based on the
-                URL, or have them precompiled into a binary to avoid any
-                lookup. Therefore, binary compatibility needs to be preserved
-                on changes to types. (Use versioned type names to manage
-                breaking changes.)
-
-              Note: this functionality is not currently available in the
-              official
-
-              protobuf release, and it is not used for type URLs beginning with
-
-              type.googleapis.com.
-
-
-              Schemes other than `http`, `https` (or the empty scheme) might be
-
-              used with implementation specific semantics.
-          value:
-            type: string
-            format: byte
-            description: >-
-              Must be a valid serialized protocol buffer of the above specified
-              type.
-        description: >-
-          `Any` contains an arbitrary serialized protocol buffer message along
-          with a
-
-          URL that describes the type of the serialized message.
-
-
-          Protobuf library provides support to pack/unpack Any values in the
-          form
-
-          of utility functions or additional generated methods of the Any type.
-
-
-          Example 1: Pack and unpack a message in C++.
-
-              Foo foo = ...;
-              Any any;
-              any.PackFrom(foo);
-              ...
-              if (any.UnpackTo(&foo)) {
-                ...
-              }
-
-          Example 2: Pack and unpack a message in Java.
-
-              Foo foo = ...;
-              Any any = Any.pack(foo);
-              ...
-              if (any.is(Foo.class)) {
-                foo = any.unpack(Foo.class);
-              }
-
-           Example 3: Pack and unpack a message in Python.
-
-              foo = Foo(...)
-              any = Any()
-              any.Pack(foo)
-              ...
-              if any.Is(Foo.DESCRIPTOR):
-                any.Unpack(foo)
-                ...
-
-           Example 4: Pack and unpack a message in Go
-
-               foo := &pb.Foo{...}
-               any, err := ptypes.MarshalAny(foo)
-               ...
-               foo := &pb.Foo{}
-               if err := ptypes.UnmarshalAny(any, foo); err != nil {
-                 ...
-               }
-
-          The pack methods provided by protobuf library will by default use
-
-          'type.googleapis.com/full.type.name' as the type URL and the unpack
-
-          methods only use the fully qualified type name after the last '/'
-
-          in the type URL, for example "foo.bar.com/x/y.z" will yield type
-
-          name "y.z".
-
-
-
-          JSON
-
-          ====
-
-          The JSON representation of an `Any` value uses the regular
-
-          representation of the deserialized, embedded message, with an
-
-          additional field `@type` which contains the type URL. Example:
-
-              package google.profile;
-              message Person {
-                string first_name = 1;
-                string last_name = 2;
-              }
-
-              {
-                "@type": "type.googleapis.com/google.profile.Person",
-                "firstName": <string>,
-                "lastName": <string>
-              }
-
-          If the embedded message type is well-known and has a custom JSON
-
-          representation, that representation will be embedded adding a field
-
-          `value` which holds the custom JSON in addition to the `@type`
-
-          field. Example (for message [google.protobuf.Duration][]):
-
-              {
-                "@type": "type.googleapis.com/google.protobuf.Duration",
-                "value": "1.212s"
-              }
-        title: inner transaction data
-      size:
-        type: number
-        format: double
-        title: encoded storage size of the transaction
-      hash:
-        type: string
-        title: transaction hash in hex format
-      from:
-        type: string
-        title: |-
-          ethereum signer address in hex format. This address value is checked
-          against the address derived from the signature (V, R, S) using the
-          secp256k1 elliptic curve
-    description: MsgEthereumTx encapsulates an Ethereum transaction as an SDK message.
-  ethermint.evm.v1.MsgEthereumTxResponse:
-    type: object
-    properties:
-      hash:
-        type: string
-        title: |-
-          ethereum transaction hash in hex format. This hash differs from the
-          Tendermint sha256 hash of the transaction bytes. See
-          https://github.com/tendermint/tendermint/issues/6539 for reference
-      logs:
-        type: array
-        items:
-          type: object
-          properties:
-            address:
-              type: string
-              title: address of the contract that generated the event
-            topics:
-              type: array
-              items:
-                type: string
-              description: list of topics provided by the contract.
-            data:
-              type: string
-              format: byte
-              title: 'supplied by the contract, usually ABI-encoded'
-            block_number:
-              type: string
-              format: uint64
-              title: block in which the transaction was included
-            tx_hash:
-              type: string
-              title: hash of the transaction
-            tx_index:
-              type: string
-              format: uint64
-              title: index of the transaction in the block
-            block_hash:
-              type: string
-              title: hash of the block in which the transaction was included
-            index:
-              type: string
-              format: uint64
-              title: index of the log in the block
-            removed:
-              type: boolean
-              description: >-
-                The Removed field is true if this log was reverted due to a
-                chain
-
-                reorganisation. You must pay attention to this field if you
-                receive logs
-
-                through a filter query.
-          description: >-
-            Log represents an protobuf compatible Ethereum Log that defines a
-            contract
-
-            log event. These events are generated by the LOG opcode and
-            stored/indexed by
-
-            the node.
-        description: |-
-          logs contains the transaction hash and the proto-compatible ethereum
-          logs.
-      ret:
-        type: string
-        format: byte
-        title: |-
-          returned data from evm function (result or data supplied with revert
-          opcode)
-      vm_error:
-        type: string
-        title: vm error is the error returned by vm execution
-      gas_used:
-        type: string
-        format: uint64
-        title: gas consumed by the transaction
-    description: MsgEthereumTxResponse defines the Msg/EthereumTx response type.
   ethermint.evm.v1.Params:
     type: object
     properties:
@@ -27997,11 +29134,13 @@ definitions:
           transitions.
       enable_create:
         type: boolean
+        format: boolean
         title: >-
           enable create toggles state transitions that use the vm.Create
           function
       enable_call:
         type: boolean
+        format: boolean
         title: enable call toggles state transitions that use the vm.Call function
       extra_eips:
         type: array
@@ -28015,12 +29154,13 @@ definitions:
         properties:
           homestead_block:
             type: string
-            title: 'Homestead switch block (nil no fork, 0 = already homestead)'
+            title: Homestead switch block (nil no fork, 0 = already homestead)
           dao_fork_block:
             type: string
             title: TheDAO hard-fork switch block (nil no fork)
           dao_fork_support:
             type: boolean
+            format: boolean
             title: Whether the nodes supports or opposes the DAO hard-fork
           eip150_block:
             type: string
@@ -28042,16 +29182,16 @@ definitions:
             title: EIP158 HF block
           byzantium_block:
             type: string
-            title: 'Byzantium switch block (nil no fork, 0 = already on byzantium)'
+            title: Byzantium switch block (nil no fork, 0 = already on byzantium)
           constantinople_block:
             type: string
-            title: 'Constantinople switch block (nil no fork, 0 = already activated)'
+            title: Constantinople switch block (nil no fork, 0 = already activated)
           petersburg_block:
             type: string
             title: Petersburg switch block (nil same as Constantinople)
           istanbul_block:
             type: string
-            title: 'Istanbul switch block (nil no fork, 0 = already on istanbul)'
+            title: Istanbul switch block (nil no fork, 0 = already on istanbul)
           muir_glacier_block:
             type: string
             title: >-
@@ -28059,18 +29199,33 @@ definitions:
               activated)
           berlin_block:
             type: string
-            title: 'Berlin switch block (nil = no fork, 0 = already on berlin)'
-          catalyst_block:
-            type: string
-            title: 'Catalyst switch block (nil = no fork, 0 = already on catalyst)'
+            title: Berlin switch block (nil = no fork, 0 = already on berlin)
           london_block:
             type: string
-            title: 'London switch block (nil = no fork, 0 = already on london)'
+            title: London switch block (nil = no fork, 0 = already on london)
+          arrow_glacier_block:
+            type: string
+            title: >-
+              Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+              activated)
+          merge_fork_block:
+            type: string
+            title: >-
+              EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in
+              merge proceedings)
         description: >-
           ChainConfig defines the Ethereum ChainConfig parameters using *sdk.Int
           values
 
           instead of *big.Int.
+      allow_unprotected_txs:
+        type: boolean
+        format: boolean
+        description: >-
+          Allow unprotected transactions defines if replay-protected (i.e non
+          EIP155 
+
+          signed) transactions can be executed on the state machine.
     title: Params defines the EVM module parameters
   ethermint.evm.v1.QueryAccountResponse:
     type: object
@@ -28097,6 +29252,12 @@ definitions:
     description: >-
       QueryBalanceResponse is the response type for the Query/Balance RPC
       method.
+  ethermint.evm.v1.QueryBaseFeeResponse:
+    type: object
+    properties:
+      base_fee:
+        type: string
+    description: BaseFeeResponse returns the EIP1559 base fee.
   ethermint.evm.v1.QueryCodeResponse:
     type: object
     properties:
@@ -28142,11 +29303,13 @@ definitions:
               transitions.
           enable_create:
             type: boolean
+            format: boolean
             title: >-
               enable create toggles state transitions that use the vm.Create
               function
           enable_call:
             type: boolean
+            format: boolean
             title: >-
               enable call toggles state transitions that use the vm.Call
               function
@@ -28162,12 +29325,13 @@ definitions:
             properties:
               homestead_block:
                 type: string
-                title: 'Homestead switch block (nil no fork, 0 = already homestead)'
+                title: Homestead switch block (nil no fork, 0 = already homestead)
               dao_fork_block:
                 type: string
                 title: TheDAO hard-fork switch block (nil no fork)
               dao_fork_support:
                 type: boolean
+                format: boolean
                 title: Whether the nodes supports or opposes the DAO hard-fork
               eip150_block:
                 type: string
@@ -28189,7 +29353,7 @@ definitions:
                 title: EIP158 HF block
               byzantium_block:
                 type: string
-                title: 'Byzantium switch block (nil no fork, 0 = already on byzantium)'
+                title: Byzantium switch block (nil no fork, 0 = already on byzantium)
               constantinople_block:
                 type: string
                 title: >-
@@ -28200,7 +29364,7 @@ definitions:
                 title: Petersburg switch block (nil same as Constantinople)
               istanbul_block:
                 type: string
-                title: 'Istanbul switch block (nil no fork, 0 = already on istanbul)'
+                title: Istanbul switch block (nil no fork, 0 = already on istanbul)
               muir_glacier_block:
                 type: string
                 title: >-
@@ -28208,18 +29372,33 @@ definitions:
                   activated)
               berlin_block:
                 type: string
-                title: 'Berlin switch block (nil = no fork, 0 = already on berlin)'
-              catalyst_block:
-                type: string
-                title: 'Catalyst switch block (nil = no fork, 0 = already on catalyst)'
+                title: Berlin switch block (nil = no fork, 0 = already on berlin)
               london_block:
                 type: string
-                title: 'London switch block (nil = no fork, 0 = already on london)'
+                title: London switch block (nil = no fork, 0 = already on london)
+              arrow_glacier_block:
+                type: string
+                title: >-
+                  Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+                  activated)
+              merge_fork_block:
+                type: string
+                title: >-
+                  EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already
+                  in merge proceedings)
             description: >-
               ChainConfig defines the Ethereum ChainConfig parameters using
               *sdk.Int values
 
               instead of *big.Int.
+          allow_unprotected_txs:
+            type: boolean
+            format: boolean
+            description: >-
+              Allow unprotected transactions defines if replay-protected (i.e
+              non EIP155 
+
+              signed) transactions can be executed on the state machine.
         title: Params defines the EVM module parameters
     description: >-
       QueryParamsResponse defines the response type for querying x/evm
@@ -28235,6 +29414,13 @@ definitions:
     description: |-
       QueryStorageResponse is the response type for the Query/Storage RPC
       method.
+  ethermint.evm.v1.QueryTraceBlockResponse:
+    type: object
+    properties:
+      data:
+        type: string
+        format: byte
+    title: QueryTraceBlockResponse defines TraceBlock response
   ethermint.evm.v1.QueryTraceTxResponse:
     type: object
     properties:
@@ -28270,30 +29456,29 @@ definitions:
         type: string
         title: >-
           overrides the default timeout of 5 seconds for JavaScript-based
-          tracing calls
+          tracing
+
+          calls
       reexec:
         type: string
         format: uint64
         title: number of blocks the tracer is willing to go back
-      disable_memory:
-        type: boolean
-        title: disable memory capture
       disable_stack:
         type: boolean
+        format: boolean
         title: disable stack capture
       disable_storage:
         type: boolean
+        format: boolean
         title: disable storage capture
-      disable_return_data:
-        type: boolean
-        title: disable return data capture
       debug:
         type: boolean
+        format: boolean
         title: print output during capture end
       limit:
         type: integer
         format: int32
-        title: 'maximum length of output, but zero means unlimited'
+        title: maximum length of output, but zero means unlimited
       overrides:
         title: >-
           Chain overrides, can be used to execute a trace using future fork
@@ -28302,12 +29487,13 @@ definitions:
         properties:
           homestead_block:
             type: string
-            title: 'Homestead switch block (nil no fork, 0 = already homestead)'
+            title: Homestead switch block (nil no fork, 0 = already homestead)
           dao_fork_block:
             type: string
             title: TheDAO hard-fork switch block (nil no fork)
           dao_fork_support:
             type: boolean
+            format: boolean
             title: Whether the nodes supports or opposes the DAO hard-fork
           eip150_block:
             type: string
@@ -28329,16 +29515,16 @@ definitions:
             title: EIP158 HF block
           byzantium_block:
             type: string
-            title: 'Byzantium switch block (nil no fork, 0 = already on byzantium)'
+            title: Byzantium switch block (nil no fork, 0 = already on byzantium)
           constantinople_block:
             type: string
-            title: 'Constantinople switch block (nil no fork, 0 = already activated)'
+            title: Constantinople switch block (nil no fork, 0 = already activated)
           petersburg_block:
             type: string
             title: Petersburg switch block (nil same as Constantinople)
           istanbul_block:
             type: string
-            title: 'Istanbul switch block (nil no fork, 0 = already on istanbul)'
+            title: Istanbul switch block (nil no fork, 0 = already on istanbul)
           muir_glacier_block:
             type: string
             title: >-
@@ -28346,31 +29532,47 @@ definitions:
               activated)
           berlin_block:
             type: string
-            title: 'Berlin switch block (nil = no fork, 0 = already on berlin)'
-          catalyst_block:
-            type: string
-            title: 'Catalyst switch block (nil = no fork, 0 = already on catalyst)'
+            title: Berlin switch block (nil = no fork, 0 = already on berlin)
           london_block:
             type: string
-            title: 'London switch block (nil = no fork, 0 = already on london)'
+            title: London switch block (nil = no fork, 0 = already on london)
+          arrow_glacier_block:
+            type: string
+            title: >-
+              Eip-4345 (bomb delay) switch block (nil = no fork, 0 = already
+              activated)
+          merge_fork_block:
+            type: string
+            title: >-
+              EIP-3675 (TheMerge) switch block (nil = no fork, 0 = already in
+              merge proceedings)
         description: >-
           ChainConfig defines the Ethereum ChainConfig parameters using *sdk.Int
           values
 
           instead of *big.Int.
+      enable_memory:
+        type: boolean
+        format: boolean
+        title: enable memory capture
+      enable_return_data:
+        type: boolean
+        format: boolean
+        title: enable return data capture
     description: TraceConfig holds extra parameters to trace functions.
   ethermint.feemarket.v1.Params:
     type: object
     properties:
       no_base_fee:
         type: boolean
+        format: boolean
         title: >-
           no base fee forces the EIP-1559 base fee to 0 (needed for 0 price
           calls)
       base_fee_change_denominator:
         type: integer
         format: int64
-        description: >-
+        description: |-
           base fee change denominator bounds the amount the base fee can change
           between blocks.
       elasticity_multiplier:
@@ -28378,15 +29580,26 @@ definitions:
         format: int64
         description: >-
           elasticity multiplier bounds the maximum gas limit an EIP-1559 block
-          may have.
-      initial_base_fee:
-        type: string
-        format: int64
-        description: initial base fee for EIP-1559 blocks.
+          may
+
+          have.
       enable_height:
         type: string
         format: int64
         description: height at which the base fee calculation is enabled.
+      base_fee:
+        type: string
+        description: base fee for EIP-1559 blocks.
+      min_gas_price:
+        type: string
+        title: >-
+          min_gas_price defines the minimum gas price value for cosmos and eth
+          transactions
+      min_gas_multiplier:
+        type: string
+        title: |-
+          min gas denominator bounds the minimum gasUsed to be charged
+          to senders based on GasLimit
     title: Params defines the EVM module parameters
   ethermint.feemarket.v1.QueryBaseFeeResponse:
     type: object
@@ -28410,6 +29623,7 @@ definitions:
         properties:
           no_base_fee:
             type: boolean
+            format: boolean
             title: >-
               no base fee forces the EIP-1559 base fee to 0 (needed for 0 price
               calls)
@@ -28418,21 +29632,34 @@ definitions:
             format: int64
             description: >-
               base fee change denominator bounds the amount the base fee can
-              change between blocks.
+              change
+
+              between blocks.
           elasticity_multiplier:
             type: integer
             format: int64
             description: >-
               elasticity multiplier bounds the maximum gas limit an EIP-1559
-              block may have.
-          initial_base_fee:
-            type: string
-            format: int64
-            description: initial base fee for EIP-1559 blocks.
+              block may
+
+              have.
           enable_height:
             type: string
             format: int64
             description: height at which the base fee calculation is enabled.
+          base_fee:
+            type: string
+            description: base fee for EIP-1559 blocks.
+          min_gas_price:
+            type: string
+            title: >-
+              min_gas_price defines the minimum gas price value for cosmos and
+              eth transactions
+          min_gas_multiplier:
+            type: string
+            title: |-
+              min gas denominator bounds the minimum gasUsed to be charged
+              to senders based on GasLimit
         title: Params defines the EVM module parameters
     description: >-
       QueryParamsResponse defines the response type for querying x/evm
@@ -28860,6 +30087,7 @@ definitions:
           If left empty it will default to a value to be set by each app.
       count_total:
         type: boolean
+        format: boolean
         description: >-
           count_total is set to true  to indicate that the result set should
           include
@@ -28872,6 +30100,7 @@ definitions:
           is set.
       reverse:
         type: boolean
+        format: boolean
         description: >-
           reverse is set to true if results are to be returned in the descending
           order.
@@ -29008,6 +30237,7 @@ definitions:
               type: string
             enabled:
               type: boolean
+              format: boolean
           description: >-
             SendEnabled maps coin denom to a send_enabled status (whether a
             denom is
@@ -29015,6 +30245,7 @@ definitions:
             sendable).
       default_send_enabled:
         type: boolean
+        format: boolean
     description: Params defines the parameters for the bank module.
   cosmos.bank.v1beta1.QueryAllBalancesResponse:
     type: object
@@ -29253,6 +30484,7 @@ definitions:
                   type: string
                 enabled:
                   type: boolean
+                  format: boolean
               description: >-
                 SendEnabled maps coin denom to a send_enabled status (whether a
                 denom is
@@ -29260,6 +30492,7 @@ definitions:
                 sendable).
           default_send_enabled:
             type: boolean
+            format: boolean
         description: Params defines the parameters for the bank module.
     description: >-
       QueryParamsResponse defines the response type for querying x/bank
@@ -29330,6 +30563,7 @@ definitions:
         type: string
       enabled:
         type: boolean
+        format: boolean
     description: |-
       SendEnabled maps coin denom to a send_enabled status (whether a denom is
       sendable).
@@ -30736,6 +31970,7 @@ definitions:
     properties:
       syncing:
         type: boolean
+        format: boolean
     description: >-
       GetSyncingResponse is the response type for the Query/GetSyncing RPC
       method.
@@ -33600,6 +34835,7 @@ definitions:
         type: string
       withdraw_addr_enabled:
         type: boolean
+        format: boolean
     description: Params defines the set of params for the distribution module.
   cosmos.distribution.v1beta1.QueryCommunityPoolResponse:
     type: object
@@ -33730,6 +34966,7 @@ definitions:
             type: string
           withdraw_addr_enabled:
             type: boolean
+            format: boolean
     description: QueryParamsResponse is the response type for the Query/Params RPC method.
   cosmos.distribution.v1beta1.QueryValidatorCommissionResponse:
     type: object
@@ -35664,6 +36901,7 @@ definitions:
               downtime.
           tombstoned:
             type: boolean
+            format: boolean
             description: >-
               Whether or not a validator has been tombstoned (killed out of
               validator set). It is set
@@ -35722,6 +36960,7 @@ definitions:
                 downtime.
             tombstoned:
               type: boolean
+              format: boolean
               description: >-
                 Whether or not a validator has been tombstoned (killed out of
                 validator set). It is set
@@ -35800,6 +37039,7 @@ definitions:
           downtime.
       tombstoned:
         type: boolean
+        format: boolean
         description: >-
           Whether or not a validator has been tombstoned (killed out of
           validator set). It is set
@@ -35845,7 +37085,7 @@ definitions:
         properties:
           rate:
             type: string
-            description: 'rate is the commission rate charged to delegators, as a fraction.'
+            description: rate is the commission rate charged to delegators, as a fraction.
           max_rate:
             type: string
             description: >-
@@ -35866,7 +37106,7 @@ definitions:
     properties:
       rate:
         type: string
-        description: 'rate is the commission rate charged to delegators, as a fraction.'
+        description: rate is the commission rate charged to delegators, as a fraction.
       max_rate:
         type: string
         description: >-
@@ -36214,6 +37454,7 @@ definitions:
                     }
             jailed:
               type: boolean
+              format: boolean
               description: >-
                 jailed defined whether the validator has been jailed from bonded
                 status or not.
@@ -36748,6 +37989,7 @@ definitions:
                   }
           jailed:
             type: boolean
+            format: boolean
             description: >-
               jailed defined whether the validator has been jailed from bonded
               status or not.
@@ -37045,6 +38287,7 @@ definitions:
                     }
             jailed:
               type: boolean
+              format: boolean
               description: >-
                 jailed defined whether the validator has been jailed from bonded
                 status or not.
@@ -37450,6 +38693,7 @@ definitions:
                         }
                 jailed:
                   type: boolean
+                  format: boolean
                   description: >-
                     jailed defined whether the validator has been jailed from
                     bonded status or not.
@@ -38043,6 +39287,7 @@ definitions:
                   }
           jailed:
             type: boolean
+            format: boolean
             description: >-
               jailed defined whether the validator has been jailed from bonded
               status or not.
@@ -38409,6 +39654,7 @@ definitions:
                     }
             jailed:
               type: boolean
+              format: boolean
               description: >-
                 jailed defined whether the validator has been jailed from bonded
                 status or not.
@@ -38987,6 +40233,7 @@ definitions:
               }
       jailed:
         type: boolean
+        format: boolean
         description: >-
           jailed defined whether the validator has been jailed from bonded
           status or not.
@@ -39189,6 +40436,7 @@ definitions:
                     format: byte
                   index:
                     type: boolean
+                    format: boolean
                 description: >-
                   EventAttribute is a single key-value pair, associated with an
                   event.
@@ -39245,7 +40493,7 @@ definitions:
         description: Response code.
       data:
         type: string
-        description: 'Result bytes, if any.'
+        description: Result bytes, if any.
       raw_log:
         type: string
         description: |-
@@ -39668,7 +40916,7 @@ definitions:
             description: Response code.
           data:
             type: string
-            description: 'Result bytes, if any.'
+            description: Result bytes, if any.
           raw_log:
             type: string
             description: |-
@@ -39995,7 +41243,7 @@ definitions:
             description: Response code.
           data:
             type: string
-            description: 'Result bytes, if any.'
+            description: Result bytes, if any.
           raw_log:
             type: string
             description: |-
@@ -40270,7 +41518,7 @@ definitions:
               description: Response code.
             data:
               type: string
-              description: 'Result bytes, if any.'
+              description: Result bytes, if any.
             raw_log:
               type: string
               description: |-
@@ -40899,6 +42147,7 @@ definitions:
                         format: byte
                       index:
                         type: boolean
+                        format: boolean
                     description: >-
                       EventAttribute is a single key-value pair, associated with
                       an event.
@@ -42069,7 +43318,8 @@ definitions:
               format: byte
             index:
               type: boolean
-          description: 'EventAttribute is a single key-value pair, associated with an event.'
+              format: boolean
+          description: EventAttribute is a single key-value pair, associated with an event.
     description: >-
       Event allows application developers to attach additional information to
 
@@ -42088,7 +43338,8 @@ definitions:
         format: byte
       index:
         type: boolean
-    description: 'EventAttribute is a single key-value pair, associated with an event.'
+        format: boolean
+    description: EventAttribute is a single key-value pair, associated with an event.
   cosmos.upgrade.v1beta1.ModuleVersion:
     type: object
     properties:

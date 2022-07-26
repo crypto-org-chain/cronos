@@ -8,7 +8,7 @@ Check the JSON-RPC methods supported on Cronos. {synopsis}
 
 ## Pre-requisite Readings
 
-- [Ethereum JSON-RPC](https://eth.wiki/json-rpc/API) {prereq}
+- [Ethereum JSON-RPC](https://ethereum.github.io/execution-apis/api-documentation) {prereq}
 - [Geth JSON-RPC APIs](https://geth.ethereum.org/docs/rpc/server) {prereq}
 
 ## Endpoints

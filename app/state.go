@@ -20,6 +20,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // StateFn returns the initial application state using a genesis or the simulation parameters.
@@ -28,7 +30,6 @@ import (
 func StateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes.AppStateFn {
 	return func(r *rand.Rand, accs []simtypes.Account, config simtypes.Config,
 	) (appState json.RawMessage, simAccs []simtypes.Account, chainID string, genesisTimestamp time.Time) {
-
 		if FlagGenesisTimeValue == 0 {
 			genesisTimestamp = simtypes.RandTimestamp(r)
 		} else {
@@ -123,9 +124,25 @@ func StateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes
 			})
 		}
 
+		// we should get the BondDenom and make it the evmdenom.
+		// thus simulation accounts could have positive amount of gas token.
+		bondDenom := stakingState.Params.BondDenom
+
+		evmStateBz, ok := rawState[evmtypes.ModuleName]
+		if !ok {
+			panic("evm genesis state is missing")
+		}
+
+		evmState := new(evmtypes.GenesisState)
+		cdc.MustUnmarshalJSON(evmStateBz, evmState)
+
+		// we should replace the EvmDenom with BondDenom
+		evmState.Params.EvmDenom = bondDenom
+
 		// change appState back
 		rawState[stakingtypes.ModuleName] = cdc.MustMarshalJSON(stakingState)
 		rawState[banktypes.ModuleName] = cdc.MustMarshalJSON(bankState)
+		rawState[evmtypes.ModuleName] = cdc.MustMarshalJSON(evmState)
 
 		// replace appstate
 		appState, err = json.Marshal(rawState)

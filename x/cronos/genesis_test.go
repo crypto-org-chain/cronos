@@ -24,7 +24,8 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 			&types.GenesisState{
 				Params: types.Params{
 					IbcCroDenom: "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB086534",
-				}},
+				},
+			},
 			true,
 		},
 		{
@@ -33,7 +34,8 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 			&types.GenesisState{
 				Params: types.Params{
 					IbcCroDenom: "aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865",
-				}},
+				},
+			},
 			true,
 		},
 		{

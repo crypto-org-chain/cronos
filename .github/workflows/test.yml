@@ -1,7 +1,11 @@
 name: integration tests
 on:
   pull_request:
+    paths-ignore:
+      - 'docs/**'
   push:
+    paths-ignore:
+      - 'docs/**'
     branches:
       - main
       - release/**
@@ -32,3 +36,23 @@ jobs:
           name: debug-files
           path: debug_files.tar.gz
           if-no-files-found: ignore
+
+  upload-cache:
+    if: github.event_name == 'push'
+    needs: ["integration_tests"]
+    strategy:
+      matrix:
+        os: [macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v15
+      - uses: cachix/cachix-action@v10
+        with:
+          name: cronos
+          extraPullNames: dapp
+          # github don't pass secrets for pull request from fork repos,
+          # in that case the push is disabled naturally.
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: 'instantiate integration test env'
+        run: nix-store -r $(nix-instantiate integration_tests/shell.nix)

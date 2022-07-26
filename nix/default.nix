@@ -13,33 +13,20 @@ import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
     (_: pkgs: {
+      go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
         buildGoModule = pkgs.buildGo117Module;
       };
+      flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
-    (_: pkgs: rec {
-      buildGoApplication = pkgs.callPackage (import (sources.gomod2nix + "/builder")) {
-        go = pkgs.go_1_17;
-      };
-      gomod2nix = pkgs.callPackage (import (sources.gomod2nix)) {
-        inherit buildGoApplication;
-      };
-    })
-    (_: pkgs: {
-      pystarport = pkgs.poetry2nix.mkPoetryApplication {
-        projectDir = sources.pystarport;
-        src = sources.pystarport;
-      };
-    })
-    (_: pkgs:
+    (import "${sources.gomod2nix}/overlay.nix")
+    (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;
         config = {
-          chainmain-config = ../scripts/chainmain-devnet.yaml;
           cronos-config = ../scripts/cronos-devnet.yaml;
-          hermes-config = ../scripts/hermes.toml;
           geth-genesis = ../scripts/geth-genesis.json;
           dotenv = builtins.path { name = "dotenv"; path = ../scripts/.env; };
         };
@@ -49,7 +36,7 @@ import sources.nixpkgs {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = "sha256-OX/cG4p6XGZX85QxmDH/uTvGqvnV+B6TWEL3fyk5/zc=";
+        cargoSha256 = "sha256-E6V6SdAXcvr2884Um+FjISwkCWxesI6E7vjzuTTsN3Y";
         cargoBuildFlags = "-p ${name} --features ethermint";
         buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin
           (with pkgs.darwin.apple_sdk.frameworks; [ CoreFoundation Security ]);
@@ -63,9 +50,9 @@ import sources.nixpkgs {
     })
     (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: {
-      rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
+      rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.27.3";
+        version = "6.29.5";
         src = sources.rocksdb;
       });
     })

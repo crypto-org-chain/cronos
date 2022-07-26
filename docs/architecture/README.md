@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-This is a location to record all high-level architecture decisions in the Crypto.org Chain implementation.
+This is a location to record all high-level architecture decisions in the Cronos implementation.
 
 You can read more about the ADR concept in this [blog post](https://product.reverb.com/documenting-architecture-decisions-the-reverb-way-a3563bb24bd0#.78xhdix6t).
 
@@ -27,6 +27,10 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 
 | ADR \# | Description | Status |
 | ------ | ----------- | ------ |
-| [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Proposed |
-| [002](./adr-002.md) | Use a custom fork of ibc-go | Proposed |
-| [003](./adr-003.md) | Add Fee Market Module | Proposed |
+| [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Accepted |
+| [002](./adr-002.md) | Use a custom fork of ibc-go | Accepted |
+| [003](./adr-003.md) | Add Fee Market Module | Accepted |
+| [004](./adr-004.md) | Tokens conversion in Cronos | Accepted |
+| [005](./adr-005.md) | Cross-chain Validation for Gravity Bridge | Rejected |
+| [006](./adr-006.md) | Migrating CRC20 contract to CRC21 standard | Rejected |
+| [007](./adr-007.md) | Generic event format for evm-hook actions | Proposed |

@@ -2,7 +2,7 @@ package experimental
 
 import (
 	"github.com/crypto-org-chain/cronos/app"
-	gravitycmd "github.com/peggyjv/gravity-bridge/module/cmd/gravity/cmd"
+	gravitycmd "github.com/peggyjv/gravity-bridge/module/v2/cmd/gravity/cmd"
 	"github.com/spf13/cobra"
 )
 

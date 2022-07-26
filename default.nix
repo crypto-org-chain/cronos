@@ -1,26 +1,32 @@
-{ system ? builtins.currentSystem, pkgs ? import ./nix { inherit system; }, db_backend ? "rocksdb" }:
+{ lib
+, buildGoApplication
+, nix-gitignore
+, rocksdb ? null
+, db_backend ? "rocksdb"
+, network ? "mainnet"  # mainnet|testnet
+, rev ? "dirty"
+}:
 let
-  version = "dev";
+  version = "v0.8.0";
   pname = "cronosd";
-  tags = pkgs.lib.concatStringsSep "," (
-    [ "mainnet" ]
-    ++ pkgs.lib.lists.optionals (db_backend == "rocksdb") [ "rocksdb" ]
-  );
-  ldflags = pkgs.lib.concatStringsSep "\n" ([
+  tags = [ "ledger" "netgo" network ]
+    ++ lib.lists.optional (db_backend == "rocksdb") "rocksdb";
+  ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
-    "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${tags}"
-  ] ++ pkgs.lib.lists.optionals (db_backend == "rocksdb") [
+    "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${lib.concatStringsSep "," tags}"
+    "-X github.com/cosmos/cosmos-sdk/version.Commit=${rev}"
+  ] ++ lib.lists.optionals (db_backend == "rocksdb") [
     "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
-  buildInputs = pkgs.lib.lists.optionals (db_backend == "rocksdb") [
-    pkgs.rocksdb
+  buildInputs = lib.lists.optionals (db_backend == "rocksdb") [
+    rocksdb
   ];
 in
-pkgs.buildGoApplication rec {
-  inherit pname version buildInputs;
-  src = (pkgs.nix-gitignore.gitignoreSourcePure [
+buildGoApplication rec {
+  inherit pname version buildInputs tags ldflags;
+  src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
     "!/app/"
@@ -34,9 +40,11 @@ pkgs.buildGoApplication rec {
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
   CGO_ENABLED = "1";
-  buildFlags = "-tags=${tags}";
-  buildFlagsArray = ''
-    -ldflags=
-    ${ldflags}
-  '';
+
+  meta = with lib; {
+    description = "Official implementation of the Cronos blockchain protocol";
+    homepage = "https://cronos.org/";
+    license = licenses.asl20;
+    mainProgram = "cronosd";
+  };
 }
