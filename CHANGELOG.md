@@ -10,7 +10,7 @@
 - [#584](https://github.com/crypto-org-chain/cronos/pull/584) Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
 - [#587](https://github.com/crypto-org-chain/cronos/pull/587) Unlucky tx patch cmd recompute eth tx hash.
 - [\#595](https://github.com/crypto-org-chain/cronos/pull/595) Workaround the tx hash issue in event parsing.
-- [\#]() Backport traceTransaction bug fix.
+- [\#602](https://github.com/crypto-org-chain/cronos/pull/602) Backport traceTransaction bug fix.
 
 ### Improvements
 
