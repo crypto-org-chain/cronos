@@ -313,6 +313,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220726033659-6280bc9d4a4b h1:g+ETKxN6TjFF+A79mN0y/mMktc64sy5/1CuNIo96ThM=
+github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220726033659-6280bc9d4a4b/go.mod h1:253egFvau2MYjDv9FHzogHQ4Ms2ZUMR9pVBFJtM7qHY=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2 h1:elj+Tb/3O9GA3pv62zkc1B0P8hl1WHmF6vF8PInEJm4=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2/go.mod h1:rAHRlBcRiHPP/JszN+08SJx3pegww9bcVncIb9QLx7I=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
@@ -1450,8 +1452,6 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
-github.com/yihuang/ethermint v0.10.0-cronos.0.20220726033659-6280bc9d4a4b h1:l0Iubsa4DJ8WAL3ZTk2SSGMuuSJdwFNH3nTei5JJdD4=
-github.com/yihuang/ethermint v0.10.0-cronos.0.20220726033659-6280bc9d4a4b/go.mod h1:253egFvau2MYjDv9FHzogHQ4Ms2ZUMR9pVBFJtM7qHY=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
