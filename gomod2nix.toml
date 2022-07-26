@@ -38,6 +38,9 @@ schema = 3
   [mod."github.com/btcsuite/btcd"]
     version = "v0.22.1"
     hash = "sha256-hBU+roIELcmbW2Gz7eGZzL9qNA1bakq5wNxqCgs4TKc="
+  [mod."github.com/btcsuite/btcd/btcec/v2"]
+    version = "v2.2.0"
+    hash = "sha256-cwoIqi0SiAaGEBtuQKip9OVirKIeJw5fUoWo7x/xfOc="
   [mod."github.com/btcsuite/btcd/chaincfg/chainhash"]
     version = "v1.0.1"
     hash = "sha256-vix0j/KGNvoKjhlKgVeSLY6un2FHeIEoZWMC4z3yvZ4="
@@ -92,8 +95,11 @@ schema = 3
     version = "v1.1.1"
     hash = "sha256-nhzSUrE1fCkN0+RL04N4h8jWmRFPPPWbCuDc7Ss0akI="
   [mod."github.com/deckarep/golang-set"]
-    version = "v0.0.0-20180603214616-504e848d77ea"
-    hash = "sha256-9kySj7j9EvOPJ3NaDQcHm+fPVWSpjesE7JfvLdB/DVg="
+    version = "v1.8.0"
+    hash = "sha256-ELJKphksU9AOYwV3BtjvwPtUpbZvX9YMmo7eIiauQSc="
+  [mod."github.com/decred/dcrd/dcrec/secp256k1/v4"]
+    version = "v4.0.1"
+    hash = "sha256-JBVRp40dDj0puapoQloV13H6TMjgJiypzYojcDRE2jI="
   [mod."github.com/desertbit/timer"]
     version = "v0.0.0-20180107155436-c41aec40b27f"
     hash = "sha256-abLOtEcomAqCWLphd2X6WkD/ED764w6sa6unox4BXss="
@@ -106,6 +112,12 @@ schema = 3
   [mod."github.com/dgryski/go-farm"]
     version = "v0.0.0-20200201041132-a6ae2369ad13"
     hash = "sha256-aOMlPwFY36bLiiIx4HonbCYRAhagk5N6HAWN7Ygif+E="
+  [mod."github.com/dlclark/regexp2"]
+    version = "v1.4.1-0.20201116162257-a2a8dda75c91"
+    hash = "sha256-VNNMZIc7NkDg3DVLnqeJNM/KZqkkaZu2/HTLBL8X2xE="
+  [mod."github.com/dop251/goja"]
+    version = "v0.0.0-20220405120441-9037c2b61cbf"
+    hash = "sha256-ueVIwPRUwxzd9+NybuFv1Pvp5tbwl9gGEgXB6cwqzEc="
   [mod."github.com/dustin/go-humanize"]
     version = "v1.0.0"
     hash = "sha256-gy4G1PnHD9iw2MitHX6y1y93qr3C9IncmXL7ttUMDs8="
@@ -116,8 +128,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-k1DYvCqO3BKNcGEve/nMW0RxzMkK2tGfXbUbycqcVSo="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.15"
-    hash = "sha256-pqPN8RDe+x1h/6YyjUMwvuVqYWH8iZTbadCDr98KxGs="
+    version = "v1.10.19"
+    hash = "sha256-7FPnTGcCb8Xd1QVR+6PmGTaHdTY1mm/8osFTW1JLuG8="
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.1"
     hash = "sha256-TNXnnC/ZGNY9lInAcES1cBGqIdEljKuh5LH/khVFjVk="
@@ -142,6 +154,9 @@ schema = 3
   [mod."github.com/go-ole/go-ole"]
     version = "v1.2.6"
     hash = "sha256-+oxitLeJxYF19Z6g+6CgmCHJ1Y5D8raMi2Cb3M6nXCs="
+  [mod."github.com/go-sourcemap/sourcemap"]
+    version = "v2.1.3+incompatible"
+    hash = "sha256-eXhXPPLnAy/rmt/zDgeqni2G3o58UtnHjR8vHLXvISI="
   [mod."github.com/go-stack/stack"]
     version = "v1.8.0"
     hash = "sha256-26RlTEcAkbewMUtmirKrDGQ1WJlNousp69v7HMopYnI="
@@ -216,8 +231,8 @@ schema = 3
     version = "v1.2.0"
     hash = "sha256-5CG+o1Q7hpis9Wpp1EFs7nmR1LlDuTK3bf6zsn+JID4="
   [mod."github.com/huin/goupnp"]
-    version = "v1.0.2"
-    hash = "sha256-FXy8HzVzcrR5Mdhxst991cE1xmS+5sgv7/zTT3kwZbM="
+    version = "v1.0.3"
+    hash = "sha256-EMGmTdoQhP2bVbCPX37hes5krqXn6NFexfnKr9E5u8I="
   [mod."github.com/improbable-eng/grpc-web"]
     version = "v0.15.0"
     hash = "sha256-9oqKb5Y3hjleOFE2BczbEzLH6q2Jg7kUTP/M8Yk4Ne4="
@@ -225,8 +240,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-ogTuLrV40FwS4ueo4hh6hi1wPywOI+LyIqfNjsibwNY="
   [mod."github.com/jackpal/go-nat-pmp"]
-    version = "v1.0.2-0.20160603034137-1fa385a6f458"
-    hash = "sha256-tnpzNwcBF9HUR7jIMdf7YPcBd/IX+10Sd2wE0zIesNg="
+    version = "v1.0.2"
+    hash = "sha256-L1D4Yoxnzihs795GZ+Q3AZsFP5c4iqyjTeyrudzPXtw="
   [mod."github.com/jmhodges/levigo"]
     version = "v1.0.0"
     hash = "sha256-xEd0mDBeq3eR/GYeXjoTVb2sPs8sTCosn5ayWkcgENI="
@@ -375,9 +390,9 @@ schema = 3
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.10.0-cronos.0.20220719024136-4658529abbf5"
-    hash = "sha256-86PPinRIfbATES4B4FLFE02GQSCBxO39Tsj/VYYhkr8="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.10.0-cronos.0.20220726033659-6280bc9d4a4b"
+    hash = "sha256-xs84jez9amIUM203jI+3eezTzDhvH+bDEZRwHa7pwU4="
+    replaced = "github.com/yihuang/ethermint"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
     hash = "sha256-Zf2NsgM9+HeM949vCce4HQtSbfUiFpeiQ716yKcFyx4="
@@ -427,9 +442,6 @@ schema = 3
   [mod."gopkg.in/natefinch/npipe.v2"]
     version = "v2.0.0-20160621034901-c1b8fa8bdcce"
     hash = "sha256-ytqeVZqn4kd2uc65HvEjPlpPA2VnBmPfu5DsFlO0o+g="
-  [mod."gopkg.in/olebedev/go-duktape.v3"]
-    version = "v3.0.0-20200619000410-60c24ae608a6"
-    hash = "sha256-UJUZBDLWa5kj8N+HC+80uEzfhFUj3pVjbTCwLQRqyRY="
   [mod."gopkg.in/yaml.v2"]
     version = "v2.4.0"
     hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="
