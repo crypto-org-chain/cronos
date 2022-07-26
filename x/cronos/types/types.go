@@ -1,8 +1,11 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -45,12 +48,15 @@ func IsValidCoinDenom(denom string) bool {
 }
 
 // GetContractAddressFromDenom get the contract address from the coin denom
-func GetContractAddressFromDenom(denom string) string {
+func GetContractAddressFromDenom(denom string) (string, error) {
 	contractAddress := ""
 	if strings.HasPrefix(denom, gravityDenomPrefix) {
 		contractAddress = denom[7:]
 	} else if strings.HasPrefix(denom, cronosDenomPrefix) {
-		contractAddress = denom[5:]
+		contractAddress = denom[6:]
 	}
-	return contractAddress
+	if !common.IsHexAddress(contractAddress) {
+		return "", fmt.Errorf("invalid contract address (%s)", contractAddress)
+	}
+	return contractAddress, nil
 }

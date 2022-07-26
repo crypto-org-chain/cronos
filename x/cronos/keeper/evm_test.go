@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -65,4 +66,56 @@ func (suite *KeeperTestSuite) TestTokenConversion() {
 	// native balance recovered
 	coin := suite.app.BankKeeper.GetBalance(suite.ctx, cosmosAddress, denom)
 	suite.Require().Equal(amount, coin.Amount.BigInt())
+}
+
+func (suite *KeeperTestSuite) TestSourceTokenConversion() {
+	suite.SetupTest()
+	keeper := suite.app.CronosKeeper
+
+	// generate test address
+	priv, err := ethsecp256k1.GenerateKey()
+	suite.Require().NoError(err)
+	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
+	cosmosAddress := sdk.AccAddress(address.Bytes())
+
+	// Deploy CRC21 token
+	contractAddress, err := keeper.DeployModuleCRC21(suite.ctx, "Test")
+	suite.Require().NoError(err)
+
+	// Register the token
+	denom := "cronos" + contractAddress.Hex()
+	msgUpdateTokenMapping := types.MsgUpdateTokenMapping{
+		Sender:   cosmosAddress.String(),
+		Denom:    denom,
+		Contract: contractAddress.Hex(),
+		Symbol:   "Test",
+		Decimal:  0,
+	}
+	err = keeper.RegisterOrUpdateTokenMapping(suite.ctx, &msgUpdateTokenMapping)
+	suite.Require().NoError(err)
+
+	// Mint some CRC21 token
+	amount := big.NewInt(100)
+	_, err = suite.app.CronosKeeper.CallModuleCRC21(suite.ctx, contractAddress, "mint_by_cronos_module", address, amount)
+	suite.Require().NoError(err)
+
+	// Convert CRC21 to native
+	err = keeper.ConvertCoinFromCRC21ToNative(suite.ctx, contractAddress, address, sdk.NewIntFromBigInt(amount))
+	suite.Require().NoError(err)
+
+	// Check balance
+	coin := suite.app.BankKeeper.GetBalance(suite.ctx, cosmosAddress, denom)
+	suite.Require().Equal(amount, coin.Amount.BigInt())
+
+	// Convert native to CRC21
+	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)))
+	err = keeper.ConvertCoinsFromNativeToCRC21(suite.ctx, address, coins, false)
+	suite.Require().NoError(err)
+
+	// check balance
+	coin = suite.app.BankKeeper.GetBalance(suite.ctx, cosmosAddress, denom)
+	suite.Require().Equal(big.NewInt(0), coin.Amount.BigInt())
+	ret, err := keeper.CallModuleCRC21(suite.ctx, contractAddress, "balanceOf", address)
+	suite.Require().NoError(err)
+	suite.Require().Equal(0, big.NewInt(100).Cmp(big.NewInt(0).SetBytes(ret)))
 }
