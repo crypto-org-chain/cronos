@@ -118,7 +118,7 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 			"Correct address with non supported coin denom",
 			types.NewMsgTransferTokens(suite.address.String(), "to", sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
 			func() {},
-			errors.New("coin fake is not supported"),
+			errors.New("the coin fake is neither an ibc voucher or a cronos token"),
 		},
 	}
 	for _, tc := range testCases {

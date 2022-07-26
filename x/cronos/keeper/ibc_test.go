@@ -169,9 +169,18 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"Correct address with non supported coin denom",
 			address.String(),
 			"to",
+			sdk.NewCoins(sdk.NewCoin("ibc/BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", sdk.NewInt(1))),
+			func() {},
+			errors.New("coin ibc/BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA is not supported"),
+			func() {},
+		},
+		{
+			"Correct address with incorrect coin denom",
+			address.String(),
+			"to",
 			sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1))),
 			func() {},
-			errors.New("coin fake is not supported"),
+			errors.New("the coin fake is neither an ibc voucher or a cronos token"),
 			func() {},
 		},
 		{
@@ -227,7 +236,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				// Add support for the IBC token
 				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, "incorrect", common.HexToAddress("0x11"))
 			},
-			errors.New("incorrect is invalid: ibc cro denom is invalid"),
+			errors.New("the coin incorrect is neither an ibc voucher or a cronos token"),
 			func() {
 			},
 		},
