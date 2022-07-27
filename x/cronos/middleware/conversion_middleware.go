@@ -104,13 +104,15 @@ func (im IBCConversionModule) OnRecvPacket(
 			return channeltypes.NewErrorAcknowledgement(
 				"cannot unmarshal ICS-20 transfer packet data in middleware")
 		}
-		// We need to convert the voucher only in case the receiver is "not" the source chain
-		if !transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-			sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
-			// NOTE: sourcePrefix contains the trailing "/"
-			prefixedDenom := sourcePrefix + data.Denom
-			// construct the denomination trace from the full raw denomination
-			denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
+		sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
+		// NOTE: sourcePrefix contains the trailing "/"
+		prefixedDenom := sourcePrefix + data.Denom
+		// construct the denomination trace from the full raw denomination
+		denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
+
+		// Check if mapping can be found
+		_, found := im.cronoskeeper.GetContractByDenom(ctx, denomTrace.IBCDenom())
+		if found {
 			err = im.convertVouchers(ctx, data, denomTrace.IBCDenom(), false)
 			if err != nil {
 				return transferTypes.NewErrorAcknowledgement(err)
@@ -141,10 +143,11 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			if err != nil {
 				return err
 			}
-			// Only in case the token is originated from the receiver chain
-			if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-				// parse the denomination from the full denom path
-				trace := transferTypes.ParseDenomTrace(data.Denom)
+			// parse the denomination from the full denom path
+			trace := transferTypes.ParseDenomTrace(data.Denom)
+			// Check if mapping can be found
+			_, found := im.cronoskeeper.GetContractByDenom(ctx, trace.BaseDenom)
+			if found {
 				err = im.convertVouchers(ctx, data, trace.BaseDenom, true)
 				if err != nil {
 					return err
@@ -170,10 +173,11 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		// Only in case the token is originated from the receiver chain
-		if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-			// parse the denomination from the full denom path
-			trace := transferTypes.ParseDenomTrace(data.Denom)
+		// parse the denomination from the full denom path
+		trace := transferTypes.ParseDenomTrace(data.Denom)
+		// Check if mapping can be found
+		_, found := im.cronoskeeper.GetContractByDenom(ctx, trace.BaseDenom)
+		if found {
 			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
 			if err != nil {
 				return err
