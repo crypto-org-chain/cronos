@@ -109,10 +109,8 @@ func (im IBCConversionModule) OnRecvPacket(
 		prefixedDenom := sourcePrefix + data.Denom
 		// construct the denomination trace from the full raw denomination
 		denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
-
-		// Check if mapping can be found
-		_, found := im.cronoskeeper.GetContractByDenom(ctx, denomTrace.IBCDenom())
-		if found {
+		// Check if it can be converted
+		if im.canBeConverted(ctx, denomTrace.IBCDenom()) {
 			err = im.convertVouchers(ctx, data, denomTrace.IBCDenom(), false)
 			if err != nil {
 				return transferTypes.NewErrorAcknowledgement(err)
@@ -145,9 +143,8 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			}
 			// parse the denomination from the full denom path
 			trace := transferTypes.ParseDenomTrace(data.Denom)
-			// Check if mapping can be found
-			_, found := im.cronoskeeper.GetContractByDenom(ctx, trace.BaseDenom)
-			if found {
+			// Check if it can be converted
+			if im.canBeConverted(ctx, trace.BaseDenom) {
 				err = im.convertVouchers(ctx, data, trace.BaseDenom, true)
 				if err != nil {
 					return err
@@ -175,9 +172,8 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		}
 		// parse the denomination from the full denom path
 		trace := transferTypes.ParseDenomTrace(data.Denom)
-		// Check if mapping can be found
-		_, found := im.cronoskeeper.GetContractByDenom(ctx, trace.BaseDenom)
-		if found {
+		// Check if it can be converted
+		if im.canBeConverted(ctx, trace.BaseDenom) {
 			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
 			if err != nil {
 				return err
@@ -211,4 +207,13 @@ func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferType
 		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Receiver)
 	}
 	return nil
+}
+
+func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool {
+	params := im.cronoskeeper.GetParams(ctx)
+	if denom == params.IbcCroDenom {
+		return true
+	}
+	_, found := im.cronoskeeper.GetContractByDenom(ctx, denom)
+	return found
 }
