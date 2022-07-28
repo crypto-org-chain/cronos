@@ -121,8 +121,13 @@ jobs:
         id: pr_data
         if: github.event_name == 'issue_comment'
         run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
           echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+          comment_hash=`echo ${{ github.event.comment.body }} | cut -d' ' -f2` # get commit hash if any
+          if [[ "${comment_hash}" == "/runsim" ]]; then 
+            echo "::set-output name=ref::${{ fromJson(steps.request.outputs.data).head.ref }}" # use default head ref
+          else
+            echo "::set-output name=ref::${comment_hash}" # use comment provided ref
+          fi
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18.3
@@ -133,7 +138,7 @@ jobs:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          ref: ${{ steps.pr_data.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
