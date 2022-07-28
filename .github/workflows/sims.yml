@@ -21,8 +21,11 @@ jobs:
     permissions:
       pull-requests: write
     if: >-
-      (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim') ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim') ||
       github.event_name == 'push' || github.event_name == 'pull_request'
+    outputs:
+      repo_name: ${{ steps.pr_data.outputs.repo_name }}
+      ref: ${{ steps.pr_data.outputs.ref }}
     steps:
       # if we could have secrets.ORG_READ_BOT_PAT, we can check against team rather than organization.
       - uses: tspascoal/get-user-teams-membership@v1.0.2
@@ -43,7 +46,7 @@ jobs:
         if: (steps.checkMember.outputs.isTeamMember == 'false') && (github.event_name == 'issue_comment')
         run: exit 1
       - name: Comment PR for Sim test started
-        uses: allthatjazzleo/actions-pull-request-add-comment@master
+        uses: crypto-org-chain/actions-pull-request-add-comment@master
         if: github.event_name == 'issue_comment'
         with:
           message: |
@@ -62,8 +65,13 @@ jobs:
         id: pr_data
         if: github.event_name == 'issue_comment'
         run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
           echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+          comment_hash=`echo ${{ github.event.comment.body }} | cut -d' ' -f2` # get commit hash if any
+          if [[ "${comment_hash}" == "/runsim" ]]; then 
+            echo "::set-output name=ref::${{ fromJson(steps.request.outputs.data).head.ref }}" # use default head ref
+          else
+            echo "::set-output name=ref::${comment_hash}" # use comment provided ref
+          fi
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v2
         if: github.event_name == 'issue_comment'
@@ -71,7 +79,7 @@ jobs:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          ref: ${{ steps.pr_data.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         with:
@@ -104,20 +112,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - name: Github API Request
-        id: request
-        uses: octokit/request-action@v2.0.0
-        if: github.event_name == 'issue_comment'
-        with:
-          route: ${{ github.event.issue.pull_request.url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get Comment PR informations
-        id: pr_data
-        if: github.event_name == 'issue_comment'
-        run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18.3
@@ -127,8 +121,8 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          repository: ${{ needs.build.outputs.repo_name }}
+          ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
@@ -151,32 +145,18 @@ jobs:
           key: ${{ runner.os }}-go-runsim-binary
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
       - name: test-sim-nondeterminism
         run: |
           make test-sim-nondeterminism
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
 
   test-sim-import-export:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - name: Github API Request
-        id: request
-        uses: octokit/request-action@v2.0.0
-        if: github.event_name == 'issue_comment'
-        with:
-          route: ${{ github.event.issue.pull_request.url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get Comment PR informations
-        id: pr_data
-        if: github.event_name == 'issue_comment'
-        run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18.3
@@ -186,8 +166,8 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          repository: ${{ needs.build.outputs.repo_name }}
+          ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
@@ -210,32 +190,18 @@ jobs:
           key: ${{ runner.os }}-go-runsim-binary
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
       - name: test-sim-import-export
         run: |
           make test-sim-import-export
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
 
   test-sim-after-import:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - name: Github API Request
-        id: request
-        uses: octokit/request-action@v2.0.0
-        if: github.event_name == 'issue_comment'
-        with:
-          route: ${{ github.event.issue.pull_request.url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get Comment PR informations
-        id: pr_data
-        if: github.event_name == 'issue_comment'
-        run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18.3
@@ -245,8 +211,8 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          repository: ${{ needs.build.outputs.repo_name }}
+          ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
@@ -269,32 +235,18 @@ jobs:
           key: ${{ runner.os }}-go-runsim-binary
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
       - name: test-sim-after-import
         run: |
           make test-sim-after-import
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
 
   test-sim-multi-seed-short:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - name: Github API Request
-        id: request
-        uses: octokit/request-action@v2.0.0
-        if: github.event_name == 'issue_comment'
-        with:
-          route: ${{ github.event.issue.pull_request.url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get Comment PR informations
-        id: pr_data
-        if: github.event_name == 'issue_comment'
-        run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
       - uses: actions/setup-go@v2
         with:
           go-version: 1.18.3
@@ -304,8 +256,8 @@ jobs:
         with:
           submodules: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ steps.pr_data.outputs.repo_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
+          repository: ${{ needs.build.outputs.repo_name }}
+          ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v2
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
@@ -328,10 +280,10 @@ jobs:
           key: ${{ runner.os }}-go-runsim-binary
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
       - name: test-sim-multi-seed-short
         run: |
           make test-sim-multi-seed-short
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
-          (github.event_name == 'issue_comment' && github.event.comment.body == '/runsim')
+          (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
