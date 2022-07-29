@@ -44,7 +44,7 @@ def ibc(request, tmp_path_factory):
         subprocess.check_call(
             [
                 "hermes",
-                "-c",
+                "--config",
                 hermes.configpath,
                 "create",
                 "channel",
@@ -91,7 +91,7 @@ def test_ibc(ibc):
     # dstchainid srcchainid srcportid srchannelid
     # chainmain-1 -> cronos_777-1
     cmd = (
-        f"hermes -c {my_config} tx raw ft-transfer "
+        f"hermes --config {my_config} tx raw ft-transfer "
         f"{my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} "
         f"-o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k relayer"
     )
