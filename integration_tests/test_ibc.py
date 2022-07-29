@@ -48,14 +48,22 @@ def ibc(request, tmp_path_factory):
                 hermes.configpath,
                 "create",
                 "channel",
-                "cronos_777-1",
-                "chainmain-1",
                 "--port-a",
                 "transfer",
                 "--port-b",
                 "transfer",
+                "cronos_777-1",
+                "--chain-b",
+                "chainmain-1",
+                "--new-client-connection",
             ]
         )
+        # cmd = (
+        #     f"yes | hermes --config {hermes.configpath} create channel "
+        #     f"--port-a transfer --port-b transfer cronos_777-1 --chain-b chainmain-1 "
+        #     f"--new-client-connection"
+        # )
+        # subprocess.run(cmd, check=True, shell=True)
         supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
         wait_for_port(hermes.port)
         yield IBCNetwork(cronos, chainmain, hermes)

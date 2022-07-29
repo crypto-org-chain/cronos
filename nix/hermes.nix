@@ -1,6 +1,6 @@
 { pkgs ? import ./default.nix { } }:
 let
-  version = "v0.8.0";
+  version = "v0.15.0";
   srcUrl = {
     x86_64-linux = {
       url =
@@ -10,7 +10,7 @@ let
     x86_64-darwin = {
       url =
         "https://github.com/informalsystems/ibc-rs/releases/download/${version}/hermes-${version}-x86_64-apple-darwin.tar.gz";
-      sha256 = "sha256-dBAdPle81IBoOw5epr0NcPyIdYR/HNux1UKVYpAas2A=";
+      sha256 = "sha256-ecv0tS7mEIti3lnSXn2Yapp2Sh0heN7uwwpAlJQ21sU=";
     };
   }.${pkgs.stdenv.system} or (throw
     "Unsupported system: ${pkgs.stdenv.system}");
