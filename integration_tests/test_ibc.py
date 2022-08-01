@@ -70,6 +70,10 @@ def get_balance(chain, addr, denom):
     return chain.cosmos_cli().balance(addr, denom)
 
 
+def get_balances(chain, addr):
+    return chain.cosmos_cli().balances(addr)
+
+
 def test_ibc(ibc):
     "test sending basecro from crypto-org chain to cronos"
     # wait for hermes
@@ -299,7 +303,7 @@ def test_cronos_transfer_source_tokens(ibc):
     # send token to crypto.org
     print("send to crypto.org")
     chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = "ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
+    dest_denom = "ibc/C096BF05DB995A975931166766E0E2585A4C3818290C7E737ACE82A39DD6ECDE"
     amount = 1000
 
     # check and record receiver balance
@@ -324,6 +328,8 @@ def test_cronos_transfer_source_tokens(ibc):
         chainmain_receiver_new_balance = get_balance(
             ibc.chainmain, chainmain_receiver, dest_denom
         )
+        chainmain_receiver_all_balance = get_balances(ibc.chainmain, chainmain_receiver)
+        print("receiver all balance:", chainmain_receiver_all_balance)
         return chainmain_receiver_balance != chainmain_receiver_new_balance
 
     wait_for_fn("check balance change", check_chainmain_balance_change)
@@ -339,7 +345,7 @@ def test_cronos_transfer_source_tokens(ibc):
     chainmain_cli = ibc.chainmain.cosmos_cli()
     cronos_receiver = eth_to_bech32(ADDRS["signer2"])
 
-    coin = "1000ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
+    coin = "1000" + dest_denom
     rsp = chainmain_cli.ibc_transfer(
         chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
     )
