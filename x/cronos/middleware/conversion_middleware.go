@@ -212,7 +212,8 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 }
 
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(
-	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData) string {
+	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData,
+) string {
 	if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 		voucherPrefix := transferTypes.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
 		unprefixedDenom := data.Denom[len(voucherPrefix):]
