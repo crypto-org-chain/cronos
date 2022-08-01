@@ -2,18 +2,11 @@ local config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
+    cmd: 'cronosd',
+    'start-flags': '--trace --log_level info',
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
-    genesis: {
-      app_state: {
-        cronos: {
-          params: {
-            ibc_cro_denom: 'ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865'
-          }
-        }
-      }
-    }
   },
   'chainmain-1': {
     cmd: 'chain-maind',
@@ -107,6 +100,7 @@ config {
             pk_type: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
           },
         },
+        max_gas: 500000,
         gas_price: {
           price: 10000000000000,
           denom: 'basetcro',

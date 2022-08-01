@@ -70,11 +70,7 @@ def get_balance(chain, addr, denom):
     return chain.cosmos_cli().balance(addr, denom)
 
 
-def get_balances(chain, addr):
-    return chain.cosmos_cli().balances(addr)
-
-
-def asd(ibc):
+def test_ibc(ibc):
     "test sending basecro from crypto-org chain to cronos"
     # wait for hermes
     output = subprocess.getoutput(
@@ -114,7 +110,7 @@ def asd(ibc):
     assert expectedbalance == newdstbalance
 
 
-def cronos_transfer_tokens(ibc):
+def test_cronos_transfer_tokens(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
@@ -149,7 +145,7 @@ def cronos_transfer_tokens(ibc):
     assert oldbalance + dst_amount == newbalance
 
 
-def cro_bridge_contract(ibc):
+def test_cro_bridge_contract(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
     depends on `test_ibc` to send the original coins.
@@ -179,7 +175,7 @@ def cro_bridge_contract(ibc):
     assert oldbalance + dst_amount == newbalance
 
 
-def ica(ibc, tmp_path):
+def test_ica(ibc, tmp_path):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -281,38 +277,71 @@ def test_cronos_transfer_source_tokens(ibc):
     contract = deploy_contract(w3, CONTRACTS["TestERC21Source"])
 
     # setup the contract mapping
-    cli = ibc.cronos.cosmos_cli()
+    cronos_cli = ibc.cronos.cosmos_cli()
 
     print("crc21 contract", contract.address)
     denom = f"cronos{contract.address}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
-        cli.query_contract_by_denom(denom)
+        cronos_cli.query_contract_by_denom(denom)
 
-    rsp = cli.update_token_mapping(denom, contract.address, "DOG", 6, from_="validator")
+    rsp = cronos_cli.update_token_mapping(denom, contract.address, "DOG", 6, from_="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli, 1)
+    wait_for_new_blocks(cronos_cli, 1)
 
     print("check the contract mapping exists now")
-    rsp = cli.query_denom_by_contract(contract.address)
+    rsp = cronos_cli.query_denom_by_contract(contract.address)
     assert rsp["denom"] == denom
 
     # send token to crypto.org
-    coin_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    print("send to crypto.org")
+    chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    dest_denom = "ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
     amount = 1000
+
+    # check and record receiver balance
+    chainmain_receiver_balance = get_balance(ibc.chainmain, chainmain_receiver, dest_denom)
+    assert chainmain_receiver_balance == 0
+
+    # send to ibc
+    print("send to cronos")
     tx = contract.functions.send_to_ibc(
-        coin_receiver, amount
+        chainmain_receiver, amount
     ).buildTransaction({"from": ADDRS["validator"]})
     txreceipt = send_transaction(w3, tx)
     assert txreceipt.status == 1, "should success"
 
     # check balance
-    def check_balance_change():
-        balances = get_balances(ibc.chainmain, coin_receiver)
-        print("balances", balances)
-        return 0 == 1
+    chainmain_receiver_new_balance = 0
 
-    wait_for_fn("check balance change", check_balance_change)
-    assert 0 == 1
+    def check_chainmain_balance_change():
+        nonlocal chainmain_receiver_new_balance
+        chainmain_receiver_new_balance = get_balance(ibc.chainmain, chainmain_receiver, dest_denom)
+        return chainmain_receiver_balance != chainmain_receiver_new_balance
+    wait_for_fn("check balance change", check_chainmain_balance_change)
+    assert chainmain_receiver_new_balance == amount
 
+    # send back the token to cronos
+    # check receiver balance
+    cronos_balance_before_send = contract.caller.balanceOf(ADDRS["signer2"])
+    assert cronos_balance_before_send == 0
+
+    # send back token through ibc
+    print("Send back token through ibc")
+    chainmain_cli = ibc.chainmain.cosmos_cli()
+    cronos_receiver = eth_to_bech32(ADDRS["signer2"])
+
+    coin = "1000ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
+    rsp = chainmain_cli.ibc_transfer(chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # check contract balance
+    cronos_balance_after_send = 0
+
+    def check_contract_balance_change():
+        nonlocal cronos_balance_after_send
+        cronos_balance_after_send = contract.caller.balanceOf(ADDRS["signer2"])
+        return cronos_balance_after_send != cronos_balance_before_send
+    wait_for_fn("check contract balance change", check_contract_balance_change)
+    assert cronos_balance_after_send == amount

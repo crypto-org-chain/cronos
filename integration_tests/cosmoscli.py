@@ -757,6 +757,7 @@ class CosmosCLI:
         amount,
         channel,  # src channel
         target_version,  # chain version number of target chain
+        fee,
         i=0,
     ):
         return json.loads(
@@ -768,6 +769,8 @@ class CosmosCLI:
                 channel,
                 to,
                 amount,
+                "--fees",
+                fee,
                 "-y",
                 # FIXME https://github.com/cosmos/cosmos-sdk/issues/8059
                 "--absolute-timeouts",
