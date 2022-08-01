@@ -286,7 +286,9 @@ def test_cronos_transfer_source_tokens(ibc):
     with pytest.raises(AssertionError):
         cronos_cli.query_contract_by_denom(denom)
 
-    rsp = cronos_cli.update_token_mapping(denom, contract.address, "DOG", 6, from_="validator")
+    rsp = cronos_cli.update_token_mapping(
+        denom, contract.address, "DOG", 6, from_="validator"
+    )
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cronos_cli, 1)
 
@@ -301,14 +303,16 @@ def test_cronos_transfer_source_tokens(ibc):
     amount = 1000
 
     # check and record receiver balance
-    chainmain_receiver_balance = get_balance(ibc.chainmain, chainmain_receiver, dest_denom)
+    chainmain_receiver_balance = get_balance(
+        ibc.chainmain, chainmain_receiver, dest_denom
+    )
     assert chainmain_receiver_balance == 0
 
     # send to ibc
     print("send to cronos")
-    tx = contract.functions.send_to_ibc(
-        chainmain_receiver, amount
-    ).buildTransaction({"from": ADDRS["validator"]})
+    tx = contract.functions.send_to_ibc(chainmain_receiver, amount).buildTransaction(
+        {"from": ADDRS["validator"]}
+    )
     txreceipt = send_transaction(w3, tx)
     assert txreceipt.status == 1, "should success"
 
@@ -317,8 +321,11 @@ def test_cronos_transfer_source_tokens(ibc):
 
     def check_chainmain_balance_change():
         nonlocal chainmain_receiver_new_balance
-        chainmain_receiver_new_balance = get_balance(ibc.chainmain, chainmain_receiver, dest_denom)
+        chainmain_receiver_new_balance = get_balance(
+            ibc.chainmain, chainmain_receiver, dest_denom
+        )
         return chainmain_receiver_balance != chainmain_receiver_new_balance
+
     wait_for_fn("check balance change", check_chainmain_balance_change)
     assert chainmain_receiver_new_balance == amount
 
@@ -333,7 +340,9 @@ def test_cronos_transfer_source_tokens(ibc):
     cronos_receiver = eth_to_bech32(ADDRS["signer2"])
 
     coin = "1000ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
-    rsp = chainmain_cli.ibc_transfer(chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro")
+    rsp = chainmain_cli.ibc_transfer(
+        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
+    )
     assert rsp["code"] == 0, rsp["raw_log"]
 
     # check contract balance
@@ -343,5 +352,6 @@ def test_cronos_transfer_source_tokens(ibc):
         nonlocal cronos_balance_after_send
         cronos_balance_after_send = contract.caller.balanceOf(ADDRS["signer2"])
         return cronos_balance_after_send != cronos_balance_before_send
+
     wait_for_fn("check contract balance change", check_contract_balance_change)
     assert cronos_balance_after_send == amount
