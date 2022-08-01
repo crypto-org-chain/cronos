@@ -109,8 +109,8 @@ func CmdSendToCryptoOrg() *cobra.Command {
 
 // TokenMappingChangeProposalTxCmd flags
 const (
-	FlagSymbol  = "symbol"
-	FlagDecimal = "decimals"
+	FlagSymbol   = "symbol"
+	FlagDecimals = "decimals"
 )
 
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
@@ -164,7 +164,7 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 					return err
 				}
 
-				decimal, err = cmd.Flags().GetUint(FlagDecimal)
+				decimal, err = cmd.Flags().GetUint(FlagDecimals)
 				if err != nil {
 					return err
 				}
@@ -198,7 +198,7 @@ $ %s tx gov submit-proposal token-mapping-change gravity0x0000...0000 0x0000...0
 	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description")
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
-	cmd.Flags().Uint(FlagDecimal, 0, "The coin decimal")
+	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
 
 	return cmd
 }
@@ -228,7 +228,7 @@ func CmdUpdateTokenMapping() *cobra.Command {
 					return err
 				}
 
-				decimal, err = cmd.Flags().GetUint(FlagDecimal)
+				decimal, err = cmd.Flags().GetUint(FlagDecimals)
 				if err != nil {
 					return err
 				}
@@ -244,7 +244,7 @@ func CmdUpdateTokenMapping() *cobra.Command {
 
 	flags.AddTxFlagsToCmd(cmd)
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
-	cmd.Flags().Uint(FlagDecimal, 0, "The coin decimal")
+	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
 
 	return cmd
 }

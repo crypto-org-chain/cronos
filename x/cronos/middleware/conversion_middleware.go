@@ -104,19 +104,16 @@ func (im IBCConversionModule) OnRecvPacket(
 			return channeltypes.NewErrorAcknowledgement(
 				"cannot unmarshal ICS-20 transfer packet data in middleware")
 		}
-		sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
-		// NOTE: sourcePrefix contains the trailing "/"
-		prefixedDenom := sourcePrefix + data.Denom
-		// construct the denomination trace from the full raw denomination
-		denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
+		denom := im.getIbcDenomFromPacketAndData(packet, data)
 		// Check if it can be converted
-		if im.canBeConverted(ctx, denomTrace.IBCDenom()) {
-			err = im.convertVouchers(ctx, data, denomTrace.IBCDenom(), false)
+		if im.canBeConverted(ctx, denom) {
+			err = im.convertVouchers(ctx, data, denom, false)
 			if err != nil {
 				return transferTypes.NewErrorAcknowledgement(err)
 			}
 		}
 	}
+
 	return ack
 }
 
@@ -141,11 +138,9 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			if err != nil {
 				return err
 			}
-			// parse the denomination from the full denom path
-			trace := transferTypes.ParseDenomTrace(data.Denom)
-			// Check if it can be converted
-			if im.canBeConverted(ctx, trace.BaseDenom) {
-				err = im.convertVouchers(ctx, data, trace.BaseDenom, true)
+			denom := im.getIbcDenomFromPacketAndData(packet, data)
+			if im.canBeConverted(ctx, denom) {
+				err = im.convertVouchers(ctx, data, denom, true)
 				if err != nil {
 					return err
 				}
@@ -170,11 +165,9 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		// parse the denomination from the full denom path
-		trace := transferTypes.ParseDenomTrace(data.Denom)
-		// Check if it can be converted
-		if im.canBeConverted(ctx, trace.BaseDenom) {
-			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
+		denom := im.getIbcDenomFromPacketAndData(packet, data)
+		if im.canBeConverted(ctx, denom) {
+			err = im.convertVouchers(ctx, data, denom, true)
 			if err != nil {
 				return err
 			}
@@ -216,4 +209,24 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 	}
 	_, found := im.cronoskeeper.GetContractByDenom(ctx, denom)
 	return found
+}
+
+func (im IBCConversionModule) getIbcDenomFromPacketAndData(
+	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData) string {
+	if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+		voucherPrefix := transferTypes.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
+		unprefixedDenom := data.Denom[len(voucherPrefix):]
+		denom := unprefixedDenom
+		denomTrace := transferTypes.ParseDenomTrace(unprefixedDenom)
+		if denomTrace.Path != "" {
+			denom = denomTrace.IBCDenom()
+		}
+		return denom
+	}
+
+	// since SendPacket did not prefix the denomination, we must prefix denomination here
+	sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
+	prefixedDenom := sourcePrefix + data.Denom
+	denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
+	return denomTrace.IBCDenom()
 }

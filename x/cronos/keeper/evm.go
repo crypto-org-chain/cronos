@@ -96,13 +96,14 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 	}
 
 	isSource := types.IsSourceCoin(coin.Denom)
+	coins := sdk.NewCoins(coin)
 	if isSource {
 		// burn coins
 		err = k.bankKeeper.SendCoinsFromAccountToModule(ctx, sdk.AccAddress(sender.Bytes()), types.ModuleName, sdk.NewCoins(coin))
 		if err != nil {
 			return err
 		}
-		err = k.bankKeeper.BurnCoins(ctx, types.ModuleName, sdk.NewCoins(coin))
+		err = k.bankKeeper.BurnCoins(ctx, types.ModuleName, coins)
 		if err != nil {
 			return err
 		}
@@ -113,7 +114,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 		}
 	} else {
 		// send coins to contract address
-		err = k.bankKeeper.SendCoins(ctx, sdk.AccAddress(sender.Bytes()), sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+		err = k.bankKeeper.SendCoins(ctx, sdk.AccAddress(sender.Bytes()), sdk.AccAddress(contract.Bytes()), coins)
 		if err != nil {
 			return err
 		}
