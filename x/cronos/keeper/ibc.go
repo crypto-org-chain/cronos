@@ -54,8 +54,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			}
 
 		default:
-			// TODO use autoDeploy boolean in Params.go
-			err := k.ConvertCoinFromNativeToCRC20(ctx, common.BytesToAddress(acc.Bytes()), c, params.EnableAutoDeployment)
+			err := k.ConvertCoinFromNativeToCRC21(ctx, common.BytesToAddress(acc.Bytes()), c, params.EnableAutoDeployment)
 			if err != nil {
 				return err
 			}
@@ -127,6 +126,9 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 			}
 
 		default:
+			if !types.IsValidIBCDenom(c.Denom) && !types.IsValidCronosDenom(c.Denom) {
+				return fmt.Errorf("the coin %s is neither an ibc voucher or a cronos token", c.Denom)
+			}
 			_, found := k.GetContractByDenom(ctx, c.Denom)
 			if !found {
 				return fmt.Errorf("coin %s is not supported", c.Denom)
@@ -153,8 +155,19 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 }
 
 func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destination string, coin sdk.Coin) error {
-	// Coin needs to be a voucher so that we can extract the channel id from the denom
-	channelID, err := k.GetSourceChannelID(ctx, coin.Denom)
+	// We extract the channel id from the coin denom
+	channelDenom := ""
+	if types.IsSourceCoin(coin.Denom) {
+		// If coin is source, we can only transfer to crypto.org chain
+		// we are using the cro denom to extract the channel id
+		// TODO: support arbitrary channel?
+		channelDenom = k.GetParams(ctx).IbcCroDenom
+	} else {
+		// If it is not source, then coin is a voucher so we can extract the channel id from the denom
+		channelDenom = coin.Denom
+	}
+
+	channelID, err := k.GetSourceChannelID(ctx, channelDenom)
 	if err != nil {
 		return err
 	}

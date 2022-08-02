@@ -15,7 +15,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	k.SetParams(ctx, genState.Params)
 
 	for _, m := range genState.ExternalContracts {
-		if !types.IsValidDenomToWrap(m.Denom) {
+		// Only allowed to bootstrap external token at genesis
+		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) {
 			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
 		}
 		if !common.IsHexAddress(m.Contract) {
@@ -27,7 +28,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 
 	for _, m := range genState.AutoContracts {
-		if !types.IsValidDenomToWrap(m.Denom) {
+		// Only allowed to bootstrap external token at genesis
+		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) {
 			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
 		}
 		if !common.IsHexAddress(m.Contract) {

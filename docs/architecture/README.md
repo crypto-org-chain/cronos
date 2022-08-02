@@ -25,8 +25,8 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 
 ## Table of Contents
 
-| ADR \# | Description | Status |
-| ------ | ----------- | ------ |
+| ADR \#              | Description | Status   |
+|---------------------| ----------- |----------|
 | [001](./adr-001.md) | Disable Gravity Bridge at Genesis | Accepted |
 | [002](./adr-002.md) | Use a custom fork of ibc-go | Accepted |
 | [003](./adr-003.md) | Add Fee Market Module | Accepted |
@@ -34,3 +34,4 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 | [005](./adr-005.md) | Cross-chain Validation for Gravity Bridge | Rejected |
 | [006](./adr-006.md) | Migrating CRC20 contract to CRC21 standard | Rejected |
 | [007](./adr-007.md) | Generic event format for evm-hook actions | Proposed |
+| [008](./adr-008.md) | Denom and Contract Mapping Enhancement for Bi-Directional Token Conversion | Accepted |
