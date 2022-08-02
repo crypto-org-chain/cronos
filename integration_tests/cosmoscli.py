@@ -1198,3 +1198,15 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def query_gravity_contract_by_denom(self, denom: str):
+        "query CosmosERC20 contract address by denom"
+        return json.loads(
+            self.raw(
+                "query",
+                "gravity",
+                "denom-to-erc20",
+                denom,
+                home=self.data_dir,
+            )
+        )

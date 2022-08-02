@@ -270,6 +270,14 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     return w3.eth.contract(address=address, abi=info["abi"])
 
 
+def get_contract(w3, address, jsonfile):
+    """
+    get contract from address and abi
+    """
+    info = json.loads(jsonfile.read_text())
+    return w3.eth.contract(address=address, abi=info["abi"])
+
+
 def sign_transaction(w3, tx, key=KEYS["validator"]):
     "fill default fields and sign"
     acct = Account.from_key(key)
@@ -309,6 +317,18 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
         gravity_contract.web3,
         gravity_contract.functions.sendToCronos(
             token_contract.address, HexBytes(recipient), amount
+        ).buildTransaction({"from": acct.address}),
+        key,
+    )
+
+
+def deploy_erc20(gravity_contract, denom, name, symbol, decimal, key=None):
+    acct = Account.from_key(key)
+
+    return send_transaction(
+        gravity_contract.web3,
+        gravity_contract.functions.deployERC20(
+            denom, name, symbol, decimal
         ).buildTransaction({"from": acct.address}),
         key,
     )
