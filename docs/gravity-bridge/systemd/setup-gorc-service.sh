@@ -54,7 +54,7 @@ check_gorc_setup() {
 }
 
 download_service() {
-    curl -s https://raw.githubusercontent.com/mofhusseini/cronos/master/docs/gravity-bridge/systemd/gorc.service.template -o $BASEDIR/gorc.service.template
+    curl -s https://raw.githubusercontent.com/crypto-org-chain/cronos/main/docs/gravity-bridge/systemd/gorc.service.template -o $BASEDIR/gorc.service.template
 }
 
 gather_relayer_info() {

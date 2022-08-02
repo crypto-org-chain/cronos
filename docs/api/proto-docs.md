@@ -111,6 +111,8 @@ TokenMappingChangeProposal defines a proposal to change one token mapping.
 | `description` | [string](#string) |  |  |
 | `denom` | [string](#string) |  |  |
 | `contract` | [string](#string) |  |  |
+| `symbol` | [string](#string) |  | only when updating cronos (source) tokens |
+| `decimal` | [uint32](#uint32) |  |  |
 
 
 
@@ -352,6 +354,8 @@ MsgUpdateTokenMapping defines the request type
 | `sender` | [string](#string) |  |  |
 | `denom` | [string](#string) |  |  |
 | `contract` | [string](#string) |  |  |
+| `symbol` | [string](#string) |  | only when updating cronos (source) tokens |
+| `decimal` | [uint32](#uint32) |  |  |
 
 
 

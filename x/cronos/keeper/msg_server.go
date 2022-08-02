@@ -6,7 +6,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type msgServer struct {
@@ -69,7 +68,7 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 	// msg is already validated
-	if err := k.Keeper.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
+	if err := k.Keeper.RegisterOrUpdateTokenMapping(ctx, msg); err != nil {
 		return nil, err
 	}
 	return &types.MsgUpdateTokenMappingResponse{}, nil

@@ -414,6 +414,34 @@ def test_exception(cluster):
     assert 5 * (10**18) == contract.caller.query()
 
 
+def test_refund_unused_gas_when_contract_tx_reverted(cluster):
+    """
+    Call a smart contract method that reverts with very high gas limit
+
+    Call tx receipt should be status 0 (fail)
+    Fee is gasUsed * effectiveGasPrice
+    """
+    w3 = cluster.w3
+    contract = deploy_contract(w3, CONTRACTS["TestRevert"])
+    more_than_enough_gas = 1000000
+
+    balance_bef = w3.eth.get_balance(ADDRS["community"])
+    receipt = send_transaction(
+        w3,
+        contract.functions.transfer(5 * (10**18) - 1).buildTransaction(
+            {"gas": more_than_enough_gas}
+        ),
+        key=KEYS["community"],
+    )
+    balance_aft = w3.eth.get_balance(ADDRS["community"])
+
+    assert receipt["status"] == 0, "should be a failed tx"
+    assert receipt["gasUsed"] != more_than_enough_gas
+    assert (
+        balance_bef - balance_aft == receipt["gasUsed"] * receipt["effectiveGasPrice"]
+    )
+
+
 def test_message_call(cronos):
     "stress test the evm by doing message calls as much as possible"
     w3 = cronos.w3
@@ -690,3 +718,22 @@ def test_tx_inclusion(cronos, max_gas_wanted):
             == receipts[2].blockNumber
             == receipts[3].blockNumber
         )
+
+
+def test_replay_protection(cronos):
+    w3 = cronos.w3
+    # https://etherscan.io/tx/0x06d2fa464546e99d2147e1fc997ddb624cec9c8c5e25a050cc381ee8a384eed3
+    raw = (
+        (
+            Path(__file__).parent / "configs/replay-tx-0x"
+            "06d2fa464546e99d2147e1fc997ddb62"
+            "4cec9c8c5e25a050cc381ee8a384eed3.tx"
+        )
+        .read_text()
+        .strip()
+    )
+    with pytest.raises(
+        Exception,
+        match=r"only replay-protected \(EIP-155\) transactions allowed over RPC",
+    ):
+        w3.eth.send_raw_transaction(HexBytes(raw))

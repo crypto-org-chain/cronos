@@ -130,7 +130,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not a gravity voucher"),
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is neither a gravity voucher or a cronos token"),
 		},
 		{
 			"non supported network id",
@@ -282,7 +282,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is not an ibc voucher"),
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is neither an ibc voucher or a cronos token"),
 		},
 		{
 			"success send to ibc",

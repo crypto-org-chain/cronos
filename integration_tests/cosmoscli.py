@@ -992,7 +992,9 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_token_mapping_change(self, denom, contract, **kwargs):
+    def gov_propose_token_mapping_change(
+        self, denom, contract, symbol, decimal, **kwargs
+    ):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
@@ -1002,13 +1004,17 @@ class CosmosCLI:
                 "token-mapping-change",
                 denom,
                 contract,
+                "--symbol",
+                symbol,
+                "--decimals",
+                decimal,
                 "-y",
                 home=self.data_dir,
                 **kwargs,
             )
         )
 
-    def update_token_mapping(self, denom, contract, **kwargs):
+    def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
             self.raw(
@@ -1017,6 +1023,10 @@ class CosmosCLI:
                 "update-token-mapping",
                 denom,
                 contract,
+                "--symbol",
+                symbol,
+                "--decimals",
+                decimals,
                 "-y",
                 home=self.data_dir,
                 **kwargs,

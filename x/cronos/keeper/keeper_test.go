@@ -118,6 +118,18 @@ func (suite *KeeperTestSuite) MintCoins(address sdk.AccAddress, coins sdk.Coins)
 	return nil
 }
 
+func (suite *KeeperTestSuite) RegisterSourceToken(
+	contractAddress, symbol string, decimal uint32) error {
+	denom := "cronos" + contractAddress
+	msg := types.MsgUpdateTokenMapping{
+		Denom:    denom,
+		Contract: contractAddress,
+		Symbol:   symbol,
+		Decimal:  decimal,
+	}
+	return suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, &msg)
+}
+
 func (suite *KeeperTestSuite) TestDenomContractMap() {
 	denom1 := "testdenom1"
 	denom2 := "testdenom2"
@@ -266,6 +278,154 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			tc.malleate()
 			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
 			tc.postCheck()
+		})
+	}
+}
+
+func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
+	contractAddress := "0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883"
+
+	testCases := []struct {
+		name     string
+		msg      types.MsgUpdateTokenMapping
+		malleate func()
+		error    bool
+	}{
+		{
+			"Non source token, no error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "gravity0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Contract: contractAddress,
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			false,
+		},
+		{
+			"No hex contract address, error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "gravity0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Contract: "test",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			true,
+		},
+		{
+			"Non source token, no hex contract address, error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xtest",
+				Contract: "test",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			true,
+		},
+		{
+			"Non source token, already exists, no error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "gravity0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Contract: "",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(
+					suite.ctx,
+					"gravity0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+					common.HexToAddress(contractAddress))
+				suite.Require().NoError(err)
+			},
+			false,
+		},
+		{
+			"Source token, denom not match",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xA6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Contract: contractAddress,
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			true,
+		},
+		{
+			"Source token, denom not checksum, error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Contract: contractAddress,
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			true,
+		},
+		{
+			"Source token, denom correct, no error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+				Contract: contractAddress,
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func() {
+			},
+			false,
+		},
+		{
+			"Source token, denom correct with decimal, no error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+				Contract: contractAddress,
+				Symbol:   "Test",
+				Decimal:  6,
+			},
+			func() {
+			},
+			false,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			suite.SetupTest() // reset
+			// Create Cronos Keeper with mock transfer keeper
+			cronosKeeper := *cronosmodulekeeper.NewKeeper(
+				app.MakeEncodingConfig().Marshaler,
+				suite.app.GetKey(types.StoreKey),
+				suite.app.GetKey(types.MemStoreKey),
+				suite.app.GetSubspace(types.ModuleName),
+				suite.app.BankKeeper,
+				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
+				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
+			)
+			suite.app.CronosKeeper = cronosKeeper
+
+			tc.malleate()
+			err := suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, &tc.msg)
+			if tc.error {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
 		})
 	}
 }

@@ -25,6 +25,9 @@ message TokenMappingChangeProposal {
   string description = 2;
   string denom = 3;
   string contract = 4;
+  // only when updating cronos (source) tokens
+  string symbol = 5;
+  uint32 decimal = 6;
 }
 
 // TokenMapping defines a mapping between native denom and contract
