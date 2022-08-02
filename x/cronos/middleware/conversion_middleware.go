@@ -125,7 +125,7 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 	relayer sdk.AccAddress,
 ) error {
 	err := im.app.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
-	if err != nil {
+	if err == nil {
 		// Call the middle ware only at the "refund" case
 		var ack channeltypes.Acknowledgement
 		if err := transferTypes.ModuleCdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
