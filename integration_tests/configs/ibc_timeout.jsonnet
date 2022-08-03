@@ -6,7 +6,7 @@ ibc {
       app_state+: {
         cronos+: {
           params+: {
-            ibc_timeout: 1,
+            ibc_timeout: 0,
           },
         },
       },

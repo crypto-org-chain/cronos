@@ -64,7 +64,7 @@ def test_cronos_transfer_tokens(ibc):
 
     # case 1: use cronos cli
     old_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
-    # old_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
+    old_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
     rsp = cli.transfer_tokens(
         src_addr,
         dst_addr,
@@ -80,4 +80,6 @@ def test_cronos_transfer_tokens(ibc):
         get_balance(ibc.chainmain, dst_addr, dst_denom)
         return old_src_balance == new_src_balance
 
-    wait_for_fn("balance change", check_balance_change)
+    wait_for_fn("balance no change", check_balance_change)
+    new_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
+    assert old_dst_balance == new_dst_balance

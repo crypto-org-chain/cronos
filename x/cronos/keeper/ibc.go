@@ -178,6 +178,9 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	params := k.GetParams(ctx)
 	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
 	timeoutHeight := ibcclienttypes.ZeroHeight()
+	if params.IbcTimeout == 0 {
+		timeoutHeight = ibcclienttypes.NewHeight(1, uint64(ctx.BlockHeight())+1)
+	}
 	return k.transferKeeper.SendTransfer(
 		ctx,
 		ibctransfertypes.PortID,
