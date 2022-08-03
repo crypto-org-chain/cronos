@@ -1,113 +1,58 @@
 import base64
 import json
-import subprocess
-from pathlib import Path
-from typing import NamedTuple
 
 import pytest
-from pystarport import ports
 
-from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
     send_transaction,
-    supervisorctl,
     wait_for_fn,
     wait_for_new_blocks,
-    wait_for_port,
 )
 
-
-class IBCNetwork(NamedTuple):
-    cronos: Cronos
-    chainmain: Chainmain
-    hermes: Hermes
+from .ibc_utils import (
+    RATIO,
+    prepare,
+    assert_ready,
+    get_balance,
+    prepare_network,
+)
 
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "start-cronos"
-    path = tmp_path_factory.mktemp("ibc")
-    gen = setup_custom_cronos(
-        path, 26700, Path(__file__).parent / "configs/ibc.jsonnet"
-    )
-    cronos = next(gen)
+    name = "ibc"
+    path = tmp_path_factory.mktemp(name)
+    network = prepare_network(path, name)
     try:
-        chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
-        hermes = Hermes(cronos.base_dir.parent / "relayer.toml")
-        # wait for grpc ready
-        wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
-        wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
-        subprocess.check_call(
-            [
-                "hermes",
-                "-c",
-                hermes.configpath,
-                "create",
-                "channel",
-                "cronos_777-1",
-                "chainmain-1",
-                "--port-a",
-                "transfer",
-                "--port-b",
-                "transfer",
-            ]
-        )
-        supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
-        wait_for_port(hermes.port)
-        yield IBCNetwork(cronos, chainmain, hermes)
+        yield next(network)
     finally:
         try:
-            next(gen)
+            next(network)
         except StopIteration:
             pass
 
 
-def get_balance(chain, addr, denom):
-    return chain.cosmos_cli().balance(addr, denom)
-
-
 def test_ibc(ibc):
-    "test sending basecro from crypto-org chain to cronos"
-    # wait for hermes
-    output = subprocess.getoutput(
-        f"curl -s -X GET 'http://127.0.0.1:{ibc.hermes.port}/state' | jq"
-    )
-    assert json.loads(output)["status"] == "success"
-
-    my_ibc0 = "chainmain-1"
-    my_ibc1 = "cronos_777-1"
-    my_channel = "channel-0"
-    my_config = ibc.hermes.configpath
-    # signer2
-    coin_receiver = eth_to_bech32(ADDRS["signer2"])
-    src_amount = 10
-    dst_amount = src_amount * (10**10)  # the decimal places difference
-    src_denom = "basecro"
+    src_amount = prepare(ibc)
+    dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
-    # dstchainid srcchainid srcportid srchannelid
-    # chainmain-1 -> cronos_777-1
-    cmd = (
-        f"hermes -c {my_config} tx raw ft-transfer "
-        f"{my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} "
-        f"-o 1000 -n 1 -d {src_denom} -r {coin_receiver} -k relayer"
-    )
-    subprocess.run(cmd, check=True, shell=True)
-    dstaddr = f"{coin_receiver}"
-    olddstbalance = get_balance(ibc.cronos, dstaddr, dst_denom)
-    newdstbalance = 0
+    dst_addr = eth_to_bech32(ADDRS["signer2"])
+    old_dst_balance = get_balance(ibc.cronos, dst_addr, dst_denom)
+
+    new_dst_balance = 0
 
     def check_balance_change():
-        nonlocal newdstbalance
-        newdstbalance = get_balance(ibc.cronos, dstaddr, dst_denom)
-        return newdstbalance != olddstbalance
+        nonlocal new_dst_balance
+        new_dst_balance = get_balance(ibc.cronos, dst_addr, dst_denom)
+        return new_dst_balance != old_dst_balance
 
-    wait_for_fn("check balance change", check_balance_change)
-    expectedbalance = olddstbalance + dst_amount
-    assert expectedbalance == newdstbalance
+    wait_for_fn("balance change", check_balance_change)
+    assert old_dst_balance + dst_amount == new_dst_balance
 
 
 def test_cronos_transfer_tokens(ibc):
@@ -115,34 +60,36 @@ def test_cronos_transfer_tokens(ibc):
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
     """
-    output = subprocess.getoutput(
-        f"curl -s -X GET 'http://127.0.0.1:{ibc.hermes.port}/state' | jq"
-    )
-    assert json.loads(output)["status"] == "success"
-
-    coin_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    assert_ready(ibc)
+    dst_addr = ibc.chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
-    src_amount = dst_amount * (10**10)  # the decimal places difference
+    dst_denom = "basecro"
+    cli = ibc.cronos.cosmos_cli()
+    src_amount = dst_amount * RATIO  # the decimal places difference
+    src_addr = cli.address("signer2")
+    src_denom = "basetcro"
 
     # case 1: use cronos cli
-    oldbalance = get_balance(ibc.chainmain, coin_receiver, "basecro")
-    cli = ibc.cronos.cosmos_cli()
+    old_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+    old_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
     rsp = cli.transfer_tokens(
-        cli.address("signer2"),
-        coin_receiver,
-        f"{src_amount}basetcro",
+        src_addr,
+        dst_addr,
+        f"{src_amount}{src_denom}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    newbalance = 0
+    new_dst_balance = 0
 
     def check_balance_change():
-        nonlocal newbalance
-        newbalance = get_balance(ibc.chainmain, coin_receiver, "basecro")
-        return oldbalance != newbalance
+        nonlocal new_dst_balance
+        new_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
+        return old_dst_balance != new_dst_balance
 
-    wait_for_fn("check balance change", check_balance_change)
-    assert oldbalance + dst_amount == newbalance
+    wait_for_fn("balance change", check_balance_change)
+    assert old_dst_balance + dst_amount == new_dst_balance
+    new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+    assert old_src_balance - src_amount == new_src_balance
 
 
 def test_cro_bridge_contract(ibc):
@@ -150,29 +97,30 @@ def test_cro_bridge_contract(ibc):
     test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
     depends on `test_ibc` to send the original coins.
     """
-    coin_receiver = ibc.chainmain.cosmos_cli().address("signer2")
+    dst_addr = ibc.chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
-    src_amount = dst_amount * (10**10)  # the decimal places difference
-    oldbalance = get_balance(ibc.chainmain, coin_receiver, "basecro")
+    dst_denom = "basecro"
+    src_amount = dst_amount * RATIO  # the decimal places difference
+    old_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
 
     # case 2: use CroBridge contract
     w3 = ibc.cronos.w3
     contract = deploy_contract(w3, CONTRACTS["CroBridge"])
-    tx = contract.functions.send_cro_to_crypto_org(coin_receiver).buildTransaction(
+    tx = contract.functions.send_cro_to_crypto_org(dst_addr).buildTransaction(
         {"from": ADDRS["signer2"], "value": src_amount}
     )
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
-    newbalance = 0
+    new_dst_balance = 0
 
     def check_balance_change():
-        nonlocal newbalance
-        newbalance = get_balance(ibc.chainmain, coin_receiver, "basecro")
-        return oldbalance != newbalance
+        nonlocal new_dst_balance
+        new_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
+        return old_dst_balance != new_dst_balance
 
     wait_for_fn("check balance change", check_balance_change)
-    assert oldbalance + dst_amount == newbalance
+    assert old_dst_balance + dst_amount == new_dst_balance
 
 
 def test_ica(ibc, tmp_path):
