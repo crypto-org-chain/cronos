@@ -2,8 +2,6 @@ local config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
-    cmd: 'cronosd',
-    'start-flags': '--trace --log_level info',
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
