@@ -7,7 +7,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v3/modules/core/02-client/types"
 )
 
 var (
@@ -19,14 +18,11 @@ var (
 	KeyCronosAdmin = []byte("CronosAdmin")
 	// KeyEnableAutoDeployment is store's key for the EnableAutoDeployment
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
-	// KeyIbcTimeoutHeight is store's key for the IBC Timeout Height
-	KeyIbcTimeoutHeight = []byte("IbcTimeoutHeight")
 )
 
 const (
-	IbcCroDenomDefaultValue      = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
-	IbcTimeoutDefaultValue       = uint64(86400000000000) // 1 day
-	IbcTimeoutHeightDefaultValue = "0-0"
+	IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
+	IbcTimeoutDefaultValue  = uint64(86400000000000) // 1 day
 )
 
 // ParamKeyTable returns the parameter key table.
@@ -35,13 +31,12 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom, cronosAdmin, ibcTimeoutHeight string, enableAutoDeployment bool, ibcTimeout uint64) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool) Params {
 	return Params{
 		IbcCroDenom:          ibcCroDenom,
-		CronosAdmin:          cronosAdmin,
-		IbcTimeoutHeight:     ibcTimeoutHeight,
-		EnableAutoDeployment: enableAutoDeployment,
 		IbcTimeout:           ibcTimeout,
+		CronosAdmin:          cronosAdmin,
+		EnableAutoDeployment: enableAutoDeployment,
 	}
 }
 
@@ -52,7 +47,6 @@ func DefaultParams() Params {
 		IbcTimeout:           IbcTimeoutDefaultValue,
 		CronosAdmin:          "",
 		EnableAutoDeployment: false,
-		IbcTimeoutHeight:     IbcTimeoutHeightDefaultValue,
 	}
 }
 
@@ -68,9 +62,6 @@ func (p Params) Validate() error {
 		if _, err := sdk.AccAddressFromBech32(p.CronosAdmin); err != nil {
 			return err
 		}
-	}
-	if err := validateIsIbcTimeoutHeight(p.IbcTimeoutHeight); err != nil {
-		return err
 	}
 	return nil
 }
@@ -88,7 +79,6 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyIbcTimeout, &p.IbcTimeout, validateIsUint64),
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
-		paramtypes.NewParamSetPair(KeyIbcTimeoutHeight, &p.IbcTimeoutHeight, validateIsIbcTimeoutHeight),
 	}
 }
 
@@ -128,17 +118,6 @@ func validateIsBool(i interface{}) error {
 	_, ok := i.(bool)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-	return nil
-}
-
-func validateIsIbcTimeoutHeight(i interface{}) error {
-	s, ok := i.(string)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	}
-	if _, err := ibcclienttypes.ParseHeight(s); err != nil {
-		return err
 	}
 	return nil
 }

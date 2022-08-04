@@ -15,7 +15,6 @@ import (
 const (
 	ibcCroDenomKey          = "ibc_cro_denom"
 	ibcTimeoutKey           = "ibc_timeout"
-	ibcTimeoutHeightKey     = "ibc_timeout_height"
 	cronosAdminKey          = "cronos_admin"
 	enableAutoDeploymentKey = "enable_auto_deployment"
 )
@@ -29,10 +28,6 @@ func GenIbcCroDenom(r *rand.Rand) string {
 func GenIbcTimeout(r *rand.Rand) uint64 {
 	timeout := r.Uint64()
 	return timeout
-}
-
-func GenIbcTimeoutHeight(r *rand.Rand) string {
-	return fmt.Sprintf("%d-%d", r.Uint64(), r.Uint64())
 }
 
 func GenCronosAdmin(r *rand.Rand, simState *module.SimulationState) string {
@@ -50,7 +45,6 @@ func RandomizedGenState(simState *module.SimulationState) {
 	var (
 		ibcCroDenom          string
 		ibcTimeout           uint64
-		ibcTimeoutHeight     string
 		cronosAdmin          string
 		enableAutoDeployment bool
 	)
@@ -66,11 +60,6 @@ func RandomizedGenState(simState *module.SimulationState) {
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, ibcTimeoutHeightKey, &ibcTimeoutHeight, simState.Rand,
-		func(r *rand.Rand) { ibcTimeoutHeight = GenIbcTimeoutHeight(r) },
-	)
-
-	simState.AppParams.GetOrGenerate(
 		simState.Cdc, cronosAdminKey, &cronosAdmin, simState.Rand,
 		func(r *rand.Rand) { cronosAdmin = GenCronosAdmin(r, simState) },
 	)
@@ -80,7 +69,7 @@ func RandomizedGenState(simState *module.SimulationState) {
 		func(r *rand.Rand) { enableAutoDeployment = GenEnableAutoDeployment(r) },
 	)
 
-	params := types.NewParams(ibcCroDenom, cronosAdmin, ibcTimeoutHeight, enableAutoDeployment, ibcTimeout)
+	params := types.NewParams(ibcCroDenom, ibcTimeout, cronosAdmin, enableAutoDeployment)
 	cronosGenesis := &types.GenesisState{
 		Params:            params,
 		ExternalContracts: nil,
