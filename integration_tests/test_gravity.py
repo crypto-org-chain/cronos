@@ -17,8 +17,10 @@ from .utils import (
     KEYS,
     add_ini_sections,
     deploy_contract,
+    deploy_erc20,
     dump_toml,
     eth_to_bech32,
+    get_contract,
     parse_events,
     send_to_cosmos,
     send_transaction,
@@ -507,3 +509,100 @@ def test_gravity_cancel_transfer(gravity):
             return v == amount
 
         wait_for_fn("cancel-send-to-ethereum", check_refund)
+
+
+def test_gravity_source_tokens(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        # deploy crc21 contract
+        w3 = gravity.cronos.w3
+        contract = deploy_contract(w3, CONTRACTS["TestERC21Source"])
+
+        # setup the contract mapping
+        cronos_cli = gravity.cronos.cosmos_cli()
+
+        print("crc21 contract", contract.address)
+        denom = f"cronos{contract.address}"
+
+        print("check the contract mapping not exists yet")
+        with pytest.raises(AssertionError):
+            cronos_cli.query_contract_by_denom(denom)
+
+        rsp = cronos_cli.update_token_mapping(
+            denom, contract.address, "DOG", 6, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(contract.address)
+        assert rsp["denom"] == denom
+
+        # Create cosmos erc20 contract
+        print("Deploy cosmos erc20 contract on ethereum")
+        # TO BE UPDATED AFTER gravity upgrade
+        tx_receipt = deploy_erc20(
+            gravity.contract, denom, "dog", "dog", 6, KEYS["validator"]
+        )
+        assert tx_receipt.status == 1, "should success"
+
+        # Wait enough for orchestrator to relay the event
+        wait_for_new_blocks(cronos_cli, 30)
+
+        # Check mapping is done on gravity side
+        cosmos_erc20 = cronos_cli.query_gravity_contract_by_denom(denom)
+        print("cosmos_erc20:", cosmos_erc20)
+        assert cosmos_erc20 != ""
+        cosmos_erc20_contract = get_contract(
+            gravity.geth, cosmos_erc20["erc20"], CONTRACTS["TestERC21Source"]
+        )
+
+        # Send token to ethereum
+        amount = 1000
+        ethereum_receiver = ADDRS["validator"]
+        balance_before_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+            ethereum_receiver
+        )
+
+        print("send to ethereum")
+        tx = contract.functions.send_to_chain(
+            ethereum_receiver, amount, 0, 1
+        ).buildTransaction({"from": ADDRS["validator"]})
+        txreceipt = send_transaction(w3, tx)
+        assert txreceipt.status == 1, "should success"
+
+        balance_after_send_to_ethereum = balance_before_send_to_ethereum
+
+        def check_ethereum_balance_change():
+            nonlocal balance_after_send_to_ethereum
+            balance_after_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+                ethereum_receiver
+            )
+            return balance_before_send_to_ethereum != balance_after_send_to_ethereum
+
+        wait_for_fn("check ethereum balance change", check_ethereum_balance_change)
+        assert (
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+        )
+
+        # Send back token to cronos
+        cronos_receiver = "0x0000000000000000000000000000000000000001"
+        balance_before_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+        amount = 15
+        txreceipt = send_to_cosmos(
+            gravity.contract,
+            cosmos_erc20_contract,
+            HexBytes(cronos_receiver),
+            amount,
+            KEYS["validator"],
+        )
+        assert txreceipt.status == 1, "should success"
+
+        balance_after_send_to_cosmos = balance_before_send_to_cosmos
+
+        def check_cronos_balance_change():
+            nonlocal balance_after_send_to_cosmos
+            balance_after_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+            return balance_before_send_to_cosmos != balance_after_send_to_cosmos
+
+        wait_for_fn("check cronos balance change", check_cronos_balance_change)
+        assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
