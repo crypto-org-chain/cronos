@@ -138,7 +138,7 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			if err != nil {
 				return err
 			}
-			denom := im.getIbcDenomFromPacketAndData(packet, data)
+			denom := im.getIbcDenomFromDataForRefund(data)
 			if im.canBeConverted(ctx, denom) {
 				err = im.convertVouchers(ctx, data, denom, true)
 				if err != nil {
@@ -165,7 +165,7 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		denom := im.getIbcDenomFromPacketAndDataBySource(packet, data, true)
+		denom := im.getIbcDenomFromDataForRefund(data)
 		if im.canBeConverted(ctx, denom) {
 			err = im.convertVouchers(ctx, data, denom, true)
 			if err != nil {
@@ -211,22 +211,17 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 	return found
 }
 
-func (im IBCConversionModule) getIbcDenomFromPacketAndData(
-	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData,
-) string {
-	return im.getIbcDenomFromPacketAndDataBySource(packet, data, false)
+func (im IBCConversionModule) getIbcDenomFromDataForRefund(data transferTypes.FungibleTokenPacketData) string {
+	return transferTypes.ParseDenomTrace(data.Denom).IBCDenom()
 }
 
-func (im IBCConversionModule) getIbcDenomFromPacketAndDataBySource(
-	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData, nonSource bool,
+func (im IBCConversionModule) getIbcDenomFromPacketAndData(
+	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData,
 ) string {
 	if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 		voucherPrefix := transferTypes.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
 		unprefixedDenom := data.Denom[len(voucherPrefix):]
 		denom := unprefixedDenom
-		if nonSource {
-			unprefixedDenom = data.Denom
-		}
 		denomTrace := transferTypes.ParseDenomTrace(unprefixedDenom)
 		if denomTrace.Path != "" {
 			denom = denomTrace.IBCDenom()
