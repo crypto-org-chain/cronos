@@ -165,10 +165,9 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-			// parse the denomination from the full denom path
-			trace := transferTypes.ParseDenomTrace(data.Denom)
-			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
+		denom := im.getIbcDenomFromPacketAndDataBySource(packet, data, true)
+		if im.canBeConverted(ctx, denom) {
+			err = im.convertVouchers(ctx, data, denom, true)
 			if err != nil {
 				return err
 			}
@@ -215,10 +214,19 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(
 	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData,
 ) string {
+	return im.getIbcDenomFromPacketAndDataBySource(packet, data, false)
+}
+
+func (im IBCConversionModule) getIbcDenomFromPacketAndDataBySource(
+	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData, nonSource bool,
+) string {
 	if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 		voucherPrefix := transferTypes.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
 		unprefixedDenom := data.Denom[len(voucherPrefix):]
 		denom := unprefixedDenom
+		if nonSource {
+			unprefixedDenom = data.Denom
+		}
 		denomTrace := transferTypes.ParseDenomTrace(unprefixedDenom)
 		if denomTrace.Path != "" {
 			denom = denomTrace.IBCDenom()
