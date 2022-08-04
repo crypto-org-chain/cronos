@@ -85,6 +85,39 @@ def test_cronos_transfer_tokens(ibc):
     assert old_src_balance - src_amount == new_src_balance
 
 
+def test_cronos_transfer_tokens_refund(ibc):
+    """
+    test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens
+    with invalid receiver for refund case.
+    depends on `test_ibc` to send the original coins.
+    """
+    assert_ready(ibc)
+    dst_addr = "invalid_address"
+    dst_amount = 2
+    cli = ibc.cronos.cosmos_cli()
+    src_amount = dst_amount * RATIO  # the decimal places difference
+    src_addr = cli.address("signer2")
+    src_denom = "basetcro"
+
+    old_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+    rsp = cli.transfer_tokens(
+        src_addr,
+        dst_addr,
+        f"{src_amount}{src_denom}",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    new_src_balance = 0
+
+    def check_balance_change():
+        nonlocal new_src_balance
+        new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+        return old_src_balance == new_src_balance
+
+    wait_for_fn("balance no change", check_balance_change)
+    new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
+
+
 def test_cro_bridge_contract(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
