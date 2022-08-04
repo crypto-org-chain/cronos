@@ -757,6 +757,7 @@ class CosmosCLI:
         amount,
         channel,  # src channel
         target_version,  # chain version number of target chain
+        fee,
         i=0,
     ):
         return json.loads(
@@ -768,6 +769,8 @@ class CosmosCLI:
                 channel,
                 to,
                 amount,
+                "--fees",
+                fee,
                 "-y",
                 # FIXME https://github.com/cosmos/cosmos-sdk/issues/8059
                 "--absolute-timeouts",
@@ -992,6 +995,18 @@ class CosmosCLI:
             )
         )
 
+    def query_denom_by_contract(self, contract: str):
+        "query denom by contract"
+        return json.loads(
+            self.raw(
+                "query",
+                "cronos",
+                "denom-by-contract",
+                contract,
+                home=self.data_dir,
+            )
+        )
+
     def gov_propose_token_mapping_change(
         self, denom, contract, symbol, decimal, **kwargs
     ):
@@ -1181,5 +1196,17 @@ class CosmosCLI:
                 "controller",
                 "params",
                 **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_gravity_contract_by_denom(self, denom: str):
+        "query CosmosERC20 contract address by denom"
+        return json.loads(
+            self.raw(
+                "query",
+                "gravity",
+                "denom-to-erc20",
+                denom,
+                home=self.data_dir,
             )
         )
