@@ -3,6 +3,7 @@ import json
 
 import pytest
 
+from .ibc_utils import RATIO, assert_ready, get_balance, prepare, prepare_network
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -11,14 +12,6 @@ from .utils import (
     send_transaction,
     wait_for_fn,
     wait_for_new_blocks,
-)
-
-from .ibc_utils import (
-    RATIO,
-    prepare,
-    assert_ready,
-    get_balance,
-    prepare_network,
 )
 
 

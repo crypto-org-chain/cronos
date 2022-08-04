@@ -6,12 +6,7 @@ from typing import NamedTuple
 from pystarport import ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
-from .utils import (
-    ADDRS,
-    eth_to_bech32,
-    wait_for_port,
-    supervisorctl,
-)
+from .utils import ADDRS, eth_to_bech32, supervisorctl, wait_for_port
 
 RATIO = 10**10
 
@@ -24,9 +19,7 @@ class IBCNetwork(NamedTuple):
 
 def prepare_network(tmp_path, file):
     file = f"configs/{file}.jsonnet"
-    gen = setup_custom_cronos(
-        tmp_path, 26700, Path(__file__).parent / file
-    )
+    gen = setup_custom_cronos(tmp_path, 26700, Path(__file__).parent / file)
     cronos = next(gen)
     chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
     hermes = Hermes(cronos.base_dir.parent / "relayer.toml")

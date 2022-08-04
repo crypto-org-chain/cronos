@@ -1,18 +1,7 @@
 import pytest
 
-from .utils import (
-    ADDRS,
-    eth_to_bech32,
-    wait_for_fn,
-)
-
-from .ibc_utils import (
-    RATIO,
-    prepare_network,
-    prepare,
-    assert_ready,
-    get_balance,
-)
+from .ibc_utils import RATIO, assert_ready, get_balance, prepare, prepare_network
+from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
 
 @pytest.fixture(scope="module")
