@@ -177,9 +177,9 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	// it means it can never fail by timeout
 	params := k.GetParams(ctx)
 	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
-	timeoutHeight := ibcclienttypes.ZeroHeight()
-	if params.IbcTimeout == 0 {
-		timeoutHeight = ibcclienttypes.NewHeight(1, uint64(ctx.BlockHeight())+1)
+	timeoutHeight, err := ibcclienttypes.ParseHeight(params.IbcTimeoutHeight)
+	if err != nil {
+		return err
 	}
 	return k.transferKeeper.SendTransfer(
 		ctx,
