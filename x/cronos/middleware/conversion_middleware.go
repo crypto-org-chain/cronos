@@ -132,20 +132,15 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet acknowledgement in middleware: %v", err)
 		}
-		switch ack.Response.(type) {
-		case *channeltypes.Acknowledgement_Error:
+		if _, ok := ack.Response.(*channeltypes.Acknowledgement_Error); ok {
 			data, err := im.getFungibleTokenPacketData(packet)
 			if err != nil {
 				return err
 			}
 			denom := im.getIbcDenomFromDataForRefund(data)
 			if im.canBeConverted(ctx, denom) {
-				err = im.convertVouchers(ctx, data, denom, true)
-				if err != nil {
-					return err
-				}
+				return im.convertVouchers(ctx, data, denom, true)
 			}
-		default:
 		}
 	}
 
@@ -167,13 +162,9 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		}
 		denom := im.getIbcDenomFromDataForRefund(data)
 		if im.canBeConverted(ctx, denom) {
-			err = im.convertVouchers(ctx, data, denom, true)
-			if err != nil {
-				return err
-			}
+			return im.convertVouchers(ctx, data, denom, true)
 		}
 	}
-
 	return err
 }
 
