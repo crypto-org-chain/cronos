@@ -290,6 +290,12 @@ def test_cronos_transfer_source_tokens(ibc):
     with pytest.raises(AssertionError):
         cronos_cli.query_contract_by_denom(denom)
 
+    print("try token mapping with wrong denom, should fail")
+    rsp = cronos_cli.update_token_mapping(
+        denom, "0x000000000000000000000000000000000000dead", "DOG", 6, from_="validator"
+    )
+    assert rsp["code"] == 18, rsp["raw_log"]
+
     rsp = cronos_cli.update_token_mapping(
         denom, contract.address, "DOG", 6, from_="validator"
     )
@@ -313,7 +319,6 @@ def test_cronos_transfer_source_tokens(ibc):
     assert chainmain_receiver_balance == 0
 
     # send to ibc
-    print("send to cronos")
     tx = contract.functions.send_to_ibc(chainmain_receiver, amount).buildTransaction(
         {"from": ADDRS["validator"]}
     )
