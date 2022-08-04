@@ -165,9 +165,10 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		denom := im.getIbcDenomFromPacketAndData(packet, data)
-		if im.canBeConverted(ctx, denom) {
-			err = im.convertVouchers(ctx, data, denom, true)
+		if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+			// parse the denomination from the full denom path
+			trace := transferTypes.ParseDenomTrace(data.Denom)
+			err = im.convertVouchers(ctx, data, trace.IBCDenom(), true)
 			if err != nil {
 				return err
 			}
