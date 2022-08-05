@@ -17,7 +17,7 @@ from .utils import (
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
-    "start-cronos"
+    "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
     network = prepare_network(path, name)
@@ -89,10 +89,10 @@ def test_cronos_transfer_tokens(ibc):
     assert old_src_balance - src_amount == new_src_balance
 
 
-def test_cronos_transfer_tokens_refund(ibc):
+def test_cronos_transfer_tokens_acknowledgement_error(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens
-    with invalid receiver for refund case.
+    with invalid receiver for acknowledgement error.
     depends on `test_ibc` to send the original coins.
     """
     assert_ready(ibc)

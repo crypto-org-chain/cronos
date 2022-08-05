@@ -6,7 +6,7 @@ from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
-    "start-cronos"
+    "prepare-network"
     name = "ibc_timeout"
     path = tmp_path_factory.mktemp(name)
     network = prepare_network(path, name)
@@ -37,7 +37,7 @@ def test_ibc(ibc):
     assert old_dst_balance + dst_amount == new_dst_balance
 
 
-def test_cronos_transfer_tokens(ibc):
+def test_cronos_transfer_timeout(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
