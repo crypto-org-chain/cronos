@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Aug 5, 2022*
+
+## v0.8.0
 
 ### State Machine Breaking
 
