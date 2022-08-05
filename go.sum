@@ -308,8 +308,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220719024136-4658529abbf5 h1:2iLYA821730/uyyrY8Rn3AXxpYNPIsdelCuYcZyJSmE=
-github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220719024136-4658529abbf5/go.mod h1:T4f1p3L5kccbjBZMtJLKfOLiUXTO1OuS1I7FzQuJD+w=
+github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220805014032-9b262150774c h1:yKP4nqEiFXtmTXimG+O64kQ1S9STiAEIuGD8CQPI8nk=
+github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220805014032-9b262150774c/go.mod h1:T4f1p3L5kccbjBZMtJLKfOLiUXTO1OuS1I7FzQuJD+w=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2 h1:elj+Tb/3O9GA3pv62zkc1B0P8hl1WHmF6vF8PInEJm4=
 github.com/crypto-org-chain/ibc-go/v2 v2.2.0-hooks2/go.mod h1:rAHRlBcRiHPP/JszN+08SJx3pegww9bcVncIb9QLx7I=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=

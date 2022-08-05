@@ -2,7 +2,6 @@ package app
 
 import (
 	"io"
-	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,7 +23,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -704,51 +702,10 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 
 	// upgrade handlers
-	plan0_7_0 := "v0.7.0"
+	plan_name := "v0.7.0-hotfix"
 	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		updatedVM, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
-		if err != nil {
-			return nil, err
-		}
-		// Override feemarket parameters
-		initialBaseFee := int64(5000000000000)
-		app.FeeMarketKeeper.SetParams(ctx, feemarkettypes.Params{
-			NoBaseFee:                false,
-			BaseFeeChangeDenominator: 100000000,
-			ElasticityMultiplier:     2,
-			InitialBaseFee:           initialBaseFee,
-			EnableHeight:             0,
-		})
-		app.FeeMarketKeeper.SetBaseFee(ctx, big.NewInt(initialBaseFee))
-		evmParams := app.EvmKeeper.GetParams(ctx)
-		zeroInt := sdk.ZeroInt()
-		evmParams.ChainConfig.LondonBlock = &zeroInt
-		app.EvmKeeper.SetParams(ctx, evmParams)
-		return updatedVM, nil
-	})
-
-	// this upgrade is for breaking bug fixes on testnet
-	plan0_7_0Rc3HotfixTestnet := "v0.7.0-rc3-hotfix-testnet"
-	app.UpgradeKeeper.SetUpgradeHandler(plan0_7_0Rc3HotfixTestnet, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		cp := ctx.ConsensusParams()
-		cp.Block.MaxGas = 10000000
-		app.StoreConsensusParams(ctx, cp)
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
-
-	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
-	if err != nil {
-		panic(err)
-	}
-
-	if upgradeInfo.Name == plan0_7_0 && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{"feemarket"},
-		}
-
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
-	}
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {

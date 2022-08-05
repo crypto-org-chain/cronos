@@ -2,6 +2,14 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+- [#]() selfdestruct don't delete bytecode of smart contract.
+
+*Aug 5, 2022*
+
+## v0.7.1
+
 ### Bug Fixes
 
 - [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
