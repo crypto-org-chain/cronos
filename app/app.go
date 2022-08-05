@@ -702,8 +702,8 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 
 	// upgrade handlers
-	plan_name := "v0.7.0-hotfix"
-	app.UpgradeKeeper.SetUpgradeHandler(plan_name, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	planName := "v0.7.0-hotfix"
+	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
