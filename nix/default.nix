@@ -20,6 +20,7 @@ import sources.nixpkgs {
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
         buildGoModule = pkgs.buildGo117Module;
       };
+      flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
     (_: pkgs: {
