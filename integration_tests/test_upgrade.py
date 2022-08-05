@@ -6,11 +6,10 @@ from pathlib import Path
 
 import pytest
 from dateutil.parser import isoparse
-from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
 from .network import Cronos, setup_custom_cronos
-from .utils import parse_events, wait_for_block, wait_for_block_time, wait_for_port
+from .utils import parse_events, wait_for_block, wait_for_block_time
 
 
 def init_cosmovisor(home):
