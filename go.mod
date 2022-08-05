@@ -164,7 +164,7 @@ replace (
 
 	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.20
 
-	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220805014032-9b262150774c
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.11.0-cronos
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
