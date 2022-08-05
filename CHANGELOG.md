@@ -1,6 +1,16 @@
 # Changelog
 
-## UNRELEASED
+*Aug 5, 2022*
+
+## v0.8.0
+
+### State Machine Breaking
+
+- [#618](https://github.com/crypto-org-chain/cronos/pull/618) selfdestruct don't delete bytecode of smart contract.
+
+*Aug 5, 2022*
+
+## v0.7.1
 
 ### Bug Fixes
 

@@ -1,9 +1,16 @@
 let
   pkgs = import ../../nix { };
-  released = import (builtins.fetchTarball "https://github.com/crypto-org-chain/cronos/archive/v0.6.5.tar.gz") { };
+  fetchFlake = repo: rev: (pkgs.flake-compat {
+    src = {
+      outPath = builtins.fetchTarball "https://github.com/${repo}/archive/${rev}.tar.gz";
+      inherit rev;
+      shortRev = builtins.substring 0 7 rev;
+    };
+  }).defaultNix;
+  released = (fetchFlake "crypto-org-chain/cronos" "8035ebdcc3ce1ed5ee3d4887eb4ea1032c4d283c").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v0.7.0"; path = current; }
+  { name = "v0.7.0-hotfix"; path = current; }
 ]

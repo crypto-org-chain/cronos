@@ -37,8 +37,6 @@ cronos_777-1:
       evm:
         params:
           evm_denom: basetcro
-          chain_config:
-            london_block: null
       cronos:
         params:
           cronos_admin: ${CRONOS_ADMIN}
