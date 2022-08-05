@@ -4,7 +4,7 @@
 
 ### State Machine Breaking
 
-- [#]() selfdestruct don't delete bytecode of smart contract.
+- [#618](https://github.com/crypto-org-chain/cronos/pull/618) selfdestruct don't delete bytecode of smart contract.
 
 *Aug 5, 2022*
 
