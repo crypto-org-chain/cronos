@@ -2,8 +2,9 @@ package evmhandler
 
 import (
 	"fmt"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 	"math/big"
+
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
