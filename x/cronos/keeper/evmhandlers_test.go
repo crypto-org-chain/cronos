@@ -7,8 +7,8 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/app"
-	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -39,7 +39,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		{
 			"not enough balance, expect fail",
 			func() {
-				input, err := keeper.SendToAccountEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					big.NewInt(100),
 				)
@@ -60,7 +60,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToAccountEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					coin.Amount.BigInt(),
 				)
@@ -80,7 +80,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
-			handler := keeper.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
+			handler := evmhandlers.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
@@ -120,7 +120,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -143,7 +143,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -165,7 +165,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -188,7 +188,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -215,7 +215,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := keeper.NewSendToChainHandler(
+			handler := evmhandlers.NewSendToChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
@@ -253,7 +253,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToIbcEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -274,7 +274,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToIbcEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -295,7 +295,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.SendToIbcEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -322,7 +322,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
 			)
-			handler := keeper.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
+			handler := evmhandlers.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
@@ -350,7 +350,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"not enough balance, fail",
 			func() {
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(10000000000000))
-				input, err := keeper.SendCroToIbcEvent.Inputs.Pack(
+				input, err := evmhandlers.SendCroToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -373,7 +373,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 
 				// Mint coin for the module
 				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
-				input, err := keeper.SendToIbcEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -412,7 +412,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
 			)
-			handler := keeper.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
+			handler := evmhandlers.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
 			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
@@ -451,7 +451,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := keeper.CancelSendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.CancelSendToChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(1),
 				)
@@ -488,7 +488,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 
 				// Then cancel the SendToChain transaction
-				input, err := keeper.CancelSendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.CancelSendToChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(int64(resp.Id)),
 				)
@@ -512,7 +512,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := keeper.NewCancelSendToChainHandler(
+			handler := evmhandlers.NewCancelSendToChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
