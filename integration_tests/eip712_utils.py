@@ -10,9 +10,13 @@ import google.protobuf.any_pb2
 import cosmos.crypto.secp256k1.keys_pb2
 import ethermint.crypto.v1.ethsecp256k1.keys_pb2
 import ethermint.types.v1.web3_pb2
-from .utils import (
-    KEYS,
-)
+
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from eth_account import Account
+
 
 MAX_SAFE_INTEGER = 1.7976931348623157e+308
 MSG_SEND_TYPES = {
@@ -29,6 +33,13 @@ MSG_SEND_TYPES = {
 
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
+
+load_dotenv(Path(__file__).parent.parent / "scripts/.env")
+Account.enable_unaudited_hdwallet_features()
+ACCOUNTS = {
+    "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
+}
+KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 
 def create_message_send(chain, sender, fee, memo, params):
     # EIP712
