@@ -98,6 +98,7 @@ config {
             pk_type: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
           },
         },
+        max_gas: 500000,
         gas_price: {
           price: 10000000000000,
           denom: 'basetcro',

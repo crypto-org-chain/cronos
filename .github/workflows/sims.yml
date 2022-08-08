@@ -21,7 +21,7 @@ jobs:
     permissions:
       pull-requests: write
     if: >-
-      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim') ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim')) ||
       github.event_name == 'push' || github.event_name == 'pull_request'
     outputs:
       repo_name: ${{ steps.pr_data.outputs.repo_name }}

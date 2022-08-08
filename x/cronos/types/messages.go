@@ -119,11 +119,13 @@ func (msg *MsgTransferTokens) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateTokenMapping{}
 
 // NewMsgUpdateTokenMapping ...
-func NewMsgUpdateTokenMapping(admin string, denom string, contract string) *MsgUpdateTokenMapping {
+func NewMsgUpdateTokenMapping(admin string, denom string, contract string, symbol string, decimal uint32) *MsgUpdateTokenMapping {
 	return &MsgUpdateTokenMapping{
 		Sender:   admin,
 		Denom:    denom,
 		Contract: contract,
+		Symbol:   symbol,
+		Decimal:  decimal,
 	}
 }
 
@@ -143,8 +145,8 @@ func (msg *MsgUpdateTokenMapping) ValidateBasic() error {
 		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
 	}
 
-	if !IsValidDenomToWrap(msg.Denom) {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid denom to wrap (%s)", msg.Denom)
+	if !IsValidCoinDenom(msg.Denom) {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid denom format (%s)", msg.Denom)
 	}
 
 	if !common.IsHexAddress(msg.Contract) {

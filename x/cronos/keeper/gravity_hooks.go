@@ -55,7 +55,7 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 		return fmt.Errorf("gravity is not enable")
 	}
 
-	isCosmosOriginated, denom := k.gravityKeeper.ERC20ToDenomLookup(ctx, common.HexToAddress(event.TokenContract))
+	_, denom := k.gravityKeeper.ERC20ToDenomLookup(ctx, common.HexToAddress(event.TokenContract))
 	coin := sdk.NewCoin(denom, event.Amount)
 	// TODO: Remove after event is emitted at Gravity module https://github.com/crypto-org-chain/gravity-bridge/pull/12
 	coins := sdk.Coins{sdk.NewCoin(denom, event.Amount)}
@@ -74,10 +74,6 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 			string(gravitytypes.MakeEthereumEventVoteRecordKey(event.GetEventNonce(), event.Hash()))),
 	))
 
-	if isCosmosOriginated {
-		// ignore cosmos originated transfer
-		return nil
-	}
 	// Try to convert the newly minted native tokens to erc20 contract
 	cosmosAddr, err := sdk.AccAddressFromBech32(event.CosmosReceiver)
 	if err != nil {
@@ -85,7 +81,7 @@ func (k Keeper) doAfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.Sen
 	}
 	addr := common.BytesToAddress(cosmosAddr.Bytes())
 	enableAutoDeployment := k.GetParams(ctx).EnableAutoDeployment
-	err = k.ConvertCoinFromNativeToCRC20(ctx, addr, coin, enableAutoDeployment)
+	err = k.ConvertCoinFromNativeToCRC21(ctx, addr, coin, enableAutoDeployment)
 	if err != nil {
 		return err
 	}
