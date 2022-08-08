@@ -1,8 +1,5 @@
 import base64
-import eth_utils
-import hashlib
 import sha3
-import rlp
 import cosmos.base.v1beta1.coin_pb2
 import cosmos.bank.v1beta1.tx_pb2
 import cosmos.tx.v1beta1.tx_pb2
@@ -10,15 +7,12 @@ import google.protobuf.any_pb2
 import cosmos.crypto.secp256k1.keys_pb2
 import ethermint.crypto.v1.ethsecp256k1.keys_pb2
 import ethermint.types.v1.web3_pb2
-
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 from eth_account import Account
+from eth_account.messages import encode_structured_data
 
-
-MAX_SAFE_INTEGER = 1.7976931348623157e+308
 MSG_SEND_TYPES = {
     "MsgValue": [
       { "name": "from_address", "type": "string" },
@@ -211,7 +205,7 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
     )
 
     hash_amino = sha3.keccak_256()
-    hash_amino.update(sig_doc_amino.SerializeToString()) # TODO
+    hash_amino.update(sig_doc_amino.SerializeToString())
     to_sign_amino = hash_amino.hexdigest()
    
     # SignDirect
@@ -247,18 +241,17 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
 
 def create_body_with_multiple_messages(messages, memo):
     # tx.cosmos.tx.v1beta1.TxBody
-    body = cosmos.tx.v1beta1.tx_pb2.TxBody(memo = memo)
+    content = []
     for message in messages:
-        body.messages.append(create_any_message(message))
+        content.append(create_any_message(message))
+    body = cosmos.tx.v1beta1.tx_pb2.TxBody(memo = memo, messages = content)
     return body
 
 
 def create_any_message(msg):
     # google.google.protobuf.Any
     any = google.protobuf.any_pb2.Any()
-    path = msg["path"]
-    any.type_url = f"/{path}"
-    any.value = msg["message"].SerializeToString()
+    any.Pack(msg["message"], "/")
     return any
 
 
@@ -312,7 +305,7 @@ def create_fee(fee, denom, gas_limit):
         amount = fee,
     )
     # coin.cosmos.base.v1beta1.Fee
-    fee = cosmos.tx.v1beta1.tx_pb2.Fee(gas_limit = gas_limit)
+    fee = cosmos.tx.v1beta1.tx_pb2.Fee(gas_limit = int(gas_limit))
     fee.amount.append(value)
     return fee
 
@@ -334,44 +327,12 @@ def proto_msg_send(from_address, to_address, amount, denom):
         "path": "cosmos.bank.v1beta1.MsgSend",
     }
 
-def arrayify(value):
-    return bytearray(value)
 
-
-def eip712_hash(typed_data, version="V4"):
-    # sanitized_data = sanitize_data(typed_data);
-    parts = bytes.fromhex("1901")
-    eip712 = "EIP712Domain"
-    parts += hash_struct(eip712, typed_data["domain"], typed_data["types"], version)
-    if typed_data["primaryType"] != eip712:
-        parts += hash_struct(typed_data["primaryType"], typed_data["message"], typed_data["types"], version)
-    return eth_utils.keccak(parts)
-
-
-def hash_struct(primary_type, data, types, version):
-    print("rlp", primary_type, data, types, version)
-    res = rlp.encode(primary_type, data, types, version)
-    # TODO
-    return eth_utils.keccak(res)
-
-
-def join_signature():
-    return ""
-
-
-def split_signature():
-    return ""
-
-
-def signature_to_web3_extension(chain, sender, hex_formatted_signature):
-    signature = hex_formatted_signature
-    temp = hex_formatted_signature.split("0x")
-    if (temp.length == 2):
-        signature = temp[1]
+def signature_to_web3_extension(chain, sender, signature):
     message = ethermint.types.v1.web3_pb2.ExtensionOptionsWeb3Tx(
         typed_data_chain_id = chain["chainId"],
         fee_payer = sender["accountAddress"],
-        fee_payer_sig = bytes.fromhex(signature),
+        fee_payer_sig = signature,
     )
     return {
         "message": message,
@@ -392,11 +353,12 @@ def create_tx_raw(body_bytes, auth_info_bytes, signatures):
 
 
 def create_tx_raw_eip712(body, auth_info, extension):
-    body["extension_options"].append(create_any_message(extension))
+    any = create_any_message(extension)
+    body.extension_options.append(any)
     return create_tx_raw(
         body.SerializeToString(),
         auth_info.SerializeToString(), 
-        [bytearray([])], #TODO
+        [bytes()],
     )
 
 
@@ -416,7 +378,7 @@ sender = {
 }
 denom = "basetcro"
 dst_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
-gas = 20000
+gas = "200000"
 gas_amount = "20"
 fee = {
     "amount": gas_amount,
@@ -430,16 +392,13 @@ params = {
     "denom": denom,
 }
 tx = create_message_send(chain, sender, fee, memo, params)
-# print("eipToSign", tx["eipToSign"])
-h = eip712_hash(tx["eipToSign"])
-print("eip712_hash", h)
-data_to_sign = arrayify(h)
-signature_raw = hashlib.sha256(KEYS["community"].value.encode()).digest(data_to_sign)
-signature = join_signature(signature_raw)
+structured_msg = encode_structured_data(tx["eipToSign"])
+signed = Account.sign_message(structured_msg, KEYS[src])
+print("signed: ", signed)
 extension = signature_to_web3_extension(
     chain,
     sender,
-    signature,
+    signed.signature,
 )
 legacy_amino = tx["legacyAmino"]
 signed_tx = create_tx_raw_eip712(
@@ -447,7 +406,10 @@ signed_tx = create_tx_raw_eip712(
     legacy_amino["authInfo"],
     extension,
 )
+print("signed_tx", signed_tx["message"].SerializeToString().hex())
 body = {
-    "tx_bytes": signed_tx["message"].SerializeToString(), 
+    "tx_bytes": list(signed_tx["message"].SerializeToString()), 
     "mode": "BROADCAST_MODE_BLOCK"
 }
+print("body: ", body)
+
