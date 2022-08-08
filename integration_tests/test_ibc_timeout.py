@@ -10,13 +10,7 @@ def ibc(request, tmp_path_factory):
     name = "ibc_timeout"
     path = tmp_path_factory.mktemp(name)
     network = prepare_network(path, name)
-    try:
-        yield next(network)
-    finally:
-        try:
-            next(network)
-        except StopIteration:
-            pass
+    yield from network
 
 
 def test_ibc(ibc):
