@@ -1,9 +1,11 @@
 pragma solidity 0.8.10;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./CosmosToken.sol";
@@ -62,9 +64,19 @@ struct ValSignature {
 	bytes32 s;
 }
 
-contract Gravity is ReentrancyGuard {
-	using SafeMath for uint256;
+struct TransferReverted {
+	address tokenContract;
+	address destination;
+	uint256 amount;
+	bool activate;
+}
+
+
+contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	using SafeERC20 for IERC20;
+
+	bytes32 public constant RELAYER = keccak256("RELAYER");
+	bytes32 public constant RELAYER_ADMIN = keccak256("RELAYER_ADMIN");
 
 	// These are updated often
 	bytes32 public state_lastValsetCheckpoint;
@@ -79,6 +91,26 @@ contract Gravity is ReentrancyGuard {
 	uint256 public state_powerThreshold;
 	// This is set once at initialization
 	bytes32 public immutable state_gravityId;
+
+	// Store vouchers for reverted cases
+	mapping(uint256 => TransferReverted) public state_RevertedVouchers;
+	uint256 public state_lastRevertedNonce = 1;
+
+	//    modifier onlyRole(bytes32 role) {
+	//        require(hasRole(role, msg.sender), "Gravity::Permission Denied");
+	//        _;
+	//    }
+
+	bool public anyoneCanRelay;
+
+	event AnyoneCanRelay(bool anyoneCanRelay);
+
+	modifier checkWhiteList() {
+		if (!anyoneCanRelay) {
+			_checkRole(RELAYER, msg.sender);
+		}
+		_;
+	}
 
 	// TransactionBatchExecutedEvent and SendToCosmosEvent both include the field _eventNonce.
 	// This is incremented every time one of these events is emitted. It is checked by the
@@ -121,6 +153,11 @@ contract Gravity is ReentrancyGuard {
 		bytes _returnData,
 		uint256 _eventNonce
 	);
+
+	modifier onlySelf {
+		require(msg.sender == address(this), "Can only be invoked by contract");
+		_;
+	}
 
 	// TEST FIXTURES
 	// These are here to make it easier to measure gas usage. They should be removed before production
@@ -241,19 +278,20 @@ contract Gravity is ReentrancyGuard {
 		}
 		// Success
 	}
+
 	// This updates the valset by checking that the validators in the current valset have signed off on the
 	// new valset. The signatures supplied are the signatures of the current valset over the checkpoint hash
 	// generated from the new valset.
 	// Anyone can call this function, but they must supply valid signatures of state_powerThreshold of the current valset over
 	// the new valset.
-function updateValset(
+    function updateValset(
 		// The new version of the validator set
 		ValsetArgs calldata _newValset,
 		// The current validators that approve the change
 		ValsetArgs calldata _currentValset,
 		// These are arrays of the parts of the current validator's signatures
 		ValSignature[] calldata _sigs
-	) public virtual {
+	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS
 
 		// Check that the valset nonce is greater than the old one
@@ -356,7 +394,7 @@ function updateValset(
 		// a block height beyond which this batch is not valid
 		// used to provide a fee-free timeout
 		uint256 _batchTimeout
-	) public nonReentrant virtual {
+	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS scoped to reduce stack depth
 		{
 			// Check that the batch nonce is higher than the last nonce for this token
@@ -425,19 +463,43 @@ function updateValset(
 				// Send transaction amounts to destinations
 				uint256 totalFee;
 				for (uint256 i = 0; i < _amounts.length; i++) {
-					IERC20(_tokenContract).safeTransfer(_destinations[i], _amounts[i]);
+					transferNoRevert(_tokenContract, _destinations[i], _amounts[i]);
 					totalFee = totalFee + _fees[i];
 				}
 
 				// Send transaction fees to msg.sender
-				IERC20(_tokenContract).safeTransfer(msg.sender, totalFee);
+				transferNoRevert(_tokenContract, msg.sender, totalFee);
 			}
 		}
-
 		// LOGS scoped to reduce stack depth
 		{
 			state_lastEventNonce = state_lastEventNonce + 1;
 			emit TransactionBatchExecutedEvent(_batchNonce, _tokenContract, state_lastEventNonce);
+		}
+	}
+
+	function transferNoRevert(address token, address to, uint value) internal {
+		try this.safeTransferSelf(token,to, value) {
+		} catch {
+			state_RevertedVouchers[state_lastRevertedNonce] = TransferReverted(token, to, value, true);
+			state_lastRevertedNonce = state_lastRevertedNonce + 1;
+		}
+	}
+
+	function safeTransferSelf(address token, address to, uint value) public onlySelf {
+		IERC20(token).safeTransfer(to, value);
+	}
+
+	function redeemVoucher(
+		uint256 _nonce,
+		address _newDestination
+	) public nonReentrant {
+		if(state_RevertedVouchers[_nonce].activate){
+			TransferReverted memory voucher = state_RevertedVouchers[_nonce];
+			require(voucher.destination == msg.sender, "Can only be redeemed by intended recipient");
+			state_RevertedVouchers[_nonce].activate = false;
+			state_RevertedVouchers[_nonce].amount = 0;
+			IERC20(voucher.tokenContract).safeTransfer(_newDestination, voucher.amount);
 		}
 	}
 
@@ -456,7 +518,7 @@ function updateValset(
 		// These are arrays of the parts of the validators signatures
 		ValSignature[] calldata _sigs,
 		LogicCallArgs memory _args
-	) public nonReentrant virtual {
+	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS scoped to reduce stack depth
 		{
 			// Check that the call has not timed out
@@ -557,7 +619,7 @@ function updateValset(
 		address _tokenContract,
 		address _destination,
 		uint256 _amount
-	) public nonReentrant virtual {
+	) public nonReentrant whenNotPaused {
 		_sendToCosmos(_tokenContract, bytes32(uint256(uint160(_destination))), _amount);
 	}
 
@@ -565,7 +627,7 @@ function updateValset(
 		address _tokenContract,
 		bytes32 _destination,
 		uint256 _amount
-	) public nonReentrant virtual {
+	) public nonReentrant whenNotPaused {
 		_sendToCosmos(_tokenContract, _destination, _amount);
 	}
 
@@ -614,7 +676,7 @@ function updateValset(
 		CosmosERC20 erc20 = new CosmosERC20(address(this), _name, _symbol, _decimals);
 
 		// Fire an event to let the Cosmos module know
-		state_lastEventNonce = state_lastEventNonce.add(1);
+		state_lastEventNonce = state_lastEventNonce + 1;
 		emit ERC20DeployedEvent(
 			_cosmosDenom,
 			address(erc20),
@@ -625,6 +687,52 @@ function updateValset(
 		);
 	}
 
+	// Admin functionalities: Those functions are intended to be removed in long term by setting the owner to zero address
+	// however since the gravity is still in an experimental stage, safe guards are needed
+
+	/**
+	* Only owner
+	* pause will deactivate contract functionalities
+	*/
+	function pause() public onlyOwner {
+		_pause();
+	}
+
+	/**
+	* Only owner
+	* unpause will re activate contract functionalities
+	*/
+	function unpause() public onlyOwner {
+		_unpause();
+	}
+
+	/**
+	* Only owner
+	* migrateToken allows to migrate locked fund to a new gravity contract
+	* in case we need to upgrade it
+	*/
+	function migrateToken(
+		address _tokenContract,
+		address _destination,
+		uint256 _amount
+	) public onlyOwner {
+		IERC20(_tokenContract).safeTransfer(_destination, _amount);
+	}
+
+	function setAnyoneCanRelay (
+		bool _anyoneCanRelay
+	) public onlyRole(RELAYER_ADMIN) {
+		anyoneCanRelay = _anyoneCanRelay;
+		emit AnyoneCanRelay(anyoneCanRelay);
+	}
+
+	function transferRelayerAdmin (
+		address _newAdmin
+	) public onlyRole(RELAYER_ADMIN) {
+		grantRole(RELAYER_ADMIN, _newAdmin);
+		revokeRole(RELAYER_ADMIN, msg.sender);
+	}
+
 	constructor(
 		// A unique identifier for this gravity instance to use in signatures
 		bytes32 _gravityId,
@@ -632,7 +740,8 @@ function updateValset(
 		uint256 _powerThreshold,
 		// The validator set
 		address[] memory _validators,
-		uint256[] memory _powers
+		uint256[] memory _powers,
+		address relayerAdmin
 	) {
 		// CHECKS
 
@@ -668,6 +777,12 @@ function updateValset(
 		state_gravityId = _gravityId;
 		state_powerThreshold = _powerThreshold;
 		state_lastValsetCheckpoint = newCheckpoint;
+
+		// ACL
+
+		_setupRole(RELAYER_ADMIN, relayerAdmin);
+		_setRoleAdmin(RELAYER, RELAYER_ADMIN);
+		_setRoleAdmin(RELAYER_ADMIN, RELAYER_ADMIN);
 
 		// LOGS
 

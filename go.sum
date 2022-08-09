@@ -285,8 +285,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.0-20220620100333-f9256032790b h1:ke3+KfBD6u1wv5amegov8hTBUZXXclGcvo40yNh15+E=
-github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.0-20220620100333-f9256032790b/go.mod h1:oZBIK8vfPH8IaS7vTnydkf1GkStt7YRumpn/PD2QHVY=
+github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.0-20220808044656-67922c63f359 h1:8henxaGhyBItFcSd/B9mTm0mUKiLvdrSQGGW//adbl4=
+github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.0-20220808044656-67922c63f359/go.mod h1:oZBIK8vfPH8IaS7vTnydkf1GkStt7YRumpn/PD2QHVY=
 github.com/crypto-org-chain/keyring v1.1.6-fixes h1:AUFSu56NY6XobY6XfRoDx6v3loiOrHK5MNUm32GEjwA=
 github.com/crypto-org-chain/keyring v1.1.6-fixes/go.mod h1:0mkLWIoZuQ7uBoospo5Q9zIpqq6rYCPJDSUdeCJvPM8=
 github.com/cyberdelia/templates v0.0.0-20141128023046-ca7fffd4298c/go.mod h1:GyV+0YP4qX0UQ7r2MoYZ+AvYDp12OF5yg4q8rGnyNh4=

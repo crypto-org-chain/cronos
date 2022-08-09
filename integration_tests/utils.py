@@ -33,13 +33,14 @@ KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
 TEST_CONTRACTS = {
-    "CronosGravity": "CronosGravity.sol",
+    "Gravity": "Gravity.sol",
     "Greeter": "Greeter.sol",
     "TestERC20A": "TestERC20A.sol",
     "TestERC21Source": "TestERC21Source.sol",
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
+    "TestBlackListERC20": "TestBlackListERC20.sol",
     "CroBridge": "CroBridge.sol",
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
 }
