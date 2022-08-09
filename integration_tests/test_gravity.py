@@ -540,9 +540,8 @@ def test_gravity_source_tokens(gravity):
 
         # Create cosmos erc20 contract
         print("Deploy cosmos erc20 contract on ethereum")
-        # TO BE UPDATED AFTER gravity upgrade
         tx_receipt = deploy_erc20(
-            gravity.contract, denom, "dog", "dog", 6, KEYS["validator"]
+            gravity.contract, denom, denom, "DOG", 6, KEYS["validator"]
         )
         assert tx_receipt.status == 1, "should success"
 
@@ -648,6 +647,7 @@ def test_gravity_blacklisted_contract(gravity):
 
         # get voucher nonce
         old_nonce = gravity.contract.caller.state_lastRevertedNonce()
+        old_balance1 = erc20.caller.balanceOf(ADDRS["signer1"])
 
         # send it back to blacklisted address
         tx = crc21_contract.functions.send_to_chain(
@@ -661,12 +661,18 @@ def test_gravity_blacklisted_contract(gravity):
             return old_nonce + 1 == nonce
 
         wait_for_fn("send-to-ethereum", check)
+
+        # check that voucher has been created
         voucher = gravity.contract.caller.state_RevertedVouchers(old_nonce)
         assert voucher[0] == erc20.address
         assert voucher[1] == ADDRS["signer1"]
         assert voucher[2] == amount
 
-        old_balance = erc20.caller.balanceOf(ADDRS["signer2"])
+        # check balance is the same
+        new_balance1 = erc20.caller.balanceOf(ADDRS["signer1"])
+        assert old_balance1 == new_balance1
+
+        old_balance2 = erc20.caller.balanceOf(ADDRS["signer2"])
 
         # try to redeem voucher with non recipient address
         with pytest.raises(Exception):
@@ -685,5 +691,11 @@ def test_gravity_blacklisted_contract(gravity):
         txreceipt = send_transaction(geth, tx, KEYS["signer1"])
         assert txreceipt.status == 1, "should success"
         wait_for_new_blocks(cli, 1)
-        new_balance = erc20.caller.balanceOf(ADDRS["signer2"])
-        assert old_balance + amount == new_balance
+        new_balance2 = erc20.caller.balanceOf(ADDRS["signer2"])
+        assert old_balance2 + amount == new_balance2
+
+        # asset cannot redeem twice
+        with pytest.raises(Exception):
+            gravity.contract.functions.redeemVoucher(
+                old_nonce, ADDRS["signer2"]
+            ).buildTransaction({"from": ADDRS["signer1"]})
