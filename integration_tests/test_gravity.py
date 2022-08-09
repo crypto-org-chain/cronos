@@ -676,7 +676,7 @@ def test_gravity_blacklisted_contract(gravity):
 
         # send user1 some fund for gas
         send_transaction(
-            geth, {"to": ADDRS["signer1"], "value": 10 ** 17}, KEYS["validator"]
+            geth, {"to": ADDRS["signer1"], "value": 10**17}, KEYS["validator"]
         )
         # redeem voucher
         tx = gravity.contract.functions.redeemVoucher(
