@@ -1,17 +1,22 @@
 import base64
+
 import sha3
-import cosmos.base.v1beta1.coin_pb2
-import cosmos.bank.v1beta1.tx_pb2
-import cosmos.tx.v1beta1.tx_pb2
-import google.protobuf.any_pb2
-import cosmos.crypto.secp256k1.keys_pb2
-import ethermint.crypto.v1.ethsecp256k1.keys_pb2
-import ethermint.types.v1.web3_pb2
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-from eth_account import Account
-from eth_account.messages import encode_structured_data
+
+from cosmos.bank.v1beta1.tx_pb2 import MsgSend
+from cosmos.base.v1beta1.coin_pb2 import Coin
+from cosmos.crypto.secp256k1.keys_pb2 import PubKey
+from cosmos.tx.v1beta1.tx_pb2 import (
+    AuthInfo,
+    Fee,
+    ModeInfo,
+    SignDoc,
+    SignerInfo,
+    TxBody,
+    TxRaw,
+)
+from ethermint.crypto.v1.ethsecp256k1.keys_pb2 import PubKey as EPubKey
+from ethermint.types.v1.web3_pb2 import ExtensionOptionsWeb3Tx
+from google.protobuf.any_pb2 import Any
 
 MSG_SEND_TYPES = {
     "MsgValue": [
@@ -28,12 +33,6 @@ MSG_SEND_TYPES = {
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
 
-load_dotenv(Path(__file__).parent.parent / "scripts/.env")
-Account.enable_unaudited_hdwallet_features()
-ACCOUNTS = {
-    "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
-}
-KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 
 def create_message_send(chain, sender, fee, memo, params):
     # EIP712
@@ -166,7 +165,7 @@ def generate_message_with_multiple_transactions(account_number, sequence, chain_
     }
 
 
-def create_eip712(types, chain_id, message, name="Cronos Web3", contract="cronos"):
+def create_eip712(types, chain_id, message, name="Cosmos Web3", contract="cosmos"):
     return {
         "types": types,
         "primaryType": "Tx",
@@ -192,7 +191,7 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
     # AMINO
     sign_info_amino = create_signer_info(
         algo,
-        pub_key_decoded, # new Uint8Array(pub_key_decoded),
+        pub_key_decoded,
         sequence,
         LEGACY_AMINO,
     )
@@ -211,7 +210,7 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
     # SignDirect
     sig_info_direct = create_signer_info(
         algo,
-        pub_key_decoded, # TODO
+        pub_key_decoded,
         sequence,
         SIGN_DIRECT,
     )
@@ -223,7 +222,7 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
         account_number,
     )
     hash_direct = sha3.keccak_256()
-    hash_direct.update(sign_doc_direct.SerializeToString()) # TODO
+    hash_direct.update(sign_doc_direct.SerializeToString())
     to_sign_direct = hash_direct.hexdigest()
     return {
         "legacyAmino": {
@@ -240,17 +239,15 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
 
 
 def create_body_with_multiple_messages(messages, memo):
-    # tx.cosmos.tx.v1beta1.TxBody
     content = []
     for message in messages:
         content.append(create_any_message(message))
-    body = cosmos.tx.v1beta1.tx_pb2.TxBody(memo = memo, messages = content)
+    body = TxBody(memo = memo, messages = content)
     return body
 
 
 def create_any_message(msg):
-    # google.google.protobuf.Any
-    any = google.protobuf.any_pb2.Any()
+    any = Any()
     any.Pack(msg["message"], "/")
     return any
 
@@ -260,21 +257,21 @@ def create_signer_info(algo, public_key, sequence, mode):
     path = None
     # NOTE: secp256k1 is going to be removed from evmos
     if algo == "secp256k1":
-        message = cosmos.crypto.secp256k1.keys_pb2.PubKey(key=public_key)
+        message = PubKey(key=public_key)
         path = "cosmos.crypto.secp256k1.PubKey"
     else:
         # NOTE: assume ethsecp256k1 by default because after mainnet is the only one that is going to be supported
-        message = ethermint.crypto.v1.ethsecp256k1.keys_pb2.PubKey(key=public_key)
+        message = EPubKey(key=public_key)
         path = "ethermint.crypto.v1.ethsecp256k1.PubKey"
 
     pubkey = {
         "message": message,
         "path": path,
     }
-    single = cosmos.tx.v1beta1.tx_pb2.ModeInfo.Single(mode = mode)
-    mode_info = cosmos.tx.v1beta1.tx_pb2.ModeInfo()
+    single = ModeInfo.Single(mode = mode)
+    mode_info = ModeInfo()
     mode_info.single.CopyFrom(single)
-    signer_info = cosmos.tx.v1beta1.tx_pb2.SignerInfo()
+    signer_info = SignerInfo()
     signer_info.mode_info.CopyFrom(mode_info)
     signer_info.sequence = sequence
     signer_info.public_key.CopyFrom(create_any_message(pubkey))
@@ -282,14 +279,14 @@ def create_signer_info(algo, public_key, sequence, mode):
 
 
 def create_auth_info(signer_info, fee):
-    auth_info = cosmos.tx.v1beta1.tx_pb2.AuthInfo()
+    auth_info = AuthInfo()
     auth_info.signer_infos.append(signer_info)
     auth_info.fee.CopyFrom(fee)
     return auth_info
 
 
 def create_sig_doc(body_bytes, auth_info_bytes, chain_id, account_number):
-    sign_doc = cosmos.tx.v1beta1.tx_pb2.SignDoc(
+    sign_doc = SignDoc(
         body_bytes = body_bytes,
         auth_info_bytes = auth_info_bytes,
         chain_id = chain_id,
@@ -299,25 +296,21 @@ def create_sig_doc(body_bytes, auth_info_bytes, chain_id, account_number):
 
 
 def create_fee(fee, denom, gas_limit):
-    # coin.cosmos.base.v1beta1.Coin
-    value = cosmos.base.v1beta1.coin_pb2.Coin(
+    value = Coin(
         denom = denom,
         amount = fee,
     )
-    # coin.cosmos.base.v1beta1.Fee
-    fee = cosmos.tx.v1beta1.tx_pb2.Fee(gas_limit = int(gas_limit))
+    fee = Fee(gas_limit = int(gas_limit))
     fee.amount.append(value)
     return fee
 
 
 def proto_msg_send(from_address, to_address, amount, denom):
-    # coin.cosmos.base.v1beta1.Coin
-    value = cosmos.base.v1beta1.coin_pb2.Coin(
+    value = Coin(
         denom = denom,
         amount = amount,
     )
-    # bank.cosmos.bank.v1beta1.MsgSend
-    message = cosmos.bank.v1beta1.tx_pb2.MsgSend(
+    message = MsgSend(
         from_address = from_address,
         to_address = to_address,
     )
@@ -329,7 +322,7 @@ def proto_msg_send(from_address, to_address, amount, denom):
 
 
 def signature_to_web3_extension(chain, sender, signature):
-    message = ethermint.types.v1.web3_pb2.ExtensionOptionsWeb3Tx(
+    message = ExtensionOptionsWeb3Tx(
         typed_data_chain_id = chain["chainId"],
         fee_payer = sender["accountAddress"],
         fee_payer_sig = signature,
@@ -341,7 +334,7 @@ def signature_to_web3_extension(chain, sender, signature):
 
 
 def create_tx_raw(body_bytes, auth_info_bytes, signatures):
-    message = cosmos.tx.v1beta1.tx_pb2.TxRaw(
+    message = TxRaw(
         body_bytes=body_bytes,
         auth_info_bytes=auth_info_bytes,
         signatures=signatures,
@@ -360,56 +353,3 @@ def create_tx_raw_eip712(body, auth_info, extension):
         auth_info.SerializeToString(), 
         [bytes()],
     )
-
-
-chain_id = 777
-chain = {
-    "chainId": chain_id,
-    "cosmosChainId": f"cronos_{chain_id}-1",
-}
-src = "community"
-src_addr = "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp"
-src_nonce = 0
-sender = {
-    "accountAddress": src_addr,
-    "sequence": 1,
-    "accountNumber": src_nonce,
-    "pubkey": "Am5xCmKjQt4O1NfEUy3Ly7r78ZZS7WeyN++rcOiyB++s",
-}
-denom = "basetcro"
-dst_addr = "crc16z0herz998946wr659lr84c8c556da55dc34hh"
-gas = "200000"
-gas_amount = "20"
-fee = {
-    "amount": gas_amount,
-    "denom": denom,
-    "gas": gas,
-}
-memo = ""
-params = {
-    "destinationAddress": dst_addr,
-    "amount": "1",
-    "denom": denom,
-}
-tx = create_message_send(chain, sender, fee, memo, params)
-structured_msg = encode_structured_data(tx["eipToSign"])
-signed = Account.sign_message(structured_msg, KEYS[src])
-print("signed: ", signed)
-extension = signature_to_web3_extension(
-    chain,
-    sender,
-    signed.signature,
-)
-legacy_amino = tx["legacyAmino"]
-signed_tx = create_tx_raw_eip712(
-    legacy_amino["body"],
-    legacy_amino["authInfo"],
-    extension,
-)
-print("signed_tx", signed_tx["message"].SerializeToString().hex())
-body = {
-    "tx_bytes": list(signed_tx["message"].SerializeToString()), 
-    "mode": "BROADCAST_MODE_BLOCK"
-}
-print("body: ", body)
-
