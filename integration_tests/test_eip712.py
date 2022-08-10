@@ -1,9 +1,8 @@
 import json
-
 import subprocess
+
 from eth_account import Account
 from eth_account.messages import encode_structured_data
-
 from pystarport import ports
 
 from .eip712_utils import (
@@ -62,14 +61,14 @@ def test_native_tx(cronos):
         legacy_amino["authInfo"],
         extension,
     )
+    tx_bytes = list(signed_tx["message"].SerializeToString())
     body = {
-        "tx_bytes": list(signed_tx["message"].SerializeToString()), 
+        "tx_bytes": tx_bytes,
         "mode": "BROADCAST_MODE_BLOCK",
     }
-    api_port = ports.api_port(cronos.base_port(0))
-    url = f"http://127.0.0.1:{api_port}/cosmos/tx/v1beta1/txs" 
+    p = ports.api_port(cronos.base_port(0))
+    url = f"http://127.0.0.1:{p}/cosmos/tx/v1beta1/txs"
     raw = f"curl -s -X POST '{url}' -d '{json.dumps(body)}'"
     res = json.loads(subprocess.getoutput(raw))["tx_response"]
     assert res["code"] == 0
     assert res["gas_wanted"] == gas
-    

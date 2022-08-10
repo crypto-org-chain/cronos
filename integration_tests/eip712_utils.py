@@ -1,8 +1,9 @@
 import base64
-import sha3
 import json
-
 from pathlib import Path
+
+import sha3
+
 from cosmos.bank.v1beta1.tx_pb2 import MsgSend
 from cosmos.base.v1beta1.coin_pb2 import Coin
 from cosmos.crypto.secp256k1.keys_pb2 import PubKey
@@ -22,7 +23,14 @@ from google.protobuf.any_pb2 import Any
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
 
-def create_message_send(chain, sender, fee, memo, params):
+
+def create_message_send(
+    chain,
+    sender,
+    fee,
+    memo,
+    params,
+):
     # EIP712
     fee_object = generate_fee(
         fee["amount"],
@@ -73,10 +81,12 @@ def create_message_send(chain, sender, fee, memo, params):
 
 def generate_fee(amount, denom, gas, fee_payer):
     return {
-        "amount": [{
-            "amount": amount,
-            "denom": denom,
-        }],
+        "amount": [
+            {
+                "amount": amount,
+                "denom": denom,
+            },
+        ],
         "gas": gas,
         "feePayer": fee_payer,
     }
@@ -90,10 +100,12 @@ def create_msg_send(amount, denom, from_address, to_address):
     return {
         "type": "cosmos-sdk/MsgSend",
         "value": {
-            "amount": [{
-                "amount": amount,
-                "denom": denom,
-            }],
+            "amount": [
+                {
+                    "amount": amount,
+                    "denom": denom,
+                },
+            ],
             "from_address": from_address,
             "to_address": to_address,
         },
@@ -111,7 +123,14 @@ def generate_message(account_number, sequence, chain_cosmos_id, memo, fee, msg):
     )
 
 
-def generate_message_with_multiple_transactions(account_number, sequence, chain_cosmos_id, memo, fee, msgs):
+def generate_message_with_multiple_transactions(
+    account_number,
+    sequence,
+    chain_cosmos_id,
+    memo,
+    fee,
+    msgs,
+):
     return {
         "account_number": account_number,
         "chain_id": chain_cosmos_id,
@@ -132,16 +151,49 @@ def create_eip712(types, chain_id, message, name="Cosmos Web3", contract="cosmos
             "chainId": chain_id,
             "verifyingContract": contract,
             "salt": "0",
-      },
-      "message": message,
+        },
+        "message": message,
     }
 
 
-def create_transaction(message, memo, fee, denom, gas_limit, algo, pub_key, sequence, account_number, chain_id):
-    return create_transaction_with_multiple_messages([message], memo, fee, denom, gas_limit, algo, pub_key, sequence, account_number, chain_id)
+def create_transaction(
+    message,
+    memo,
+    fee,
+    denom,
+    gas_limit,
+    algo,
+    pub_key,
+    sequence,
+    account_number,
+    chain_id,
+):
+    return create_transaction_with_multiple_messages(
+        [message],
+        memo,
+        fee,
+        denom,
+        gas_limit,
+        algo,
+        pub_key,
+        sequence,
+        account_number,
+        chain_id,
+    )
 
 
-def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_limit, algo, pub_key, sequence, account_number, chain_id):
+def create_transaction_with_multiple_messages(
+    messages,
+    memo,
+    fee,
+    denom,
+    gas_limit,
+    algo,
+    pub_key,
+    sequence,
+    account_number,
+    chain_id,
+):
     body = create_body_with_multiple_messages(messages, memo)
     fee_message = create_fee(fee, denom, gas_limit)
     pub_key_decoded = base64.b64decode(pub_key.encode("ascii"))
@@ -163,7 +215,7 @@ def create_transaction_with_multiple_messages(messages, memo, fee, denom, gas_li
     hash_amino = sha3.keccak_256()
     hash_amino.update(sig_doc_amino.SerializeToString())
     to_sign_amino = hash_amino.hexdigest()
-   
+
     # SignDirect
     sig_info_direct = create_signer_info(
         algo,
@@ -199,7 +251,7 @@ def create_body_with_multiple_messages(messages, memo):
     content = []
     for message in messages:
         content.append(create_any_message(message))
-    body = TxBody(memo = memo, messages = content)
+    body = TxBody(memo=memo, messages=content)
     return body
 
 
@@ -212,12 +264,10 @@ def create_any_message(msg):
 def create_signer_info(algo, public_key, sequence, mode):
     message = None
     path = None
-    # NOTE: secp256k1 is going to be removed from evmos
     if algo == "secp256k1":
         message = PubKey(key=public_key)
         path = "cosmos.crypto.secp256k1.PubKey"
     else:
-        # NOTE: assume ethsecp256k1 by default because after mainnet is the only one that is going to be supported
         message = EPubKey(key=public_key)
         path = "ethermint.crypto.v1.ethsecp256k1.PubKey"
 
@@ -225,7 +275,7 @@ def create_signer_info(algo, public_key, sequence, mode):
         "message": message,
         "path": path,
     }
-    single = ModeInfo.Single(mode = mode)
+    single = ModeInfo.Single(mode=mode)
     mode_info = ModeInfo()
     mode_info.single.CopyFrom(single)
     signer_info = SignerInfo()
@@ -244,32 +294,26 @@ def create_auth_info(signer_info, fee):
 
 def create_sig_doc(body_bytes, auth_info_bytes, chain_id, account_number):
     sign_doc = SignDoc(
-        body_bytes = body_bytes,
-        auth_info_bytes = auth_info_bytes,
-        chain_id = chain_id,
-        account_number = account_number,
+        body_bytes=body_bytes,
+        auth_info_bytes=auth_info_bytes,
+        chain_id=chain_id,
+        account_number=account_number,
     )
     return sign_doc
 
 
 def create_fee(fee, denom, gas_limit):
-    value = Coin(
-        denom = denom,
-        amount = fee,
-    )
-    fee = Fee(gas_limit = int(gas_limit))
+    value = Coin(denom=denom, amount=fee)
+    fee = Fee(gas_limit=int(gas_limit))
     fee.amount.append(value)
     return fee
 
 
 def proto_msg_send(from_address, to_address, amount, denom):
-    value = Coin(
-        denom = denom,
-        amount = amount,
-    )
+    value = Coin(denom=denom, amount=amount)
     message = MsgSend(
-        from_address = from_address,
-        to_address = to_address,
+        from_address=from_address,
+        to_address=to_address,
     )
     message.amount.append(value)
     return {
@@ -280,9 +324,9 @@ def proto_msg_send(from_address, to_address, amount, denom):
 
 def signature_to_web3_extension(chain, sender, signature):
     message = ExtensionOptionsWeb3Tx(
-        typed_data_chain_id = chain["chainId"],
-        fee_payer = sender["accountAddress"],
-        fee_payer_sig = signature,
+        typed_data_chain_id=chain["chainId"],
+        fee_payer=sender["accountAddress"],
+        fee_payer_sig=signature,
     )
     return {
         "message": message,
@@ -307,6 +351,6 @@ def create_tx_raw_eip712(body, auth_info, extension):
     body.extension_options.append(any)
     return create_tx_raw(
         body.SerializeToString(),
-        auth_info.SerializeToString(), 
+        auth_info.SerializeToString(),
         [bytes()],
     )
