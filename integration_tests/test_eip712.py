@@ -1,3 +1,4 @@
+import base64
 import json
 
 import requests
@@ -61,9 +62,9 @@ def test_native_tx(cronos):
         legacy_amino["authInfo"],
         extension,
     )
-    tx_bytes = list(signed_tx["message"].SerializeToString())
+    tx_bytes = base64.b64encode(signed_tx["message"].SerializeToString())
     body = {
-        "tx_bytes": tx_bytes,
+        "tx_bytes": tx_bytes.decode("utf-8"),
         "mode": "BROADCAST_MODE_BLOCK",
     }
     p = ports.api_port(cronos.base_port(0))
