@@ -276,19 +276,20 @@ def create_signer_info(algo, public_key, sequence, mode):
         "path": path,
     }
     single = ModeInfo.Single(mode=mode)
-    mode_info = ModeInfo()
-    mode_info.single.CopyFrom(single)
-    signer_info = SignerInfo()
-    signer_info.mode_info.CopyFrom(mode_info)
-    signer_info.sequence = sequence
-    signer_info.public_key.CopyFrom(create_any_message(pubkey))
+    mode_info = ModeInfo(single=single)
+    signer_info = SignerInfo(
+        mode_info=mode_info,
+        sequence=sequence,
+        public_key=create_any_message(pubkey),
+    )
     return signer_info
 
 
 def create_auth_info(signer_info, fee):
-    auth_info = AuthInfo()
-    auth_info.signer_infos.append(signer_info)
-    auth_info.fee.CopyFrom(fee)
+    auth_info = AuthInfo(
+        signer_infos=[signer_info],
+        fee=fee,
+    )
     return auth_info
 
 
@@ -304,8 +305,7 @@ def create_sig_doc(body_bytes, auth_info_bytes, chain_id, account_number):
 
 def create_fee(fee, denom, gas_limit):
     value = Coin(denom=denom, amount=fee)
-    fee = Fee(gas_limit=int(gas_limit))
-    fee.amount.append(value)
+    fee = Fee(gas_limit=int(gas_limit), amount=[value])
     return fee
 
 
@@ -314,8 +314,8 @@ def proto_msg_send(from_address, to_address, amount, denom):
     message = MsgSend(
         from_address=from_address,
         to_address=to_address,
+        amount=[value],
     )
-    message.amount.append(value)
     return {
         "message": message,
         "path": "cosmos.bank.v1beta1.MsgSend",
