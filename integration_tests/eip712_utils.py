@@ -4,10 +4,10 @@ from pathlib import Path
 
 import sha3
 
-from cosmos.bank.v1beta1.tx_pb2 import MsgSend
-from cosmos.base.v1beta1.coin_pb2 import Coin
-from cosmos.crypto.secp256k1.keys_pb2 import PubKey
-from cosmos.tx.v1beta1.tx_pb2 import (
+from .protobuf.cosmos.bank.v1beta1.tx_pb2 import MsgSend
+from .protobuf.cosmos.base.v1beta1.coin_pb2 import Coin
+from .protobuf.cosmos.crypto.secp256k1.keys_pb2 import PubKey
+from .protobuf.cosmos.tx.v1beta1.tx_pb2 import (
     AuthInfo,
     Fee,
     ModeInfo,
@@ -16,9 +16,9 @@ from cosmos.tx.v1beta1.tx_pb2 import (
     TxBody,
     TxRaw,
 )
-from ethermint.crypto.v1.ethsecp256k1.keys_pb2 import PubKey as EPubKey
-from ethermint.types.v1.web3_pb2 import ExtensionOptionsWeb3Tx
-from google.protobuf.any_pb2 import Any
+from .protobuf.ethermint.crypto.v1.ethsecp256k1.keys_pb2 import PubKey as EPubKey
+from .protobuf.ethermint.types.v1.web3_pb2 import ExtensionOptionsWeb3Tx
+from .protobuf.google.protobuf.any_pb2 import Any
 
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
