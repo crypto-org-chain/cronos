@@ -123,6 +123,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	icactlmodule "github.com/crypto-org-chain/cronos/x/icactl"
 	icactlmodulekeeper "github.com/crypto-org-chain/cronos/x/icactl/keeper"
@@ -505,11 +506,11 @@ func New(
 	}
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
-		cronoskeeper.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewSendToChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewCancelSendToChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
-		cronoskeeper.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
-		cronoskeeper.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewSendToChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewCancelSendToChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
+		evmhandlers.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
 	))
 
 	// register the staking hooks
