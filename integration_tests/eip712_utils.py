@@ -1,7 +1,8 @@
 import base64
-
 import sha3
+import json
 
+from pathlib import Path
 from cosmos.bank.v1beta1.tx_pb2 import MsgSend
 from cosmos.base.v1beta1.coin_pb2 import Coin
 from cosmos.crypto.secp256k1.keys_pb2 import PubKey
@@ -18,21 +19,8 @@ from ethermint.crypto.v1.ethsecp256k1.keys_pb2 import PubKey as EPubKey
 from ethermint.types.v1.web3_pb2 import ExtensionOptionsWeb3Tx
 from google.protobuf.any_pb2 import Any
 
-MSG_SEND_TYPES = {
-    "MsgValue": [
-      { "name": "from_address", "type": "string" },
-      { "name": "to_address", "type": "string" },
-      { "name": "amount", "type": "TypeAmount[]" },
-    ],
-    "TypeAmount": [
-      { "name": "denom", "type": "string" },
-      { "name": "amount", "type": "string" },
-    ],
-}
-
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
-
 
 def create_message_send(chain, sender, fee, memo, params):
     # EIP712
@@ -42,7 +30,7 @@ def create_message_send(chain, sender, fee, memo, params):
         fee["gas"],
         sender["accountAddress"],
     )
-    types = generate_types(MSG_SEND_TYPES)
+    types = generate_types()
     msg = create_msg_send(
         params["amount"],
         params["denom"],
@@ -94,39 +82,8 @@ def generate_fee(amount, denom, gas, fee_payer):
     }
 
 
-def generate_types(msg_values):
-    types = {
-        "EIP712Domain": [
-            { "name": "name", "type": "string" },
-            { "name": "version", "type": "string" },
-            { "name": "chainId", "type": "uint256" },
-            { "name": "verifyingContract", "type": "string" },
-            { "name": "salt", "type": "string" },
-        ],
-        "Tx": [
-            { "name": "account_number", "type": "string" },
-            { "name": "chain_id", "type": "string" },
-            { "name": "fee", "type": "Fee" },
-            { "name": "memo", "type": "string" },
-            { "name": "msgs", "type": "Msg[]" },
-            { "name": "sequence", "type": "string" },
-        ],
-        "Fee": [
-            { "name": "feePayer", "type": "string" },
-            { "name": "amount", "type": "Coin[]" },
-            { "name": "gas", "type": "string" },
-        ],
-        "Coin": [
-            { "name": "denom", "type": "string" },
-            { "name": "amount", "type": "string" },
-        ],
-        "Msg": [
-            { "name": "type", "type": "string" },
-            { "name": "value", "type": "MsgValue" },
-        ],
-    }
-    types.update(msg_values)
-    return types
+def generate_types():
+    return json.loads((Path(__file__).parent / "msg_send_types.json").read_text())
 
 
 def create_msg_send(amount, denom, from_address, to_address):
