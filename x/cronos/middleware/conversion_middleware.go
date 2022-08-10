@@ -132,20 +132,15 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet acknowledgement in middleware: %v", err)
 		}
-		switch ack.Response.(type) {
-		case *channeltypes.Acknowledgement_Error:
+		if _, ok := ack.Response.(*channeltypes.Acknowledgement_Error); ok {
 			data, err := im.getFungibleTokenPacketData(packet)
 			if err != nil {
 				return err
 			}
-			denom := im.getIbcDenomFromPacketAndData(packet, data)
+			denom := im.getIbcDenomFromDataForRefund(data)
 			if im.canBeConverted(ctx, denom) {
-				err = im.convertVouchers(ctx, data, denom, true)
-				if err != nil {
-					return err
-				}
+				return im.convertVouchers(ctx, data, denom, true)
 			}
-		default:
 		}
 	}
 
@@ -165,15 +160,11 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		denom := im.getIbcDenomFromPacketAndData(packet, data)
+		denom := im.getIbcDenomFromDataForRefund(data)
 		if im.canBeConverted(ctx, denom) {
-			err = im.convertVouchers(ctx, data, denom, true)
-			if err != nil {
-				return err
-			}
+			return im.convertVouchers(ctx, data, denom, true)
 		}
 	}
-
 	return err
 }
 
@@ -209,6 +200,10 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 	}
 	_, found := im.cronoskeeper.GetContractByDenom(ctx, denom)
 	return found
+}
+
+func (im IBCConversionModule) getIbcDenomFromDataForRefund(data transferTypes.FungibleTokenPacketData) string {
+	return transferTypes.ParseDenomTrace(data.Denom).IBCDenom()
 }
 
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(

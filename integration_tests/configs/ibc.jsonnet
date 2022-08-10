@@ -84,6 +84,9 @@ config {
     },
   },
   relayer: {
+    global: {
+      strategy: 'all',
+    },
     rest: {
       enabled: true,
       host: '127.0.0.1',
