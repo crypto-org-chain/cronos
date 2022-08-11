@@ -28,6 +28,7 @@ from .utils import (
     wait_for_block_time,
     wait_for_fn,
     wait_for_new_blocks,
+    w3_wait_for_new_blocks
 )
 
 pytestmark = pytest.mark.gravity
@@ -690,7 +691,7 @@ def test_gravity_blacklisted_contract(gravity):
         ).buildTransaction({"from": ADDRS["signer1"]})
         txreceipt = send_transaction(geth, tx, KEYS["signer1"])
         assert txreceipt.status == 1, "should success"
-        wait_for_new_blocks(cli, 1)
+        w3_wait_for_new_blocks(geth, 1)
         new_balance2 = erc20.caller.balanceOf(ADDRS["signer2"])
         assert old_balance2 + amount == new_balance2
 
