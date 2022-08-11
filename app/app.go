@@ -737,9 +737,30 @@ func New(
 
 	app.SetEndBlocker(app.EndBlocker)
 
-	planName := "v0.8.0"
+	planName := "v0.8.0-gravity-alpha1"
 	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		updatedVM, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return nil, err
+		}
+		// register new params
+		gravParamStore := app.GetSubspace(gravitytypes.ModuleName)
+		gravParamStore.Set(ctx, gravitytypes.ParamStoreBridgeActive, true)
+		gravParamStore.Set(ctx, gravitytypes.ParamStoreBatchCreationPeriod, uint64(10))
+		gravParamStore.Set(ctx, gravitytypes.ParamStoreBatchMaxElement, uint64(100))
+		gravParamStore.Set(ctx, gravitytypes.ParamStoreObserveEthereumHeightPeriod, uint64(50))
+
+		// set new gravity id
+		gravParams := app.GravityKeeper.GetParams(ctx)
+		gravParams.GravityId = "cronos_gravity_pioneer_v2"
+		app.GravityKeeper.SetParams(ctx, gravParams)
+
+		// Estimate time upgrade take place
+		// 100% is not necessary here because it will be tuned by relayers later on
+		// it is set to georli height at 23th August 2022 3pm JST
+		app.GravityKeeper.MigrateGravityContract(
+			ctx, "0x0000000000000000000000000000000000000000", 7468666)
+		return updatedVM, nil
 	})
 
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
