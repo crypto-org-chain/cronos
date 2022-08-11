@@ -25,10 +25,10 @@ from .utils import (
     send_to_cosmos,
     send_transaction,
     supervisorctl,
+    w3_wait_for_new_blocks,
     wait_for_block_time,
     wait_for_fn,
     wait_for_new_blocks,
-    w3_wait_for_new_blocks
 )
 
 pytestmark = pytest.mark.gravity
