@@ -223,12 +223,12 @@ class CosmosCLI:
         )["total"][0]
         return float(coin["amount"])
 
-    def address(self, name, bech="acc"):
+    def address(self, name, bech="acc", field="address"):
         output = self.raw(
             "keys",
             "show",
             name,
-            "-a",
+            f"--{field}",
             home=self.data_dir,
             keyring_backend="test",
             bech=bech,
