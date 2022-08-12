@@ -1,6 +1,12 @@
+import os
+import sys
+
 import pytest
 
 from .network import setup_cronos, setup_geth
+
+dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir + "/protobuf")
 
 
 def pytest_configure(config):
