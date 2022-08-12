@@ -84,8 +84,22 @@ config {
     },
   },
   relayer: {
-    global: {
-      strategy: 'all',
+    mode: {
+      clients: {
+        enabled: true,
+        refresh: true,
+        misbehaviour: true,
+      },
+      connections: {
+        enabled: true,
+      },
+      channels: {
+        enabled: true,
+      },
+      packets: {
+        enabled: true,
+        tx_confirmation: true,
+      },
     },
     rest: {
       enabled: true,

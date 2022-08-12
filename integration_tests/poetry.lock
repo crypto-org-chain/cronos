@@ -775,9 +775,9 @@ tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/crypto-com/pystarport.git"
-reference = "main"
-resolved_reference = "286a446473e1f3e1e1a5e075ba1041d3b52e5fc9"
+url = "https://github.com/mmsqe/pystarport.git"
+reference = "update-hermes"
+resolved_reference = "00a2a7444ab03f742476f1c28fff6384cff7b9e8"
 
 [[package]]
 name = "pytest"
