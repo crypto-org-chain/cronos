@@ -25,6 +25,7 @@ from .utils import (
     send_to_cosmos,
     send_transaction,
     supervisorctl,
+    w3_wait_for_new_blocks,
     wait_for_block_time,
     wait_for_fn,
     wait_for_new_blocks,
@@ -188,7 +189,7 @@ def gravity(cronos, geth):
 
     contract = deploy_contract(
         geth,
-        CONTRACTS["CronosGravity"],
+        CONTRACTS["Gravity"],
         (gravity_id.encode(), threshold, eth_addresses, powers, admin.address),
     )
     print("gravity contract deployed", contract.address)
@@ -215,7 +216,7 @@ def gravity(cronos, geth):
         programs[f"program:{chain_id}-orchestrator{i}"] = {
             "command": (
                 f'gorc -c "{gorc_config_path}" orchestrator start '
-                "--cosmos-key cronos --ethereum-key eth"
+                "--cosmos-key cronos --ethereum-key eth --mode AlwaysRelay"
             ),
             "environment": "RUST_BACKTRACE=full",
             "autostart": "true",
@@ -251,6 +252,7 @@ def test_gravity_transfer(gravity):
     txreceipt = send_to_cosmos(
         gravity.contract, erc20, recipient, amount, KEYS["validator"]
     )
+    assert txreceipt.status == 1, "should success"
     assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
     denom = f"gravity{erc20.address}"
@@ -539,9 +541,8 @@ def test_gravity_source_tokens(gravity):
 
         # Create cosmos erc20 contract
         print("Deploy cosmos erc20 contract on ethereum")
-        # TO BE UPDATED AFTER gravity upgrade
         tx_receipt = deploy_erc20(
-            gravity.contract, denom, "dog", "dog", 6, KEYS["validator"]
+            gravity.contract, denom, denom, "DOG", 6, KEYS["validator"]
         )
         assert tx_receipt.status == 1, "should success"
 
@@ -606,3 +607,96 @@ def test_gravity_source_tokens(gravity):
 
         wait_for_fn("check cronos balance change", check_cronos_balance_change)
         assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
+
+
+def test_gravity_blacklisted_contract(gravity):
+    if gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
+        cronos_w3 = gravity.cronos.w3
+
+        # deploy test blacklisted contract with signer1 as blacklisted
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestBlackListERC20"],
+            (ADDRS["signer1"],),
+        )
+
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+        amount = 1000
+
+        print("send to cronos crc20")
+        recipient = HexBytes(ADDRS["community"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, recipient, amount, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        denom = f"gravity{erc20.address}"
+        crc21_contract = None
+
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, recipient, amount
+            )
+            return crc21_contract
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
+
+        # get voucher nonce
+        old_nonce = gravity.contract.caller.state_lastRevertedNonce()
+        old_balance1 = erc20.caller.balanceOf(ADDRS["signer1"])
+
+        # send it back to blacklisted address
+        tx = crc21_contract.functions.send_to_chain(
+            ADDRS["signer1"], amount, 0, 1
+        ).buildTransaction({"from": ADDRS["community"]})
+        txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
+        assert txreceipt.status == 1, "should success"
+
+        def check():
+            nonce = gravity.contract.caller.state_lastRevertedNonce()
+            return old_nonce + 1 == nonce
+
+        wait_for_fn("send-to-ethereum", check)
+
+        # check that voucher has been created
+        voucher = gravity.contract.caller.state_RevertedVouchers(old_nonce)
+        assert voucher[0] == erc20.address
+        assert voucher[1] == ADDRS["signer1"]
+        assert voucher[2] == amount
+
+        # check balance is the same
+        new_balance1 = erc20.caller.balanceOf(ADDRS["signer1"])
+        assert old_balance1 == new_balance1
+
+        old_balance2 = erc20.caller.balanceOf(ADDRS["signer2"])
+
+        # try to redeem voucher with non recipient address
+        with pytest.raises(Exception):
+            gravity.contract.functions.redeemVoucher(
+                old_nonce, ADDRS["signer2"]
+            ).buildTransaction({"from": ADDRS["validator"]})
+
+        # send user1 some fund for gas
+        send_transaction(
+            geth, {"to": ADDRS["signer1"], "value": 10**17}, KEYS["validator"]
+        )
+        # redeem voucher
+        tx = gravity.contract.functions.redeemVoucher(
+            old_nonce, ADDRS["signer2"]
+        ).buildTransaction({"from": ADDRS["signer1"]})
+        txreceipt = send_transaction(geth, tx, KEYS["signer1"])
+        assert txreceipt.status == 1, "should success"
+        w3_wait_for_new_blocks(geth, 1)
+        new_balance2 = erc20.caller.balanceOf(ADDRS["signer2"])
+        assert old_balance2 + amount == new_balance2
+
+        # asset cannot redeem twice
+        with pytest.raises(Exception):
+            gravity.contract.functions.redeemVoucher(
+                old_nonce, ADDRS["signer2"]
+            ).buildTransaction({"from": ADDRS["signer1"]})

@@ -474,7 +474,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				gravityMsgServer := gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper)
 				msg := gravitytypes.MsgSendToEthereum{
 					Sender:            sdk.AccAddress(sender.Bytes()).String(),
-					EthereumRecipient: "",
+					EthereumRecipient: "0x000000000000000000000000000000000000dEaD",
 					Amount:            sdk.NewCoin(validDenom, sdk.NewInt(99)),
 					BridgeFee:         sdk.NewCoin(validDenom, sdk.NewInt(1)),
 				}
