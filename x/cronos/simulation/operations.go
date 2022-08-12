@@ -74,8 +74,8 @@ func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 
 		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract, "", 0)
 
-		coin := k.GetBalance(ctx, simAccount.Address, sdk.DefaultBondDenom)
-		fees, err := simtypes.RandomFees(r, ctx, []sdk.Coin{coin})
+		coins := k.SpendableCoins(ctx, simAccount.Address)
+		fees, err := simtypes.RandomFees(r, ctx, coins)
 		if err != nil {
 			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgUpdateTokenMapping, "no enough balance for fee"), nil, nil
 		}
