@@ -221,10 +221,7 @@ var (
 
 )
 
-var (
-	_ CosmosApp               = (*App)(nil)
-	_ servertypes.Application = (*App)(nil)
-)
+var _ servertypes.Application = (*App)(nil)
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
