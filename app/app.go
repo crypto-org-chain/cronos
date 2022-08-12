@@ -222,7 +222,6 @@ var (
 )
 
 var (
-	_ CosmosApp               = (*App)(nil)
 	_ servertypes.Application = (*App)(nil)
 )
 
