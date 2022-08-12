@@ -233,7 +233,7 @@ func TestAppImportExport(t *testing.T) {
 		{app.keys[govtypes.StoreKey], newApp.keys[govtypes.StoreKey], [][]byte{}},
 		{app.keys[evidencetypes.StoreKey], newApp.keys[evidencetypes.StoreKey], [][]byte{}},
 		{app.keys[capabilitytypes.StoreKey], newApp.keys[capabilitytypes.StoreKey], [][]byte{}},
-		{app.keys[authzkeeper.StoreKey], newApp.keys[authzkeeper.StoreKey], [][]byte{}},
+		{app.keys[authzkeeper.StoreKey], newApp.keys[authzkeeper.StoreKey], [][]byte{authzkeeper.GrantKey, authzkeeper.GrantQueuePrefix}},
 		{app.keys[evmtypes.StoreKey], newApp.keys[evmtypes.StoreKey], [][]byte{}},
 		{app.keys[cronosmoduletypes.StoreKey], newApp.keys[cronosmoduletypes.StoreKey], [][]byte{}},
 	}
@@ -363,7 +363,7 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 
 			db := dbm.NewMemDB()
-			app, err := NewSimApp(logger, db, interBlockCacheOpt())
+			app, err := NewSimApp(logger, db, interBlockCacheOpt)
 			require.NoError(t, err)
 
 			fmt.Printf(
