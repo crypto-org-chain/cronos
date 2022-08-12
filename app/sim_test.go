@@ -363,7 +363,7 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 
 			db := dbm.NewMemDB()
-			app, err := NewSimApp(logger, db, interBlockCacheOpt())
+			app, err := NewSimApp(logger, db, interBlockCacheOpt)
 			require.NoError(t, err)
 
 			fmt.Printf(
