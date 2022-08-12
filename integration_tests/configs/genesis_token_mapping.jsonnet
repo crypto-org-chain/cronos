@@ -2,7 +2,7 @@ cronolocal config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
-    'start-flags': '--trace --unsafe-experimental --inv-check-period 5',
+    'start-flags': '--trace --unsafe-experimental,
     'app-config'+: {
       'minimum-gas-prices':: super['minimum-gas-prices'],
       'json-rpc'+: {
