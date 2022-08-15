@@ -113,6 +113,13 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     proposal = cli.query_proposal(proposal_id)
     assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
 
+    # update cli chain binary
+    custom_cronos.chain_binary = (
+        Path(custom_cronos.chain_binary).parent.parent.parent
+        / f"{plan_name}/bin/cronosd"
+    )
+    cli = custom_cronos.cosmos_cli()
+
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
     wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))

@@ -66,12 +66,10 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 			simAccount, _ = simtypes.RandomAcc(r, accs)
 		}
 
-		account := k.GetAccount(ctx, simAccount.Address)
 		denom := GenIbcCroDenom(r)
 		contractBytes := make([]byte, 20)
 		r.Read(contractBytes)
 		contract := common.BytesToAddress(contractBytes).String()
-		spendable := bk.SpendableCoins(ctx, account.GetAddress())
 
 		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract, "", 0)
 
@@ -87,7 +85,7 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 			AccountKeeper:   ak,
 			Bankkeeper:      bk,
 			ModuleName:      types.ModuleName,
-			CoinsSpentInMsg: spendable,
+			CoinsSpentInMsg: sdk.Coins{},
 		}
 
 		oper, ops, err := simulation.GenAndDeliverTxWithRandFees(txCtx)
