@@ -85,7 +85,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     target_height = height + 15
     print("upgrade height", target_height)
     plan_name = "v0.8.0-gravity-alpha1"
-    rsp = cli.gov_propose(
+    rsp = cli.gov_propose_v0_7(
         "community",
         "software-upgrade",
         {
@@ -112,6 +112,13 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
     proposal = cli.query_proposal(proposal_id)
     assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+
+    # update cli chain binary
+    custom_cronos.chain_binary = (
+        Path(custom_cronos.chain_binary).parent.parent.parent
+        / f"{plan_name}/bin/cronosd"
+    )
+    cli = custom_cronos.cosmos_cli()
 
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)

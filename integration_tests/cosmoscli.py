@@ -8,7 +8,8 @@ import bech32
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-DEFAULT_GAS_PRICE = "5000000000000basetcro"
+# the default initial base fee used by integration tests
+DEFAULT_GAS_PRICE = "100000000000basetcro"
 
 
 class ModuleAccount(enum.Enum):
@@ -104,6 +105,9 @@ class CosmosCLI:
                 stdin=mnemonic.encode() + b"\n",
             )
         return json.loads(output)
+
+    def migrate_keystore(self):
+        return self.raw("keys", "migrate", home=self.data_dir)
 
     def init(self, moniker):
         "the node's config is already added"
@@ -617,7 +621,7 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose(self, proposer, kind, proposal, **kwargs):
+    def gov_propose_v0_7(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         if kind == "software-upgrade":
             return json.loads(
@@ -668,6 +672,68 @@ class CosmosCLI:
                         "tx",
                         "gov",
                         "submit-proposal",
+                        kind,
+                        fp.name,
+                        "-y",
+                        from_=proposer,
+                        # basic
+                        home=self.data_dir,
+                        **kwargs,
+                    )
+                )
+
+    def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        if kind == "software-upgrade":
+            return json.loads(
+                self.raw(
+                    "tx",
+                    "gov",
+                    "submit-legacy-proposal",
+                    kind,
+                    proposal["name"],
+                    "-y",
+                    "--no-validate",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    description=proposal.get("description"),
+                    upgrade_height=proposal.get("upgrade-height"),
+                    upgrade_time=proposal.get("upgrade-time"),
+                    upgrade_info=proposal.get("upgrade-info"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    **kwargs,
+                )
+            )
+        elif kind == "cancel-software-upgrade":
+            return json.loads(
+                self.raw(
+                    "tx",
+                    "gov",
+                    "submit-legacy-proposal",
+                    kind,
+                    "-y",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    description=proposal.get("description"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    **kwargs,
+                )
+            )
+        else:
+            with tempfile.NamedTemporaryFile("w") as fp:
+                json.dump(proposal, fp)
+                fp.flush()
+                return json.loads(
+                    self.raw(
+                        "tx",
+                        "gov",
+                        "submit-legacy-proposal",
                         kind,
                         fp.name,
                         "-y",
@@ -1010,12 +1076,16 @@ class CosmosCLI:
     def gov_propose_token_mapping_change(
         self, denom, contract, symbol, decimal, **kwargs
     ):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        default_kwargs = {
+            "gas_prices": DEFAULT_GAS_PRICE,
+            "gas": "auto",
+            "gas_adjustment": "1.5",
+        }
         return json.loads(
             self.raw(
                 "tx",
                 "gov",
-                "submit-proposal",
+                "submit-legacy-proposal",
                 "token-mapping-change",
                 denom,
                 contract,
@@ -1025,7 +1095,8 @@ class CosmosCLI:
                 decimal,
                 "-y",
                 home=self.data_dir,
-                **kwargs,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
             )
         )
 

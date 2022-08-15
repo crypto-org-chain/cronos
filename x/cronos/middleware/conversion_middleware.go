@@ -4,10 +4,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	transferTypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v3/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v3/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v3/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v5/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v5/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
 
@@ -35,7 +35,7 @@ func (im IBCConversionModule) OnChanOpenInit(
 	chanCap *capabilitytypes.Capability,
 	counterparty channeltypes.Counterparty,
 	version string,
-) error {
+) (string, error) {
 	return im.app.OnChanOpenInit(ctx, order, connectionHops, portID, channelID, chanCap, counterparty, version)
 }
 
@@ -101,15 +101,15 @@ func (im IBCConversionModule) OnRecvPacket(
 	if ack.Success() {
 		data, err := im.getFungibleTokenPacketData(packet)
 		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(
-				"cannot unmarshal ICS-20 transfer packet data in middleware")
+			return channeltypes.NewErrorAcknowledgement(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest,
+				"cannot unmarshal ICS-20 transfer packet data in middleware"))
 		}
 		denom := im.getIbcDenomFromPacketAndData(packet, data)
 		// Check if it can be converted
 		if im.canBeConverted(ctx, denom) {
 			err = im.convertVouchers(ctx, data, denom, false)
 			if err != nil {
-				return transferTypes.NewErrorAcknowledgement(err)
+				return channeltypes.NewErrorAcknowledgement(err)
 			}
 		}
 	}
