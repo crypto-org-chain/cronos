@@ -126,7 +126,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 		txResult := blockRes.TxsResults[i]
 
 		// don't ignore the txs which exceed block gas limit.
-		if !backend.TxSuccessOrExceedsBlockGasLimit(txResult) {
+		if !rpctypes.TxSuccessOrExceedsBlockGasLimit(txResult) {
 			continue
 		}
 
