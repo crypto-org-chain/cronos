@@ -182,13 +182,14 @@ require (
 )
 
 replace (
+	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// TODO: remove when gravity update dependencies
-	github.com/peggyjv/gravity-bridge/module/v2 => github.com/yihuang/gravity-bridge/module/v2 v2.0.0-20220812041629-f24af55a482a
+	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee
 
 	// TODO: remove after fixed https://github.com/cosmos/cosmos-sdk/issues/11364
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
