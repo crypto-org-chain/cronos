@@ -204,10 +204,6 @@ func (k Keeper) OnRecvVouchers(
 	}
 }
 
-func (k Keeper) SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
-	return k.bankKeeper.SpendableCoins(ctx, addr)
-}
-
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
 }

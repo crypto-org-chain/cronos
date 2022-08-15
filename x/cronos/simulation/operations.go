@@ -6,7 +6,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/simapp/helpers"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -24,31 +23,32 @@ const (
 )
 
 const (
-	WeightMsgEthCreateContract = 50
+	WeightMsgUpdateTokenMapping = 50
 )
 
 // WeightedOperations generate SimulateUpdateTokenMapping operation.
 func WeightedOperations(
-	appParams simtypes.AppParams, cdc codec.JSONCodec, k *keeper.Keeper,
+	appParams simtypes.AppParams, cdc codec.JSONCodec,
+	ak types.AccountKeeper, bk types.BankKeeper, k *keeper.Keeper,
 ) simulation.WeightedOperations {
 	var weightMsgUpdateTokenMapping int
 
 	appParams.GetOrGenerate(cdc, OpWeightMsgUpdateTokenMapping, &weightMsgUpdateTokenMapping, nil,
 		func(_ *rand.Rand) {
-			weightMsgUpdateTokenMapping = WeightMsgEthCreateContract
+			weightMsgUpdateTokenMapping = WeightMsgUpdateTokenMapping
 		},
 	)
 
 	return simulation.WeightedOperations{
 		simulation.NewWeightedOperation(
 			weightMsgUpdateTokenMapping,
-			SimulateUpdateTokenMapping(k),
+			SimulateUpdateTokenMapping(ak, bk, k),
 		),
 	}
 }
 
 // SimulateUpdateTokenMapping generate mocked MsgUpdateTokenMapping message, apply the message and assert the results.
-func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
+func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *keeper.Keeper) simtypes.Operation {
 	return func(
 		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
 		accs []simtypes.Account, chainID string,
@@ -71,40 +71,30 @@ func SimulateUpdateTokenMapping(k *keeper.Keeper) simtypes.Operation {
 		contractBytes := make([]byte, 20)
 		r.Read(contractBytes)
 		contract := common.BytesToAddress(contractBytes).String()
+		spendable := bk.SpendableCoins(ctx, account.GetAddress())
 
 		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract, "", 0)
 
-		coins := k.SpendableCoins(ctx, simAccount.Address)
-		fees, err := simtypes.RandomFees(r, ctx, coins)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, types.TypeMsgUpdateTokenMapping, "no enough balance for fee"), nil, nil
+		txCtx := simulation.OperationInput{
+			R:               r,
+			App:             app,
+			TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
+			Cdc:             nil,
+			Msg:             msg,
+			MsgType:         msg.Type(),
+			Context:         ctx,
+			SimAccount:      simAccount,
+			AccountKeeper:   ak,
+			Bankkeeper:      bk,
+			ModuleName:      types.ModuleName,
+			CoinsSpentInMsg: spendable,
 		}
 
-		txGen := simappparams.MakeTestEncodingConfig().TxConfig
-		tx, err := helpers.GenSignedMockTx(
-			r,
-			txGen,
-			[]sdk.Msg{msg},
-			fees,
-			helpers.DefaultGenTxGas,
-			chainID,
-			[]uint64{account.GetAccountNumber()},
-			[]uint64{account.GetSequence()},
-			simAccount.PrivKey,
-		)
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to generate mock tx"), nil, err
-		}
-
-		_, _, err = app.SimDeliver(txGen.TxEncoder(), tx)
+		oper, ops, err := simulation.GenAndDeliverTxWithRandFees(txCtx)
 		if simAccount.Address.String() != cronosAdmin && errors.Is(err, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")) {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unauthorized tx should fail"), nil, nil
 		}
-		if err != nil {
-			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unable to deliver tx"), nil, err
-		}
-
-		return simtypes.OperationMsg{}, nil, nil
+		return oper, ops, err
 	}
 }
 

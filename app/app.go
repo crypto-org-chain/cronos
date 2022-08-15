@@ -462,7 +462,7 @@ func New(
 		app.EvmKeeper,
 		app.AccountKeeper,
 	)
-	cronosModule := cronos.NewAppModule(appCodec, app.CronosKeeper)
+	cronosModule := cronos.NewAppModule(app.CronosKeeper, app.AccountKeeper, app.BankKeeper)
 
 	// register the proposal types
 	govRouter := govv1beta1.NewRouter()
