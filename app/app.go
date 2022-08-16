@@ -90,6 +90,9 @@ import (
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/keeper"
 	icacontrollertypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/types"
+	ibcfee "github.com/cosmos/ibc-go/v5/modules/apps/29-fee"
+	ibcfeekeeper "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/keeper"
+	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
 
 	appparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/ibc-go/v5/modules/apps/transfer"
@@ -195,6 +198,7 @@ var (
 		vesting.AppModuleBasic{},
 		ica.AppModuleBasic{},
 		icactlmodule.AppModuleBasic{},
+		ibcfee.AppModuleBasic{},
 		evm.AppModuleBasic{},
 		feemarket.AppModuleBasic{},
 		gravity.AppModuleBasic{},
@@ -211,6 +215,7 @@ var (
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 		govtypes.ModuleName:            {authtypes.Burner},
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+		ibcfeetypes.ModuleName:         nil,
 		icatypes.ModuleName:            nil,
 		evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 		gravitytypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
@@ -261,6 +266,7 @@ type App struct {
 	UpgradeKeeper       upgradekeeper.Keeper
 	ParamsKeeper        paramskeeper.Keeper
 	IBCKeeper           *ibckeeper.Keeper // IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
+	IBCFeeKeeper        ibcfeekeeper.Keeper
 	ICAControllerKeeper icacontrollerkeeper.Keeper
 	ICAAuthKeeper       icactlmodulekeeper.Keeper
 	EvidenceKeeper      evidencekeeper.Keeper
@@ -323,6 +329,7 @@ func New(
 		// ibc keys
 		ibchost.StoreKey, ibctransfertypes.StoreKey,
 		icacontrollertypes.StoreKey,
+		ibcfeetypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
@@ -403,6 +410,14 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), stakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
+	// IBC Fee Module keeper
+	app.IBCFeeKeeper = ibcfeekeeper.NewKeeper(
+		appCodec, keys[ibcfeetypes.StoreKey], app.GetSubspace(ibcfeetypes.ModuleName),
+		app.IBCKeeper.ChannelKeeper, // more middlewares can be added in future
+		app.IBCKeeper.ChannelKeeper,
+		&app.IBCKeeper.PortKeeper, app.AccountKeeper, app.BankKeeper,
+	)
+
 	// Create Transfer Keepers
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
@@ -481,8 +496,12 @@ func New(
 
 	// set the middleware
 	transferModule := transfer.NewAppModule(app.TransferKeeper)
-	transferIBCModule := transfer.NewIBCModule(app.TransferKeeper)
-	transferWithConversionIBCModule := middleware.NewIBCConversionModule(transferIBCModule, app.CronosKeeper)
+	feeModule := ibcfee.NewAppModule(app.IBCFeeKeeper)
+
+	transferStack := transfer.NewIBCModule(app.TransferKeeper)
+	transferStack = middleware.NewIBCConversionModule(transferStack, app.CronosKeeper)
+	transferStack = ibcfee.NewIBCMiddleware(transferStack, app.IBCFeeKeeper)
+
 	app.ICAControllerKeeper = icacontrollerkeeper.NewKeeper(
 		appCodec, keys[icacontrollertypes.StoreKey], app.GetSubspace(icacontrollertypes.SubModuleName),
 		app.IBCKeeper.ChannelKeeper, // may be replaced with middleware such as ics29 fee
@@ -493,9 +512,11 @@ func New(
 
 	app.ICAAuthKeeper = *icactlmodulekeeper.NewKeeper(appCodec,
 		app.GetSubspace(icactlmoduletypes.ModuleName), app.ICAControllerKeeper, scopedICAAuthKeeper)
-	icaAuthModule := icactlmodule.NewAppModule(appCodec, app.ICAAuthKeeper)
-	icaAuthIBCModule := icactlmodule.NewIBCModule(app.ICAAuthKeeper)
-	icaControllerIBCModule := icacontroller.NewIBCMiddleware(icaAuthIBCModule, app.ICAControllerKeeper)
+	icaCtlModule := icactlmodule.NewAppModule(appCodec, app.ICAAuthKeeper)
+
+	icaControllerStack := icactlmodule.NewIBCModule(app.ICAAuthKeeper)
+	icaControllerStack = icacontroller.NewIBCMiddleware(icaControllerStack, app.ICAControllerKeeper)
+	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
@@ -537,9 +558,9 @@ func New(
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferWithConversionIBCModule)
-	ibcRouter.AddRoute(icacontrollertypes.SubModuleName, icaControllerIBCModule)
-	ibcRouter.AddRoute(icactlmoduletypes.ModuleName, icaControllerIBCModule)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
+	ibcRouter.AddRoute(icacontrollertypes.SubModuleName, icaControllerStack)
+	ibcRouter.AddRoute(icactlmoduletypes.ModuleName, icaControllerStack)
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
@@ -575,7 +596,7 @@ func New(
 		ibc.NewAppModule(app.IBCKeeper),
 		transferModule,
 		icaModule,
-		icaAuthModule,
+		icaCtlModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
 		cronosModule,
@@ -594,6 +615,7 @@ func New(
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
 		icactlmoduletypes.ModuleName,
+		ibcfeetypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		govtypes.ModuleName,
@@ -613,6 +635,7 @@ func New(
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
 		icactlmoduletypes.ModuleName,
+		ibcfeetypes.ModuleName,
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
@@ -651,6 +674,7 @@ func New(
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
 		icactlmoduletypes.ModuleName,
+		ibcfeetypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,

@@ -8,6 +8,7 @@
 - [cronos#600](https://github.com/crypto-org-chain/cronos/pull/600) Implement bidirectional token mapping.
 - [cronos#611](https://github.com/crypto-org-chain/cronos/pull/611) Fix mistake on acknowledgement error in ibc middleware.
 - [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Upgrade gravity bridge module with security enhancements
+- [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Integrate ibc fee middleware.
 
 ### Bug Fixes
 
