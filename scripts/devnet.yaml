@@ -4,7 +4,7 @@ cronos_777-1:
   start-flags: "--trace --unsafe-experimental"
   config:
     tx_index:
-      indexer: null
+      indexer: "null"
   app-config:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
