@@ -28,7 +28,7 @@
 
 ### State Machine Breaking
 
-- [#618](https://github.com/crypto-org-chain/cronos/pull/618) selfdestruct don't delete bytecode of smart contract.
+- [cronos#618](https://github.com/crypto-org-chain/cronos/pull/618) selfdestruct don't delete bytecode of smart contract.
 
 *Aug 5, 2022*
 
@@ -36,19 +36,19 @@
 
 ### Bug Fixes
 
-- [#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
+- [cronos#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
 - [cronos#503](https://github.com/crypto-org-chain/cronos/pull/503) Fix failed tx are ignored in json-rpc apis (backport #502).
-- [#526](https://github.com/crypto-org-chain/cronos/pull/526) Fix tendermint duplicated tx issue.
-- [#584](https://github.com/crypto-org-chain/cronos/pull/584) Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
-- [#587](https://github.com/crypto-org-chain/cronos/pull/587) Unlucky tx patch cmd recompute eth tx hash.
-- [\#595](https://github.com/crypto-org-chain/cronos/pull/595) Workaround the tx hash issue in event parsing.
+- [cronos#526](https://github.com/crypto-org-chain/cronos/pull/526) Fix tendermint duplicated tx issue.
+- [cronos#584](https://github.com/crypto-org-chain/cronos/pull/584) Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
+- [cronos#587](https://github.com/crypto-org-chain/cronos/pull/587) Unlucky tx patch cmd recompute eth tx hash.
+- [cronos#595](https://github.com/crypto-org-chain/cronos/pull/595) Workaround the tx hash issue in event parsing.
 
 ### Improvements
 
 - [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
-- [#513](https://github.com/crypto-org-chain/cronos/pull/513) Add `fix-unlucky-tx` command to patch txs post v0.7.0 upgrade.
+- [cronos#513](https://github.com/crypto-org-chain/cronos/pull/513) Add `fix-unlucky-tx` command to patch txs post v0.7.0 upgrade.
 - [cronos#522](https://github.com/crypto-org-chain/cronos/pull/522) Add `reindex-duplicated-tx` command to handle the tendermint tx duplicated issue.
-- [#585](https://github.com/crypto-org-chain/cronos/pull/585) Reject replay unprotected tx, mainly the old transactions on ethereum.
+- [cronos#585](https://github.com/crypto-org-chain/cronos/pull/585) Reject replay unprotected tx, mainly the old transactions on ethereum.
 
 *May 3, 2022*
 
