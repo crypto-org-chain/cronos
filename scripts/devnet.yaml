@@ -1,7 +1,8 @@
 dotenv: .env
 cronos_777-1:
   cmd: ./build/cronosd
-  start-flags: "--trace --unsafe-experimental"
+  cmd-flags: "--unsafe-experimental"
+  start-flags: "--trace"
   app-config:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
