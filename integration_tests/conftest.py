@@ -1,9 +1,10 @@
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
-from .network import setup_cronos, setup_geth
+from .network import setup_cronos, setup_custom_cronos, setup_geth
 
 dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(dir + "/protobuf")
@@ -41,10 +42,17 @@ def suspend_capture(pytestconfig):
     yield SuspendGuard()
 
 
-@pytest.fixture(scope="session")
-def cronos(tmp_path_factory):
-    path = tmp_path_factory.mktemp("cronos")
-    yield from setup_cronos(path, 26650)
+@pytest.fixture(scope="session", params=[True])
+def cronos(request, tmp_path_factory):
+    enable_indexer = request.param
+    if enable_indexer:
+        path = tmp_path_factory.mktemp("indexer")
+        yield from setup_custom_cronos(
+            path, 27000, Path(__file__).parent / "configs/enable-indexer.jsonnet"
+        )
+    else:
+        path = tmp_path_factory.mktemp("cronos")
+        yield from setup_cronos(path, 26650)
 
 
 @pytest.fixture(scope="session")
