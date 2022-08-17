@@ -498,7 +498,8 @@ func New(
 	transferModule := transfer.NewAppModule(app.TransferKeeper)
 	feeModule := ibcfee.NewAppModule(app.IBCFeeKeeper)
 
-	transferStack := transfer.NewIBCModule(app.TransferKeeper)
+	var transferStack porttypes.IBCModule
+	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = middleware.NewIBCConversionModule(transferStack, app.CronosKeeper)
 	transferStack = ibcfee.NewIBCMiddleware(transferStack, app.IBCFeeKeeper)
 
@@ -514,7 +515,8 @@ func New(
 		app.GetSubspace(icactlmoduletypes.ModuleName), app.ICAControllerKeeper, scopedICAAuthKeeper)
 	icaCtlModule := icactlmodule.NewAppModule(appCodec, app.ICAAuthKeeper)
 
-	icaControllerStack := icactlmodule.NewIBCModule(app.ICAAuthKeeper)
+	var icaControllerStack porttypes.IBCModule
+	icaControllerStack = icactlmodule.NewIBCModule(app.ICAAuthKeeper)
 	icaControllerStack = icacontroller.NewIBCMiddleware(icaControllerStack, app.ICAControllerKeeper)
 	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 
@@ -597,6 +599,7 @@ func New(
 		transferModule,
 		icaModule,
 		icaCtlModule,
+		feeModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
 		cronosModule,
