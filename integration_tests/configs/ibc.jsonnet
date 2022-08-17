@@ -120,7 +120,7 @@ config {
       {
         id: 'cronos_777-1',
         max_gas: 500000,
-        gas_adjustment: 1,
+        gas_multiplier: 2,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
