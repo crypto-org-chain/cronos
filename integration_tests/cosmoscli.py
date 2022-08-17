@@ -3,6 +3,7 @@ import hashlib
 import json
 import subprocess
 import tempfile
+import time
 
 import bech32
 from dateutil.parser import isoparse
@@ -1279,5 +1280,27 @@ class CosmosCLI:
                 "denom-to-erc20",
                 denom,
                 home=self.data_dir,
+            )
+        )
+
+    def create_vesting_account(self, to_address, amount, **kwargs):
+        "create vesting account"
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        end_time = int(time.time()) + 3000
+        return json.loads(
+            self.raw(
+                "tx",
+                "vesting",
+                "create-vesting-account",
+                to_address,
+                amount,
+                end_time,
+                "-y",
+                **(default_kwargs | kwargs),
             )
         )
