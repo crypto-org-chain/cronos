@@ -93,7 +93,7 @@ class Geth:
 
 def setup_cronos(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
-        "../scripts/cronos-devnet.yaml"
+        "configs/default.jsonnet"
         if enable_auto_deployment
         else "configs/disable_auto_deployment.jsonnet"
     )
@@ -102,7 +102,7 @@ def setup_cronos(path, base_port, enable_auto_deployment=True):
 
 def setup_cronos_experimental(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
-        "../scripts/cronos-experimental-devnet.yaml"
+        "configs/cronos-experimental-devnet.jsonnet"
         if enable_auto_deployment
         else "configs/disable_auto_deployment.jsonnet"
     )
