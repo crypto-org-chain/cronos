@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	icacontrollertypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 )
 
@@ -50,13 +51,22 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))
 	}
 
-	if (upgradeInfo.Name == planName || (experimental && upgradeInfo.Name == gravityPlanName)) &&
-		!app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{icacontrollertypes.StoreKey},
-		}
+	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		if upgradeInfo.Name == planName {
+			storeUpgrades := storetypes.StoreUpgrades{
+				Added: []string{icacontrollertypes.StoreKey, ibcfeetypes.StoreKey},
+			}
 
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		}
+		if experimental && upgradeInfo.Name == gravityPlanName {
+			storeUpgrades := storetypes.StoreUpgrades{
+				Added: []string{icacontrollertypes.StoreKey},
+			}
+
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		}
 	}
 }
