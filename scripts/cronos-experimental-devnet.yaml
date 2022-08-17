@@ -1,6 +1,7 @@
 cronos_777-1:
   cmd: cronosd
-  start-flags: "--trace --unsafe-experimental"
+  cmd-flags: "--unsafe-experimental"
+  start-flags: "--trace"
   app-config:
     minimum-gas-prices: 100000000000basetcro
     index-events:

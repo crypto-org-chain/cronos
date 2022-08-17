@@ -162,7 +162,8 @@ func StateRandomizedFn(
 	accs []simtypes.Account, genesisTimestamp time.Time, appParams simtypes.AppParams,
 ) (json.RawMessage, []simtypes.Account) {
 	numAccs := int64(len(accs))
-	genesisState := NewDefaultGenesisState(cdc)
+	// test with experimental modules by default
+	genesisState := NewDefaultGenesisState(cdc, true)
 
 	// generate a random amount of initial stake coins and a random initial
 	// number of bonded accounts
