@@ -29,16 +29,20 @@ def prepare_network(tmp_path, file):
     subprocess.check_call(
         [
             "hermes",
-            "-c",
+            "--config",
             hermes.configpath,
             "create",
             "channel",
+            "--a-port",
+            "transfer",
+            "--b-port",
+            "transfer",
+            "--a-chain",
             "cronos_777-1",
+            "--b-chain",
             "chainmain-1",
-            "--port-a",
-            "transfer",
-            "--port-b",
-            "transfer",
+            "--new-client-connection",
+            "--yes",
         ]
     )
     supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
@@ -65,9 +69,11 @@ def prepare(ibc):
     src_denom = "basecro"
     # dstchainid srcchainid srcportid srchannelid
     cmd = (
-        f"hermes -c {ibc.hermes.configpath} tx raw ft-transfer "
-        f"{my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} "
-        f"-o 1000 -n 1 -d {src_denom} -r {dst_addr} -k relayer"
+        f"hermes --config {ibc.hermes.configpath} tx ft-transfer "
+        f"--dst-chain {my_ibc1} --src-chain {my_ibc0} --src-port transfer "
+        f"--src-channel {my_channel} --amount {src_amount} "
+        f"--timeout-height-offset 1000 --number-msgs 1 "
+        f"--denom {src_denom} --receiver {dst_addr} --key-name relayer"
     )
     subprocess.run(cmd, check=True, shell=True)
     return src_amount

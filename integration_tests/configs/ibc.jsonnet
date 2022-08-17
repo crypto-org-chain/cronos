@@ -94,8 +94,22 @@ config {
     },
   },
   relayer: {
-    global: {
-      strategy: 'all',
+    mode: {
+      clients: {
+        enabled: true,
+        refresh: true,
+        misbehaviour: true,
+      },
+      connections: {
+        enabled: true,
+      },
+      channels: {
+        enabled: true,
+      },
+      packets: {
+        enabled: true,
+        tx_confirmation: true,
+      },
     },
     rest: {
       enabled: true,
@@ -106,7 +120,7 @@ config {
       {
         id: 'cronos_777-1',
         max_gas: 500000,
-        gas_adjustment: 1,
+        gas_multiplier: 2,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
