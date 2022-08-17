@@ -1281,3 +1281,24 @@ class CosmosCLI:
                 home=self.data_dir,
             )
         )
+
+    def create_vesting_account(self, to_address, amount, end_time, **kwargs):
+        "create vesting account"
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "vesting",
+                "create-vesting-account",
+                to_address,
+                amount,
+                end_time,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
