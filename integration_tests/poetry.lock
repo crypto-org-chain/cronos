@@ -207,15 +207,15 @@ tools = ["hypothesis (>=3.6.1,<4)"]
 
 [[package]]
 name = "eth-account"
-version = "0.5.7"
-description = "eth-account: Sign Ethereum transactions and messages with local private keys"
+version = "0.5.8"
+description = ""
 category = "main"
 optional = false
 python-versions = ">=3.6, <4"
 develop = false
 
 [package.dependencies]
-bitarray = ">=1.2.1,<1.3.0"
+bitarray = ">=1.2.1,<3"
 eth-abi = ">=2.0.0b7,<3"
 eth-keyfile = ">=0.5.0,<0.6.0"
 eth-keys = ">=0.3.4,<0.4.0"
@@ -225,10 +225,10 @@ hexbytes = ">=0.1.0,<1"
 rlp = ">=1.0.0,<3"
 
 [package.extras]
-dev = ["bumpversion (>=0.5.3,<1)", "pytest-watch (>=4.1.0,<5)", "wheel", "twine", "ipython", "hypothesis (>=4.18.0,<5)", "pytest (>=6.2.5,<7)", "pytest-xdist", "tox (==3.14.6)", "flake8 (==3.7.9)", "isort (>=4.2.15,<5)", "mypy (==0.770)", "pydocstyle (>=5.0.0,<6)", "Sphinx (>=1.6.5,<2)", "sphinx-rtd-theme (>=0.1.9,<1)", "towncrier (>=19.2.0,<20)"]
-doc = ["Sphinx (>=1.6.5,<2)", "sphinx-rtd-theme (>=0.1.9,<1)", "towncrier (>=19.2.0,<20)"]
-lint = ["flake8 (==3.7.9)", "isort (>=4.2.15,<5)", "mypy (==0.770)", "pydocstyle (>=5.0.0,<6)"]
 test = ["hypothesis (>=4.18.0,<5)", "pytest (>=6.2.5,<7)", "pytest-xdist", "tox (==3.14.6)"]
+lint = ["flake8 (==3.7.9)", "isort (>=4.2.15,<5)", "mypy (==0.770)", "pydocstyle (>=5.0.0,<6)"]
+doc = ["Sphinx (>=1.6.5,<2)", "sphinx_rtd_theme (>=0.1.9,<1)", "towncrier (>=21.9.0)"]
+dev = ["bumpversion (>=0.5.3,<1)", "pytest-watch (>=4.1.0,<5)", "wheel", "twine", "ipython"]
 
 [package.source]
 type = "git"
@@ -775,9 +775,9 @@ tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/mmsqe/pystarport.git"
-reference = "update-hermes"
-resolved_reference = "00a2a7444ab03f742476f1c28fff6384cff7b9e8"
+url = "https://github.com/crypto-com/pystarport.git"
+reference = "main"
+resolved_reference = "c3028081386e8489171607e0aed6e68d1ff87d43"
 
 [[package]]
 name = "pytest"
@@ -1079,7 +1079,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d50ed7097f3e4b1f7fe2da084e7d0c6a53cbfdd55b3d13e16d3c2e8915ad14a0"
+content-hash = "4c42654857d14b05711431944ce50438ba9f430f8922600b9d3cfb8420fd4dc6"
 
 [metadata.files]
 aiohttp = [
@@ -1222,6 +1222,7 @@ click = [
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
+    {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
 ]
 cytoolz = [
     {file = "cytoolz-0.11.2.tar.gz", hash = "sha256:ea23663153806edddce7e4153d1d407d62357c05120a4e8485bddf1bd5ab22b4"},
