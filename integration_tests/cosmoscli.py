@@ -3,7 +3,6 @@ import hashlib
 import json
 import subprocess
 import tempfile
-import time
 
 import bech32
 from dateutil.parser import isoparse
@@ -1283,7 +1282,7 @@ class CosmosCLI:
             )
         )
 
-    def create_vesting_account(self, to_address, amount, **kwargs):
+    def create_vesting_account(self, to_address, amount, end_time, **kwargs):
         "create vesting account"
         default_kwargs = {
             "home": self.data_dir,
@@ -1291,9 +1290,6 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        now = time.time()
-        end_msecs = 3000
-        end_time = int(now) + end_msecs
         return json.loads(
             self.raw(
                 "tx",
