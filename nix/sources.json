@@ -5,10 +5,10 @@
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "a7ac0c321e98b93c3bcfa4c98a69c313183190d8",
-        "sha256": "05ylri22w49i8r0z6zyb446jbs5wvm8y51gf21yl4ysqj65ad054",
+        "rev": "7e7d49839283f6d77516f614c2e2ff7441771e5a",
+        "sha256": "1gm70jfd9rvi8shf6n7fjfvs4krdv3vjz50f44id3dv8fgg5zni1",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/a7ac0c321e98b93c3bcfa4c98a69c313183190d8.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/7e7d49839283f6d77516f614c2e2ff7441771e5a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "cosmos-sdk": {
