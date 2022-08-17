@@ -128,9 +128,13 @@ config {
           },
         },
         gas_price: {
-          price: 10000000000000,
+          price: 10000000000000000,
           denom: 'basetcro',
         },
+        extension_options: [{
+          type: 'ethermint_dynamic_fee',
+          value: '1000000',
+        }],
       },
       {
         id: 'chainmain-1',
