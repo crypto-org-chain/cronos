@@ -1291,7 +1291,9 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        end_time = int(time.time()) + 3000
+        now = time.time()
+        end_msecs = 3000
+        end_time = int(now) + end_msecs
         return json.loads(
             self.raw(
                 "tx",
