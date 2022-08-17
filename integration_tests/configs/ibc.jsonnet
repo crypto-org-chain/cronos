@@ -5,6 +5,16 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    genesis+: {
+      app_state+: {
+        feemarket+: {
+          params+: {
+            no_base_fee: true,
+            base_fee: '0',
+          },
+        },
+      },
+    },
   },
   'chainmain-1': {
     cmd: 'chain-maind',
@@ -109,13 +119,14 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
+        max_gas: 500000,
+        gas_adjustment: 1,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
             pk_type: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
           },
         },
-        max_gas: 500000,
         gas_price: {
           price: 10000000000000,
           denom: 'basetcro',
@@ -123,6 +134,7 @@ config {
       },
       {
         id: 'chainmain-1',
+        max_gas: 500000,
         gas_price: {
           price: 1000000,
           denom: 'basecro',

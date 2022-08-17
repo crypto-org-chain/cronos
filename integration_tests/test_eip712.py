@@ -36,11 +36,12 @@ def test_native_tx(cronos):
     }
     denom = "basetcro"
     dst_addr = cli.address("signer1")
-    gas = "200000"
+    gas = 200000
+    gas_price = 100000000000  # default base fee
     fee = {
-        "amount": "20",
+        "amount": str(gas * gas_price),
         "denom": denom,
-        "gas": gas,
+        "gas": str(gas),
     }
     amount = "1"
     params = {
@@ -79,5 +80,5 @@ def test_native_tx(cronos):
     if result.get("code"):
         raise Exception(result["raw_log"])
     res = result["tx_response"]
-    assert res["code"] == 0
-    assert res["gas_wanted"] == gas
+    assert res["code"] == 0, res["raw_log"]
+    assert res["gas_wanted"] == str(gas)

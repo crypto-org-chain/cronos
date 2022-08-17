@@ -44,7 +44,8 @@ def post_init(path, base_port, config):
             i = m.group(1)
             ini[section].update(
                 {
-                    "command": f"cosmovisor start --home %(here)s/node{i}",
+                    "command": f"cosmovisor start --home %(here)s/node{i}"
+                    f" --trace --unsafe-experimental",
                     "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
                 }
             )
@@ -57,7 +58,7 @@ def custom_cronos(tmp_path_factory):
     path = tmp_path_factory.mktemp("upgrade")
     cmd = [
         "nix-build",
-        Path(__file__).parent / "configs/upgrade-test-package.nix",
+        Path(__file__).parent / "configs/upgrade-test-package-gravity.nix",
         "-o",
         path / "upgrades",
     ]
@@ -73,7 +74,7 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-def test_cosmovisor_upgrade(custom_cronos: Cronos):
+def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     """
     - propose an upgrade and pass it
     - wait for it to happen
@@ -83,8 +84,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-
-    plan_name = "v0.9.0"
+    plan_name = "v0.8.0-gravity-alpha1"
     rsp = cli.gov_propose_v0_7(
         "community",
         "software-upgrade",
@@ -127,6 +127,26 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_icacontroller_params() == {"controller_enabled": True}
     assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
-
-    # test migrate keystore
-    cli.migrate_keystore()
+    assert cli.query_gravity_params() == {
+        "params": {
+            "gravity_id": "cronos_gravity_pioneer_v2",
+            "contract_source_hash": "",
+            "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
+            "bridge_chain_id": "0",
+            "signed_signer_set_txs_window": "10000",
+            "signed_batches_window": "10000",
+            "ethereum_signatures_window": "10000",
+            "target_eth_tx_timeout": "43200000",
+            "average_block_time": "5000",
+            "average_ethereum_block_time": "15000",
+            "slash_fraction_signer_set_tx": "0.001000000000000000",
+            "slash_fraction_batch": "0.001000000000000000",
+            "slash_fraction_ethereum_signature": "0.001000000000000000",
+            "slash_fraction_conflicting_ethereum_signature": "0.001000000000000000",
+            "unbond_slashing_signer_set_txs_window": "10000",
+            "bridge_active": True,
+            "batch_creation_period": "10",
+            "batch_max_element": "100",
+            "observe_ethereum_height_period": "50",
+        }
+    }

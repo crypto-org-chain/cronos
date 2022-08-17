@@ -3,7 +3,7 @@ local config = import 'default.jsonnet';
 config {
   'cronos_777-1'+: {
     'app-config'+: {
-      'minimum-gas-prices': '5000000000000basetcro',
+      'minimum-gas-prices': '100000000000basetcro',
     },
     genesis+: {
       app_state+: {

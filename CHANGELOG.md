@@ -7,6 +7,7 @@
 - [cronos#532](https://github.com/crypto-org-chain/cronos/pull/532) Add SendtoChain and CancelSendToChain support from evm call.
 - [cronos#600](https://github.com/crypto-org-chain/cronos/pull/600) Implement bidirectional token mapping.
 - [cronos#611](https://github.com/crypto-org-chain/cronos/pull/611) Fix mistake on acknowledgement error in ibc middleware.
+- [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Upgrade gravity bridge module with security enhancements
 
 ### Bug Fixes
 
@@ -18,6 +19,7 @@
 - [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
 - [cronos#511](https://github.com/crypto-org-chain/cronos/pull/511) Replace ibc-hook with ibc middleware, use ibc-go upstream version.
 - [cronos#550](https://github.com/crypto-org-chain/cronos/pull/550) Support basic json-rpc apis on pruned nodes.
+- [cronos#549](https://github.com/crypto-org-chain/cronos/pull/549) Use custom tx indexer feature of ethermint.
 
 *May 3, 2022*
 

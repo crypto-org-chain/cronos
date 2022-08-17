@@ -312,7 +312,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 			suite.SetupTest()
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
-				app.MakeEncodingConfig().Marshaler,
+				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),
@@ -402,7 +402,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			suite.SetupTest()
 			// Create Cronos Keeper with mock transfer keeper
 			cronosKeeper := *cronosmodulekeeper.NewKeeper(
-				app.MakeEncodingConfig().Marshaler,
+				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
 				suite.app.GetSubspace(types.ModuleName),
@@ -474,7 +474,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				gravityMsgServer := gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper)
 				msg := gravitytypes.MsgSendToEthereum{
 					Sender:            sdk.AccAddress(sender.Bytes()).String(),
-					EthereumRecipient: "",
+					EthereumRecipient: "0x000000000000000000000000000000000000dEaD",
 					Amount:            sdk.NewCoin(validDenom, sdk.NewInt(99)),
 					BridgeFee:         sdk.NewCoin(validDenom, sdk.NewInt(1)),
 				}
