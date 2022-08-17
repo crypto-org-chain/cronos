@@ -233,7 +233,7 @@ func GenModuleBasics(experimental bool) module.BasicManager {
 		vesting.AppModuleBasic{},
 		ica.AppModuleBasic{},
 		icactlmodule.AppModuleBasic{},
-    ibcfee.AppModuleBasic{},
+		ibcfee.AppModuleBasic{},
 		evm.AppModuleBasic{},
 		feemarket.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
