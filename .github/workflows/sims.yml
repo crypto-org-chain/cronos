@@ -367,7 +367,7 @@ jobs:
   
   report-status-pr:
     runs-on: ubuntu-latest
-    needs: member
+    needs: [member, test-sim-nondeterminism, test-sim-import-export, test-sim-after-import, test-sim-multi-seed-short]
     permissions:
       pull-requests: write
     if: always() && github.event_name == 'issue_comment' && needs.member.outputs.valid == 'true'
