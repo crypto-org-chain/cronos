@@ -3,11 +3,15 @@ cronos_777-1:
   cmd: ./build/cronosd
   cmd-flags: "--unsafe-experimental"
   start-flags: "--trace"
+  config:
+    tx_index:
+      indexer: "null"
   app-config:
     json-rpc:
       address: "0.0.0.0:{EVMRPC_PORT}"
       ws-address: "0.0.0.0:{EVMRPC_PORT_WS}"
       api: "eth,net,web3,debug,cronos"
+      enable-indexer: true
   validators:
     - coins: 1000000000000000000stake,1000000000000000000basetcro
       staked: 1000000000000000000stake
