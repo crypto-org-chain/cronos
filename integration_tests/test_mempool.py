@@ -46,8 +46,6 @@ def test_mempool(cronos_mempool):
     new_txs = filter.get_new_entries()
     assert txhash in new_txs
 
-    # wait block update
-    wait_for_new_blocks(cli, 1)
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
 
@@ -56,10 +54,11 @@ def test_mempool(cronos_mempool):
     print(f"all pending tx hash after block: {all_pending}")
     assert len(all_pending) == 0
 
-    # check transaction
-    block_num_0 = w3.eth.get_block_number()
-    print(f"block number start: {block_num_0}")
     nonce_begin = w3.eth.get_transaction_count(address_from)
+
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
 
     sended_hash_set = set()
     for i in range(5):
@@ -76,8 +75,10 @@ def test_mempool(cronos_mempool):
     block_num_1 = w3.eth.get_block_number()
     assert block_num_1 == block_num_0
     print(f"all send tx hash: f{sended_hash_set}")
+
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
+
     # check after max 10 blocks
     for i in range(10):
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
@@ -86,5 +87,5 @@ def test_mempool(cronos_mempool):
             sended_hash_set.discard(hash)
         if len(sended_hash_set) == 0:
             break
-        wait_for_new_blocks(cli, 1, 0.1)
+        wait_for_new_blocks(cli, 1, sleep=0.1)
     assert len(sended_hash_set) == 0
