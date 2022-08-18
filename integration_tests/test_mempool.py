@@ -55,12 +55,7 @@ def test_mempool(cronos_mempool):
     assert len(all_pending) == 0
 
     nonce_begin = w3.eth.get_transaction_count(address_from)
-
-    # wait block update
-    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
-    print(f"block number start: {block_num_0}")
-
-    sended_hash_set = set()
+    raw_transactions = []
     for i in range(5):
         nonce = nonce_begin + i
         tx = {
@@ -70,14 +65,21 @@ def test_mempool(cronos_mempool):
             "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, key_from)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        sended_hash_set.add(txhash)
-    block_num_1 = w3.eth.get_block_number()
-    assert block_num_1 == block_num_0
-    print(f"all send tx hash: f{sended_hash_set}")
+        raw_transactions.append(signed.rawTransaction)
+
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
+
+    # send transactions
+    sended_hash_set = {w3.eth.send_raw_transaction(raw) for raw in raw_transactions}
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
+
+    block_num_1 = w3.eth.get_block_number()
+    assert block_num_1 == block_num_0, "new block is generated, fail"
+    print(f"all send tx hash: f{sended_hash_set}")
 
     # check after max 10 blocks
     for i in range(10):
