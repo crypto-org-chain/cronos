@@ -48,13 +48,14 @@ def test_ibc(ibc):
 
     # assert that the relayer transactions do enables the dynamic fee extension option.
     cli = ibc.cronos.cosmos_cli()
-    tx = cli.txs("message.action=/ibc.core.channel.v1.MsgChannelOpenInit")["txs"][0]
+    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
+    tx = cli.tx_search(criteria)["txs"][0]
     events = parse_events_rpc(tx["events"])
     fee = int(events["tx"]["fee"].removesuffix("basetcro"))
-    gas_used = int(tx["gas_wanted"])
+    gas = int(tx["gas_wanted"])
     # the effective fee is decided by the max_priority_fee (base fee is zero)
     # rather than the normal gas price
-    assert fee == gas_used * 1000000
+    assert fee == gas * 1000000
 
 
 def test_cronos_transfer_tokens(ibc):
