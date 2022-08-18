@@ -16,7 +16,8 @@ on:
     types: [created, edited]
 
 jobs:
-  build:
+  member:
+    name: Check whether it is triggered by team members with issue_comment or push or pull_request
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -24,10 +25,8 @@ jobs:
       (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim')) ||
       github.event_name == 'push' || github.event_name == 'pull_request'
     outputs:
-      repo_name: ${{ steps.pr_data.outputs.repo_name }}
-      ref: ${{ steps.pr_data.outputs.ref }}
+      valid: ${{ steps.setValid.outputs.valid }}
     steps:
-      # if we could have secrets.ORG_READ_BOT_PAT, we can check against team rather than organization.
       - uses: tspascoal/get-user-teams-membership@v1.0.2
         id: checkMember
         if: github.event_name == 'issue_comment'
@@ -42,16 +41,34 @@ jobs:
           message: |
             Sorry only cronos-dev team member could run simulations by '/runsim'. 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Fail and exit the job if authentication failed
-        if: (steps.checkMember.outputs.isTeamMember == 'false') && (github.event_name == 'issue_comment')
-        run: exit 1
+      - name: set valid if it is push/pull_request event or check if it is triggered by team members with issue_comment
+        id: setValid
+        run: |
+          if [[ "${{ steps.checkUserMember.outputs.isTeamMember }}" == "true" ]]; then
+            echo "::set-output name=valid::true"
+          elif [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "::set-output name=valid::true"
+          else  
+            echo "::set-output name=valid::false"
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: member
+    permissions:
+      pull-requests: write
+    if: needs.member.outputs.valid == 'true'
+    outputs:
+      repo_name: ${{ steps.pr_data.outputs.repo_name }}
+      ref: ${{ steps.pr_data.outputs.ref }}
+    steps:
       - name: Comment PR for Sim test started
         uses: crypto-org-chain/actions-pull-request-add-comment@master
         if: github.event_name == 'issue_comment'
         with:
           message: |
-            Simulation tests started and triggered by `/runsim`. 
-            Can check further progress [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            Simulation tests get triggered and started by `/runsim`. 
+            Please check further progress [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Github API Request
         id: request
@@ -91,6 +108,16 @@ jobs:
       - name: Display go version
         run: go version
       - run: make build
+      - name: Create file status_build.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_build.txt
+      - name: Upload file status_build.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_build
+          path: status_build.txt
 
   install-runsim:
     runs-on: ubuntu-latest
@@ -107,6 +134,16 @@ jobs:
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
+      - name: Create file status_install.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_install.txt
+      - name: Upload file status_install.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_install
+          path: status_install.txt
 
   test-sim-nondeterminism:
     runs-on: ubuntu-latest
@@ -152,6 +189,16 @@ jobs:
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
           (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
+      - name: Create file status_sim1.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_sim1.txt
+      - name: Upload file status_sim1.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_sim1
+          path: status_sim1.txt
 
   test-sim-import-export:
     runs-on: ubuntu-latest
@@ -197,6 +244,16 @@ jobs:
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
           (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
+      - name: Create file status_sim2.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_sim2.txt
+      - name: Upload file status_sim2.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_sim2
+          path: status_sim2.txt
 
   test-sim-after-import:
     runs-on: ubuntu-latest
@@ -242,6 +299,16 @@ jobs:
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
           (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
+      - name: Create file status_sim3.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_sim3.txt
+      - name: Upload file status_sim3.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_sim3
+          path: status_sim3.txt
 
   test-sim-multi-seed-short:
     runs-on: ubuntu-latest
@@ -287,3 +354,83 @@ jobs:
         if: >-
           (env.GIT_DIFF && (github.event_name == 'push' || github.event_name == 'pull_request')) ||
           (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/runsim'))
+      - name: Create file status_sim4.txt and write the job status into it
+        if: github.event_name == 'issue_comment'
+        run: |
+          echo ${{ job.status }} > status_sim4.txt
+      - name: Upload file status_sim4.txt as an artifact
+        if: github.event_name == 'issue_comment'
+        uses: actions/upload-artifact@v1
+        with:
+          name: pass_status_sim4
+          path: status_sim4.txt
+  
+  report-status-pr:
+    runs-on: ubuntu-latest
+    needs: [member, test-sim-nondeterminism, test-sim-import-export, test-sim-after-import, test-sim-multi-seed-short]
+    permissions:
+      pull-requests: write
+    if: always() && github.event_name == 'issue_comment' && needs.member.outputs.valid == 'true'
+    steps: 
+      - name: Download artifact pass_status_build
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_build
+      - name: Download artifact pass_status_install
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_install
+      - name: Download artifact pass_status_sim1
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_sim1
+      - name: Download artifact pass_status_sim2
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_sim2
+      - name: Download artifact pass_status_sim3
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_sim3
+      - name: Download artifact pass_status_sim4
+        uses: actions/download-artifact@v1
+        continue-on-error: true
+        with:
+          name: pass_status_sim4
+      - name: Set the statuses of Jobs as output parameters
+        id: set_outputs
+        continue-on-error: true
+        run: |
+          echo "::set-output name=status_job01::$(<pass_status_build/status_build.txt)"
+          echo "::set-output name=status_job02::$(<pass_status_install/status_install.txt)"
+          echo "::set-output name=status_job03::$(<pass_status_sim1/status_sim1.txt)"
+          echo "::set-output name=status_job04::$(<pass_status_sim2/status_sim2.txt)"
+          echo "::set-output name=status_job05::$(<pass_status_sim3/status_sim3.txt)"
+          echo "::set-output name=status_job06::$(<pass_status_sim4/status_sim4.txt)"
+      - name: The sim jobs has succeed
+        uses: crypto-org-chain/actions-pull-request-add-comment@master
+        if: >-
+          steps.set_outputs.outputs.status_job01 == 'success' && steps.set_outputs.outputs.status_job02 == 'success' 
+          && steps.set_outputs.outputs.status_job03 == 'success' && steps.set_outputs.outputs.status_job04 == 'success' 
+          && steps.set_outputs.outputs.status_job05 == 'success' && steps.set_outputs.outputs.status_job06 == 'success'
+        with:
+          message: |
+            ✅  `/runsim` simulation test has succeeded 🎉
+            Please further check [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: The sim jobs has failed
+        uses: crypto-org-chain/actions-pull-request-add-comment@master
+        if: >-
+          steps.set_outputs.outputs.status_job01 != 'success' || steps.set_outputs.outputs.status_job02 != 'success' 
+          || steps.set_outputs.outputs.status_job03 != 'success' || steps.set_outputs.outputs.status_job04 != 'success' 
+          || steps.set_outputs.outputs.status_job05 != 'success' || steps.set_outputs.outputs.status_job06 != 'success'
+        with:
+          message: |
+            ❌  `/runsim` simulation test has failed 😅
+            Please further check [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
