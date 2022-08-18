@@ -6,7 +6,7 @@ config {
     'coin-type': 60,
     key_name: 'signer1',
     'app-config'+: {
-      'index-events': ['ethereum_tx.ethereumTxHash', 'message.action'],
+      'index-events': super['index-events'] + ['message.action'],
     },
     genesis+: {
       app_state+: {
