@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,6 @@ def test_mempool(cronos_mempool):
     assert filter.get_new_entries() == []
 
     key_from = KEYS["validator"]
-    address_from = ADDRS["validator"]
     address_to = ADDRS["community"]
     gas_price = w3.eth.gas_price
     cli = cronos_mempool.cosmos_cli(0)
@@ -54,15 +54,12 @@ def test_mempool(cronos_mempool):
     print(f"all pending tx hash after block: {all_pending}")
     assert len(all_pending) == 0
 
-    nonce_begin = w3.eth.get_transaction_count(address_from)
     raw_transactions = []
-    for i in range(5):
-        nonce = nonce_begin + i
+    for key_from in KEYS.values():
         tx = {
             "to": address_to,
             "value": 10000,
             "gasPrice": gas_price,
-            "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, key_from)
         raw_transactions.append(signed.rawTransaction)
@@ -72,7 +69,11 @@ def test_mempool(cronos_mempool):
     print(f"block number start: {block_num_0}")
 
     # send transactions
-    sended_hash_set = {w3.eth.send_raw_transaction(raw) for raw in raw_transactions}
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
