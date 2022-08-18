@@ -1,3 +1,4 @@
+import base64
 import configparser
 import json
 import os
@@ -6,6 +7,7 @@ import socket
 import subprocess
 import sys
 import time
+from collections import defaultdict
 from pathlib import Path
 
 import bech32
@@ -173,6 +175,21 @@ def parse_events(logs):
         ev["type"]: {attr["key"]: attr["value"] for attr in ev["attributes"]}
         for ev in logs[0]["events"]
     }
+
+
+def parse_events_rpc(events):
+    result = defaultdict(dict)
+    for ev in events:
+        for attr in ev["attributes"]:
+            if attr["key"] is None:
+                continue
+            key = base64.b64decode(attr["key"].encode()).decode()
+            if attr["value"] is not None:
+                value = base64.b64decode(attr["value"].encode()).decode()
+            else:
+                value = None
+            result[ev["type"]][key] = value
+    return result
 
 
 _next_unique = 0

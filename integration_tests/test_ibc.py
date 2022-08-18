@@ -9,6 +9,7 @@ from .utils import (
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
+    parse_events_rpc,
     send_transaction,
     wait_for_fn,
     wait_for_new_blocks,
@@ -44,6 +45,16 @@ def test_ibc(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
+
+    # assert that the relayer transactions do enables the dynamic fee extension option.
+    cli = ibc.cronos.cosmos_cli()
+    tx = cli.txs("message.action=/ibc.core.channel.v1.MsgChannelOpenInit")["txs"][0]
+    events = parse_events_rpc(tx["events"])
+    fee = int(events["tx"]["fee"].removesuffix("basetcro"))
+    gas_used = int(tx["gas_wanted"])
+    # the effective fee is decided by the max_priority_fee (base fee is zero)
+    # rather than the normal gas price
+    assert fee == gas_used * 1000000
 
 
 def test_cronos_transfer_tokens(ibc):

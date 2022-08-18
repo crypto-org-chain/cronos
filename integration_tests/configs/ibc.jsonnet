@@ -5,6 +5,9 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    'app-config'+: {
+      'index-events': ['ethereum_tx.ethereumTxHash', 'message.action'],
+    },
     genesis+: {
       app_state+: {
         feemarket+: {
