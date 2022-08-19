@@ -28,18 +28,14 @@ def test_mempool(cronos_mempool):
     filter = w3.eth.filter("pending")
     assert filter.get_new_entries() == []
 
-    key_from = KEYS["validator"]
-    address_to = ADDRS["community"]
-    gas_price = w3.eth.gas_price
     cli = cronos_mempool.cosmos_cli(0)
-
     # test contract
     wait_for_new_blocks(cli, 1)
     block_num_2 = w3.eth.get_block_number()
     print(f"block number contract begin at height: {block_num_2}")
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
     tx = contract.functions.setGreeting("world").buildTransaction()
-    signed = sign_transaction(w3, tx, key_from)
+    signed = sign_transaction(w3, tx)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     w3.eth.wait_for_transaction_receipt(txhash)
     # check tx in mempool
@@ -55,12 +51,12 @@ def test_mempool(cronos_mempool):
     assert len(all_pending) == 0
 
     raw_transactions = []
+    tx = {
+        "to": ADDRS["community"],
+        "value": 10000,
+        "gasPrice": w3.eth.gas_price,
+    }
     for key_from in KEYS.values():
-        tx = {
-            "to": address_to,
-            "value": 10000,
-            "gasPrice": gas_price,
-        }
         signed = sign_transaction(w3, tx, key_from)
         raw_transactions.append(signed.rawTransaction)
 
