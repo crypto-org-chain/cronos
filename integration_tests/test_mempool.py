@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,6 @@ def test_mempool(cronos_mempool):
     assert filter.get_new_entries() == []
 
     key_from = KEYS["validator"]
-    address_from = ADDRS["validator"]
     address_to = ADDRS["community"]
     gas_price = w3.eth.gas_price
     cli = cronos_mempool.cosmos_cli(0)
@@ -46,8 +46,6 @@ def test_mempool(cronos_mempool):
     new_txs = filter.get_new_entries()
     assert txhash in new_txs
 
-    # wait block update
-    wait_for_new_blocks(cli, 1)
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
 
@@ -56,28 +54,34 @@ def test_mempool(cronos_mempool):
     print(f"all pending tx hash after block: {all_pending}")
     assert len(all_pending) == 0
 
-    # check transaction
-    block_num_0 = w3.eth.get_block_number()
-    print(f"block number start: {block_num_0}")
-    nonce_begin = w3.eth.get_transaction_count(address_from)
-
-    sended_hash_set = set()
-    for i in range(5):
-        nonce = nonce_begin + i
+    raw_transactions = []
+    for key_from in KEYS.values():
         tx = {
             "to": address_to,
             "value": 10000,
             "gasPrice": gas_price,
-            "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, key_from)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        sended_hash_set.add(txhash)
-    block_num_1 = w3.eth.get_block_number()
-    assert block_num_1 == block_num_0
-    print(f"all send tx hash: f{sended_hash_set}")
+        raw_transactions.append(signed.rawTransaction)
+
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
+
+    # send transactions
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
+
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
+
+    block_num_1 = w3.eth.get_block_number()
+    assert block_num_1 == block_num_0, "new block is generated, fail"
+    print(f"all send tx hash: f{sended_hash_set}")
+
     # check after max 10 blocks
     for i in range(10):
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
@@ -86,5 +90,5 @@ def test_mempool(cronos_mempool):
             sended_hash_set.discard(hash)
         if len(sended_hash_set) == 0:
             break
-        wait_for_new_blocks(cli, 1, 0.1)
+        wait_for_new_blocks(cli, 1, sleep=0.1)
     assert len(sended_hash_set) == 0
