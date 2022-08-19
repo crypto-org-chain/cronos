@@ -177,34 +177,8 @@ var (
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
 	// and genesis verification.
-	ModuleBasics = module.NewBasicManager(
-		auth.AppModuleBasic{},
-		genutil.AppModuleBasic{},
-		bank.AppModuleBasic{},
-		capability.AppModuleBasic{},
-		staking.AppModuleBasic{},
-		mint.AppModuleBasic{},
-		distr.AppModuleBasic{},
-		gov.NewAppModuleBasic(getGovProposalHandlers()),
-		params.AppModuleBasic{},
-		crisis.AppModuleBasic{},
-		slashing.AppModuleBasic{},
-		feegrantmodule.AppModuleBasic{},
-		upgrade.AppModuleBasic{},
-		evidence.AppModuleBasic{},
-		authzmodule.AppModuleBasic{},
-		ibc.AppModuleBasic{},
-		transfer.AppModuleBasic{},
-		vesting.AppModuleBasic{},
-		ica.AppModuleBasic{},
-		icactlmodule.AppModuleBasic{},
-		ibcfee.AppModuleBasic{},
-		evm.AppModuleBasic{},
-		feemarket.AppModuleBasic{},
-		gravity.AppModuleBasic{},
-		// this line is used by starport scaffolding # stargate/app/moduleBasic
-		cronos.AppModuleBasic{},
-	)
+	// Contains experimental modules by default.
+	ModuleBasics = GenModuleBasics(true)
 
 	// module account permissions
 	maccPerms = map[string][]string{
@@ -234,6 +208,41 @@ func init() {
 	}
 
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
+}
+
+// GenModuleBasics generate basic module manager according to experimental flag
+func GenModuleBasics(experimental bool) module.BasicManager {
+	basicModules := []module.AppModuleBasic{
+		auth.AppModuleBasic{},
+		genutil.AppModuleBasic{},
+		bank.AppModuleBasic{},
+		capability.AppModuleBasic{},
+		staking.AppModuleBasic{},
+		mint.AppModuleBasic{},
+		distr.AppModuleBasic{},
+		gov.NewAppModuleBasic(getGovProposalHandlers()),
+		params.AppModuleBasic{},
+		crisis.AppModuleBasic{},
+		slashing.AppModuleBasic{},
+		feegrantmodule.AppModuleBasic{},
+		upgrade.AppModuleBasic{},
+		evidence.AppModuleBasic{},
+		authzmodule.AppModuleBasic{},
+		ibc.AppModuleBasic{},
+		transfer.AppModuleBasic{},
+		vesting.AppModuleBasic{},
+		ica.AppModuleBasic{},
+		icactlmodule.AppModuleBasic{},
+		ibcfee.AppModuleBasic{},
+		evm.AppModuleBasic{},
+		feemarket.AppModuleBasic{},
+		// this line is used by starport scaffolding # stargate/app/moduleBasic
+		cronos.AppModuleBasic{},
+	}
+	if experimental {
+		basicModules = append(basicModules, gravity.AppModuleBasic{})
+	}
+	return module.NewBasicManager(basicModules...)
 }
 
 // App extends an ABCI application, but with most of its parameters exported.
@@ -299,6 +308,9 @@ type App struct {
 
 	// module configurator
 	configurator module.Configurator
+
+	// if enable experimental gravity-bridge feature module
+	experimental bool
 }
 
 // New returns a reference to an initialized chain.
@@ -353,6 +365,7 @@ func New(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
+		experimental:      experimental,
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey], experimental)
