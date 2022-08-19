@@ -1,6 +1,6 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
@@ -26,6 +26,7 @@ from .utils import (
     sign_transaction,
     supervisorctl,
     wait_for_block,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -668,32 +669,34 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     w3 = cronos.w3
+    cli = cronos.cosmos_cli()
     block_gas_limit = 81500000
     tx_gas_limit = 80000000
     max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
     print("max_tx_in_block", max_tx_in_block)
     amount = 1000
+    tx = {
+        "to": ADDRS["validator"],
+        "value": amount,
+        "gas": tx_gas_limit,
+    }
     # use different sender accounts to be able be send concurrently
-    signed_txs = []
-    for account in ["validator", "community", "signer1", "signer2"]:
-        signed_txs.append(
-            sign_transaction(
-                w3,
-                {
-                    "to": ADDRS["validator"],
-                    "value": amount,
-                    "gas": tx_gas_limit,
-                },
-                KEYS[account],
-            )
-        )
+    raw_transactions = []
+    for key_from in list(KEYS.values())[0:4]:
+        signed = sign_transaction(w3, tx, key_from)
+        raw_transactions.append(signed.rawTransaction)
 
-    for signed in signed_txs:
-        w3.eth.send_raw_transaction(signed.rawTransaction)
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
 
-    receipts = [
-        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
-    ]
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hashes = [future.result() for future in as_completed(tasks)]
+
+    receipts = [w3.eth.wait_for_transaction_receipt(hash) for hash in sended_hashes]
 
     # the transactions should be included according to max_gas_wanted
     if max_tx_in_block == 1:
