@@ -5,6 +5,9 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
+      coins: super.coins + ',100000000000ibcfee',
+    }],
     'app-config'+: {
       'index-events': super['index-events'] + ['message.action'],
     },

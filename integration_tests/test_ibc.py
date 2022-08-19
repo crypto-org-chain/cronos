@@ -3,12 +3,19 @@ import json
 
 import pytest
 
-from .ibc_utils import RATIO, assert_ready, get_balance, prepare, prepare_network
+from .ibc_utils import (
+    RATIO,
+    assert_ready,
+    get_balance,
+    hermes_transfer,
+    prepare_network,
+)
 from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
+    parse_events,
     parse_events_rpc,
     send_transaction,
     wait_for_fn,
@@ -16,12 +23,13 @@ from .utils import (
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=[True, False])
 def ibc(request, tmp_path_factory):
     "prepare-network"
+    incentivized = request.param
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name)
+    network = prepare_network(path, name, incentivized)
     yield from network
 
 
@@ -29,8 +37,11 @@ def get_balances(chain, addr):
     return chain.cosmos_cli().balances(addr)
 
 
-def test_ibc(ibc):
-    src_amount = prepare(ibc)
+def test_ibc_transfer_with_hermes(ibc):
+    """
+    test ibc transfer tokens with hermes cli
+    """
+    src_amount = hermes_transfer(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
     dst_addr = eth_to_bech32(ADDRS["signer2"])
@@ -56,6 +67,61 @@ def test_ibc(ibc):
     # the effective fee is decided by the max_priority_fee (base fee is zero)
     # rather than the normal gas price
     assert fee == gas * 1000000
+
+
+def test_ibc_incentivized_transfer(ibc):
+    if not ibc.incentivized:
+        # this test case only works for incentivized channel.
+        return
+    src_chain = ibc.cronos.cosmos_cli()
+    dst_chain = ibc.chainmain.cosmos_cli()
+    receiver = dst_chain.address("signer2")
+    sender = src_chain.address("signer2")
+    relayer = src_chain.address("signer1")
+    original_amount = src_chain.balance(relayer, denom="ibcfee")
+    original_amount_sender = src_chain.balance(sender, denom="ibcfee")
+
+    rsp = src_chain.ibc_transfer(
+        sender,
+        receiver,
+        "1000basetcro",
+        "channel-0",
+        1,
+        "100000000basecro",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    evt = parse_events(rsp["logs"])["send_packet"]
+    print("packet event", evt)
+    packet_seq = int(evt["packet_sequence"])
+
+    rsp = src_chain.pay_packet_fee(
+        "transfer",
+        "channel-0",
+        packet_seq,
+        recv_fee="10ibcfee",
+        ack_fee="10ibcfee",
+        timeout_fee="10ibcfee",
+        from_=sender,
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # fee is locked
+    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 30
+
+    # wait for relayer receive the fee
+    def check_fee():
+        amount = src_chain.balance(relayer, denom="ibcfee")
+        if amount > original_amount:
+            assert amount == original_amount + 20
+            return True
+        else:
+            return False
+
+    wait_for_fn("wait for relayer to receive the fee", check_fee)
+
+    # timeout fee is refunded
+    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 20
 
 
 def test_cronos_transfer_tokens(ibc):
