@@ -1,6 +1,6 @@
-import concurrent.futures
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
@@ -23,7 +23,7 @@ from .utils import (
     get_receipts_by_block,
     modify_command_in_supervisor_config,
     send_transaction,
-    sign_transaction,
+    send_txs,
     supervisorctl,
     wait_for_block,
     wait_for_port,
@@ -322,7 +322,7 @@ def test_transaction(cronos):
         ),
     }
 
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with ThreadPoolExecutor(4) as executor:
         future_to_contract = {
             executor.submit(contract.deploy, w3): name
             for name, contract in contracts.items()
@@ -331,7 +331,7 @@ def test_transaction(cronos):
         assert_receipt_transaction_and_block(w3, future_to_contract)
 
     # Do Multiple contract calls
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with ThreadPoolExecutor(4) as executor:
         futures = []
         futures.append(
             executor.submit(contracts["test_revert_1"].transfer, 5 * (10**18) - 1)
@@ -356,7 +356,7 @@ def test_transaction(cronos):
 
 def assert_receipt_transaction_and_block(w3, futures):
     receipts = []
-    for future in concurrent.futures.as_completed(futures):
+    for future in as_completed(futures):
         # name = future_to_contract[future]
         data = future.result()
         receipts.append(data)
@@ -668,58 +668,28 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     w3 = cronos.w3
+    cli = cronos.cosmos_cli()
     block_gas_limit = 81500000
     tx_gas_limit = 80000000
     max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
     print("max_tx_in_block", max_tx_in_block)
-    amount = 1000
-    # use different sender accounts to be able be send concurrently
-    signed_txs = []
-    for account in ["validator", "community", "signer1", "signer2"]:
-        signed_txs.append(
-            sign_transaction(
-                w3,
-                {
-                    "to": ADDRS["validator"],
-                    "value": amount,
-                    "gas": tx_gas_limit,
-                },
-                KEYS[account],
-            )
-        )
-
-    for signed in signed_txs:
-        w3.eth.send_raw_transaction(signed.rawTransaction)
-
-    receipts = [
-        w3.eth.wait_for_transaction_receipt(signed.hash) for signed in signed_txs
+    to = ADDRS["validator"]
+    params = {"gas": tx_gas_limit}
+    _, sended_hash_set = send_txs(w3, cli, to, list(KEYS.values())[0:4], params)
+    block_nums = [
+        w3.eth.wait_for_transaction_receipt(h).blockNumber for h in sended_hash_set
     ]
-
+    block_nums.sort()
+    print(f"all block numbers: {block_nums}")
     # the transactions should be included according to max_gas_wanted
     if max_tx_in_block == 1:
-        for receipt, next_receipt in zip(receipts, receipts[1:]):
-            assert next_receipt.blockNumber == receipt.blockNumber + 1
-    elif max_tx_in_block == 2:
-        assert receipts[0].blockNumber == receipts[1].blockNumber
-        assert (
-            receipts[2].blockNumber
-            == receipts[3].blockNumber
-            == receipts[0].blockNumber + 1
-        )
-    elif max_tx_in_block == 3:
-        assert (
-            receipts[0].blockNumber
-            == receipts[1].blockNumber
-            == receipts[2].blockNumber
-        )
-        assert receipts[3].blockNumber == receipts[0].blockNumber + 1
+        for block_num, next_block_num in zip(block_nums, block_nums[1:]):
+            assert next_block_num == block_num + 1
     else:
-        assert (
-            receipts[0].blockNumber
-            == receipts[1].blockNumber
-            == receipts[2].blockNumber
-            == receipts[3].blockNumber
-        )
+        for num in block_nums[1:max_tx_in_block]:
+            assert num == block_nums[0]
+        for num in block_nums[max_tx_in_block:]:
+            assert num == block_nums[0] + 1
 
 
 def test_replay_protection(cronos):
