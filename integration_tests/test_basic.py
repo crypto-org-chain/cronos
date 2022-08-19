@@ -66,7 +66,7 @@ def test_events(cluster, suspend_capture):
 
     # check block bloom
     bloom = BloomFilter(
-        big_endian_to_int(w3.eth.get_block(txreceipt.blockNumber).logsBloom)
+        big_endian_to_int(w3.eth.get_block(txreceipt).logsBloom)
     )
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
@@ -551,13 +551,13 @@ def test_batch_tx(cronos):
 
     # check get_transaction_by_block
     txs = [
-        w3.eth.get_transaction_by_block(receipts[0].blockNumber, i) for i in range(3)
+        w3.eth.get_transaction_by_block(receipts[0], i) for i in range(3)
     ]
     for tx, h in zip(txs, tx_hashes):
         assert tx.hash == h
 
     # check getBlock
-    txs = w3.eth.get_block(receipts[0].blockNumber, True).transactions
+    txs = w3.eth.get_block(receipts[0], True).transactions
     for i in range(3):
         assert txs[i].transactionIndex == i
 
@@ -599,7 +599,7 @@ def test_failed_transfer_tx(cronos):
     assert receipts[2].status == 0
 
     # test the cronos_getTransactionReceiptsByBlock api
-    rsp = get_receipts_by_block(w3, receipts[0].blockNumber)
+    rsp = get_receipts_by_block(w3, receipts[0])
     assert "error" not in rsp, rsp["error"]
     assert len(receipts) == len(rsp["result"])
     for a, b in zip(receipts, rsp["result"]):
@@ -694,34 +694,37 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         tasks = [
             exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
         ]
-        sended_hashes = [future.result() for future in as_completed(tasks)]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
 
-    receipts = [w3.eth.wait_for_transaction_receipt(hash) for hash in sended_hashes]
-
+    block_nums = [
+        w3.eth.wait_for_transaction_receipt(h).blockNumber for h in sended_hash_set
+    ]
+    block_nums.sort()
+    print(f"all block numbers: {block_nums}")
     # the transactions should be included according to max_gas_wanted
     if max_tx_in_block == 1:
-        for receipt, next_receipt in zip(receipts, receipts[1:]):
-            assert next_receipt.blockNumber == receipt.blockNumber + 1
+        for block_num, next_block_num in zip(block_nums, block_nums[1:]):
+            assert next_block_num == block_num + 1
     elif max_tx_in_block == 2:
-        assert receipts[0].blockNumber == receipts[1].blockNumber
+        assert block_nums[0] == block_nums[1]
         assert (
-            receipts[2].blockNumber
-            == receipts[3].blockNumber
-            == receipts[0].blockNumber + 1
+            block_nums[2]
+            == block_nums[3]
+            == block_nums[0] + 1
         )
     elif max_tx_in_block == 3:
         assert (
-            receipts[0].blockNumber
-            == receipts[1].blockNumber
-            == receipts[2].blockNumber
+            block_nums[0]
+            == block_nums[1]
+            == block_nums[2]
         )
-        assert receipts[3].blockNumber == receipts[0].blockNumber + 1
+        assert block_nums[3] == block_nums[0] + 1
     else:
         assert (
-            receipts[0].blockNumber
-            == receipts[1].blockNumber
-            == receipts[2].blockNumber
-            == receipts[3].blockNumber
+            block_nums[0]
+            == block_nums[1]
+            == block_nums[2]
+            == block_nums[3]
         )
 
 
