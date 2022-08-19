@@ -19,6 +19,6 @@ pkgs.mkShell {
     pkgs.rocksdb
     (import ../nix/testenv.nix { inherit pkgs; })
     (import ../nix/chainmain.nix { inherit pkgs; })
-    (import ../nix/hermes.nix { inherit pkgs; })
+    pkgs.hermes
   ];
 }

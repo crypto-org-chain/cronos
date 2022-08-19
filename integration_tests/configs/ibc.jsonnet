@@ -5,6 +5,9 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    'app-config'+: {
+      'index-events': super['index-events'] + ['message.action'],
+    },
     genesis+: {
       app_state+: {
         feemarket+: {
@@ -128,9 +131,13 @@ config {
           },
         },
         gas_price: {
-          price: 10000000000000,
+          price: 10000000000000000,
           denom: 'basetcro',
         },
+        extension_options: [{
+          type: 'ethermint_dynamic_fee',
+          value: '1000000',
+        }],
       },
       {
         id: 'chainmain-1',

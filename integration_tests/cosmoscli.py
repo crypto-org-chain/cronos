@@ -189,6 +189,12 @@ class CosmosCLI:
         )
         return json.loads(txs)
 
+    def tx_search(self, events: str):
+        "/tx_search"
+        return json.loads(
+            self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
+        )
+
     def distribution_commission(self, addr):
         coin = json.loads(
             self.raw(
