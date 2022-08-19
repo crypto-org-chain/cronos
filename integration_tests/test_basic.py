@@ -705,27 +705,11 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     if max_tx_in_block == 1:
         for block_num, next_block_num in zip(block_nums, block_nums[1:]):
             assert next_block_num == block_num + 1
-    elif max_tx_in_block == 2:
-        assert block_nums[0] == block_nums[1]
-        assert (
-            block_nums[2]
-            == block_nums[3]
-            == block_nums[0] + 1
-        )
-    elif max_tx_in_block == 3:
-        assert (
-            block_nums[0]
-            == block_nums[1]
-            == block_nums[2]
-        )
-        assert block_nums[3] == block_nums[0] + 1
     else:
-        assert (
-            block_nums[0]
-            == block_nums[1]
-            == block_nums[2]
-            == block_nums[3]
-        )
+        for num in block_nums[1:max_tx_in_block]:
+            assert num == block_nums[0]
+        for num in block_nums[max_tx_in_block:]:
+            assert num == block_nums[0] + 1
 
 
 def test_replay_protection(cronos):
