@@ -22,12 +22,13 @@ from .utils import (
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=[True, False])
 def ibc(request, tmp_path_factory):
     "prepare-network"
+    incentivized = request.param
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name)
+    network = prepare_network(path, name, incentivized)
     yield from network
 
 
@@ -57,6 +58,9 @@ def test_ibc_transfer_with_hermes(ibc):
 
 
 def test_ibc_incentivized_transfer(ibc):
+    if not ibc.incentivized:
+        # this test case only works for incentivized channel.
+        return
     src_chain = ibc.cronos.cosmos_cli()
     dst_chain = ibc.chainmain.cosmos_cli()
     receiver = dst_chain.address("signer2")

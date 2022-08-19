@@ -15,6 +15,7 @@ class IBCNetwork(NamedTuple):
     cronos: Cronos
     chainmain: Chainmain
     hermes: Hermes
+    incentivized: bool
 
 
 def prepare_network(tmp_path, file, incentivized=True):
@@ -74,7 +75,7 @@ def prepare_network(tmp_path, file, incentivized=True):
 
     supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
     wait_for_port(hermes.port)
-    yield IBCNetwork(cronos, chainmain, hermes)
+    yield IBCNetwork(cronos, chainmain, hermes, incentivized)
 
 
 def assert_ready(ibc):
