@@ -1,4 +1,4 @@
-import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import time
 from pathlib import Path
@@ -322,7 +322,7 @@ def test_transaction(cronos):
         ),
     }
 
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with ThreadPoolExecutor(4) as executor:
         future_to_contract = {
             executor.submit(contract.deploy, w3): name
             for name, contract in contracts.items()
@@ -331,7 +331,7 @@ def test_transaction(cronos):
         assert_receipt_transaction_and_block(w3, future_to_contract)
 
     # Do Multiple contract calls
-    with concurrent.futures.ThreadPoolExecutor(4) as executor:
+    with ThreadPoolExecutor(4) as executor:
         futures = []
         futures.append(
             executor.submit(contracts["test_revert_1"].transfer, 5 * (10**18) - 1)
@@ -356,7 +356,7 @@ def test_transaction(cronos):
 
 def assert_receipt_transaction_and_block(w3, futures):
     receipts = []
-    for future in concurrent.futures.as_completed(futures):
+    for future in as_completed(futures):
         # name = future_to_contract[future]
         data = future.result()
         receipts.append(data)
