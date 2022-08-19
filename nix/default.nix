@@ -48,6 +48,7 @@ import sources.nixpkgs {
           paths = with pkgs.openssl; [ out dev ];
         };
       };
+      hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: {

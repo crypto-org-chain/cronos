@@ -8,6 +8,9 @@ config {
     accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
       coins: super.coins + ',100000000000ibcfee',
     }],
+    'app-config'+: {
+      'index-events': super['index-events'] + ['message.action'],
+    },
     genesis+: {
       app_state+: {
         feemarket+: {
@@ -131,9 +134,13 @@ config {
           },
         },
         gas_price: {
-          price: 10000000000000,
+          price: 10000000000000000,
           denom: 'basetcro',
         },
+        extension_options: [{
+          type: 'ethermint_dynamic_fee',
+          value: '1000000',
+        }],
       },
       {
         id: 'chainmain-1',

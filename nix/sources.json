@@ -72,6 +72,18 @@
         "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/3d5bdc8af5227588d04064132335932ee88f57c3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "ibc-rs": {
+        "branch": "feemarket",
+        "description": "IBC Relayer (Hermes) and Modules in Rust",
+        "homepage": "",
+        "owner": "yihuang",
+        "repo": "ibc-rs",
+        "rev": "e33cceaa247d5eda7650c24bd3968dea6a05248a",
+        "sha256": "1kq73qvhdz35pxcx07rqqygvb3n8z8wsgw8knddj2b1x3yj66444",
+        "type": "tarball",
+        "url": "https://github.com/yihuang/ibc-rs/archive/e33cceaa247d5eda7650c24bd3968dea6a05248a.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",

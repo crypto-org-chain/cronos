@@ -18,6 +18,6 @@ pkgs.mkShell {
     pkgs.nixpkgs-fmt
     pkgs.rocksdb
     pkgs.chain-maind
-    (import ../nix/hermes.nix { inherit pkgs; })
+    pkgs.hermes
   ];
 }
