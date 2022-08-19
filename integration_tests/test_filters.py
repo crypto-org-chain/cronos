@@ -1,27 +1,29 @@
 from web3 import Web3
 
-from .utils import ADDRS, CONTRACTS, deploy_contract, send_transaction, sign_transaction
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    deploy_contract,
+    send_transaction,
+    wait_for_new_blocks,
+)
 
 
 def test_pending_transaction_filter(cluster):
     w3: Web3 = cluster.w3
     flt = w3.eth.filter("pending")
     assert flt.get_new_entries() == []
-
-    signed = sign_transaction(w3, {"to": ADDRS["community"], "value": 1000})
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    receipt = send_transaction(w3, {"to": ADDRS["community"], "value": 1000})
     assert receipt.status == 1
-    assert txhash in flt.get_new_entries()
+    assert receipt["transactionHash"] in flt.get_new_entries()
 
 
 def test_block_filter(cronos):
     w3: Web3 = cronos.w3
     flt = w3.eth.filter("latest")
     # new blocks
-    signed = sign_transaction(w3, {"to": ADDRS["community"], "value": 1000})
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    wait_for_new_blocks(cronos.cosmos_cli(), 1, sleep=0.1)
+    receipt = send_transaction(w3, {"to": ADDRS["community"], "value": 1000})
     assert receipt.status == 1
     blocks = flt.get_new_entries()
     assert len(blocks) >= 1
