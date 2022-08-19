@@ -64,7 +64,9 @@ def test_events(cluster, suspend_capture):
     assert expect_log.items() <= txreceipt.logs[0].items()
 
     # check block bloom
-    bloom = BloomFilter(big_endian_to_int(w3.eth.get_block(txreceipt).logsBloom))
+    bloom = BloomFilter(
+        big_endian_to_int(w3.eth.get_block(txreceipt.blockNumber).logsBloom)
+    )
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
         assert topic in bloom
@@ -547,12 +549,14 @@ def test_batch_tx(cronos):
         assert receipt.gasUsed == rsp["gas"]
 
     # check get_transaction_by_block
-    txs = [w3.eth.get_transaction_by_block(receipts[0], i) for i in range(3)]
+    txs = [
+        w3.eth.get_transaction_by_block(receipts[0].blockNumber, i) for i in range(3)
+    ]
     for tx, h in zip(txs, tx_hashes):
         assert tx.hash == h
 
     # check getBlock
-    txs = w3.eth.get_block(receipts[0], True).transactions
+    txs = w3.eth.get_block(receipts[0].blockNumber, True).transactions
     for i in range(3):
         assert txs[i].transactionIndex == i
 
@@ -594,7 +598,7 @@ def test_failed_transfer_tx(cronos):
     assert receipts[2].status == 0
 
     # test the cronos_getTransactionReceiptsByBlock api
-    rsp = get_receipts_by_block(w3, receipts[0])
+    rsp = get_receipts_by_block(w3, receipts[0].blockNumber)
     assert "error" not in rsp, rsp["error"]
     assert len(receipts) == len(rsp["result"])
     for a, b in zip(receipts, rsp["result"]):
