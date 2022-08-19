@@ -23,10 +23,9 @@ from .utils import (
     get_receipts_by_block,
     modify_command_in_supervisor_config,
     send_transaction,
-    sign_transaction,
+    send_txs,
     supervisorctl,
     wait_for_block,
-    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -65,9 +64,7 @@ def test_events(cluster, suspend_capture):
     assert expect_log.items() <= txreceipt.logs[0].items()
 
     # check block bloom
-    bloom = BloomFilter(
-        big_endian_to_int(w3.eth.get_block(txreceipt).logsBloom)
-    )
+    bloom = BloomFilter(big_endian_to_int(w3.eth.get_block(txreceipt).logsBloom))
     assert HexBytes(erc20.address) in bloom
     for topic in expect_log["topics"]:
         assert topic in bloom
@@ -550,9 +547,7 @@ def test_batch_tx(cronos):
         assert receipt.gasUsed == rsp["gas"]
 
     # check get_transaction_by_block
-    txs = [
-        w3.eth.get_transaction_by_block(receipts[0], i) for i in range(3)
-    ]
+    txs = [w3.eth.get_transaction_by_block(receipts[0], i) for i in range(3)]
     for tx, h in zip(txs, tx_hashes):
         assert tx.hash == h
 
@@ -674,28 +669,9 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     tx_gas_limit = 80000000
     max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
     print("max_tx_in_block", max_tx_in_block)
-    amount = 1000
-    tx = {
-        "to": ADDRS["validator"],
-        "value": amount,
-        "gas": tx_gas_limit,
-    }
-    # use different sender accounts to be able be send concurrently
-    raw_transactions = []
-    for key_from in list(KEYS.values())[0:4]:
-        signed = sign_transaction(w3, tx, key_from)
-        raw_transactions.append(signed.rawTransaction)
-
-    # wait block update
-    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
-    print(f"block number start: {block_num_0}")
-
-    with ThreadPoolExecutor(len(raw_transactions)) as exec:
-        tasks = [
-            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
-        ]
-        sended_hash_set = {future.result() for future in as_completed(tasks)}
-
+    to = ADDRS["validator"]
+    params = {"gas": tx_gas_limit}
+    _, sended_hash_set = send_txs(w3, cli, to, list(KEYS.values())[0:4], params)
     block_nums = [
         w3.eth.wait_for_transaction_receipt(h).blockNumber for h in sended_hash_set
     ]

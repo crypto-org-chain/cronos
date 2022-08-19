@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,7 @@ from .utils import (
     CONTRACTS,
     KEYS,
     deploy_contract,
+    send_txs,
     sign_transaction,
     wait_for_new_blocks,
 )
@@ -50,26 +50,9 @@ def test_mempool(cronos_mempool):
     print(f"all pending tx hash after block: {all_pending}")
     assert len(all_pending) == 0
 
-    raw_transactions = []
-    tx = {
-        "to": ADDRS["community"],
-        "value": 10000,
-        "gasPrice": w3.eth.gas_price,
-    }
-    for key_from in KEYS.values():
-        signed = sign_transaction(w3, tx, key_from)
-        raw_transactions.append(signed.rawTransaction)
-
-    # wait block update
-    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
-    print(f"block number start: {block_num_0}")
-
-    # send transactions
-    with ThreadPoolExecutor(len(raw_transactions)) as exec:
-        tasks = [
-            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
-        ]
-        sended_hash_set = {future.result() for future in as_completed(tasks)}
+    to = ADDRS["community"]
+    params = {"gasPrice": w3.eth.gas_price}
+    block_num_0, sended_hash_set = send_txs(w3, cli, to, KEYS.values(), params)
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0

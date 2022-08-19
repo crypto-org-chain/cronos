@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import bech32
@@ -466,3 +467,25 @@ def get_receipts_by_block(w3, blk):
             AttributeDict(receipt_formatter(item)) for item in rsp["result"]
         ]
     return rsp
+
+
+def send_txs(w3, cli, to, keys, params):
+    tx = {"to": to, "value": 10000} | params
+    # use different sender accounts to be able be send concurrently
+    raw_transactions = []
+    for key_from in keys:
+        signed = sign_transaction(w3, tx, key_from)
+        raw_transactions.append(signed.rawTransaction)
+
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
+
+    # send transactions
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
+
+    return block_num_0, sended_hash_set
