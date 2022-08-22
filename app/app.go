@@ -762,7 +762,7 @@ func New(
 			// 100% is not necessary here because it will be tuned by relayers later on
 			// it is set to georli height at 23th August 2022 3pm JST
 			app.GravityKeeper.MigrateGravityContract(
-				ctx, "0x0000000000000000000000000000000000000000", 7468666)
+				ctx, "0x0000000000000000000000000000000000000000", 7460000)
 			return updatedVM, nil
 		})
 	}
