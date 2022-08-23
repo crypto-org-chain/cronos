@@ -1,9 +1,7 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
 from web3 import Web3
-from web3.exceptions import TransactionNotFound
 
 from .network import setup_custom_cronos
 from .utils import (
@@ -69,21 +67,6 @@ def test_mempool(cronos_mempool):
         print(f"all pending tx hash at block {i+block_num_1}: {all_pending}")
         for h in all_pending:
             sended_hash_set.discard(h)
-        if len(sended_hash_set) == 0:
-            break
-
-        # FIXME remove after new design with subscription
-        with ThreadPoolExecutor(len(sended_hash_set)) as exec:
-            tasks = [exec.submit(w3.eth.get_transaction, h) for h in sended_hash_set]
-            try:
-                for future in as_completed(tasks):
-                    res = future.result()
-                    if res.blockNumber is not None:
-                        print(f"{res.hash.hex()} confirmed at {res.blockNumber}")
-                        sended_hash_set.discard(res.hash)
-            except TransactionNotFound as e:
-                print("get txs fail", e)
-
         if len(sended_hash_set) == 0:
             break
         wait_for_new_blocks(cli, 1, sleep=0.1)
