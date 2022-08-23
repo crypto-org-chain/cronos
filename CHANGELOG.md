@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#]() Update iavl to 0.19.1 to improve node startup performance.
+
 *Aug 5, 2022*
 
 ## v0.8.0
