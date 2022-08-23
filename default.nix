@@ -1,7 +1,6 @@
 { lib
 , buildGoApplication
 , nix-gitignore
-, go_1_17
 , rocksdb ? null
 , db_backend ? "rocksdb"
 , network ? "mainnet"  # mainnet|testnet
@@ -37,7 +36,6 @@ buildGoApplication rec {
     "!go.sum"
     "!gomod2nix.toml"
   ] ./.);
-  go = go_1_17;
   modules = ./gomod2nix.toml;
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];

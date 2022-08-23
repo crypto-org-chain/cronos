@@ -14,7 +14,7 @@ import sources.nixpkgs {
     (_: pkgs: dapptools) # use released version to hit the binary cache
     (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
-      go = pkgs.go_1_17;
+      go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
