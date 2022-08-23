@@ -30,7 +30,7 @@ def test_mempool(cronos_mempool):
 
     cli = cronos_mempool.cosmos_cli(0)
     # test contract
-    wait_for_new_blocks(cli, 1)
+    wait_for_new_blocks(cli, 1, sleep=0.1)
     block_num_2 = w3.eth.get_block_number()
     print(f"block number contract begin at height: {block_num_2}")
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
@@ -53,20 +53,20 @@ def test_mempool(cronos_mempool):
     to = ADDRS["community"]
     params = {"gasPrice": w3.eth.gas_price}
     block_num_0, sended_hash_set = send_txs(w3, cli, to, KEYS.values(), params)
+    print(f"all send tx hash: {sended_hash_set} at {block_num_0}")
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
 
     block_num_1 = w3.eth.get_block_number()
-    assert block_num_1 == block_num_0, "new block is generated, fail"
-    print(f"all send tx hash: f{sended_hash_set}")
+    print(f"block_num_1 {block_num_1}")
 
     # check after max 10 blocks
     for i in range(10):
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
-        print(f"all pending tx hash after {i+1} block: {all_pending}")
-        for hash in all_pending:
-            sended_hash_set.discard(hash)
+        print(f"all pending tx hash at block {i+block_num_1}: {all_pending}")
+        for h in all_pending:
+            sended_hash_set.discard(h)
         if len(sended_hash_set) == 0:
             break
         wait_for_new_blocks(cli, 1, sleep=0.1)
