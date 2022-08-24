@@ -9,7 +9,6 @@ pkgs.mkShell {
     }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
-    pkgs.pystarport
     pkgs.gorc
     pkgs.cosmovisor
     pkgs.poetry
@@ -20,7 +19,6 @@ pkgs.mkShell {
     pkgs.test-env
     pkgs.nixpkgs-fmt
     pkgs.rocksdb
-    (import ../nix/testenv.nix { inherit pkgs; })
     (import ../nix/chainmain.nix { inherit pkgs; })
     (import ../nix/hermes.nix { inherit pkgs; })
   ];
