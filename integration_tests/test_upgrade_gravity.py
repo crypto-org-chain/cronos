@@ -120,23 +120,44 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_icacontroller_params() == {"controller_enabled": True}
     assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
+    print(cli.query_gravity_params())
+    assert cli.query_gravity_params() == {
+        "params": {
+            "gravity_id": "defaultgravityid",
+            "contract_source_hash": "",
+            "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
+            "bridge_chain_id": "0",
+            "signed_signer_set_txs_window": "10000",
+            "signed_batches_window": "10000",
+            "ethereum_signatures_window": "10000",
+            "target_eth_tx_timeout": "43200000",
+            "average_block_time": "5000",
+            "average_ethereum_block_time": "15000",
+            "slash_fraction_signer_set_tx": "0.001000000000000000",
+            "slash_fraction_batch": "0.001000000000000000",
+            "slash_fraction_ethereum_signature": "0.001000000000000000",
+            "slash_fraction_conflicting_ethereum_signature": "0.001000000000000000",
+            "unbond_slashing_signer_set_txs_window": "10000",
+            "bridge_active": True,
+            "batch_creation_period": "10",
+            "batch_max_element": "100",
+            "observe_ethereum_height_period": "50",
+        }
+    }
+    print(cli.query_evm_params())
     assert cli.query_evm_params() == {
         "params": {
             "evm_denom": "basetcro",
-            "enable_create": "true",
-            "enable_call": "true",
-            "extra_eips": [
-                "2929",
-                "2200",
-                "1884",
-                "1344"
-            ],
+            "enable_create": True,
+            "enable_call": True,
+            "extra_eips": [],
             "chain_config": {
                 "homestead_block": "0",
                 "dao_fork_block": "0",
-                "dao_fork_support": "true",
+                "dao_fork_support": True,
                 "eip150_block": "0",
-                "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "eip150_hash":
+                    "0x0000000000000000000000000000000000000000000000000000000000000000",
                 "eip155_block": "0",
                 "eip158_block": "0",
                 "byzantium_block": "0",
@@ -147,8 +168,8 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
                 "berlin_block": "0",
                 "london_block": "0",
                 "arrow_glacier_block": "0",
-                "merge_fork_block": "0"
+                "merge_fork_block": "0",
             },
-            "allow_unprotected_txs": "false"
+            "allow_unprotected_txs": False,
         }
     }
