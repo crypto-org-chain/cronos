@@ -84,7 +84,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-    plan_name = "v0.8.0-gravity-alpha1"
+    plan_name = "v0.8.0-gravity-alpha2"
     rsp = cli.gov_propose(
         "community",
         "software-upgrade",
@@ -120,26 +120,35 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_icacontroller_params() == {"controller_enabled": True}
     assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
-    assert cli.query_gravity_params() == {
+    assert cli.query_evm_params() == {
         "params": {
-            "gravity_id": "cronos_gravity_pioneer_v2",
-            "contract_source_hash": "",
-            "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
-            "bridge_chain_id": "0",
-            "signed_signer_set_txs_window": "10000",
-            "signed_batches_window": "10000",
-            "ethereum_signatures_window": "10000",
-            "target_eth_tx_timeout": "43200000",
-            "average_block_time": "5000",
-            "average_ethereum_block_time": "15000",
-            "slash_fraction_signer_set_tx": "0.001000000000000000",
-            "slash_fraction_batch": "0.001000000000000000",
-            "slash_fraction_ethereum_signature": "0.001000000000000000",
-            "slash_fraction_conflicting_ethereum_signature": "0.001000000000000000",
-            "unbond_slashing_signer_set_txs_window": "10000",
-            "bridge_active": True,
-            "batch_creation_period": "10",
-            "batch_max_element": "100",
-            "observe_ethereum_height_period": "50",
+            "evm_denom": "basetcro",
+            "enable_create": "true",
+            "enable_call": "true",
+            "extra_eips": [
+                "2929",
+                "2200",
+                "1884",
+                "1344"
+            ],
+            "chain_config": {
+                "homestead_block": "0",
+                "dao_fork_block": "0",
+                "dao_fork_support": "true",
+                "eip150_block": "0",
+                "eip150_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "eip155_block": "0",
+                "eip158_block": "0",
+                "byzantium_block": "0",
+                "constantinople_block": "0",
+                "petersburg_block": "0",
+                "istanbul_block": "0",
+                "muir_glacier_block": "0",
+                "berlin_block": "0",
+                "london_block": "0",
+                "arrow_glacier_block": "0",
+                "merge_fork_block": "0"
+            },
+            "allow_unprotected_txs": "false"
         }
     }
