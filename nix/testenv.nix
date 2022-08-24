@@ -22,7 +22,7 @@ pkgs.poetry2nix.mkPoetryEnv {
       }
     );
 
-    platformdirs = pkgs.python3Packages.platformdirs;
+    platformdirs = pkgs.python39Packages.platformdirs;
 
     black = super.black.overridePythonAttrs (
       old: {
