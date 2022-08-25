@@ -8,7 +8,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.1
 	github.com/cosmos/ibc-go/v5 v5.0.0-rc0
 	github.com/ethereum/go-ethereum v1.10.19
-	github.com/evmos/ethermint v0.6.1-0.20220814092117-f11bc3559467
+	github.com/evmos/ethermint v0.6.1-0.20220825060645-f9c74e239c76
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
@@ -187,7 +187,6 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.1
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 
-	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220825022408-ff24c385d0c8
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
