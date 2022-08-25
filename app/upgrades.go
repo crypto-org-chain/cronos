@@ -62,7 +62,8 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		}
 		if experimental && upgradeInfo.Name == gravityPlanName {
 			storeUpgrades := storetypes.StoreUpgrades{
-				Added: []string{icacontrollertypes.StoreKey},
+				Added:   []string{ibcfeetypes.StoreKey},
+				Deleted: []string{icacontrollertypes.StoreKey},
 			}
 
 			// configure store loader that checks if version == upgradeHeight and applies store upgrades
