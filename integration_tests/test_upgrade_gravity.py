@@ -125,8 +125,6 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
 
     # check ica controller is enabled
-    assert cli.query_icacontroller_params() == {"controller_enabled": True}
-    assert cli.query_icactl_params() == {"params": {"minTimeoutDuration": "3600s"}}
     assert cli.query_gravity_params() == {
         "params": {
             "gravity_id": "cronos_gravity_pioneer_v2",
