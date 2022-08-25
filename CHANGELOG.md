@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#667](https://github.com/crypto-org-chain/cronos/pull/667) Update iavl to 0.19.1 to improve node startup performance.
+
 *Aug 5, 2022*
 
 ## v0.8.0

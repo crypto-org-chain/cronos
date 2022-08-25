@@ -12,9 +12,8 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
-      go = pkgs.go_1_17;
+      go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
@@ -23,13 +22,7 @@ import sources.nixpkgs {
       flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
-    (_: pkgs: {
-      pystarport = pkgs.poetry2nix.mkPoetryApplication rec {
-        projectDir = sources.pystarport;
-        src = projectDir;
-      };
-    })
-    (_: pkgs:
+    (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;
         config = {
@@ -61,7 +54,7 @@ import sources.nixpkgs {
     (_: pkgs: {
       rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.27.3";
+        version = "6.29.5";
         src = sources.rocksdb;
       });
     })
