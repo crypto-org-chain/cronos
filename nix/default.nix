@@ -22,7 +22,7 @@ import sources.nixpkgs {
       flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
-    (_: pkgs:
+    (pkgs: _:
       import ./scripts.nix {
         inherit pkgs;
         config = {
@@ -54,7 +54,7 @@ import sources.nixpkgs {
     (_: pkgs: {
       rocksdb = pkgs.rocksdb.overrideAttrs (old: rec {
         pname = "rocksdb";
-        version = "6.27.3";
+        version = "6.29.5";
         src = sources.rocksdb;
       });
     })
