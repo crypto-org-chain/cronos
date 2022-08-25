@@ -84,7 +84,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
-    plan_name = "v0.8.0-gravity-alpha1"
+    plan_name = "v0.8.0-gravity-alpha3"
     rsp = cli.gov_propose_v0_7(
         "community",
         "software-upgrade",
@@ -127,7 +127,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_gravity_params() == {
         "params": {
-            "gravity_id": "cronos_gravity_pioneer_v2",
+            "gravity_id": "defaultgravityid",
             "contract_source_hash": "",
             "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
             "bridge_chain_id": "0",
