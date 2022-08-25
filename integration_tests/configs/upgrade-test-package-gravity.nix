@@ -7,10 +7,11 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  released = (fetchFlake "crypto-org-chain/cronos" "e935ae247d910e7e11c1d5858766ba49f75298e8").default;
+  # tag: v0.8.0-gravity-alpha2
+  released = (fetchFlake "crypto-org-chain/cronos" "57260c7c21cdedffd75480e8cb4e8838ea6a16b5").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v0.8.0-gravity-alpha1"; path = current; }
+  { name = "v0.8.0-gravity-alpha3"; path = current; }
 ]
