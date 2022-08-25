@@ -223,8 +223,6 @@ func GenModuleBasics(experimental bool) module.BasicManager {
 		ibc.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		ica.AppModuleBasic{},
-		icactlmodule.AppModuleBasic{},
 		ibcfee.AppModuleBasic{},
 		evm.AppModuleBasic{},
 		feemarket.AppModuleBasic{},

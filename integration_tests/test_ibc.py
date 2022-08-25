@@ -1,6 +1,3 @@
-import base64
-import json
-
 import pytest
 
 from .ibc_utils import (
