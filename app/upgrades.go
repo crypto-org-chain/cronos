@@ -54,7 +54,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		if upgradeInfo.Name == planName {
 			storeUpgrades := storetypes.StoreUpgrades{
-				Added: []string{icacontrollertypes.StoreKey, ibcfeetypes.StoreKey},
+				Added: []string{ibcfeetypes.StoreKey},
 			}
 
 			// configure store loader that checks if version == upgradeHeight and applies store upgrades
