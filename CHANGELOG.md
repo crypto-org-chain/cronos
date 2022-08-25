@@ -22,6 +22,7 @@
 - [cronos#511](https://github.com/crypto-org-chain/cronos/pull/511) Replace ibc-hook with ibc middleware, use ibc-go upstream version.
 - [cronos#550](https://github.com/crypto-org-chain/cronos/pull/550) Support basic json-rpc apis on pruned nodes.
 - [cronos#549](https://github.com/crypto-org-chain/cronos/pull/549) Use custom tx indexer feature of ethermint.
+- [cronos#]() Upgrade cosmos-sdk to 0.46.1 and ibc-go to v5.0.0-rc0.
 
 *Aug 5, 2022*
 
