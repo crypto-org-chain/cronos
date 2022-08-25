@@ -18,22 +18,6 @@ builds:
       - -tags=ledger,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-windows"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=x86_64-w64-mingw32-gcc
-      - CXX=x86_64-w64-mingw32-g++
-    goos:
-      - windows
-    goarch:
-      - amd64
-    flags:
-      - -tags=ledger,cgo
-      - -buildmode=exe
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}} -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
   - id: "cronosd-darwin-arm64-testnet"
     main: ./cmd/cronosd
     binary: bin/cronosd
@@ -49,22 +33,6 @@ builds:
       - -tags=testnet,ledger,cgo
     ldflags:
       - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
-  - id: "cronosd-windows-testnet"
-    main: ./cmd/cronosd
-    binary: bin/cronosd
-    env:
-      - CGO_ENABLED=1
-      - CC=x86_64-w64-mingw32-gcc
-      - CXX=x86_64-w64-mingw32-g++
-    goos:
-      - windows
-    goarch:
-      - amd64
-    flags:
-      - -tags=testnet,ledger,cgo
-      - -buildmode=exe
-    ldflags:
-      - -s -w -X github.com/cosmos/cosmos-sdk/version.Name=cronos -X github.com/cosmos/cosmos-sdk/version.AppName=cronosd -X github.com/cosmos/cosmos-sdk/version.Version={{.Version}}-testnet -X github.com/cosmos/cosmos-sdk/version.Commit={{.Commit}}
 
 archives:
 - id: mainnet
@@ -77,8 +45,7 @@ archives:
     - goos: windows
       format: zip
   builds:
-  - cronosd-darwin-arm64
-  - cronosd-windows
+    - cronosd-darwin-arm64
 - id: testnet
   name_template: '{{ .ProjectName }}_{{ .Version }}-testnet_{{ .Os }}_{{ .Arch }}'
   replacements:
@@ -90,7 +57,6 @@ archives:
       format: zip
   builds:
     - cronosd-darwin-arm64-testnet
-    - cronosd-windows-testnet
  
 checksum:
   name_template: 'checksums-others.txt'

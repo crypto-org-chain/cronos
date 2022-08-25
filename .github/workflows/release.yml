@@ -106,7 +106,7 @@ jobs:
           draft: true
           files: "${{ env.FILES }}"
 
-  x86_64-windows:    
+  x86_64-windows:
     needs: ["goreleaser"]
     runs-on: windows-latest
     environment: release    
@@ -151,12 +151,19 @@ jobs:
           cd ./build
           tar cvfz ../cronos.tar.gz *
           cd ..
-          ls -la ./cronos.tar.gz
-          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-          ls -la cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
+          NETWORK=testnet ENABLE_ROCKSDB=true COSMOS_BUILD_OPTIONS=rocksdb make build
+          mv ./build/cronosd ./build/cronosd.exe
+          cd ./build
+          tar cvfz ../cronos.tar.gz *
+          cd ..
+          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
+          ls -la cronos_*.tar.gz
+          sha256sum cronos_*.tar.gz > "checksums-$PLATFORM.txt"
           echo "OK"
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload 
