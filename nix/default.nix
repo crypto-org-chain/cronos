@@ -12,7 +12,6 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (import "${sources.poetry2nix}/overlay.nix")
     (_: pkgs: {
       go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
@@ -23,12 +22,6 @@ import sources.nixpkgs {
       flake-compat = import sources.flake-compat;
     }) # update to a version that supports eip-1559
     (import (sources.gomod2nix + "/overlay.nix"))
-    (_: pkgs: {
-      pystarport = pkgs.poetry2nix.mkPoetryApplication rec {
-        projectDir = sources.pystarport;
-        src = projectDir;
-      };
-    })
     (_: pkgs:
       import ./scripts.nix {
         inherit pkgs;
