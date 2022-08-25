@@ -39,27 +39,17 @@ archives:
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
   replacements:
     darwin: Darwin
-    windows: Windows
-    amd64: x86_64
-  format_overrides:
-    - goos: windows
-      format: zip
   builds:
     - cronosd-darwin-arm64
 - id: testnet
   name_template: '{{ .ProjectName }}_{{ .Version }}-testnet_{{ .Os }}_{{ .Arch }}'
   replacements:
     darwin: Darwin
-    windows: Windows
-    amd64: x86_64
-  format_overrides:
-    - goos: windows
-      format: zip
   builds:
     - cronosd-darwin-arm64-testnet
  
 checksum:
-  name_template: 'checksums-others.txt'
+  name_template: 'checksums-Darwin-arm64.txt'
 changelog:
   sort: asc
   filters:
