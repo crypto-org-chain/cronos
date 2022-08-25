@@ -15,7 +15,7 @@
     ${../scripts/start-cronos} ${config.cronos-config} ${config.dotenv} $@
   '';
   start-geth = pkgs.writeShellScriptBin "start-geth" ''
-    export PATH=${pkgs.go-ethereum}/bin:$PATH
+    export PATH=${pkgs.test-env}/bin:${pkgs.go-ethereum}/bin:$PATH
     source ${config.dotenv}
     ${../scripts/start-geth} ${config.geth-genesis} $@
   '';
