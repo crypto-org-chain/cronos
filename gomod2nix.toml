@@ -63,8 +63,8 @@ schema = 3
     version = "v1.0.4"
     hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.45.8-0.20220819164045-03b8d0bf236d"
-    hash = "sha256-DVjGqtTZrH6eAW9RznMBEUwCV26n2MpIZrW+89j+5I8="
+    version = "v0.45.8"
+    hash = "sha256-JpfLiDeML37pQwdce48xphb5cnC7iVP+IRhWtURKf/s="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -86,8 +86,8 @@ schema = 3
     version = "v0.9.2"
     hash = "sha256-0YI+0A6wFBjiebBwzWOQjkgXkTakCrf7Gjg2xEaQdoM="
   [mod."github.com/danieljoos/wincred"]
-    version = "v1.0.2"
-    hash = "sha256-jBLslm3UA6IDKlzgW6jIOnqxzOE5JjVx4Hm4LJ+vqPo="
+    version = "v1.1.0"
+    hash = "sha256-sW90eNnxmYBGY+uQe9tH97CCHdRvNuseWhicySnKlDo="
   [mod."github.com/davecgh/go-spew"]
     version = "v1.1.1"
     hash = "sha256-nhzSUrE1fCkN0+RL04N4h8jWmRFPPPWbCuDc7Ss0akI="
@@ -119,8 +119,8 @@ schema = 3
     version = "v1.10.15"
     hash = "sha256-pqPN8RDe+x1h/6YyjUMwvuVqYWH8iZTbadCDr98KxGs="
   [mod."github.com/felixge/httpsnoop"]
-    version = "v1.0.1"
-    hash = "sha256-TNXnnC/ZGNY9lInAcES1cBGqIdEljKuh5LH/khVFjVk="
+    version = "v1.0.2"
+    hash = "sha256-hj6FZQ1fDAV+1wGIViAt8XaAkWZ1I5vJzgjIJa7XRBA="
   [mod."github.com/fsnotify/fsnotify"]
     version = "v1.5.4"
     hash = "sha256-iPuInpDAJvDeSTr6to713J/fTOWdQIWlLXWAuWIs2Bw="
@@ -371,12 +371,13 @@ schema = 3
   [mod."github.com/tendermint/tendermint"]
     version = "v0.34.20"
     hash = "sha256-j1PyOLf8xG9BLtnmDWEagqWvOOi7248bvx4VmB5bu/c="
+    replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.11.0-cronos"
-    hash = "sha256-vSseS5bYyHAPPqwMujTLM/h/ckh3OWXZJR572Wh3KYU="
+    version = "v0.11.1-cronos"
+    hash = "sha256-YQUAt3DNu4APK6i1o9WnnIZdi/ciGxGyBB0VvTZ8/iI="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
@@ -403,8 +404,8 @@ schema = 3
     version = "v0.0.0-20220726230323-06994584191e"
     hash = "sha256-VFJB2BjvFZnp0zoJLX4iinV/P6Cn7XUlsKwBGCdVjlU="
   [mod."golang.org/x/sync"]
-    version = "v0.0.0-20220513210516-0976fa681c29"
-    hash = "sha256-26T9yWx1pkXjXzBn0yj+trVpXPX6rTtly9pPzwVgAyg="
+    version = "v0.0.0-20220722155255-886fb9371eb4"
+    hash = "sha256-ZZyIlxh+nqsOiWHstW7eHXN7RhHnbSL2eDIzcve07Q0="
   [mod."golang.org/x/sys"]
     version = "v0.0.0-20220727055044-e65921a090b8"
     hash = "sha256-WIJmjjYnZ3XY7BhbskCdNHCVGK7lxUeYpEegmYWSHe8="
