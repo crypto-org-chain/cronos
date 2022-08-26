@@ -157,6 +157,7 @@ replace (
 	github.com/99designs/keyring => github.com/crypto-org-chain/keyring v1.1.6-fixes
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.45.7-0.20220704191917-10961d04497f
 
+	github.com/evmos/ethermint => github.com/thomas-nguy/ethermint v0.4.2-0.20220826012820-236c0cb01de0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// TODO: remove when gravity update dependencies
