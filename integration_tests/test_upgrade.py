@@ -10,7 +10,14 @@ from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
 from .network import Cronos, setup_custom_cronos
-from .utils import parse_events, wait_for_block, wait_for_block_time, wait_for_port
+from .utils import (
+    ADDRS,
+    parse_events,
+    send_transaction,
+    wait_for_block,
+    wait_for_block_time,
+    wait_for_port,
+)
 
 
 def init_cosmovisor(home):
@@ -126,3 +133,16 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
 
     # test migrate keystore
     cli.migrate_keystore()
+
+    # check basic tx works
+    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    receipt = send_transaction(
+        custom_cronos.w3,
+        {
+            "to": ADDRS["community"],
+            "value": 1000,
+            "maxFeePerGas": 1000000000000,
+            "maxPriorityFeePerGas": 10000,
+        },
+    )
+    assert receipt.status == 1
