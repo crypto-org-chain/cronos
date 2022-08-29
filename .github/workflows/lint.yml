@@ -64,7 +64,7 @@ jobs:
         uses: tj-actions/changed-files@v29.0.2
         with:
           files: |
-            **/*.nix
+            **.nix
       - uses: cachix/install-nix-action@v15
         if: steps.changed-files.outputs.any_changed == 'true'
       - run: nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
