@@ -1,3 +1,4 @@
+import base64
 import configparser
 import json
 import os
@@ -6,6 +7,8 @@ import socket
 import subprocess
 import sys
 import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import bech32
@@ -25,6 +28,7 @@ load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
 ACCOUNTS = {
     "validator": Account.from_mnemonic(os.getenv("VALIDATOR1_MNEMONIC")),
+    "validator2": Account.from_mnemonic(os.getenv("VALIDATOR2_MNEMONIC")),
     "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
     "signer1": Account.from_mnemonic(os.getenv("SIGNER1_MNEMONIC")),
     "signer2": Account.from_mnemonic(os.getenv("SIGNER2_MNEMONIC")),
@@ -33,12 +37,14 @@ KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}
 CRONOS_ADDRESS_PREFIX = "crc"
 TEST_CONTRACTS = {
-    "CronosGravity": "CronosGravity.sol",
+    "Gravity": "Gravity.sol",
     "Greeter": "Greeter.sol",
     "TestERC20A": "TestERC20A.sol",
+    "TestERC21Source": "TestERC21Source.sol",
     "TestRevert": "TestRevert.sol",
     "TestERC20Utility": "TestERC20Utility.sol",
     "TestMessageCall": "TestMessageCall.sol",
+    "TestBlackListERC20": "TestBlackListERC20.sol",
     "CroBridge": "CroBridge.sol",
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
 }
@@ -92,12 +98,11 @@ def wait_for_block(cli, height, timeout=240):
 
 
 def wait_for_new_blocks(cli, n, sleep=0.5):
-    begin_height = int((cli.status())["SyncInfo"]["latest_block_height"])
-    while True:
+    cur_height = begin_height = int((cli.status())["SyncInfo"]["latest_block_height"])
+    while cur_height - begin_height < n:
         time.sleep(sleep)
         cur_height = int((cli.status())["SyncInfo"]["latest_block_height"])
-        if cur_height - begin_height >= n:
-            break
+    return cur_height
 
 
 def wait_for_block_time(cli, t):
@@ -171,6 +176,21 @@ def parse_events(logs):
         ev["type"]: {attr["key"]: attr["value"] for attr in ev["attributes"]}
         for ev in logs[0]["events"]
     }
+
+
+def parse_events_rpc(events):
+    result = defaultdict(dict)
+    for ev in events:
+        for attr in ev["attributes"]:
+            if attr["key"] is None:
+                continue
+            key = base64.b64decode(attr["key"].encode()).decode()
+            if attr["value"] is not None:
+                value = base64.b64decode(attr["value"].encode()).decode()
+            else:
+                value = None
+            result[ev["type"]][key] = value
+    return result
 
 
 _next_unique = 0
@@ -269,6 +289,14 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     return w3.eth.contract(address=address, abi=info["abi"])
 
 
+def get_contract(w3, address, jsonfile):
+    """
+    get contract from address and abi
+    """
+    info = json.loads(jsonfile.read_text())
+    return w3.eth.contract(address=address, abi=info["abi"])
+
+
 def sign_transaction(w3, tx, key=KEYS["validator"]):
     "fill default fields and sign"
     acct = Account.from_key(key)
@@ -308,6 +336,18 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
         gravity_contract.web3,
         gravity_contract.functions.sendToCronos(
             token_contract.address, HexBytes(recipient), amount
+        ).buildTransaction({"from": acct.address}),
+        key,
+    )
+
+
+def deploy_erc20(gravity_contract, denom, name, symbol, decimal, key=None):
+    acct = Account.from_key(key)
+
+    return send_transaction(
+        gravity_contract.web3,
+        gravity_contract.functions.deployERC20(
+            denom, name, symbol, decimal
         ).buildTransaction({"from": acct.address}),
         key,
     )
@@ -444,3 +484,25 @@ def get_receipts_by_block(w3, blk):
             AttributeDict(receipt_formatter(item)) for item in rsp["result"]
         ]
     return rsp
+
+
+def send_txs(w3, cli, to, keys, params):
+    tx = {"to": to, "value": 10000} | params
+    # use different sender accounts to be able be send concurrently
+    raw_transactions = []
+    for key_from in keys:
+        signed = sign_transaction(w3, tx, key_from)
+        raw_transactions.append(signed.rawTransaction)
+
+    # wait block update
+    block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
+    print(f"block number start: {block_num_0}")
+
+    # send transactions
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
+
+    return block_num_0, sended_hash_set

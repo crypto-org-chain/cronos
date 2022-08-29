@@ -3,7 +3,13 @@
   'cronos_777-1': {
     cmd: 'cronosd',
     'start-flags': '--trace',
+    config: {
+      mempool: {
+        version: 'v1',
+      },
+    },
     'app-config': {
+      'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'json-rpc': {

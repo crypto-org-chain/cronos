@@ -78,7 +78,7 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 			return nil, err
 		}
 
-		if _, err := k.evmKeeper.DeductTxCostsFromUserBalance(
+		if _, _, err := k.evmKeeper.DeductTxCostsFromUserBalance(
 			ctx,
 			*msg,
 			txData,

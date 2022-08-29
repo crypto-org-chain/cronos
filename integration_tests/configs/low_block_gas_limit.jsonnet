@@ -4,7 +4,12 @@ config {
   'cronos_777-1'+: {
     'app-config'+: {
       evm+: {
-        'max-tx-gas-wanted': 0,
+        'max-tx-gas-wanted': 1,
+      },
+    },
+    config+: {
+      consensus+: {
+        timeout_commit: '5s',
       },
     },
     genesis+: {

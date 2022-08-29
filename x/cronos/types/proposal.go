@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -18,7 +18,6 @@ var _ govtypes.Content = &TokenMappingChangeProposal{}
 
 func init() {
 	govtypes.RegisterProposalType(ProposalTypeTokenMappingChange)
-	govtypes.RegisterProposalTypeCodec(&TokenMappingChangeProposal{}, "cronos/TokenMappingChangeProposal")
 }
 
 func NewTokenMappingChangeProposal(title, description, denom, symbol string, decimal uint32, contractAddr *common.Address) *TokenMappingChangeProposal {

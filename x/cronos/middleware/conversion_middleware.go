@@ -4,10 +4,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	transferTypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v3/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v3/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v3/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v5/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v5/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
 
@@ -35,7 +35,7 @@ func (im IBCConversionModule) OnChanOpenInit(
 	chanCap *capabilitytypes.Capability,
 	counterparty channeltypes.Counterparty,
 	version string,
-) error {
+) (string, error) {
 	return im.app.OnChanOpenInit(ctx, order, connectionHops, portID, channelID, chanCap, counterparty, version)
 }
 
@@ -101,15 +101,15 @@ func (im IBCConversionModule) OnRecvPacket(
 	if ack.Success() {
 		data, err := im.getFungibleTokenPacketData(packet)
 		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(
-				"cannot unmarshal ICS-20 transfer packet data in middleware")
+			return channeltypes.NewErrorAcknowledgement(sdkerrors.Wrap(sdkerrors.ErrUnknownRequest,
+				"cannot unmarshal ICS-20 transfer packet data in middleware"))
 		}
 		denom := im.getIbcDenomFromPacketAndData(packet, data)
 		// Check if it can be converted
 		if im.canBeConverted(ctx, denom) {
 			err = im.convertVouchers(ctx, data, denom, false)
 			if err != nil {
-				return transferTypes.NewErrorAcknowledgement(err)
+				return channeltypes.NewErrorAcknowledgement(err)
 			}
 		}
 	}
@@ -132,20 +132,15 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet acknowledgement in middleware: %v", err)
 		}
-		switch ack.Response.(type) {
-		case *channeltypes.Acknowledgement_Error:
+		if _, ok := ack.Response.(*channeltypes.Acknowledgement_Error); ok {
 			data, err := im.getFungibleTokenPacketData(packet)
 			if err != nil {
 				return err
 			}
-			denom := im.getIbcDenomFromPacketAndData(packet, data)
+			denom := im.getIbcDenomFromDataForRefund(data)
 			if im.canBeConverted(ctx, denom) {
-				err = im.convertVouchers(ctx, data, denom, true)
-				if err != nil {
-					return err
-				}
+				return im.convertVouchers(ctx, data, denom, true)
 			}
-		default:
 		}
 	}
 
@@ -165,15 +160,11 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		if err != nil {
 			return err
 		}
-		denom := im.getIbcDenomFromPacketAndData(packet, data)
+		denom := im.getIbcDenomFromDataForRefund(data)
 		if im.canBeConverted(ctx, denom) {
-			err = im.convertVouchers(ctx, data, denom, true)
-			if err != nil {
-				return err
-			}
+			return im.convertVouchers(ctx, data, denom, true)
 		}
 	}
-
 	return err
 }
 
@@ -209,6 +200,10 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 	}
 	_, found := im.cronoskeeper.GetContractByDenom(ctx, denom)
 	return found
+}
+
+func (im IBCConversionModule) getIbcDenomFromDataForRefund(data transferTypes.FungibleTokenPacketData) string {
+	return transferTypes.ParseDenomTrace(data.Denom).IBCDenom()
 }
 
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(

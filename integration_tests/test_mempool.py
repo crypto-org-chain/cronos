@@ -9,6 +9,7 @@ from .utils import (
     CONTRACTS,
     KEYS,
     deploy_contract,
+    send_txs,
     sign_transaction,
     wait_for_new_blocks,
 )
@@ -27,27 +28,20 @@ def test_mempool(cronos_mempool):
     filter = w3.eth.filter("pending")
     assert filter.get_new_entries() == []
 
-    key_from = KEYS["validator"]
-    address_from = ADDRS["validator"]
-    address_to = ADDRS["community"]
-    gas_price = w3.eth.gas_price
     cli = cronos_mempool.cosmos_cli(0)
-
     # test contract
-    wait_for_new_blocks(cli, 1)
+    wait_for_new_blocks(cli, 1, sleep=0.1)
     block_num_2 = w3.eth.get_block_number()
     print(f"block number contract begin at height: {block_num_2}")
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
     tx = contract.functions.setGreeting("world").buildTransaction()
-    signed = sign_transaction(w3, tx, key_from)
+    signed = sign_transaction(w3, tx)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     w3.eth.wait_for_transaction_receipt(txhash)
     # check tx in mempool
     new_txs = filter.get_new_entries()
     assert txhash in new_txs
 
-    # wait block update
-    wait_for_new_blocks(cli, 1)
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
 
@@ -56,35 +50,24 @@ def test_mempool(cronos_mempool):
     print(f"all pending tx hash after block: {all_pending}")
     assert len(all_pending) == 0
 
-    # check transaction
-    block_num_0 = w3.eth.get_block_number()
-    print(f"block number start: {block_num_0}")
-    nonce_begin = w3.eth.get_transaction_count(address_from)
+    to = ADDRS["community"]
+    params = {"gasPrice": w3.eth.gas_price}
+    block_num_0, sended_hash_set = send_txs(w3, cli, to, KEYS.values(), params)
+    print(f"all send tx hash: {sended_hash_set} at {block_num_0}")
 
-    sended_hash_set = set()
-    for i in range(5):
-        nonce = nonce_begin + i
-        tx = {
-            "to": address_to,
-            "value": 10000,
-            "gasPrice": gas_price,
-            "nonce": nonce,
-        }
-        signed = sign_transaction(w3, tx, key_from)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        sended_hash_set.add(txhash)
-    block_num_1 = w3.eth.get_block_number()
-    assert block_num_1 == block_num_0
-    print(f"all send tx hash: f{sended_hash_set}")
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
     assert len(all_pending) == 0
+
+    block_num_1 = w3.eth.get_block_number()
+    print(f"block_num_1 {block_num_1}")
+
     # check after max 10 blocks
     for i in range(10):
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
-        print(f"all pending tx hash after {i+1} block: {all_pending}")
-        for hash in all_pending:
-            sended_hash_set.discard(hash)
+        print(f"all pending tx hash at block {i+block_num_1}: {all_pending}")
+        for h in all_pending:
+            sended_hash_set.discard(h)
         if len(sended_hash_set) == 0:
             break
-        wait_for_new_blocks(cli, 1, 0.1)
+        wait_for_new_blocks(cli, 1, sleep=0.1)
     assert len(sended_hash_set) == 0

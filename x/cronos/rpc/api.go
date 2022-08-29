@@ -40,8 +40,8 @@ func init() {
 }
 
 // CreateCronosRPCAPIs creates extension json-rpc apis
-func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient, allowUnprotectedTxs bool) []rpc.API {
-	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx, allowUnprotectedTxs)
+func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient, allowUnprotectedTxs bool, indexer ethermint.EVMTxIndexer) []rpc.API {
+	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx, allowUnprotectedTxs, indexer)
 	return []rpc.API{
 		{
 			Namespace: CronosNamespace,
@@ -126,11 +126,17 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 		txResult := blockRes.TxsResults[i]
 
 		// don't ignore the txs which exceed block gas limit.
-		if !backend.TxSuccessOrExceedsBlockGasLimit(txResult) {
+		if !rpctypes.TxSuccessOrExceedsBlockGasLimit(txResult) {
 			continue
 		}
 
-		parsedTxs, err := rpctypes.ParseTxResult(txResult)
+		tx, err := api.clientCtx.TxConfig.TxDecoder()(tx)
+		if err != nil {
+			api.logger.Debug("decoding failed", "error", err.Error())
+			return nil, fmt.Errorf("failed to decode tx: %w", err)
+		}
+
+		parsedTxs, err := rpctypes.ParseTxResult(txResult, tx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse tx events: %d:%d, %v", resBlock.Block.Height, i, err)
 		}
@@ -141,22 +147,8 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 			continue
 		}
 
-		tx, err := api.clientCtx.TxConfig.TxDecoder()(tx)
-		if err != nil {
-			api.logger.Debug("decoding failed", "error", err.Error())
-			return nil, fmt.Errorf("failed to decode tx: %w", err)
-		}
-
 		if len(parsedTxs.Txs) != len(tx.GetMsgs()) {
 			return nil, fmt.Errorf("wrong number of tx events: %d", txIndex)
-		}
-
-		if txResult.Code != 0 {
-			// tx failed, we should return gas limit as gas used, because that's how the fee get deducted.
-			for j := 0; j < len(parsedTxs.Txs); j++ {
-				gasLimit := tx.GetMsgs()[j].(*evmtypes.MsgEthereumTx).GetGas()
-				parsedTxs.Txs[j].GasUsed = gasLimit
-			}
 		}
 
 		msgCumulativeGasUsed := uint64(0)
@@ -188,7 +180,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, err
 			}
 
-			logs, err := parsedTx.ParseTxLogs()
+			logs, err := backend.TxLogsFromEvents(txResult.Events, parsedTx.MsgIndex)
 			if err != nil {
 				api.logger.Debug("failed to parse logs", "block", resBlock.Block.Height, "txIndex", txIndex, "msgIndex", msgIndex, "error", err.Error())
 			}
@@ -209,7 +201,6 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				"transactionHash": ethMsg.Hash,
 				"contractAddress": nil,
 				"gasUsed":         hexutil.Uint64(parsedTx.GasUsed),
-				"type":            hexutil.Uint(txData.TxType()),
 
 				// Inclusion information: These fields provide information about the inclusion of the
 				// transaction corresponding to this receipt.
@@ -228,7 +219,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 			}
 
 			if dynamicTx, ok := txData.(*evmtypes.DynamicFeeTx); ok {
-				receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.GetEffectiveGasPrice(baseFee))
+				receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.EffectiveGasPrice(baseFee))
 			}
 
 			receipts = append(receipts, receipt)
@@ -364,7 +355,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 		}
 
 		if dynamicTx, ok := txData.(*evmtypes.DynamicFeeTx); ok {
-			receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.GetEffectiveGasPrice(baseFee))
+			receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.EffectiveGasPrice(baseFee))
 		}
 
 		receipts = append(receipts, receipt)

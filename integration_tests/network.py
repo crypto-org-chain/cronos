@@ -14,7 +14,7 @@ from .utils import wait_for_port
 
 
 class Cronos:
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, chain_binary="cronosd"):
         self._w3 = None
         self.base_dir = base_dir
         self.config = json.loads((base_dir / "config.json").read_text())
@@ -22,6 +22,7 @@ class Cronos:
             (base_dir / "genesis.json").read_text()
         )["app_state"]["cronos"]["params"]["enable_auto_deployment"]
         self._use_websockets = False
+        self.chain_binary = chain_binary
 
     def copy(self):
         return Cronos(self.base_dir)
@@ -54,7 +55,9 @@ class Cronos:
         return "tcp://127.0.0.1:%d" % ports.rpc_port(self.base_port(i))
 
     def cosmos_cli(self, i=0):
-        return CosmosCLI(self.base_dir / f"node{i}", self.node_rpc(i), "cronosd")
+        return CosmosCLI(
+            self.base_dir / f"node{i}", self.node_rpc(i), self.chain_binary
+        )
 
     def use_websocket(self, use=True):
         self._w3 = None
@@ -90,7 +93,7 @@ class Geth:
 
 def setup_cronos(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
-        "../scripts/cronos-devnet.yaml"
+        "configs/default.jsonnet"
         if enable_auto_deployment
         else "configs/disable_auto_deployment.jsonnet"
     )
@@ -99,7 +102,7 @@ def setup_cronos(path, base_port, enable_auto_deployment=True):
 
 def setup_cronos_experimental(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (
-        "../scripts/cronos-experimental-devnet.yaml"
+        "configs/cronos-experimental-devnet.jsonnet"
         if enable_auto_deployment
         else "configs/disable_auto_deployment.jsonnet"
     )
@@ -171,7 +174,7 @@ def setup_custom_cronos(path, base_port, config, post_init=None, chain_binary=No
     try:
         wait_for_port(ports.evmrpc_port(base_port))
         wait_for_port(ports.evmrpc_ws_port(base_port))
-        yield Cronos(path / "cronos_777-1")
+        yield Cronos(path / "cronos_777-1", chain_binary=chain_binary or "cronosd")
     finally:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         # proc.terminate()

@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"fmt"
+	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"math/big"
 
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
@@ -14,8 +15,6 @@ import (
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
 )
 
 func (suite *KeeperTestSuite) TestEvmHooks() {
@@ -36,7 +35,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToAccountEvent.ID},
+						Topics:  []common.Hash{handlers.SendToAccountEvent.ID},
 					},
 				}
 				receipt := &ethtypes.Receipt{
@@ -49,7 +48,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 		{
 			"not enough balance, expect fail",
 			func() {
-				data, err := keeper.SendToAccountEvent.Inputs.Pack(
+				data, err := handlers.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					big.NewInt(100),
 				)
@@ -57,7 +56,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToAccountEvent.ID},
+						Topics:  []common.Hash{handlers.SendToAccountEvent.ID},
 						Data:    data,
 					},
 				}
@@ -79,7 +78,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToAccountEvent.Inputs.Pack(
+				data, err := handlers.SendToAccountEvent.Inputs.Pack(
 					recipient,
 					coin.Amount.BigInt(),
 				)
@@ -87,7 +86,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToAccountEvent.ID},
+						Topics:  []common.Hash{handlers.SendToAccountEvent.ID},
 						Data:    data,
 					},
 				}
@@ -116,7 +115,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToChainEvent.Inputs.Pack(
+				data, err := handlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -127,7 +126,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToChainEvent.ID},
+						Topics:  []common.Hash{handlers.SendToChainEvent.ID},
 						Data:    data,
 					},
 				}
@@ -153,7 +152,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToChainEvent.Inputs.Pack(
+				data, err := handlers.SendToChainEvent.Inputs.Pack(
 					sender,
 					recipient,
 					coin.Amount.BigInt(),
@@ -164,7 +163,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToChainEvent.ID},
+						Topics:  []common.Hash{handlers.SendToChainEvent.ID},
 						Data:    data,
 					},
 				}
@@ -190,7 +189,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				suite.SetupTest()
 				// Create Cronos Keeper with mock transfer keeper
 				cronosKeeper := *cronosmodulekeeper.NewKeeper(
-					app.MakeEncodingConfig().Marshaler,
+					app.MakeEncodingConfig().Codec,
 					suite.app.GetKey(types.StoreKey),
 					suite.app.GetKey(types.MemStoreKey),
 					suite.app.GetSubspace(types.ModuleName),
@@ -210,7 +209,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := keeper.SendToIbcEvent.Inputs.Pack(
+				data, err := handlers.SendToIbcEvent.Inputs.Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -219,7 +218,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{keeper.SendToIbcEvent.ID},
+						Topics:  []common.Hash{handlers.SendToIbcEvent.ID},
 						Data:    data,
 					},
 				}
