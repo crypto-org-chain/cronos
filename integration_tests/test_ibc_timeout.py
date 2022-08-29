@@ -1,6 +1,12 @@
 import pytest
 
-from .ibc_utils import RATIO, assert_ready, get_balance, prepare, prepare_network
+from .ibc_utils import (
+    RATIO,
+    assert_ready,
+    get_balance,
+    hermes_transfer,
+    prepare_network,
+)
 from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
 
@@ -14,7 +20,7 @@ def ibc(request, tmp_path_factory):
 
 
 def test_ibc(ibc):
-    src_amount = prepare(ibc)
+    src_amount = hermes_transfer(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
     dst_addr = eth_to_bech32(ADDRS["signer2"])

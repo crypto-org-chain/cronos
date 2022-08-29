@@ -15,9 +15,10 @@ class IBCNetwork(NamedTuple):
     cronos: Cronos
     chainmain: Chainmain
     hermes: Hermes
+    incentivized: bool
 
 
-def prepare_network(tmp_path, file):
+def prepare_network(tmp_path, file, incentivized=True):
     file = f"configs/{file}.jsonnet"
     gen = setup_custom_cronos(tmp_path, 26700, Path(__file__).parent / file)
     cronos = next(gen)
@@ -26,24 +27,55 @@ def prepare_network(tmp_path, file):
     # wait for grpc ready
     wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
     wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
+
+    version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+    incentivized_args = (
+        [
+            "--channel-version",
+            json.dumps(version),
+        ]
+        if incentivized
+        else []
+    )
+
     subprocess.check_call(
         [
             "hermes",
-            "-c",
+            "--config",
             hermes.configpath,
             "create",
             "channel",
+            "--a-port",
+            "transfer",
+            "--b-port",
+            "transfer",
+            "--a-chain",
             "cronos_777-1",
+            "--b-chain",
             "chainmain-1",
-            "--port-a",
-            "transfer",
-            "--port-b",
-            "transfer",
+            "--new-client-connection",
+            "--yes",
         ]
+        + incentivized_args
     )
+
+    if incentivized:
+        # register fee payee
+        src_chain = cronos.cosmos_cli()
+        dst_chain = chainmain.cosmos_cli()
+        rsp = dst_chain.register_counterparty_payee(
+            "transfer",
+            "channel-0",
+            dst_chain.address("relayer"),
+            src_chain.address("signer1"),
+            from_="relayer",
+            fees="100000000basecro",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+
     supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
     wait_for_port(hermes.port)
-    yield IBCNetwork(cronos, chainmain, hermes)
+    yield IBCNetwork(cronos, chainmain, hermes, incentivized)
 
 
 def assert_ready(ibc):
@@ -54,7 +86,7 @@ def assert_ready(ibc):
     assert json.loads(output)["status"] == "success"
 
 
-def prepare(ibc):
+def hermes_transfer(ibc):
     assert_ready(ibc)
     # chainmain-1 -> cronos_777-1
     my_ibc0 = "chainmain-1"
@@ -65,9 +97,11 @@ def prepare(ibc):
     src_denom = "basecro"
     # dstchainid srcchainid srcportid srchannelid
     cmd = (
-        f"hermes -c {ibc.hermes.configpath} tx raw ft-transfer "
-        f"{my_ibc1} {my_ibc0} transfer {my_channel} {src_amount} "
-        f"-o 1000 -n 1 -d {src_denom} -r {dst_addr} -k relayer"
+        f"hermes --config {ibc.hermes.configpath} tx ft-transfer "
+        f"--dst-chain {my_ibc1} --src-chain {my_ibc0} --src-port transfer "
+        f"--src-channel {my_channel} --amount {src_amount} "
+        f"--timeout-height-offset 1000 --number-msgs 1 "
+        f"--denom {src_denom} --receiver {dst_addr} --key-name relayer"
     )
     subprocess.run(cmd, check=True, shell=True)
     return src_amount

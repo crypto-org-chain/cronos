@@ -2,27 +2,22 @@
 , buildGoApplication
 , nix-gitignore
 , rocksdb ? null
-, db_backend ? "rocksdb"
 , network ? "mainnet"  # mainnet|testnet
 , rev ? "dirty"
 }:
 let
-  version = "v0.8.0";
+  version = "v0.9.0";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network ]
-    ++ lib.lists.optional (db_backend == "rocksdb") "rocksdb";
+    ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
     "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${lib.concatStringsSep "," tags}"
     "-X github.com/cosmos/cosmos-sdk/version.Commit=${rev}"
-  ] ++ lib.lists.optionals (db_backend == "rocksdb") [
-    "-X github.com/cosmos/cosmos-sdk/types.DBBackend=rocksdb"
   ]);
-  buildInputs = lib.lists.optionals (db_backend == "rocksdb") [
-    rocksdb
-  ];
+  buildInputs = lib.lists.optional (rocksdb != null) rocksdb;
 in
 buildGoApplication rec {
   inherit pname version buildInputs tags ldflags;

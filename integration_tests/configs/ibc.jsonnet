@@ -5,6 +5,22 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
+    accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
+      coins: super.coins + ',100000000000ibcfee',
+    }],
+    'app-config'+: {
+      'index-events': super['index-events'] + ['message.action'],
+    },
+    genesis+: {
+      app_state+: {
+        feemarket+: {
+          params+: {
+            no_base_fee: true,
+            base_fee: '0',
+          },
+        },
+      },
+    },
   },
   'chainmain-1': {
     cmd: 'chain-maind',
@@ -84,8 +100,22 @@ config {
     },
   },
   relayer: {
-    global: {
-      strategy: 'all',
+    mode: {
+      clients: {
+        enabled: true,
+        refresh: true,
+        misbehaviour: true,
+      },
+      connections: {
+        enabled: true,
+      },
+      channels: {
+        enabled: true,
+      },
+      packets: {
+        enabled: true,
+        tx_confirmation: true,
+      },
     },
     rest: {
       enabled: true,
@@ -95,20 +125,26 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
+        max_gas: 500000,
+        gas_multiplier: 2,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
             pk_type: '/ethermint.crypto.v1.ethsecp256k1.PubKey',
           },
         },
-        max_gas: 500000,
         gas_price: {
-          price: 10000000000000,
+          price: 10000000000000000,
           denom: 'basetcro',
         },
+        extension_options: [{
+          type: 'ethermint_dynamic_fee',
+          value: '1000000',
+        }],
       },
       {
         id: 'chainmain-1',
+        max_gas: 500000,
         gas_price: {
           price: 1000000,
           denom: 'basecro',

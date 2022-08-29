@@ -5,10 +5,10 @@
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "a7ac0c321e98b93c3bcfa4c98a69c313183190d8",
-        "sha256": "05ylri22w49i8r0z6zyb446jbs5wvm8y51gf21yl4ysqj65ad054",
+        "rev": "7e7d49839283f6d77516f614c2e2ff7441771e5a",
+        "sha256": "1gm70jfd9rvi8shf6n7fjfvs4krdv3vjz50f44id3dv8fgg5zni1",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/a7ac0c321e98b93c3bcfa4c98a69c313183190d8.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/7e7d49839283f6d77516f614c2e2ff7441771e5a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "cosmos-sdk": {
@@ -70,6 +70,18 @@
         "sha256": "1nn8p4wqg1dx12nf05gm8rw3n02yqssgfsxrlj3c00qzwys6i9y2",
         "type": "tarball",
         "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/3d5bdc8af5227588d04064132335932ee88f57c3.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "ibc-rs": {
+        "branch": "feemarket",
+        "description": "IBC Relayer (Hermes) and Modules in Rust",
+        "homepage": "",
+        "owner": "yihuang",
+        "repo": "ibc-rs",
+        "rev": "e33cceaa247d5eda7650c24bd3968dea6a05248a",
+        "sha256": "1kq73qvhdz35pxcx07rqqygvb3n8z8wsgw8knddj2b1x3yj66444",
+        "type": "tarball",
+        "url": "https://github.com/yihuang/ibc-rs/archive/e33cceaa247d5eda7650c24bd3968dea6a05248a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

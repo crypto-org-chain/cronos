@@ -17,7 +17,7 @@ messages and index transactions. {synopsis}
 
 ### SDK and Tendermint Events
 
-It is possible to subscribe to `Events` via Tendermint's [Websocket](https://docs.tendermint.com/v0.35/app-dev/indexing-transactions.html#subscribing-to-transactions).
+It is possible to subscribe to `Events` via Tendermint's [Websocket](https://docs.tendermint.com/v0.34/app-dev/indexing-transactions.html#subscribing-to-transactions).
 This is done by calling the `subscribe` RPC method via Websocket:
 
 ```json

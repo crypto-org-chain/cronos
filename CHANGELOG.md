@@ -8,17 +8,50 @@
 - [cronos#600](https://github.com/crypto-org-chain/cronos/pull/600) Implement bidirectional token mapping.
 - [cronos#611](https://github.com/crypto-org-chain/cronos/pull/611) Fix mistake on acknowledgement error in ibc middleware.
 - [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Upgrade gravity bridge module with security enhancements
+- [cronos#647](https://github.com/crypto-org-chain/cronos/pull/647) Integrate ibc fee middleware.
+- [cronos#672](https://github.com/crypto-org-chain/cronos/pull/672) Revert interchain-accounts integration.
 
 ### Bug Fixes
 
 - [cronos#502](https://github.com/crypto-org-chain/cronos/pull/502) Fix failed tx are ignored in json-rpc apis.
 - [cronos#556](https://github.com/crypto-org-chain/cronos/pull/556) Bump gravity bridge module version to include bugfixes (including grpc endpoint)
+- [cronos#639](https://github.com/crypto-org-chain/cronos/pull/639) init and validate-genesis commands don't include experimental modules by default.
 
 ### Improvements
 - [cronos#418](https://github.com/crypto-org-chain/cronos/pull/418) Support logs in evm-hooks and return id for SendToEthereum events
 - [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
 - [cronos#511](https://github.com/crypto-org-chain/cronos/pull/511) Replace ibc-hook with ibc middleware, use ibc-go upstream version.
 - [cronos#550](https://github.com/crypto-org-chain/cronos/pull/550) Support basic json-rpc apis on pruned nodes.
+- [cronos#549](https://github.com/crypto-org-chain/cronos/pull/549) Use custom tx indexer feature of ethermint.
+- [cronos#673](https://github.com/crypto-org-chain/cronos/pull/673) Upgrade cosmos-sdk to 0.46.1 and ibc-go to v5.0.0-rc0.
+
+*Aug 5, 2022*
+
+## v0.8.0
+
+### State Machine Breaking
+
+- [cronos#618](https://github.com/crypto-org-chain/cronos/pull/618) selfdestruct don't delete bytecode of smart contract.
+
+*Aug 5, 2022*
+
+## v0.7.1
+
+### Bug Fixes
+
+- [cronos#454](https://github.com/crypto-org-chain/cronos/pull/454) Add back the latest testnet upgrade handler.
+- [cronos#503](https://github.com/crypto-org-chain/cronos/pull/503) Fix failed tx are ignored in json-rpc apis (backport #502).
+- [cronos#526](https://github.com/crypto-org-chain/cronos/pull/526) Fix tendermint duplicated tx issue.
+- [cronos#584](https://github.com/crypto-org-chain/cronos/pull/584) Validate eth tx hash in ante handler and fix tx hashes returned in some JSON-RPC apis.
+- [cronos#587](https://github.com/crypto-org-chain/cronos/pull/587) Unlucky tx patch cmd recompute eth tx hash.
+- [cronos#595](https://github.com/crypto-org-chain/cronos/pull/595) Workaround the tx hash issue in event parsing.
+
+### Improvements
+
+- [cronos#489](https://github.com/crypto-org-chain/cronos/pull/489) Enable jemalloc memory allocator, and update rocksdb src to `v6.29.5`.
+- [cronos#513](https://github.com/crypto-org-chain/cronos/pull/513) Add `fix-unlucky-tx` command to patch txs post v0.7.0 upgrade.
+- [cronos#522](https://github.com/crypto-org-chain/cronos/pull/522) Add `reindex-duplicated-tx` command to handle the tendermint tx duplicated issue.
+- [cronos#585](https://github.com/crypto-org-chain/cronos/pull/585) Reject replay unprotected tx, mainly the old transactions on ethereum.
 
 *May 3, 2022*
 

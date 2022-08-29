@@ -8,7 +8,8 @@ import bech32
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-DEFAULT_GAS_PRICE = "5000000000000basetcro"
+# the default initial base fee used by integration tests
+DEFAULT_GAS_PRICE = "100000000000basetcro"
 
 
 class ModuleAccount(enum.Enum):
@@ -105,6 +106,9 @@ class CosmosCLI:
             )
         return json.loads(output)
 
+    def migrate_keystore(self):
+        return self.raw("keys", "migrate", home=self.data_dir)
+
     def init(self, moniker):
         "the node's config is already added"
         return self.raw(
@@ -184,6 +188,12 @@ class CosmosCLI:
             node=self.node_rpc,
         )
         return json.loads(txs)
+
+    def tx_search(self, events: str):
+        "/tx_search"
+        return json.loads(
+            self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
+        )
 
     def distribution_commission(self, addr):
         coin = json.loads(
@@ -617,7 +627,7 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose(self, proposer, kind, proposal, **kwargs):
+    def gov_propose_v0_7(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         if kind == "software-upgrade":
             return json.loads(
@@ -668,6 +678,68 @@ class CosmosCLI:
                         "tx",
                         "gov",
                         "submit-proposal",
+                        kind,
+                        fp.name,
+                        "-y",
+                        from_=proposer,
+                        # basic
+                        home=self.data_dir,
+                        **kwargs,
+                    )
+                )
+
+    def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        if kind == "software-upgrade":
+            return json.loads(
+                self.raw(
+                    "tx",
+                    "gov",
+                    "submit-legacy-proposal",
+                    kind,
+                    proposal["name"],
+                    "-y",
+                    "--no-validate",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    description=proposal.get("description"),
+                    upgrade_height=proposal.get("upgrade-height"),
+                    upgrade_time=proposal.get("upgrade-time"),
+                    upgrade_info=proposal.get("upgrade-info"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    **kwargs,
+                )
+            )
+        elif kind == "cancel-software-upgrade":
+            return json.loads(
+                self.raw(
+                    "tx",
+                    "gov",
+                    "submit-legacy-proposal",
+                    kind,
+                    "-y",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    description=proposal.get("description"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    **kwargs,
+                )
+            )
+        else:
+            with tempfile.NamedTemporaryFile("w") as fp:
+                json.dump(proposal, fp)
+                fp.flush()
+                return json.loads(
+                    self.raw(
+                        "tx",
+                        "gov",
+                        "submit-legacy-proposal",
                         kind,
                         fp.name,
                         "-y",
@@ -1010,12 +1082,16 @@ class CosmosCLI:
     def gov_propose_token_mapping_change(
         self, denom, contract, symbol, decimal, **kwargs
     ):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        default_kwargs = {
+            "gas_prices": DEFAULT_GAS_PRICE,
+            "gas": "auto",
+            "gas_adjustment": "1.5",
+        }
         return json.loads(
             self.raw(
                 "tx",
                 "gov",
-                "submit-proposal",
+                "submit-legacy-proposal",
                 "token-mapping-change",
                 denom,
                 contract,
@@ -1025,7 +1101,8 @@ class CosmosCLI:
                 decimal,
                 "-y",
                 home=self.data_dir,
-                **kwargs,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
             )
         )
 
@@ -1208,5 +1285,81 @@ class CosmosCLI:
                 "denom-to-erc20",
                 denom,
                 home=self.data_dir,
+            )
+        )
+
+    def create_vesting_account(self, to_address, amount, end_time, **kwargs):
+        "create vesting account"
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "vesting",
+                "create-vesting-account",
+                to_address,
+                amount,
+                end_time,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def register_counterparty_payee(
+        self, port_id, channel_id, relayer, counterparty_payee, **kwargs
+    ):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "ibc-fee",
+                "register-counterparty-payee",
+                port_id,
+                channel_id,
+                relayer,
+                counterparty_payee,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def register_payee(self, port_id, channel_id, relayer, payee, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "ibc-fee",
+                "register-payee",
+                port_id,
+                channel_id,
+                relayer,
+                payee,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def pay_packet_fee(self, port_id, channel_id, packet_seq, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
+        return json.loads(
+            self.raw(
+                "tx",
+                "ibc-fee",
+                "pay-packet-fee",
+                port_id,
+                channel_id,
+                str(packet_seq),
+                "-y",
+                **(default_kwargs | kwargs),
             )
         )

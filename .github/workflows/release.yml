@@ -24,7 +24,7 @@ jobs:
       - name: build and upload goreleaser binaries
         run: make release
 
-  rocksdb-x86_64:
+  x86_64:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -39,22 +39,16 @@ jobs:
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: build linux/mac x86_64 rocksdb binaries
+      - name: build linux/mac x86_64 binaries
         run: |
           PLATFORM="$(uname -s)_x86_64"
           BUILD_TYPE="tarball"
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
 
           nix build -L ${FLAKE}#cronosd-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-
-          nix build -L ${FLAKE}#cronosd-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
 
           nix build -L ${FLAKE}#cronosd-testnet-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
-
-          nix build -L ${FLAKE}#cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
           nix-env -i coreutils -f '<nixpkgs>'
@@ -65,13 +59,13 @@ jobs:
           ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
-      - name: upload linux/mac x86_64 rocksdb binaries
+      - name: upload linux/mac x86_64 binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           files: "${{ env.FILES }}"
 
-  rocksdb-aarch64-linux:
+  aarch64-linux:
     needs: ["goreleaser"]
     runs-on: ubuntu-latest
     environment: release
@@ -86,7 +80,7 @@ jobs:
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: build linux arm64 rocksdb binaries
+      - name: build linux arm64 binaries
         env:
           PLATFORM: Linux_arm64
         run: |
@@ -94,15 +88,9 @@ jobs:
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
 
           nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
 
           nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-testnet-rocksdb_${PLATFORM}.tar.gz
-
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-goleveldb-$BUILD_TYPE
           cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
 
           sha256sum *.tar.gz > checksums-$PLATFORM.txt
@@ -112,13 +100,13 @@ jobs:
           ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
-      - name: upload linux arm64 rocksdb binaries
+      - name: upload linux arm64 binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           files: "${{ env.FILES }}"
 
-  rocksdb-x86_64-windows:    
+  x86_64-windows:
     needs: ["goreleaser"]
     runs-on: windows-latest
     environment: release    
@@ -148,7 +136,7 @@ jobs:
           go version
           wget https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst
           pacman -U mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst --noconfirm
-          COSMOS_BUILD_OPTIONS=rocksdb make      
+          ENABLE_ROCKSDB=true COSMOS_BUILD_OPTIONS=rocksdb make build
           ls -la ./build/
           mv ./build/cronosd ./build/cronosd.exe
           cp /mingw64/bin/libbz2-1.dll ./build 
@@ -163,12 +151,19 @@ jobs:
           cd ./build
           tar cvfz ../cronos.tar.gz *
           cd ..
-          ls -la ./cronos.tar.gz
-          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
-          ls -la cronos_${GITHUB_REF_NAME:1}-rocksdb_${PLATFORM}.tar.gz
+          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
+          NETWORK=testnet ENABLE_ROCKSDB=true COSMOS_BUILD_OPTIONS=rocksdb make build
+          mv ./build/cronosd ./build/cronosd.exe
+          cd ./build
+          tar cvfz ../cronos.tar.gz *
+          cd ..
+          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
+          ls -la cronos_*.tar.gz
+          sha256sum cronos_*.tar.gz > "checksums-$PLATFORM.txt"
           echo "OK"
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
       - name: upload 

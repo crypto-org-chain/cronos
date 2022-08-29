@@ -20,6 +20,7 @@ import sources.nixpkgs {
         buildGoModule = pkgs.buildGo117Module;
       };
       flake-compat = import sources.flake-compat;
+      chain-maind = pkgs.callPackage sources.chain-main { };
     }) # update to a version that supports eip-1559
     (import "${sources.gomod2nix}/overlay.nix")
     (pkgs: _:
@@ -47,6 +48,7 @@ import sources.nixpkgs {
           paths = with pkgs.openssl; [ out dev ];
         };
       };
+      hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: {

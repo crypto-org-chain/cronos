@@ -1,26 +1,32 @@
-import base64
-import json
-
 import pytest
 
-from .ibc_utils import RATIO, assert_ready, get_balance, prepare, prepare_network
+from .ibc_utils import (
+    RATIO,
+    assert_ready,
+    get_balance,
+    hermes_transfer,
+    prepare_network,
+)
 from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
+    parse_events,
+    parse_events_rpc,
     send_transaction,
     wait_for_fn,
     wait_for_new_blocks,
 )
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=[True, False])
 def ibc(request, tmp_path_factory):
     "prepare-network"
+    incentivized = request.param
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name)
+    network = prepare_network(path, name, incentivized)
     yield from network
 
 
@@ -28,8 +34,11 @@ def get_balances(chain, addr):
     return chain.cosmos_cli().balances(addr)
 
 
-def test_ibc(ibc):
-    src_amount = prepare(ibc)
+def test_ibc_transfer_with_hermes(ibc):
+    """
+    test ibc transfer tokens with hermes cli
+    """
+    src_amount = hermes_transfer(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
     dst_addr = eth_to_bech32(ADDRS["signer2"])
@@ -44,6 +53,72 @@ def test_ibc(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
+
+    # assert that the relayer transactions do enables the dynamic fee extension option.
+    cli = ibc.cronos.cosmos_cli()
+    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = parse_events_rpc(tx["events"])
+    fee = int(events["tx"]["fee"].removesuffix("basetcro"))
+    gas = int(tx["gas_wanted"])
+    # the effective fee is decided by the max_priority_fee (base fee is zero)
+    # rather than the normal gas price
+    assert fee == gas * 1000000
+
+
+def test_ibc_incentivized_transfer(ibc):
+    if not ibc.incentivized:
+        # this test case only works for incentivized channel.
+        return
+    src_chain = ibc.cronos.cosmos_cli()
+    dst_chain = ibc.chainmain.cosmos_cli()
+    receiver = dst_chain.address("signer2")
+    sender = src_chain.address("signer2")
+    relayer = src_chain.address("signer1")
+    original_amount = src_chain.balance(relayer, denom="ibcfee")
+    original_amount_sender = src_chain.balance(sender, denom="ibcfee")
+
+    rsp = src_chain.ibc_transfer(
+        sender,
+        receiver,
+        "1000basetcro",
+        "channel-0",
+        1,
+        "100000000basecro",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    evt = parse_events(rsp["logs"])["send_packet"]
+    print("packet event", evt)
+    packet_seq = int(evt["packet_sequence"])
+
+    rsp = src_chain.pay_packet_fee(
+        "transfer",
+        "channel-0",
+        packet_seq,
+        recv_fee="10ibcfee",
+        ack_fee="10ibcfee",
+        timeout_fee="10ibcfee",
+        from_=sender,
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # fee is locked
+    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 30
+
+    # wait for relayer receive the fee
+    def check_fee():
+        amount = src_chain.balance(relayer, denom="ibcfee")
+        if amount > original_amount:
+            assert amount == original_amount + 20
+            return True
+        else:
+            return False
+
+    wait_for_fn("wait for relayer to receive the fee", check_fee)
+
+    # timeout fee is refunded
+    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 20
 
 
 def test_cronos_transfer_tokens(ibc):
@@ -145,94 +220,6 @@ def test_cro_bridge_contract(ibc):
 
     wait_for_fn("check balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-
-
-def test_ica(ibc, tmp_path):
-    connid = "connection-0"
-    cli_host = ibc.chainmain.cosmos_cli()
-    cli_controller = ibc.cronos.cosmos_cli()
-
-    print("register ica account")
-    rsp = cli_controller.ica_register_account(
-        connid, from_="signer2", gas="400000", fees="100000000basetcro"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    port_id, channel_id = next(
-        (
-            base64.b64decode(evt["attributes"][0]["value"].encode()).decode(),
-            base64.b64decode(evt["attributes"][1]["value"].encode()).decode(),
-        )
-        for evt in rsp["events"]
-        if evt["type"] == "channel_open_init"
-    )
-    print("port-id", port_id, "channel-id", channel_id)
-
-    print("wait for ica channel ready")
-
-    def check_channel_ready():
-        channels = cli_controller.ibc_query_channels(connid)["channels"]
-        try:
-            state = next(
-                channel["state"]
-                for channel in channels
-                if channel["channel_id"] == channel_id
-            )
-        except StopIteration:
-            return False
-        return state == "STATE_OPEN"
-
-    wait_for_fn("channel ready", check_channel_ready)
-
-    print("query ica account")
-    ica_address = cli_controller.ica_query_account(
-        connid, cli_controller.address("signer2")
-    )["interchainAccountAddress"]
-    print("ica address", ica_address)
-
-    # initial balance of interchain account should be zero
-    assert cli_host.balance(ica_address) == 0
-
-    # send some funds to interchain account
-    rsp = cli_host.transfer("signer2", ica_address, "1cro", gas_prices="1000000basecro")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli_host, 1)
-
-    # check if the funds are received in interchain account
-    assert cli_host.balance(ica_address, denom="basecro") == 100000000
-
-    # generate a transaction to send to host chain
-    generated_tx = tmp_path / "generated_tx.txt"
-    generated_tx_msg = cli_host.transfer(
-        ica_address, cli_host.address("signer2"), "0.5cro", generate_only=True
-    )
-
-    print(generated_tx_msg)
-    generated_tx.write_text(json.dumps(generated_tx_msg))
-
-    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-
-    # submit transaction on host chain on behalf of interchain account
-    rsp = cli_controller.ica_submit_tx(
-        connid,
-        generated_tx,
-        from_="signer2",
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    packet_seq = next(
-        int(base64.b64decode(evt["attributes"][4]["value"].encode()))
-        for evt in rsp["events"]
-        if evt["type"] == "send_packet"
-    )
-    print("packet sequence", packet_seq)
-
-    def check_ica_tx():
-        return len(cli_host.query_all_txs(ica_address)["txs"]) > num_txs
-
-    print("wait for ica tx arrive")
-    wait_for_fn("ica transfer tx", check_ica_tx)
-
-    # check if the funds are reduced in interchain account
-    assert cli_host.balance(ica_address, denom="basecro") == 50000000
 
 
 def test_cronos_transfer_source_tokens(ibc):

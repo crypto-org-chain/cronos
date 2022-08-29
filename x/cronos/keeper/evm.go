@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -129,7 +130,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 }
 
 // ConvertCoinFromCRC21ToNative convert erc20 token to native token
-func (k Keeper) ConvertCoinFromCRC21ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, amount sdk.Int) error {
+func (k Keeper) ConvertCoinFromCRC21ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, amount sdkmath.Int) error {
 	denom, found := k.GetDenomByContract(ctx, contract)
 	if !found {
 		return fmt.Errorf("the contract address %s is not mapped to native token", contract.String())
