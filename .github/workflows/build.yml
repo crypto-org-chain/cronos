@@ -1,11 +1,7 @@
 name: Build
 on:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
   push:
-    paths-ignore:
-      - 'docs/**'
     branches:
       - main
       - release/**
@@ -71,9 +67,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.4
+      - id: changed-files
+        uses: tj-actions/changed-files@v29.0.2
+        with:
+          files: |
+            go.mod
+            go.sum
       - uses: cachix/install-nix-action@v15
+        if: steps.changed-files.outputs.any_changed == 'true'
       - name: gomod2nix
         run: nix run -f ./nix gomod2nix
+        if: steps.changed-files.outputs.any_changed == 'true'
       - name: check working directory is clean
         id: changes
         run: |
@@ -92,15 +96,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.4
+      - id: changed-files
+        uses: tj-actions/changed-files@v29.0.2
+        with:
+          files: |
+            contracts
       - uses: cachix/install-nix-action@v15
+        if: steps.changed-files.outputs.any_changed == 'true'
       - uses: cachix/cachix-action@v10
+        if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
           extraPullNames: dapp
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: test contracts
+        if: steps.changed-files.outputs.any_changed == 'true'
         run: make test-cronos-contracts
       - name: build contracts
+        if: steps.changed-files.outputs.any_changed == 'true'
         run: make gen-cronos-contracts
       - name: check working directory is clean
         id: changes
