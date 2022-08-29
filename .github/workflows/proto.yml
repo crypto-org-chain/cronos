@@ -3,9 +3,6 @@ name: Protobuf
 # This workflow is only run when a .proto file has been changed
 on:
   pull_request:
-    paths:
-      - 'proto/**'
-      - 'scripts/**'
 
 jobs:
   lint:
@@ -35,7 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.4
+      - uses: technote-space/get-diff-action@v5
+        with:
+          PATTERNS: |
+            **/**.proto
       - name: proto-gen
+        if: env.GIT_DIFF
         run: |
           make proto-gen # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
           git checkout -- go.mod go.sum docs/api/proto-docs.md  # FIXME doc gen not reproducible in CI

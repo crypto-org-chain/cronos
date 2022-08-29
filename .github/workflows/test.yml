@@ -1,11 +1,7 @@
 name: integration tests
 on:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
   push:
-    paths-ignore:
-      - 'docs/**'
     branches:
       - main
       - release/**
@@ -17,8 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - id: changed-files
+        uses: tj-actions/changed-files@v29.0.2
+        with:
+          files: |
+            docs
+            **.md
       - uses: cachix/install-nix-action@v15
+        if: steps.changed-files.outputs.only_changed == 'false'
       - uses: cachix/cachix-action@v10
+        if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
           extraPullNames: dapp
@@ -26,6 +30,7 @@ jobs:
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run integration tests
+        if: steps.changed-files.outputs.only_changed == 'false'
         run: make run-integration-tests
       - name: 'Tar debug files'
         if: failure()
@@ -46,8 +51,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
+      - id: changed-files
+        uses: tj-actions/changed-files@v29.0.2
+        with:
+          files: |
+            docs
+            *.md
       - uses: cachix/install-nix-action@v15
+        if: steps.changed-files.outputs.only_changed == 'false'
       - uses: cachix/cachix-action@v10
+        if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
           extraPullNames: dapp
@@ -55,4 +68,5 @@ jobs:
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: 'instantiate integration test env'
+        if: steps.changed-files.outputs.only_changed == 'false'
         run: nix-store -r $(nix-instantiate integration_tests/shell.nix)
