@@ -707,6 +707,13 @@ func New(
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
+	// NOTE: workaround for the `GetLastCompletedUpgrade` bug
+	// https://github.com/cosmos/cosmos-sdk/issues/11707
+	planNameWorkAround := "v0.7.0-rc3-hotfix-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameWorkAround, func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
