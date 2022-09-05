@@ -120,12 +120,13 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(1),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(1),
+					[]byte{},
 				)
 				data = input
 			},
@@ -143,12 +144,13 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(100),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(100),
+					[]byte{},
 				)
 				data = input
 			},
@@ -165,12 +167,13 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(1),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(1),
+					[]byte{},
 				)
 				data = input
 			},
@@ -188,12 +191,13 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(1),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(1),
+					[]byte{},
 				)
 				data = input
 			},
@@ -215,7 +219,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := evmhandlers.NewSendToChainHandler(
+			handler := evmhandlers.NewSendToEvmChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
@@ -425,7 +429,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
+func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
@@ -451,7 +455,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.CancelSendToChainEvent.Inputs.Pack(
+				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(1),
 				)
@@ -487,8 +491,8 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 
-				// Then cancel the SendToChain transaction
-				input, err := evmhandlers.CancelSendToChainEvent.Inputs.Pack(
+				// Then cancel the SendToEvmChain transaction
+				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.Pack(
 					sender,
 					big.NewInt(int64(resp.Id)),
 				)
@@ -512,7 +516,7 @@ func (suite *KeeperTestSuite) TestCancelSendToChainHandler() {
 	for _, tc := range testCases {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			suite.SetupTest()
-			handler := evmhandlers.NewCancelSendToChainHandler(
+			handler := evmhandlers.NewCancelSendToEvmChainHandler(
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
