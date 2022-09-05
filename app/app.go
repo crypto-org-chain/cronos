@@ -511,10 +511,11 @@ func New(
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		evmhandlers.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		evmhandlers.NewSendToChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
-		evmhandlers.NewCancelSendToChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
+		evmhandlers.NewSendToEvmChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewCancelSendToEvmChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
 		evmhandlers.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
 		evmhandlers.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
 	// register the staking hooks
