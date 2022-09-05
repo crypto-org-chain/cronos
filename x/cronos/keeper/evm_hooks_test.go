@@ -115,19 +115,22 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToChainEvent.Inputs.Pack(
+				data, err := handlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(1),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(1),
+					[]byte{},
 				)
 				suite.Require().NoError(err)
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{handlers.SendToChainEvent.ID},
-						Data:    data,
+						Topics: []common.Hash{
+							handlers.SendToEvmChainEvent.ID,
+						},
+						Data: data,
 					},
 				}
 				receipt := &ethtypes.Receipt{
@@ -152,18 +155,19 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToChainEvent.Inputs.Pack(
+				data, err := handlers.SendToEvmChainEvent.Inputs.Pack(
 					sender,
 					recipient,
+					big.NewInt(1),
 					coin.Amount.BigInt(),
 					big.NewInt(0),
-					big.NewInt(1),
+					[]byte{},
 				)
 				suite.Require().NoError(err)
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{handlers.SendToChainEvent.ID},
+						Topics:  []common.Hash{handlers.SendToEvmChainEvent.ID},
 						Data:    data,
 					},
 				}
