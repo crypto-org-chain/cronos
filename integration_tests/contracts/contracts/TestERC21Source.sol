@@ -7,6 +7,7 @@ contract TestERC21Source is ERC20 {
 	string denom;
 	bool isSource;
 
+	event __CronosSendToIbc(address sender, string recipient, uint256 amount);
 	event __CronosSendToIbc(address sender, string recipient, uint256 amount, string channel_id, bytes extraData);
 	event __CronosSendToEvmChain(address sender, address recipient, uint256 chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
 	event __CronosCancelSendToEvmChain(address sender, uint256 id);
@@ -57,7 +58,16 @@ contract TestERC21Source is ERC20 {
     **/
 
 	// send an "amount" of the contract token to recipient through IBC
-	function send_to_ibc(string memory recipient, uint amount, string memory channel_id, bytes memory extraData) public {
+	function send_to_ibc(string memory recipient, uint amount) public {
+		if (isSource) {
+			transfer(module_address, amount);
+		} else {
+			unsafe_burn(msg.sender, amount);
+		}
+		emit __CronosSendToIbc(msg.sender, recipient, amount);
+	}
+
+	function send_to_ibc_v2(string memory recipient, uint amount, string memory channel_id, bytes memory extraData) public {
 		if (isSource) {
 			transfer(module_address, amount);
 		} else {
