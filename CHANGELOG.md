@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#]() Clear `From` field when building cosmos tx in `eth_sendTransaction`.
+- [#693](https://github.com/crypto-org-chain/cronos/pull/693) Clear `From` field when building cosmos tx in `eth_sendTransaction`.
 
 *Aug 31, 2022*
 
