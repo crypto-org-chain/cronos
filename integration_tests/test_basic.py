@@ -35,6 +35,20 @@ def test_basic(cluster):
     assert w3.eth.chain_id == 777
 
 
+def test_send_transaction(cluster):
+    "test eth_sendTransaction api"
+    w3 = cluster.w3
+    txhash = w3.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": ADDRS["community"],
+            "value": 1000,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+
+
 def test_events(cluster, suspend_capture):
     w3 = cluster.w3
     erc20 = deploy_contract(
