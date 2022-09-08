@@ -38,7 +38,7 @@ def test_basic(cluster):
 def test_send_transaction(cluster):
     "test eth_sendTransaction api"
     w3 = cluster.w3
-    txhash = w3.send_transaction(
+    txhash = w3.eth.send_transaction(
         {
             "from": ADDRS["validator"],
             "to": ADDRS["community"],
