@@ -376,6 +376,128 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 	}
 }
 
+func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
+	contract := common.BigToAddress(big.NewInt(1))
+	sender := common.BigToAddress(big.NewInt(2))
+	recipient := "recipient"
+	invalidDenom := "testdenom"
+	validDenom := CorrectIbcDenom
+	var data []byte
+	var topics []common.Hash
+
+	testCases := []struct {
+		msg       string
+		malleate  func()
+		postcheck func()
+		error     error
+	}{
+		{
+			"non associated coin denom, expect fail",
+			func() {
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+					sender.Hash(),
+					common.BytesToHash([]byte(recipient)),
+					common.BytesToHash(big.NewInt(0).Bytes()),
+				}
+				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					coin.Amount.BigInt(),
+					[]byte{},
+				)
+				data = input
+			},
+			func() {},
+			errors.New("contract 0x0000000000000000000000000000000000000001 is not connected to native token"),
+		},
+		{
+			"non IBC denom, expect fail",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				coin := sdk.NewCoin(invalidDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				suite.Require().Equal(coin, balance)
+
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+					sender.Hash(),
+					common.BytesToHash([]byte(recipient)),
+					common.BytesToHash(big.NewInt(0).Bytes()),
+				}
+				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					coin.Amount.BigInt(),
+					[]byte{},
+				)
+				data = input
+			},
+			func() {},
+			errors.New("the native token associated with the contract 0x0000000000000000000000000000000000000001 is neither an ibc voucher or a cronos token"),
+		},
+		{
+			"success send to ibc",
+			func() {
+				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				coin := sdk.NewCoin(validDenom, sdk.NewInt(100))
+				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				suite.Require().Equal(coin, balance)
+
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+					sender.Hash(),
+					common.BytesToHash([]byte(recipient)),
+					common.BytesToHash(big.NewInt(0).Bytes()),
+				}
+				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					coin.Amount.BigInt(),
+					[]byte{},
+				)
+				data = input
+			},
+			func() {},
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
+			suite.SetupTest()
+			// Create Cronos Keeper with mock transfer keeper
+			cronosKeeper := *cronosmodulekeeper.NewKeeper(
+				app.MakeEncodingConfig().Codec,
+				suite.app.GetKey(types.StoreKey),
+				suite.app.GetKey(types.MemStoreKey),
+				suite.app.GetSubspace(types.ModuleName),
+				suite.app.BankKeeper,
+				keepertest.IbcKeeperMock{},
+				suite.app.GravityKeeper,
+				suite.app.EvmKeeper,
+				suite.app.AccountKeeper,
+			)
+			handler := evmhandlers.NewSendToIbcV2Handler(suite.app.BankKeeper, cronosKeeper)
+			tc.malleate()
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			if tc.error != nil {
+				suite.Require().EqualError(err, tc.error.Error())
+			} else {
+				suite.Require().NoError(err)
+				tc.postcheck()
+			}
+		})
+	}
+}
+
 func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
