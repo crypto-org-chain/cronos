@@ -10,6 +10,7 @@
 - [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Upgrade gravity bridge module with security enhancements
 - [cronos#647](https://github.com/crypto-org-chain/cronos/pull/647) Integrate ibc fee middleware.
 - [cronos#672](https://github.com/crypto-org-chain/cronos/pull/672) Revert interchain-accounts integration.
+- [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
 
 ### Bug Fixes
 

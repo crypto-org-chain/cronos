@@ -103,7 +103,7 @@ func (h SendToIbcV2Handler) Handle(
 	recipient := string(topics[2].Bytes())
 	amount := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
 	// channelId := string(topics[3].Bytes())
-	// extraData := unpacked[4].([]byte)
+	// extraData := unpacked[1].([]byte)
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 
 	if types.IsSourceCoin(denom) {
