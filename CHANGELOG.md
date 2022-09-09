@@ -2,6 +2,14 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+- [#693](https://github.com/crypto-org-chain/cronos/pull/693) Clear `From` field when building cosmos tx in `eth_sendTransaction`.
+
+*Aug 31, 2022*
+
+## v0.8.1
+
 ### Improvements
 
 - [#667](https://github.com/crypto-org-chain/cronos/pull/667) Update iavl to 0.19.1 to improve node startup performance.

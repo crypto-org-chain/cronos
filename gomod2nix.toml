@@ -376,8 +376,8 @@ schema = 3
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.11.1-cronos"
-    hash = "sha256-YQUAt3DNu4APK6i1o9WnnIZdi/ciGxGyBB0VvTZ8/iI="
+    version = "v0.11.1-cronos.0.20220908100956-189ed50c7867"
+    hash = "sha256-QTVXHmgEX7I8uMMppJTSbVSkIo1pHK9FYvW28M2YZ50="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
