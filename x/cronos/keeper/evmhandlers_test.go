@@ -21,6 +21,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	recipient := common.BigToAddress(big.NewInt(3))
 	denom := "testdenom"
 	var data []byte
+	var topics []common.Hash
 
 	testCases := []struct {
 		msg       string
@@ -31,6 +32,9 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		{
 			"nil data, expect success",
 			func() {
+				topics = []common.Hash{
+					evmhandlers.SendToAccountEvent.ID,
+				}
 				data = nil
 			},
 			func() {},
@@ -39,7 +43,10 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		{
 			"not enough balance, expect fail",
 			func() {
-				input, err := evmhandlers.SendToAccountEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendToAccountEvent.ID,
+				}
+				input, err := evmhandlers.SendToAccountEvent.Inputs.NonIndexed().Pack(
 					recipient,
 					big.NewInt(100),
 				)
@@ -60,7 +67,10 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToAccountEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendToAccountEvent.ID,
+				}
+				input, err := evmhandlers.SendToAccountEvent.Inputs.NonIndexed().Pack(
 					recipient,
 					coin.Amount.BigInt(),
 				)
@@ -82,7 +92,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			handler := evmhandlers.NewSendToAccountHandler(suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -93,7 +103,7 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	}
 }
 
-func (suite *KeeperTestSuite) TestSendToChainHandler() {
+func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 	suite.SetupTest()
 
 	contract := common.BigToAddress(big.NewInt(1))
@@ -102,6 +112,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 	invalidDenom := "testdenom"
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
+	var topics []common.Hash
 
 	testCases := []struct {
 		msg       string
@@ -120,10 +131,14 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(1),
+				topics = []common.Hash{
+					evmhandlers.SendToEvmChainEvent.ID,
+					sender.Hash(),
+					recipient.Hash(),
+					common.BytesToHash(big.NewInt(1).Bytes()),
+				}
+
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -144,10 +159,14 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(100),
+				topics = []common.Hash{
+					evmhandlers.SendToEvmChainEvent.ID,
+					sender.Hash(),
+					recipient.Hash(),
+					common.BytesToHash(big.NewInt(100).Bytes()),
+				}
+
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -167,10 +186,14 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(1),
+				topics = []common.Hash{
+					evmhandlers.SendToEvmChainEvent.ID,
+					sender.Hash(),
+					recipient.Hash(),
+					common.BytesToHash(big.NewInt(1).Bytes()),
+				}
+
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -191,10 +214,14 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(1),
+				topics = []common.Hash{
+					evmhandlers.SendToEvmChainEvent.ID,
+					sender.Hash(),
+					recipient.Hash(),
+					common.BytesToHash(big.NewInt(1).Bytes()),
+				}
+
+				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -223,7 +250,7 @@ func (suite *KeeperTestSuite) TestSendToChainHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.BankKeeper, suite.app.CronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -240,6 +267,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 	invalidDenom := "testdenom"
 	validDenom := CorrectIbcDenom
 	var data []byte
+	var topics []common.Hash
 
 	testCases := []struct {
 		msg       string
@@ -257,7 +285,10 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+				}
+				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -278,7 +309,10 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+				}
+				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -299,7 +333,10 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendToIbcEvent.ID,
+				}
+				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -328,7 +365,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 			)
 			handler := evmhandlers.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -343,6 +380,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
 	var data []byte
+	var topics []common.Hash
 
 	testCases := []struct {
 		msg       string
@@ -354,7 +392,10 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"not enough balance, fail",
 			func() {
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(10000000000000))
-				input, err := evmhandlers.SendCroToIbcEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendCroToIbcEvent.ID,
+				}
+				input, err := evmhandlers.SendCroToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -377,7 +418,10 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 
 				// Mint coin for the module
 				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))))
-				input, err := evmhandlers.SendToIbcEvent.Inputs.Pack(
+				topics = []common.Hash{
+					evmhandlers.SendCroToIbcEvent.ID,
+				}
+				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -418,7 +462,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			)
 			handler := evmhandlers.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, contract, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
@@ -437,6 +481,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 	random := common.BigToAddress(big.NewInt(3))
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
+	var topics []common.Hash
 
 	testCases := []struct {
 		msg       string
@@ -455,8 +500,11 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), validDenom)
 				suite.Require().Equal(coin, balance)
 
-				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.Pack(
-					sender,
+				topics = []common.Hash{
+					evmhandlers.CancelSendToEvmChainEvent.ID,
+					sender.Hash(),
+				}
+				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					big.NewInt(1),
 				)
 				data = input
@@ -492,8 +540,11 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 				suite.Require().Equal(sdk.NewCoin(validDenom, sdk.NewInt(0)), balance)
 
 				// Then cancel the SendToEvmChain transaction
-				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.Pack(
-					sender,
+				topics = []common.Hash{
+					evmhandlers.CancelSendToEvmChainEvent.ID,
+					sender.Hash(),
+				}
+				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					big.NewInt(int64(resp.Id)),
 				)
 				data = input
@@ -520,7 +571,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, random, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, random, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {

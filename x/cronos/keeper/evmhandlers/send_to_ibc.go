@@ -1,4 +1,4 @@
-//nolint
+
 package evmhandler
 
 import (
@@ -66,6 +66,7 @@ func (h SendToIbcHandler) EventID() common.Hash {
 func (h SendToIbcHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {

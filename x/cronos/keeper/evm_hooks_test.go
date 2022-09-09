@@ -48,7 +48,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 		{
 			"not enough balance, expect fail",
 			func() {
-				data, err := handlers.SendToAccountEvent.Inputs.Pack(
+				data, err := handlers.SendToAccountEvent.Inputs.NonIndexed().Pack(
 					recipient,
 					big.NewInt(100),
 				)
@@ -78,7 +78,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToAccountEvent.Inputs.Pack(
+				data, err := handlers.SendToAccountEvent.Inputs.NonIndexed().Pack(
 					recipient,
 					coin.Amount.BigInt(),
 				)
@@ -115,10 +115,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(1),
+				data, err := handlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -129,6 +126,9 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 						Address: contract,
 						Topics: []common.Hash{
 							handlers.SendToEvmChainEvent.ID,
+							sender.Hash(),
+							recipient.Hash(),
+							common.BytesToHash(big.NewInt(1).Bytes()),
 						},
 						Data: data,
 					},
@@ -142,7 +142,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			},
 		},
 		{
-			"success send to chain",
+			"success send to evm chain",
 			func() {
 				suite.SetupTest()
 				denom := "gravity0x0000000000000000000000000000000000000000"
@@ -155,10 +155,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToEvmChainEvent.Inputs.Pack(
-					sender,
-					recipient,
-					big.NewInt(1),
+				data, err := handlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -167,8 +164,13 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				logs := []*ethtypes.Log{
 					{
 						Address: contract,
-						Topics:  []common.Hash{handlers.SendToEvmChainEvent.ID},
-						Data:    data,
+						Topics: []common.Hash{
+							handlers.SendToEvmChainEvent.ID,
+							sender.Hash(),
+							recipient.Hash(),
+							common.BytesToHash(big.NewInt(1).Bytes()),
+						},
+						Data: data,
 					},
 				}
 				receipt := &ethtypes.Receipt{
@@ -213,7 +215,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(coin, balance)
 
-				data, err := handlers.SendToIbcEvent.Inputs.Pack(
+				data, err := handlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),

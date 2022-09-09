@@ -43,15 +43,15 @@ func init() {
 		abi.Arguments{abi.Argument{
 			Name:    "sender",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "recipient",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "chain_id",
 			Type:    uint256Type,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "amount",
 			Type:    uint256Type,
@@ -101,11 +101,18 @@ func (h SendToEvmChainHandler) EventID() common.Hash {
 func (h SendToEvmChainHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", SendToEvmChainEventName)
+	}
+
+	if len(topics) != 4 {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		return nil
 	}
 
 	unpacked, err := SendToEvmChainEvent.Inputs.Unpack(data)
@@ -125,11 +132,12 @@ func (h SendToEvmChainHandler) Handle(
 	}
 
 	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
-	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	ethRecipient := unpacked[1].(common.Address)
-	chainID := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
-	amount := sdk.NewIntFromBigInt(unpacked[3].(*big.Int))
-	bridgeFee := sdk.NewIntFromBigInt(unpacked[4].(*big.Int))
+	// needs to crope the extra bytes in the topic and cast to a cosmos address
+	senderCosmosAddr := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
+	ethRecipient := common.BytesToAddress(topics[2].Bytes())
+	chainID := sdk.NewIntFromBigInt(new(big.Int).SetBytes(topics[3].Bytes()))
+	amount := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
+	bridgeFee := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 
 	if !chainID.Equal(sdk.NewInt(1)) && !chainID.Equal(sdk.NewInt(3)) &&
 		!chainID.Equal(sdk.NewInt(4)) && !chainID.Equal(sdk.NewInt(5)) {

@@ -1,4 +1,4 @@
-//nolint
+
 package evmhandler
 
 import (
@@ -32,11 +32,11 @@ func init() {
 		abi.Arguments{abi.Argument{
 			Name:    "sender",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "recipient",
 			Type:    stringType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "amount",
 			Type:    uint256Type,
@@ -44,7 +44,7 @@ func init() {
 		}, abi.Argument{
 			Name:    "channel_id",
 			Type:    stringType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "extraData",
 			Type:    bytesType,
@@ -73,9 +73,16 @@ func (h SendToIbcV2Handler) EventID() common.Hash {
 func (h SendToIbcV2Handler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
+	if len(topics) != 4 {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		return nil
+	}
+
 	unpacked, err := SendToIbcEventV2.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
@@ -93,10 +100,10 @@ func (h SendToIbcV2Handler) Handle(
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
-	sender := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	recipient := unpacked[1].(string)
-	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
-	// channelId := unpacked[3].(string)
+	sender := sdk.AccAddress(topics[1].Bytes())
+	recipient := string(topics[2].Bytes())
+	amount := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
+	// channelId := string(topics[3].Bytes())
 	// extraData := unpacked[4].([]byte)
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 

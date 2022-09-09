@@ -8,9 +8,9 @@ contract ModuleCRC21 is DSToken {
     string denom;
     bool isSource;
 
-    event __CronosSendToIbc(address sender, string recipient, uint256 amount, string channel_id, bytes extraData);
-    event __CronosSendToEvmChain(address sender, address recipient, uint256 chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
-    event __CronosCancelSendToEvmChain(address sender, uint256 id);
+    event __CronosSendToIbc(address indexed sender, string indexed recipient, uint256 amount, string indexed channel_id, bytes extraData);
+    event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
+    event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
     constructor(string memory denom_, uint8 decimals_, bool isSource_) DSToken(denom_) public {
         decimals = decimals_;

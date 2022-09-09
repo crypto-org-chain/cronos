@@ -64,6 +64,7 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 func (h SendCroToIbcHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {

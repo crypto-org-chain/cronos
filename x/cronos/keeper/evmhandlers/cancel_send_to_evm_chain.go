@@ -33,7 +33,7 @@ func init() {
 		abi.Arguments{abi.Argument{
 			Name:    "sender",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "id",
 			Type:    uint256Type,
@@ -69,11 +69,18 @@ func (h CancelSendToEvmChainHandler) EventID() common.Hash {
 func (h CancelSendToEvmChainHandler) Handle(
 	ctx sdk.Context,
 	_ common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	if h.gravitySrv == nil {
 		return fmt.Errorf("native action %s is not implemented", CancelSendToEvmChainEventName)
+	}
+
+	if len(topics) != 2 {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		return nil
 	}
 
 	unpacked, err := CancelSendToEvmChainEvent.Inputs.Unpack(data)
@@ -83,8 +90,9 @@ func (h CancelSendToEvmChainHandler) Handle(
 		return nil
 	}
 
-	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	id := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	// needs to crope the extra bytes in the topic and cast to a cosmos address
+	senderCosmosAddr := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
+	id := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
 
 	// Need to retrieve the batch to get the amount to refund
 	var unbatched []*gravitytypes.SendToEthereum
