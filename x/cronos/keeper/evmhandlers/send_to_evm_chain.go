@@ -121,7 +121,7 @@ func (h SendToEvmChainHandler) Handle(
 	unpacked, err := SendToEvmChainEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
-		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
 		return nil
 	}
 
