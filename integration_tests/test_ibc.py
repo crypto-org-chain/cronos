@@ -66,7 +66,7 @@ def test_ibc_transfer_with_hermes(ibc):
     assert fee == gas * 1000000
 
 
-def ibc_incentivized_transfer(ibc):
+def test_ibc_incentivized_transfer(ibc):
     if not ibc.incentivized:
         # this test case only works for incentivized channel.
         return
@@ -121,7 +121,7 @@ def ibc_incentivized_transfer(ibc):
     assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 20
 
 
-def cronos_transfer_tokens(ibc):
+def test_cronos_transfer_tokens(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
@@ -158,7 +158,7 @@ def cronos_transfer_tokens(ibc):
     assert old_src_balance - src_amount == new_src_balance
 
 
-def cronos_transfer_tokens_acknowledgement_error(ibc):
+def test_cronos_transfer_tokens_acknowledgement_error(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens
     with invalid receiver for acknowledgement error.
@@ -191,7 +191,7 @@ def cronos_transfer_tokens_acknowledgement_error(ibc):
     new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
 
 
-def cro_bridge_contract(ibc):
+def test_cro_bridge_contract(ibc):
     """
     test sending basetcro from cronos to crypto-org-chain using CroBridge contract.
     depends on `test_ibc` to send the original coins.
@@ -260,7 +260,7 @@ def test_cronos_transfer_source_tokens(ibc):
     # send token to crypto.org
     print("send to crypto.org")
     chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = "ibc/DCF2004A1CB240ED759F3EA6648E98D96636F834BDF6CD3D12EC965BAD99B957"
+    dest_denom = "ibc/C096BF05DB995A975931166766E0E2585A4C3818290C7E737ACE82A39DD6ECDE"
     amount = 1000
 
     # check and record receiver balance
