@@ -33,17 +33,17 @@ func init() {
 			Type:    addressType,
 			Indexed: true,
 		}, abi.Argument{
+			Name:    "channel_id",
+			Type:    uint256Type,
+			Indexed: true,
+		}, abi.Argument{
 			Name:    "recipient",
 			Type:    stringType,
-			Indexed: true,
+			Indexed: false,
 		}, abi.Argument{
 			Name:    "amount",
 			Type:    uint256Type,
 			Indexed: false,
-		}, abi.Argument{
-			Name:    "channel_id",
-			Type:    stringType,
-			Indexed: true,
 		}, abi.Argument{
 			Name:    "extraData",
 			Type:    bytesType,
@@ -76,9 +76,12 @@ func (h SendToIbcV2Handler) Handle(
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
-	if len(topics) != 4 {
+	if len(topics) != 3 {
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		for i, topic := range topics {
+			h.cronosKeeper.Logger(ctx).Debug(fmt.Sprintf("topic index: %d value: %s", i, topic.TerminalString()))
+		}
 		return nil
 	}
 
@@ -99,12 +102,12 @@ func (h SendToIbcV2Handler) Handle(
 	}
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
-	// needs to crope the extra bytes in the topic by using BytesToAddress
+	// Needs to crope the extra bytes in the topic by using BytesToAddress
 	sender := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
-	recipient := string(topics[2].Bytes())
-	amount := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
-	// channelId := string(topics[3].Bytes())
-	// extraData := unpacked[1].([]byte)
+	recipient := unpacked[0].(string)
+	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	// channelId := uint256(topics[2].Bytes())
+	// extraData := unpacked[2].([]byte)
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 
 	if types.IsSourceCoin(denom) {

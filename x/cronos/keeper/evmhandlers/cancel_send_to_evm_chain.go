@@ -80,6 +80,9 @@ func (h CancelSendToEvmChainHandler) Handle(
 	if len(topics) != 2 {
 		// log and ignore
 		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		for i, topic := range topics {
+			h.cronosKeeper.Logger(ctx).Debug(fmt.Sprintf("topic index: %d value: %s", i, topic.TerminalString()))
+		}
 		return nil
 	}
 

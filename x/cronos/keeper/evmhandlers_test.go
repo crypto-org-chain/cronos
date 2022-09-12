@@ -404,10 +404,10 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 					sender.Hash(),
-					common.BytesToHash([]byte(recipient)),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
 				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
 				)
@@ -430,10 +430,10 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 					sender.Hash(),
-					common.BytesToHash([]byte(recipient)),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
 				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
 				)
@@ -456,10 +456,10 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 					sender.Hash(),
-					common.BytesToHash([]byte(recipient)),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
 				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
 				)

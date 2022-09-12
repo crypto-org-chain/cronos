@@ -8,7 +8,7 @@ contract TestERC21Source is ERC20 {
 	bool isSource;
 
 	event __CronosSendToIbc(address sender, string recipient, uint256 amount);
-	event __CronosSendToIbc(address indexed sender, string indexed recipient, uint256 amount, string indexed channel_id, bytes extraData);
+	event __CronosSendToIbc(address indexed sender, uint256 indexed channel_id, string recipient, uint256 amount, bytes extraData);
 	event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
 	event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
@@ -67,13 +67,13 @@ contract TestERC21Source is ERC20 {
 		emit __CronosSendToIbc(msg.sender, recipient, amount);
 	}
 
-	function send_to_ibc_v2(string memory recipient, uint amount, string memory channel_id, bytes memory extraData) public {
+	function send_to_ibc_v2(string memory recipient, uint amount, uint channel_id, bytes memory extraData) public {
 		if (isSource) {
 			transfer(module_address, amount);
 		} else {
 			unsafe_burn(msg.sender, amount);
 		}
-		emit __CronosSendToIbc(msg.sender, recipient, amount, channel_id, extraData);
+		emit __CronosSendToIbc(msg.sender, channel_id, recipient, amount, extraData);
 	}
 
 	// send to another chain through gravity bridge

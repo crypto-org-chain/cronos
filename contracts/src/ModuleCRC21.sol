@@ -8,7 +8,7 @@ contract ModuleCRC21 is DSToken {
     string denom;
     bool isSource;
 
-    event __CronosSendToIbc(address indexed sender, string indexed recipient, uint256 amount, string indexed channel_id, bytes extraData);
+    event __CronosSendToIbc(address indexed sender, uint256 indexed channel_id, string recipient, uint256 amount, bytes extraData);
     event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
     event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
@@ -57,13 +57,13 @@ contract ModuleCRC21 is DSToken {
     **/
 
     // send an "amount" of the contract token to recipient through IBC
-    function send_to_ibc(string memory recipient, uint amount, string memory channel_id, bytes memory extraData) public {
+    function send_to_ibc(string memory recipient, uint amount, uint channel_id, bytes memory extraData) public {
         if (isSource) {
             transferFrom(msg.sender, module_address, amount);
         } else {
             unsafe_burn(msg.sender, amount);
         }
-        emit __CronosSendToIbc(msg.sender, recipient, amount, channel_id, extraData);
+        emit __CronosSendToIbc(msg.sender, channel_id, recipient, amount, extraData);
     }
 
     // send to another chain through gravity bridge
