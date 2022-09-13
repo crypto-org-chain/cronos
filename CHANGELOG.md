@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### State Machine Breaking
+- [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
+
+*September 13, 2022*
+
+## v0.9.0
+
+### State Machine Breaking
 - [cronos#429](https://github.com/crypto-org-chain/cronos/pull/429) Update ethermint to main, ibc-go to v3.0.0, cosmos sdk to v0.45.4 and gravity to latest, remove v0.7.0 related upgradeHandler.
 - [cronos#532](https://github.com/crypto-org-chain/cronos/pull/532) Add SendtoChain and CancelSendToChain support from evm call.
 - [cronos#600](https://github.com/crypto-org-chain/cronos/pull/600) Implement bidirectional token mapping.
@@ -10,7 +17,6 @@
 - [cronos#627](https://github.com/crypto-org-chain/cronos/pull/627) Upgrade gravity bridge module with security enhancements
 - [cronos#647](https://github.com/crypto-org-chain/cronos/pull/647) Integrate ibc fee middleware.
 - [cronos#672](https://github.com/crypto-org-chain/cronos/pull/672) Revert interchain-accounts integration.
-- [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
 
 ### Bug Fixes
 
