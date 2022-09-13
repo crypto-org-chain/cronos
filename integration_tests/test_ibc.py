@@ -270,7 +270,7 @@ def test_cronos_transfer_source_tokens(ibc):
     assert chainmain_receiver_balance == 0
 
     # send to ibc
-    tx = contract.functions.send_to_ibc(chainmain_receiver, amount).buildTransaction(
+    tx = contract.functions.send_to_ibc_v2(chainmain_receiver, amount, 0, b'').buildTransaction(
         {"from": ADDRS["validator"]}
     )
     txreceipt = send_transaction(w3, tx)
@@ -290,6 +290,16 @@ def test_cronos_transfer_source_tokens(ibc):
 
     wait_for_fn("check balance change", check_chainmain_balance_change)
     assert chainmain_receiver_new_balance == amount
+
+    # check legacy send to ibc
+    tx = contract.functions.send_to_ibc(chainmain_receiver, 1).buildTransaction(
+        {"from": ADDRS["validator"]}
+    )
+    txreceipt = send_transaction(w3, tx)
+    assert txreceipt.status == 1, "should success"
+    chainmain_receiver_balance = amount
+    wait_for_fn("check balance change", check_chainmain_balance_change)
+    assert chainmain_receiver_new_balance == amount + 1
 
     # send back the token to cronos
     # check receiver balance
