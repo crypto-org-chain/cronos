@@ -24,6 +24,7 @@ def cronos_mempool(tmp_path_factory):
 
 
 def test_mempool(cronos_mempool):
+    max_retry = 10
     w3: Web3 = cronos_mempool.w3
     filter = w3.eth.filter("pending")
     assert filter.get_new_entries() == []
@@ -39,8 +40,14 @@ def test_mempool(cronos_mempool):
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     w3.eth.wait_for_transaction_receipt(txhash)
     # check tx in mempool
-    new_txs = filter.get_new_entries()
-    assert txhash in new_txs
+    exist_txhash = False
+    for i in range(max_retry):
+        print(f"check contract tx: {i}")
+        exist_txhash = txhash in filter.get_new_entries()
+        if exist_txhash:
+            break
+        wait_for_new_blocks(cli, 1, sleep=0.1)
+    assert exist_txhash
 
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
@@ -62,7 +69,7 @@ def test_mempool(cronos_mempool):
     print(f"block_num_1 {block_num_1}")
 
     # check after max 10 blocks
-    for i in range(10):
+    for i in range(max_retry):
         all_pending = w3.eth.get_filter_changes(filter.filter_id)
         print(f"all pending tx hash at block {i+block_num_1}: {all_pending}")
         for h in all_pending:
