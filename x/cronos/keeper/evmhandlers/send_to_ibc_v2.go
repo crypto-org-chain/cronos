@@ -54,14 +54,12 @@ func init() {
 
 // SendToIbcV2Handler handles `__CronosSendToIbc` log
 type SendToIbcV2Handler struct {
-	bankKeeper   types.BankKeeper
-	cronosKeeper cronoskeeper.Keeper
+	*SendToIbcHandler
 }
 
 func NewSendToIbcV2Handler(bankKeeper types.BankKeeper, cronosKeeper cronoskeeper.Keeper) *SendToIbcV2Handler {
 	return &SendToIbcV2Handler{
-		bankKeeper:   bankKeeper,
-		cronosKeeper: cronosKeeper,
+		SendToIbcHandler: NewSendToIbcHandler(bankKeeper, cronosKeeper),
 	}
 }
 
@@ -92,42 +90,12 @@ func (h SendToIbcV2Handler) Handle(
 		return nil
 	}
 
-	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
-	if !found {
-		return fmt.Errorf("contract %s is not connected to native token", contract)
-	}
-
-	if !types.IsValidIBCDenom(denom) && !types.IsValidCronosDenom(denom) {
-		return fmt.Errorf("the native token associated with the contract %s is neither an ibc voucher or a cronos token", contract)
-	}
-
-	contractAddr := sdk.AccAddress(contract.Bytes())
-	// Needs to crope the extra bytes in the topic by using BytesToAddress
-	sender := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
+	// needs to crope the extra bytes in the topic by using BytesToAddress
+	sender := common.BytesToAddress(topics[1].Bytes())
 	recipient := unpacked[0].(string)
-	amount := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	amount := unpacked[1].(*big.Int)
 	// channelId := uint256(topics[2].Bytes())
 	// extraData := unpacked[2].([]byte)
-	coins := sdk.NewCoins(sdk.NewCoin(denom, amount))
 
-	if types.IsSourceCoin(denom) {
-		// it is a source token, we need to mint coins
-		if err = h.bankKeeper.MintCoins(ctx, types.ModuleName, coins); err != nil {
-			return err
-		}
-		// send the coin to the user
-		if err = h.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, sender, coins); err != nil {
-			return err
-		}
-	} else {
-		// First, transfer IBC coin to user so that he will be the refunded address if transfer fails
-		if err = h.bankKeeper.SendCoins(ctx, contractAddr, sender, coins); err != nil {
-			return err
-		}
-	}
-	// Initiate IBC transfer from sender account
-	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {
-		return err
-	}
-	return nil
+	return h.handle(ctx, contract, sender, recipient, amount)
 }
