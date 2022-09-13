@@ -162,8 +162,8 @@ schema = 3
     version = "v1.10.19"
     hash = "sha256-7FPnTGcCb8Xd1QVR+6PmGTaHdTY1mm/8osFTW1JLuG8="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-rc3"
-    hash = "sha256-I7IEoi5P0SlcNsqFUNJkmOq+s1tyaXGqux+RRdoUPDw="
+    version = "v0.6.1-rc5"
+    hash = "sha256-WocAmUZFkVpVY9ee46E7YbqOHG9ALXgyGMtXyeDXZvY="
     replaced = "github.com/mmsqe/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
@@ -444,8 +444,8 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.21-rc7"
-    hash = "sha256-KuZ6G+tNvVqE7NhBfdRyL188/3XABO9HFKIV2zJk7UE="
+    version = "v0.34.21-rc8"
+    hash = "sha256-/Ah2uK9pOfWC6qHRR/xPXccFjpoK1BM79xc42K240IY="
     replaced = "github.com/mmsqe/tendermint"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.7"

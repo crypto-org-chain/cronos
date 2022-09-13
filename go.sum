@@ -1552,10 +1552,10 @@ github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjU
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/mmsqe/ethermint v0.6.1-rc3 h1:yLq5HHDYoau8gkxfiyLy2DWaiRNiOXU2vOwE25NoR2M=
-github.com/mmsqe/ethermint v0.6.1-rc3/go.mod h1:9tL5iEPVlXVZgcshMOQYvVB+4bjayHEtiRIMt4QMgic=
-github.com/mmsqe/tendermint v0.34.21-rc7 h1:ra1Ss2Ij42XDqd9M76owI269N0KgOb0IRnubn7/xNPY=
-github.com/mmsqe/tendermint v0.34.21-rc7/go.mod h1:JnQJLTRdLvgoAVgfCWo8C9yNxhB61ZBVlblJJ4kiPrI=
+github.com/mmsqe/ethermint v0.6.1-rc5 h1:ny2qfsI8b4fD+azgqct9AxT6KyreXi5UqtoVwmzScAE=
+github.com/mmsqe/ethermint v0.6.1-rc5/go.mod h1:Yz1rSCVRXUQPWwLRrS37F1Th+rltI7jHQB1PdAJwc98=
+github.com/mmsqe/tendermint v0.34.21-rc8 h1:pDn23IH5HiAS7RMALDae5WPoNfl8NuEbyVCDveMMWz0=
+github.com/mmsqe/tendermint v0.34.21-rc8/go.mod h1:JnQJLTRdLvgoAVgfCWo8C9yNxhB61ZBVlblJJ4kiPrI=
 github.com/moby/buildkit v0.8.1/go.mod h1:/kyU1hKy/aYCuP39GZA9MaKioovHku57N6cqlKZIaiQ=
 github.com/moby/buildkit v0.10.3/go.mod h1:jxeOuly98l9gWHai0Ojrbnczrk/rf+o9/JqNhY+UCSo=
 github.com/moby/locker v1.0.1/go.mod h1:S7SDdo5zpBK84bzzVlKr2V0hz+7x9hWbYC/kq7oQppc=

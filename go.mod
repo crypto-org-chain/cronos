@@ -199,6 +199,6 @@ replace (
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
 )
 
-replace github.com/tendermint/tendermint => github.com/mmsqe/tendermint v0.34.21-rc7
+replace github.com/tendermint/tendermint => github.com/mmsqe/tendermint v0.34.21-rc8
 
-replace github.com/evmos/ethermint => github.com/mmsqe/ethermint v0.6.1-rc3
+replace github.com/evmos/ethermint => github.com/mmsqe/ethermint v0.6.1-rc5
