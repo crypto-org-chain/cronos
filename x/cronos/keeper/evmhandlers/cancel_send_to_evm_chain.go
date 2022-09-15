@@ -14,26 +14,26 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 )
 
-var _ types.EvmLogHandler = CancelSendToChainHandler{}
+var _ types.EvmLogHandler = CancelSendToEvmChainHandler{}
 
-const CancelSendToChainEventName = "__CronosCancelSendToChain"
+const CancelSendToEvmChainEventName = "__CronosCancelSendToEvmChain"
 
-// CancelSendToChainEvent represent the signature of
-// `event __CronosCancelSendToChain(uint256 id)`
-var CancelSendToChainEvent abi.Event
+// CancelSendToEvmChainEvent represent the signature of
+// `event __CronosCancelSendToEvmChain(uint256 id)`
+var CancelSendToEvmChainEvent abi.Event
 
 func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	uint256Type, _ := abi.NewType("uint256", "", nil)
 
-	CancelSendToChainEvent = abi.NewEvent(
-		CancelSendToChainEventName,
-		CancelSendToChainEventName,
+	CancelSendToEvmChainEvent = abi.NewEvent(
+		CancelSendToEvmChainEventName,
+		CancelSendToEvmChainEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "sender",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "id",
 			Type:    uint256Type,
@@ -42,49 +42,60 @@ func init() {
 	)
 }
 
-// CancelSendToChainHandler handles `__CronosCancelSendToChain` log
-type CancelSendToChainHandler struct {
+// CancelSendToEvmChainHandler handles `__CronosCancelSendToEvmChain` log
+type CancelSendToEvmChainHandler struct {
 	gravitySrv    gravitytypes.MsgServer
 	cronosKeeper  cronoskeeper.Keeper
 	gravityKeeper types.GravityKeeper
 }
 
-func NewCancelSendToChainHandler(
+func NewCancelSendToEvmChainHandler(
 	gravitySrv gravitytypes.MsgServer,
 	cronosKeeper cronoskeeper.Keeper,
 	gravityKeeper types.GravityKeeper,
-) *CancelSendToChainHandler {
-	return &CancelSendToChainHandler{
+) *CancelSendToEvmChainHandler {
+	return &CancelSendToEvmChainHandler{
 		gravitySrv:    gravitySrv,
 		cronosKeeper:  cronosKeeper,
 		gravityKeeper: gravityKeeper,
 	}
 }
 
-func (h CancelSendToChainHandler) EventID() common.Hash {
-	return CancelSendToChainEvent.ID
+func (h CancelSendToEvmChainHandler) EventID() common.Hash {
+	return CancelSendToEvmChainEvent.ID
 }
 
 // Handle `__CronosCancelSendToChain` log only if gravity is activated.
-func (h CancelSendToChainHandler) Handle(
+func (h CancelSendToEvmChainHandler) Handle(
 	ctx sdk.Context,
 	_ common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	if h.gravitySrv == nil {
-		return fmt.Errorf("native action %s is not implemented", CancelSendToChainEventName)
+		return fmt.Errorf("native action %s is not implemented", CancelSendToEvmChainEventName)
 	}
 
-	unpacked, err := CancelSendToChainEvent.Inputs.Unpack(data)
-	if err != nil {
+	if len(topics) != 2 {
 		// log and ignore
-		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		for i, topic := range topics {
+			h.cronosKeeper.Logger(ctx).Debug(fmt.Sprintf("topic index: %d value: %s", i, topic.TerminalString()))
+		}
 		return nil
 	}
 
-	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	id := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
+	unpacked, err := CancelSendToEvmChainEvent.Inputs.Unpack(data)
+	if err != nil {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
+		return nil
+	}
+
+	// needs to crope the extra bytes in the topic and cast to a cosmos address
+	senderCosmosAddr := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
+	id := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
 
 	// Need to retrieve the batch to get the amount to refund
 	var unbatched []*gravitytypes.SendToEthereum

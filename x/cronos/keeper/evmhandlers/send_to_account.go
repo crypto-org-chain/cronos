@@ -60,6 +60,7 @@ func (h SendToAccountHandler) EventID() common.Hash {
 func (h SendToAccountHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
