@@ -367,7 +367,9 @@ func New(
 		bApp.SetStreamingService(service)
 
 		wg := new(sync.WaitGroup)
-		service.Stream(wg)
+		if err := service.Stream(wg); err != nil {
+			panic(err)
+		}
 	}
 
 	app := &App{
