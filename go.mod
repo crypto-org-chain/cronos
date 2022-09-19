@@ -5,7 +5,7 @@ go 1.18
 require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.2-0.20220831122102-a95c62680975
+	github.com/cosmos/cosmos-sdk v0.46.2-0.20220916140313-c5245716b516
 	github.com/cosmos/ibc-go/v5 v5.0.0-rc1
 	github.com/ethereum/go-ethereum v1.10.19
 	github.com/evmos/ethermint v0.6.1-0.20220913152100-67f1e9753102
@@ -184,7 +184,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk v0.43.0-beta1.0.20220915083648-00bf22bfbc5b
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.2-0.20220916140313-c5245716b516
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
