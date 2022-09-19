@@ -275,7 +275,7 @@ def test_gravity_transfer(gravity):
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_evm_chain(
-            ADDRS["validator"], amount, 1, 0, b''
+            ADDRS["validator"], amount, 1, 0, b""
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_evm_chain:
@@ -482,7 +482,7 @@ def test_gravity_cancel_transfer(gravity):
 
         # send it back to erc20
         tx = crc21_contract.functions.send_to_evm_chain(
-            ADDRS["validator"], amount, 1, 0, b''
+            ADDRS["validator"], amount, 1, 0, b""
         ).buildTransaction({"from": community})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_evm_chain:
@@ -565,7 +565,7 @@ def test_gravity_source_tokens(gravity):
 
         print("send to ethereum")
         tx = contract.functions.send_to_evm_chain(
-            ethereum_receiver, amount, 1, 0, b''
+            ethereum_receiver, amount, 1, 0, b""
         ).buildTransaction({"from": ADDRS["validator"]})
         txreceipt = send_transaction(w3, tx)
         assert txreceipt.status == 1, "should success"
@@ -651,7 +651,7 @@ def test_gravity_blacklisted_contract(gravity):
 
         # send it back to blacklisted address
         tx = crc21_contract.functions.send_to_evm_chain(
-            ADDRS["signer1"], amount, 1, 0, b''
+            ADDRS["signer1"], amount, 1, 0, b""
         ).buildTransaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         assert txreceipt.status == 1, "should success"
