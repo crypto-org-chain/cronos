@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+\- [#700](https://github.com/crypto-org-chain/cronos/pull/700) Integrate file streamer to stream the states of legacy blocks.
+
 *Aug 5, 2022*
 
 ## v0.7.1
