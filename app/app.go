@@ -356,7 +356,7 @@ func New(
 		}
 
 		// default to exposing all
-		exposeStoreKeys := make([]sdk.StoreKey, 0, len(keys))
+		exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
 		for _, storeKey := range keys {
 			exposeStoreKeys = append(exposeStoreKeys, storeKey)
 		}
