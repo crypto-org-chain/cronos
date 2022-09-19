@@ -14,5 +14,11 @@ pkgs.poetry2nix.mkPoetryEnv {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.poetry ];
       }
     );
+
+    cprotobuf = super.cprotobuf.overridePythonAttrs (
+      old: {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.cython ];
+      }
+    );
   });
 }
