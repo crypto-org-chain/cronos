@@ -270,9 +270,9 @@ def test_cronos_transfer_source_tokens(ibc):
     assert chainmain_receiver_balance == 0
 
     # send to ibc
-    tx = contract.functions.send_to_ibc_v2(chainmain_receiver, amount, 0, b'').buildTransaction(
-        {"from": ADDRS["validator"]}
-    )
+    tx = contract.functions.send_to_ibc_v2(
+        chainmain_receiver, amount, 0, b""
+    ).buildTransaction({"from": ADDRS["validator"]})
     txreceipt = send_transaction(w3, tx)
     assert txreceipt.status == 1, "should success"
 

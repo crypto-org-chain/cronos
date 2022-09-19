@@ -16,13 +16,16 @@ jobs:
   integration_tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - id: changed-files
         uses: tj-actions/changed-files@v29.0.2
         with:
           files: |
             docs
-            **.md
+            *.md
+            **/*.md
       - uses: cachix/install-nix-action@v15
         if: steps.changed-files.outputs.only_changed == 'false'
       - uses: cachix/cachix-action@v10
@@ -54,13 +57,16 @@ jobs:
         os: [macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - id: changed-files
         uses: tj-actions/changed-files@v29.0.2
         with:
           files: |
             docs
             *.md
+            **/*.md
       - uses: cachix/install-nix-action@v15
         if: steps.changed-files.outputs.only_changed == 'false'
       - uses: cachix/cachix-action@v10
