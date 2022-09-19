@@ -5,6 +5,10 @@
 ### State Machine Breaking
 - [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
 
+### Improvements
+
+- [cronos#702](https://github.com/crypto-org-chain/cronos/pull/702) Integrate the file state streamer.
+
 *September 13, 2022*
 
 ## v0.9.0
