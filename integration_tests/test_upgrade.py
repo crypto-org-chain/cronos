@@ -146,3 +146,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         },
     )
     assert receipt.status == 1
+
+    # query json-rpc on older blocks should success
+    custom_cronos.w3.eth.get_balance(
+        ADDRS["validator"], block_identifier=target_height - 2
+    )
