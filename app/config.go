@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/tharsis/ethermint/server/config"
 )
 
 // List of available flags for the simulator
@@ -72,4 +73,24 @@ func NewConfigFromFlags() simulation.Config {
 		OnOperation:        FlagOnOperationValue,
 		AllInvariants:      FlagAllInvariantsValue,
 	}
+}
+
+type StoreConfig struct {
+	Streamers []string `mapstructure:"streamers"`
+}
+
+type StreamersConfig struct {
+	File FileStreamerConfig `mapstructure:"file"`
+}
+
+type FileStreamerConfig struct {
+	Prefix   string `mapstructure:"prefix"`
+	WriteDir string `mapstructure:"write_dir"`
+}
+
+type Config struct {
+	config.Config
+
+	Store     StoreConfig     `mapstructure:"store"`
+	Streamers StreamersConfig `mapstructure:"streamers"`
 }
