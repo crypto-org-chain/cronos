@@ -7,7 +7,7 @@ from .utils import ADDRS
 class StoreKVPairs(ProtoEntity):
     # the store key for the KVStore this pair originates from
     store_key = Field("string", 1)
-    # true indicates a set operation, false indicates a delete operation
+    # true indicates a delete operation
     delete = Field("bool", 2)
     key = Field("bytes", 3)
     value = Field("bytes", 4)
