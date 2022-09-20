@@ -59,7 +59,11 @@ def test_streamers(cronos):
     _, body, _ = decode_stream_file(open(path, "rb").read())
     # creation of the validator account
     assert body[0].store_key == "acc"
-    assert body[0].key == b"\x01" + HexBytes(ADDRS["validator"])
+    # the order in gen_txs is undeterministic, could be either one.
+    assert body[0].key in (
+        b"\x01" + HexBytes(ADDRS["validator"]),
+        b"\x01" + HexBytes(ADDRS["validator2"]),
+    )
 
 
 if __name__ == "__main__":
