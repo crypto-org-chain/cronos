@@ -159,7 +159,7 @@ develop = false
 type = "git"
 url = "https://github.com/yihuang/cprotobuf.git"
 reference = "master"
-resolved_reference = "cee9eccf04711c18f1ad5c7ef5fb6550caacac91"
+resolved_reference = "711f2e2f5619ca4308caf9c971355ce62598c765"
 
 [[package]]
 name = "cytoolz"

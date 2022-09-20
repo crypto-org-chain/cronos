@@ -60,3 +60,17 @@ def test_streamers(cronos):
     # creation of the validator account
     assert body[0].store_key == "acc"
     assert body[0].key == b"\x01" + HexBytes(ADDRS["validator"])
+
+
+if __name__ == "__main__":
+    import binascii
+    import sys
+
+    _, body, _ = decode_stream_file(open(sys.argv[1], "rb").read())
+    for item in body:
+        print(
+            item.store_key,
+            item.delete,
+            binascii.hexlify(item.key).decode(),
+            binascii.hexlify(item.value).decode(),
+        )
