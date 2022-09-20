@@ -79,6 +79,9 @@ schema = 3
   [mod."github.com/cespare/xxhash/v2"]
     version = "v2.1.2"
     hash = "sha256-YV9SmXDtmmgQylQUfrUgQLAPfqYexcHxegMBT+IX9qM="
+  [mod."github.com/chzyer/readline"]
+    version = "v0.0.0-20180603132655-2972be24d48e"
+    hash = "sha256-2Uj5LGpHEbLQG3d/7z9AL8DknUBZyoTAMs4j+VVDmIA="
   [mod."github.com/cockroachdb/apd/v2"]
     version = "v2.0.2"
     hash = "sha256-UrPHkvqVF8V78+kXKmjTHl79XsgDBnqFsje5BMYh0E4="
@@ -95,9 +98,9 @@ schema = 3
     version = "v1.0.0-alpha7"
     hash = "sha256-2wCH+toTF2A6MfFjOa13muEH5oBCcxAhZEqirNOrBA0="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.1"
-    hash = "sha256-AZm3KzGee03chXTi6S/m0AZoGRkx4XLS6Rh2sBAWc30="
-    replaced = "github.com/cosmos/cosmos-sdk"
+    version = "v0.43.0-beta1.0.20220920021715-149d0d651552"
+    hash = "sha256-waAIzRFRJsbpZptpctuetBEUyv7piEHqikrSgmwppaI="
+    replaced = "github.com/yihuang/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -312,12 +315,15 @@ schema = 3
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="
+  [mod."github.com/manifoldco/promptui"]
+    version = "v0.9.0"
+    hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
   [mod."github.com/mattn/go-colorable"]
     version = "v0.1.12"
     hash = "sha256-Y1vCt0ShrCz4wSmwsppCfeLPLKrWusc2zM2lUFwDMyI="
   [mod."github.com/mattn/go-isatty"]
-    version = "v0.0.14"
-    hash = "sha256-e8zn5eCVh/B1HOP1PGXeXH0bGkIV0vKYP9KLwZni5as="
+    version = "v0.0.16"
+    hash = "sha256-YMaPZvShDfA98vqw1+zWWl7M1IT4nHPGBrAt7kHo8Iw="
   [mod."github.com/mattn/go-runewidth"]
     version = "v0.0.9"
     hash = "sha256-dK/kIPe1tcxEubwI4CWfov/HWRBgD/fqlPC3d5i30CY="
@@ -485,8 +491,8 @@ schema = 3
     version = "v0.0.0-20220722155255-886fb9371eb4"
     hash = "sha256-ZZyIlxh+nqsOiWHstW7eHXN7RhHnbSL2eDIzcve07Q0="
   [mod."golang.org/x/sys"]
-    version = "v0.0.0-20220727055044-e65921a090b8"
-    hash = "sha256-WIJmjjYnZ3XY7BhbskCdNHCVGK7lxUeYpEegmYWSHe8="
+    version = "v0.0.0-20220811171246-fbc7d0a398ab"
+    hash = "sha256-acnc9aKY/SyebObLasV+gowfB0S+6ehz3hnUgAmQmSU="
   [mod."golang.org/x/term"]
     version = "v0.0.0-20220722155259-a9ba230a4035"
     hash = "sha256-9uM1OONzbsa6bz2iKk767hAaCuafi58bdTF7at03fWY="
@@ -506,8 +512,8 @@ schema = 3
     version = "v0.0.0-20220822174746-9e6da59bd2fc"
     hash = "sha256-yqs8RLNZJOaeT2QVhVpZdokXaapQa841VEBkh9xd/yU="
   [mod."google.golang.org/grpc"]
-    version = "v1.48.0"
-    hash = "sha256-sF2W+L5IHiCO1t/SsHpmht1tPiXJ2RBiiosk+BngfKA="
+    version = "v1.49.0"
+    hash = "sha256-x4+/XjxI2HY8fZYMiEV7Kv+2SrnlmaTJX3tBl+dPUoI="
   [mod."google.golang.org/protobuf"]
     version = "v1.28.1"
     hash = "sha256-sTJYgvlv5is7vHNxcuigF2lNASp0QonhUgnrguhfHSU="
