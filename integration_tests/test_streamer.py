@@ -58,5 +58,5 @@ def test_streamers(cronos):
     path = cronos.node_home(0) / "data/file_streamer/block-0-tx-0"
     _, body, _ = decode_stream_file(open(path, "rb").read())
     # creation of the validator account
-    assert body[0]["store_key"] == "acc"
-    assert body[0]["key"] == b"\x01" + HexBytes(ADDRS["validator"])
+    assert body[0].store_key == "acc"
+    assert body[0].key == b"\x01" + HexBytes(ADDRS["validator"])
