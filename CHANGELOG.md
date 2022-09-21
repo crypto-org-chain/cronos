@@ -8,7 +8,7 @@
 ### Improvements
 
 - [cronos#702](https://github.com/crypto-org-chain/cronos/pull/702) Integrate the file state streamer.
-- [cronos#]() Run grpc queries concurrently.
+- [cronos#708](https://github.com/crypto-org-chain/cronos/pull/708) Run grpc queries concurrently.
 
 *September 13, 2022*
 
