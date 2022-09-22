@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - [#693](https://github.com/crypto-org-chain/cronos/pull/693) Clear `From` field when building cosmos tx in `eth_sendTransaction`.
+- [cronos#]() Add option `iavl-disable-fastnode` to disable iavl fastnode indexing migration, and enable `iavl-cache-size` to have effect on app.
 
 *Aug 31, 2022*
 
