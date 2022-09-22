@@ -63,8 +63,8 @@ schema = 3
     version = "v1.0.4"
     hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.45.8"
-    hash = "sha256-JpfLiDeML37pQwdce48xphb5cnC7iVP+IRhWtURKf/s="
+    version = "v0.45.9-0.20220920132636-63a7c45caa76"
+    hash = "sha256-PpVH4fN7ZwILpUwSi/luPsSMPF3IWRh9r9nZN/tUOrs="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -73,8 +73,8 @@ schema = 3
     version = "v1.2.0"
     hash = "sha256-209TcVuXc5s/TcOvNlaQ1HEJAUDTEK3nxPhs+d8TEcY="
   [mod."github.com/cosmos/iavl"]
-    version = "v0.19.1"
-    hash = "sha256-XrJeCNK0W8j3Qwxya4sr6R05zpI6+oYXFucWguiMiqM="
+    version = "v0.19.2-0.20220916140702-9b6be3095313"
+    hash = "sha256-49xr/7/4L1wZ45eW5lE7C4SlcbGf4gBY+662SfJiWPQ="
   [mod."github.com/cosmos/ibc-go/v2"]
     version = "v2.2.0-hooks2"
     hash = "sha256-bbSoJ5ZQwevdSU+UYaVqk0MFJZqeOlfwKjSwggj7BSs="
