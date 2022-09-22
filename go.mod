@@ -192,6 +192,8 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.2-0.20220920160224-9454b97ccb77
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 
+	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220922030425-b187114be85f
+
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
