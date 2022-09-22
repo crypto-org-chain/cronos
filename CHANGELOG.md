@@ -6,6 +6,10 @@
 
 - [cronos#719](https://github.com/crypto-org-chain/cronos/pull/719) Fix `eth_call` for legacy blocks (backport #713).
 
+### Improvements
+
+- [cronos#720](https://github.com/crypto-org-chain/cronos/pull/720) Add option `iavl-disable-fastnode` to disable iavl fastnode indexing migration (backport #714).
+
 *Sep 20, 2022*
 
 ## v0.9.0-beta3
