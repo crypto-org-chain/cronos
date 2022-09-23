@@ -1,14 +1,13 @@
 { lib
 , buildGoApplication
 , nix-gitignore
-, go_1_17
 , rocksdb ? null
 , db_backend ? "rocksdb"
 , network ? "mainnet"  # mainnet|testnet
 , rev ? "dirty"
 }:
 let
-  version = "v0.7.1";
+  version = "v0.7.2";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network ]
     ++ lib.lists.optional (db_backend == "rocksdb") "rocksdb";
@@ -37,7 +36,6 @@ buildGoApplication rec {
     "!go.sum"
     "!gomod2nix.toml"
   ] ./.);
-  go = go_1_17;
   modules = ./gomod2nix.toml;
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
