@@ -4,7 +4,7 @@
 
 ### Improvements
 
-- [#]() Integrate file streamer to stream the states of legacy blocks.
+- [#700](https://github.com/crypto-org-chain/cronos/pull/700) Integrate file streamer to stream the states of legacy blocks.
 
 *May 12, 2022*
 
