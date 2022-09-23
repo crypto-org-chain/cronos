@@ -375,8 +375,8 @@ schema = 3
     version = "v0.6.7"
     hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
   [mod."github.com/tharsis/ethermint"]
-    version = "v0.10.0-cronos.0.20220719024136-4658529abbf5"
-    hash = "sha256-86PPinRIfbATES4B4FLFE02GQSCBxO39Tsj/VYYhkr8="
+    version = "v0.10.0-alpha1-cronos-12"
+    hash = "sha256-CyqJbKDgZKKOH0xCVZx2PJw2OOO1b/XtaF/VI3y+/RY="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
@@ -403,8 +403,8 @@ schema = 3
     version = "v0.0.0-20220726230323-06994584191e"
     hash = "sha256-VFJB2BjvFZnp0zoJLX4iinV/P6Cn7XUlsKwBGCdVjlU="
   [mod."golang.org/x/sync"]
-    version = "v0.0.0-20220513210516-0976fa681c29"
-    hash = "sha256-26T9yWx1pkXjXzBn0yj+trVpXPX6rTtly9pPzwVgAyg="
+    version = "v0.0.0-20220722155255-886fb9371eb4"
+    hash = "sha256-ZZyIlxh+nqsOiWHstW7eHXN7RhHnbSL2eDIzcve07Q0="
   [mod."golang.org/x/sys"]
     version = "v0.0.0-20220727055044-e65921a090b8"
     hash = "sha256-WIJmjjYnZ3XY7BhbskCdNHCVGK7lxUeYpEegmYWSHe8="

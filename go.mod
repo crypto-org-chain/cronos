@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/armon/go-metrics v0.3.10
-	github.com/cosmos/cosmos-sdk v0.45.5
+	github.com/cosmos/cosmos-sdk v0.45.9-0.20220920132636-63a7c45caa76
 	github.com/cosmos/ibc-go/v2 v2.2.0
 	github.com/ethereum/go-ethereum v1.10.15
 	github.com/gogo/protobuf v1.3.3
@@ -142,7 +142,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/net v0.0.0-20220726230323-06994584191e // indirect
-	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.0.0-20220727055044-e65921a090b8 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
 	golang.org/x/text v0.3.7 // indirect
@@ -165,7 +165,7 @@ replace (
 
 	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.20
 
-	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-cronos.0.20220719024136-4658529abbf5
+	github.com/tharsis/ethermint => github.com/crypto-org-chain/ethermint v0.10.0-alpha1-cronos-12
 
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )
