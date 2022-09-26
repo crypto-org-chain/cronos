@@ -55,9 +55,10 @@ class Cronos:
         return "tcp://127.0.0.1:%d" % ports.rpc_port(self.base_port(i))
 
     def cosmos_cli(self, i=0):
-        return CosmosCLI(
-            self.base_dir / f"node{i}", self.node_rpc(i), self.chain_binary
-        )
+        return CosmosCLI(self.node_home(i), self.node_rpc(i), self.chain_binary)
+
+    def node_home(self, i=0):
+        return self.base_dir / f"node{i}"
 
     def use_websocket(self, use=True):
         self._w3 = None

@@ -6,6 +6,10 @@
 
 - [cronos#719](https://github.com/crypto-org-chain/cronos/pull/719) Fix `eth_call` for legacy blocks (backport #713).
 
+### Improvements
+
+- [cronos#721](https://github.com/crypto-org-chain/cronos/pull/721) Integrate the file state streamer (backport #702).
+
 *Sep 20, 2022*
 
 ## v0.9.0-beta3
