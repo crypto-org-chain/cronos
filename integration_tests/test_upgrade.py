@@ -12,6 +12,8 @@ from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from .network import Cronos, setup_custom_cronos
 from .utils import (
     ADDRS,
+    CONTRACTS,
+    deploy_contract,
     parse_events,
     send_transaction,
     wait_for_block,
@@ -91,6 +93,13 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     target_height = height + 15
     print("upgrade height", target_height)
 
+    w3 = custom_cronos.w3
+    contract = deploy_contract(w3, CONTRACTS["TestERC20A"])
+    old_height = w3.eth.block_number
+    old_balance = w3.eth.get_balance(ADDRS["validator"], block_identifier=old_height)
+    old_base_fee = w3.eth.get_block(old_height).baseFeePerGas
+    print("old values", old_height, old_balance, old_base_fee)
+
     plan_name = "v0.9.0"
     rsp = cli.gov_propose_v0_7(
         "community",
@@ -148,6 +157,10 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     assert receipt.status == 1
 
     # query json-rpc on older blocks should success
-    custom_cronos.w3.eth.get_balance(
-        ADDRS["validator"], block_identifier=target_height - 2
+    assert old_balance == w3.eth.get_balance(
+        ADDRS["validator"], block_identifier=old_height
     )
+    assert old_base_fee == w3.eth.get_block(old_height).baseFeePerGas
+
+    # check eth_call works on older blocks
+    contract.caller(block_identifier=target_height - 2).balanceOf(ADDRS["validator"])
