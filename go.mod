@@ -5,10 +5,10 @@ go 1.18
 require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.2-0.20220831122102-a95c62680975
+	github.com/cosmos/cosmos-sdk v0.46.2-0.20220920160224-9454b97ccb77
 	github.com/cosmos/ibc-go/v5 v5.0.0-rc2
 	github.com/ethereum/go-ethereum v1.10.19
-	github.com/evmos/ethermint v0.6.1-0.20220919141022-34226aa7b1fa
+	github.com/evmos/ethermint v0.6.1-0.20220923160625-35850e620d28
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
@@ -191,8 +191,6 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.2-0.20220920160224-9454b97ccb77
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
-
-	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20220922061520-bec1a6a14033
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
