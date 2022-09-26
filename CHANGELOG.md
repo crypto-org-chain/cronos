@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## UNRELEASED
+
+### Bug Fixes
+
+- [cronos#719](https://github.com/crypto-org-chain/cronos/pull/719) Fix `eth_call` for legacy blocks (backport #713).
+
+*Sep 20, 2022*
+
+## v0.9.0-beta3
 
 ### Bug Fixes
 
