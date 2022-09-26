@@ -234,7 +234,13 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		panic(err)
 	}
 
-	snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
+	opts := make(dbm.OptionsMap, 0)
+	maxFileOpen := cast.ToUint64(appOpts.Get(flags.FlagDbMaxfileOpen))
+	if maxFileOpen > 0 {
+		opts[flags.FlagDbMaxfileOpen] = maxFileOpen
+	}
+
+	snapshotDB, err := sdk.NewDBWithOption("metadata", snapshotDir, opts)
 	if err != nil {
 		panic(err)
 	}
