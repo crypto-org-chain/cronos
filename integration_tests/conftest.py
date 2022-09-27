@@ -13,6 +13,28 @@ sys.path.append(dir + "/protobuf")
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
     config.addinivalue_line("markers", "gravity: gravity bridge test cases")
+    config.addinivalue_line(
+        "markers", "benchmark: benchmarks, only run if '--run-benchmark' is passed"
+    )
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-benchmark",
+        action="store_true",
+        default=False,
+        help="include benchmark cases",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--run-benchmark"):
+        # run benchmarks
+        return
+    skip = pytest.mark.skip(reason="need --run-benchmark option to run")
+    for item in items:
+        if "benchmark" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture(scope="session")

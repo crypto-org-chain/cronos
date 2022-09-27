@@ -2,7 +2,7 @@
   dotenv: '../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
-    'start-flags': '--trace --streamers file',
+    'start-flags': '--trace --streamers versiondb,file',
     config: {
       mempool: {
         version: 'v1',

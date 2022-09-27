@@ -8,7 +8,7 @@
 let
   version = "v0.9.0";
   pname = "cronosd";
-  tags = [ "ledger" "netgo" network ]
+  tags = [ "ledger" "netgo" network "mdbx" ]
     ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
@@ -27,6 +27,7 @@ buildGoApplication rec {
     "!/app/"
     "!/cmd/"
     "!/client/"
+    "!/versiondb/"
     "!go.mod"
     "!go.sum"
     "!gomod2nix.toml"

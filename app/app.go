@@ -5,12 +5,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
+	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -122,7 +125,8 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 	cronosappclient "github.com/crypto-org-chain/cronos/client"
-	"github.com/crypto-org-chain/cronos/x/cronos"
+	"github.com/crypto-org-chain/cronos/versiondb"
+	"github.com/crypto-org-chain/cronos/versiondb/tmdb"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
@@ -350,7 +354,8 @@ func New(
 	// configure state listening capabilities using AppOptions
 	// we are doing nothing with the returned streamingServices and waitGroup in this case
 	// Only support file streamer right now.
-	if cast.ToString(appOpts.Get(cronosappclient.FlagStreamers)) == "file" {
+	streamers := cast.ToString(appOpts.Get(cronosappclient.FlagStreamers))
+	if strings.Contains(streamers, "file") {
 		streamingDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", FileStreamerDirectory)
 		if err := os.MkdirAll(streamingDir, os.ModePerm); err != nil {
 			panic(err)
@@ -361,7 +366,7 @@ func New(
 		for _, storeKey := range keys {
 			exposeStoreKeys = append(exposeStoreKeys, storeKey)
 		}
-		service, err := file.NewStreamingService(streamingDir, "", exposeStoreKeys, appCodec)
+		service, err := file.NewStreamingService(streamingDir, "", exposeStoreKeys, appCodec, false)
 		if err != nil {
 			panic(err)
 		}
@@ -371,6 +376,40 @@ func New(
 		if err := service.Stream(wg); err != nil {
 			panic(err)
 		}
+	}
+
+	if strings.Contains(streamers, "versiondb") {
+		rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
+		dataDir := filepath.Join(rootDir, "data", "versiondb")
+		if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+			panic(err)
+		}
+		backendType := server.GetAppDBBackend(appOpts)
+		plainDB, err := dbm.NewDB("plain", backendType, dataDir)
+		if err != nil {
+			panic(err)
+		}
+		historyDB, err := dbm.NewDB("history", backendType, dataDir)
+		if err != nil {
+			panic(err)
+		}
+		changesetDB, err := dbm.NewDB("changeset", backendType, dataDir)
+		if err != nil {
+			panic(err)
+		}
+		versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
+
+		// default to exposing all
+		exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
+		for _, storeKey := range keys {
+			exposeStoreKeys = append(exposeStoreKeys, storeKey)
+		}
+		service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
+		bApp.SetStreamingService(service)
+		qms := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
+		qms.MountTransientStores(tkeys)
+		qms.MountMemoryStores(memKeys)
+		bApp.SetQueryMultiStore(qms)
 	}
 
 	app := &App{

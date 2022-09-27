@@ -1,4 +1,4 @@
-{ poetry2nix, lib, python310 }:
+{ poetry2nix, lib, python310, rocksdb }:
 poetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
   python = python310;
@@ -14,6 +14,9 @@ poetry2nix.mkPoetryEnv {
           pytest-github-actions-annotate-failures = [ "setuptools" ];
           flake8-black = [ "setuptools" ];
           multiaddr = [ "setuptools" ];
+          rocksdb = [ "setuptools" "cython" "pkgconfig" ];
+          pyroaring = [ "setuptools" ];
+          roaring64 = [ "poetry" ];
         };
       in
       lib.mapAttrs
@@ -34,6 +37,11 @@ poetry2nix.mkPoetryEnv {
           substituteInPlace setup.py --replace "setup()" "setup(version=\"1.3\")"
         '';
       };
+      rocksdb = super.rocksdb.overridePythonAttrs (
+        old: {
+          buildInputs = (old.buildInputs or [ ]) ++ [ rocksdb ];
+        }
+      );
     })
   ]);
 }

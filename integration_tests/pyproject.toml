@@ -5,7 +5,7 @@ description = ""
 authors = ["chain-dev <chain@crypto.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 pytest = "^7.0.1"
 pytest-github-actions-annotate-failures = "^0.1.1"
 flake8 = "^4.0.1"
@@ -28,6 +28,9 @@ jsonnet = "^0.18.0"
 eth-account = "^0.7.0"
 cprotobuf = "^0.1.11"
 pathspec = "^0.10.1"
+rocksdb = { git = "https://github.com/HathorNetwork/python-rocksdb.git", branch = "master" }
+click = "^8.1.2"
+roaring64 = { git = "https://github.com/yihuang/python-roaring64.git", branch = "main" }
 
 [tool.poetry.dev-dependencies]
 

@@ -74,6 +74,10 @@ ifeq (boltdb,$(findstring boltdb,$(COSMOS_BUILD_OPTIONS)))
   BUILD_TAGS += boltdb
 endif
 
+ifeq (mdbx,$(findstring mdbx,$(COSMOS_BUILD_OPTIONS)))
+  BUILD_TAGS += mdbx
+endif
+
 ifeq (,$(findstring nostrip,$(COSMOS_BUILD_OPTIONS)))
   ldflags += -w -s
 endif
