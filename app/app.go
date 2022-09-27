@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 
@@ -19,11 +20,13 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cosmos/cosmos-sdk/store/streaming/file"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -118,6 +121,7 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
+	cronosappclient "github.com/crypto-org-chain/cronos/client"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -142,6 +146,8 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
+
+	FileStreamerDirectory = "file_streamer"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -340,6 +346,32 @@ func New(
 	// Add the EVM transient store key
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
+
+	// configure state listening capabilities using AppOptions
+	// we are doing nothing with the returned streamingServices and waitGroup in this case
+	// Only support file streamer right now.
+	if cast.ToString(appOpts.Get(cronosappclient.FlagStreamers)) == "file" {
+		streamingDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", FileStreamerDirectory)
+		if err := os.MkdirAll(streamingDir, os.ModePerm); err != nil {
+			panic(err)
+		}
+
+		// default to exposing all
+		exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
+		for _, storeKey := range keys {
+			exposeStoreKeys = append(exposeStoreKeys, storeKey)
+		}
+		service, err := file.NewStreamingService(streamingDir, "", exposeStoreKeys, appCodec)
+		if err != nil {
+			panic(err)
+		}
+		bApp.SetStreamingService(service)
+
+		wg := new(sync.WaitGroup)
+		if err := service.Stream(wg); err != nil {
+			panic(err)
+		}
+	}
 
 	app := &App{
 		BaseApp:           bApp,
