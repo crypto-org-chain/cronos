@@ -89,6 +89,19 @@ There are different tests that can be executed in the following ways:
 
 - unit tests: `make test`
 - [integration tests](./docs/integration-test.md)
+
+### CI Testing
+we use `Nix` as our CI testing environment and use `gomod2nix` to convert go modules into nix packages.
+Therefore, to install `gomod2nix` is required:
+```
+go install github.com/nix-community/gomod2nix@latest
+```
+And then, you can run:
+```
+gomod2nix generate
+```
+to update `gomod2nix.toml` if any go package has changed.
+
 <a id="pystarport" />
 
 ## 9. Pystarport Quick Start
