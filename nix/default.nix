@@ -37,7 +37,7 @@ import sources.nixpkgs {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = "sha256-ufrwiXlb0RVaJiJ70TCNblhOUCIj7Jht5kX8SoXQQMA";
+        cargoSha256 = "sha256-Gky44rbnswQzmo2qOQGNGRk6TvGTIL2vyePa62Zmd7I";
         cargoBuildFlags = "-p ${name} --features ethermint";
         buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin
           (with pkgs.darwin.apple_sdk.frameworks; [ CoreFoundation Security ]);

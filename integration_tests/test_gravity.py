@@ -5,7 +5,7 @@ import sha3
 import toml
 from dateutil.parser import isoparse
 from eth_account.account import Account
-from eth_utils import abi
+from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
 
@@ -152,7 +152,7 @@ def gravity(cronos, geth):
         gorc.add_eth_key("cronos")  # cronos and eth key derivation are the same
 
         # fund the orchestrator accounts
-        eth_addr = gorc.show_eth_addr("eth")
+        eth_addr = to_checksum_address(gorc.show_eth_addr("eth"))
         print("fund 0.1 eth to address", eth_addr)
         send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
         acc_addr = gorc.show_cosmos_addr("cronos")
