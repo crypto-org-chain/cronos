@@ -66,10 +66,10 @@
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "3d5bdc8af5227588d04064132335932ee88f57c3",
-        "sha256": "1nn8p4wqg1dx12nf05gm8rw3n02yqssgfsxrlj3c00qzwys6i9y2",
+        "rev": "17ff40b2b3611af7c58750e44b9a818d06e1ef7f",
+        "sha256": "1s4x3jcl29s3z7ivm6igvn6lk94f98firrz6df0z3b80p0c8rhw9",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/3d5bdc8af5227588d04064132335932ee88f57c3.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/17ff40b2b3611af7c58750e44b9a818d06e1ef7f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "ibc-rs": {
