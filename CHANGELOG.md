@@ -10,6 +10,7 @@
 
 - [cronos#720](https://github.com/crypto-org-chain/cronos/pull/720) Add option `iavl-disable-fastnode` to disable iavl fastnode indexing migration (backport #714).
 - [cronos#721](https://github.com/crypto-org-chain/cronos/pull/721) Integrate the file state streamer (backport #702).
+- [cronos#]() Update dependencies to recent versions.
 
 *Sep 20, 2022*
 
