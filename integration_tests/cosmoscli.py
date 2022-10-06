@@ -1080,7 +1080,7 @@ class CosmosCLI:
         )
 
     def gov_propose_token_mapping_change(
-        self, denom, contract, symbol, decimal, **kwargs
+        self, denom, contract, symbol, decimal, signer, **kwargs
     ):
         default_kwargs = {
             "gas_prices": DEFAULT_GAS_PRICE,
@@ -1099,6 +1099,8 @@ class CosmosCLI:
                 symbol,
                 "--decimals",
                 decimal,
+                "--signer",
+                signer,
                 "-y",
                 home=self.data_dir,
                 stderr=subprocess.DEVNULL,

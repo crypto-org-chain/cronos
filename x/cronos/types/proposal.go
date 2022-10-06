@@ -20,12 +20,12 @@ func init() {
 	govtypes.RegisterProposalType(ProposalTypeTokenMappingChange)
 }
 
-func NewTokenMappingChangeProposal(title, description, denom, symbol string, decimal uint32, contractAddr *common.Address) *TokenMappingChangeProposal {
+func NewTokenMappingChangeProposal(title, description, denom, symbol, signer string, decimal uint32, contractAddr *common.Address) *TokenMappingChangeProposal {
 	contract := ""
 	if contractAddr != nil {
 		contract = contractAddr.Hex()
 	}
-	return &TokenMappingChangeProposal{title, description, denom, contract, symbol, decimal}
+	return &TokenMappingChangeProposal{title, description, denom, contract, symbol, decimal, signer}
 }
 
 // GetTitle returns the title of a parameter change proposal.
@@ -57,7 +57,8 @@ func (tcp TokenMappingChangeProposal) String() string {
   Contract:    %s
   Symbol:      %s
   Decimal:     %d
-`, tcp.Title, tcp.Description, tcp.Denom, tcp.Contract, tcp.Symbol, tcp.Decimal))
+  Signer: %s
+`, tcp.Title, tcp.Description, tcp.Denom, tcp.Contract, tcp.Symbol, tcp.Decimal, tcp.Signer))
 
 	return b.String()
 }
