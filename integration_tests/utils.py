@@ -506,3 +506,40 @@ def send_txs(w3, cli, to, keys, params):
         sended_hash_set = {future.result() for future in as_completed(tasks)}
 
     return block_num_0, sended_hash_set
+
+
+def multiple_send_to_cosmos(gravity_contract, token_contract, recipient, amount, keys):
+    # use different sender accounts to be able be send concurrently
+    w3 = token_contract.web3
+    raw_transactions = []
+    for key_from in keys:
+        acct = Account.from_key(key_from)
+        acct_address = HexBytes(acct.address)
+        # approve first
+        txreceipt = send_transaction(
+            token_contract.web3,
+            token_contract.functions.approve(
+                gravity_contract.address, amount
+            ).buildTransaction({"from": acct.address}),
+            key_from,
+        )
+        assert txreceipt.status == 1, "approve failed"
+
+        # generate the tx
+        tx = gravity_contract.functions.sendToCronos(
+            token_contract.address, HexBytes(recipient), amount
+        ).buildTransaction({"from": acct_address})
+        signed = sign_transaction(w3, tx, key_from)
+        raw_transactions.append(signed.rawTransaction)
+
+    # wait for new block
+    w3_wait_for_new_blocks(w3, 1)
+
+    # send transactions
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
+
+    return sended_hash_set

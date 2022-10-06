@@ -12,6 +12,7 @@ from pystarport import ports
 from .gorc import GoRc
 from .network import GravityBridge, setup_cronos_experimental, setup_geth
 from .utils import (
+    ACCOUNTS,
     ADDRS,
     CONTRACTS,
     KEYS,
@@ -21,6 +22,7 @@ from .utils import (
     dump_toml,
     eth_to_bech32,
     get_contract,
+    multiple_send_to_cosmos,
     parse_events,
     send_to_cosmos,
     send_transaction,
@@ -303,7 +305,58 @@ def test_gravity_transfer(gravity):
     wait_for_fn("send-to-ethereum", check)
 
 
-def test_gov_token_mapping(gravity):
+def test_multiple_attestation_processing(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
+
+        # deploy test erc20 contract
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestERC20A"],
+        )
+
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+
+        amount = 10
+        # Send some eth and erc20 to all accounts
+        print("fund all accounts")
+        for name in ACCOUNTS:
+            address = ACCOUNTS[name].address
+            send_transaction(geth, {"to": address, "value": 10 ** 17}, KEYS["validator"])
+            tx = erc20.functions.transfer(address, amount).buildTransaction({"from": ADDRS["validator"]})
+            tx_receipt = send_transaction(geth, tx, KEYS["validator"])
+            assert tx_receipt.status == 1, "should success"
+
+        print("generate multiple send to cosmos")
+        recipient = HexBytes(ADDRS["community"])
+
+        denom = f"gravity{erc20.address}"
+        previous = cli.balance(eth_to_bech32(recipient), denom=denom)
+
+        multiple_send_to_cosmos(
+            gravity.contract,
+            erc20,
+            recipient,
+            amount,
+            KEYS.values()
+        )
+
+        def check_gravity_balance():
+            "check the all attestation are processed at once by comparing with previous block balance"
+            nonlocal previous
+            current = cli.balance(eth_to_bech32(recipient), denom=denom)
+            check = current == previous + (10 * len(ACCOUNTS))
+            previous = current
+            return check
+
+        # we should interval value lower than block internal to check that all attestation are processing
+        # within the same block
+        wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=4)
+
+
+def gov_token_mapping(gravity):
     """
     Test adding a token mapping through gov module
     - deploy test erc20 contract on geth
