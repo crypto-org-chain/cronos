@@ -324,8 +324,12 @@ def test_multiple_attestation_processing(gravity):
         print("fund all accounts")
         for name in ACCOUNTS:
             address = ACCOUNTS[name].address
-            send_transaction(geth, {"to": address, "value": 10 ** 17}, KEYS["validator"])
-            tx = erc20.functions.transfer(address, amount).buildTransaction({"from": ADDRS["validator"]})
+            send_transaction(
+                geth, {"to": address, "value": 10**17}, KEYS["validator"]
+            )
+            tx = erc20.functions.transfer(address, amount).buildTransaction(
+                {"from": ADDRS["validator"]}
+            )
             tx_receipt = send_transaction(geth, tx, KEYS["validator"])
             assert tx_receipt.status == 1, "should success"
 
@@ -336,23 +340,22 @@ def test_multiple_attestation_processing(gravity):
         previous = cli.balance(eth_to_bech32(recipient), denom=denom)
 
         multiple_send_to_cosmos(
-            gravity.contract,
-            erc20,
-            recipient,
-            amount,
-            KEYS.values()
+            gravity.contract, erc20, recipient, amount, KEYS.values()
         )
 
         def check_gravity_balance():
-            "check the all attestation are processed at once by comparing with previous block balance"
+            """
+            check the all attestation are processed at once by comparing
+            with previous block balance
+            """
             nonlocal previous
             current = cli.balance(eth_to_bech32(recipient), denom=denom)
             check = current == previous + (10 * len(ACCOUNTS))
             previous = current
             return check
 
-        # we should interval value lower than block internal to check that all attestation are processing
-        # within the same block
+        # we should interval value lower than block internal to check
+        # that all attestation are processing within the same block
         wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=4)
 
 
