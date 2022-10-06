@@ -4,6 +4,14 @@
 
 ### Improvements
 
+- [#700](https://github.com/crypto-org-chain/cronos/pull/700) Integrate file streamer to stream the states of legacy blocks.
+
+*May 12, 2022*
+
+## v0.6.11
+
+### Improvements
+
 - [#470](https://github.com/crypto-org-chain/cronos/pull/470) Run the tasks in `fix-unlucky-tx` command in parallel.
 - [#472](https://github.com/crypto-org-chain/cronos/pull/472) `fix-unlucky-tx` command supports `null` tendermint tx indexer.
 - [#524](https://github.com/crypto-org-chain/cronos/pull/524) Fix tendermint duplicated tx issue.
