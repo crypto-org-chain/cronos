@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/version"
 	govcli "github.com/cosmos/cosmos-sdk/x/gov/client/cli"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/spf13/cobra"
@@ -112,16 +111,7 @@ func CmdSendToCryptoOrg() *cobra.Command {
 const (
 	FlagSymbol   = "symbol"
 	FlagDecimals = "decimals"
-	FlagSigner   = "signer"
 )
-
-// proposal defines the new Msg-based proposal.
-type proposal struct {
-	// Msgs defines an array of sdk.Msgs proto-JSON-encoded as Anys.
-	Messages []json.RawMessage `json:"messages,omitempty"`
-	Metadata string            `json:"metadata"`
-	Deposit  string            `json:"deposit"`
-}
 
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
 // a token mapping change proposal governance transaction.
@@ -180,35 +170,27 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 				}
 			}
 
-			signer, err := cmd.Flags().GetString(FlagSigner)
-			if err != nil {
-				return err
-			}
-
 			content := types.NewTokenMappingChangeProposal(
-				title, description, args[0], symbol, signer, uint32(decimal), contract,
+				title, description, args[0], symbol, uint32(decimal), contract,
 			)
-			m, err := govtypes.NewLegacyContent(content, signer)
-			if err != nil {
-				return err
-			}
+
+			from := clientCtx.GetFromAddress()
+
 			strDeposit, err := cmd.Flags().GetString(govcli.FlagDeposit)
 			if err != nil {
 				return err
 			}
+
 			deposit, err := sdk.ParseCoinsNormalized(strDeposit)
 			if err != nil {
 				return err
 			}
-			msg, err := govtypes.NewMsgSubmitProposal(
-				[]sdk.Msg{m},
-				deposit,
-				clientCtx.GetFromAddress().String(),
-				"",
-			)
+
+			msg, err := govtypes.NewMsgSubmitProposal(content, deposit, from)
 			if err != nil {
 				return err
 			}
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -217,7 +199,7 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
 	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
-	cmd.Flags().String(FlagSigner, "", "The governance module account")
+
 	return cmd
 }
 
@@ -251,6 +233,7 @@ func CmdUpdateTokenMapping() *cobra.Command {
 					return err
 				}
 			}
+
 			msg := types.NewMsgUpdateTokenMapping(clientCtx.GetFromAddress().String(), denom, args[1], symbol, uint32(decimal))
 			if err := msg.ValidateBasic(); err != nil {
 				return err
