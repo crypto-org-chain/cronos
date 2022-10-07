@@ -343,20 +343,23 @@ def test_multiple_attestation_processing(gravity):
             gravity.contract, erc20, recipient, amount, KEYS.values()
         )
 
+        current_height = cli.block_height()
         def check_gravity_balance():
             """
             check the all attestation are processed at once by comparing
             with previous block balance
             """
             nonlocal previous
-            current = cli.balance(eth_to_bech32(recipient), denom=denom)
+            nonlocal current_height
+            current = cli.balance(eth_to_bech32(recipient), denom=denom, height=current_height)
             check = current == previous + (10 * len(ACCOUNTS))
             previous = current
+            current_height = current_height + 1
             return check
 
-        # we choose an interval value lower than block interval to check
-        # that all attestation are processing within the same block
-        wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=4)
+        # we are checking the difference of balance for each height to ensure
+        # attestation are processed within the same block
+        wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=5)
 
 
 def gov_token_mapping(gravity):
