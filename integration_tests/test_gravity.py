@@ -303,7 +303,7 @@ def test_gravity_transfer(gravity):
     wait_for_fn("send-to-ethereum", check)
 
 
-def test_gov_token_mapping(gravity):
+def test_gov_token_mapping(gravity, tmp_path):
     """
     Test adding a token mapping through gov module
     - deploy test erc20 contract on geth
@@ -332,9 +332,27 @@ def test_gov_token_mapping(gravity):
     with pytest.raises(AssertionError):
         cli.query_contract_by_denom(denom)
 
-    rsp = cli.gov_propose_token_mapping_change(
-        denom, crc21.address, "", 0, from_="community", deposit="1basetcro"
-    )
+    proposal = tmp_path / "proposal.json"
+    # governance module account as signer
+    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    proposal_src = {
+        "messages": [
+            {
+                "@type": "/cosmos.gov.v1.MsgExecLegacyContent",
+                "content": {
+                    "@type": "/cronos.TokenMappingChangeProposal",
+                    "denom": denom,
+                    "contract": crc21.address,
+                    "symbol": "",
+                    "decimal": 0,
+                },
+                "authority": signer,
+            }
+        ],
+        "deposit": "1basetcro",
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cli.gov_propose_token_mapping_change(proposal, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
 
     # get proposal_id
