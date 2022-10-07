@@ -344,6 +344,7 @@ def test_multiple_attestation_processing(gravity):
         )
 
         current_height = cli.block_height()
+
         def check_gravity_balance():
             """
             check the all attestation are processed at once by comparing
@@ -351,7 +352,9 @@ def test_multiple_attestation_processing(gravity):
             """
             nonlocal previous
             nonlocal current_height
-            current = cli.balance(eth_to_bech32(recipient), denom=denom, height=current_height)
+            current = cli.balance(
+                eth_to_bech32(recipient), denom=denom, height=current_height
+            )
             check = current == previous + (10 * len(ACCOUNTS))
             previous = current
             current_height = current_height + 1
