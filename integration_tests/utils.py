@@ -486,6 +486,15 @@ def get_receipts_by_block(w3, blk):
     return rsp
 
 
+def send_raw_transactions(w3, raw_transactions):
+    with ThreadPoolExecutor(len(raw_transactions)) as exec:
+        tasks = [
+            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
+        ]
+        sended_hash_set = {future.result() for future in as_completed(tasks)}
+    return sended_hash_set
+
+
 def send_txs(w3, cli, to, keys, params):
     tx = {"to": to, "value": 10000} | params
     # use different sender accounts to be able be send concurrently
@@ -499,11 +508,7 @@ def send_txs(w3, cli, to, keys, params):
     print(f"block number start: {block_num_0}")
 
     # send transactions
-    with ThreadPoolExecutor(len(raw_transactions)) as exec:
-        tasks = [
-            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
-        ]
-        sended_hash_set = {future.result() for future in as_completed(tasks)}
+    sended_hash_set = send_raw_transactions(w3, raw_transactions)
 
     return block_num_0, sended_hash_set
 
@@ -517,7 +522,7 @@ def multiple_send_to_cosmos(gravity_contract, token_contract, recipient, amount,
         acct_address = HexBytes(acct.address)
         # approve first
         txreceipt = send_transaction(
-            token_contract.web3,
+            w3,
             token_contract.functions.approve(
                 gravity_contract.address, amount
             ).buildTransaction({"from": acct.address}),
@@ -534,12 +539,4 @@ def multiple_send_to_cosmos(gravity_contract, token_contract, recipient, amount,
 
     # wait for new block
     w3_wait_for_new_blocks(w3, 1)
-
-    # send transactions
-    with ThreadPoolExecutor(len(raw_transactions)) as exec:
-        tasks = [
-            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
-        ]
-        sended_hash_set = {future.result() for future in as_completed(tasks)}
-
-    return sended_hash_set
+    return send_raw_transactions(w3, raw_transactions)

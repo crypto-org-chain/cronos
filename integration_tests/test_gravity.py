@@ -354,7 +354,7 @@ def test_multiple_attestation_processing(gravity):
             previous = current
             return check
 
-        # we should interval value lower than block interval to check
+        # we choose an interval value lower than block interval to check
         # that all attestation are processing within the same block
         wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=4)
 
