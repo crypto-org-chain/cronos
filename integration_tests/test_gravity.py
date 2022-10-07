@@ -338,12 +338,11 @@ def test_multiple_attestation_processing(gravity):
 
         denom = f"gravity{erc20.address}"
         previous = cli.balance(eth_to_bech32(recipient), denom=denom)
+        height_to_check = cli.block_height()
 
         multiple_send_to_cosmos(
             gravity.contract, erc20, recipient, amount, KEYS.values()
         )
-
-        height_to_check = cli.block_height()
 
         def check_gravity_balance():
             """
