@@ -343,7 +343,7 @@ def test_multiple_attestation_processing(gravity):
             gravity.contract, erc20, recipient, amount, KEYS.values()
         )
 
-        current_height = cli.block_height()
+        height_to_check = cli.block_height()
 
         def check_gravity_balance():
             """
@@ -351,13 +351,13 @@ def test_multiple_attestation_processing(gravity):
             with previous block balance
             """
             nonlocal previous
-            nonlocal current_height
+            nonlocal height_to_check
             current = cli.balance(
-                eth_to_bech32(recipient), denom=denom, height=current_height
+                eth_to_bech32(recipient), denom=denom, height=height_to_check
             )
             check = current == previous + (10 * len(ACCOUNTS))
             previous = current
-            current_height = current_height + 1
+            height_to_check = height_to_check + 1
             return check
 
         # we are checking the difference of balance for each height to ensure
