@@ -98,8 +98,8 @@ schema = 3
     version = "v1.0.0-alpha7"
     hash = "sha256-2wCH+toTF2A6MfFjOa13muEH5oBCcxAhZEqirNOrBA0="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.2-0.20220923192627-95948f6692bb"
-    hash = "sha256-lQNzZRHH91AIAFoCHlzvZQfipC/2GktaazPfxVs4aEg="
+    version = "v0.46.2"
+    hash = "sha256-Lgn4+Vd5PUUkfHc+lTdK2G6/nymZekFVTe1FxWRqh2w="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -111,8 +111,8 @@ schema = 3
     version = "v0.19.2-0.20220916140702-9b6be3095313"
     hash = "sha256-49xr/7/4L1wZ45eW5lE7C4SlcbGf4gBY+662SfJiWPQ="
   [mod."github.com/cosmos/ibc-go/v5"]
-    version = "v5.0.0-rc2"
-    hash = "sha256-p4tpb6I6bdXix1sTYivJEygUtM4q+nTIKdSlf6c/LCw="
+    version = "v5.0.0"
+    hash = "sha256-sDZdmuGohaaBF7bxrjo9PWJnmoF+VOkjySYhsFixPz4="
   [mod."github.com/cosmos/ledger-cosmos-go"]
     version = "v0.11.1"
     hash = "sha256-yli+VvVtZmHo2LPvCY6lYVUfcCDn3sBLDL+a8KIlqDA="
@@ -165,8 +165,8 @@ schema = 3
     version = "v1.10.19"
     hash = "sha256-7FPnTGcCb8Xd1QVR+6PmGTaHdTY1mm/8osFTW1JLuG8="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20220923160625-35850e620d28"
-    hash = "sha256-vm0U1fl+C59CijYjZURo5tk5sLdnjjOdBMwqWxc22x8="
+    version = "v0.6.1-0.20221003153722-491c3da7ebd7"
+    hash = "sha256-vnfjk57gYa+F8nn0LByX/B1LV8PY2Jvm8vXV6be4ufc="
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
     hash = "sha256-hj6FZQ1fDAV+1wGIViAt8XaAkWZ1I5vJzgjIJa7XRBA="
