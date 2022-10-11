@@ -364,7 +364,36 @@ def test_multiple_attestation_processing(gravity):
         wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=5)
 
 
-def gov_token_mapping(gravity):
+def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
+    if is_legacy:
+        return cli.gov_propose_token_mapping_change_legacy(
+            denom, conctract, "", 0, from_="community", deposit="1basetcro"
+        )
+    proposal = tmp_path / "proposal.json"
+    # governance module account as signer
+    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    proposal_src = {
+        "messages": [
+            {
+                "@type": "/cosmos.gov.v1.MsgExecLegacyContent",
+                "content": {
+                    "@type": "/cronos.TokenMappingChangeProposal",
+                    "denom": denom,
+                    "contract": conctract,
+                    "symbol": "",
+                    "decimal": 0,
+                },
+                "authority": signer,
+            }
+        ],
+        "deposit": "1basetcro",
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    return cli.gov_propose_token_mapping_change(proposal, from_="community")
+
+
+@pytest.mark.parametrize("is_legacy", [True, False])
+def test_gov_token_mapping(gravity, tmp_path, is_legacy):
     """
     Test adding a token mapping through gov module
     - deploy test erc20 contract on geth
@@ -393,9 +422,7 @@ def gov_token_mapping(gravity):
     with pytest.raises(AssertionError):
         cli.query_contract_by_denom(denom)
 
-    rsp = cli.gov_propose_token_mapping_change(
-        denom, crc21.address, "", 0, from_="community", deposit="1basetcro"
-    )
+    rsp = submit_proposal(cli, tmp_path, is_legacy, denom, crc21.address)
     assert rsp["code"] == 0, rsp["raw_log"]
 
     # get proposal_id
