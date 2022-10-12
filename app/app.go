@@ -498,14 +498,14 @@ func New(
 		appCodec,
 		keys[cronostypes.StoreKey],
 		keys[cronostypes.MemStoreKey],
-		app.GetSubspace(cronostypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
 		gravityKeeper,
 		app.EvmKeeper,
 		app.AccountKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
-	cronosModule := cronos.NewAppModule(app.CronosKeeper, app.AccountKeeper, app.BankKeeper)
+	cronosModule := cronos.NewAppModule(app.CronosKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(cronostypes.ModuleName))
 
 	// register the proposal types
 	govRouter := govv1beta1.NewRouter()
@@ -968,7 +968,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 		paramsKeeper.Subspace(gravitytypes.ModuleName)
 	}
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
-	paramsKeeper.Subspace(cronostypes.ModuleName)
+	paramsKeeper.Subspace(cronostypes.ModuleName).WithKeyTable(cronostypes.ParamKeyTable())
 
 	return paramsKeeper
 }

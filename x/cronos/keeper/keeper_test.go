@@ -13,6 +13,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -264,12 +265,12 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			suite.app.CronosKeeper = cronosKeeper
 
@@ -408,12 +409,12 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

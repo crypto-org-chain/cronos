@@ -6,6 +6,8 @@ import (
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
@@ -356,12 +358,12 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			handler := evmhandlers.NewSendToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
@@ -478,12 +480,12 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			handler := evmhandlers.NewSendToIbcV2Handler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()
@@ -575,12 +577,12 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			handler := evmhandlers.NewSendCroToIbcHandler(suite.app.BankKeeper, cronosKeeper)
 			tc.malleate()

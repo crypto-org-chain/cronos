@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	// this line is used by starport scaffolding # ibc/keeper/import
@@ -26,8 +25,6 @@ type (
 		storeKey storetypes.StoreKey
 		memKey   storetypes.StoreKey
 
-		// module specific parameter space that can be configured through governance
-		paramSpace paramtypes.Subspace
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
 		// ibc transfer operations
@@ -39,6 +36,10 @@ type (
 		// account keeper
 		accountKeeper types.AccountKeeper
 
+		// the address capable of executing a MsgUpdateParams message. Typically, this
+		// should be the x/gov module account.
+		authority string
+
 		// this line is used by starport scaffolding # ibc/keeper/attribute
 	}
 )
@@ -47,29 +48,28 @@ func NewKeeper(
 	cdc codec.Codec,
 	storeKey,
 	memKey storetypes.StoreKey,
-	paramSpace paramtypes.Subspace,
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
 	gravityKeeper types.GravityKeeper,
 	evmKeeper types.EvmKeeper,
 	accountKeeper types.AccountKeeper,
+	authority string,
 	// this line is used by starport scaffolding # ibc/keeper/parameter
 ) *Keeper {
-	// set KeyTable if it has not already been set
-	if !paramSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
+	if _, err := sdk.AccAddressFromBech32(authority); err != nil {
+		panic(err)
 	}
 
 	return &Keeper{
 		cdc:            cdc,
 		storeKey:       storeKey,
 		memKey:         memKey,
-		paramSpace:     paramSpace,
 		bankKeeper:     bankKeeper,
 		transferKeeper: transferKeeper,
 		gravityKeeper:  gravityKeeper,
 		evmKeeper:      evmKeeper,
 		accountKeeper:  accountKeeper,
+		authority:      authority,
 		// this line is used by starport scaffolding # ibc/keeper/return
 	}
 }
@@ -98,6 +98,11 @@ func (k Keeper) getAutoContractByDenom(ctx sdk.Context, denom string) (common.Ad
 	}
 
 	return common.BytesToAddress(bz), true
+}
+
+// GetAuthority returns the x/cronos module's authority.
+func (k Keeper) GetAuthority() string {
+	return k.authority
 }
 
 // GetContractByDenom find the corresponding contract for the denom,

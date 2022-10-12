@@ -24,6 +24,7 @@ const (
 	prefixDenomToExternalContract = iota + 1
 	prefixDenomToAutoContract
 	prefixContractToDenom
+	paramsKey
 )
 
 // KVStore key prefixes
@@ -31,6 +32,9 @@ var (
 	KeyPrefixDenomToExternalContract = []byte{prefixDenomToExternalContract}
 	KeyPrefixDenomToAutoContract     = []byte{prefixDenomToAutoContract}
 	KeyPrefixContractToDenom         = []byte{prefixContractToDenom}
+
+	// ParamsKey is the key for params.
+	ParamsKey = []byte{paramsKey}
 )
 
 // this line is used by starport scaffolding # ibc/keys/port

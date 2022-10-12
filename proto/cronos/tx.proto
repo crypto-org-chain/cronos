@@ -5,6 +5,7 @@ package cronos;
 
 import "gogoproto/gogo.proto";
 import "cosmos/base/v1beta1/coin.proto";
+import "cronos/cronos.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
@@ -26,6 +27,9 @@ service Msg {
 
   // TurnBridge defines a method to disable or enable the gravity bridge
   rpc TurnBridge(MsgTurnBridge) returns (MsgTurnBridgeResponse);
+
+  // UpdateParams defines a method to update cronos module params
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to
@@ -76,5 +80,17 @@ message MsgTurnBridge {
 
 // MsgTurnBridgegResponse defines the response type
 message MsgTurnBridgeResponse {}
+
+// MsgUpdateParams defines the request type for updating cronos params.
+message MsgUpdateParams {
+    // authority is the address of the governance account.
+    string authority = 1;
+
+    // NOTE: All parameters must be supplied.
+    Params params = 2 [(gogoproto.nullable) = false];
+}
+
+// MsgUpdateParamsResponse defines the response type.
+message MsgUpdateParamsResponse {}
 
 // this line is used by starport scaffolding # proto/tx/message
