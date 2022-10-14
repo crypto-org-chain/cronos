@@ -1132,6 +1132,21 @@ class CosmosCLI:
             )
         )
 
+    def submit_gov_proposal(self, proposal, **kwargs):
+        default_kwargs = self.get_default_kwargs()
+        return json.loads(
+            self.raw(
+                "tx",
+                "gov",
+                "submit-proposal",
+                proposal,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
+            )
+        )
+
     def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
@@ -1387,5 +1402,18 @@ class CosmosCLI:
                 str(packet_seq),
                 "-y",
                 **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_grant(self, granter, grantee):
+        "query grant details by granter and grantee addresses"
+        return json.loads(
+            self.raw(
+                "query",
+                "feegrant",
+                "grant",
+                granter,
+                grantee,
+                home=self.data_dir,
             )
         )
