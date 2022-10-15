@@ -57,9 +57,9 @@ schema = 3
     version = "v0.7.0"
     hash = "sha256-W4cY7vr/+f6zjmO16WxF7XQBhW5mVrEfpYTNcu+y8yo="
   [mod."github.com/confio/ics23/go"]
-    version = "v0.45.9"
-    hash = "sha256-wBJhygNF4q2BGrnRTTBvC1HvRT+5iBsHkV1ZcYBpBi8="
-    replaced = "github.com/cosmos/cosmos-sdk/ics23"
+    version = "v0.8.0"
+    hash = "sha256-mFKxFHp7RaE1L5NdtH9H9px2Cy6I5uOZVnFOgE8Nrew="
+    replaced = "github.com/cosmos/cosmos-sdk/ics23/go"
   [mod."github.com/cosmos/btcutil"]
     version = "v1.0.4"
     hash = "sha256-JvcBXBdjdmnaW/nyf/tw/uaOAGn1b78yxrtl2/Rs3kA="
