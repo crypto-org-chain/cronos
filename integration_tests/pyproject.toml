@@ -26,7 +26,8 @@ toml = "^0.10.2"
 pysha3 = "^1.0.2"
 jsonnet = "^0.18.0"
 eth-account = { git = "https://github.com/mmsqe/eth-account.git", branch = "v0.5.8-rc0" }
-cprotobuf = { git = "https://github.com/yihuang/cprotobuf.git" }
+cprotobuf = "^0.1.11"
+pathspec = "^0.10.1"
 
 [tool.poetry.dev-dependencies]
 
