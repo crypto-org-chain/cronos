@@ -165,6 +165,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
                 "000000000000",
                 "eip155_block": "0",
                 "eip158_block": "0",
+                'gray_glacier_block': '0',
                 "byzantium_block": "0",
                 "constantinople_block": "0",
                 "petersburg_block": "0",
@@ -173,7 +174,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
                 "berlin_block": "0",
                 "london_block": "0",
                 "arrow_glacier_block": "0",
-                "merge_fork_block": "0",
+                'merge_netsplit_block': '0',
             },
             "allow_unprotected_txs": False,
         }
