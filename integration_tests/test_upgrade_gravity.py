@@ -162,7 +162,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
                 "dao_fork_support": True,
                 "eip150_block": "0",
                 "eip150_hash": "0x0000000000000000000000000000000000000000000000000000"
-                               "000000000000",
+                "000000000000",
                 "eip155_block": "0",
                 "eip158_block": "0",
                 "byzantium_block": "0",
