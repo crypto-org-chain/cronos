@@ -17,10 +17,24 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
-	gravityPlanName := "v0.8.0-gravity-alpha3"
+	gravityPlanName := "v0.8.0-gravity-alpha2"
 	if experimental {
 		app.UpgradeKeeper.SetUpgradeHandler(gravityPlanName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+			updatedVM, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+			if err != nil {
+				return nil, err
+			}
+			// set new gravity id
+			gravParams := app.GravityKeeper.GetParams(ctx)
+			gravParams.GravityId = "cronos_gravity_pioneer_v3"
+			app.GravityKeeper.SetParams(ctx, gravParams)
+
+			// Estimate time upgrade take place
+			// 100% is not necessary here because it will be tuned by relayer later on
+			// it is set to georli height at Wed Oct 26 2022 04:37:30 GMT+0900
+			app.GravityKeeper.MigrateGravityContract(
+				ctx, "0x0000000000000000000000000000000000000000", 7833000)
+			return updatedVM, nil
 		})
 	}
 
