@@ -31,7 +31,7 @@ func (d *localFileDownloader) GetData(path string) ([]byte, error) {
 type httpFileDownloader struct{}
 
 func (d *httpFileDownloader) GetData(path string) ([]byte, error) {
-	resp, err := http.Get(path)
+	resp, err := http.Get(path) //nolint
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (w *BlockFileWatcher) Start(
 						BlockNum: blockNum,
 						Data:     data,
 					}
-					blockNum += 1
+					blockNum++
 				}
 				time.Sleep(interval)
 			}
