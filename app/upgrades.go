@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -34,6 +35,11 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 			// it is set to georli height at Wed Oct 26 2022 04:37:30 GMT+0900
 			app.GravityKeeper.MigrateGravityContract(
 				ctx, "0x0000000000000000000000000000000000000000", 7833000)
+
+			// Fix bug on ethermint due to cutting the binary before official release
+			evmParamStore := app.GetSubspace(evmtypes.ModuleName)
+			evmParamStore.Set(ctx, evmtypes.ParamStoreKeyAllowUnprotectedTxs, false)
+
 			return updatedVM, nil
 		})
 	}
