@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
