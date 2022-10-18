@@ -44,7 +44,7 @@ def test_pruned_node(cronos):
     )
     signed = sign_transaction(w3, tx, KEYS["validator"])
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
-    exp_gas_used = 51503
+    exp_gas_used = 51520
 
     print("wait for prunning happens")
     wait_for_new_blocks(cronos.cosmos_cli(0), 10)
