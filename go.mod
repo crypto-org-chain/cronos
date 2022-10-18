@@ -189,7 +189,6 @@ require (
 )
 
 replace (
-	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.2
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 
