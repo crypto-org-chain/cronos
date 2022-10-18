@@ -33,9 +33,9 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 
 			// Estimate time upgrade take place
 			// 100% is not necessary here because it will be tuned by relayer later on
-			// it is set to georli height at Wed Oct 26 2022 04:37:30 GMT+0900
+			// it is set to georli height at Wed Oct 26 2022 03:33:28 GMT+0900
 			app.GravityKeeper.MigrateGravityContract(
-				ctx, "0x0000000000000000000000000000000000000000", 7833000)
+				ctx, "0x0000000000000000000000000000000000000000", 7832100)
 
 			// Fix bug on ethermint due to cutting the binary before official release
 			evmParamStore := app.GetSubspace(evmtypes.ModuleName)
