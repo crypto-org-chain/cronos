@@ -39,7 +39,7 @@ def test_pruned_node(cronos):
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
     )
-    tx = erc20.functions.transfer(ADDRS["community"], 10).buildTransaction(
+    tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
     )
     signed = sign_transaction(w3, tx, KEYS["validator"])

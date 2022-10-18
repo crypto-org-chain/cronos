@@ -31,14 +31,14 @@ def test_replay_block(custom_cronos):
         nonce = w3.eth.get_transaction_count(ADDRS["validator"])
         begin_balance = w3.eth.get_balance(ADDRS["validator"])
         txs = [
-            contract.functions.test(iterations).buildTransaction(
+            contract.functions.test(iterations).build_transaction(
                 {
                     "nonce": nonce,
                     "gas": gas_limit,
                     "gasPrice": gas_price,
                 }
             ),
-            contract.functions.test(iterations).buildTransaction(
+            contract.functions.test(iterations).build_transaction(
                 {
                     "nonce": nonce + 1,
                     "gas": gas_limit + 1,

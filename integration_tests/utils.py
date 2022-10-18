@@ -282,7 +282,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     acct = Account.from_key(key)
     info = json.loads(jsonfile.read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    tx = contract.constructor(*args).buildTransaction({"from": acct.address})
+    tx = contract.constructor(*args).build_transaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1
     address = txreceipt.contractAddress
@@ -318,37 +318,37 @@ def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
     return eth_to_bech32(acct.address, prefix)
 
 
-def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None):
+def send_to_cosmos(gravity_contract, token_contract, w3, recipient, amount, key=None):
     """
     do approve and sendToCronos on ethereum side
     """
     acct = Account.from_key(key)
     txreceipt = send_transaction(
-        token_contract.web3,
+        w3,
         token_contract.functions.approve(
             gravity_contract.address, amount
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
     assert txreceipt.status == 1, "approve failed"
 
     return send_transaction(
-        gravity_contract.web3,
+        w3,
         gravity_contract.functions.sendToCronos(
             token_contract.address, HexBytes(recipient), amount
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
 
 
-def deploy_erc20(gravity_contract, denom, name, symbol, decimal, key=None):
+def deploy_erc20(gravity_contract, w3, denom, name, symbol, decimal, key=None):
     acct = Account.from_key(key)
 
     return send_transaction(
-        gravity_contract.web3,
+        w3,
         gravity_contract.functions.deployERC20(
             denom, name, symbol, decimal
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
 
@@ -383,7 +383,7 @@ class Contract:
         if self.contract is None:
             self.w3 = w3
             contract = self.w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
-            transaction = contract.constructor().buildTransaction(
+            transaction = contract.constructor().build_transaction(
                 {"chainId": self.chain_id, "from": self.address}
             )
             receipt = send_transaction(self.w3, transaction, self.private_key)
@@ -400,7 +400,7 @@ class Greeter(Contract):
 
     def transfer(self, string):
         "Call contract on `w3` and return the receipt."
-        transaction = self.contract.functions.setGreeting(string).buildTransaction(
+        transaction = self.contract.functions.setGreeting(string).build_transaction(
             {
                 "chainId": self.chain_id,
                 "from": self.address,
@@ -416,7 +416,7 @@ class RevertTestContract(Contract):
 
     def transfer(self, value):
         "Call contract on `w3` and return the receipt."
-        transaction = self.contract.functions.transfer(value).buildTransaction(
+        transaction = self.contract.functions.transfer(value).build_transaction(
             {
                 "chainId": self.chain_id,
                 "from": self.address,
@@ -513,27 +513,25 @@ def send_txs(w3, cli, to, keys, params):
     return block_num_0, sended_hash_set
 
 
-def multiple_send_to_cosmos(gravity_contract, token_contract, recipient, amount, keys):
+def multiple_send_to_cosmos(gcontract, tcontract, w3, recipient, amount, keys):
     # use different sender accounts to be able be send concurrently
-    w3 = token_contract.web3
     raw_transactions = []
     for key_from in keys:
         acct = Account.from_key(key_from)
         acct_address = HexBytes(acct.address)
         # approve first
+        approve = tcontract.functions.approve(gcontract.address, amount)
         txreceipt = send_transaction(
             w3,
-            token_contract.functions.approve(
-                gravity_contract.address, amount
-            ).buildTransaction({"from": acct.address}),
+            approve.build_transaction({"from": acct.address}),
             key_from,
         )
         assert txreceipt.status == 1, "approve failed"
 
         # generate the tx
-        tx = gravity_contract.functions.sendToCronos(
-            token_contract.address, HexBytes(recipient), amount
-        ).buildTransaction({"from": acct_address})
+        tx = gcontract.functions.sendToCronos(
+            tcontract.address, HexBytes(recipient), amount
+        ).build_transaction({"from": acct_address})
         signed = sign_transaction(w3, tx, key_from)
         raw_transactions.append(signed.rawTransaction)
 

@@ -100,7 +100,8 @@ def get_id_from_receipt(receipt):
     for _, log in enumerate(receipt.logs):
         if log.topics[0] == target:
             return log.data
-    return "0x0000000000000000000000000000000000000000000000000000000000000000"
+    res = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    return HexBytes(res)
 
 
 @pytest.fixture(scope="module")
@@ -202,7 +203,7 @@ def gravity(cronos, geth):
     for _, address in enumerate(eth_addresses):
         set_role_tx = contract.functions.grantRole(
             k_relayer.hexdigest(), address
-        ).buildTransaction({"from": admin.address})
+        ).build_transaction({"from": admin.address})
         set_role_receipt = send_transaction(geth, set_role_tx, admin.key)
         print("set_role_tx", set_role_receipt)
 
@@ -252,7 +253,7 @@ def test_gravity_transfer(gravity):
     print("send to cronos crc20")
     recipient = HexBytes(ADDRS["community"])
     txreceipt = send_to_cosmos(
-        gravity.contract, erc20, recipient, amount, KEYS["validator"]
+        gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
     )
     assert txreceipt.status == 1, "should success"
     assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
@@ -278,17 +279,16 @@ def test_gravity_transfer(gravity):
         # send it back to erc20
         tx = crc21_contract.functions.send_to_evm_chain(
             ADDRS["validator"], amount, 1, 0, b""
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).build_transaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_evm_chain:
         # burn
         # __CronosSendToEvmChain
         # __CronosSendToEvmChainResponse
         assert len(txreceipt.logs) == 3
-        assert (
-            get_id_from_receipt(txreceipt)
-            == "0x0000000000000000000000000000000000000000000000000000000000000001"
-        ), "should be able to get id"
+        data = "0x0000000000000000000000000000000000000000000000000000000000000001"
+        match = get_id_from_receipt(txreceipt) == HexBytes(data)
+        assert match, "should be able to get id"
         assert txreceipt.status == 1, "should success"
     else:
         wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
@@ -327,7 +327,7 @@ def test_multiple_attestation_processing(gravity):
             send_transaction(
                 geth, {"to": address, "value": 10**17}, KEYS["validator"]
             )
-            tx = erc20.functions.transfer(address, amount).buildTransaction(
+            tx = erc20.functions.transfer(address, amount).build_transaction(
                 {"from": ADDRS["validator"]}
             )
             tx_receipt = send_transaction(geth, tx, KEYS["validator"])
@@ -341,7 +341,7 @@ def test_multiple_attestation_processing(gravity):
         height_to_check = cli.block_height()
 
         multiple_send_to_cosmos(
-            gravity.contract, erc20, recipient, amount, KEYS.values()
+            gravity.contract, erc20, geth, recipient, amount, KEYS.values()
         )
 
         def check_gravity_balance():
@@ -453,7 +453,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
 
     print("try to send token from ethereum to cronos")
     txreceipt = send_to_cosmos(
-        gravity.contract, erc20, ADDRS["community"], 10, KEYS["validator"]
+        gravity.contract, erc20, geth, ADDRS["community"], 10, KEYS["validator"]
     )
     assert txreceipt.status == 1
 
@@ -508,7 +508,7 @@ def test_direct_token_mapping(gravity):
 
     print("try to send token from ethereum to cronos")
     txreceipt = send_to_cosmos(
-        gravity.contract, erc20, ADDRS["community"], 10, KEYS["validator"]
+        gravity.contract, erc20, geth, ADDRS["community"], 10, KEYS["validator"]
     )
     assert txreceipt.status == 1
 
@@ -544,7 +544,8 @@ def test_gravity_cancel_transfer(gravity):
 
         print("send to cronos crc21")
         community = HexBytes(ADDRS["community"])
-        send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
+        key = KEYS["validator"]
+        send_to_cosmos(gravity.contract, erc20, geth, community, amount, key)
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         denom = f"gravity{erc20.address}"
@@ -571,7 +572,7 @@ def test_gravity_cancel_transfer(gravity):
         # send it back to erc20
         tx = crc21_contract.functions.send_to_evm_chain(
             ADDRS["validator"], amount, 1, 0, b""
-        ).buildTransaction({"from": community})
+        ).build_transaction({"from": community})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         # CRC20 emit 3 logs for send_to_evm_chain:
         # burn
@@ -587,8 +588,8 @@ def test_gravity_cancel_transfer(gravity):
 
         # Cancel the send_to_evm_chain
         canceltx = cancel_contract.functions.cancelTransaction(
-            int(tx_id, base=16)
-        ).buildTransaction({"from": community})
+            int.from_bytes(tx_id, "big")
+        ).build_transaction({"from": community})
         canceltxreceipt = send_transaction(cronos_w3, canceltx, KEYS["community"])
         print("canceltxreceipt", canceltxreceipt)
         assert canceltxreceipt.status == 1, "should success"
@@ -629,7 +630,7 @@ def test_gravity_source_tokens(gravity):
         # Create cosmos erc20 contract
         print("Deploy cosmos erc20 contract on ethereum")
         tx_receipt = deploy_erc20(
-            gravity.contract, denom, denom, "DOG", 6, KEYS["validator"]
+            gravity.contract, gravity.geth, denom, denom, "DOG", 6, KEYS["validator"]
         )
         assert tx_receipt.status == 1, "should success"
 
@@ -654,7 +655,7 @@ def test_gravity_source_tokens(gravity):
         print("send to ethereum")
         tx = contract.functions.send_to_evm_chain(
             ethereum_receiver, amount, 1, 0, b""
-        ).buildTransaction({"from": ADDRS["validator"]})
+        ).build_transaction({"from": ADDRS["validator"]})
         txreceipt = send_transaction(w3, tx)
         assert txreceipt.status == 1, "should success"
 
@@ -679,6 +680,7 @@ def test_gravity_source_tokens(gravity):
         txreceipt = send_to_cosmos(
             gravity.contract,
             cosmos_erc20_contract,
+            gravity.geth,
             HexBytes(cronos_receiver),
             amount,
             KEYS["validator"],
@@ -716,7 +718,7 @@ def test_gravity_blacklisted_contract(gravity):
         print("send to cronos crc20")
         recipient = HexBytes(ADDRS["community"])
         txreceipt = send_to_cosmos(
-            gravity.contract, erc20, recipient, amount, KEYS["validator"]
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
         )
         assert txreceipt.status == 1, "should success"
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
@@ -740,7 +742,7 @@ def test_gravity_blacklisted_contract(gravity):
         # send it back to blacklisted address
         tx = crc21_contract.functions.send_to_evm_chain(
             ADDRS["signer1"], amount, 1, 0, b""
-        ).buildTransaction({"from": ADDRS["community"]})
+        ).build_transaction({"from": ADDRS["community"]})
         txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
         assert txreceipt.status == 1, "should success"
 
@@ -766,7 +768,7 @@ def test_gravity_blacklisted_contract(gravity):
         with pytest.raises(Exception):
             gravity.contract.functions.redeemVoucher(
                 old_nonce, ADDRS["signer2"]
-            ).buildTransaction({"from": ADDRS["validator"]})
+            ).build_transaction({"from": ADDRS["validator"]})
 
         # send user1 some fund for gas
         send_transaction(
@@ -775,7 +777,7 @@ def test_gravity_blacklisted_contract(gravity):
         # redeem voucher
         tx = gravity.contract.functions.redeemVoucher(
             old_nonce, ADDRS["signer2"]
-        ).buildTransaction({"from": ADDRS["signer1"]})
+        ).build_transaction({"from": ADDRS["signer1"]})
         txreceipt = send_transaction(geth, tx, KEYS["signer1"])
         assert txreceipt.status == 1, "should success"
         w3_wait_for_new_blocks(geth, 1)
@@ -786,4 +788,4 @@ def test_gravity_blacklisted_contract(gravity):
         with pytest.raises(Exception):
             gravity.contract.functions.redeemVoucher(
                 old_nonce, ADDRS["signer2"]
-            ).buildTransaction({"from": ADDRS["signer1"]})
+            ).build_transaction({"from": ADDRS["signer1"]})
