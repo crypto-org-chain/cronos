@@ -5,6 +5,7 @@
 ### State Machine Breaking
 - [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
 - [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check. 
+- [cronos#742](https://github.com/crypto-org-chain/cronos/pull/742) Add upgrade handler for v0.8.0-gravity-alpha2.
 
 ### Improvements
 
