@@ -17,16 +17,17 @@ protobuf = "^3.13.0"
 grpcio = "^1.33.2"
 PyYAML = "^5.3.1"
 python-dateutil = "^2.8.1"
-web3 = "^5.20.1"
+web3 = "^6.0.0b6"
 eth-bloom = "^1.0.4"
 python-dotenv = "^0.19.2"
 pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
-websockets = "^9.1"
+websockets = "^10.3"
 toml = "^0.10.2"
 pysha3 = "^1.0.2"
 jsonnet = "^0.18.0"
-eth-account = { git = "https://github.com/mmsqe/eth-account.git", branch = "v0.5.8-rc0" }
-cprotobuf = { git = "https://github.com/yihuang/cprotobuf.git" }
+eth-account = "^0.7.0"
+cprotobuf = "^0.1.11"
+pathspec = "^0.10.1"
 
 [tool.poetry.dev-dependencies]
 

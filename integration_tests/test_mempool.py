@@ -34,7 +34,7 @@ def test_mempool(cronos_mempool):
     block_num_2 = w3.eth.get_block_number()
     print(f"block number contract begin at height: {block_num_2}")
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
-    tx = contract.functions.setGreeting("world").buildTransaction()
+    tx = contract.functions.setGreeting("world").build_transaction()
     signed = sign_transaction(w3, tx)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     w3.eth.wait_for_transaction_receipt(txhash)
