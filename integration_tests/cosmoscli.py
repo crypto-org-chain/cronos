@@ -1027,6 +1027,9 @@ class CosmosCLI:
     def query_gravity_params(self):
         return json.loads(self.raw("query", "gravity", "params", home=self.data_dir))
 
+    def query_evm_params(self):
+        return json.loads(self.raw("query", "evm", "params", home=self.data_dir))
+
     def query_signer_set_txs(self):
         return json.loads(
             self.raw("query", "gravity", "signer-set-txs", home=self.data_dir)
