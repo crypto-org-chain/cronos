@@ -1117,21 +1117,6 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_token_mapping_change(self, proposal, **kwargs):
-        default_kwargs = self.get_default_kwargs()
-        return json.loads(
-            self.raw(
-                "tx",
-                "gov",
-                "submit-proposal",
-                proposal,
-                "-y",
-                home=self.data_dir,
-                stderr=subprocess.DEVNULL,
-                **(default_kwargs | kwargs),
-            )
-        )
-
     def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
         return json.loads(

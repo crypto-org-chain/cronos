@@ -762,7 +762,6 @@ def test_submit_any_proposal(cronos, tmp_path):
     proposal_id = ev["proposal_id"]
     print("gov proposal submitted", proposal_id)
 
-    # not sure why, but sometimes can't find the proposal immediatelly
     wait_for_new_blocks(cli, 1)
     proposal = cli.query_proposal(proposal_id)
 
