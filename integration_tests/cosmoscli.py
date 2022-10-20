@@ -1117,7 +1117,7 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_token_mapping_change(self, proposal, **kwargs):
+    def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
         return json.loads(
             self.raw(
@@ -1387,5 +1387,18 @@ class CosmosCLI:
                 str(packet_seq),
                 "-y",
                 **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_grant(self, granter, grantee):
+        "query grant details by granter and grantee addresses"
+        return json.loads(
+            self.raw(
+                "query",
+                "feegrant",
+                "grant",
+                granter,
+                grantee,
+                home=self.data_dir,
             )
         )

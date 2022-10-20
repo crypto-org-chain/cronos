@@ -389,7 +389,7 @@ def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
         "deposit": "1basetcro",
     }
     proposal.write_text(json.dumps(proposal_src))
-    return cli.gov_propose_token_mapping_change(proposal, from_="community")
+    return cli.submit_gov_proposal(proposal, from_="community")
 
 
 @pytest.mark.parametrize("is_legacy", [True, False])
