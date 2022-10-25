@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#]() Fix inconsistent state if upgrade migration commit is interrupted.
+- [#748](https://github.com/crypto-org-chain/cronos/pull/748) Fix inconsistent state if upgrade migration commit is interrupted.
 
 *Oct 15, 2022*
 
