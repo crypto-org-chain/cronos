@@ -4,6 +4,14 @@
 
 ### Bug Fixes
 
+- [#748](https://github.com/crypto-org-chain/cronos/pull/748) Fix inconsistent state if upgrade migration commit is interrupted.
+
+*Oct 15, 2022*
+
+## v0.9.0-beta4
+
+### Bug Fixes
+
 - [cronos#719](https://github.com/crypto-org-chain/cronos/pull/719) Fix `eth_call` for legacy blocks (backport #713).
 
 ### Improvements
