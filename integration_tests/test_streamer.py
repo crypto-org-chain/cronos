@@ -1,3 +1,4 @@
+import pytest
 from cprotobuf import Field, ProtoEntity, decode_primitive
 from hexbytes import HexBytes
 
@@ -50,7 +51,10 @@ def decode_stream_file(data, body_cls=StoreKVPairs, header_cls=None, footer_cls=
 
 
 @pytest.mark.skip(
-    reason="state streamers in current 0.46.x version is broken, ref: https://github.com/cosmos/cosmos-sdk/issues/13457"
+    reason=(
+        "state streamers in current 0.46.x version is broken, "
+        "ref: https://github.com/cosmos/cosmos-sdk/issues/13457"
+    )
 )
 def test_streamers(cronos):
     """
