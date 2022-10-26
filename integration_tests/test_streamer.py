@@ -49,6 +49,9 @@ def decode_stream_file(data, body_cls=StoreKVPairs, header_cls=None, footer_cls=
     return header, body, footer
 
 
+@pytest.mark.skip(
+    reason="state streamers in current 0.46.x version is broken, ref: https://github.com/cosmos/cosmos-sdk/issues/13457"
+)
 def test_streamers(cronos):
     """
     - check the streaming files are created
