@@ -10,6 +10,7 @@ from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
+DEFAULT_GAS = "250000"
 
 
 class ModuleAccount(enum.Enum):
@@ -695,6 +696,7 @@ class CosmosCLI:
 
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(

@@ -13,5 +13,5 @@ let
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v0.8.0-gravity-alpha2"; path = current; }
+  { name = "v0.8.0-gravity-alpha3"; path = current; }
 ]

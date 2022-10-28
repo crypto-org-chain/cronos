@@ -100,7 +100,6 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
 
     # get proposal_id
     ev = parse_events(rsp["logs"])["submit_proposal"]
-    assert ev["proposal_type"] == "SoftwareUpgrade", rsp
     proposal_id = ev["proposal_id"]
 
     rsp = cli.gov_vote("validator", proposal_id, "yes")
