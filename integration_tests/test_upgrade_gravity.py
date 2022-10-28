@@ -85,7 +85,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     target_height = height + 15
     print("upgrade height", target_height)
     plan_name = "v0.8.0-gravity-alpha3"
-    rsp = cli.gov_propose_v0_7(
+    rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
         {
