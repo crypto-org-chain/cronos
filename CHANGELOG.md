@@ -1,10 +1,13 @@
 # Changelog
 
-## UNRELEASED
+*Nov 1, 2022*
+
+## v1.0.0-rc0
 
 ### Bug Fixes
 
 - [#748](https://github.com/crypto-org-chain/cronos/pull/748) Fix inconsistent state if upgrade migration commit is interrupted.
+- []() Update iavl to `v0.19.4`.
 
 *Oct 15, 2022*
 
