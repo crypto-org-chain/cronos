@@ -6,7 +6,7 @@
 , rev ? "dirty"
 }:
 let
-  version = "v0.9.0";
+  version = "v1.0.0";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network ]
     ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];
