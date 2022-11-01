@@ -73,15 +73,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "ibc-rs": {
-        "branch": "feemarket",
-        "description": "IBC Relayer (Hermes) and Modules in Rust",
+        "branch": "master",
+        "description": "IBC modules and relayer - Formal specifications and Rust implementation",
         "homepage": "",
-        "owner": "yihuang",
+        "owner": "informalsystems",
         "repo": "ibc-rs",
-        "rev": "e33cceaa247d5eda7650c24bd3968dea6a05248a",
-        "sha256": "1kq73qvhdz35pxcx07rqqygvb3n8z8wsgw8knddj2b1x3yj66444",
+        "rev": "812fdbcd595df60be4e4104d57f5036de84765b7",
+        "sha256": "0z5lyhyf7f5zhqg1sq2bsvvsnhdskds5h000c6bszj6dxk9gps4n",
         "type": "tarball",
-        "url": "https://github.com/yihuang/ibc-rs/archive/e33cceaa247d5eda7650c24bd3968dea6a05248a.tar.gz",
+        "url": "https://github.com/informalsystems/ibc-rs/archive/812fdbcd595df60be4e4104d57f5036de84765b7.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
