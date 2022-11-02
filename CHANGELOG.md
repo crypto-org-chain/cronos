@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#]() App hash mismatch happens if iavl fast node config changed.
+- [#758](https://github.com/crypto-org-chain/cronos/pull/758) App hash mismatch happens if iavl fast node config changed.
 
 *Oct 15, 2022*
 
