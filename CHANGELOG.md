@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.3
+
+### Bug Fixes
+
+- [#]() App hash mismatch happens if iavl fast node config changed.
+
 *Oct 15, 2022*
 
 ## v0.8.2
