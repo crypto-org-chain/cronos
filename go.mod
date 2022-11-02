@@ -193,6 +193,7 @@ replace (
 	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.4
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.0-cronos
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
