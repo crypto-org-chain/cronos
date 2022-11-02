@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: actions/checkout@v2.3.4
-      - uses: technote-space/get-diff-action@v5
+      - uses: actions/checkout@v3
+      - uses: technote-space/get-diff-action@v6
         with:
           SUFFIX_FILTER: |
             .go
@@ -46,7 +46,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: changed-files
-        uses: tj-actions/changed-files@v29.0.2
+        uses: tj-actions/changed-files@v34
         with:
           files: |
             **/poetry.lock
@@ -69,7 +69,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: changed-files
-        uses: tj-actions/changed-files@v29.0.2
+        uses: tj-actions/changed-files@v34
         with:
           files: |
             *.nix
