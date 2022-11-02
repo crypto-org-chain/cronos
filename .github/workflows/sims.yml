@@ -49,11 +49,11 @@ jobs:
         id: setValid
         run: |
           if [[ "${{ steps.checkMember.outputs.isTeamMember }}" == "true" ]]; then
-            echo "::set-output name=valid::true"
+            echo "name=valid::true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "::set-output name=valid::true"
+            echo "name=valid::true" >> $GITHUB_OUTPUT
           else  
-            echo "::set-output name=valid::false"
+            echo "name=valid::false" >> $GITHUB_OUTPUT
           fi
 
   build:
@@ -86,15 +86,15 @@ jobs:
         id: pr_data
         if: github.event_name == 'issue_comment'
         run: |
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
-          comment_hash=`echo ${{ github.event.comment.body }} | cut -d' ' -f2` # get commit hash if any
+          echo "name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}" >> $GITHUB_OUTPUT
+          comment_hash=`echo "$COMMENTBODY" | cut -d' ' -f2` # get commit hash if any
           if [[ "${comment_hash}" == "/runsim" ]]; then 
-            echo "::set-output name=ref::${{ fromJson(steps.request.outputs.data).head.ref }}" # use default head ref
+            echo "name=ref::${{ fromJson(steps.request.outputs.data).head.ref }}" >> $GITHUB_OUTPUT # use default head ref
           else
-            echo "::set-output name=ref::${comment_hash}" # use comment provided ref
+            echo "name=ref::${comment_hash}" >> $GITHUB_OUTPUT # use comment provided ref
           fi
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -102,11 +102,11 @@ jobs:
           repository: ${{ steps.pr_data.outputs.repo_name }}
           ref: ${{ steps.pr_data.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
-      - uses: actions/setup-go@v2.1.3
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18
       - name: Display go version
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/setup-go@v2.1.3
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18
       - name: Display go version
@@ -153,11 +153,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18.3
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -165,7 +165,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
         with:
           submodules: true
@@ -208,11 +208,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18.3
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -220,7 +220,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
         with:
           submodules: true
@@ -263,11 +263,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18.3
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -275,7 +275,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
         with:
           submodules: true
@@ -318,11 +318,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: 1.18.3
       - name: Checkout Comment PR Branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
         with:
           submodules: true
@@ -330,7 +330,7 @@ jobs:
           repository: ${{ needs.build.outputs.repo_name }}
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
         with:
           submodules: true
@@ -410,12 +410,12 @@ jobs:
         id: set_outputs
         continue-on-error: true
         run: |
-          echo "::set-output name=status_job01::$(<pass_status_build/status_build.txt)"
-          echo "::set-output name=status_job02::$(<pass_status_install/status_install.txt)"
-          echo "::set-output name=status_job03::$(<pass_status_sim1/status_sim1.txt)"
-          echo "::set-output name=status_job04::$(<pass_status_sim2/status_sim2.txt)"
-          echo "::set-output name=status_job05::$(<pass_status_sim3/status_sim3.txt)"
-          echo "::set-output name=status_job06::$(<pass_status_sim4/status_sim4.txt)"
+          echo "name=status_job01::$(<pass_status_build/status_build.txt)" >> $GITHUB_OUTPUT
+          echo "name=status_job02::$(<pass_status_install/status_install.txt)" >> $GITHUB_OUTPUT
+          echo "name=status_job03::$(<pass_status_sim1/status_sim1.txt)" >> $GITHUB_OUTPUT
+          echo "name=status_job04::$(<pass_status_sim2/status_sim2.txt)" >> $GITHUB_OUTPUT
+          echo "name=status_job05::$(<pass_status_sim3/status_sim3.txt)" >> $GITHUB_OUTPUT
+          echo "name=status_job06::$(<pass_status_sim4/status_sim4.txt)" >> $GITHUB_OUTPUT
       - name: The sim jobs has succeed
         uses: crypto-org-chain/actions-pull-request-add-comment@master
         if: >-

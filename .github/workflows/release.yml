@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - name: setup release environment
@@ -138,7 +138,7 @@ jobs:
     environment: release    
     steps:
       - name: get source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
       - name: setup msys2
