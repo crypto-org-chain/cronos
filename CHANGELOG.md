@@ -1,5 +1,21 @@
 # Changelog
 
+*Nov 9, 2022*
+
+## v1.0.0-rc2
+
+### Bug Fixes
+
+- [#]() Fix non-deterministic evm execution result when there are concurrent grpc queries.
+
+*Nov 4, 2022*
+
+## v1.0.0-rc1
+
+### Bug Fixes
+
+- [#760](https://github.com/crypto-org-chain/cronos/pull/760) Revert breaking changes on gas used in Ethermint.
+
 *Nov 1, 2022*
 
 ## v1.0.0-rc0

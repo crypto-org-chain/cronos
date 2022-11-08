@@ -163,8 +163,9 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-k1DYvCqO3BKNcGEve/nMW0RxzMkK2tGfXbUbycqcVSo="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.19"
-    hash = "sha256-7FPnTGcCb8Xd1QVR+6PmGTaHdTY1mm/8osFTW1JLuG8="
+    version = "v1.10.13-0.20221108065429-afacc02b8738"
+    hash = "sha256-GIvH3oux/2dxNnFbZDE6Qr+Wnt9FiOATXRDXXVxPvWw="
+    replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
     version = "v0.20.0-cronos.0.20221103084125-b5b09806f538"
     hash = "sha256-tWDakuEH+B9sZnZbxlWoeJqZq4TRFWwxo4m+4ZmgMas="
