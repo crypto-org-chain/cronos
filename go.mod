@@ -192,7 +192,7 @@ replace (
 	// ics23 patch for dragonberry
 	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.4
-	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
+	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.13-0.20221108065429-afacc02b8738
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.0-cronos.0.20221103084125-b5b09806f538
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
