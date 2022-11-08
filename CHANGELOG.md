@@ -6,7 +6,7 @@
 
 ### Bug Fixes
 
-- [#]() Fix non-deterministic evm execution result when there are concurrent grpc queries.
+- [#761](https://github.com/crypto-org-chain/cronos/pull/761) Fix non-deterministic evm execution result when there are concurrent grpc queries.
 
 *Nov 4, 2022*
 
