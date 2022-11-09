@@ -177,7 +177,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         ADDRS["validator"]
     )
 
-    print("evm params", cli.evm_params())
+    assert not cli.evm_params()["extra_eips"]
 
     # check the gas cost is lower after upgrade
     assert (
