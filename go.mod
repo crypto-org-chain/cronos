@@ -5,7 +5,7 @@ go 1.18
 require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.4
+	github.com/cosmos/cosmos-sdk v0.46.5-0.20221109093801-2899dcf82f16
 	github.com/cosmos/ibc-go/v5 v5.0.1
 	github.com/ethereum/go-ethereum v1.10.19
 	github.com/evmos/ethermint v0.6.1-0.20221101220534-a8ea4eceb6d9
@@ -191,7 +191,7 @@ require (
 replace (
 	// ics23 patch for dragonberry
 	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.5-0.20221109070540-835a45240e62
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.5-0.20221109093801-2899dcf82f16
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.13-0.20221108065429-afacc02b8738
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.0-cronos.0.20221103084125-b5b09806f538
 
