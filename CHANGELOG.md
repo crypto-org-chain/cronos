@@ -9,6 +9,7 @@
 - [#761](https://github.com/crypto-org-chain/cronos/pull/761) Fix non-deterministic evm execution result when there are concurrent grpc queries.
 - [#762](https://github.com/crypto-org-chain/cronos/pull/762) Add `v1.0.0` upgrade plan for dry-run and mainnet upgrade, which clears the `extra_eips` parameter.
 - [#763](https://github.com/crypto-org-chain/cronos/pull/763) Add error log for iavl set error.
+- [#]() Make `eth_getProof` result compatible with ethereum.
 
 *Nov 4, 2022*
 

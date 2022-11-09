@@ -668,8 +668,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cristalhq/acmd v0.7.0/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
-github.com/crypto-org-chain/ethermint v0.20.0-cronos.0.20221103084125-b5b09806f538 h1:keFso/wkVMhH6doC6iXLowlzv49ZzMaRfgMmfuhn2J4=
-github.com/crypto-org-chain/ethermint v0.20.0-cronos.0.20221103084125-b5b09806f538/go.mod h1:slhuvGjkZaRJCapuHaKVIraxRgI7C70yEznP2YokfkA=
+github.com/crypto-org-chain/ethermint v0.20.1-cronos h1:tZpuLhdW40Ue/Gb5yz3wGn2jRIZrwO82bJQWqL2kRP4=
+github.com/crypto-org-chain/ethermint v0.20.1-cronos/go.mod h1:slhuvGjkZaRJCapuHaKVIraxRgI7C70yEznP2YokfkA=
 github.com/crypto-org-chain/go-ethereum v1.10.13-0.20221108065429-afacc02b8738 h1:rgiJSNCPxtUfpFAnQhOTVJDusuXlyJ6D37NGDzvq0C8=
 github.com/crypto-org-chain/go-ethereum v1.10.13-0.20221108065429-afacc02b8738/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee h1:qzkim8QAf6AdRKlAPgLU5nI7S9JoefLDI76PmJeOTgk=
