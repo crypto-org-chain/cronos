@@ -1363,3 +1363,17 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def evm_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "evm",
+                "params",
+                **(default_kwargs | kwargs),
+            )
+        )

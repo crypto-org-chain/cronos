@@ -7,6 +7,7 @@
 ### Bug Fixes
 
 - [#761](https://github.com/crypto-org-chain/cronos/pull/761) Fix non-deterministic evm execution result when there are concurrent grpc queries.
+- [#]() Add `v1.0.0` upgrade plan for dry-run and mainnet upgrade, which clears the `extra_eips` parameter.
 
 *Nov 4, 2022*
 
