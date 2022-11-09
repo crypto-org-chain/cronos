@@ -12,9 +12,25 @@ import (
 )
 
 func (app *App) RegisterUpgradeHandlers(experimental bool) {
-	planName := "v0.9.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	// `v0.9.0` is only used for testnet upgrade, skipped for dry-run and mainnet upgrade.
+	planNameTestnet := "v0.9.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	// dry-run and mainnet will use `v1.0.0` upgrade plan directly, which will clears the `extra_eips` parameters.
+	planNameMainnet := "v1.0.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameMainnet, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return m, err
+		}
+		// clear extra_eips from evm parameters
+		// Ref: https://github.com/crypto-org-chain/cronos/issues/755
+		params := app.EvmKeeper.GetParams(ctx)
+		params.ExtraEIPs = []int64{}
+		app.EvmKeeper.SetParams(ctx, params)
+		return m, nil
 	})
 
 	gravityPlanName := "v0.8.0-gravity-alpha3"
@@ -30,7 +46,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	}
 
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		if upgradeInfo.Name == planName {
+		if upgradeInfo.Name == planNameTestnet || upgradeInfo.Name == planNameMainnet {
 			storeUpgrades := storetypes.StoreUpgrades{
 				Added: []string{ibcfeetypes.StoreKey},
 			}
