@@ -104,11 +104,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     print("old values", old_height, old_balance, old_base_fee)
 
     # estimateGas for an erc20 transfer tx
-    old_gas = (
-        contract.functions.transfer(ADDRS["community"], 100)
-        .buildTransaction({"from": ADDRS["validator"]})
-        .gas
-    )
+    old_gas = contract.functions.transfer(ADDRS["community"], 100).buildTransaction(
+        {"from": ADDRS["validator"]}
+    )["gas"]
 
     plan_name = "v1.0.0"
     rsp = cli.gov_propose_v0_7(
@@ -177,12 +175,12 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         ADDRS["validator"]
     )
 
-    assert not cli.evm_params()["extra_eips"]
+    assert not cli.evm_params()["params"]["extra_eips"]
 
     # check the gas cost is lower after upgrade
     assert (
         old_gas - 3700
-        == contract.functions.transfer(ADDRS["community"], 100)
-        .buildTransaction({"from": ADDRS["validator"]})
-        .gas
+        == contract.functions.transfer(ADDRS["community"], 100).buildTransaction(
+            {"from": ADDRS["validator"]}
+        )["gas"]
     )
