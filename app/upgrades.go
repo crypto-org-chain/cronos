@@ -45,7 +45,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		// testnet has added the ibcfee store in `v0.9.0`, skip this time.
-		if upgradeInfo.Name == planName && config.CurrentNetwork() != config.NETWORK_TESTNET {
+		if upgradeInfo.Name == planName && config.CurrentNetwork() != config.NetworkTestnet {
 			storeUpgrades := storetypes.StoreUpgrades{
 				Added: []string{ibcfeetypes.StoreKey},
 			}

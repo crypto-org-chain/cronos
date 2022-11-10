@@ -3,8 +3,8 @@ package config
 import sdk "github.com/cosmos/cosmos-sdk/types"
 
 const (
-	NETWORK_MAINNET = iota + 1
-	NETWORK_TESTNET
+	NetworkMainet = iota + 1
+	NetworkTestnet
 )
 
 // SetBech32Prefixes sets the global prefixes to be used when serializing addresses and public keys to Bech32 strings.

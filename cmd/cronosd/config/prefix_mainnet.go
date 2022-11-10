@@ -24,5 +24,5 @@ const (
 )
 
 func CurrentNetwork() int {
-	return NETWORK_MAINNET
+	return NetworkMainet
 }
