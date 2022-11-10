@@ -22,3 +22,7 @@ const (
 	// Bech32PrefixConsPub defines the Bech32 prefix of a consensus node public key
 	Bech32PrefixConsPub = Bech32Prefix + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic
 )
+
+func CurrentNetwork() int {
+	return NETWORK_MAINNET
+}

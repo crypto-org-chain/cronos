@@ -1,6 +1,12 @@
 # Changelog
 
-*Nov 9, 2022*
+## UNRELEASED
+
+### State Machine Breaking
+
+- [#]() Upgrade ibc-go to [v5.1.0](https://github.com/cosmos/ibc-go/releases/tag/v5.1.0).
+
+*Nov 10, 2022*
 
 ## v1.0.0-rc2
 
