@@ -4,7 +4,7 @@
 
 ### State Machine Breaking
 
-- [#]() Upgrade ibc-go to [v5.1.0](https://github.com/cosmos/ibc-go/releases/tag/v5.1.0).
+- [#765](https://github.com/crypto-org-chain/cronos/pull/765) Upgrade ibc-go to [v5.1.0](https://github.com/cosmos/ibc-go/releases/tag/v5.1.0).
 
 *Nov 10, 2022*
 
