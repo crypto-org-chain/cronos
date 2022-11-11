@@ -1,6 +1,6 @@
 # Changelog
 
-## UNRELEASED
+## v1.0.0-rc3
 
 ### State Machine Breaking
 
