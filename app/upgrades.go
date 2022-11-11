@@ -9,16 +9,10 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	icacontrollertypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
-
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 func (app *App) RegisterUpgradeHandlers(experimental bool) {
-	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.1.
-	// dry-run and mainnet will upgrade to `v1.0.0` directly, skipping the `v0.9.0`.
-	// testnet can also upgrade to `v1.0.0` after `v0.9.0`.
-	planName := "v1.0.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	upgradeHandlerV1 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
@@ -29,7 +23,13 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		params.ExtraEIPs = []int64{}
 		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
-	})
+	}
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.1.
+	planName := "v1.0.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
+	// testnet3 should use `v1.0.0-testnet3` instead, it won't re-add the feeibc store, which is added in `v0.9.0` upgrade.
+	planNameTestnet3 := "v1.0.0-testnet3"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, upgradeHandlerV1)
 
 	gravityPlanName := "v0.8.0-gravity-alpha3"
 	if experimental {
@@ -44,8 +44,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	}
 
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		// testnet has added the ibcfee store in `v0.9.0`, skip this time.
-		if upgradeInfo.Name == planName && config.CurrentNetwork() != config.NetworkTestnet {
+		if upgradeInfo.Name == planName {
 			storeUpgrades := storetypes.StoreUpgrades{
 				Added: []string{ibcfeetypes.StoreKey},
 			}
