@@ -12,15 +12,7 @@ import (
 )
 
 func (app *App) RegisterUpgradeHandlers(experimental bool) {
-	// `v0.9.0` is only used for testnet upgrade, skipped for dry-run and mainnet upgrade.
-	planNameTestnet := "v0.9.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
-	})
-
-	// dry-run and mainnet will use `v1.0.0` upgrade plan directly, which will clears the `extra_eips` parameters.
-	planNameMainnet := "v1.0.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planNameMainnet, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	upgradeHandlerV1 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
@@ -31,7 +23,13 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		params.ExtraEIPs = []int64{}
 		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
-	})
+	}
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.1.
+	planName := "v1.0.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
+	// testnet3 should use `v1.0.0-testnet3` instead, it won't re-add the feeibc store, which is added in `v0.9.0` upgrade.
+	planNameTestnet3 := "v1.0.0-testnet3"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, upgradeHandlerV1)
 
 	gravityPlanName := "v0.8.0-gravity-alpha3"
 	if experimental {
@@ -46,7 +44,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	}
 
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
-		if upgradeInfo.Name == planNameTestnet || upgradeInfo.Name == planNameMainnet {
+		if upgradeInfo.Name == planName {
 			storeUpgrades := storetypes.StoreUpgrades{
 				Added: []string{ibcfeetypes.StoreKey},
 			}
