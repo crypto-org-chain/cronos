@@ -162,8 +162,9 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-k1DYvCqO3BKNcGEve/nMW0RxzMkK2tGfXbUbycqcVSo="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.19"
-    hash = "sha256-7FPnTGcCb8Xd1QVR+6PmGTaHdTY1mm/8osFTW1JLuG8="
+    version = "v1.10.19-deepcopy-jumptable"
+    hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
+    replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
     version = "v0.6.1-0.20221003153722-491c3da7ebd7"
     hash = "sha256-vnfjk57gYa+F8nn0LByX/B1LV8PY2Jvm8vXV6be4ufc="
