@@ -68,7 +68,7 @@ func (h CancelSendToEvmChainHandler) EventID() common.Hash {
 // Handle `__CronosCancelSendToChain` log only if gravity is activated.
 func (h CancelSendToEvmChainHandler) Handle(
 	ctx sdk.Context,
-	_ common.Address,
+	contract common.Address,
 	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
@@ -117,6 +117,15 @@ func (h CancelSendToEvmChainHandler) Handle(
 	_, denom := h.gravityKeeper.ERC20ToDenomLookup(ctx, common.HexToAddress(send.Erc20Token.Contract))
 	if !types.IsValidGravityDenom(denom) {
 		return fmt.Errorf("the native token associated with the contract %s is not a gravity voucher", send.Erc20Token.Contract)
+	}
+
+	// check that the event is emitted from the contract address that manage this token
+	crc20Address, found := h.cronosKeeper.GetContractByDenom(ctx, denom)
+	if !found {
+		return fmt.Errorf("the native token %s is not associated with any contract address on cronos", denom)
+	}
+	if crc20Address != contract {
+		return fmt.Errorf("cannot cancel a transfer of the native token %s from the contract address %s", denom, contract)
 	}
 
 	msg := gravitytypes.MsgCancelSendToEthereum{

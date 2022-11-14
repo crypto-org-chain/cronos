@@ -600,7 +600,6 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
-	random := common.BigToAddress(big.NewInt(3))
 	validDenom := "gravity0x0000000000000000000000000000000000000000"
 	var data []byte
 	var topics []common.Hash
@@ -693,7 +692,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 				gravitykeeper.NewMsgServerImpl(suite.app.GravityKeeper),
 				suite.app.CronosKeeper, suite.app.GravityKeeper)
 			tc.malleate()
-			err := handler.Handle(suite.ctx, random, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
+			err := handler.Handle(suite.ctx, contract, topics, data, func(contractAddress common.Address, logSig common.Hash, logData []byte) {})
 			if tc.error != nil {
 				suite.Require().EqualError(err, tc.error.Error())
 			} else {
