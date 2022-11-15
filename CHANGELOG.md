@@ -7,6 +7,7 @@
 - [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check. 
 - [cronos#742](https://github.com/crypto-org-chain/cronos/pull/742) Add upgrade handler for v0.8.0-gravity-alpha2.
 - [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
+- [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
 
 ### Improvements
 

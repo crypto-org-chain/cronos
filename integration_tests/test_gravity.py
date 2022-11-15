@@ -586,12 +586,18 @@ def test_gravity_cancel_transfer(gravity):
         balance_after_send = crc21_contract.caller.balanceOf(community)
         assert balance_after_send == 0
 
-        # Cancel the send_to_evm_chain
+        # Cancel the send_to_evm_chain from another contract
         canceltx = cancel_contract.functions.cancelTransaction(
             int.from_bytes(tx_id, "big")
         ).build_transaction({"from": community})
         canceltxreceipt = send_transaction(cronos_w3, canceltx, KEYS["community"])
-        print("canceltxreceipt", canceltxreceipt)
+        # Should fail because it was not called from the CRC21 contract
+        assert canceltxreceipt.status == 0, "should fail"
+
+        canceltx = crc21_contract.functions.cancel_send_to_evm_chain(
+            int.from_bytes(tx_id, "big")
+        ).build_transaction({"from": community})
+        canceltxreceipt = send_transaction(cronos_w3, canceltx, KEYS["community"])
         assert canceltxreceipt.status == 1, "should success"
 
         def check_refund():
