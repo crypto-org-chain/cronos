@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	sdkmath "cosmossdk.io/math"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -21,6 +22,11 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		// Ref: https://github.com/crypto-org-chain/cronos/issues/755
 		params := app.EvmKeeper.GetParams(ctx)
 		params.ExtraEIPs = []int64{}
+
+		// fix the incorrect value on testnet parameters
+		zero := sdkmath.ZeroInt()
+		params.ChainConfig.LondonBlock = &zero
+
 		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
 	}

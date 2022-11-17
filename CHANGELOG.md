@@ -1,5 +1,15 @@
 # Changelog
 
+*Nov 17, 2022*
+
+## v1.0.0-rc4
+
+### Bug Fixes
+
+- [#771](https://github.com/crypto-org-chain/cronos/pull/771) Fix london hardfork number in testnet3 parameters.
+
+*Nov 13, 2022*
+
 ## v1.0.0-rc3
 
 ### State Machine Breaking
