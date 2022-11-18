@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#]() Update cosmos-sdk to `v0.46.5`.
+
 *Nov 17, 2022*
 
 ## v1.0.0-rc4
