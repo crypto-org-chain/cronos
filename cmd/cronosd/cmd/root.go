@@ -254,8 +254,10 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 	)
 	offlineRollback := cast.ToBool(appOpts.Get(flags.FlagOfflineRollback))
 	disableIAVLFastNode := cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))
+	lazyLoading := false
 	if offlineRollback {
 		disableIAVLFastNode = true
+		lazyLoading = true
 	}
 	return app.New(
 		logger, db, traceStore, true, skipUpgradeHeights,
@@ -275,6 +277,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
 		baseapp.SetIAVLDisableFastNode(disableIAVLFastNode),
+		baseapp.SetLazyLoading(lazyLoading),
 	)
 }
 
