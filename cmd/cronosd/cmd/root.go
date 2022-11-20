@@ -252,6 +252,11 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)),
 		cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)),
 	)
+	offlineRollback := cast.ToBool(appOpts.Get(flags.FlagOfflineRollback))
+	disableIAVLFastNode := cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))
+	if offlineRollback {
+		disableIAVLFastNode = true
+	}
 	return app.New(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
@@ -269,7 +274,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
-		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))),
+		baseapp.SetIAVLDisableFastNode(disableIAVLFastNode),
 	)
 }
 
@@ -351,6 +356,7 @@ func WrapValidateGenesisCmd() *cobra.Command {
 		return genutilcli.ValidateGenesisCmd(moduleBasics).RunE(cmd, args)
 	}
 	wrapCmd.Flags().Bool(cronos.ExperimentalFlag, false, "Enable experimental features")
+	wrapCmd.Flags().Bool(flags.FlagOfflineRollback, false, "Offline rollback")
 	return wrapCmd
 }
 
