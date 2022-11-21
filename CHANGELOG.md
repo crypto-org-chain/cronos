@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#772](https://github.com/crypto-org-chain/cronos/pull/772) Update cosmos-sdk to `v0.46.6`, it's non-breaking for cronos.
+
 *Nov 17, 2022*
 
 ## v1.0.0-rc4
