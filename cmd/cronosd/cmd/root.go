@@ -253,10 +253,8 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)),
 	)
 	offlineRollback := cast.ToBool(appOpts.Get(flags.FlagOfflineRollback))
-	disableIAVLFastNode := cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))
 	lazyLoading := false
 	if offlineRollback {
-		disableIAVLFastNode = true
 		lazyLoading = true
 	}
 	return app.New(
@@ -276,7 +274,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
-		baseapp.SetIAVLDisableFastNode(disableIAVLFastNode),
+		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))),
 		baseapp.SetLazyLoading(lazyLoading),
 	)
 }
