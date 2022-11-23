@@ -34,6 +34,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdConvertTokens())
 	cmd.AddCommand(CmdSendToCryptoOrg())
 	cmd.AddCommand(CmdUpdateTokenMapping())
+	cmd.AddCommand(CmdTurnBridge())
 
 	return cmd
 }
@@ -246,6 +247,42 @@ func CmdUpdateTokenMapping() *cobra.Command {
 	flags.AddTxFlagsToCmd(cmd)
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
 	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
+
+	return cmd
+}
+
+// FlagEnable TurnBridgeCmd flags
+const (
+	FlagEnable = "enable"
+)
+
+// CmdTurnBridge returns a CLI command handler for enable or disable the bridge
+func CmdTurnBridge() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "turn-bridge",
+		Short: "Turn Bridge",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			enable, err := cmd.Flags().GetBool(FlagEnable)
+			if err != nil {
+				return err
+			}
+
+			msg := types.NewMsgTurnBridge(clientCtx.GetFromAddress().String(), enable)
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	cmd.Flags().Bool(FlagEnable, true, "")
 
 	return cmd
 }

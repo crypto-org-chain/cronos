@@ -59,6 +59,7 @@ type GravityKeeper interface {
 	ERC20ToDenomLookup(ctx sdk.Context, tokenContract common.Address) (bool, string)
 	IterateUnbatchedSendToEthereums(ctx sdk.Context, cb func(*gravitytypes.SendToEthereum) bool)
 	GetParams(ctx sdk.Context) (params gravitytypes.Params)
+	SetParams(ctx sdk.Context, params gravitytypes.Params)
 }
 
 // EvmLogHandler defines the interface for evm log handler
