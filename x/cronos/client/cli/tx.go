@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -251,28 +252,22 @@ func CmdUpdateTokenMapping() *cobra.Command {
 	return cmd
 }
 
-// FlagEnable TurnBridgeCmd flags
-const (
-	FlagEnable = "enable"
-)
-
 // CmdTurnBridge returns a CLI command handler for enable or disable the bridge
 func CmdTurnBridge() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "turn-bridge",
+		Use:   "turn-bridge [true/false]",
 		Short: "Turn Bridge",
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
 
-			enable, err := cmd.Flags().GetBool(FlagEnable)
+			enable, err := strconv.ParseBool(args[0])
 			if err != nil {
 				return err
 			}
-
 			msg := types.NewMsgTurnBridge(clientCtx.GetFromAddress().String(), enable)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
@@ -282,7 +277,5 @@ func CmdTurnBridge() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.Flags().Bool(FlagEnable, true, "")
-
 	return cmd
 }
