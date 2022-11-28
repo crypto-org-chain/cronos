@@ -22,7 +22,6 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server/api"
@@ -359,8 +358,7 @@ func New(
 	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
 	for _, streamerName := range streamers {
 		if streamerName == "versiondb" {
-			rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
-			dataDir := filepath.Join(rootDir, "data", "versiondb")
+			dataDir := filepath.Join(homePath, "data", "versiondb")
 			if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
 				panic(err)
 			}
