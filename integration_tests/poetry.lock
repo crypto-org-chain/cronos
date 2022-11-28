@@ -772,9 +772,9 @@ tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/yihuang/pystarport.git"
+url = "https://github.com/crypto-com/pystarport.git"
 reference = "main"
-resolved_reference = "e6a75ce65a1ea07a6b402d4b6ddca291503089d9"
+resolved_reference = "08c5d488e620f6f0b0fd95b55b44731d327c6977"
 
 [[package]]
 name = "pytest"
@@ -1112,7 +1112,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "ff24ebe9c0d682d71698a957082ca483863691538895b93d2a4a8b9a652ccf29"
+content-hash = "9fe9a7aecc2e2597e0e03623b64c541aebe70034638a47456967626b6a8a3398"
 
 [metadata.files]
 aiohttp = [
