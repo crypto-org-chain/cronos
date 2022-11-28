@@ -17,8 +17,10 @@ def decode_stream_file(data, entry_cls=StoreKVPairs):
     """
     StoreKVPairs, StoreKVPairs, ...
     """
+    assert int.from_bytes(data[:8], "big") + 8 == len(data), "incomplete file"
+
     items = []
-    offset = 0
+    offset = 8
     while offset < len(data):
         size, n = decode_primitive(data[offset:], "uint64")
         offset += n
