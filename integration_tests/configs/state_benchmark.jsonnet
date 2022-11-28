@@ -2,7 +2,7 @@ local config = import 'default.jsonnet';
 
 config {
   'cronos_777-1'+: {
-    'start-flags': '--trace --streamers file,versiondb',
+    'start-flags': '--trace',
     'app-config'+: {
       'app-db-backend': 'rocksdb',
       'state-sync'+: {
