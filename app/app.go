@@ -1,12 +1,11 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync"
 
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
@@ -29,7 +28,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/store/streaming/file"
+	"github.com/cosmos/cosmos-sdk/store/streaming"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -150,8 +149,6 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
-
-	FileStreamerDirectory = "file_streamer"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -351,65 +348,50 @@ func New(
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
-	// configure state listening capabilities using AppOptions
-	// we are doing nothing with the returned streamingServices and waitGroup in this case
-	// Only support file streamer right now.
-	streamers := cast.ToString(appOpts.Get(cronosappclient.FlagStreamers))
-	if strings.Contains(streamers, "file") {
-		streamingDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", FileStreamerDirectory)
-		if err := os.MkdirAll(streamingDir, os.ModePerm); err != nil {
-			panic(err)
-		}
-
-		// default to exposing all
-		exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
-		for _, storeKey := range keys {
-			exposeStoreKeys = append(exposeStoreKeys, storeKey)
-		}
-		service, err := file.NewStreamingService(streamingDir, "", exposeStoreKeys, appCodec, false)
-		if err != nil {
-			panic(err)
-		}
-		bApp.SetStreamingService(service)
-
-		wg := new(sync.WaitGroup)
-		if err := service.Stream(wg); err != nil {
-			panic(err)
-		}
+	// load state streaming if enabled
+	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, logger, keys, homePath); err != nil {
+		fmt.Printf("failed to load state streaming: %s", err)
+		os.Exit(1)
 	}
 
-	if strings.Contains(streamers, "versiondb") {
-		rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
-		dataDir := filepath.Join(rootDir, "data", "versiondb")
-		if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
-			panic(err)
-		}
-		backendType := server.GetAppDBBackend(appOpts)
-		plainDB, err := dbm.NewDB("plain", backendType, dataDir)
-		if err != nil {
-			panic(err)
-		}
-		historyDB, err := dbm.NewDB("history", backendType, dataDir)
-		if err != nil {
-			panic(err)
-		}
-		changesetDB, err := dbm.NewDB("changeset", backendType, dataDir)
-		if err != nil {
-			panic(err)
-		}
-		versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
+	// configure state listening capabilities using AppOptions
+	// we are doing nothing with the returned streamingServices and waitGroup in this case
+	streamers := cast.ToStringSlice(appOpts.Get(cronosappclient.FlagStreamers))
+	for _, streamerName := range streamers {
+		if streamerName == "versiondb" {
+			rootDir := cast.ToString(appOpts.Get(flags.FlagHome))
+			dataDir := filepath.Join(rootDir, "data", "versiondb")
+			if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+				panic(err)
+			}
+			backendType := server.GetAppDBBackend(appOpts)
+			plainDB, err := dbm.NewDB("plain", backendType, dataDir)
+			if err != nil {
+				panic(err)
+			}
+			historyDB, err := dbm.NewDB("history", backendType, dataDir)
+			if err != nil {
+				panic(err)
+			}
+			changesetDB, err := dbm.NewDB("changeset", backendType, dataDir)
+			if err != nil {
+				panic(err)
+			}
+			versionDB := tmdb.NewStore(plainDB, historyDB, changesetDB)
 
-		// default to exposing all
-		exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
-		for _, storeKey := range keys {
-			exposeStoreKeys = append(exposeStoreKeys, storeKey)
+			// default to exposing all
+			exposeStoreKeys := make([]storetypes.StoreKey, 0, len(keys))
+			for _, storeKey := range keys {
+				exposeStoreKeys = append(exposeStoreKeys, storeKey)
+			}
+			service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
+			bApp.SetStreamingService(service)
+			qms := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
+			qms.MountTransientStores(tkeys)
+			qms.MountMemoryStores(memKeys)
+			bApp.SetQueryMultiStore(qms)
+			break
 		}
-		service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
-		bApp.SetStreamingService(service)
-		qms := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
-		qms.MountTransientStores(tkeys)
-		qms.MountMemoryStores(memKeys)
-		bApp.SetQueryMultiStore(qms)
 	}
 
 	app := &App{

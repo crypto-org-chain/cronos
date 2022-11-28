@@ -1,3 +1,3 @@
 package client
 
-const FlagStreamers = "streamers"
+const FlagStreamers = "store.streamers"

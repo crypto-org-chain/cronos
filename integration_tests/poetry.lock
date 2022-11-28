@@ -100,7 +100,6 @@ mypy-extensions = ">=0.4.3"
 pathspec = ">=0.9.0"
 platformdirs = ">=2"
 tomli = {version = ">=1.1.0", markers = "python_full_version < \"3.11.0a7\""}
-typing-extensions = {version = ">=3.10.0.0", markers = "python_version < \"3.10\""}
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
@@ -474,21 +473,6 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
-name = "importlib-resources"
-version = "5.7.1"
-description = "Read resources from Python packages"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[package.dependencies]
-zipp = {version = ">=3.1.0", markers = "python_version < \"3.10\""}
-
-[package.extras]
-docs = ["jaraco.packaging (>=9)", "rst.linker (>=1.9)", "sphinx"]
-testing = ["pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.0.1)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
-
-[[package]]
 name = "iniconfig"
 version = "1.1.1"
 description = "iniconfig: brain-dead simple config-ini parsing"
@@ -551,7 +535,6 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 attrs = ">=17.4.0"
-importlib-resources = {version = ">=1.4.0", markers = "python_version < \"3.9\""}
 pyrsistent = ">=0.14.0,<0.17.0 || >0.17.0,<0.17.1 || >0.17.1,<0.17.2 || >0.17.2"
 
 [package.extras]
@@ -740,6 +723,14 @@ python-versions = ">=3.6.8"
 diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
+name = "pyroaring"
+version = "0.3.4"
+description = "Fast and lightweight set for unsigned 32 bits integers."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pyrsistent"
 version = "0.18.1"
 description = "Persistent/Functional/Immutable data structures"
@@ -781,9 +772,9 @@ tomlkit = "^0.7.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/crypto-com/pystarport.git"
+url = "https://github.com/yihuang/pystarport.git"
 reference = "main"
-resolved_reference = "c3028081386e8489171607e0aed6e68d1ff87d43"
+resolved_reference = "e6a75ce65a1ea07a6b402d4b6ddca291503089d9"
 
 [[package]]
 name = "pytest"
@@ -907,6 +898,46 @@ rust-backend = ["rusty-rlp (>=0.2.1,<0.3)"]
 test = ["hypothesis (==5.19.0)", "pytest (>=6.2.5,<7)", "tox (>=2.9.1,<3)"]
 
 [[package]]
+name = "roaring64"
+version = "0.1.0"
+description = "roaring64 wrapper of pyroaring implemented in pure python"
+category = "main"
+optional = false
+python-versions = "^3.10"
+develop = false
+
+[package.dependencies]
+pyroaring = "^0.3.3"
+
+[package.source]
+type = "git"
+url = "https://github.com/yihuang/python-roaring64.git"
+reference = "main"
+resolved_reference = "7ceafa7beef9a0a078f2f511358f86d55550b958"
+
+[[package]]
+name = "rocksdb"
+version = "0.9.1"
+description = ""
+category = "main"
+optional = false
+python-versions = "*"
+develop = false
+
+[package.dependencies]
+setuptools = ">=25"
+
+[package.extras]
+doc = ["sphinx", "sphinx_rtd_theme"]
+test = ["pytest"]
+
+[package.source]
+type = "git"
+url = "https://github.com/HathorNetwork/python-rocksdb.git"
+reference = "master"
+resolved_reference = "947f68a80d97c4a5621ee681ae01602ebd883f3a"
+
+[[package]]
 name = "setuptools"
 version = "65.5.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -995,14 +1026,6 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
-name = "typing-extensions"
-version = "4.2.0"
-description = "Backported and Experimental Type Hints for Python 3.7+"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[[package]]
 name = "urllib3"
 version = "1.26.9"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
@@ -1086,22 +1109,10 @@ python-versions = ">=3.6"
 idna = ">=2.0"
 multidict = ">=4.0"
 
-[[package]]
-name = "zipp"
-version = "3.8.0"
-description = "Backport of pathlib-compatible object wrapper for zip files"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[package.extras]
-docs = ["jaraco.packaging (>=9)", "rst.linker (>=1.9)", "sphinx"]
-testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.0.1)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
-
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.8"
-content-hash = "e40ace5d601ae1cbdcfa816c195b32eaed7c3267fc988a4e0219b4a5b549100b"
+python-versions = "^3.10"
+content-hash = "ff24ebe9c0d682d71698a957082ca483863691538895b93d2a4a8b9a652ccf29"
 
 [metadata.files]
 aiohttp = [
@@ -1510,10 +1521,6 @@ idna = [
     {file = "idna-3.3-py3-none-any.whl", hash = "sha256:84d9dd047ffa80596e0f246e2eab0b391788b0503584e8945f2368256d2735ff"},
     {file = "idna-3.3.tar.gz", hash = "sha256:9d643ff0a55b762d5cdb124b8eaa99c66322e2157b69160bc32796e824360e6d"},
 ]
-importlib-resources = [
-    {file = "importlib_resources-5.7.1-py3-none-any.whl", hash = "sha256:e447dc01619b1e951286f3929be820029d48c75eb25d265c28b92a16548212b8"},
-    {file = "importlib_resources-5.7.1.tar.gz", hash = "sha256:b6062987dfc51f0fcb809187cffbd60f35df7acb4589091f154214af6d0d49d3"},
-]
 iniconfig = [
     {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
@@ -1716,6 +1723,52 @@ pyparsing = [
     {file = "pyparsing-3.0.8-py3-none-any.whl", hash = "sha256:ef7b523f6356f763771559412c0d7134753f037822dad1b16945b7b846f7ad06"},
     {file = "pyparsing-3.0.8.tar.gz", hash = "sha256:7bf433498c016c4314268d95df76c81b842a4cb2b276fa3312cfb1e1d85f6954"},
 ]
+pyroaring = [
+    {file = "pyroaring-0.3.4-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:c752689fb1af66bc62380b3101426c6a357a85d73492acc5a56fbfe9dd85f571"},
+    {file = "pyroaring-0.3.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:fa2d254b20ef2e8a094fd2c84317ad2e133e5ec40089fbbf1f798cc255dfd467"},
+    {file = "pyroaring-0.3.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:cf7e4b01a62ffc8ab15d443e90afa29226f7cc7a6814e60cca1be7e4ff20c4fc"},
+    {file = "pyroaring-0.3.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:20b7a8d445ad974ba8d17239d1729478930de8f2dae980566b55383f55280256"},
+    {file = "pyroaring-0.3.4-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a10bb61c6d0128d0e92f4e16c5d995e23cbf7a1641a3ada59676d5e5ca004f39"},
+    {file = "pyroaring-0.3.4-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:782f453e5a9fb1bea0e108c1d2b3e9920e41c97590b528e359a6203df3fe3bfd"},
+    {file = "pyroaring-0.3.4-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:6932a4eb7fbd2673e22f4251a643ed997ec86d90f16644fbb833493e35ad19ac"},
+    {file = "pyroaring-0.3.4-cp310-cp310-win32.whl", hash = "sha256:25b3bc512069777fbf05f533c248cab23f91dc99bd9f9f2cd72260a9fca525a4"},
+    {file = "pyroaring-0.3.4-cp310-cp310-win_amd64.whl", hash = "sha256:1b7b8bcfd4011c13f38ffb3a96553201cb44675f16d9cc5d9a8d4560dc40c89d"},
+    {file = "pyroaring-0.3.4-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:b522eba5140631e892c5727590b18cd4b93f849e5ae5fbe9e5498c94563ac3d3"},
+    {file = "pyroaring-0.3.4-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:40af83423015c46f0ec29201fa3a855d216fc241b6148cbc2479b4180cf558e9"},
+    {file = "pyroaring-0.3.4-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:7c5c0f79b1202564e8131d1e9dcd1efb7cca026562007de5a0bd6948cdcacb90"},
+    {file = "pyroaring-0.3.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5a595aafbfa541431b61a740d51c3a6d5d579650e95cd6854526a692fb32df7a"},
+    {file = "pyroaring-0.3.4-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:0c2451e2c534c4df53a1df7afdb994f2387da0cf7f48df3059d332d085a79bb8"},
+    {file = "pyroaring-0.3.4-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:9c37613e3916860f344bb475883b2b8f2832ac8c816836e2c81ae131d987a9b3"},
+    {file = "pyroaring-0.3.4-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:a7c6ac7cbd0e799aeaea69e686160a7cb2c3d1b4804d5bf28e1816b37575cb21"},
+    {file = "pyroaring-0.3.4-cp311-cp311-win32.whl", hash = "sha256:c3de6d36002a8561738baacc3e64b77102d597bcec536f82a9d20ec1b5e2d2db"},
+    {file = "pyroaring-0.3.4-cp311-cp311-win_amd64.whl", hash = "sha256:5064a8fd58937e942bad5c797348dcf2c539796bbbf1e9ed24b9dc55c249d577"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:ed54e3394cb762bda5846d58407aa2fb371ff8eb6e518bb3703802660aef86b1"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0b0b7b4b407b178cf0076832ec1eba1a38ea88e869a410f09d3748a2f9816aa6"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4f503303333ef58333f04acf63b8b6ff80ded2064d840bd4e96fda570c9b6c52"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:c9d0ac2e47d201299d579e570114ae7b46f4fb49e292c796ad74e80211c48f89"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:a047cb76fd8d46f7fcac9d67566885a2920ec65a9ddf090e7e29e3496d9ab849"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-win32.whl", hash = "sha256:5f446a2817c540ddac125f69a161c56349cbd43981cea303370cdcd76a35660e"},
+    {file = "pyroaring-0.3.4-cp37-cp37m-win_amd64.whl", hash = "sha256:1037b5408699acafb5d49868f9dbc43239df385a3d6fe945f9ed4429e8adf440"},
+    {file = "pyroaring-0.3.4-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:6e217c983ae6f24728f36bb2ec95464fb2a74d65e8a1e866a7eb2f412c61d00a"},
+    {file = "pyroaring-0.3.4-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:fcfc7c9fd0d2f33d0297434bfb76a2bf6bc951fb0cbe86e1824451cb75a787e9"},
+    {file = "pyroaring-0.3.4-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:8a22e3d3d24e0daf640a2aad5b8fe86e99ad1a0c49ca0605130b19cf8df934a0"},
+    {file = "pyroaring-0.3.4-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7ac83a7f486631c111897a13de1d4ddd166c071980f794cd2ef7f12e96c41f95"},
+    {file = "pyroaring-0.3.4-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9046804a12b4337c0320a02f78a73e3c5a9f2e2390bd4b5a59fefccec27d1626"},
+    {file = "pyroaring-0.3.4-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:41ec889b0474838237e0f2edcb3aeeb12bf478fcaab6a7e9fc541b1e45e790cf"},
+    {file = "pyroaring-0.3.4-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:8088c458bcf8fa8fdf7e174f6d1d3f5c46ef14183ecfdd07dd9741eb6a931a99"},
+    {file = "pyroaring-0.3.4-cp38-cp38-win32.whl", hash = "sha256:bbcbf5956a29135dd206398e61c2a0434e8e7d13c77e0a2fafa897b0ae020e97"},
+    {file = "pyroaring-0.3.4-cp38-cp38-win_amd64.whl", hash = "sha256:9f38871aff1660af2c043ab16faca61ef8bd1a0079ca31ac8a0088ee5b81b1f9"},
+    {file = "pyroaring-0.3.4-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:b05d72e239628eea6cf4e757b284169b470cfa83c24ce3b31ab8b374ce2f2b5e"},
+    {file = "pyroaring-0.3.4-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:3567563493f9b609df0d46b34a3d4dab7c8f43cad34bbfb22202f63f688fe627"},
+    {file = "pyroaring-0.3.4-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:1f42dd009cbdf5aec8743e9b00cf8e23e83afef38f6d75ab51a2512c578fda79"},
+    {file = "pyroaring-0.3.4-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bf32c2b62eeb69f76afea290c1b59b432eab7766751c0d53a2ad957c14f707f2"},
+    {file = "pyroaring-0.3.4-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:060c1459c74dc1abd93303e7396d0d4682d0bbefa5c1f1d44c8d19814ce2dd31"},
+    {file = "pyroaring-0.3.4-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:4d82a7f03e60f5b2404b917f91b7792a0c03207809ddb8ef16fa36679fa1923b"},
+    {file = "pyroaring-0.3.4-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:3a7484ed3fe76acf34b1bfb51b8fd2a153acea6f7270d64fd4be637ae51ebe90"},
+    {file = "pyroaring-0.3.4-cp39-cp39-win32.whl", hash = "sha256:c0880fe9f0155cd028662838cde8799aabca588842727fb9495487174bb2477d"},
+    {file = "pyroaring-0.3.4-cp39-cp39-win_amd64.whl", hash = "sha256:b68c169b169d90c4e58610e4a352db9530e6de951ee0ac422a7501fcc1e10b0f"},
+    {file = "pyroaring-0.3.4.tar.gz", hash = "sha256:0ef2fabf2808b93eb1d884fd637ea96f2c1bfb877797295b5331fd572794e2ce"},
+]
 pyrsistent = [
     {file = "pyrsistent-0.18.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:df46c854f490f81210870e509818b729db4488e1f30f2a1ce1698b2295a878d1"},
     {file = "pyrsistent-0.18.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5d45866ececf4a5fff8742c25722da6d4c9e180daa7b405dc0a2a2790d668c26"},
@@ -1836,6 +1889,8 @@ rlp = [
     {file = "rlp-3.0.0-py2.py3-none-any.whl", hash = "sha256:d2a963225b3f26795c5b52310e0871df9824af56823d739511583ef459895a7d"},
     {file = "rlp-3.0.0.tar.gz", hash = "sha256:63b0465d2948cd9f01de449d7adfb92d207c1aef3982f20310f8009be4a507e8"},
 ]
+roaring64 = []
+rocksdb = []
 setuptools = [
     {file = "setuptools-65.5.0-py3-none-any.whl", hash = "sha256:f62ea9da9ed6289bfe868cd6845968a2c854d1427f8548d52cae02a42b4f0356"},
     {file = "setuptools-65.5.0.tar.gz", hash = "sha256:512e5536220e38146176efb833d4a62aa726b7bbff82cfbc8ba9eaa3996e0b17"},
@@ -1870,10 +1925,6 @@ tomlkit = [
 toolz = [
     {file = "toolz-0.11.2-py3-none-any.whl", hash = "sha256:a5700ce83414c64514d82d60bcda8aabfde092d1c1a8663f9200c07fdcc6da8f"},
     {file = "toolz-0.11.2.tar.gz", hash = "sha256:6b312d5e15138552f1bda8a4e66c30e236c831b612b2bf0005f8a1df10a4bc33"},
-]
-typing-extensions = [
-    {file = "typing_extensions-4.2.0-py3-none-any.whl", hash = "sha256:6657594ee297170d19f67d55c05852a874e7eb634f4f753dbd667855e07c1708"},
-    {file = "typing_extensions-4.2.0.tar.gz", hash = "sha256:f1c24655a0da0d1b67f07e17a5e6b2a105894e6824b92096378bb3668ef02376"},
 ]
 urllib3 = [
     {file = "urllib3-1.26.9-py2.py3-none-any.whl", hash = "sha256:44ece4d53fb1706f667c9bd1c648f5469a2ec925fcf3a776667042d645472c14"},
@@ -2013,8 +2064,4 @@ yarl = [
     {file = "yarl-1.7.2-cp39-cp39-win32.whl", hash = "sha256:1edc172dcca3f11b38a9d5c7505c83c1913c0addc99cd28e993efeaafdfaa18d"},
     {file = "yarl-1.7.2-cp39-cp39-win_amd64.whl", hash = "sha256:797c2c412b04403d2da075fb93c123df35239cd7b4cc4e0cd9e5839b73f52c58"},
     {file = "yarl-1.7.2.tar.gz", hash = "sha256:45399b46d60c253327a460e99856752009fcee5f5d3c80b2f7c0cae1c38d56dd"},
-]
-zipp = [
-    {file = "zipp-3.8.0-py3-none-any.whl", hash = "sha256:c4f6e5bbf48e74f7a38e7cc5b0480ff42b0ae5178957d564d18932525d5cf099"},
-    {file = "zipp-3.8.0.tar.gz", hash = "sha256:56bf8aadb83c24db6c4b577e13de374ccfb67da2078beba1d037c17980bf43ad"},
 ]

@@ -2,14 +2,14 @@
   dotenv: '../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
-    'start-flags': '--trace --streamers versiondb,file',
+    'start-flags': '--trace',
     config: {
       mempool: {
         version: 'v1',
       },
     },
     'app-config': {
-      'app-db-backend': 'rocksdb',
+      // 'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'json-rpc': {
@@ -19,6 +19,9 @@
         'feehistory-cap': 100,
         'block-range-cap': 10000,
         'logs-cap': 10000,
+      },
+      store: {
+        streamers: ['file', 'versiondb'],
       },
     },
     validators: [{
