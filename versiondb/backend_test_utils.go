@@ -11,12 +11,9 @@ import (
 )
 
 var (
-	key1        = []byte("key1")
-	key2        = []byte("key2")
-	value1      = []byte("value1")
-	value2      = []byte("value2")
-	value3      = []byte("value3")
-	key1_subkey = []byte("key1/subkey")
+	key1       = []byte("key1")
+	value1     = []byte("value1")
+	key1Subkey = []byte("key1/subkey")
 )
 
 func SetupTestDB(t *testing.T, store VersionStore) {
@@ -122,7 +119,7 @@ func testBasics(t *testing.T, store VersionStore) {
 	value, err = store.GetAtVersion("staking", key1, &v)
 	require.NoError(t, err)
 	require.Equal(t, value1, value)
-	value, err = store.GetAtVersion("staking", key1_subkey, &v)
+	value, err = store.GetAtVersion("staking", key1Subkey, &v)
 	require.NoError(t, err)
 	require.Equal(t, value1, value)
 }
@@ -184,9 +181,11 @@ func testIterator(t *testing.T, store VersionStore) {
 	}
 
 	it, err := store.IteratorAtVersion("evm", nil, nil, nil)
+	require.NoError(t, err)
 	require.Equal(t, expItems[len(expItems)-1], consumeIterator(it))
 
 	it, err = store.ReverseIteratorAtVersion("evm", nil, nil, nil)
+	require.NoError(t, err)
 	require.Equal(t, reversed(expItems[len(expItems)-1]), consumeIterator(it))
 
 	// with start parameter
@@ -231,7 +230,7 @@ func testIterator(t *testing.T, store VersionStore) {
 		expItems[v-1][:len(expItems[v-1])-1],
 		consumeIterator(it),
 	)
-	v -= 1
+	v--
 	it, err = store.IteratorAtVersion("evm", nil, nil, &v)
 	require.NoError(t, err)
 	require.Equal(t,

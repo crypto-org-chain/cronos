@@ -123,7 +123,7 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
-	cronosappclient "github.com/crypto-org-chain/cronos/client"
+
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tmdb"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
@@ -356,7 +356,7 @@ func New(
 
 	// configure state listening capabilities using AppOptions
 	// we are doing nothing with the returned streamingServices and waitGroup in this case
-	streamers := cast.ToStringSlice(appOpts.Get(cronosappclient.FlagStreamers))
+	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
 	for _, streamerName := range streamers {
 		if streamerName == "versiondb" {
 			rootDir := cast.ToString(appOpts.Get(flags.FlagHome))

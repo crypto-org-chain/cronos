@@ -15,7 +15,7 @@ poetry2nix.mkPoetryEnv {
           flake8-black = [ "setuptools" ];
           multiaddr = [ "setuptools" ];
           rocksdb = [ "setuptools" "cython" "pkgconfig" ];
-          pyroaring = [ "setuptools" ];
+          pyroaring = [ "setuptools" "cython" ];
           roaring64 = [ "poetry" ];
         };
       in
