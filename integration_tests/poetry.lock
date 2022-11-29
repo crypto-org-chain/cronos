@@ -774,7 +774,7 @@ tomlkit = "^0.7.0"
 type = "git"
 url = "https://github.com/crypto-com/pystarport.git"
 reference = "main"
-resolved_reference = "08c5d488e620f6f0b0fd95b55b44731d327c6977"
+resolved_reference = "ff645505d5052e11ecc56b6933af8f5f2a6b4373"
 
 [[package]]
 name = "pytest"

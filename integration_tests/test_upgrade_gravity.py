@@ -74,7 +74,6 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-@pytest.mark.skip(reason="no way of currently testing this")
 def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     """
     - propose an upgrade and pass it
