@@ -1,5 +1,10 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+- [#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
+
 *Nov 22, 2022*
 
 ## v1.0.0
