@@ -10,6 +10,7 @@ const (
 	TypeMsgConvertVouchers    = "ConvertVouchers"
 	TypeMsgTransferTokens     = "TransferTokens"
 	TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
+	TypeTurnBridge            = "TurnBridge"
 )
 
 var _ sdk.Msg = &MsgConvertVouchers{}
@@ -168,6 +169,51 @@ func (msg MsgUpdateTokenMapping) Type() string {
 
 // GetSignBytes ...
 func (msg *MsgUpdateTokenMapping) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
+}
+
+var _ sdk.Msg = &MsgTurnBridge{}
+
+// NewMsgTurnBridge ...
+func NewMsgTurnBridge(admin string, enable bool) *MsgTurnBridge {
+	return &MsgTurnBridge{
+		Sender: admin,
+		Enable: enable,
+	}
+}
+
+// GetSigners ...
+func (msg *MsgTurnBridge) GetSigners() []sdk.AccAddress {
+	sender, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{sender}
+}
+
+// ValidateBasic ...
+func (msg *MsgTurnBridge) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+
+	return nil
+}
+
+// Route ...
+func (msg MsgTurnBridge) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgTurnBridge) Type() string {
+	return TypeTurnBridge
+}
+
+// GetSignBytes ...
+func (msg *MsgTurnBridge) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
