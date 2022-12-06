@@ -1430,7 +1430,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )
-        
+
     def query_params(self):
         "query cronos params"
         return json.loads(
