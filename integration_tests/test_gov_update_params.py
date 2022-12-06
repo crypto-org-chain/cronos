@@ -1,10 +1,10 @@
 import json
+from pathlib import Path
 
 import pytest
-
-from pathlib import Path
-from .network import setup_custom_cronos
 from dateutil.parser import isoparse
+
+from .network import setup_custom_cronos
 from .utils import (
     wait_for_new_blocks,
     wait_for_block_time,
