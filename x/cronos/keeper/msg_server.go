@@ -73,3 +73,19 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 	}
 	return &types.MsgUpdateTokenMappingResponse{}, nil
 }
+
+// TurnBridge implements the grpc method
+func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (*types.MsgTurnBridgeResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	admin := k.Keeper.GetParams(ctx).CronosAdmin
+	// if admin is empty, no sender could be equal to it
+	if admin != msg.Sender {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
+	}
+
+	gravityParams := k.gravityKeeper.GetParams(ctx)
+	gravityParams.BridgeActive = msg.Enable
+	k.gravityKeeper.SetParams(ctx, gravityParams)
+
+	return &types.MsgTurnBridgeResponse{}, nil
+}
