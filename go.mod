@@ -195,7 +195,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk v0.43.0-beta1.0.20221128050842-6df48c3ab38b
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.7-0.20221206163158-45d2f08e0e1d
 	github.com/ethereum/go-ethereum => github.com/ethereum/go-ethereum v1.10.19
 
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.

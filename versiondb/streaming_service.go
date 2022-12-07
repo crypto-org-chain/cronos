@@ -1,6 +1,7 @@
 package versiondb
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"sync"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 var _ baseapp.StreamingService = &StreamingService{}
@@ -47,23 +47,23 @@ func (fss *StreamingService) Listeners() map[types.StoreKey][]types.WriteListene
 
 // ListenBeginBlock satisfies the baseapp.ABCIListener interface
 // It sets the currentBlockNumber.
-func (fss *StreamingService) ListenBeginBlock(ctx sdk.Context, req abci.RequestBeginBlock, res abci.ResponseBeginBlock) error {
+func (fss *StreamingService) ListenBeginBlock(ctx context.Context, req abci.RequestBeginBlock, res abci.ResponseBeginBlock) error {
 	fss.currentBlockNumber = req.GetHeader().Height
 	return nil
 }
 
 // ListenDeliverTx satisfies the baseapp.ABCIListener interface
-func (fss *StreamingService) ListenDeliverTx(ctx sdk.Context, req abci.RequestDeliverTx, res abci.ResponseDeliverTx) error {
+func (fss *StreamingService) ListenDeliverTx(ctx context.Context, req abci.RequestDeliverTx, res abci.ResponseDeliverTx) error {
 	return nil
 }
 
 // ListenEndBlock satisfies the baseapp.ABCIListener interface
 // It merge the state caches of all the listeners together, and write out to the versionStore.
-func (fss *StreamingService) ListenEndBlock(ctx sdk.Context, req abci.RequestEndBlock, res abci.ResponseEndBlock) error {
+func (fss *StreamingService) ListenEndBlock(ctx context.Context, req abci.RequestEndBlock, res abci.ResponseEndBlock) error {
 	return nil
 }
 
-func (fss *StreamingService) ListenCommit(ctx sdk.Context, res abci.ResponseCommit) error {
+func (fss *StreamingService) ListenCommit(ctx context.Context, res abci.ResponseCommit) error {
 	// concat the state caches
 	var changeSet []types.StoreKVPair
 	for _, listener := range fss.listeners {
