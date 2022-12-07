@@ -1404,3 +1404,29 @@ class CosmosCLI:
                 home=self.data_dir,
             )
         )
+
+    def query_batches(self):
+        "query all gravity batches"
+        return json.loads(
+            self.raw(
+                "query",
+                "gravity",
+                "batch-txs",
+                home=self.data_dir,
+            )
+        )
+
+    def turn_bridge(self, enable, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "turn-bridge",
+                enable,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )

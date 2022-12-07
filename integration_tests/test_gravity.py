@@ -795,3 +795,74 @@ def test_gravity_blacklisted_contract(gravity):
             gravity.contract.functions.redeemVoucher(
                 old_nonce, ADDRS["signer2"]
             ).build_transaction({"from": ADDRS["signer1"]})
+
+
+def test_gravity_turn_bridge(gravity):
+    geth = gravity.geth
+    cli = gravity.cronos.cosmos_cli()
+    cronos_w3 = gravity.cronos.w3
+
+    # deploy test erc20 contract
+    erc20 = deploy_contract(
+        geth,
+        CONTRACTS["TestERC20A"],
+    )
+
+    balance = erc20.caller.balanceOf(ADDRS["validator"])
+    assert balance == 100000000000000000000000000
+    amount = 1000
+
+    print("send to cronos crc20")
+    recipient = HexBytes(ADDRS["community"])
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
+    )
+    assert txreceipt.status == 1, "should success"
+    assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+    denom = f"gravity{erc20.address}"
+
+    def check_gravity_native_tokens():
+        "check the balance of gravity native token"
+        return cli.balance(eth_to_bech32(recipient), denom=denom) == amount
+
+    if gravity.cronos.enable_auto_deployment:
+        crc21_contract = None
+
+        def local_check_auto_deployment():
+            nonlocal crc21_contract
+            crc21_contract = check_auto_deployment(
+                cli, denom, cronos_w3, recipient, amount
+            )
+            return crc21_contract
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment)
+    else:
+        wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
+
+    # turn off bridge
+    rsp = cli.turn_bridge("false", from_="community")
+    assert rsp["code"] != 0, "should not have the permission"
+
+    rsp = cli.turn_bridge("false", from_="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+
+    if gravity.cronos.enable_auto_deployment:
+        # send it back to erc20, should fail
+        tx = crc21_contract.functions.send_to_evm_chain(
+            ADDRS["validator"], amount, 1, 0, b""
+        ).build_transaction({"from": ADDRS["community"]})
+        txreceipt = send_transaction(cronos_w3, tx, KEYS["community"])
+        assert txreceipt.status == 0, "should fail"
+    else:
+        # send back the gravity native tokens, should fail
+        rsp = cli.send_to_ethereum(
+            ADDRS["validator"], f"{amount}{denom}", f"0{denom}", from_="community"
+        )
+        assert rsp["code"] == 3, rsp["raw_log"]
+
+    wait_for_new_blocks(cli, 10)
+    # check no new batch is created
+    rsp = cli.query_batches()
+    assert len(rsp["batches"]) == 0
