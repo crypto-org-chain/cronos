@@ -33,7 +33,6 @@ func NewStore(plainDB, historyDB, changesetDB dbm.DB) *Store {
 }
 
 // PutAtVersion implements VersionStore interface
-// TODO reduce allocation within iterations.
 func (s *Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error {
 	plainBatch := s.plainDB.NewBatch()
 	defer plainBatch.Close()
