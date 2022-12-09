@@ -36,7 +36,7 @@ def test_benchmark_storage(custom_cronos):
     def task(acct, acct_i):
         for i in range(iterations):
             seed = i * 10 + acct_i
-            tx = contract.functions.batch_set(seed, n, n * parity).buildTransaction(
+            tx = contract.functions.batch_set(seed, n, n * parity).build_transaction(
                 {"from": acct.address, "gas": gas}
             )
             print(send_transaction(w3, tx, acct.key))
