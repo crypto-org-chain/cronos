@@ -11,6 +11,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 )
 
+const StoreTypeVersionDB = 100
+
 var _ types.KVStore = (*Store)(nil)
 
 // Store Implements types.KVStore
@@ -26,8 +28,8 @@ func NewKVStore(store VersionStore, storeKey types.StoreKey, version *int64) *St
 
 // Implements Store.
 func (st *Store) GetStoreType() types.StoreType {
-	// FIXME
-	return types.StoreTypeIAVL
+	// should have effect, just define an unique indentifier, don't be conflicts with cosmos-sdk's builtin ones.
+	return StoreTypeVersionDB
 }
 
 // Implements Store.
