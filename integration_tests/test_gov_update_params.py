@@ -1,27 +1,16 @@
 import json
-from pathlib import Path
 
-import pytest
 from dateutil.parser import isoparse
 
-from .network import setup_custom_cronos
 from .utils import (
-    wait_for_new_blocks,
-    wait_for_block_time,
     parse_events,
+    wait_for_block_time,
+    wait_for_new_blocks,
 )
 
 
-@pytest.fixture(scope="module")
-def cronos_gov(tmp_path_factory):
-    path = tmp_path_factory.mktemp("cronos-gov")
-    yield from setup_custom_cronos(
-        path, 26300, Path(__file__).parent / "configs/default.jsonnet"
-    )
-
-
-def test_gov_update_params(cronos_gov, tmp_path):
-    cli = cronos_gov.cosmos_cli()
+def test_gov_update_params(cronos, tmp_path):
+    cli = cronos.cosmos_cli()
 
     proposal = tmp_path / "proposal.json"
     # governance module account as signer
@@ -57,8 +46,8 @@ def test_gov_update_params(cronos_gov, tmp_path):
     proposal = cli.query_proposal(proposal_id)
 
     # each validator vote yes
-    for i in range(len(cronos_gov.config["validators"])):
-        rsp = cronos_gov.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+    for i in range(len(cronos.config["validators"])):
+        rsp = cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     assert (
