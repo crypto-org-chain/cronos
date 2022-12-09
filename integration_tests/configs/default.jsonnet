@@ -9,7 +9,7 @@
       },
     },
     'app-config': {
-      // 'app-db-backend': 'rocksdb',
+      'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'json-rpc': {
