@@ -2,11 +2,7 @@ import json
 
 from dateutil.parser import isoparse
 
-from .utils import (
-    parse_events,
-    wait_for_block_time,
-    wait_for_new_blocks,
-)
+from .utils import parse_events, wait_for_block_time, wait_for_new_blocks
 
 
 def test_gov_update_params(cronos, tmp_path):
