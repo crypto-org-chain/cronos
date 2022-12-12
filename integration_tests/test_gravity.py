@@ -59,6 +59,7 @@ def gorc_config(keystore, gravity_contract, eth_rpc, cosmos_grpc, metrics_listen
                 "amount": 5000000000000,
                 "denom": "basetcro",
             },
+            "gas_limit": 500000,
             "grpc": cosmos_grpc,
             "key_derivation_path": "m/44'/60'/0'/0/0",
             "prefix": "crc",
