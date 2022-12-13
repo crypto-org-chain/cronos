@@ -10,10 +10,17 @@ const (
 	TypeMsgConvertVouchers    = "ConvertVouchers"
 	TypeMsgTransferTokens     = "TransferTokens"
 	TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
+	TypeMsgUpdateParams       = "UpdateParams"
 	TypeTurnBridge            = "TurnBridge"
 )
 
-var _ sdk.Msg = &MsgConvertVouchers{}
+var (
+	_ sdk.Msg = &MsgConvertVouchers{}
+	_ sdk.Msg = &MsgTransferTokens{}
+	_ sdk.Msg = &MsgUpdateTokenMapping{}
+	_ sdk.Msg = &MsgUpdateParams{}
+	_ sdk.Msg = &MsgTurnBridge{}
+)
 
 func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
 	return &MsgConvertVouchers{
@@ -173,8 +180,6 @@ func (msg *MsgUpdateTokenMapping) GetSignBytes() []byte {
 	return sdk.MustSortJSON(bz)
 }
 
-var _ sdk.Msg = &MsgTurnBridge{}
-
 // NewMsgTurnBridge ...
 func NewMsgTurnBridge(admin string, enable bool) *MsgTurnBridge {
 	return &MsgTurnBridge{
@@ -214,6 +219,51 @@ func (msg MsgTurnBridge) Type() string {
 
 // GetSignBytes ...
 func (msg *MsgTurnBridge) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
+}
+
+func NewMsgUpdateParams(authority string, params Params) *MsgUpdateParams {
+	return &MsgUpdateParams{
+		Authority: authority,
+		Params:    params,
+	}
+}
+
+// GetSigners returns the expected signers for a MsgUpdateParams message.
+func (msg *MsgUpdateParams) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.Authority)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{addr}
+}
+
+// ValidateBasic does a sanity check on the provided data.
+func (msg *MsgUpdateParams) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return sdkerrors.Wrap(err, "invalid authority address")
+	}
+
+	if err := msg.Params.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Route ...
+func (msg MsgUpdateParams) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgUpdateParams) Type() string {
+	return TypeMsgUpdateParams
+}
+
+// GetSignBytes ...
+func (msg *MsgUpdateParams) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }

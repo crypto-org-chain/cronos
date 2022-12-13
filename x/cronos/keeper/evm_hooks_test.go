@@ -2,8 +2,9 @@ package keeper_test
 
 import (
 	"fmt"
-	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"math/big"
+
+	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -198,12 +201,12 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 					app.MakeEncodingConfig().Codec,
 					suite.app.GetKey(types.StoreKey),
 					suite.app.GetKey(types.MemStoreKey),
-					suite.app.GetSubspace(types.ModuleName),
 					suite.app.BankKeeper,
 					keepertest.IbcKeeperMock{},
 					suite.app.GravityKeeper,
 					suite.app.EvmKeeper,
 					suite.app.AccountKeeper,
+					authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 				)
 				suite.app.CronosKeeper = cronosKeeper
 

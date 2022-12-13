@@ -12,7 +12,9 @@ import (
 // InitGenesis initializes the capability module's state from a provided genesis
 // state.
 func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) {
-	k.SetParams(ctx, genState.Params)
+	if err := k.SetParams(ctx, genState.Params); err != nil {
+		panic(fmt.Sprintf("Invalid cronos module params: %v\n", genState.Params))
+	}
 
 	for _, m := range genState.ExternalContracts {
 		// Only allowed to bootstrap external token at genesis
