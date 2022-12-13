@@ -58,6 +58,17 @@ struct ValsetArgs {
 	address rewardToken;
 }
 
+// This is being used purely to avoid stack too deep errors
+struct PaymentArgs {
+	// Arrays containing the batch data
+	uint256[] amounts;
+	address[] destinations;
+	// Fee covering the cost of relaying the batch for each txs
+	uint256[] fees;
+	// Payment address specified by the relayer
+	address feePaymentAddress;
+}
+
 struct ValSignature {
 	uint8 v;
 	bytes32 r;
@@ -91,6 +102,12 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	// This is set once at initialization
 	bytes32 public immutable state_gravityId;
 
+	// Timelock variable for the migration
+	bool public migration;
+	uint256 public migrationHeight;
+	// Migration period is 3 days
+	uint256 public constant MIGRATION_PERIOD = 21600;
+
 	// Store vouchers for reverted cases
 	mapping(uint256 => TransferReverted) public state_RevertedVouchers;
 	uint256 public state_lastRevertedNonce = 1;
@@ -103,6 +120,7 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	bool public anyoneCanRelay;
 
 	event AnyoneCanRelay(bool anyoneCanRelay);
+	event Migration(bool migration);
 
 	modifier checkWhiteList() {
 		if (!anyoneCanRelay) {
@@ -130,7 +148,7 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		uint256 _eventNonce
 	);
 	event ERC20DeployedEvent(
-		// FYI: Can't index on a string without doing a bunch of weird stuff
+	// FYI: Can't index on a string without doing a bunch of weird stuff
 		string _cosmosDenom,
 		address indexed _tokenContract,
 		string _name,
@@ -218,9 +236,9 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	// The validator powers must be decreasing or equal. This is important for checking the signatures on the
 	// next valset, since it allows the caller to stop verifying signatures once a quorum of signatures have been verified.
 	function makeCheckpoint(ValsetArgs memory _valsetArgs, bytes32 _gravityId)
-		private
-		pure
-		returns (bytes32)
+	private
+	pure
+	returns (bytes32)
 	{
 		// bytes32 encoding of the string "checkpoint"
 		bytes32 methodName = 0x636865636b706f696e7400000000000000000000000000000000000000000000;
@@ -242,11 +260,11 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 
 
 	function checkValidatorSignatures(
-		// The current validator set and their powers
+	// The current validator set and their powers
 		ValsetArgs calldata _currentValset,
-		// The current validator's signatures
+	// The current validator's signatures
 		ValSignature[] calldata _sigs,
-		// This is what we are checking they have signed
+	// This is what we are checking they have signed
 		bytes32 _theHash,
 		uint256 _powerThreshold
 	) private pure {
@@ -283,12 +301,12 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	// generated from the new valset.
 	// Anyone can call this function, but they must supply valid signatures of state_powerThreshold of the current valset over
 	// the new valset.
-    function updateValset(
-		// The new version of the validator set
+	function updateValset(
+	// The new version of the validator set
 		ValsetArgs calldata _newValset,
-		// The current validators that approve the change
+	// The current validators that approve the change
 		ValsetArgs calldata _currentValset,
-		// These are arrays of the parts of the current validator's signatures
+	// These are arrays of the parts of the current validator's signatures
 		ValSignature[] calldata _sigs
 	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS
@@ -296,8 +314,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		// Check that the valset nonce is greater than the old one
 		if (_newValset.valsetNonce <= _currentValset.valsetNonce) {
 			revert InvalidValsetNonce({
-				newNonce: _newValset.valsetNonce,
-				currentNonce: _currentValset.valsetNonce
+			newNonce: _newValset.valsetNonce,
+			currentNonce: _currentValset.valsetNonce
 			});
 		}
 
@@ -306,8 +324,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		// bad validator set through with uint256 max nonce
 		if (_newValset.valsetNonce > _currentValset.valsetNonce + 1000000) {
 			revert InvalidValsetNonce({
-				newNonce: _newValset.valsetNonce,
-				currentNonce: _currentValset.valsetNonce
+			newNonce: _newValset.valsetNonce,
+			currentNonce: _currentValset.valsetNonce
 			});
 		}
 
@@ -333,8 +351,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		}
 		if (cumulativePower <= state_powerThreshold) {
 			revert InsufficientPower({
-				cumulativePower: cumulativePower,
-				powerThreshold: state_powerThreshold
+			cumulativePower: cumulativePower,
+			powerThreshold: state_powerThreshold
 			});
 		}
 
@@ -380,18 +398,16 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	// Anyone can call this function, but they must supply valid signatures of state_powerThreshold of the current valset over
 	// the batch.
 	function submitBatch(
-		// The validators that approve the batch
+	// The validators that approve the batch
 		ValsetArgs calldata _currentValset,
-		// These are arrays of the parts of the validators signatures
+	// These are arrays of the parts of the validators signatures
 		ValSignature[] calldata _sigs,
-		// The batch of transactions
-		uint256[] calldata _amounts,
-		address[] calldata _destinations,
-		uint256[] calldata _fees,
+	// The payment information contained in the batch
+		PaymentArgs calldata _payments,
 		uint256 _batchNonce,
 		address _tokenContract,
-		// a block height beyond which this batch is not valid
-		// used to provide a fee-free timeout
+	// a block height beyond which this batch is not valid
+	// used to provide a fee-free timeout
 		uint256 _batchTimeout
 	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS scoped to reduce stack depth
@@ -399,8 +415,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			// Check that the batch nonce is higher than the last nonce for this token
 			if (_batchNonce <= state_lastBatchNonces[_tokenContract]) {
 				revert InvalidBatchNonce({
-					newNonce: _batchNonce,
-					currentNonce: state_lastBatchNonces[_tokenContract]
+				newNonce: _batchNonce,
+				currentNonce: state_lastBatchNonces[_tokenContract]
 				});
 			}
 
@@ -409,8 +425,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			// bad batch through with uint256 max nonce
 			if (_batchNonce > state_lastBatchNonces[_tokenContract] + 1000000) {
 				revert InvalidBatchNonce({
-					newNonce: _batchNonce,
-					currentNonce: state_lastBatchNonces[_tokenContract]
+				newNonce: _batchNonce,
+				currentNonce: state_lastBatchNonces[_tokenContract]
 				});
 			}
 
@@ -428,7 +444,8 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			}
 
 			// Check that the transaction batch is well-formed
-			if (_amounts.length != _destinations.length || _amounts.length != _fees.length) {
+			if (_payments.amounts.length != _payments.destinations.length ||
+				_payments.amounts.length != _payments.fees.length) {
 				revert MalformedBatch();
 			}
 
@@ -436,15 +453,15 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			checkValidatorSignatures(
 				_currentValset,
 				_sigs,
-				// Get hash of the transaction batch and checkpoint
+			// Get hash of the transaction batch and checkpoint
 				keccak256(
 					abi.encode(
 						state_gravityId,
-						// bytes32 encoding of "transactionBatch"
+					// bytes32 encoding of "transactionBatch"
 						0x7472616e73616374696f6e426174636800000000000000000000000000000000,
-						_amounts,
-						_destinations,
-						_fees,
+						_payments.amounts,
+						_payments.destinations,
+						_payments.fees,
 						_batchNonce,
 						_tokenContract,
 						_batchTimeout
@@ -461,13 +478,13 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			{
 				// Send transaction amounts to destinations
 				uint256 totalFee;
-				for (uint256 i = 0; i < _amounts.length; i++) {
-					transferNoRevert(_tokenContract, _destinations[i], _amounts[i]);
-					totalFee = totalFee + _fees[i];
+				for (uint256 i = 0; i < _payments.amounts.length; i++) {
+					transferNoRevert(_tokenContract, _payments.destinations[i], _payments.amounts[i]);
+					totalFee = totalFee + _payments.fees[i];
 				}
 
-				// Send transaction fees to msg.sender
-				transferNoRevert(_tokenContract, msg.sender, totalFee);
+				// Send transaction fees to relayer's specified address
+				transferNoRevert(_tokenContract, _payments.feePaymentAddress, totalFee);
 			}
 		}
 		// LOGS scoped to reduce stack depth
@@ -511,10 +528,11 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 	// They can be used for nonce-free replay prevention by using a different invalidationId
 	// for each call.
 	function submitLogicCall(
-		// The validators that approve the call
+	// The validators that approve the call
 		ValsetArgs calldata _currentValset,
-		// These are arrays of the parts of the validators signatures
+	// These are arrays of the parts of the validators signatures
 		ValSignature[] calldata _sigs,
+		address _paymentAddress,
 		LogicCallArgs memory _args
 	) external nonReentrant whenNotPaused checkWhiteList {
 		// CHECKS scoped to reduce stack depth
@@ -556,7 +574,7 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 			bytes32 argsHash = keccak256(
 				abi.encode(
 					state_gravityId,
-					// bytes32 encoding of "logicCall"
+				// bytes32 encoding of "logicCall"
 					0x6c6f67696343616c6c0000000000000000000000000000000000000000000000,
 					_args.transferAmounts,
 					_args.transferTokenContracts,
@@ -596,9 +614,9 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		// Make call to logic contract
 		bytes memory returnData = Address.functionCall(_args.logicContractAddress, _args.payload);
 
-		// Send fees to msg.sender
+		// Send fees to the payment address
 		for (uint256 i = 0; i < _args.feeAmounts.length; i++) {
-			IERC20(_args.feeTokenContracts[i]).safeTransfer(msg.sender, _args.feeAmounts[i]);
+			IERC20(_args.feeTokenContracts[i]).safeTransfer(_paymentAddress, _args.feeAmounts[i]);
 		}
 
 		// LOGS scoped to reduce stack depth
@@ -706,15 +724,44 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 
 	/**
 	* Only owner
+	* Notify the start of the migration
+	*/
+	function startMigration() public onlyOwner {
+		migrationHeight = block.number + MIGRATION_PERIOD;
+		migration = true;
+		emit Migration(true);
+	}
+
+	/**
+	* Only owner
+	* Stop the migration
+	*/
+	function stopMigration() public onlyOwner {
+		migrationHeight = 0;
+		migration = false;
+		emit Migration(false);
+	}
+
+	/**
+	* Only owner
 	* migrateToken allows to migrate locked fund to a new gravity contract
 	* in case we need to upgrade it
 	*/
 	function migrateToken(
 		address _tokenContract,
-		address _destination,
-		uint256 _amount
+		address _newGravityAddress,
+		uint256 _amount,
+		bool isCosmosToken
 	) public onlyOwner {
-		IERC20(_tokenContract).safeTransfer(_destination, _amount);
+		require(migration == true, "Migration has not started");
+		require(migrationHeight != 0, "Migration height cannot be zero");
+		require(block.number >= migrationHeight, "Migration is not allowed yet");
+		require(block.number <= migrationHeight + MIGRATION_PERIOD, "Migration time has exceeded");
+		if (isCosmosToken) {
+			ICosmosToken(_tokenContract).setGravityContract(_newGravityAddress);
+		} else {
+			IERC20(_tokenContract).safeTransfer(_newGravityAddress, _amount);
+		}
 	}
 
 	function setAnyoneCanRelay (

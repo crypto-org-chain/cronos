@@ -61,15 +61,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "v2.0.0-cronos",
+        "branch": "thomas/fix-overflow-uint",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "52445f402bdb66e0165b88e4bac6f377ffa3de11",
-        "sha256": "0ycqmlhy2ncsnfxgvdlhxc05y8hhsa9gnwp29zm5hps82xicircl",
+        "rev": "7c3e59732a4a45cfae606396c1eee118661cc039",
+        "sha256": "0i5vn59amh5n071dmcdskw4imvb7cxldsi6mqg5ypjcdn26gw95a",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/52445f402bdb66e0165b88e4bac6f377ffa3de11.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/7c3e59732a4a45cfae606396c1eee118661cc039.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "ibc-rs": {
