@@ -78,7 +78,7 @@ func DeleteOrphanRecordsCommand() *cobra.Command {
 			home := ctx.Viper.GetString(flags.FlagHome)
 			dataDir := filepath.Join(home, "data", "application.db")
 
-			return DeleteOrphanNodes(dataDir, args[1])
+			return DeleteOrphanNodes(dataDir, args[0])
 		},
 	}
 	return cmd
