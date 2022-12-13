@@ -362,7 +362,9 @@ def test_multiple_attestation_processing(gravity):
 
         # we are checking the difference of balance for each height to ensure
         # attestation are processed within the same block
-        wait_for_fn("send-to-gravity-native", check_gravity_balance, interval=5)
+        wait_for_fn(
+            "send-to-gravity-native", check_gravity_balance, timeout=400, interval=1
+        )
 
 
 def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
@@ -642,7 +644,7 @@ def test_gravity_source_tokens(gravity):
         assert tx_receipt.status == 1, "should success"
 
         # Wait enough for orchestrator to relay the event
-        wait_for_new_blocks(cronos_cli, 30)
+        w3_wait_for_new_blocks(gravity.geth, 120)
 
         # Check mapping is done on gravity side
         cosmos_erc20 = cronos_cli.query_gravity_contract_by_denom(denom)
