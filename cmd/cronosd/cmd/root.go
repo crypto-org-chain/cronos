@@ -129,6 +129,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		debug.Cmd(),
 		config.Cmd(),
 		pruning.PruningCmd(a.newApp),
+		DeleteOrphanRecordsCommand(),
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
