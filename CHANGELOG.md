@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*December 14, 2022*
+
+## v1.0.1
 
 ### Improvements
 
