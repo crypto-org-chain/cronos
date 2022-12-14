@@ -3,7 +3,9 @@
 ## UNRELEASED
 
 ### Improvements
+
 - [#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
+- [#]() Update cosmos-sdk to `v0.46.7`, it fix a gov migration issue.
 
 *Nov 22, 2022*
 
