@@ -16,7 +16,6 @@ config {
       mnemonic: '${COMMUNITY_MNEMONIC}',
     }],
     genesis+: {
-      consensus_params:: super['consensus_params'],
       app_state+: {
         cronos: {
           params: {
@@ -25,6 +24,11 @@ config {
           },
         },
         transfer:: super['transfer'],
+      },
+      consensus_params+: {
+        block+: {
+           time_iota_ms: '2000',
+        },
       },
     },
   },

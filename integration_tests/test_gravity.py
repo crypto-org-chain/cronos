@@ -63,6 +63,7 @@ def gorc_config(keystore, gravity_contract, eth_rpc, cosmos_grpc, metrics_listen
             "grpc": cosmos_grpc,
             "key_derivation_path": "m/44'/60'/0'/0/0",
             "prefix": "crc",
+            "msg_batch_size": 10,
         },
         "metrics": {
             "listen_addr": metrics_listen,
@@ -363,7 +364,7 @@ def test_multiple_attestation_processing(gravity):
         # we are checking the difference of balance for each height to ensure
         # attestation are processed within the same block
         wait_for_fn(
-            "send-to-gravity-native", check_gravity_balance, timeout=400, interval=1
+            "send-to-gravity-native", check_gravity_balance, timeout=600, interval=2
         )
 
 
