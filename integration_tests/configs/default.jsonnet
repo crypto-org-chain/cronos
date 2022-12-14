@@ -21,7 +21,7 @@
         'logs-cap': 10000,
       },
       store: {
-        streamers: ['file'],
+        streamers: ['file', 'versiondb'],
       },
       streamers: {
         file: {

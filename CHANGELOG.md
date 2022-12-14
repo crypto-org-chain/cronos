@@ -9,6 +9,7 @@
 ### Improvements
 
 - [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
+- [#791](https://github.com/crypto-org-chain/cronos/pull/791) Implement versiondb and migration commands.
 
 *Jan 04, 2023*
 

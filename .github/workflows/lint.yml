@@ -15,6 +15,9 @@ concurrency:
 
 jobs:
   golangci:
+    strategy:
+      matrix:
+        package: [./, ./versiondb]
     name: Run golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -23,20 +26,22 @@ jobs:
         with:
           go-version: 1.18
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6
+      - id: changed-files
+        uses: tj-actions/changed-files@v34
         with:
-          SUFFIX_FILTER: |
-            .go
-            .mod
-            .sum
+          files: |
+            *.go
+            *.mod
+            *.sum
       - uses: golangci/golangci-lint-action@v3
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.50
-          args: --timeout 10m
+          args: --timeout 10m --build-tags rocksdb
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: ${{ matrix.package }}
         # Check only if there are differences in the source code
-        if: "env.GIT_DIFF"
+        if: steps.changed-files.outputs.any_changed == 'true'
 
   lint-python:
     name: Lint python
@@ -54,7 +59,7 @@ jobs:
             **/*.py
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -80,7 +85,7 @@ jobs:
             **/*.nix
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'

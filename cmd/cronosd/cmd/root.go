@@ -131,6 +131,11 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
+	changeSetCmd := ChangeSetCmd()
+	if changeSetCmd != nil {
+		rootCmd.AddCommand(changeSetCmd)
+	}
+
 	opts := ethermintserver.StartOptions{
 		AppCreator:      a.newApp,
 		DefaultNodeHome: app.DefaultNodeHome,
