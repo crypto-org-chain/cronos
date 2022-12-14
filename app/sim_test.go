@@ -211,7 +211,7 @@ func TestAppImportExport(t *testing.T) {
 		Height:  app.LastBlockHeight(),
 		ChainID: SimAppChainID,
 	})
-	newApp.mm.InitGenesis(ctxB, app.AppCodec(), genesisState)
+	newApp.Mm.InitGenesis(ctxB, app.AppCodec(), genesisState)
 	newApp.StoreConsensusParams(ctxB, exported.ConsensusParams)
 
 	fmt.Printf("comparing stores...\n")

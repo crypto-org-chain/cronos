@@ -14,7 +14,7 @@ import (
 
 func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	upgradeHandlerV1 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		m, err := app.Mm.RunMigrations(ctx, app.Configurator, fromVM)
 		if err != nil {
 			return m, err
 		}
@@ -40,7 +40,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 	gravityPlanName := "v0.8.0-gravity-alpha3"
 	if experimental {
 		app.UpgradeKeeper.SetUpgradeHandler(gravityPlanName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+			return app.Mm.RunMigrations(ctx, app.Configurator, fromVM)
 		})
 	}
 

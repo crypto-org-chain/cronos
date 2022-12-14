@@ -292,13 +292,13 @@ type App struct {
 	CronosKeeper cronoskeeper.Keeper
 
 	// the module manager
-	mm *module.Manager
+	Mm *module.Manager
 
 	// simulation manager
 	sm *module.SimulationManager
 
 	// module configurator
-	configurator module.Configurator
+	Configurator module.Configurator
 
 	// if enable experimental gravity-bridge feature module
 	experimental bool
@@ -678,21 +678,21 @@ func New(
 		initGenesisOrder = append(initGenesisOrder, gravitytypes.ModuleName)
 	}
 
-	app.mm = module.NewManager(modules...)
-	app.mm.SetOrderBeginBlockers(beginBlockersOrder...)
-	app.mm.SetOrderEndBlockers(endBlockersOrder...)
-	app.mm.SetOrderInitGenesis(initGenesisOrder...)
+	app.Mm = module.NewManager(modules...)
+	app.Mm.SetOrderBeginBlockers(beginBlockersOrder...)
+	app.Mm.SetOrderEndBlockers(endBlockersOrder...)
+	app.Mm.SetOrderInitGenesis(initGenesisOrder...)
 
 	// Uncomment if you want to set a custom migration order here.
-	// app.mm.SetOrderMigrations(custom order)
+	// app.Mm.SetOrderMigrations(custom order)
 
-	app.mm.RegisterInvariants(&app.CrisisKeeper)
-	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	app.configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
-	app.mm.RegisterServices(app.configurator)
+	app.Mm.RegisterInvariants(&app.CrisisKeeper)
+	app.Mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
+	app.Configurator = module.NewConfigurator(app.appCodec, app.MsgServiceRouter(), app.GRPCQueryRouter())
+	app.Mm.RegisterServices(app.Configurator)
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
-	// Make sure it's called after `app.mm` and `app.configurator` are set.
+	// Make sure it's called after `app.Mm` and `app.Configurator` are set.
 	app.RegisterUpgradeHandlers(experimental)
 
 	// add test gRPC service for testing gRPC queries in isolation
@@ -706,7 +706,7 @@ func New(
 		// Use custom RandomGenesisAccounts so that auth module could create random EthAccounts in genesis state when genesis.json not specified
 		authtypes.ModuleName: auth.NewAppModule(app.appCodec, app.AccountKeeper, ethermintapp.RandomGenesisAccounts),
 	}
-	app.sm = module.NewSimulationManagerFromAppModules(app.mm.Modules, overrideModules)
+	app.sm = module.NewSimulationManagerFromAppModules(app.Mm.Modules, overrideModules)
 
 	app.sm.RegisterStoreDecoders()
 
@@ -785,12 +785,12 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	return app.mm.BeginBlock(ctx, req)
+	return app.Mm.BeginBlock(ctx, req)
 }
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	return app.Mm.EndBlock(ctx, req)
 }
 
 // InitChainer application update at chain initialization
@@ -799,8 +799,8 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
-	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap())
-	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
+	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.Mm.GetVersionMap())
+	return app.Mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
 // LoadHeight loads a particular height
