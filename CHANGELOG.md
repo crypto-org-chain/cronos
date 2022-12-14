@@ -1,9 +1,14 @@
 # Changelog
 
-## UNRELEASED
+*December 14, 2022*
+
+## v1.0.1
 
 ### Improvements
+
 - [#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
+- [#790](https://github.com/crypto-org-chain/cronos/pull/790) Update cosmos-sdk to `v0.46.7`, it fix a migration issue which affects pending proposals's votes during upgrade,
+  it also adds the config entries for file streamer.
 
 *Nov 22, 2022*
 
