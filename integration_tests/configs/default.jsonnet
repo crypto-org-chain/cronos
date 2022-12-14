@@ -2,7 +2,7 @@
   dotenv: '../../scripts/.env',
   'cronos_777-1': {
     cmd: 'cronosd',
-    'start-flags': '--trace --streamers file',
+    'start-flags': '--trace',
     config: {
       mempool: {
         version: 'v1',
@@ -19,6 +19,9 @@
         'feehistory-cap': 100,
         'block-range-cap': 10000,
         'logs-cap': 10000,
+      },
+      store: {
+        streamers: ['file'],
       },
     },
     validators: [{

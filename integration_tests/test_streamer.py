@@ -1,4 +1,3 @@
-import pytest
 from cprotobuf import Field, ProtoEntity, decode_primitive
 from hexbytes import HexBytes
 
@@ -14,71 +13,46 @@ class StoreKVPairs(ProtoEntity):
     value = Field("bytes", 4)
 
 
-def decode_stream_file(data, body_cls=StoreKVPairs, header_cls=None, footer_cls=None):
+def decode_stream_file(data, entry_cls=StoreKVPairs):
     """
-    header, body*, footer
+    StoreKVPairs, StoreKVPairs, ...
     """
-    header = footer = None
-    body = []
-    offset = 0
-    size, n = decode_primitive(data, "uint64")
-    offset += n
+    assert int.from_bytes(data[:8], "big") + 8 == len(data), "incomplete file"
 
-    # header
-    if header_cls is not None:
-        header = header_cls()
-        header.ParseFromString(data[offset : offset + size])
-    offset += size
-
-    while True:
+    items = []
+    offset = 8
+    while offset < len(data):
         size, n = decode_primitive(data[offset:], "uint64")
         offset += n
-        if offset + size == len(data):
-            # footer
-            if footer_cls is not None:
-                footer = footer_cls()
-                footer.ParseFromString(data[offset : offset + size])
-            offset += size
-            break
-        else:
-            # body
-            if body_cls is not None:
-                item = body_cls()
-                item.ParseFromString(data[offset : offset + size])
-                body.append(item)
-            offset += size
-    return header, body, footer
+        item = entry_cls()
+        item.ParseFromString(data[offset : offset + size])
+        items.append(item)
+        offset += size
+    return items
 
 
-@pytest.mark.skip(
-    reason=(
-        "state streamers in current 0.46.x version is broken, "
-        "ref: https://github.com/cosmos/cosmos-sdk/issues/13457"
-    )
-)
 def test_streamers(cronos):
     """
     - check the streaming files are created
     - try to parse the state change sets
     """
     # inspect the first state change of the first tx in genesis
-    path = cronos.node_home(0) / "data/file_streamer/block-0-tx-0"
-    _, body, _ = decode_stream_file(open(path, "rb").read())
+    # the InitChainer is committed together with the first block.
+    path = cronos.node_home(0) / "data/file_streamer/block-1-data"
+    items = decode_stream_file(open(path, "rb").read())
     # creation of the validator account
-    assert body[0].store_key == "acc"
-    # the order in gen_txs is undeterministic, could be either one.
-    assert body[0].key in (
-        b"\x01" + HexBytes(ADDRS["validator"]),
-        b"\x01" + HexBytes(ADDRS["validator2"]),
-    )
+    assert items[0].store_key == "acc"
+    # the writes are sorted by key, find the minimal address
+    min_addr = min(ADDRS.values())
+    assert items[0].key == b"\x01" + HexBytes(min_addr)
 
 
 if __name__ == "__main__":
     import binascii
     import sys
 
-    _, body, _ = decode_stream_file(open(sys.argv[1], "rb").read())
-    for item in body:
+    items = decode_stream_file(open(sys.argv[1], "rb").read())
+    for item in items:
         print(
             item.store_key,
             item.delete,
