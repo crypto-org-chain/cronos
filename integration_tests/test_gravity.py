@@ -645,7 +645,7 @@ def test_gravity_source_tokens(gravity):
         assert tx_receipt.status == 1, "should success"
 
         # Wait enough for orchestrator to relay the event
-        w3_wait_for_new_blocks(gravity.geth, 120)
+        wait_for_new_blocks(cronos_cli, 30)
 
         # Check mapping is done on gravity side
         cosmos_erc20 = cronos_cli.query_gravity_contract_by_denom(denom)

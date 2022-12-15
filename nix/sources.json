@@ -61,15 +61,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
-        "branch": "v2.0.0-cronos",
+        "branch": "thomas/use-network-id",
         "description": "A CosmosSDK application for moving assets on and off of EVM based, POW chains",
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "9d7001e49f5ac40ea0ec142de3a1fe37ff1c0dd9",
-        "sha256": "0i5vn59amh5n071dmcdskw4imvb7cxldsi6mqg5ypjcdn26gw95a",
+        "rev": "059c99349da6061ee86ccd7ad275b4168c039977",
+        "sha256": "1205znf120wfypbh7lwb4aj36j7dvi0jji71crnxsan029swa392",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/9d7001e49f5ac40ea0ec142de3a1fe37ff1c0dd9.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/059c99349da6061ee86ccd7ad275b4168c039977.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "ibc-rs": {
