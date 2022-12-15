@@ -9,6 +9,7 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/spf13/cobra"
 
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
@@ -16,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
@@ -38,6 +40,10 @@ func UpgradeCmd(appCreator servertypes.AppCreator) *cobra.Command {
 		Long:  `Upgrade with plan name and expect height`,
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			chainID, err := cmd.Flags().GetString(flags.FlagChainID)
+			if err != nil {
+				return err
+			}
 			planName, err := cmd.Flags().GetString(FlagPlanName)
 			if err != nil {
 				return err
@@ -80,12 +86,20 @@ func UpgradeCmd(appCreator servertypes.AppCreator) *cobra.Command {
 			app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, plan types.Plan, vm module.VersionMap) (module.VersionMap, error) {
 				return app.Mm.RunMigrations(ctx, app.Configurator, vm)
 			})
+			header := tmproto.Header{
+				ChainID: chainID,
+				Height:  sdkCtx.BlockHeader().Height + 1,
+			}
+			req := abci.RequestBeginBlock{Header: header}
+			app.BeginBlock(req)
 			app.UpgradeKeeper.ApplyUpgrade(sdkCtx, plan)
+			app.Commit()
 			name, height := app.UpgradeKeeper.GetLastCompletedUpgrade(sdkCtx)
 			logger.Debug(fmt.Sprintf("upgraded %s at %d", name, height))
 			return nil
 		},
 	}
+	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().String(FlagPlanName, "v1.0.0", "Plan name")
 	cmd.Flags().Int64(FlagExpectHeight, 0, "Expect height")
 	return cmd
