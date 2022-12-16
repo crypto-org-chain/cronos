@@ -119,6 +119,8 @@ def setup_geth(path, base_port):
             str(base_port),
             "--port",
             str(base_port + 1),
+            "--networkid",
+            str(15),
         ]
         print(*cmd)
         proc = subprocess.Popen(

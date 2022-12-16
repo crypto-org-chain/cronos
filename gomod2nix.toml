@@ -361,8 +361,8 @@ schema = 3
     version = "v0.0.5"
     hash = "sha256-/5i70IkH/qSW5KjGzv8aQNKh9tHoz98tqtL0K2DMFn4="
   [mod."github.com/peggyjv/gravity-bridge/module/v2"]
-    version = "v2.0.1-0.20221027085649-2107c6bd6bc4"
-    hash = "sha256-52xZosJEfZ/UHeMUuibtcTWNILC+iT4rCq3Yl3plNzE="
+    version = "v2.0.1-0.20221021061020-06e94602ee75"
+    hash = "sha256-COYgdbeernwCesBRZV/wW/waXekRwtVOqHBvH6SM67Q="
     replaced = "github.com/crypto-org-chain/gravity-bridge/module/v2"
   [mod."github.com/pelletier/go-toml"]
     version = "v1.9.5"
