@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"runtime"
+
 	"github.com/cosmos/gorocksdb"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +42,7 @@ func CompactDBCmd() *cobra.Command {
 			opts.SetCompressionOptions(compressionOpts)
 			opts.SetZSTDCompressionOptions(zstdOpts)
 			opts.SetCompression(gorocksdb.ZSTDCompression)
+			opts.IncreaseParallelism(runtime.NumCPU())
 			db, err := gorocksdb.OpenDb(opts, dbPath)
 			if err != nil {
 				return err
