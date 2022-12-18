@@ -29,6 +29,7 @@ func CompactDBCmd() *cobra.Command {
 
 			bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 			bbto.SetBlockSize(blockSize)
+			bbto.SetFilterPolicy(gorocksdb.NewBloomFilter(10))
 
 			compressionOpts := gorocksdb.NewDefaultCompressionOptions()
 			compressionOpts.Level = 12
@@ -43,6 +44,7 @@ func CompactDBCmd() *cobra.Command {
 			opts.SetZSTDCompressionOptions(zstdOpts)
 			opts.SetCompression(gorocksdb.ZSTDCompression)
 			opts.IncreaseParallelism(runtime.NumCPU())
+			opts.SetOptimizeFiltersForHits(true)
 			db, err := gorocksdb.OpenDb(opts, dbPath)
 			if err != nil {
 				return err
