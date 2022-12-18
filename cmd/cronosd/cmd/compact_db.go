@@ -45,6 +45,7 @@ func CompactDBCmd() *cobra.Command {
 			opts.SetCompression(gorocksdb.ZSTDCompression)
 			opts.IncreaseParallelism(runtime.NumCPU())
 			opts.SetOptimizeFiltersForHits(true)
+			opts.SetFormatVersion(4)
 			db, err := gorocksdb.OpenDb(opts, dbPath)
 			if err != nil {
 				return err
