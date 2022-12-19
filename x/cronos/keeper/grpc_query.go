@@ -124,3 +124,21 @@ func (k Keeper) Params(goCtx context.Context, req *types.QueryParamsRequest) (*t
 
 	return &types.QueryParamsResponse{Params: params}, nil
 }
+
+// Permissions returns the permissions of a specific account
+func (k Keeper) Permissions(goCtx context.Context, req *types.QueryPermissionsRequest) (*types.QueryPermissionsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	acc, err := sdk.AccAddressFromBech32(req.Address)
+	if err != nil {
+		return nil, err
+	}
+	canChangeTokenMapping := k.HasPermission(ctx, acc, CanChangeTokenMapping)
+	canTurnBridge := k.HasPermission(ctx, acc, CanTurnBridge)
+	return &types.QueryPermissionsResponse{
+		CanChangeTokenMapping: canChangeTokenMapping,
+		CanTurnBridge:         canTurnBridge,
+	}, nil
+}

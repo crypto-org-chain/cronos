@@ -30,6 +30,9 @@ service Msg {
 
   // UpdateParams defines a method to update cronos module params
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+
+  // UpdatePermissions defines a method to update cronos admins permissions
+  rpc UpdatePermissions(MsgUpdatePermissions) returns (MsgUpdatePermissionsResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to
@@ -92,5 +95,15 @@ message MsgUpdateParams {
 
 // MsgUpdateParamsResponse defines the response type.
 message MsgUpdateParamsResponse {}
+
+// MsgUpdatePermissions defines the request type for updating cronos permissions.
+message MsgUpdatePermissions {
+  string from = 1;
+  string address = 2;
+  bytes permissions = 3;
+}
+
+// MsgUpdatePermissionsResponse defines the response type.
+message MsgUpdatePermissionsResponse {}
 
 // this line is used by starport scaffolding # proto/tx/message
