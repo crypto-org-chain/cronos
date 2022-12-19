@@ -69,7 +69,7 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 		return nil, err
 	}
 	// check permission
-	if k.HasPermission(ctx, acc, CanChangeTokenMapping) {
+	if !k.HasPermission(ctx, acc, CanChangeTokenMapping) {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 	// msg is already validated
@@ -87,7 +87,7 @@ func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (
 		return nil, err
 	}
 	// check permission
-	if k.HasPermission(ctx, acc, CanTurnBridge) {
+	if !k.HasPermission(ctx, acc, CanTurnBridge) {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 

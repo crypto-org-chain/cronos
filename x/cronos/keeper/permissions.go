@@ -29,6 +29,5 @@ func (k Keeper) HasPermission(ctx sdk.Context, account sdk.AccAddress, permissio
 	permissionBigInt := new(big.Int).SetBytes(permission)
 	permissionsToCheckBigInt := big.NewInt(permissionsToCheck)
 	mask := permissionBigInt.Int64() & permissionsToCheckBigInt.Int64()
-
 	return (admin == account.String()) || (mask == permissionsToCheckBigInt.Int64())
 }
