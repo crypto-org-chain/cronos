@@ -271,7 +271,7 @@ func (msg *MsgUpdateParams) GetSignBytes() []byte {
 }
 
 // NewUpdatePermissions ...
-func NewUpdatePermissions(from string, address string, permissions []byte) *MsgUpdatePermissions {
+func NewUpdatePermissions(from string, address string, permissions uint64) *MsgUpdatePermissions {
 	return &MsgUpdatePermissions{
 		From:        from,
 		Address:     address,

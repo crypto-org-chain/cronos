@@ -100,7 +100,7 @@ message MsgUpdateParamsResponse {}
 message MsgUpdatePermissions {
   string from = 1;
   string address = 2;
-  bytes permissions = 3;
+  uint64 permissions = 3;
 }
 
 // MsgUpdatePermissionsResponse defines the response type.
