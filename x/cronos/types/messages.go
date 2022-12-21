@@ -11,8 +11,8 @@ const (
 	TypeMsgTransferTokens     = "TransferTokens"
 	TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
 	TypeMsgUpdateParams       = "UpdateParams"
-	TypeTurnBridge            = "TurnBridge"
-	TypeUpdatePermissions     = "UpdatePermissions"
+	TypeMsgTurnBridge         = "TurnBridge"
+	TypeMsgUpdatePermissions  = "UpdatePermissions"
 )
 
 var (
@@ -216,7 +216,7 @@ func (msg MsgTurnBridge) Route() string {
 
 // Type ...
 func (msg MsgTurnBridge) Type() string {
-	return TypeTurnBridge
+	return TypeMsgTurnBridge
 }
 
 // GetSignBytes ...
@@ -270,8 +270,8 @@ func (msg *MsgUpdateParams) GetSignBytes() []byte {
 	return sdk.MustSortJSON(bz)
 }
 
-// NewUpdatePermissions ...
-func NewUpdatePermissions(from string, address string, permissions uint64) *MsgUpdatePermissions {
+// NewMsgUpdatePermissions ...
+func NewMsgUpdatePermissions(from string, address string, permissions uint64) *MsgUpdatePermissions {
 	return &MsgUpdatePermissions{
 		From:        from,
 		Address:     address,
@@ -309,7 +309,7 @@ func (msg MsgUpdatePermissions) Route() string {
 
 // Type ...
 func (msg MsgUpdatePermissions) Type() string {
-	return TypeUpdatePermissions
+	return TypeMsgUpdatePermissions
 }
 
 // GetSignBytes ...
