@@ -1,8 +1,4 @@
-from .utils import (
-    ADDRS,
-    eth_to_bech32,
-    wait_for_new_blocks,
-)
+from .utils import ADDRS, eth_to_bech32, wait_for_new_blocks
 
 
 def test_permissions_updates(cronos):
