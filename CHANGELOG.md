@@ -13,6 +13,7 @@
 - [cronos#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
 - [cronos#830](https://github.com/crypto-org-chain/cronos/pull/830) Upgrade gravity bridge for latest bugfixes, patching two important DOS vulnerabilities
 - [cronos#834](https://github.com/crypto-org-chain/cronos/pull/834) Remove unsafe experimental flag.
+- [cronos#795](https://github.com/crypto-org-chain/cronos/pull/795) Support permissions in cronos.
 
 ### Bug Fixes
 
