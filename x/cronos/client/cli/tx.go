@@ -285,7 +285,7 @@ func CmdTurnBridge() *cobra.Command {
 func CmdUpdatePermissions() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-permissions [address] [permissions]",
-		Short: "Update Permissions",
+		Short: "Update Permissions, permission value: 1=CanChangeTokenMapping, 2:=CanTurnBridge, 3=All",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

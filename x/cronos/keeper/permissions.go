@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	CanChangeTokenMapping uint64                                  = 1 << iota //1
-	CanTurnBridge                                                             //2
-	All                   = CanChangeTokenMapping | CanTurnBridge             //3
+	CanChangeTokenMapping uint64                                  = 1 << iota // 1
+	CanTurnBridge                                                             // 2
+	All                   = CanChangeTokenMapping | CanTurnBridge             // 3
 )
 
 func (k Keeper) SetPermissions(ctx sdk.Context, address sdk.AccAddress, permissions uint64) {
