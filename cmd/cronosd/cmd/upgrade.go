@@ -79,10 +79,6 @@ func UpgradeCmd(appCreator servertypes.AppCreator) *cobra.Command {
 				expectHeight = latestHeight + 1
 			}
 			plan := types.Plan{Name: planName, Height: expectHeight}
-			err = app.UpgradeKeeper.ScheduleUpgrade(sdkCtx, plan)
-			if err != nil {
-				return err
-			}
 			app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, plan types.Plan, vm module.VersionMap) (module.VersionMap, error) {
 				return app.Mm.RunMigrations(ctx, app.Configurator, vm)
 			})
