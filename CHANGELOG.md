@@ -6,7 +6,7 @@
 
 ### State Machine Breaking
 
-- [#]() Update ibc-go to `v5.2.0`.
+- [#802](https://github.com/crypto-org-chain/cronos/pull/802) Update ibc-go to `v5.2.0`.
 
 *December 14, 2022*
 
