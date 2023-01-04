@@ -1,5 +1,13 @@
 # Changelog
 
+*Jan 04, 2023*
+
+## v1.0.2
+
+### State Machine Breaking
+
+- [#802](https://github.com/crypto-org-chain/cronos/pull/802) Update ibc-go to `v5.2.0`.
+
 *December 14, 2022*
 
 ## v1.0.1

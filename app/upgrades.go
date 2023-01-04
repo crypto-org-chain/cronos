@@ -30,12 +30,14 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
 	}
-	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.1.
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.2.0.
 	planName := "v1.0.0"
 	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
-	// testnet3 should use `v1.0.0-testnet3` instead, it won't re-add the feeibc store, which is added in `v0.9.0` upgrade.
-	planNameTestnet3 := "v1.0.0-testnet3"
-	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, upgradeHandlerV1)
+	// "v1.0.0-testnet3-2" is another coordinated upgrade on testnet3 to upgrade ibc-go to "v5.2.0".
+	planNameTestnet3 := "v1.0.0-testnet3-2"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
 
 	gravityPlanName := "v0.8.0-gravity-alpha3"
 	if experimental {
