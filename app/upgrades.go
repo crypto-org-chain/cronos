@@ -30,7 +30,7 @@ func (app *App) RegisterUpgradeHandlers(experimental bool) {
 		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
 	}
-	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.1.
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.2.0.
 	planName := "v1.0.0"
 	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
 	// "v1.0.0-testnet3-2" is another coordinated upgrade on testnet3 to upgrade ibc-go to "v5.2.0".
