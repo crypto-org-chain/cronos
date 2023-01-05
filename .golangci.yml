@@ -1,83 +1,61 @@
 run:
   tests: false
   # timeout for analysis, e.g. 30s, 5m, default is 1m
-  # timeout: 5m
+  timeout: 5m
 
 linters:
+  disable-all: true
   enable:
-    # - bodyclose
-    - deadcode
     - depguard
     - dogsled
-    - dupl
-    - errcheck
+    - exportloopref
     - goconst
     - gocritic
-    - gofmt
-    - goimports
-    - revive
+    - gofumpt
     - gosec
     - gosimple
     - govet
     - ineffassign
-    # - lll TODO: enable
     - misspell
     - nakedret
-    - prealloc
-    - exportloopref
-    - staticcheck
-    # - structcheck
-    - stylecheck
-    # - typecheck #TODO: enable
-    - unconvert
-    # - unparam
-    - unused
-    - varcheck
     - nolintlint
-    - asciicheck
-    # - exhaustive
-    - exportloopref
-    - gofumpt
-    - gomodguard
-    # - nestif
-    # - nlreturn
-    # - noctx
-    # - rowserrcheck
-    # - whitespace
-    # - wsl
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unused
 
 issues:
   exclude-rules:
-    - path: _test\.go
+    - text: "Use of weak random number generator"
       linters:
         - gosec
-    - linters:
-        - lll
-      source: "https://"
-  max-same-issues: 50
+    - text: "ST1003:"
+      linters:
+        - stylecheck
+    # FIXME: Disabled until golangci-lint updates stylecheck with this fix:
+    # https://github.com/dominikh/go-tools/issues/389
+    - text: "ST1016:"
+      linters:
+        - stylecheck
+    - text: "should be written without leading space as"
+      linters:
+        - nolintlint
+    - path: "migrations"
+      text: "SA1019:"
+      linters:
+        - staticcheck
+
+  max-issues-per-linter: 10000
+  max-same-issues: 10000
 
 linters-settings:
   dogsled:
     max-blank-identifiers: 3
-  golint:
-    min-confidence: 0
   maligned:
+    # print struct with more effective memory layout or not, false by default
     suggest-new: true
-  misspell:
-    locale: US
   nolintlint:
     allow-unused: false
-    allow-leading-space: true
     require-explanation: false
     require-specific: false
-  gofumpt:
-    lang-version: "1.18"
-  gomodguard:
-    blocked:
-      versions: # List of blocked module version constraints
-      - https://github.com/etcd-io/etcd:                            # Blocked module with version constraint
-          version: ">= 3.4.10 || ~3.3.23"                           # Version constraint, see https://github.com/Masterminds/semver#basic-comparisons
-          reason: "CVE-2020-15114; CVE-2020-15136; CVE-2020-15115"  # Reason why the version constraint exists. (Optional)
-      - https://github.com/dgrijalva/jwt-go:                      # Blocked module with version constraint
-          version: ">= 4.0.0-preview1"                           # Version constraint, see https://github.com/Masterminds/semver#basic-comparisons
-          reason: "CVE-2020-26160"  # Reason why the version constraint exists. (Optional)
