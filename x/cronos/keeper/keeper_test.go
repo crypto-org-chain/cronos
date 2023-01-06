@@ -30,6 +30,11 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 )
 
+const (
+	denom        = "testdenom"
+	denomGravity = "gravity0x0000000000000000000000000000000000000000"
+)
+
 func TestKeeperTestSuite(t *testing.T) {
 	suite.Run(t, new(KeeperTestSuite))
 }
@@ -92,6 +97,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 
 	valAddr := sdk.ValAddress(suite.address.Bytes())
 	validator, err := stakingtypes.NewValidator(valAddr, priv.PubKey(), stakingtypes.Description{})
+	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
 	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
@@ -118,7 +124,8 @@ func (suite *KeeperTestSuite) MintCoins(address sdk.AccAddress, coins sdk.Coins)
 }
 
 func (suite *KeeperTestSuite) RegisterSourceToken(
-	contractAddress, symbol string, decimal uint32) error {
+	contractAddress, symbol string, decimal uint32,
+) error {
 	denom := "cronos" + contractAddress
 	msg := types.MsgUpdateTokenMapping{
 		Denom:    denom,
@@ -130,8 +137,8 @@ func (suite *KeeperTestSuite) RegisterSourceToken(
 }
 
 func (suite *KeeperTestSuite) TestDenomContractMap() {
-	denom1 := "testdenom1"
-	denom2 := "testdenom2"
+	denom1 := denom + "1"
+	denom2 := denom + "2"
 
 	autoContract := common.BigToAddress(big.NewInt(1))
 	externalContract := common.BigToAddress(big.NewInt(2))
@@ -145,12 +152,12 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			func() {
 				keeper := suite.app.CronosKeeper
 
-				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
+				_, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().False(found)
 
 				keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
 
-				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
+				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().True(found)
 				suite.Require().Equal(autoContract, contract)
 
