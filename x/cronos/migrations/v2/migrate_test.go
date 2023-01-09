@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/exported"
 	v2 "github.com/crypto-org-chain/cronos/x/cronos/migrations/v2"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -22,6 +23,14 @@ func newMockSubspace(ps types.Params) mockSubspace {
 
 func (ms mockSubspace) GetParamSet(ctx sdk.Context, ps exported.ParamSet) {
 	*ps.(*types.Params) = ms.ps
+}
+
+func (ms mockSubspace) HasKeyTable() bool {
+	return false
+}
+
+func (ms mockSubspace) WithKeyTable(paramtypes.KeyTable) paramtypes.Subspace {
+	return paramtypes.Subspace{}
 }
 
 func TestMigrate(t *testing.T) {

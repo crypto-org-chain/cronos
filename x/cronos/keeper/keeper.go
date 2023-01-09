@@ -22,9 +22,11 @@ import (
 
 type (
 	Keeper struct {
-		cdc        codec.Codec
-		storeKey   storetypes.StoreKey
-		memKey     storetypes.StoreKey
+		cdc      codec.Codec
+		storeKey storetypes.StoreKey
+		memKey   storetypes.StoreKey
+
+		// paramsSpace is needed incase we need to get params in old blocks context
 		paramSpace exported.Subspace
 
 		// update balance and accounting operations with coins
@@ -61,6 +63,12 @@ func NewKeeper(
 ) *Keeper {
 	if _, err := sdk.AccAddressFromBech32(authority); err != nil {
 		panic(err)
+	}
+
+	// set KeyTable if it has not already been set.
+	// we need paramsSpace incase we need to get params in old blocks context.
+	if !paramSpace.HasKeyTable() {
+		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
 	}
 
 	return &Keeper{
