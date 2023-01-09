@@ -13,11 +13,11 @@ import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
     (_: pkgs: {
-      go = pkgs.go_1_19;
+      go = pkgs.go_1_18;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo119Module;
+        buildGoModule = pkgs.buildGo118Module;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { };
@@ -59,7 +59,7 @@ import sources.nixpkgs {
       });
     })
     (_: pkgs: {
-      cosmovisor = pkgs.buildGo119Module rec {
+      cosmovisor = pkgs.buildGo118Module rec {
         name = "cosmovisor";
         src = sources.cosmos-sdk + "/cosmovisor";
         subPackages = [ "./cmd/cosmovisor" ];
