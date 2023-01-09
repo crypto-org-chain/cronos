@@ -6,6 +6,7 @@ import (
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/exported"
 
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -21,9 +22,10 @@ import (
 
 type (
 	Keeper struct {
-		cdc      codec.Codec
-		storeKey storetypes.StoreKey
-		memKey   storetypes.StoreKey
+		cdc        codec.Codec
+		storeKey   storetypes.StoreKey
+		memKey     storetypes.StoreKey
+		paramSpace exported.Subspace
 
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
@@ -48,6 +50,7 @@ func NewKeeper(
 	cdc codec.Codec,
 	storeKey,
 	memKey storetypes.StoreKey,
+	paramSpace exported.Subspace,
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
 	gravityKeeper types.GravityKeeper,
@@ -64,6 +67,7 @@ func NewKeeper(
 		cdc:            cdc,
 		storeKey:       storeKey,
 		memKey:         memKey,
+		paramSpace:     paramSpace,
 		bankKeeper:     bankKeeper,
 		transferKeeper: transferKeeper,
 		gravityKeeper:  gravityKeeper,

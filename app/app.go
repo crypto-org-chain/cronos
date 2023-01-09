@@ -498,6 +498,7 @@ func New(
 		appCodec,
 		keys[cronostypes.StoreKey],
 		keys[cronostypes.MemStoreKey],
+		app.GetSubspace(cronostypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
 		gravityKeeper,
