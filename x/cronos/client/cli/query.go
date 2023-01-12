@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	rpctypes "github.com/evmos/ethermint/rpc/types"
@@ -38,12 +39,13 @@ func GetQueryCmd(queryRoute string) *cobra.Command {
 // QueryParamsCmd returns the command handler for evidence parameter querying.
 func QueryParamsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "params",
-		Short: "Query the current cronos parameters",
-		Args:  cobra.NoArgs,
-		Long: strings.TrimSpace(`Query the current cronos parameters:
+		Use:   "params [height]",
+		Short: "Query the cronos parameters associated with a specific blockheight",
+		Args:  cobra.ExactArgs(1),
+		Long: strings.TrimSpace(`Query the cronos parameters associated with a specific blockheight, 0 or negative 
+		means the latest blockheight:
 
-$ <appd> query cronos params
+$ <appd> query cronos params [height]
 `),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -51,8 +53,15 @@ $ <appd> query cronos params
 				return err
 			}
 
+			height, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			if height <= 0 {
+				height = clientCtx.Height
+			}
 			queryClient := types.NewQueryClient(clientCtx)
-			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
+			res, err := queryClient.Params(rpctypes.ContextWithHeight(height), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
