@@ -83,7 +83,7 @@ contract ModuleCRC20Proxy is DSMath {
     function send_to_evm_chain(address recipient, uint amount, uint chain_id, uint bridge_fee, bytes calldata extraData) external {
         // transfer back the token to the proxy account
         if (isSource) {
-            crc20Contract.move(addr, module_address, amount);
+            crc20Contract.move(msg.sender, module_address, amount);
         } else {
             crc20_burn(msg.sender, amount);
         }
