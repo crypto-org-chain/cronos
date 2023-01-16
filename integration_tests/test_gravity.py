@@ -870,3 +870,148 @@ def test_gravity_turn_bridge(gravity):
     # check no new batch is created
     rsp = cli.query_batches()
     assert len(rsp["batches"]) == 0
+
+
+def test_gravity_proxy_contract(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+
+        # deploy test erc20 contract
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestERC20A"],
+        )
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+
+        denom = f"gravity{erc20.address}"
+
+        # deploy crc20 contract
+        w3 = gravity.cronos.w3
+        crc20 = deploy_contract(w3, CONTRACTS["TestCRC20"])
+
+        print("crc20 contract deployed at address: ", crc20.address)
+
+        # setup the contract mapping
+        cronos_cli = gravity.cronos.cosmos_cli()
+
+        print("check the contract mapping not exists yet")
+        with pytest.raises(AssertionError):
+            cronos_cli.query_contract_by_denom(denom)
+
+        rsp = cronos_cli.update_token_mapping(
+            denom, crc20.address, "TEST", 18, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(crc20.address)
+        assert rsp["denom"] == denom
+
+        # Send some tokens
+        print("send to cronos crc20")
+        amount = 1000
+        recipient = HexBytes(ADDRS["community"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        def check_gravity_tokens():
+            "check the balance of gravity native token"
+            return crc20.caller.balanceOf(ADDRS["community"]) == amount
+
+        wait_for_fn("check_gravity_tokens", check_gravity_tokens)
+
+        # deploy crc20 proxy contract
+        proxycrc20 = deploy_contract(
+            w3,
+            CONTRACTS["TestCRC20Proxy"],
+            (crc20.address, False),
+        )
+
+        print("proxycrc20 contract deployed at address: ", proxycrc20.address)
+        assert not proxycrc20.caller.is_source()
+        assert proxycrc20.caller.crc20() == crc20.address
+
+        # change token mapping
+        rsp = cronos_cli.update_token_mapping(
+            denom, proxycrc20.address, "DOG", 18, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(proxycrc20.address)
+        assert rsp["denom"] == denom
+
+        # Fund the proxy contract cosmos account with original supply
+        # by sending tokens to dead address (because mint to zero address is forbidden in ERC20 contract)
+        print("restore original supply crc20 by sending token to dead address")
+        amount = 1000
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        dead_address = "0x000000000000000000000000000000000000dEaD"
+        cosmos_dead_address = HexBytes(dead_address)
+        txreceipt = send_to_cosmos(
+            gravity.contract,
+            erc20,
+            geth,
+            cosmos_dead_address,
+            amount,
+            KEYS["validator"],
+        )
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        def check_dead_gravity_tokens():
+            "check the balance of gravity token"
+            return crc20.caller.balanceOf(dead_address) == amount
+
+        wait_for_fn("check_dead_gravity_tokens", check_dead_gravity_tokens)
+
+        # Try to send back token to ethereum
+        amount = 500
+        ethereum_receiver = ADDRS["validator2"]
+        # community_balance_before_send = crc20.caller.balanceOf(community)
+        balance_before_send_to_ethereum = erc20.caller.balanceOf(ethereum_receiver)
+
+        print("send to ethereum")
+        # First we need to approve the proxy contract to move asset
+        tx = crc20.functions.approve(proxycrc20.address, amount).build_transaction(
+            {"from": ADDRS["community"]}
+        )
+        txreceipt = send_transaction(w3, tx, key=KEYS["community"])
+        assert txreceipt.status == 1, "should success"
+        assert crc20.caller.allowance(ADDRS["community"], proxycrc20.address) == amount
+
+        # Then trigger the send to evm chain
+        sender = ADDRS["community"]
+        community_balance_before_send = crc20.caller.balanceOf(sender)
+        print(
+            "sender address : ",
+        )
+        tx2 = proxycrc20.functions.send_to_evm_chain(
+            ethereum_receiver, amount, 1, 0, b""
+        ).build_transaction({"from": ADDRS["community"]})
+        txreceipt2 = send_transaction(w3, tx2, key=KEYS["community"])
+        print("receipt : ", txreceipt2)
+        assert txreceipt2.status == 1, "should success"
+        # Check deduction
+        assert crc20.caller.balanceOf(sender) == community_balance_before_send - amount
+
+        balance_after_send_to_ethereum = balance_before_send_to_ethereum
+
+        def check_ethereum_balance_change():
+            nonlocal balance_after_send_to_ethereum
+            balance_after_send_to_ethereum = erc20.caller.balanceOf(ethereum_receiver)
+            print("balance dead address", crc20.caller.balanceOf(dead_address))
+            return balance_before_send_to_ethereum != balance_after_send_to_ethereum
+
+        wait_for_fn(
+            "ethereum balance change", check_ethereum_balance_change, timeout=60
+        )
+        assert (
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+        )
