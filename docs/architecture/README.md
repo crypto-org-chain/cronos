@@ -35,4 +35,4 @@ To suggest an ADR, please make use of the [ADR template](./adr-template.md) prov
 | [006](./adr-006.md) | Migrating CRC20 contract to CRC21 standard                                 | Rejected |
 | [007](./adr-007.md) | Generic event format for evm-hook actions                                  | Accepted |
 | [008](./adr-008.md) | Denom and Contract Mapping Enhancement for Bi-Directional Token Conversion | Accepted |
-| [009](./adr-009.md) | Permissioned addresses in Cronos                                           | Proposed |
+| [009](./adr-009.md) | Permissioned addresses in Cronos                                           | Accepted |
