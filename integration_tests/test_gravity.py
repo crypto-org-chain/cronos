@@ -948,7 +948,8 @@ def test_gravity_proxy_contract(gravity):
         assert rsp["denom"] == denom
 
         # Fund the proxy contract cosmos account with original supply
-        # by sending tokens to dead address (because mint to zero address is forbidden in ERC20 contract)
+        # by sending tokens to dead address
+        # (because mint to zero address is forbidden in ERC20 contract)
         print("restore original supply crc20 by sending token to dead address")
         amount = 1000
         balance = erc20.caller.balanceOf(ADDRS["validator"])
