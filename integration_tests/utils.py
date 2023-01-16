@@ -49,6 +49,7 @@ TEST_CONTRACTS = {
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
     "TestCRC20": "TestCRC20.sol",
     "TestCRC20Proxy": "TestCRC20Proxy.sol",
+    "TestMaxValue": "TestMaxValue.sol",
 }
 
 

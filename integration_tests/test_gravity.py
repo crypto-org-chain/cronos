@@ -159,11 +159,11 @@ def gravity(cronos, geth):
         # fund the orchestrator accounts
         eth_addr = to_checksum_address(gorc.show_eth_addr("eth"))
         print("fund 0.1 eth to address", eth_addr)
-        send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
+        send_transaction(geth, {"to": eth_addr, "value": 10 ** 17}, KEYS["validator"])
         acc_addr = gorc.show_cosmos_addr("cronos")
         print("fund 100cro to address", acc_addr)
         rsp = cronos.cosmos_cli().transfer(
-            "community", acc_addr, "%dbasetcro" % (100 * (10**18))
+            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -182,13 +182,13 @@ def gravity(cronos, geth):
     # create admin account and fund it
     admin, _ = Account.create_with_mnemonic()
     print("fund 0.1 eth to address", admin.address)
-    send_transaction(geth, {"to": admin.address, "value": 10**17}, KEYS["validator"])
+    send_transaction(geth, {"to": admin.address, "value": 10 ** 17}, KEYS["validator"])
 
     # deploy gravity contract to geth
     gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
     signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
     powers = [int(signer["power"]) for signer in signer_set]
-    threshold = int(2**32 * 0.66)  # gravity normalize the power to [0, 2**32]
+    threshold = int(2 ** 32 * 0.66)  # gravity normalize the power to [0, 2**32]
     eth_addresses = [signer["ethereum_address"] for signer in signer_set]
     assert sum(powers) >= threshold, "not enough validator on board"
 
@@ -237,7 +237,7 @@ def gravity(cronos, geth):
     yield GravityBridge(cronos, geth, contract)
 
 
-def test_gravity_transfer(gravity):
+def gravity_transfer(gravity):
     geth = gravity.geth
     cli = gravity.cronos.cosmos_cli()
     cronos_w3 = gravity.cronos.w3
@@ -307,7 +307,7 @@ def test_gravity_transfer(gravity):
     wait_for_fn("send-to-ethereum", check)
 
 
-def test_multiple_attestation_processing(gravity):
+def multiple_attestation_processing(gravity):
     if not gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
         cli = gravity.cronos.cosmos_cli()
@@ -327,7 +327,7 @@ def test_multiple_attestation_processing(gravity):
         for name in ACCOUNTS:
             address = ACCOUNTS[name].address
             send_transaction(
-                geth, {"to": address, "value": 10**17}, KEYS["validator"]
+                geth, {"to": address, "value": 10 ** 17}, KEYS["validator"]
             )
             tx = erc20.functions.transfer(address, amount).build_transaction(
                 {"from": ADDRS["validator"]}
@@ -397,7 +397,7 @@ def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
 
 
 @pytest.mark.parametrize("is_legacy", [True, False])
-def test_gov_token_mapping(gravity, tmp_path, is_legacy):
+def gov_token_mapping(gravity, tmp_path, is_legacy):
     """
     Test adding a token mapping through gov module
     - deploy test erc20 contract on geth
@@ -444,7 +444,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
+            int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
     ), "all validators should have voted yes"
     print("wait for proposal to be activated")
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
@@ -469,7 +469,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
     wait_for_fn("check balance on cronos", check)
 
 
-def test_direct_token_mapping(gravity):
+def direct_token_mapping(gravity):
     """
     Test adding a token mapping directly
     - deploy test erc20 contract on geth
@@ -524,7 +524,7 @@ def test_direct_token_mapping(gravity):
     wait_for_fn("check balance on cronos", check)
 
 
-def test_gravity_cancel_transfer(gravity):
+def gravity_cancel_transfer(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
         cli = gravity.cronos.cosmos_cli()
@@ -611,7 +611,7 @@ def test_gravity_cancel_transfer(gravity):
         wait_for_fn("cancel-send-to-ethereum", check_refund)
 
 
-def test_gravity_source_tokens(gravity):
+def gravity_source_tokens(gravity):
     if not gravity.cronos.enable_auto_deployment:
         # deploy crc21 contract
         w3 = gravity.cronos.w3
@@ -680,7 +680,7 @@ def test_gravity_source_tokens(gravity):
 
         wait_for_fn("check ethereum balance change", check_ethereum_balance_change)
         assert (
-            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+                balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
 
         # Send back token to cronos
@@ -708,7 +708,7 @@ def test_gravity_source_tokens(gravity):
         assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
 
 
-def test_gravity_blacklisted_contract(gravity):
+def gravity_blacklisted_contract(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
         cli = gravity.cronos.cosmos_cli()
@@ -782,7 +782,7 @@ def test_gravity_blacklisted_contract(gravity):
 
         # send user1 some fund for gas
         send_transaction(
-            geth, {"to": ADDRS["signer1"], "value": 10**17}, KEYS["validator"]
+            geth, {"to": ADDRS["signer1"], "value": 10 ** 17}, KEYS["validator"]
         )
         # redeem voucher
         tx = gravity.contract.functions.redeemVoucher(
@@ -801,7 +801,7 @@ def test_gravity_blacklisted_contract(gravity):
             ).build_transaction({"from": ADDRS["signer1"]})
 
 
-def test_gravity_turn_bridge(gravity):
+def gravity_turn_bridge(gravity):
     geth = gravity.geth
     cli = gravity.cronos.cosmos_cli()
     cronos_w3 = gravity.cronos.w3
@@ -870,3 +870,46 @@ def test_gravity_turn_bridge(gravity):
     # check no new batch is created
     rsp = cli.query_batches()
     assert len(rsp["batches"]) == 0
+
+
+def test_gravity_vulnerability(gravity):
+    if gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
+
+        # deploy test blacklisted contract with signer1 as blacklisted
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestMaxValue"],
+        )
+
+        activate = cli.query_gravity_params()["params"]["bridge_active"]
+
+        assert activate is True
+
+        amount = 115792089237316195423570985008687907853269984665640564039457584007913129639935
+
+        print("send max to cronos")
+        recipient = HexBytes(ADDRS["community"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+
+        print("random send")
+        txtransfer = erc20.functions.transferFrom(ADDRS["validator"], ADDRS["validator2"], 1) \
+            .build_transaction({"from": ADDRS["validator"]})
+        txreceipt = send_transaction(geth, txtransfer, KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+
+        print("send max to cronos")
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+
+        def local_check_auto_deployment():
+            bridge_active = cli.query_gravity_params()["params"]["bridge_active"]
+            return not bridge_active
+
+        wait_for_fn("send-to-crc21", local_check_auto_deployment, timeout=60)
