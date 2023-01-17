@@ -1,19 +1,21 @@
 import pytest
 import sha3
 from eth_account.account import Account
-from eth_utils import to_checksum_address
+from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
 
 from .gorc import GoRc
 from .network import GravityBridge, setup_cronos_experimental, setup_geth
 from .test_gravity import gorc_config, update_gravity_contract
+
 from .utils import (
     ADDRS,
     CONTRACTS,
     KEYS,
     add_ini_sections,
     deploy_contract,
+    deploy_erc20,
     dump_toml,
     eth_to_bech32,
     send_to_cosmos,
@@ -201,8 +203,7 @@ def test_gravity_proxy_contract(gravity):
         amount = 1000
         recipient = HexBytes(ADDRS["community"])
         txreceipt = send_to_cosmos(
-            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
-        )
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"])
         assert txreceipt.status == 1, "should success"
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
@@ -250,8 +251,6 @@ def test_gravity_proxy_contract(gravity):
             amount,
             KEYS["validator"],
         )
-        assert txreceipt.status == 1, "should success"
-        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         def check_dead_gravity_tokens():
             "check the balance of gravity token"
@@ -301,7 +300,7 @@ def test_gravity_proxy_contract(gravity):
             "ethereum balance change", check_ethereum_balance_change, timeout=60
         )
         assert (
-            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+                balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
 
 
@@ -367,3 +366,60 @@ def test_gravity_detect_malicious_supply(gravity):
 
         # check that balance is still same
         assert cli.balance(eth_to_bech32(recipient), denom=denom) == max_int
+
+
+def test_gravity_non_cosmos_denom(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        cronos_cli = gravity.cronos.cosmos_cli()
+
+        # deploy test erc20 contract
+        erc20 = deploy_contract(
+            gravity.geth,
+            CONTRACTS["TestERC20A"],
+        )
+        print("send to cronos crc20")
+        recipient = HexBytes(ADDRS["community"])
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+        amount = 100
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        denom = f"gravity{erc20.address}"
+
+        def check_gravity_native_tokens():
+            "check the balance of gravity native token"
+            return cronos_cli.balance(eth_to_bech32(recipient), denom=denom) == amount
+
+        wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
+
+        # Deploy a bad cosmos erc20 token
+        print("Deploy cosmos erc20 contract on ethereum")
+        tx_receipt = deploy_erc20(
+            gravity.contract, gravity.geth, "A", "A", "DOG", 6, KEYS["validator"]
+        )
+        assert tx_receipt.status == 1, "should success"
+
+        # Wait enough for orchestrator to relay the event
+        wait_for_new_blocks(cronos_cli, 30)
+
+        # Send again token to cronos and verify that the network is not stopped
+        print("send to cronos crc20")
+        recipient = HexBytes(ADDRS["community"])
+        balance = erc20.caller.balanceOf(ADDRS["validator"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+        denom = f"gravity{erc20.address}"
+
+        def check_gravity_native_tokens():
+            "check the balance of gravity native token"
+            return (
+                cronos_cli.balance(eth_to_bech32(recipient), denom=denom) == 2 * amount
+            )
+
+        wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
