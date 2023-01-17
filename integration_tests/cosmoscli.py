@@ -1431,13 +1431,14 @@ class CosmosCLI:
             )
         )
 
-    def query_params(self):
+    def query_params(self, height: int):
         "query cronos params"
         return json.loads(
             self.raw(
                 "query",
                 "cronos",
                 "params",
+                height,
                 home=self.data_dir,
             )
         )

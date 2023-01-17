@@ -166,10 +166,19 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     contract.caller(block_identifier=target_height - 2).balanceOf(ADDRS["validator"])
 
     # check we could fetch the right params after cronos Migrate1To2
-    assert cli.query_params() == {
+    assert cli.query_params(0) == {
         "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
         "enable_auto_deployment": True,
         "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
         "A8988F9B7D5E7E233D8414DB6817F8F1A01611F86",
         "ibc_timeout": "86400000000000",
     }
+
+    assert cli.query_params(target_height-5) == {
+        "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
+        "enable_auto_deployment": True,
+        "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
+        "A8988F9B7D5E7E233D8414DB6817F8F1A01611F86",
+        "ibc_timeout": "86400000000000",
+    }
+

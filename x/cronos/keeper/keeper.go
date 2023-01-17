@@ -6,6 +6,7 @@ import (
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/exported"
 
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -24,6 +25,9 @@ type (
 		cdc      codec.Codec
 		storeKey storetypes.StoreKey
 		memKey   storetypes.StoreKey
+
+		// paramsSpace is needed incase we need to get params in old blocks context
+		paramSpace exported.Subspace
 
 		// update balance and accounting operations with coins
 		bankKeeper types.BankKeeper
@@ -48,6 +52,7 @@ func NewKeeper(
 	cdc codec.Codec,
 	storeKey,
 	memKey storetypes.StoreKey,
+	paramSpace exported.Subspace,
 	bankKeeper types.BankKeeper,
 	transferKeeper types.TransferKeeper,
 	gravityKeeper types.GravityKeeper,
@@ -60,10 +65,17 @@ func NewKeeper(
 		panic(err)
 	}
 
+	// set KeyTable if it has not already been set.
+	// we need paramsSpace incase we need to get params in old blocks context.
+	if !paramSpace.HasKeyTable() {
+		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
+	}
+
 	return &Keeper{
 		cdc:            cdc,
 		storeKey:       storeKey,
 		memKey:         memKey,
+		paramSpace:     paramSpace,
 		bankKeeper:     bankKeeper,
 		transferKeeper: transferKeeper,
 		gravityKeeper:  gravityKeeper,
