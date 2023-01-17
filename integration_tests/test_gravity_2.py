@@ -385,7 +385,8 @@ def test_gravity_non_cosmos_denom(gravity):
         assert balance == 100000000000000000000000000
         amount = 100
         txreceipt = send_to_cosmos(
-            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"])
+            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"]
+        )
         assert txreceipt.status == 1, "should success"
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
@@ -412,7 +413,8 @@ def test_gravity_non_cosmos_denom(gravity):
         recipient = HexBytes(ADDRS["community"])
         balance = erc20.caller.balanceOf(ADDRS["validator"])
         txreceipt = send_to_cosmos(
-            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"])
+            gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"]
+        )
         assert txreceipt.status == 1, "should success"
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
