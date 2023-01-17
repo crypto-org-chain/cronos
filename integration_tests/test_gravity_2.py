@@ -8,7 +8,6 @@ from pystarport import ports
 from .gorc import GoRc
 from .network import GravityBridge, setup_cronos_experimental, setup_geth
 from .test_gravity import gorc_config, update_gravity_contract
-
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -203,7 +202,8 @@ def test_gravity_proxy_contract(gravity):
         amount = 1000
         recipient = HexBytes(ADDRS["community"])
         txreceipt = send_to_cosmos(
-            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"])
+            gravity.contract, erc20, geth, recipient, amount, KEYS["validator"]
+        )
         assert txreceipt.status == 1, "should success"
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
@@ -251,6 +251,8 @@ def test_gravity_proxy_contract(gravity):
             amount,
             KEYS["validator"],
         )
+        assert txreceipt.status == 1, "should success"
+        assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
         def check_dead_gravity_tokens():
             "check the balance of gravity token"
@@ -300,7 +302,7 @@ def test_gravity_proxy_contract(gravity):
             "ethereum balance change", check_ethereum_balance_change, timeout=60
         )
         assert (
-                balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
 
 
