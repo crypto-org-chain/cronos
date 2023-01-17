@@ -1,7 +1,7 @@
 import pytest
 import sha3
 from eth_account.account import Account
-from eth_utils import abi, to_checksum_address
+from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
 
