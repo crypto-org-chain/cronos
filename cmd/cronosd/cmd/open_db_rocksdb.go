@@ -30,7 +30,6 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 
 func newRocksdbOptions() *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
-	opts.SetComparator(CreateTSComparator())
 	opts.SetTargetFileSizeMultiplier(2)
 	opts.SetLevelCompactionDynamicLevelBytes(true)
 
