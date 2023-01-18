@@ -312,7 +312,7 @@ def test_gravity_detect_malicious_supply(gravity):
         # deploy fake contract to trigger the malicious supply
         erc20 = deploy_contract(
             geth,
-            CONTRACTS["TestMaxValue"],
+            CONTRACTS["TestMaliciousSupply"],
         )
 
         # check that the bridge is activated
