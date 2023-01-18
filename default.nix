@@ -9,7 +9,7 @@ let
   version = "v1.0.1";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network ]
-    ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "rocksdb_build" ];
+    ++ lib.lists.optionals (rocksdb != null) [ "rocksdb" "grocksdb_clean_link" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"

@@ -104,9 +104,6 @@ schema = 3
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
-  [mod."github.com/cosmos/gorocksdb"]
-    version = "v1.2.0"
-    hash = "sha256-209TcVuXc5s/TcOvNlaQ1HEJAUDTEK3nxPhs+d8TEcY="
   [mod."github.com/cosmos/iavl"]
     version = "v0.19.4"
     hash = "sha256-EmpRZ48pjPFq/fIHneut9Vyo5QJATfb3ZO7KzWnqs9g="
@@ -163,9 +160,9 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.20.1-cronos"
-    hash = "sha256-RiLFMtsFI8HosauqQh7Je//pfQG/J9A2wV5hLt+3uGg="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.6.1-0.20230118154933-386780367ed1"
+    hash = "sha256-eizwzT6b3P8dKbJ3E8L+s7gmUJAA2QtUqTGbXyfsb84="
+    replaced = "github.com/yihuang/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
     hash = "sha256-hj6FZQ1fDAV+1wGIViAt8XaAkWZ1I5vJzgjIJa7XRBA="
@@ -320,6 +317,10 @@ schema = 3
   [mod."github.com/libp2p/go-buffer-pool"]
     version = "v0.1.0"
     hash = "sha256-wQqGTtRWsfR9n0O/SXHVgECebbnNmHddxJIbG63OJBQ="
+  [mod."github.com/linxGnu/grocksdb"]
+    version = "v1.7.11-0.20230112025116-f41883a71db3"
+    hash = "sha256-2npDCIiGRLPKMc6LciCTMMZj0jXeXLwNaMmquf9F9oI="
+    replaced = "github.com/yihuang/grocksdb"
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="
@@ -461,8 +462,9 @@ schema = 3
     hash = "sha256-wdkMisD8IPwZJ0mbtVg9J6A+R/zYkpVK7e47OR53BCU="
     replaced = "github.com/tendermint/tendermint"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.6.7"
-    hash = "sha256-hl/3RrBrpkk2zA6dmrNlIYKs1/GfqegSscDSkA5Pjlo="
+    version = "v0.6.8-0.20230118040049-14dc6b00a5b3"
+    hash = "sha256-kCe9nqzVgG+7ynuvYAGAOTCPESBnV28dDvRuAtsssbw="
+    replaced = "github.com/crypto-org-chain/tm-db"
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
     hash = "sha256-Zf2NsgM9+HeM949vCce4HQtSbfUiFpeiQ716yKcFyx4="
