@@ -319,7 +319,8 @@ def test_gravity_detect_malicious_supply(gravity):
         activate = cli.query_gravity_params()["params"]["bridge_active"]
         assert activate is True
 
-        max_int = 115792089237316195423570985008687907853269984665640564039457584007913129639935
+        max_int = 115792089237316195423570985008
+        687907853269984665640564039457584007913129639935
 
         print("send max_int to community address using gravity bridge")
         recipient = HexBytes(ADDRS["community"])
@@ -329,8 +330,9 @@ def test_gravity_detect_malicious_supply(gravity):
         assert txreceipt.status == 1, "should success"
 
         print("do a random send to increase contract nonce")
-        txtransfer = erc20.functions.transferFrom(ADDRS["validator"], ADDRS["validator2"], 1) \
-            .build_transaction({"from": ADDRS["validator"]})
+        txtransfer = erc20.functions.transferFrom(
+            ADDRS["validator"], ADDRS["validator2"], 1
+        ).build_transaction({"from": ADDRS["validator"]})
         txreceipt = send_transaction(geth, txtransfer, KEYS["validator"])
         assert txreceipt.status == 1, "should success"
 
