@@ -32,6 +32,7 @@ func newRocksdbOptions() *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetTargetFileSizeMultiplier(2)
 	opts.SetLevelCompactionDynamicLevelBytes(true)
+	opts.SetCreateIfMissing(true)
 
 	// block based table options
 	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
