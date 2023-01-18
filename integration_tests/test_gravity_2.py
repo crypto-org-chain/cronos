@@ -302,3 +302,47 @@ def test_gravity_proxy_contract(gravity):
         assert (
             balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
+
+
+def test_gravity_detect_malicious_supply(gravity):
+    if gravity.cronos.enable_auto_deployment:
+        geth = gravity.geth
+        cli = gravity.cronos.cosmos_cli()
+
+        # deploy fake contract to trigger the malicious supply
+        erc20 = deploy_contract(
+            geth,
+            CONTRACTS["TestMaxValue"],
+        )
+
+        # check that the bridge is activated
+        activate = cli.query_gravity_params()["params"]["bridge_active"]
+        assert activate is True
+
+        max_int = 115792089237316195423570985008687907853269984665640564039457584007913129639935
+
+        print("send max_int to community address using gravity bridge")
+        recipient = HexBytes(ADDRS["community"])
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, geth, recipient, max_int, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+
+        print("do a random send to increase contract nonce")
+        txtransfer = erc20.functions.transferFrom(ADDRS["validator"], ADDRS["validator2"], 1) \
+            .build_transaction({"from": ADDRS["validator"]})
+        txreceipt = send_transaction(geth, txtransfer, KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+
+        print("send again max_int to community address using gravity bridge")
+        txreceipt = send_to_cosmos(
+            gravity.contract, erc20, geth, recipient, max_int, KEYS["validator"]
+        )
+        assert txreceipt.status == 1, "should success"
+
+        # Wait enough for orchestrator to relay the event
+        wait_for_new_blocks(cli, 30)
+
+        # check that the bridge has not been desactivated
+        activate = cli.query_gravity_params()["params"]["bridge_active"]
+        assert activate is True
