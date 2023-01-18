@@ -6,8 +6,6 @@ GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
 NETWORK ?= mainnet
 LEDGER_ENABLED ?= true
-# RocksDB is a native dependency, so we don't assume the library is installed.
-# Instead, it must be explicitly enabled and we warn when it is not.
 PROJECT_NAME = $(shell git remote get-url origin | xargs basename -s .git)
 
 TESTNET_FLAGS ?=
