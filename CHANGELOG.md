@@ -1,5 +1,15 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
+
+### Improvements
+
+- [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
+
 *Jan 04, 2023*
 
 ## v1.0.2
