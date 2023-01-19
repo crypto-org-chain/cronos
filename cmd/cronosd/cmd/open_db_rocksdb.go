@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"path/filepath"
+	"runtime"
 
 	"github.com/linxGnu/grocksdb"
 	dbm "github.com/tendermint/tm-db"
@@ -30,9 +31,11 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 
 func newRocksdbOptions() *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	opts.IncreaseParallelism(runtime.NumCPU())
+	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
 	opts.SetLevelCompactionDynamicLevelBytes(true)
-	opts.SetCreateIfMissing(true)
 
 	// block based table options
 	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
