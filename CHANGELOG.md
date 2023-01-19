@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#]() Fix prometheus metrics.
+
 *Jan 04, 2023*
 
 ## v1.0.2
