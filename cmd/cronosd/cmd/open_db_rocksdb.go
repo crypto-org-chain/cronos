@@ -38,19 +38,35 @@ func newRocksdbOptions() *grocksdb.Options {
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
+
+	// 1G block cache
 	bbto.SetBlockCache(grocksdb.NewLRUCache(1 << 30))
+
+	// larger block means smaller index and better compression ratio.
 	bbto.SetBlockSize(32 * 1024)
+
+	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
+
+	// partition index
+	// http://rocksdb.org/blog/2017/05/12/partitioned-index-filter.html
 	bbto.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
 	bbto.SetPartitionFilters(true)
+
+	// hash index is better for iavl tree which mostly do point lookup.
 	bbto.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
+
 	opts.SetBlockBasedTableFactory(bbto)
+
+	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
 
-	// compression options at bottommost level
+	// heavier compression option at bottommost level,
+	// 110k dict bytes is default in zstd library,
+	// train bytes is recommended to be set at 100x dict bytes.
 	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
 	compressOpts := grocksdb.NewDefaultCompressionOptions()
-	compressOpts.MaxDictBytes = 112640 // 110k
+	compressOpts.MaxDictBytes = 110 * 1024
 	compressOpts.Level = 12
 	opts.SetBottommostCompressionOptions(compressOpts, true)
 	opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
