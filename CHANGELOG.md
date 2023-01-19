@@ -9,6 +9,7 @@
 - [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
 - [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
 - [cronos#775](https://github.com/crypto-org-chain/cronos/pull/775) Support turnbridge transaction.
+- [cronos#815](https://github.com/crypto-org-chain/cronos/pull/815) Upgrade cosmos sdk to v0.46.7.
 
 ### Improvements
 
