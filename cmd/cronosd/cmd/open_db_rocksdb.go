@@ -35,16 +35,16 @@ func newRocksdbOptions() *grocksdb.Options {
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
-	opts.SetLevelCompactionDynamicLevelBytes(true)
 
 	// block based table options
-	blkOpts := grocksdb.NewDefaultBlockBasedTableOptions()
-	blkOpts.SetBlockSize(32 * 1024)
-	blkOpts.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
-	blkOpts.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
-	blkOpts.SetPartitionFilters(true)
-	blkOpts.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
-	opts.SetBlockBasedTableFactory(blkOpts)
+	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
+	bbto.SetBlockCache(grocksdb.NewLRUCache(1 << 30))
+	bbto.SetBlockSize(32 * 1024)
+	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
+	bbto.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
+	bbto.SetPartitionFilters(true)
+	bbto.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
+	opts.SetBlockBasedTableFactory(bbto)
 	opts.SetOptimizeFiltersForHits(true)
 
 	// compression options at bottommost level
