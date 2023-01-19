@@ -1,8 +1,6 @@
 # Changelog
 
-*Jan 19, 2023*
-
-## v1.0.3
+## Unreleased
 
 ### Bug Fixes
 
