@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### State Machine Breaking
+
+- [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
+- [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check. 
+- [cronos#742](https://github.com/crypto-org-chain/cronos/pull/742) Add upgrade handler for v0.8.0-gravity-alpha2.
+- [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
+- [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
+- [cronos#775](https://github.com/crypto-org-chain/cronos/pull/775) Support turnbridge transaction.
+
 ### Bug Fixes
 
 - [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
@@ -105,14 +114,6 @@
 *Aug 29, 2022*
 
 ## v0.9.0-beta2
-
-### State Machine Breaking
-- [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
-- [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check. 
-- [cronos#742](https://github.com/crypto-org-chain/cronos/pull/742) Add upgrade handler for v0.8.0-gravity-alpha2.
-- [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
-- [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
-- [cronos#775](https://github.com/crypto-org-chain/cronos/pull/775) Support turnbridge transaction.
 
 ### Improvements
 
