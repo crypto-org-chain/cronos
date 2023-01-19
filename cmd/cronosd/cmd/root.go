@@ -132,7 +132,12 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
-	ethermintserver.AddCommands(rootCmd, app.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
+	opts := ethermintserver.StartOptions{
+		AppCreator:      a.newApp,
+		DefaultNodeHome: app.DefaultNodeHome,
+		DBOpener:        openDB,
+	}
+	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 	experimental.AddCommands(rootCmd)
 
 	// add keybase, auxiliary RPC, query, and tx child commands

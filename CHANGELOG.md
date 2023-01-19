@@ -1,6 +1,112 @@
 # Changelog
 
-## Unreleased
+*Jan 19, 2023*
+
+## v1.0.3
+
+### Bug Fixes
+
+- [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
+
+### Improvements
+
+- [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
+
+*Jan 04, 2023*
+
+## v1.0.2
+
+### State Machine Breaking
+
+- [#802](https://github.com/crypto-org-chain/cronos/pull/802) Update ibc-go to `v5.2.0`.
+
+*December 14, 2022*
+
+## v1.0.1
+
+### Improvements
+
+- [#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
+- [#790](https://github.com/crypto-org-chain/cronos/pull/790) Update cosmos-sdk to `v0.46.7`, it fix a migration issue which affects pending proposals's votes during upgrade,
+  it also adds the config entries for file streamer.
+
+*Nov 22, 2022*
+
+## v1.0.0
+
+### Improvements
+
+- [#772](https://github.com/crypto-org-chain/cronos/pull/772) Update cosmos-sdk to `v0.46.6`, it's non-breaking for cronos.
+
+*Nov 17, 2022*
+
+## v1.0.0-rc4
+
+### Bug Fixes
+
+- [#771](https://github.com/crypto-org-chain/cronos/pull/771) Fix london hardfork number in testnet3 parameters.
+
+*Nov 13, 2022*
+
+## v1.0.0-rc3
+
+### State Machine Breaking
+
+- [#765](https://github.com/crypto-org-chain/cronos/pull/765) Upgrade ibc-go to [v5.1.0](https://github.com/cosmos/ibc-go/releases/tag/v5.1.0) and related dependencies.
+
+*Nov 10, 2022*
+
+## v1.0.0-rc2
+
+### Bug Fixes
+
+- [#761](https://github.com/crypto-org-chain/cronos/pull/761) Fix non-deterministic evm execution result when there are concurrent grpc queries.
+- [#762](https://github.com/crypto-org-chain/cronos/pull/762) Add `v1.0.0` upgrade plan for dry-run and mainnet upgrade, which clears the `extra_eips` parameter.
+- [#763](https://github.com/crypto-org-chain/cronos/pull/763) Add error log for iavl set error.
+- [#764](https://github.com/crypto-org-chain/cronos/pull/764) Make `eth_getProof` result compatible with ethereum.
+
+*Nov 4, 2022*
+
+## v1.0.0-rc1
+
+### Bug Fixes
+
+- [#760](https://github.com/crypto-org-chain/cronos/pull/760) Revert breaking changes on gas used in Ethermint.
+
+*Nov 1, 2022*
+
+## v1.0.0-rc0
+
+### Bug Fixes
+
+- [#748](https://github.com/crypto-org-chain/cronos/pull/748) Fix inconsistent state if upgrade migration commit is interrupted.
+- [#752](https://github.com/crypto-org-chain/cronos/pull/752) Update iavl to `v0.19.4`.
+
+*Oct 15, 2022*
+
+## v0.9.0-beta4
+
+### Bug Fixes
+
+- [cronos#719](https://github.com/crypto-org-chain/cronos/pull/719) Fix `eth_call` for legacy blocks (backport #713).
+
+### Improvements
+
+- [cronos#720](https://github.com/crypto-org-chain/cronos/pull/720) Add option `iavl-disable-fastnode` to disable iavl fastnode indexing migration (backport #714).
+- [cronos#721](https://github.com/crypto-org-chain/cronos/pull/721) Integrate the file state streamer (backport #702).
+- [cronos#730](https://github.com/crypto-org-chain/cronos/pull/730) Update dependencies to recent versions (backport #729).
+
+*Sep 20, 2022*
+
+## v0.9.0-beta3
+
+### Bug Fixes
+
+- [cronos#696](https://github.com/crypto-org-chain/cronos/pull/696) Fix json-rpc apis for legacy blocks.
+
+*Aug 29, 2022*
+
+## v0.9.0-beta2
 
 ### State Machine Breaking
 - [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.

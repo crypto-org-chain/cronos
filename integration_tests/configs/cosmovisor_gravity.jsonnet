@@ -5,6 +5,8 @@ config {
     'cmd-flags': '--unsafe-experimental',
     'app-config'+: {
       'minimum-gas-prices': '100000000000basetcro',
+      store:: super.store,
+      streamers:: super.streamers,
     },
     genesis+: {
       app_state+: {

@@ -98,9 +98,17 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     old_height = w3.eth.block_number
     old_balance = w3.eth.get_balance(ADDRS["validator"], block_identifier=old_height)
     old_base_fee = w3.eth.get_block(old_height).baseFeePerGas
+    old_erc20_balance = contract.caller(block_identifier=old_height).balanceOf(
+        ADDRS["validator"]
+    )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v0.9.0"
+    # estimateGas for an erc20 transfer tx
+    old_gas = contract.functions.transfer(ADDRS["community"], 100).buildTransaction(
+        {"from": ADDRS["validator"]}
+    )["gas"]
+
+    plan_name = "v1.0.0"
     rsp = cli.gov_propose_v0_7(
         "community",
         "software-upgrade",
@@ -163,13 +171,16 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     assert old_base_fee == w3.eth.get_block(old_height).baseFeePerGas
 
     # check eth_call works on older blocks
-    contract.caller(block_identifier=target_height - 2).balanceOf(ADDRS["validator"])
+    assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
+        ADDRS["validator"]
+    )
 
-    # check we could fetch the right params after cronos Migrate1To2
-    assert cli.query_params() == {
-        "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
-        "enable_auto_deployment": True,
-        "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
-        "A8988F9B7D5E7E233D8414DB6817F8F1A01611F86",
-        "ibc_timeout": "86400000000000",
-    }
+    assert not cli.evm_params()["params"]["extra_eips"]
+
+    # check the gas cost is lower after upgrade
+    assert (
+        old_gas - 3700
+        == contract.functions.transfer(ADDRS["community"], 100).buildTransaction(
+            {"from": ADDRS["validator"]}
+        )["gas"]
+    )
