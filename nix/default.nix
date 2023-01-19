@@ -20,7 +20,7 @@ import sources.nixpkgs {
         buildGoModule = pkgs.buildGo117Module;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main { };
+      chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
     }) # update to a version that supports eip-1559
     (import "${sources.gomod2nix}/overlay.nix")
     (pkgs: _:
