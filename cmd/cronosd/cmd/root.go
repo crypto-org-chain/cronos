@@ -46,7 +46,6 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
-	cronosclient "github.com/crypto-org-chain/cronos/client"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -155,7 +154,6 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 	cronos.AddModuleInitFlags(startCmd)
-	startCmd.Flags().String(cronosclient.FlagStreamers, "", "Enable streamers, only file streamer is supported right now")
 	// this line is used by starport scaffolding # stargate/root/initFlags
 }
 

@@ -180,7 +180,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     # check the gas cost is lower after upgrade
     assert (
         old_gas - 3700
-        == contract.functions.transfer(ADDRS["community"], 100).buildTransaction(
+        == contract.functions.transfer(ADDRS["community"], 100).build_transaction(
             {"from": ADDRS["validator"]}
         )["gas"]
     )
