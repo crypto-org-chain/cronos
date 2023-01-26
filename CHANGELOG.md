@@ -10,6 +10,7 @@
 - [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
 - [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
 - [cronos#775](https://github.com/crypto-org-chain/cronos/pull/775) Support turnbridge transaction.
+- [cronos#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
 
 ### Bug Fixes
 
@@ -114,13 +115,6 @@
 *Aug 29, 2022*
 
 ## v0.9.0-beta2
-
-### Improvements
-
-- [cronos#702](https://github.com/crypto-org-chain/cronos/pull/702) Integrate the file state streamer.
-- [cronos#714](https://github.com/crypto-org-chain/cronos/pull/714) Add option `iavl-disable-fastnode` to disable iavl fastnode indexing migration.
-- [cronos#729](https://github.com/crypto-org-chain/cronos/pull/729) Update dependencies to recent versions.
-- [cronos#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
 
 *September 13, 2022*
 
