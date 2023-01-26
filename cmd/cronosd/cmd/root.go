@@ -46,7 +46,6 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
-	cronosclient "github.com/crypto-org-chain/cronos/client"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -132,7 +131,12 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
-	ethermintserver.AddCommands(rootCmd, app.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
+	opts := ethermintserver.StartOptions{
+		AppCreator:      a.newApp,
+		DefaultNodeHome: app.DefaultNodeHome,
+		DBOpener:        openDB,
+	}
+	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 	experimental.AddCommands(rootCmd)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
@@ -150,7 +154,6 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 	cronos.AddModuleInitFlags(startCmd)
-	startCmd.Flags().String(cronosclient.FlagStreamers, "", "Enable streamers, only file streamer is supported right now")
 	// this line is used by starport scaffolding # stargate/root/initFlags
 }
 
@@ -271,7 +274,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
-		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagIAVLFastNode))),
+		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagDisableIAVLFastNode))),
 	)
 }
 

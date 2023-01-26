@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	sdkmath "cosmossdk.io/math"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -11,8 +12,29 @@ import (
 )
 
 func (app *App) RegisterUpgradeHandlers(experimental bool) {
-	planName := "v0.9.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	upgradeHandlerV1 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return m, err
+		}
+		// clear extra_eips from evm parameters
+		// Ref: https://github.com/crypto-org-chain/cronos/issues/755
+		params := app.EvmKeeper.GetParams(ctx)
+		params.ExtraEIPs = []int64{}
+
+		// fix the incorrect value on testnet parameters
+		zero := sdkmath.ZeroInt()
+		params.ChainConfig.LondonBlock = &zero
+
+		app.EvmKeeper.SetParams(ctx, params)
+		return m, nil
+	}
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.2.0.
+	planName := "v1.0.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
+	// "v1.0.0-testnet3-2" is another coordinated upgrade on testnet3 to upgrade ibc-go to "v5.2.0".
+	planNameTestnet3 := "v1.0.0-testnet3-2"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
 	})
 
