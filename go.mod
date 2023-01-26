@@ -204,7 +204,7 @@ replace (
 	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.11-0.20230112025116-f41883a71db3
 
 	// TODO: remove when gravity update dependencies
-	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee
+	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20221207081618-52445f402bdb
 	github.com/tendermint/tendermint => github.com/tendermint/tendermint v0.34.24-0.20221110131553-ec471ba27efd
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
 	github.com/tendermint/tm-db => github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3
