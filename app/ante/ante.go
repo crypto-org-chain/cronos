@@ -30,7 +30,6 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					panic(err)
 				}
 				accountToCheck = acc
-				break
 			case *types.MsgTurnBridge:
 				permissionToCheck = keeper.CanTurnBridge
 				acc, err := sdk.AccAddressFromBech32(v.Sender)
@@ -38,11 +37,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					panic(err)
 				}
 				accountToCheck = acc
-				break
 			}
 
 			if !options.CronosKeeper.HasPermission(ctx, accountToCheck, permissionToCheck) {
-				panic(sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized"))
+				panic(sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is unauthorized"))
 			}
 		}
 

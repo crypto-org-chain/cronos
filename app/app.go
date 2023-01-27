@@ -2,12 +2,12 @@ package app
 
 import (
 	"fmt"
-	"github.com/crypto-org-chain/cronos/app/ante"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	"golang.org/x/exp/slices"
 

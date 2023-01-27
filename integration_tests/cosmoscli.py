@@ -52,10 +52,10 @@ class CosmosCLI:
     "the apis to interact with wallet and blockchain"
 
     def __init__(
-            self,
-            data_dir,
-            node_rpc,
-            cmd,
+        self,
+        data_dir,
+        node_rpc,
+        cmd,
     ):
         self.data_dir = data_dir
         self._genesis = json.loads(
@@ -383,7 +383,7 @@ class CosmosCLI:
 
     # to_validator_addr: crocncl1...  ,  from_from_validator_addraddr: crocl1...
     def redelegate_amount(
-            self, to_validator_addr, from_validator_addr, amount, from_addr
+        self, to_validator_addr, from_validator_addr, amount, from_addr
     ):
         return json.loads(
             self.raw(
@@ -445,7 +445,7 @@ class CosmosCLI:
         )
 
     def sign_batch_multisig_tx(
-            self, tx_file, multi_addr, signer_name, account_number, sequence_number
+        self, tx_file, multi_addr, signer_name, account_number, sequence_number
     ):
         r = self.raw(
             "tx",
@@ -501,7 +501,7 @@ class CosmosCLI:
         )
 
     def combine_batch_multisig_tx(
-            self, tx_file, multi_name, signer1_file, signer2_file
+        self, tx_file, multi_name, signer1_file, signer2_file
     ):
         r = self.raw(
             "tx",
@@ -546,32 +546,32 @@ class CosmosCLI:
         )
 
     def create_validator(
-            self,
-            amount,
-            moniker=None,
-            commission_max_change_rate="0.01",
-            commission_rate="0.1",
-            commission_max_rate="0.2",
-            min_self_delegation="1",
-            identity="",
-            website="",
-            security_contact="",
-            details="",
+        self,
+        amount,
+        moniker=None,
+        commission_max_change_rate="0.01",
+        commission_rate="0.1",
+        commission_max_rate="0.2",
+        min_self_delegation="1",
+        identity="",
+        website="",
+        security_contact="",
+        details="",
     ):
         """MsgCreateValidator
         create the node with create_node before call this"""
         pubkey = (
-                "'"
-                + (
-                    self.raw(
-                        "tendermint",
-                        "show-validator",
-                        home=self.data_dir,
-                    )
-                    .strip()
-                    .decode()
+            "'"
+            + (
+                self.raw(
+                    "tendermint",
+                    "show-validator",
+                    home=self.data_dir,
                 )
-                + "'"
+                .strip()
+                .decode()
+            )
+            + "'"
         )
         return json.loads(
             self.raw(
@@ -602,13 +602,13 @@ class CosmosCLI:
         )
 
     def edit_validator(
-            self,
-            commission_rate=None,
-            moniker=None,
-            identity=None,
-            website=None,
-            security_contact=None,
-            details=None,
+        self,
+        commission_rate=None,
+        moniker=None,
+        identity=None,
+        website=None,
+        security_contact=None,
+        details=None,
     ):
         """MsgEditValidator"""
         options = dict(
@@ -832,14 +832,14 @@ class CosmosCLI:
         )
 
     def ibc_transfer(
-            self,
-            from_,
-            to,
-            amount,
-            channel,  # src channel
-            target_version,  # chain version number of target chain
-            fee,
-            i=0,
+        self,
+        from_,
+        to,
+        amount,
+        channel,  # src channel
+        target_version,  # chain version number of target chain
+        fee,
+        i=0,
     ):
         return json.loads(
             self.raw(
@@ -1099,7 +1099,7 @@ class CosmosCLI:
         }
 
     def gov_propose_token_mapping_change_legacy(
-            self, denom, contract, symbol, decimal, **kwargs
+        self, denom, contract, symbol, decimal, **kwargs
     ):
         default_kwargs = self.get_default_kwargs()
         return json.loads(
@@ -1340,7 +1340,7 @@ class CosmosCLI:
         )
 
     def register_counterparty_payee(
-            self, port_id, channel_id, relayer, counterparty_payee, **kwargs
+        self, port_id, channel_id, relayer, counterparty_payee, **kwargs
     ):
         default_kwargs = {
             "home": self.data_dir,
