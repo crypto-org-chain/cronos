@@ -42,9 +42,6 @@ func newRocksdbOptions() *grocksdb.Options {
 	// 1G block cache
 	bbto.SetBlockCache(grocksdb.NewLRUCache(1 << 30))
 
-	// larger block means smaller index and better compression ratio.
-	bbto.SetBlockSize(32 * 1024)
-
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
 
