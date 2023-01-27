@@ -47,6 +47,8 @@ TEST_CONTRACTS = {
     "TestBlackListERC20": "TestBlackListERC20.sol",
     "CroBridge": "CroBridge.sol",
     "CronosGravityCancellation": "CronosGravityCancellation.sol",
+    "TestCRC20": "TestCRC20.sol",
+    "TestCRC20Proxy": "TestCRC20Proxy.sol",
 }
 
 
@@ -64,6 +66,8 @@ CONTRACTS = {
     / "x/cronos/types/contracts/ModuleCRC20.json",
     "ModuleCRC21": Path(__file__).parent.parent
     / "x/cronos/types/contracts/ModuleCRC21.json",
+    "ModuleCRC20Proxy": Path(__file__).parent.parent
+    / "x/cronos/types/contracts/ModuleCRC20Proxy.json",
     **{
         name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
     },
@@ -281,7 +285,12 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     """
     acct = Account.from_key(key)
     info = json.loads(jsonfile.read_text())
-    contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
+    bytecode = ""
+    if "bytecode" in info:
+        bytecode = info["bytecode"]
+    if "byte" in info:
+        bytecode = info["byte"]
+    contract = w3.eth.contract(abi=info["abi"], bytecode=bytecode)
     tx = contract.constructor(*args).build_transaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1

@@ -21,7 +21,6 @@ import (
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	recipient := common.BigToAddress(big.NewInt(3))
-	denom := "testdenom"
 	var data []byte
 	var topics []common.Hash
 
@@ -111,8 +110,8 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
 	recipient := common.BigToAddress(big.NewInt(3))
-	invalidDenom := "testdenom"
-	validDenom := "gravity0x0000000000000000000000000000000000000000"
+	invalidDenom := denom
+	validDenom := denomGravity
 	var data []byte
 	var topics []common.Hash
 
@@ -140,7 +139,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 					common.BytesToHash(big.NewInt(1).Bytes()),
 				}
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -168,7 +167,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 					common.BytesToHash(big.NewInt(100).Bytes()),
 				}
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -195,7 +194,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 					common.BytesToHash(big.NewInt(1).Bytes()),
 				}
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -223,7 +222,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 					common.BytesToHash(big.NewInt(1).Bytes()),
 				}
 
-				input, err := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					coin.Amount.BigInt(),
 					big.NewInt(0),
 					[]byte{},
@@ -266,7 +265,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
-	invalidDenom := "testdenom"
+	invalidDenom := denom
 	validDenom := CorrectIbcDenom
 	var data []byte
 	var topics []common.Hash
@@ -290,7 +289,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 				}
-				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -314,7 +313,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 				}
-				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -338,7 +337,7 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 				topics = []common.Hash{
 					evmhandlers.SendToIbcEvent.ID,
 				}
-				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -382,7 +381,7 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
 	recipient := "recipient"
-	invalidDenom := "testdenom"
+	invalidDenom := denom
 	validDenom := CorrectIbcDenom
 	var data []byte
 	var topics []common.Hash
@@ -408,7 +407,7 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 					sender.Hash(),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
-				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
 					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
@@ -434,7 +433,7 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 					sender.Hash(),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
-				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
 					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
@@ -460,7 +459,7 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 					sender.Hash(),
 					common.BytesToHash(big.NewInt(0).Bytes()),
 				}
-				input, err := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEventV2.Inputs.NonIndexed().Pack(
 					recipient,
 					coin.Amount.BigInt(),
 					[]byte{},
@@ -545,7 +544,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				topics = []common.Hash{
 					evmhandlers.SendCroToIbcEvent.ID,
 				}
-				input, err := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
 					sender,
 					"recipient",
 					coin.Amount.BigInt(),
@@ -602,7 +601,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 
 	contract := common.BigToAddress(big.NewInt(1))
 	sender := common.BigToAddress(big.NewInt(2))
-	validDenom := "gravity0x0000000000000000000000000000000000000000"
+	validDenom := denomGravity
 	var data []byte
 	var topics []common.Hash
 
@@ -627,7 +626,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 					evmhandlers.CancelSendToEvmChainEvent.ID,
 					sender.Hash(),
 				}
-				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					big.NewInt(1),
 				)
 				data = input
@@ -667,7 +666,7 @@ func (suite *KeeperTestSuite) TestCancelSendToEvmChainHandler() {
 					evmhandlers.CancelSendToEvmChainEvent.ID,
 					sender.Hash(),
 				}
-				input, err := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
+				input, _ := evmhandlers.CancelSendToEvmChainEvent.Inputs.NonIndexed().Pack(
 					big.NewInt(int64(resp.Id)),
 				)
 				data = input

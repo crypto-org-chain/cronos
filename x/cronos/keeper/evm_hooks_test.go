@@ -26,7 +26,6 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 	contract := common.BigToAddress(big.NewInt(1))
 	recipient := common.BigToAddress(big.NewInt(3))
 	sender := common.BigToAddress(big.NewInt(4))
-	denom := "testdenom"
 
 	testCases := []struct {
 		msg      string
@@ -148,7 +147,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			"success send to evm chain",
 			func() {
 				suite.SetupTest()
-				denom := "gravity0x0000000000000000000000000000000000000000"
+				denom := denomGravity
 
 				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
 				coin := sdk.NewCoin(denom, sdk.NewInt(100))
@@ -186,7 +185,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
 				suite.Require().Equal(sdk.NewCoin(denom, sdk.NewInt(0)), balance)
 				// query unbatched SendToEthereum message exist
-				rsp, err := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
+				rsp, _ := suite.app.GravityKeeper.UnbatchedSendToEthereums(sdk.WrapSDKContext(suite.ctx), &gravitytypes.UnbatchedSendToEthereumsRequest{
 					SenderAddress: sdk.AccAddress(sender.Bytes()).String(),
 				})
 				suite.Require().Equal(1, len(rsp.SendToEthereums))

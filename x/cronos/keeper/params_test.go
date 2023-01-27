@@ -51,12 +51,12 @@ func (suite *KeeperTestSuite) TestGetSourceChannelID() {
 			)
 			suite.app.CronosKeeper = cronosKeeper
 
-			channelId, err := suite.app.CronosKeeper.GetSourceChannelID(suite.ctx, tc.ibcDenom)
+			channelID, err := suite.app.CronosKeeper.GetSourceChannelID(suite.ctx, tc.ibcDenom)
 			if tc.expectedError != nil {
 				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
 				suite.Require().NoError(err)
-				tc.postCheck(channelId)
+				tc.postCheck(channelID)
 			}
 		})
 	}

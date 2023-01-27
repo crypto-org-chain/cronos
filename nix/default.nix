@@ -17,10 +17,10 @@ import sources.nixpkgs {
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo117Module;
+        buildGoModule = pkgs.buildGo118Module;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main { };
+      chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
     }) # update to a version that supports eip-1559
     (import "${sources.gomod2nix}/overlay.nix")
     (pkgs: _:
@@ -51,15 +51,11 @@ import sources.nixpkgs {
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
-    (_: pkgs: {
-      rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
-        pname = "rocksdb";
-        version = "6.29.5";
-        src = sources.rocksdb;
-      });
+    (final: _: {
+      rocksdb = final.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })
     (_: pkgs: {
-      cosmovisor = pkgs.buildGo117Module rec {
+      cosmovisor = pkgs.buildGo118Module rec {
         name = "cosmovisor";
         src = sources.cosmos-sdk + "/cosmovisor";
         subPackages = [ "./cmd/cosmovisor" ];
