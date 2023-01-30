@@ -3,8 +3,8 @@ package v2
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/crypto-org-chain/cronos/x/cronos/exported"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/exported"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // Migrate migrates the x/cronos module state from the consensus version 1 to

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -121,21 +121,21 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
-	"github.com/crypto-org-chain/cronos/x/cronos"
-	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
-	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
-	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
+	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	// unnamed import of statik for swagger UI support
-	_ "github.com/crypto-org-chain/cronos/client/docs/statik"
+	_ "github.com/crypto-org-chain/cronos/v2/client/docs/statik"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 
 	// force register the extension json-rpc.
-	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
+	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 )
 
 const (
