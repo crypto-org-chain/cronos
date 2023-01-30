@@ -126,7 +126,7 @@ lint-nix:
 ###                                Releasing                                ###
 ###############################################################################
 
-PACKAGE_NAME:=github.com/crypto-org-chain/cronos
+PACKAGE_NAME:=github.com/crypto-org-chain/cronos/v2
 GOLANG_CROSS_VERSION  = v1.18
 release-dry-run:
 	docker run \
