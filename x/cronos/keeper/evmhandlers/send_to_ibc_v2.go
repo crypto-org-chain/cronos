@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
-	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 var _ types.EvmLogHandler = SendToIbcV2Handler{}

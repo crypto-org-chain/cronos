@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // DefaultGasCap defines the gas limit used to run internal evm call

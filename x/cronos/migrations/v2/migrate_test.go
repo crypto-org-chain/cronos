@@ -6,9 +6,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/crypto-org-chain/cronos/x/cronos/exported"
-	v2 "github.com/crypto-org-chain/cronos/x/cronos/migrations/v2"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/exported"
+	v2 "github.com/crypto-org-chain/cronos/v2/x/cronos/migrations/v2"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/stretchr/testify/require"
 )
 

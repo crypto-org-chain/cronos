@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/experimental"
-	"github.com/crypto-org-chain/cronos/x/cronos"
+	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/experimental"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/snapshots"
@@ -45,7 +45,7 @@ import (
 	servercfg "github.com/evmos/ethermint/server/config"
 	ethermint "github.com/evmos/ethermint/types"
 
-	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/v2/app"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 

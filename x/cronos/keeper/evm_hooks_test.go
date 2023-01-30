@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"math/big"
 
-	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
+	handlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
-	"github.com/crypto-org-chain/cronos/app"
-	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/app"
+	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )

@@ -126,7 +126,7 @@ lint-nix:
 ###                                Releasing                                ###
 ###############################################################################
 
-PACKAGE_NAME:=github.com/crypto-org-chain/cronos
+PACKAGE_NAME:=github.com/crypto-org-chain/cronos/v2
 GOLANG_CROSS_VERSION  = v1.18
 release-dry-run:
 	docker run \
@@ -162,7 +162,7 @@ release:
 ###                                Sim Test                                 ###
 ###############################################################################
 
-SIMAPP = github.com/crypto-org-chain/cronos/app
+SIMAPP = github.com/crypto-org-chain/cronos/v2/app
 
 # Install the runsim binary with a temporary workaround of entering an outside
 # directory as the "go get" command ignores the -mod option and will polute the
