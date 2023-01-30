@@ -279,9 +279,6 @@ schema = 3
   [mod."github.com/hashicorp/go-safetemp"]
     version = "v1.0.0"
     hash = "sha256-g5i9m7FSRInQzZ4iRpIsoUu685AY7fppUwjhuZCezT8="
-  [mod."github.com/hashicorp/go-uuid"]
-    version = "v1.0.2"
-    hash = "sha256-SsIZNWnnjuPbiclz2bs9AKWHvpuVsrFUW2CzAVSx8qs="
   [mod."github.com/hashicorp/go-version"]
     version = "v1.6.0"
     hash = "sha256-UV0equpmW6BiJnp4W3TZlSJ+PTHuTA+CdOs2JTeHhjs="
