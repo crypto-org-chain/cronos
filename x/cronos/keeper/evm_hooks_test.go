@@ -2,8 +2,9 @@ package keeper_test
 
 import (
 	"fmt"
-	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"math/big"
+
+	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
