@@ -35,16 +35,18 @@ jobs:
             *.go
             *.mod
             *.sum
-      - run: |
-          nix profile install nixpkgs#rocksdb
+      - name: run golangci-lint
+        run: |
+          nix profile install nixpkgs#rocksdb nixpkgs#golangci-lint
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
-      - uses: golangci/golangci-lint-action@v3
-        with:
-          # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.50
-          args: --timeout 10m
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          golangci-lint version
+
+          BUILD_TAGS=rocksdb,grocksdb_clean_link
+          go build -tags $BUILD_TAGS ./cmd/cronosd
+          golangci-lint run --out-format=github-actions --path-prefix=./ --timeout 10m --build-tags $BUILD_TAGS
+          cd versiondb
+          golangci-lint run --out-format=github-actions --path-prefix=./versiondb --timeout 10m --build-tags $BUILD_TAGS
         # Check only if there are differences in the source code
         if: steps.changed-files.outputs.any_changed == 'true'
 
