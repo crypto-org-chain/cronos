@@ -17,7 +17,7 @@ import sources.nixpkgs {
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo117Module;
+        buildGoModule = pkgs.buildGo118Module;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
@@ -55,7 +55,7 @@ import sources.nixpkgs {
       rocksdb = final.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })
     (_: pkgs: {
-      cosmovisor = pkgs.buildGo117Module rec {
+      cosmovisor = pkgs.buildGo118Module rec {
         name = "cosmovisor";
         src = sources.cosmos-sdk + "/cosmovisor";
         subPackages = [ "./cmd/cosmovisor" ];

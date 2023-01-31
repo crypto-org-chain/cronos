@@ -22,7 +22,7 @@ const (
 )
 
 // NewConvertVouchersEvent constructs a new voucher convert sdk.Event
-//nolint: interfacer
+// nolint: interfacer
 func NewConvertVouchersEvent(sender string, amount fmt.Stringer) sdk.Event {
 	return sdk.NewEvent(
 		EventTypeConvertVouchers,

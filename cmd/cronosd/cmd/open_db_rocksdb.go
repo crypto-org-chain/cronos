@@ -24,9 +24,9 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 		woSync := grocksdb.NewDefaultWriteOptions()
 		woSync.SetSync(true)
 		return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
-	} else {
-		return dbm.NewDB("application", backendType, dataDir)
 	}
+
+	return dbm.NewDB("application", backendType, dataDir)
 }
 
 func newRocksdbOptions() *grocksdb.Options {
