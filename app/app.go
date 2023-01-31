@@ -672,7 +672,7 @@ func New(
 
 	if experimental {
 		modules = append(modules,
-			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
+			gravity.NewAppModule(appCodec, app.GravityKeeper, app.AccountKeeper, app.BankKeeper),
 		)
 		beginBlockersOrder = append(beginBlockersOrder, gravitytypes.ModuleName)
 		endBlockersOrder = append(endBlockersOrder, gravitytypes.ModuleName)
