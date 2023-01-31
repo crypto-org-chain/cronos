@@ -15,9 +15,6 @@ concurrency:
 
 jobs:
   golangci:
-    strategy:
-      matrix:
-        package: [./, ./versiondb]
     name: Run golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -46,9 +43,8 @@ jobs:
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.50
-          args: --timeout 10m --build-tags rocksdb,grocksdb_clean_link
+          args: --timeout 10m
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: ${{ matrix.package }}
         # Check only if there are differences in the source code
         if: steps.changed-files.outputs.any_changed == 'true'
 
