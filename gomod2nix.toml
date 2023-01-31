@@ -160,8 +160,9 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-k1DYvCqO3BKNcGEve/nMW0RxzMkK2tGfXbUbycqcVSo="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.26"
-    hash = "sha256-gkMEwJ4rOgn12amD4QpZ4th/10uyTTeoFmpseuKDQPs="
+    version = "v1.10.19-deepcopy-jumptable"
+    hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
+    replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
     version = "v0.20.2-cronos"
     hash = "sha256-GUXw/MVVngPQhHYx7fHSW9y+u+uV8IpJMYDX7fak09s="
