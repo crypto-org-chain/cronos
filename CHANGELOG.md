@@ -11,6 +11,7 @@
 - [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
 - [cronos#775](https://github.com/crypto-org-chain/cronos/pull/775) Support turnbridge transaction.
 - [cronos#781](https://github.com/crypto-org-chain/cronos/pull/781) Add prune command.
+- [cronos#830](https://github.com/crypto-org-chain/cronos/pull/830) Upgrade gravity bridge for latest bugfixes, patching two important DOS vulnerabilities 
 
 ### Bug Fixes
 
