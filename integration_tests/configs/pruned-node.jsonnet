@@ -7,6 +7,10 @@ config {
       'state-sync'+: {
         'snapshot-interval': 0,
       },
+      store+: {
+        // don't enable versiondb, since it don't do pruning right now
+        streamers: ['file'],
+      },
     },
     genesis+: {
       app_state+: {

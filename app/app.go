@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+	"golang.org/x/exp/slices"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -350,6 +351,17 @@ func New(
 	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
 		fmt.Printf("failed to load state streaming: %s", err)
 		os.Exit(1)
+	}
+
+	// wire up the versiondb's `StreamingService` and `MultiStore`.
+	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
+	var qms sdk.MultiStore
+	if slices.Contains(streamers, "versiondb") {
+		var err error
+		qms, err = setupVersionDB(homePath, bApp, keys, tkeys, memKeys)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	app := &App{
@@ -738,6 +750,14 @@ func New(
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
+		}
+
+		if qms != nil {
+			v1 := qms.LatestVersion()
+			v2 := app.LastBlockHeight()
+			if v1 > 0 && v1 != v2 {
+				tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", v1, v2))
+			}
 		}
 	}
 
