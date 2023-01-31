@@ -34,7 +34,7 @@ jobs:
           # without rocksdb
           make build
           # with rocksdb and enable versiondb
-          nix profile install .#rocksdb
+          nix profile install nixpkgs#rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           COSMOS_BUILD_OPTIONS=rocksdb make build
@@ -65,7 +65,7 @@ jobs:
           make test
 
           # run versiondb tests
-          nix profile install .#rocksdb
+          nix profile install nixpkgs#rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           export LD_LIBRARY_PATH=$HOME/.nix-profile/lib

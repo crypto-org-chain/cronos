@@ -39,7 +39,7 @@ jobs:
             *.mod
             *.sum
       - run: |
-          nix profile install .#rocksdb
+          nix profile install nixpkgs#rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
       - uses: golangci/golangci-lint-action@v3
