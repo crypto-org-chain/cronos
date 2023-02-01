@@ -7,7 +7,7 @@ from pystarport import ports
 
 from .gorc import GoRc
 from .network import GravityBridge, setup_cronos_experimental, setup_geth
-from .test_gravity import check_auto_deployment, gorc_config, update_gravity_contract
+from .test_gravity import gorc_config, update_gravity_contract
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -15,6 +15,7 @@ from .utils import (
     add_ini_sections,
     deploy_contract,
     dump_toml,
+    eth_to_bech32,
     send_to_cosmos,
     send_transaction,
     supervisorctl,
@@ -305,10 +306,9 @@ def test_gravity_proxy_contract(gravity):
 
 
 def test_gravity_detect_malicious_supply(gravity):
-    if gravity.cronos.enable_auto_deployment:
+    if not gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
         cli = gravity.cronos.cosmos_cli()
-        cronos_w3 = gravity.cronos.w3
 
         # deploy fake contract to trigger the malicious supply
         # any transfer made with this contract will send an amount of token
@@ -318,13 +318,14 @@ def test_gravity_detect_malicious_supply(gravity):
             CONTRACTS["TestMaliciousSupply"],
         )
         denom = f"gravity{erc20.address}"
+        print(denom)
 
         # check that the bridge is activated
         activate = cli.query_gravity_params()["params"]["bridge_active"]
         assert activate is True
 
-        max_int = 115792089237316195423570985008
-        687907853269984665640564039457584007913129639935
+        max_int = 11579208923731619542357098500868790785
+        3269984665640564039457584007913129639935
 
         print("send max_int to community address using gravity bridge")
         recipient = HexBytes(ADDRS["community"])
@@ -334,16 +335,11 @@ def test_gravity_detect_malicious_supply(gravity):
         assert txreceipt.status == 1, "should success"
 
         # check that amount has been received
-        crc21_contract = None
+        def check_gravity_native_tokens():
+            "check the balance of gravity native token"
+            return cli.balance(eth_to_bech32(recipient), denom=denom) == max_int
 
-        def local_check_auto_deployment():
-            nonlocal crc21_contract
-            crc21_contract = check_auto_deployment(
-                cli, denom, cronos_w3, recipient, max_int
-            )
-            return crc21_contract
-
-        wait_for_fn("send-to-crc21", local_check_auto_deployment)
+        wait_for_fn("balance", check_gravity_native_tokens)
 
         # check that the bridge is still activated
         activate = cli.query_gravity_params()["params"]["bridge_active"]
@@ -372,5 +368,4 @@ def test_gravity_detect_malicious_supply(gravity):
         assert activate is True
 
         # check that balance is still same
-        balance = crc21_contract.caller.balanceOf(recipient)
-        assert balance == max_int
+        assert cli.balance(eth_to_bech32(recipient), denom=denom) == max_int
