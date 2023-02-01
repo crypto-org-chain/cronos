@@ -45,7 +45,7 @@ def post_init(path, base_port, config):
             ini[section].update(
                 {
                     "command": f"cosmovisor start --home %(here)s/node{i}"
-                    f" --trace --unsafe-experimental",
+                    f" --trace",
                     "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
                 }
             )

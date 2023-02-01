@@ -304,47 +304,32 @@ func overwriteFlagDefaults(c *cobra.Command, defaults map[string]string) {
 	}
 }
 
-// WrapValidateGenesisCmd extends `genutilcli.ValidateGenesisCmd` to support `--unsafe-experimental` flag.
+// WrapValidateGenesisCmd extends `genutilcli.ValidateGenesisCmd`.
 func WrapValidateGenesisCmd() *cobra.Command {
 	wrapCmd := genutilcli.ValidateGenesisCmd(module.NewBasicManager())
 	wrapCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		experimental, err := cmd.Flags().GetBool(cronos.ExperimentalFlag)
-		if err != nil {
-			return err
-		}
-		moduleBasics := app.GenModuleBasics(experimental)
+		moduleBasics := app.GenModuleBasics()
 		return genutilcli.ValidateGenesisCmd(moduleBasics).RunE(cmd, args)
 	}
-	wrapCmd.Flags().Bool(cronos.ExperimentalFlag, false, "Enable experimental features")
 	return wrapCmd
 }
 
-// WrapInitCmd extends `genutilcli.InitCmd` to support `--unsafe-experimental` flag.
+// WrapInitCmd extends `genutilcli.InitCmd`.
 func WrapInitCmd(home string) *cobra.Command {
 	wrapCmd := genutilcli.InitCmd(module.NewBasicManager(), home)
 	wrapCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		experimental, err := cmd.Flags().GetBool(cronos.ExperimentalFlag)
-		if err != nil {
-			return err
-		}
-		moduleBasics := app.GenModuleBasics(experimental)
+		moduleBasics := app.GenModuleBasics()
 		return genutilcli.InitCmd(moduleBasics, home).RunE(cmd, args)
 	}
-	wrapCmd.Flags().Bool(cronos.ExperimentalFlag, false, "Enable experimental features")
 	return wrapCmd
 }
 
-// WrapGenTxCmd extends `genutilcli.GenTxCmd` to support `--unsafe-experimental` flag.
+// WrapGenTxCmd extends `genutilcli.GenTxCmd`.
 func WrapGenTxCmd(txEncCfg client.TxEncodingConfig, genBalIterator banktypes.GenesisBalancesIterator, defaultNodeHome string) *cobra.Command {
 	wrapCmd := genutilcli.GenTxCmd(module.NewBasicManager(), txEncCfg, genBalIterator, defaultNodeHome)
 	wrapCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		experimental, err := cmd.Flags().GetBool(cronos.ExperimentalFlag)
-		if err != nil {
-			return err
-		}
-		moduleBasics := app.GenModuleBasics(experimental)
+		moduleBasics := app.GenModuleBasics()
 		return genutilcli.GenTxCmd(moduleBasics, txEncCfg, genBalIterator, defaultNodeHome).RunE(cmd, args)
 	}
-	wrapCmd.Flags().Bool(cronos.ExperimentalFlag, false, "Enable experimental features")
 	return wrapCmd
 }

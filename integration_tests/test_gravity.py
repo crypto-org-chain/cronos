@@ -10,7 +10,7 @@ from hexbytes import HexBytes
 from pystarport import ports
 
 from .gorc import GoRc
-from .network import GravityBridge, setup_cronos_experimental, setup_geth
+from .network import GravityBridge, setup_cronos, setup_geth
 from .utils import (
     ACCOUNTS,
     ADDRS,
@@ -118,8 +118,8 @@ def cronos(request, tmp_path_factory):
     """start-cronos
     params: enable_auto_deployment
     """
-    yield from setup_cronos_experimental(
-        tmp_path_factory.mktemp("cronos_experimental"), 26600, request.param
+    yield from setup_cronos(
+        tmp_path_factory.mktemp("cronos"), 26600, request.param
     )
 
 

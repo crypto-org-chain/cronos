@@ -36,7 +36,6 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -64,29 +63,14 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 	},
 }
 
-// ExperimentalAppOptions is a stub implementing AppOptions
-type ExperimentalAppOptions struct{}
-
-// Get implements AppOptions
-func (ao ExperimentalAppOptions) Get(o string) interface{} {
-	if o == cronos.ExperimentalFlag {
-		return true
-	}
-	return nil
-}
-
 func setup(withGenesis bool, invCheckPeriod uint, experimental bool) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := MakeEncodingConfig()
 	var appOption servertypes.AppOptions
-	if experimental {
-		appOption = ExperimentalAppOptions{}
-	} else {
-		appOption = EmptyAppOptions{}
-	}
+	appOption = EmptyAppOptions{}
 	app := New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, invCheckPeriod, encCdc, appOption)
 	if withGenesis {
-		return app, NewDefaultGenesisState(encCdc.Codec, experimental)
+		return app, NewDefaultGenesisState(encCdc.Codec)
 	}
 	return app, GenesisState{}
 }
