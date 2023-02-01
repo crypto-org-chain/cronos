@@ -80,11 +80,11 @@ def gravity(cronos, geth):
         # fund the orchestrator accounts
         eth_addr = to_checksum_address(gorc.show_eth_addr("eth"))
         print("fund 0.1 eth to address", eth_addr)
-        send_transaction(geth, {"to": eth_addr, "value": 10 ** 17}, KEYS["validator"])
+        send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
         acc_addr = gorc.show_cosmos_addr("cronos")
         print("fund 100cro to address", acc_addr)
         rsp = cronos.cosmos_cli().transfer(
-            "community", acc_addr, "%dbasetcro" % (100 * (10 ** 18))
+            "community", acc_addr, "%dbasetcro" % (100 * (10**18))
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -311,7 +311,8 @@ def test_gravity_detect_malicious_supply(gravity):
         cronos_w3 = gravity.cronos.w3
 
         # deploy fake contract to trigger the malicious supply
-        # any transfer made with this contract will send an amount of token equal to max uint256
+        # any transfer made with this contract will send an amount of token
+        # equal to max uint256
         erc20 = deploy_contract(
             geth,
             CONTRACTS["TestMaliciousSupply"],
@@ -348,8 +349,8 @@ def test_gravity_detect_malicious_supply(gravity):
         activate = cli.query_gravity_params()["params"]["bridge_active"]
         assert activate is True
 
-        # need a random transferFrom to increment the counter in the contract (see logic)
-        # to be able to redo a max uint256 transfer
+        # need a random transferFrom to increment the counter in the contract
+        # (see logic) to be able to redo a max uint256 transfer
         print("do a random send to increase contract nonce")
         txtransfer = erc20.functions.transferFrom(
             ADDRS["validator"], ADDRS["validator2"], 1
