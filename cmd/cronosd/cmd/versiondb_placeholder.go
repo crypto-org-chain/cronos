@@ -3,8 +3,11 @@
 
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/spf13/cobra"
+)
 
-func ChangeSetCmd() *cobra.Command {
+func ChangeSetCmd(types.AppCreator) *cobra.Command {
 	return nil
 }

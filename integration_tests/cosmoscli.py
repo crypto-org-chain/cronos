@@ -1377,3 +1377,15 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def changeset_dump(self):
+        pass
+
+    def changeset_verify(self):
+        pass
+
+    def changeset_to_versiondb(self):
+        pass
+
+    def changeset_to_iavl(self):
+        pass

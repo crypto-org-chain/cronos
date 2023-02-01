@@ -1,21 +1,24 @@
 package client
 
 import (
+	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cobra"
 )
 
-func ChangeSetGroupCmd() *cobra.Command {
+func ChangeSetGroupCmd(appCreator types.AppCreator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changeset",
 		Short: "dump and manage change sets files and ingest into versiondb",
 	}
 	cmd.AddCommand(
-		DumpChangeSetCmd(),
+		ListStoresCmd(appCreator),
+		DumpChangeSetCmd(appCreator),
 		PrintChangeSetCmd(),
-		VerifyChangeSetCmd(),
-		ConvertToSSTTSCmd(),
+		VerifyChangeSetCmd(appCreator),
+		ConvertToSSTTSCmd(appCreator),
 		ChangeSetToVersionDBCmd(),
 		IngestSSTCmd(),
+		ConvertSnapshotToSST(appCreator),
 	)
 	return cmd
 }

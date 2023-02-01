@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,24 +22,26 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/cosmos/cosmos-sdk/server/types"
 
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
 const DefaultChunkSize = 1000000
 
-func DumpChangeSetCmd() *cobra.Command {
+func DumpChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump store1 store2 ...",
+		Use:   "dump outDir",
 		Short: "Extract changesets from iavl versions, and save to plain file format",
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
 			if err := ctx.Viper.BindPFlags(cmd.Flags()); err != nil {
 				return err
 			}
 
-			db, err := openReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := open_db.OpenReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
@@ -66,17 +69,18 @@ func DumpChangeSetCmd() *cobra.Command {
 				return err
 			}
 
-			outDir, err := cmd.Flags().GetString(flagOutput)
+			stores, err := GetStoreNames(cmd, appCreator)
 			if err != nil {
 				return err
 			}
+
+			outDir := args[0]
 			if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 				return err
 			}
 
-			stores := args
 			if endVersion == 0 {
-				// try to detect the latest version from the first store
+				// use the latest version of the first store for all stores
 				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, stores[0]))
 				tree, err := iavl.NewMutableTree(dbm.NewPrefixDB(db, prefix), 0, true)
 				if err != nil {
@@ -98,18 +102,32 @@ func DumpChangeSetCmd() *cobra.Command {
 			for _, store := range stores {
 				fmt.Println("begin store", store, time.Now().Format(time.RFC3339))
 
+				// find the first version in the db, reading raw db because no public api for it.
+				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
+				storeStartVersion, err := getNextVersion(dbm.NewPrefixDB(db, prefix), 0)
+				if err != nil {
+					return err
+				}
+				if storeStartVersion == 0 {
+					// store not exists
+					fmt.Println("skip empty store")
+					continue
+				}
+				if startVersion > storeStartVersion {
+					storeStartVersion = startVersion
+				}
+
 				// share the iavl tree between tasks to reuse the node cache
 				iavlTreePool := sync.Pool{
 					New: func() any {
 						// use separate prefixdb and iavl tree in each task to maximize concurrency performance
-						prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
 						return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true)
 					},
 				}
 
 				// first split work load into chunks
 				var chunks []chunk
-				for i := startVersion; i < endVersion; i += int64(chunkSize) {
+				for i := storeStartVersion; i < endVersion; i += int64(chunkSize) {
 					end := i + int64(chunkSize)
 					if end > endVersion {
 						end = endVersion
@@ -148,11 +166,11 @@ func DumpChangeSetCmd() *cobra.Command {
 	}
 	cmd.Flags().Int64(flagStartVersion, 0, "The start version")
 	cmd.Flags().Int64(flagEndVersion, 0, "The end version, exclusive, default to latestVersion+1")
-	cmd.Flags().String(flagOutput, "-", "Output file, default to stdout")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
 	cmd.Flags().Int(server.FlagIAVLCacheSize, 781250, "size of the iavl tree cache")
 	cmd.Flags().Int(flagChunkSize, DefaultChunkSize, "size of the block chunk")
 	cmd.Flags().Int(flagZlibLevel, 6, "level of zlib compression, 0: plain data, 1: fast, 9: best, default: 6, if not 0 the output file name will have .zz extension")
+	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	return cmd
 }
 
@@ -266,4 +284,27 @@ func copyTmpFile(writer io.Writer, tmpFile string) error {
 
 func createFile(name string) (*os.File, error) {
 	return os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+}
+
+func getNextVersion(db dbm.DB, version int64) (int64, error) {
+	itr, err := db.Iterator(
+		rootKeyFormat.Key(uint64(version+1)),
+		rootKeyFormat.Key(uint64(math.MaxInt64)),
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer itr.Close()
+
+	var nversion int64
+	for ; itr.Valid(); itr.Next() {
+		rootKeyFormat.Scan(itr.Key(), &nversion)
+		return nversion, nil
+	}
+
+	if err := itr.Error(); err != nil {
+		return 0, err
+	}
+
+	return 0, nil
 }

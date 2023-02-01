@@ -301,15 +301,18 @@ func IterateVersions(
 	return lastCompleteOffset, err
 }
 
-// sortChangeSetFiles sort the change set files by the first version number in the file,
-// it also filters out the empty files,
-// assuming the file format is correct.
-func sortChangeSetFiles(files []string) ([]string, error) {
-	nonEmptyFiles := make([]string, 0, len(files))
-	versions := make([]uint64, 0, len(files))
+type FileWithVersion struct {
+	FileName string
+	Version  uint64
+}
+
+// SortFilesByFirstVerson parse the first version of the change set files and associate with the file name,
+// then sort them by version number, also filter out empty files.
+func SortFilesByFirstVerson(files []string) ([]FileWithVersion, error) {
+	nonEmptyFiles := make([]FileWithVersion, 0, len(files))
 
 	for _, fileName := range files {
-		version, err := readVersion(fileName)
+		version, err := ReadFirstVersion(fileName)
 		if err != nil {
 			if err == io.EOF {
 				// skipping empty files
@@ -318,18 +321,20 @@ func sortChangeSetFiles(files []string) ([]string, error) {
 			return nil, err
 		}
 
-		versions = append(versions, version)
-		nonEmptyFiles = append(nonEmptyFiles, fileName)
+		nonEmptyFiles = append(nonEmptyFiles, FileWithVersion{
+			FileName: fileName,
+			Version:  version,
+		})
 	}
 
 	sort.Slice(nonEmptyFiles, func(i, j int) bool {
-		return versions[i] < versions[j]
+		return nonEmptyFiles[i].Version < nonEmptyFiles[j].Version
 	})
 	return nonEmptyFiles, nil
 }
 
-// readVersion parse the first version number in the change set file
-func readVersion(fileName string) (uint64, error) {
+// ReadFirstVersion parse the first version number in the change set file
+func ReadFirstVersion(fileName string) (uint64, error) {
 	fp, err := openChangeSetFile(fileName)
 	if err != nil {
 		return 0, err

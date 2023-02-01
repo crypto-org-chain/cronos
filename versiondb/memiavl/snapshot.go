@@ -36,7 +36,7 @@ type Snapshot struct {
 	values []byte
 
 	// parsed from metadata file
-	version   uint64
+	Version   uint64
 	rootIndex uint32
 }
 
@@ -75,6 +75,16 @@ func (snapshot *Snapshot) RootNode() PersistedNode {
 // NodesLen returns the number of nodes in the snapshot
 func (snapshot *Snapshot) NodesLen() int {
 	return len(snapshot.nodes) / SizeNode
+}
+
+// ScanNodes iterate over the nodes in the snapshot order (depth-first post-order)
+func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) error {
+	for i := 0; i < snapshot.NodesLen(); i++ {
+		if err := callback(snapshot.Node(uint32(i))); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // OpenSnapshot parse the version number and the root node index from metadata file,
@@ -156,7 +166,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		keys:   keysMap.Data(),
 		values: valuesMap.Data(),
 
-		version:   version,
+		Version:   version,
 		rootIndex: rootIndex,
 	}, nil
 }
@@ -292,6 +302,11 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint32, uint64, error) {
 		buf              [SizeNodeWithoutHash]byte
 		minimalKeyOffset uint64
 	)
+
+	if node == nil {
+		// root node of empty tree is nil
+		return 0, 0, nil
+	}
 
 	buf[OffsetHeight] = byte(node.Height())
 	if node.Version() > math.MaxUint32 {
