@@ -324,9 +324,7 @@ def test_gravity_detect_malicious_supply(gravity):
         activate = cli.query_gravity_params()["params"]["bridge_active"]
         assert activate is True
 
-        max_int = 11579208923731619542357098500868790785
-        3269984665640564039457584007913129639935
-
+        max_int = 2**256 - 1
         print("send max_int to community address using gravity bridge")
         recipient = HexBytes(ADDRS["community"])
         txreceipt = send_to_cosmos(
