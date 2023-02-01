@@ -12,6 +12,7 @@
       'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
+      'iavl-lazy-loading': true,
       'json-rpc': {
         address: '0.0.0.0:{EVMRPC_PORT}',
         'ws-address': '0.0.0.0:{EVMRPC_PORT_WS}',
