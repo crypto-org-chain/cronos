@@ -21,6 +21,7 @@
 ### Improvements
 
 - [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
+- [#779](https://github.com/crypto-org-chain/cronos/pull/779) Add config iavl-lazy-loading to enable lazy loading of iavl store.
 
 *Jan 04, 2023*
 
