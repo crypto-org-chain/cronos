@@ -63,7 +63,7 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 	},
 }
 
-func setup(withGenesis bool, invCheckPeriod uint, experimental bool) (*App, GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := MakeEncodingConfig()
 	var appOption servertypes.AppOptions
@@ -76,7 +76,7 @@ func setup(withGenesis bool, invCheckPeriod uint, experimental bool) (*App, Gene
 }
 
 // Setup initializes a new App. A Nop logger is set in App.
-func Setup(t *testing.T, cronosAdmin string, experimental bool) *App {
+func Setup(t *testing.T, cronosAdmin string) *App {
 	t.Helper()
 
 	privVal := mock.NewPV()
@@ -94,17 +94,17 @@ func Setup(t *testing.T, cronosAdmin string, experimental bool) *App {
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100000000000000))),
 	}
-	return SetupWithGenesisValSet(t, cronosAdmin, experimental, valSet, []authtypes.GenesisAccount{acc}, balance)
+	return SetupWithGenesisValSet(t, cronosAdmin, valSet, []authtypes.GenesisAccount{acc}, balance)
 }
 
 // SetupWithGenesisValSet initializes a new App with a validator set and genesis accounts
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit (10^6) in the default token of the simapp from first genesis
 // account. A Nop logger is set in App.
-func SetupWithGenesisValSet(t *testing.T, cronosAdmin string, experimental bool, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
+func SetupWithGenesisValSet(t *testing.T, cronosAdmin string, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
 	t.Helper()
 
-	app, genesisState := setup(true, 5, experimental)
+	app, genesisState := setup(true, 5)
 	genesisState = genesisStateWithValSet(t, app, genesisState, valSet, genAccs, balances...)
 
 	cronosGen := cronostypes.DefaultGenesis()
@@ -199,7 +199,7 @@ func genesisStateWithValSet(t *testing.T,
 // SetupWithGenesisAccounts initializes a new App with the provided genesis
 // accounts and possible balances.
 func SetupWithGenesisAccounts(genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
-	app, genesisState := setup(true, 0, true)
+	app, genesisState := setup(true, 0)
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)
 
