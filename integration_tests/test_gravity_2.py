@@ -41,9 +41,7 @@ def cronos(request, tmp_path_factory):
     """start-cronos
     params: enable_auto_deployment
     """
-    yield from setup_cronos(
-        tmp_path_factory.mktemp("cronos"), 26600, request.param
-    )
+    yield from setup_cronos(tmp_path_factory.mktemp("cronos"), 26600, request.param)
 
 
 @pytest.fixture(scope="module")
