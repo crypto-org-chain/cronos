@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.7
+	github.com/cosmos/cosmos-sdk v0.46.9-0.20230202120000-70589eb845a4
 	github.com/cosmos/ibc-go/v5 v5.2.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.6.1-0.20221101220534-a8ea4eceb6d9
@@ -190,8 +190,7 @@ require (
 replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
-  // https://github.com/cosmos/cosmos-sdk/pull/14862
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.9-0.20230201144439-3b8db0062a59
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.9-0.20230202120000-70589eb845a4
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.2-cronos
 
