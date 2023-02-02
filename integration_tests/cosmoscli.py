@@ -1455,3 +1455,6 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def rollback(self):
+        self.raw("rollback", home=self.data_dir)

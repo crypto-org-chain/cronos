@@ -16,6 +16,7 @@
 ### Bug Fixes
 
 - [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
+- [#833](https://github.com/crypto-org-chain/cronos/pull/833) Fix rollback command.
 
 ### Improvements
 
