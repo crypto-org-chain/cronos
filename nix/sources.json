@@ -52,12 +52,12 @@
         "branch": "master",
         "description": "Convert applications using Go modules to Nix expressions",
         "homepage": null,
-        "owner": "yihuang",
+        "owner": "nix-community",
         "repo": "gomod2nix",
-        "rev": "598c5ab1a677eee3c799e09d23bab8cecb9b1e2f",
-        "sha256": "0vfb1fjrx8vfzqgrk39ilwxlb591kyz4c0dazai5cl6hbxjb0i2w",
+        "rev": "89cd0675b96775aa3ee86e7c0cf5bc238dd27976",
+        "sha256": "1x7w9ibp9nxzsaqg9lm6sav0438rwdh76r9pi40hikzn4nl9w4p0",
         "type": "tarball",
-        "url": "https://github.com/yihuang/gomod2nix/archive/598c5ab1a677eee3c799e09d23bab8cecb9b1e2f.tar.gz",
+        "url": "https://github.com/nix-community/gomod2nix/archive/89cd0675b96775aa3ee86e7c0cf5bc238dd27976.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -66,22 +66,22 @@
         "homepage": "",
         "owner": "crypto-org-chain",
         "repo": "gravity-bridge",
-        "rev": "3d5bdc8af5227588d04064132335932ee88f57c3",
-        "sha256": "1nn8p4wqg1dx12nf05gm8rw3n02yqssgfsxrlj3c00qzwys6i9y2",
+        "rev": "d984b1562242efab5d7595d4108472ed27eba06f",
+        "sha256": "0q69yysg3ynq5wz98rvg1p8lav1xcrkkn32rxbqmpmffqqi7yv88",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/3d5bdc8af5227588d04064132335932ee88f57c3.tar.gz",
+        "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/d984b1562242efab5d7595d4108472ed27eba06f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "ibc-rs": {
-        "branch": "feemarket",
-        "description": "IBC Relayer (Hermes) and Modules in Rust",
+        "branch": "v1.1.0",
+        "description": "IBC modules and relayer - Formal specifications and Rust implementation",
         "homepage": "",
-        "owner": "yihuang",
+        "owner": "informalsystems",
         "repo": "ibc-rs",
-        "rev": "e33cceaa247d5eda7650c24bd3968dea6a05248a",
-        "sha256": "1kq73qvhdz35pxcx07rqqygvb3n8z8wsgw8knddj2b1x3yj66444",
+        "rev": "0daa3e16431e748c96a3fa4ad5e9698074e09060",
+        "sha256": "1fp4hz390fd4nlkrkzdmypy9i83i57l21hg7l0d9xi8h1hjginam",
         "type": "tarball",
-        "url": "https://github.com/yihuang/ibc-rs/archive/e33cceaa247d5eda7650c24bd3968dea6a05248a.tar.gz",
+        "url": "https://github.com/informalsystems/ibc-rs/archive/0daa3e16431e748c96a3fa4ad5e9698074e09060.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -97,27 +97,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "master",
+        "branch": "release-22.11",
         "description": "Nix Packages collection",
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "5342fc6fb59d0595d26883c3cadff16ce58e44f3",
-        "sha256": "1faw05sd10vqvmywjq8j1cvwknqv2yfgg2zgdja32y38z15vj56d",
+        "rev": "333feefeae8ecb703180c650f8071efb21cfd7ec",
+        "sha256": "0b5c5jsi0yd03z8hq2zrn7g0xpa7qjd7ayi924qxn9arvbxhfj25",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/5342fc6fb59d0595d26883c3cadff16ce58e44f3.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "rocksdb": {
-        "branch": "v6.29.5",
-        "description": "A library that provides an embeddable, persistent key-value store for fast storage.",
-        "homepage": "http://rocksdb.org",
-        "owner": "facebook",
-        "repo": "rocksdb",
-        "rev": "da11a59034584ea2d0911268b8136e5249d6b692",
-        "sha256": "1fr3lhkakjrplgmms07amrxfiasz1b4vl2rppgx50k8gcy0p1awv",
-        "type": "tarball",
-        "url": "https://github.com/facebook/rocksdb/archive/da11a59034584ea2d0911268b8136e5249d6b692.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/333feefeae8ecb703180c650f8071efb21cfd7ec.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

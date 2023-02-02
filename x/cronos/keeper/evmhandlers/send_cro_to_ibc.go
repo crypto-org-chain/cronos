@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
-	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 var _ types.EvmLogHandler = SendCroToIbcHandler{}
@@ -64,13 +64,14 @@ func (h SendCroToIbcHandler) EventID() common.Hash {
 func (h SendCroToIbcHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
-		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
 		return nil
 	}
 

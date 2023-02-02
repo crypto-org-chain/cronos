@@ -8,7 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -100,7 +100,7 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
-	blockRes, err = api.backend.GetTendermintBlockResultByNumber(&blockNumber)
+	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
 		return
@@ -380,7 +380,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 // getBlock returns the block from BlockNumberOrHash
 func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *coretypes.ResultBlock, err error) {
 	if blockNrOrHash.BlockHash != nil {
-		blk, err = api.backend.GetTendermintBlockByHash(*blockNrOrHash.BlockHash)
+		blk, err = api.backend.TendermintBlockByHash(*blockNrOrHash.BlockHash)
 	} else {
 		var blockNumber rpctypes.BlockNumber
 		if blockNrOrHash.BlockNumber != nil {
@@ -388,7 +388,7 @@ func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *c
 		} else if blockNrOrHash.BlockHash == nil && blockNrOrHash.BlockNumber == nil {
 			return nil, fmt.Errorf("types BlockHash and BlockNumber cannot be both nil")
 		}
-		blk, err = api.backend.GetTendermintBlockByNumber(blockNumber)
+		blk, err = api.backend.TendermintBlockByNumber(blockNumber)
 	}
 	return
 }

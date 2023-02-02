@@ -5,9 +5,10 @@ import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "ethermint/evm/v1/tx.proto";
+import "cronos/cronos.proto";
 // this line is used by starport scaffolding # 1
 
-option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
+option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
 
 // Query defines the gRPC querier service.
 service Query {
@@ -23,6 +24,11 @@ service Query {
 
     // ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
     rpc ReplayBlock(ReplayBlockRequest) returns (ReplayBlockResponse) { }
+
+    // Params queries all parameters.
+    rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+        option (google.api.http).get = "/cronos/v1/params";
+    }
 
     // this line is used by starport scaffolding # 2
 }
@@ -69,6 +75,15 @@ message ReplayBlockRequest {
 // ReplayBlockResponse 
 message ReplayBlockResponse {
   repeated ethermint.evm.v1.MsgEthereumTxResponse responses = 1;
+}
+
+// QueryParamsRequest is the request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method.
+message QueryParamsResponse {
+    // params defines the parameters of the module.
+    Params params = 1 [(gogoproto.nullable) = false];
 }
 
 // this line is used by starport scaffolding # 3

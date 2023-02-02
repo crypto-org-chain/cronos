@@ -13,8 +13,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 const (

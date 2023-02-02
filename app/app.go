@@ -1,12 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
@@ -24,6 +25,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cosmos/cosmos-sdk/store/streaming"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -108,6 +110,7 @@ import (
 	"github.com/evmos/ethermint/x/evm"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/evmos/ethermint/x/evm/vm/geth"
 	"github.com/evmos/ethermint/x/feemarket"
 	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
@@ -117,21 +120,22 @@ import (
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
-	"github.com/crypto-org-chain/cronos/x/cronos"
-	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
-	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
-	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
+	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	// unnamed import of statik for swagger UI support
-	_ "github.com/crypto-org-chain/cronos/client/docs/statik"
+	_ "github.com/crypto-org-chain/cronos/v2/client/docs/statik"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 
 	// force register the extension json-rpc.
-	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
+	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 )
 
 const (
@@ -141,6 +145,8 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
+
+	FileStreamerDirectory = "file_streamer"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -340,6 +346,12 @@ func New(
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
+	// load state streaming if enabled
+	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
+		fmt.Printf("failed to load state streaming: %s", err)
+		os.Exit(1)
+	}
+
 	app := &App{
 		BaseApp:           bApp,
 		cdc:               cdc,
@@ -439,7 +451,7 @@ func New(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], app.GetSubspace(evmtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, stakingKeeper,
 		&app.FeeMarketKeeper,
-		tracer,
+		nil, geth.NewEVM, tracer,
 	)
 
 	var gravityKeeper gravitykeeper.Keeper
@@ -465,14 +477,14 @@ func New(
 		appCodec,
 		keys[cronostypes.StoreKey],
 		keys[cronostypes.MemStoreKey],
-		app.GetSubspace(cronostypes.ModuleName),
 		app.BankKeeper,
 		app.TransferKeeper,
 		gravityKeeper,
 		app.EvmKeeper,
 		app.AccountKeeper,
+		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
-	cronosModule := cronos.NewAppModule(app.CronosKeeper, app.AccountKeeper, app.BankKeeper)
+	cronosModule := cronos.NewAppModule(app.CronosKeeper, app.AccountKeeper, app.BankKeeper, app.GetSubspace(cronostypes.ModuleName))
 
 	// register the proposal types
 	govRouter := govv1beta1.NewRouter()
@@ -511,10 +523,11 @@ func New(
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		evmhandlers.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
-		evmhandlers.NewSendToChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
-		evmhandlers.NewCancelSendToChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
+		evmhandlers.NewSendToEvmChainHandler(gravitySrv, app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewCancelSendToEvmChainHandler(gravitySrv, app.CronosKeeper, app.GravityKeeper),
 		evmhandlers.NewSendToIbcHandler(app.BankKeeper, app.CronosKeeper),
 		evmhandlers.NewSendCroToIbcHandler(app.BankKeeper, app.CronosKeeper),
+		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
 	// register the staking hooks
@@ -659,7 +672,7 @@ func New(
 
 	if experimental {
 		modules = append(modules,
-			gravity.NewAppModule(app.GravityKeeper, app.BankKeeper),
+			gravity.NewAppModule(appCodec, app.GravityKeeper, app.AccountKeeper, app.BankKeeper),
 		)
 		beginBlockersOrder = append(beginBlockersOrder, gravitytypes.ModuleName)
 		endBlockersOrder = append(endBlockersOrder, gravitytypes.ModuleName)
@@ -934,7 +947,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 		paramsKeeper.Subspace(gravitytypes.ModuleName)
 	}
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
-	paramsKeeper.Subspace(cronostypes.ModuleName)
+	paramsKeeper.Subspace(cronostypes.ModuleName).WithKeyTable(cronostypes.ParamKeyTable())
 
 	return paramsKeeper
 }

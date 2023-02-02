@@ -68,7 +68,7 @@ def custom_cronos(tmp_path_factory):
     yield from setup_custom_cronos(
         path,
         26100,
-        Path(__file__).parent / "configs/cosmovisor.jsonnet",
+        Path(__file__).parent / "configs/cosmovisor_gravity.jsonnet",
         post_init=post_init,
         chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
     )
@@ -85,7 +85,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     target_height = height + 15
     print("upgrade height", target_height)
     plan_name = "v0.8.0-gravity-alpha3"
-    rsp = cli.gov_propose_v0_7(
+    rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
         {
@@ -100,7 +100,6 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
 
     # get proposal_id
     ev = parse_events(rsp["logs"])["submit_proposal"]
-    assert ev["proposal_type"] == "SoftwareUpgrade", rsp
     proposal_id = ev["proposal_id"]
 
     rsp = cli.gov_vote("validator", proposal_id, "yes")
@@ -127,7 +126,7 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
     # check ica controller is enabled
     assert cli.query_gravity_params() == {
         "params": {
-            "gravity_id": "defaultgravityid",
+            "gravity_id": "cronos_gravity_pioneer_v4",
             "contract_source_hash": "",
             "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
             "bridge_chain_id": "0",
@@ -146,5 +145,36 @@ def test_cosmovisor_upgrade_gravity(custom_cronos: Cronos):
             "batch_creation_period": "10",
             "batch_max_element": "100",
             "observe_ethereum_height_period": "50",
+        }
+    }
+
+    # check evm params
+    assert cli.query_evm_params() == {
+        "params": {
+            "evm_denom": "basetcro",
+            "enable_create": True,
+            "enable_call": True,
+            "extra_eips": [],
+            "chain_config": {
+                "homestead_block": "0",
+                "dao_fork_block": "0",
+                "dao_fork_support": True,
+                "eip150_block": "0",
+                "eip150_hash": "0x0000000000000000000000000000000000000000000000000000"
+                "000000000000",
+                "eip155_block": "0",
+                "eip158_block": "0",
+                "gray_glacier_block": "0",
+                "byzantium_block": "0",
+                "constantinople_block": "0",
+                "petersburg_block": "0",
+                "istanbul_block": "0",
+                "muir_glacier_block": "0",
+                "berlin_block": "0",
+                "london_block": "0",
+                "arrow_glacier_block": "0",
+                "merge_netsplit_block": "0",
+            },
+            "allow_unprotected_txs": False,
         }
     }

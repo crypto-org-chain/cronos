@@ -8,7 +8,7 @@ let
     };
   }).defaultNix;
   # tag: v0.8.0-gravity-alpha2
-  released = (fetchFlake "crypto-org-chain/cronos" "57260c7c21cdedffd75480e8cb4e8838ea6a16b5").default;
+  released = (fetchFlake "crypto-org-chain/cronos" "6ae1f7c448dc8a4d14c334f2df0be4ec0780a53a").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [

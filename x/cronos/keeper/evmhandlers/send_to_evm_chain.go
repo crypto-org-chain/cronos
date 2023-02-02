@@ -10,43 +10,48 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 
-	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
-var _ types.EvmLogHandler = SendToChainHandler{}
+var _ types.EvmLogHandler = SendToEvmChainHandler{}
 
 const (
-	SendToChainEventName         = "__CronosSendToChain"
-	SendToChainResponseEventName = "__CronosSendToChainResponse"
+	SendToEvmChainEventName         = "__CronosSendToEvmChain"
+	SendToEvmChainResponseEventName = "__CronosSendToEvmChainResponse"
 )
 
 var (
-	// SendToChainEvent represent the signature of
-	// `event __CronosSendToChain(address recipient, uint256 amount, uint256 bridge_fee)`
-	SendToChainEvent abi.Event
+	// SendToEvmChainEvent represent the signature of
+	// `event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData)`
+	SendToEvmChainEvent abi.Event
 
-	// SendToChainResponseEvent represent the signature of
+	// SendToEvmChainResponseEvent represent the signature of
 	// `event __CronosSendToChainResponse(uint256 id)`
-	SendToChainResponseEvent abi.Event
+	SendToEvmChainResponseEvent abi.Event
 )
 
 func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	uint256Type, _ := abi.NewType("uint256", "", nil)
+	bytesType, _ := abi.NewType("bytes", "", nil)
 
-	SendToChainEvent = abi.NewEvent(
-		SendToChainEventName,
-		SendToChainEventName,
+	SendToEvmChainEvent = abi.NewEvent(
+		SendToEvmChainEventName,
+		SendToEvmChainEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "sender",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "recipient",
 			Type:    addressType,
-			Indexed: false,
+			Indexed: true,
+		}, abi.Argument{
+			Name:    "chain_id",
+			Type:    uint256Type,
+			Indexed: true,
 		}, abi.Argument{
 			Name:    "amount",
 			Type:    uint256Type,
@@ -56,14 +61,14 @@ func init() {
 			Type:    uint256Type,
 			Indexed: false,
 		}, abi.Argument{
-			Name:    "chain_id",
-			Type:    uint256Type,
+			Name:    "extraData",
+			Type:    bytesType,
 			Indexed: false,
 		}},
 	)
-	SendToChainResponseEvent = abi.NewEvent(
-		SendToChainResponseEventName,
-		SendToChainResponseEventName,
+	SendToEvmChainResponseEvent = abi.NewEvent(
+		SendToEvmChainResponseEventName,
+		SendToEvmChainResponseEventName,
 		false,
 		abi.Arguments{abi.Argument{
 			Name:    "id",
@@ -73,40 +78,50 @@ func init() {
 	)
 }
 
-// SendToChainHandler handles `__CronosSendToChain` log
-type SendToChainHandler struct {
+// SendToEvmChainHandler handles `__CronosSendToEvmChain` log
+type SendToEvmChainHandler struct {
 	gravitySrv   gravitytypes.MsgServer
 	bankKeeper   types.BankKeeper
 	cronosKeeper cronoskeeper.Keeper
 }
 
-func NewSendToChainHandler(gravitySrv gravitytypes.MsgServer, bankKeeper types.BankKeeper, cronosKeeper cronoskeeper.Keeper) *SendToChainHandler {
-	return &SendToChainHandler{
+func NewSendToEvmChainHandler(gravitySrv gravitytypes.MsgServer, bankKeeper types.BankKeeper, cronosKeeper cronoskeeper.Keeper) *SendToEvmChainHandler {
+	return &SendToEvmChainHandler{
 		gravitySrv:   gravitySrv,
 		bankKeeper:   bankKeeper,
 		cronosKeeper: cronosKeeper,
 	}
 }
 
-func (h SendToChainHandler) EventID() common.Hash {
-	return SendToChainEvent.ID
+func (h SendToEvmChainHandler) EventID() common.Hash {
+	return SendToEvmChainEvent.ID
 }
 
 // Handle `__CronosSendToChain` log only if gravity is activated.
-func (h SendToChainHandler) Handle(
+func (h SendToEvmChainHandler) Handle(
 	ctx sdk.Context,
 	contract common.Address,
+	topics []common.Hash,
 	data []byte,
 	addLogToReceipt func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
 	if h.gravitySrv == nil {
-		return fmt.Errorf("native action %s is not implemented", SendToChainEventName)
+		return fmt.Errorf("native action %s is not implemented", SendToEvmChainEventName)
 	}
 
-	unpacked, err := SendToChainEvent.Inputs.Unpack(data)
+	if len(topics) != 4 {
+		// log and ignore
+		h.cronosKeeper.Logger(ctx).Info("log signature matches but wrong number of indexed events")
+		for i, topic := range topics {
+			h.cronosKeeper.Logger(ctx).Debug(fmt.Sprintf("topic index: %d value: %s", i, topic.TerminalString()))
+		}
+		return nil
+	}
+
+	unpacked, err := SendToEvmChainEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore
-		h.cronosKeeper.Logger(ctx).Info("log signature matches but failed to decode")
+		h.cronosKeeper.Logger(ctx).Error("log signature matches but failed to decode", "error", err)
 		return nil
 	}
 
@@ -120,11 +135,12 @@ func (h SendToChainHandler) Handle(
 	}
 
 	contractCosmosAddr := sdk.AccAddress(contract.Bytes())
-	senderCosmosAddr := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	ethRecipient := unpacked[1].(common.Address)
-	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
-	bridgeFee := sdk.NewIntFromBigInt(unpacked[3].(*big.Int))
-	chainID := sdk.NewIntFromBigInt(unpacked[4].(*big.Int))
+	// needs to crope the extra bytes in the topic and cast to a cosmos address
+	senderCosmosAddr := sdk.AccAddress(common.BytesToAddress(topics[1].Bytes()).Bytes())
+	ethRecipient := common.BytesToAddress(topics[2].Bytes())
+	chainID := sdk.NewIntFromBigInt(new(big.Int).SetBytes(topics[3].Bytes()))
+	amount := sdk.NewIntFromBigInt(unpacked[0].(*big.Int))
+	bridgeFee := sdk.NewIntFromBigInt(unpacked[1].(*big.Int))
 
 	if !chainID.Equal(sdk.NewInt(1)) && !chainID.Equal(sdk.NewInt(3)) &&
 		!chainID.Equal(sdk.NewInt(4)) && !chainID.Equal(sdk.NewInt(5)) {
@@ -159,7 +175,7 @@ func (h SendToChainHandler) Handle(
 		return err
 	}
 
-	logData, _ := SendToChainResponseEvent.Inputs.Pack(big.NewInt(int64(resp.Id)))
-	addLogToReceipt(contract, SendToChainResponseEvent.ID, logData)
+	logData, _ := SendToEvmChainResponseEvent.Inputs.Pack(big.NewInt(int64(resp.Id)))
+	addLogToReceipt(contract, SendToEvmChainResponseEvent.ID, logData)
 	return nil
 }

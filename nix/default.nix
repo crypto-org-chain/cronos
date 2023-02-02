@@ -17,10 +17,10 @@ import sources.nixpkgs {
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo117Module;
+        buildGoModule = pkgs.buildGo118Module;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main { };
+      chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
     }) # update to a version that supports eip-1559
     (import "${sources.gomod2nix}/overlay.nix")
     (pkgs: _:
@@ -37,7 +37,7 @@ import sources.nixpkgs {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = "sha256-ufrwiXlb0RVaJiJ70TCNblhOUCIj7Jht5kX8SoXQQMA";
+        cargoSha256 = "sha256-FQ43PFGbagIi+KZ6KUtjF7OClIkCqKd4pGzHaYr2Q+A=";
         cargoBuildFlags = "-p ${name} --features ethermint";
         buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin
           (with pkgs.darwin.apple_sdk.frameworks; [ CoreFoundation Security ]);
@@ -50,16 +50,12 @@ import sources.nixpkgs {
       };
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
-    (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
-    (_: pkgs: {
-      rocksdb = (pkgs.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
-        pname = "rocksdb";
-        version = "6.29.5";
-        src = sources.rocksdb;
-      });
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
+    (final: _: {
+      rocksdb = final.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })
     (_: pkgs: {
-      cosmovisor = pkgs.buildGo117Module rec {
+      cosmovisor = pkgs.buildGo118Module rec {
         name = "cosmovisor";
         src = sources.cosmos-sdk + "/cosmovisor";
         subPackages = [ "./cmd/cosmovisor" ];

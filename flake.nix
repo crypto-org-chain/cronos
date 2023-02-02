@@ -1,23 +1,19 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
       flake = false;
     };
     gomod2nix = {
-      url = "github:yihuang/gomod2nix";
+      url = "github:nix-community/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.utils.follows = "flake-utils";
     };
-    rocksdb-src = {
-      url = "github:facebook/rocksdb/v6.29.5";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, rocksdb-src }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
     let
       rev = self.shortRev or "dirty";
       mkApp = drv: {
@@ -58,7 +54,7 @@
         }
       )
     ) // {
-      overlay = final: prev: {
+      overlay = final: _: {
         bundle-exe = import nix-bundle-exe { pkgs = final; };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
@@ -67,11 +63,7 @@
             --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
             | "${gzip}/bin/gzip" -9 > $out
         '';
-        rocksdb = (prev.rocksdb.override { enableJemalloc = true; }).overrideAttrs (old: rec {
-          pname = "rocksdb";
-          version = "6.29.5";
-          src = rocksdb-src;
-        });
+        rocksdb = final.callPackage ./nix/rocksdb.nix { enableJemalloc = true; };
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {

@@ -8,9 +8,9 @@ contract ModuleCRC21 is DSToken {
     string denom;
     bool isSource;
 
-    event __CronosSendToIbc(address sender, string recipient, uint256 amount);
-    event __CronosSendToChain(address sender, address recipient, uint256 amount, uint256 bridge_fee, uint256 chain_id);
-    event __CronosCancelSendToChain(address sender, uint256 id);
+    event __CronosSendToIbc(address indexed sender, uint256 indexed channel_id, string recipient, uint256 amount, bytes extraData);
+    event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
+    event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
     constructor(string memory denom_, uint8 decimals_, bool isSource_) DSToken(denom_) public {
         decimals = decimals_;
@@ -57,28 +57,28 @@ contract ModuleCRC21 is DSToken {
     **/
 
     // send an "amount" of the contract token to recipient through IBC
-    function send_to_ibc(string memory recipient, uint amount) public {
+    function send_to_ibc(string memory recipient, uint amount, uint channel_id, bytes memory extraData) public {
         if (isSource) {
             transferFrom(msg.sender, module_address, amount);
         } else {
             unsafe_burn(msg.sender, amount);
         }
-        emit __CronosSendToIbc(msg.sender, recipient, amount);
+        emit __CronosSendToIbc(msg.sender, channel_id, recipient, amount, extraData);
     }
 
     // send to another chain through gravity bridge
-    function send_to_chain(address recipient, uint amount, uint bridge_fee, uint chain_id) external {
+    function send_to_evm_chain(address recipient, uint amount, uint chain_id, uint bridge_fee, bytes calldata extraData) external {
         if (isSource) {
             transferFrom(msg.sender, module_address, add(amount, bridge_fee));
         } else {
             unsafe_burn(msg.sender, add(amount, bridge_fee));
         }
-        emit __CronosSendToChain(msg.sender, recipient, amount, bridge_fee, chain_id);
+        emit __CronosSendToEvmChain(msg.sender, recipient, chain_id, amount, bridge_fee, extraData);
     }
 
     // cancel a send to chain transaction considering if it hasnt been batched yet.
-    function cancel_send_to_chain(uint256 id) external {
-        emit __CronosCancelSendToChain(msg.sender, id);
+    function cancel_send_to_evm_chain(uint256 id) external {
+        emit __CronosCancelSendToEvmChain(msg.sender, id);
     }
 
     /**

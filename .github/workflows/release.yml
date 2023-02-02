@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
       - name: setup release environment
@@ -32,24 +32,46 @@ jobs:
     runs-on: ${{ matrix.os }}
     environment: release
     steps:
-      - uses: cachix/install-nix-action@v16
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
         with:
           nix_path: nixpkgs=channel:nixos-21.11
-      - uses: cachix/cachix-action@v10
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: apple-actions/import-codesign-certs@v1
+        if: matrix.os == 'macos-latest'
+        with:
+          p12-file-base64: ${{ secrets.MAC_CODE_SIGN_CERT }}
+          p12-password: ${{ secrets.MAC_CODE_SIGN_CERT_PASS }}
+      - uses: cachix/cachix-action@v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: build linux/mac x86_64 binaries
+        env:
+          MAC_CODE_API_KEY: ${{ secrets.MAC_CODE_API_KEY }}
+          MAC_CODE_API_KEY_ID: ${{ secrets.MAC_CODE_API_KEY_ID }}
+          MAC_CODE_API_ISSUER_ID: ${{ secrets.MAC_CODE_API_ISSUER_ID }}
+          MAC_CODE_API_DEVELOPER_ID: ${{ secrets.MAC_CODE_API_DEVELOPER_ID }}
         run: |
           PLATFORM="$(uname -s)_x86_64"
           BUILD_TYPE="tarball"
           FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
 
-          nix build -L ${FLAKE}#cronosd-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
+          build() {
+            NETWORK=$1
+            nix build -L "${FLAKE}#cronosd${NETWORK}-${BUILD_TYPE}"
+            OUTPUT="cronos_${GITHUB_REF_NAME:1}${NETWORK}_${PLATFORM}"
+            if [ "$(uname -s)" == "Darwin" ]; then
+              ./scripts/codesign_macos.sh ./result
+              mv signed.tar.gz "$OUTPUT.tar.gz"
+            else
+              cp result "$OUTPUT.tar.gz"
+            fi
+          }
 
-          nix build -L ${FLAKE}#cronosd-testnet-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
+          build ""
+          build "-testnet"
 
           nix-env -i coreutils -f '<nixpkgs>'
           sha256sum *.tar.gz > "checksums-$PLATFORM.txt"
@@ -70,13 +92,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: cachix/install-nix-action@v16
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-21.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - run: |
          DEBIAN_FRONTEND=noninteractive
          sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
          mkdir -p ~/.config/nix
          sudo bash -c "echo system-features = aarch64-linux arm-linux >> /etc/nix/nix.conf"
-      - uses: cachix/cachix-action@v10
+      - uses: cachix/cachix-action@v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -112,7 +138,7 @@ jobs:
     environment: release    
     steps:
       - name: get source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
       - name: setup msys2

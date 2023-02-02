@@ -5,14 +5,15 @@ import (
 	"testing"
 	"time"
 
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
-	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +27,12 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	"github.com/tendermint/tendermint/version"
 
-	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/v2/app"
+)
+
+const (
+	denom        = "testdenom"
+	denomGravity = "gravity0x0000000000000000000000000000000000000000"
 )
 
 func TestKeeperTestSuite(t *testing.T) {
@@ -91,6 +97,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 
 	valAddr := sdk.ValAddress(suite.address.Bytes())
 	validator, err := stakingtypes.NewValidator(valAddr, priv.PubKey(), stakingtypes.Description{})
+	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
 	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
@@ -117,7 +124,8 @@ func (suite *KeeperTestSuite) MintCoins(address sdk.AccAddress, coins sdk.Coins)
 }
 
 func (suite *KeeperTestSuite) RegisterSourceToken(
-	contractAddress, symbol string, decimal uint32) error {
+	contractAddress, symbol string, decimal uint32,
+) error {
 	denom := "cronos" + contractAddress
 	msg := types.MsgUpdateTokenMapping{
 		Denom:    denom,
@@ -129,8 +137,8 @@ func (suite *KeeperTestSuite) RegisterSourceToken(
 }
 
 func (suite *KeeperTestSuite) TestDenomContractMap() {
-	denom1 := "testdenom1"
-	denom2 := "testdenom2"
+	denom1 := denom + "1"
+	denom2 := denom + "2"
 
 	autoContract := common.BigToAddress(big.NewInt(1))
 	externalContract := common.BigToAddress(big.NewInt(2))
@@ -144,12 +152,12 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			func() {
 				keeper := suite.app.CronosKeeper
 
-				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
+				_, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().False(found)
 
 				keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
 
-				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
+				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().True(found)
 				suite.Require().Equal(autoContract, contract)
 
@@ -264,12 +272,12 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			suite.app.CronosKeeper = cronosKeeper
 
@@ -408,12 +416,12 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				app.MakeEncodingConfig().Codec,
 				suite.app.GetKey(types.StoreKey),
 				suite.app.GetKey(types.MemStoreKey),
-				suite.app.GetSubspace(types.ModuleName),
 				suite.app.BankKeeper,
 				keepertest.IbcKeeperMock{},
 				suite.app.GravityKeeper,
 				suite.app.EvmKeeper,
 				suite.app.AccountKeeper,
+				authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 			)
 			suite.app.CronosKeeper = cronosKeeper
 

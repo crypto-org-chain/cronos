@@ -6,19 +6,32 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	transferTypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmTypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // GetParams returns the total set of cronos parameters.
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
-	k.paramSpace.GetParamSet(ctx, &params)
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.ParamsKey)
+	if bz == nil {
+		return params
+	}
+	k.cdc.MustUnmarshal(bz, &params)
 	return params
 }
 
 // SetParams sets the total set of cronos parameters.
-func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
-	k.paramSpace.SetParamSet(ctx, &params)
+func (k Keeper) SetParams(ctx sdk.Context, params types.Params) error {
+	if err := params.Validate(); err != nil {
+		return err
+	}
+
+	store := ctx.KVStore(k.storeKey)
+	bz := k.cdc.MustMarshal(&params)
+	store.Set(types.ParamsKey, bz)
+
+	return nil
 }
 
 // GetEvmParams returns the total set of evm parameters.

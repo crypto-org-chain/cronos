@@ -10,6 +10,7 @@ from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
+DEFAULT_GAS = "250000"
 
 
 class ModuleAccount(enum.Enum):
@@ -155,13 +156,18 @@ class CosmosCLI:
     def block_time(self):
         return isoparse(self.status()["SyncInfo"]["latest_block_time"])
 
-    def balances(self, addr):
+    def balances(self, addr, height=0):
         return json.loads(
-            self.raw("query", "bank", "balances", addr, home=self.data_dir)
+            self.raw(
+                "query", "bank", "balances", addr, height=height, home=self.data_dir
+            )
         )["balances"]
 
-    def balance(self, addr, denom="basetcro"):
-        denoms = {coin["denom"]: int(coin["amount"]) for coin in self.balances(addr)}
+    def balance(self, addr, denom="basetcro", height=0):
+        denoms = {
+            coin["denom"]: int(coin["amount"])
+            for coin in self.balances(addr, height=height)
+        }
         return denoms.get(denom, 0)
 
     def query_tx(self, tx_type, tx_value):
@@ -690,6 +696,7 @@ class CosmosCLI:
 
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(
@@ -1022,6 +1029,9 @@ class CosmosCLI:
     def query_gravity_params(self):
         return json.loads(self.raw("query", "gravity", "params", home=self.data_dir))
 
+    def query_evm_params(self):
+        return json.loads(self.raw("query", "evm", "params", home=self.data_dir))
+
     def query_signer_set_txs(self):
         return json.loads(
             self.raw("query", "gravity", "signer-set-txs", home=self.data_dir)
@@ -1079,14 +1089,17 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_token_mapping_change(
-        self, denom, contract, symbol, decimal, **kwargs
-    ):
-        default_kwargs = {
+    def get_default_kwargs(self):
+        return {
             "gas_prices": DEFAULT_GAS_PRICE,
             "gas": "auto",
             "gas_adjustment": "1.5",
         }
+
+    def gov_propose_token_mapping_change_legacy(
+        self, denom, contract, symbol, decimal, **kwargs
+    ):
+        default_kwargs = self.get_default_kwargs()
         return json.loads(
             self.raw(
                 "tx",
@@ -1099,6 +1112,21 @@ class CosmosCLI:
                 symbol,
                 "--decimals",
                 decimal,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def submit_gov_proposal(self, proposal, **kwargs):
+        default_kwargs = self.get_default_kwargs()
+        return json.loads(
+            self.raw(
+                "tx",
+                "gov",
+                "submit-proposal",
+                proposal,
                 "-y",
                 home=self.data_dir,
                 stderr=subprocess.DEVNULL,
@@ -1360,6 +1388,70 @@ class CosmosCLI:
                 channel_id,
                 str(packet_seq),
                 "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def query_grant(self, granter, grantee):
+        "query grant details by granter and grantee addresses"
+        return json.loads(
+            self.raw(
+                "query",
+                "feegrant",
+                "grant",
+                granter,
+                grantee,
+                home=self.data_dir,
+            )
+        )
+
+    def query_batches(self):
+        "query all gravity batches"
+        return json.loads(
+            self.raw(
+                "query",
+                "gravity",
+                "batch-txs",
+                home=self.data_dir,
+            )
+        )
+
+    def turn_bridge(self, enable, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "turn-bridge",
+                enable,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
+    def query_params(self):
+        "query cronos params"
+        return json.loads(
+            self.raw(
+                "query",
+                "cronos",
+                "params",
+                home=self.data_dir,
+            )
+        )
+
+    def evm_params(self, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "evm",
+                "params",
                 **(default_kwargs | kwargs),
             )
         )

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	"github.com/spf13/cobra"
@@ -9,7 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // GetQueryCmd returns the cli query commands for this module
@@ -26,9 +27,41 @@ func GetQueryCmd(queryRoute string) *cobra.Command {
 	cmd.AddCommand(
 		GetContractByDenomCmd(),
 		GetDenomByContractCmd(),
+		QueryParamsCmd(),
 	)
 
 	// this line is used by starport scaffolding # 1
+
+	return cmd
+}
+
+// QueryParamsCmd returns the command handler for evidence parameter querying.
+func QueryParamsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "params",
+		Short: "Query the current cronos parameters",
+		Args:  cobra.NoArgs,
+		Long: strings.TrimSpace(`Query the current cronos parameters:
+
+$ <appd> query cronos params
+`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(&res.Params)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd
 }

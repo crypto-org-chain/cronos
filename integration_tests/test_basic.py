@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import web3
+from dateutil.parser import isoparse
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -22,10 +23,13 @@ from .utils import (
     deploy_contract,
     get_receipts_by_block,
     modify_command_in_supervisor_config,
+    parse_events,
     send_transaction,
     send_txs,
     supervisorctl,
     wait_for_block,
+    wait_for_block_time,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -35,6 +39,20 @@ def test_basic(cluster):
     assert w3.eth.chain_id == 777
 
 
+def test_send_transaction(cluster):
+    "test eth_sendTransaction api"
+    w3 = cluster.w3
+    txhash = w3.eth.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": ADDRS["community"],
+            "value": 1000,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+
+
 def test_events(cluster, suspend_capture):
     w3 = cluster.w3
     erc20 = deploy_contract(
@@ -42,11 +60,12 @@ def test_events(cluster, suspend_capture):
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
     )
-    tx = erc20.functions.transfer(ADDRS["community"], 10).buildTransaction(
+    tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
     )
     txreceipt = send_transaction(w3, tx, KEYS["validator"])
     assert len(txreceipt.logs) == 1
+    data = "0x000000000000000000000000000000000000000000000000000000000000000a"
     expect_log = {
         "address": erc20.address,
         "topics": [
@@ -56,7 +75,7 @@ def test_events(cluster, suspend_capture):
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"])),
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["community"])),
         ],
-        "data": "0x000000000000000000000000000000000000000000000000000000000000000a",
+        "data": HexBytes(data),
         "transactionIndex": 0,
         "logIndex": 0,
         "removed": False,
@@ -109,7 +128,7 @@ def test_native_call(cronos):
 
     amount = 100
 
-    tx = contract.functions.test_native_transfer(amount).buildTransaction(
+    tx = contract.functions.test_native_transfer(amount).build_transaction(
         {"from": ADDRS["validator"]}
     )
     receipt = send_transaction(w3, tx)
@@ -403,12 +422,12 @@ def test_exception(cluster):
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
-            w3, contract.functions.transfer(5 * (10**18) - 1).buildTransaction()
+            w3, contract.functions.transfer(5 * (10**18) - 1).build_transaction()
         )
     assert 0 == contract.caller.query()
 
     receipt = send_transaction(
-        w3, contract.functions.transfer(5 * (10**18)).buildTransaction()
+        w3, contract.functions.transfer(5 * (10**18)).build_transaction()
     )
     assert receipt.status == 1, "should be succesfully"
     assert 5 * (10**18) == contract.caller.query()
@@ -428,7 +447,7 @@ def test_refund_unused_gas_when_contract_tx_reverted(cluster):
     balance_bef = w3.eth.get_balance(ADDRS["community"])
     receipt = send_transaction(
         w3,
-        contract.functions.transfer(5 * (10**18) - 1).buildTransaction(
+        contract.functions.transfer(5 * (10**18) - 1).build_transaction(
             {"gas": more_than_enough_gas}
         ),
         key=KEYS["community"],
@@ -451,7 +470,7 @@ def test_message_call(cronos):
         key=KEYS["community"],
     )
     iterations = 13000
-    tx = contract.functions.test(iterations).buildTransaction()
+    tx = contract.functions.test(iterations).build_transaction()
 
     begin = time.time()
     tx["gas"] = w3.eth.estimate_gas(tx)
@@ -483,7 +502,7 @@ def test_suicide(cluster):
 
     tx = destroyer.functions.check_codesize_after_suicide(
         destroyee.address
-    ).buildTransaction()
+    ).build_transaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
@@ -499,14 +518,14 @@ def test_batch_tx(cronos):
     nonce = w3.eth.get_transaction_count(sender)
     info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    deploy_tx = contract.constructor().buildTransaction(
+    deploy_tx = contract.constructor().build_transaction(
         {"from": sender, "nonce": nonce}
     )
     contract = w3.eth.contract(address=contract_address(sender, nonce), abi=info["abi"])
-    transfer_tx1 = contract.functions.transfer(recipient, 1000).buildTransaction(
+    transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
         {"from": sender, "nonce": nonce + 1, "gas": 200000}
     )
-    transfer_tx2 = contract.functions.transfer(recipient, 1000).buildTransaction(
+    transfer_tx2 = contract.functions.transfer(recipient, 1000).build_transaction(
         {"from": sender, "nonce": nonce + 2, "gas": 200000}
     )
 
@@ -626,14 +645,13 @@ def test_log0(cluster):
         Path(__file__).parent
         / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
     )
-    tx = contract.functions.test_log0().buildTransaction({"from": ADDRS["validator"]})
+    tx = contract.functions.test_log0().build_transaction({"from": ADDRS["validator"]})
     receipt = send_transaction(w3, tx, KEYS["validator"])
     assert len(receipt.logs) == 1
     log = receipt.logs[0]
     assert log.topics == []
-    assert (
-        log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
-    )
+    data = "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
+    assert log.data == HexBytes(data)
 
 
 def test_contract(cronos):
@@ -643,7 +661,7 @@ def test_contract(cronos):
     assert "Hello" == contract.caller.greet()
 
     # change
-    tx = contract.functions.setGreeting("world").buildTransaction()
+    tx = contract.functions.setGreeting("world").build_transaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
@@ -709,3 +727,56 @@ def test_replay_protection(cronos):
         match=r"only replay-protected \(EIP-155\) transactions allowed over RPC",
     ):
         w3.eth.send_raw_transaction(HexBytes(raw))
+
+
+def test_submit_any_proposal(cronos, tmp_path):
+    # governance module account as granter
+    cli = cronos.cosmos_cli()
+    granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    grantee_addr = cli.address("signer1")
+
+    # this json can be obtained with `--generate-only` flag for respective cli calls
+    proposal_json = {
+        "messages": [
+            {
+                "@type": "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+                "granter": granter_addr,
+                "grantee": grantee_addr,
+                "allowance": {
+                    "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
+                    "spend_limit": [],
+                    "expiration": None,
+                },
+            }
+        ],
+        "deposit": "1basetcro",
+    }
+    proposal_file = tmp_path / "proposal.json"
+    proposal_file.write_text(json.dumps(proposal_json))
+    rsp = cli.submit_gov_proposal(proposal_file, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # get proposal_id
+    ev = parse_events(rsp["logs"])["submit_proposal"]
+    print(ev)
+    proposal_id = ev["proposal_id"]
+    print("gov proposal submitted", proposal_id)
+
+    wait_for_new_blocks(cli, 1)
+    proposal = cli.query_proposal(proposal_id)
+
+    # each validator vote yes
+    for i in range(len(cronos.config["validators"])):
+        rsp = cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+        assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+    assert (
+        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
+    ), "all validators should have voted yes"
+    print("wait for proposal to be activated")
+    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
+    wait_for_new_blocks(cli, 1)
+
+    grant_detail = cli.query_grant(granter_addr, grantee_addr)
+    assert grant_detail["granter"] == granter_addr
+    assert grant_detail["grantee"] == grantee_addr

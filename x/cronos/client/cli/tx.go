@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -16,7 +17,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	// "github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // GetTxCmd returns the transaction commands for this module
@@ -34,6 +35,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdConvertTokens())
 	cmd.AddCommand(CmdSendToCryptoOrg())
 	cmd.AddCommand(CmdUpdateTokenMapping())
+	cmd.AddCommand(CmdTurnBridge())
 
 	return cmd
 }
@@ -115,6 +117,7 @@ const (
 
 // NewSubmitTokenMappingChangeProposalTxCmd returns a CLI command handler for creating
 // a token mapping change proposal governance transaction.
+// Deprecated: please use submit-proposal instead.
 func NewSubmitTokenMappingChangeProposalTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token-mapping-change [denom] [contract]",
@@ -135,12 +138,12 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 				return err
 			}
 
-			title, err := cmd.Flags().GetString(govcli.FlagTitle)
+			title, err := cmd.Flags().GetString(govcli.FlagTitle) //nolint:staticcheck
 			if err != nil {
 				return err
 			}
 
-			description, err := cmd.Flags().GetString(govcli.FlagDescription)
+			description, err := cmd.Flags().GetString(govcli.FlagDescription) //nolint:staticcheck
 			if err != nil {
 				return err
 			}
@@ -194,8 +197,8 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
-	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")
-	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description")
+	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")             //nolint:staticcheck
+	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description") //nolint:staticcheck
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
 	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
@@ -246,5 +249,33 @@ func CmdUpdateTokenMapping() *cobra.Command {
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
 	cmd.Flags().Uint(FlagDecimals, 0, "The coin decimal")
 
+	return cmd
+}
+
+// CmdTurnBridge returns a CLI command handler for enable or disable the bridge
+func CmdTurnBridge() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "turn-bridge [true/false]",
+		Short: "Turn Bridge",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			enable, err := strconv.ParseBool(args[0])
+			if err != nil {
+				return err
+			}
+			msg := types.NewMsgTurnBridge(clientCtx.GetFromAddress().String(), enable)
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

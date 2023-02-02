@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/crypto-org-chain/cronos/x/cronos/simulation"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/simulation"
 )
 
 // TestParamChanges tests the paramChanges are generated as expected.

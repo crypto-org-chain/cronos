@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/experimental"
-	"github.com/crypto-org-chain/cronos/x/cronos"
+	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/experimental"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/snapshots"
@@ -26,6 +26,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/debug"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/pruning"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -44,7 +45,7 @@ import (
 	servercfg "github.com/evmos/ethermint/server/config"
 	ethermint "github.com/evmos/ethermint/types"
 
-	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/v2/app"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -112,6 +113,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
+	a := appCreator{encodingConfig}
 	rootCmd.AddCommand(
 		ethermintclient.ValidateChainID(
 			WrapInitCmd(app.DefaultNodeHome),
@@ -125,11 +127,16 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		ethermintclient.NewTestnetCmd(app.ModuleBasics, banktypes.GenesisBalancesIterator{}),
 		debug.Cmd(),
 		config.Cmd(),
+		pruning.PruningCmd(a.newApp),
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
-	a := appCreator{encodingConfig}
-	ethermintserver.AddCommands(rootCmd, app.DefaultNodeHome, a.newApp, a.appExport, addModuleInitFlags)
+	opts := ethermintserver.StartOptions{
+		AppCreator:      a.newApp,
+		DefaultNodeHome: app.DefaultNodeHome,
+		DBOpener:        openDB,
+	}
+	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 	experimental.AddCommands(rootCmd)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
@@ -266,6 +273,8 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
 		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
+		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
+		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagDisableIAVLFastNode))),
 	)
 }
 
