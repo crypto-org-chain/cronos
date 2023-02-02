@@ -11,7 +11,7 @@ messages and index transactions. {synopsis}
 ## Pre-requisite Readings
 
 - [Cosmos SDK Events](https://docs.cosmos.network/main/core/events) {prereq}
-- [Ethereum's PubSub JSON-RPC API](https://geth.ethereum.org/docs/rpc/pubsub) {prereq}
+- [Ethereum's PubSub JSON-RPC API](https://geth.ethereum.org/docs/interacting-with-geth/rpc/pubsub) {prereq}
 
 ## Subscribing to Events
 
@@ -22,12 +22,12 @@ This is done by calling the `subscribe` RPC method via Websocket:
 
 ```json
 {
-    "jsonrpc": "2.0",
-    "method": "subscribe",
-    "id": "0",
-    "params": {
-        "query": "tm.event='eventCategory' AND eventType.eventAttribute='attributeValue'"
-    }
+  "jsonrpc": "2.0",
+  "method": "subscribe",
+  "id": "0",
+  "params": {
+    "query": "tm.event='eventCategory' AND eventType.eventAttribute='attributeValue'"
+  }
 }
 ```
 
@@ -47,12 +47,12 @@ has `sender` and `recipient` as `attributes`. Subscribing to this `event` would 
 
 ```json
 {
-    "jsonrpc": "2.0",
-    "method": "subscribe",
-    "id": "0",
-    "params": {
-        "query": "tm.event='Tx' AND ethereum.recipient='hexAddress'"
-    }
+  "jsonrpc": "2.0",
+  "method": "subscribe",
+  "id": "0",
+  "params": {
+    "query": "tm.event='Tx' AND ethereum.recipient='hexAddress'"
+  }
 }
 ```
 
@@ -108,7 +108,7 @@ ws ws://localhost:8080/websocket
 Since Cronos runs uses Tendermint Core as it's consensus Engine and it's built with the Cosmos
 SDK framework, it inherits the event format from them. However, in order to support the native Web3
 compatibility for websockets of the [Ethereum's
-PubSubAPI](https://geth.ethereum.org/docs/rpc/pubsub), Cronos needs to cast the Tendermint
+PubSubAPI](https://geth.ethereum.org/docs/interacting-with-geth/rpc/pubsub), Cronos needs to cast the Tendermint
 responses retrieved into the Ethereum types.
 
 You can start a connection with the Ethereum websocket using the `--json-rpc.ws-address` flag when starting
