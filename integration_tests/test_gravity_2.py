@@ -371,7 +371,8 @@ def test_gravity_detect_malicious_supply(gravity):
 
 
 def test_gravity_non_cosmos_denom(gravity):
-    if not gravity.cronos.enable_auto_deployment:
+    if gravity.cronos.enable_auto_deployment:
+       return
         cronos_cli = gravity.cronos.cosmos_cli()
 
         # deploy test erc20 contract
