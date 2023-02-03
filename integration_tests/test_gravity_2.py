@@ -14,6 +14,7 @@ from .utils import (
     KEYS,
     add_ini_sections,
     deploy_contract,
+    deploy_erc20,
     dump_toml,
     eth_to_bech32,
     send_to_cosmos,
@@ -367,3 +368,64 @@ def test_gravity_detect_malicious_supply(gravity):
 
         # check that balance is still same
         assert cli.balance(eth_to_bech32(recipient), denom=denom) == max_int
+
+
+def test_gravity_non_cosmos_denom(gravity):
+    if gravity.cronos.enable_auto_deployment:
+        return
+
+    cronos_cli = gravity.cronos.cosmos_cli()
+    # deploy test erc20 contract
+    erc20 = deploy_contract(
+        gravity.geth,
+        CONTRACTS["TestERC20A"],
+    )
+    print("send to cronos crc20")
+    recipient = HexBytes(ADDRS["community"])
+    balance = erc20.caller.balanceOf(ADDRS["validator"])
+    assert balance == 100000000000000000000000000
+    amount = 100
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"]
+    )
+    assert txreceipt.status == 1, "should success"
+    assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+    denom = f"gravity{erc20.address}"
+
+    def check_gravity_native_tokens():
+        "check the balance of gravity native token"
+        return cronos_cli.balance(eth_to_bech32(recipient), denom=denom) == amount
+
+    wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
+
+    # Deploy a bad cosmos erc20 token with single character
+    # Cosmos denom must be 3 ~ 128 characters long and support letters,
+    # followed by either a letter, a number or a separator
+    # ('/', ':', '.', '_' or '-').
+    print("Deploy cosmos erc20 contract on ethereum")
+    tx_receipt = deploy_erc20(
+        gravity.contract, gravity.geth, "A", "A", "DOG", 6, KEYS["validator"]
+    )
+    assert tx_receipt.status == 1, "should success"
+
+    # Wait enough for orchestrator to relay the event
+    wait_for_new_blocks(cronos_cli, 30)
+
+    # Send again token to cronos and verify that the network is not stopped
+    print("send to cronos crc20")
+    recipient = HexBytes(ADDRS["community"])
+    balance = erc20.caller.balanceOf(ADDRS["validator"])
+    txreceipt = send_to_cosmos(
+        gravity.contract, erc20, gravity.geth, recipient, amount, KEYS["validator"]
+    )
+    assert txreceipt.status == 1, "should success"
+    assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
+
+    denom = f"gravity{erc20.address}"
+
+    def check_gravity_native_tokens():
+        "check the balance of gravity native token"
+        return cronos_cli.balance(eth_to_bech32(recipient), denom=denom) == 2 * amount
+
+    wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
