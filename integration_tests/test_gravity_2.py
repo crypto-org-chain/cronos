@@ -398,7 +398,9 @@ def test_gravity_non_cosmos_denom(gravity):
 
         wait_for_fn("send-to-gravity-native", check_gravity_native_tokens)
 
-        # Deploy a bad cosmos erc20 token
+        # Deploy a bad cosmos erc20 token with single character
+        # Cosmos denom must be 3 ~ 128 characters long and support letters, followed by either
+	# a letter, a number or a separator ('/', ':', '.', '_' or '-').
         print("Deploy cosmos erc20 contract on ethereum")
         tx_receipt = deploy_erc20(
             gravity.contract, gravity.geth, "A", "A", "DOG", 6, KEYS["validator"]
