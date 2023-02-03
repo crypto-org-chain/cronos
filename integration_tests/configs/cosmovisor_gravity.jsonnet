@@ -6,6 +6,7 @@ config {
       'minimum-gas-prices': '100000000000basetcro',
       store:: super.store,
       streamers:: super.streamers,
+      'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
     genesis+: {
       app_state+: {

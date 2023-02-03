@@ -104,15 +104,15 @@ schema = 3
     version = "v1.0.0-alpha8"
     hash = "sha256-iXzXoS5Kfh5DBy+PhdFWraDWXda/3M4j7j4VECjv4CA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.9-0.20230130122755-5e7dcbcce1e9"
-    hash = "sha256-Mh9MYorO+CoqBfEFPbNdPfz9Lebkdwg2KuSFJZOIFCE="
+    version = "v0.46.9-rc.0"
+    hash = "sha256-V/ghG07THSmbU6C1p/bAHnLnGuHdJafAChqfl4RMlHY="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
   [mod."github.com/cosmos/iavl"]
-    version = "v0.19.5-rc.1"
-    hash = "sha256-ArjdhXTJPT4RsOfZ/voQ+XWvMQou3IGTQ14QyHpNm4c="
+    version = "v0.19.5"
+    hash = "sha256-8PerCyxQrBCtr2zkhgriqauhCSoIe580dsYpZ44o+cE="
   [mod."github.com/cosmos/ibc-go/v5"]
     version = "v5.2.0"
     hash = "sha256-Gfqhdz9ZKEgb7LCkHiXCwYZYUYluQ+vMew/GkssfVj8="
