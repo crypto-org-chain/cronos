@@ -1,24 +1,56 @@
 package app
 
 import (
+	"fmt"
+
+	sdkmath "cosmossdk.io/math"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
 )
 
 func (app *App) RegisterUpgradeHandlers() {
-	upgradeHandlerV2 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+	upgradeHandlerV1 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
 		}
-		gravParams := app.GravityKeeper.GetParams(ctx)
-		gravParams.GravityId = "cronos_gravity_testnet"
-		// can be activated later on
-		gravParams.BridgeActive = false
-		app.GravityKeeper.SetParams(ctx, gravParams)
+		// clear extra_eips from evm parameters
+		// Ref: https://github.com/crypto-org-chain/cronos/issues/755
+		params := app.EvmKeeper.GetParams(ctx)
+		params.ExtraEIPs = []int64{}
+
+		// fix the incorrect value on testnet parameters
+		zero := sdkmath.ZeroInt()
+		params.ChainConfig.LondonBlock = &zero
+
+		app.EvmKeeper.SetParams(ctx, params)
 		return m, nil
 	}
-	planName := "v2.0.0"
-	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV2)
+	// `v1.0.0` upgrade plan will clear the `extra_eips` parameters, and upgrade ibc-go to v5.2.0.
+	planName := "v1.0.0"
+	app.UpgradeKeeper.SetUpgradeHandler(planName, upgradeHandlerV1)
+	// "v1.0.0-testnet3-2" is another coordinated upgrade on testnet3 to upgrade ibc-go to "v5.2.0".
+	planNameTestnet3 := "v1.0.0-testnet3-2"
+	app.UpgradeKeeper.SetUpgradeHandler(planNameTestnet3, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.mm.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))
+	}
+
+	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		if upgradeInfo.Name == planName {
+			storeUpgrades := storetypes.StoreUpgrades{
+				Added: []string{ibcfeetypes.StoreKey},
+			}
+
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		}
+	}
 }
