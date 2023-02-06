@@ -28,10 +28,10 @@ const (
 	SizeKeyLength = 4
 )
 
-func ConvertToSSTTSCmd(appCreator types.AppCreator) *cobra.Command {
+func BuildVersionDBSSTCmd(appCreator types.AppCreator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "convert-to-sst changeSetDir sstDir",
-		Short: "Convert change set files to versiondb/rocksdb sst files, which can be ingested into versiondb later",
+		Use:   "build-versiondb-sst changeSetDir sstDir",
+		Short: "Build versiondb rocksdb sst files from changesets, different stores can run in parallel, the sst files are used to rebuild versiondb later",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sstFileSize, err := cmd.Flags().GetUint64(flagSSTFileSize)
@@ -84,42 +84,29 @@ func ConvertToSSTTSCmd(appCreator types.AppCreator) *cobra.Command {
 	return cmd
 }
 
-// convertSingleStore handles a single store, can run in parallel with other stores
+// convertSingleStore handles a single store, can run in parallel with other stores,
+// it starts extra goroutines for parallel pipeline.
 func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
-	// scan directory to find the change set files
-	storeDir := filepath.Join(changeSetDir, store)
-	entries, err := os.ReadDir(storeDir)
-	if err != nil {
-		return err
-	}
-	fileNames := make([]string, len(entries))
-	for i, entry := range entries {
-		fileNames[i] = filepath.Join(storeDir, entry.Name())
-	}
-	csFiles, err := SortFilesByFirstVerson(fileNames)
+	csFiles, err := scanChangeSetFiles(changeSetDir, store)
 	if err != nil {
 		return err
 	}
 
 	prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-
 	isEmpty := true
 
-	sorter := extsort.New(sstDir, extsort.Options{
+	inputChan, outputChan := extsort.Spawn(sstDir, extsort.Options{
 		MaxChunkSize:      sorterChunkSize,
 		LesserFunc:        compareSorterItem,
 		DeltaEncoding:     true,
 		SnappyCompression: true,
-	})
-	defer sorter.Close()
+	}, PipelineBufferSize)
+
 	for _, file := range csFiles {
 		if err := withChangeSetFile(file.FileName, func(reader Reader) error {
 			_, err := IterateChangeSets(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 				for _, pair := range changeSet.Pairs {
-					item := encodeSorterItem(uint64(version), pair)
-					if err := sorter.Feed(item); err != nil {
-						return false, err
-					}
+					inputChan <- encodeSorterItem(uint64(version), pair)
 					isEmpty = false
 				}
 				return true, nil
@@ -134,11 +121,6 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 	if isEmpty {
 		// SSTFileWriter don't support writing empty files, so we stop early here.
 		return nil
-	}
-
-	mergedReader, err := sorter.Finalize()
-	if err != nil {
-		return err
 	}
 
 	sstWriter := newSSTFileWriter()
@@ -158,18 +140,10 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 	}
 
 	var lastKey []byte
-	for {
-		item, err := mergedReader.Next()
-		if err != nil {
-			return err
-		}
-		if item == nil {
-			break
-		}
-
+	for item := range outputChan {
 		ts, pair := decodeSorterItem(item)
 
-		// Only breakup sst file when the next key different, don't cause overlap in keys without the timestamp part in sst files,
+		// Only breakup sst file when the user-key(without timestamp) is different,
 		// because the rocksdb ingestion logic checks for overlap in keys without the timestamp part currently.
 		if sstWriter.FileSize() >= sstFileSize && !bytes.Equal(lastKey, pair.Key) {
 			if err := sstWriter.Finish(); err != nil {
@@ -193,6 +167,22 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 		lastKey = pair.Key
 	}
 	return sstWriter.Finish()
+}
+
+// scanChangeSetFiles find change set files from the directory and sort them by the first version included, filter out
+// empty files.
+func scanChangeSetFiles(changeSetDir, store string) ([]FileWithVersion, error) {
+	// scan directory to find the change set files
+	storeDir := filepath.Join(changeSetDir, store)
+	entries, err := os.ReadDir(storeDir)
+	if err != nil {
+		return nil, err
+	}
+	fileNames := make([]string, len(entries))
+	for i, entry := range entries {
+		fileNames[i] = filepath.Join(storeDir, entry.Name())
+	}
+	return SortFilesByFirstVerson(fileNames)
 }
 
 // sstFileName inserts the seq integer into the base file name

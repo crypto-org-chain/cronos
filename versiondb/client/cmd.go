@@ -15,10 +15,10 @@ func ChangeSetGroupCmd(appCreator types.AppCreator) *cobra.Command {
 		DumpChangeSetCmd(appCreator),
 		PrintChangeSetCmd(),
 		VerifyChangeSetCmd(appCreator),
-		ConvertToSSTTSCmd(appCreator),
+		BuildVersionDBSSTCmd(appCreator),
+		IngestVersionDBSSTCmd(),
 		ChangeSetToVersionDBCmd(),
-		IngestSSTCmd(),
-		RestoreAppDB(appCreator),
+		RestoreAppDBCmd(appCreator),
 	)
 	return cmd
 }

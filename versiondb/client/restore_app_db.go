@@ -47,7 +47,7 @@ var (
 	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
 )
 
-func RestoreAppDB(appCreator types.AppCreator) *cobra.Command {
+func RestoreAppDBCmd(appCreator types.AppCreator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore-app-db snapshot-dir application.db",
 		Short: "Restore `application.db` from memiavl snapshots",

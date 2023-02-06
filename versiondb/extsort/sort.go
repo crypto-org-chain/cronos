@@ -62,6 +62,45 @@ func New(tmpDir string, opts Options) *ExtSorter {
 	}
 }
 
+// Spawn spawns a new goroutine to do the external sorting,
+// returns two channels for user to interact.
+func Spawn(tmpDir string, opts Options, bufferSize int) (chan []byte, chan []byte) {
+	inputChan := make(chan []byte, bufferSize)
+	outputChan := make(chan []byte, bufferSize)
+
+	go func() {
+		defer close(outputChan)
+
+		sorter := New(tmpDir, opts)
+		defer sorter.Close()
+
+		for bz := range inputChan {
+			if err := sorter.Feed(bz); err != nil {
+				panic(err)
+			}
+		}
+
+		reader, err := sorter.Finalize()
+		if err != nil {
+			panic(err)
+		}
+
+		for {
+			item, err := reader.Next()
+			if err != nil {
+				panic(err)
+			}
+			if item == nil {
+				break
+			}
+
+			outputChan <- item
+		}
+	}()
+
+	return inputChan, outputChan
+}
+
 // Feed add un-ordered items to the sorter.
 func (s *ExtSorter) Feed(item []byte) error {
 	if len(item) > math.MaxUint32 {
