@@ -25,7 +25,8 @@ def test_versiondb_migration(cronos: Cronos):
     old_balance = w3.eth.get_balance(ADDRS["community"])
 
     # stop the network first
-    cronos.supervisorctl("stop", "all")
+    print("stop all nodes")
+    print(cronos.supervisorctl("stop", "all"))
     cli = cronos.cosmos_cli(i=1)
 
     changeset_dir = tempfile.mkdtemp(dir=cronos.base_dir)
@@ -40,7 +41,8 @@ def test_versiondb_migration(cronos: Cronos):
     shutil.rmtree(app_db)
     print(cli.changeset_restore_app_db(snapshot_dir, app_db))
 
-    cronos.supervisorctl("start", "all")
+    print("start all nodes")
+    print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
     wait_for_port(ports.evmrpc_port(cronos.base_port(1)))
 
     # check query still works, node1 don't enable versiondb,
@@ -52,8 +54,8 @@ def test_versiondb_migration(cronos: Cronos):
     w3.eth.wait_for_transaction_receipt(
         w3.eth.send_transaction(
             {
-                "from": ADDRS["validator"],
-                "to": ADDRS["community"],
+                "from": ADDRS["community"],
+                "to": ADDRS["validator"],
                 "value": 1000,
             }
         )
