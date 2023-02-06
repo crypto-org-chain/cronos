@@ -1378,14 +1378,18 @@ class CosmosCLI:
             )
         )
 
-    def changeset_dump(self):
-        pass
+    def changeset_dump(self, changeset_dir, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
+        return self.raw(
+            "changeset", "dump", changeset_dir, **(default_kwargs | kwargs)
+        ).decode()
 
-    def changeset_verify(self):
-        pass
+    def changeset_verify(self, changeset_dir, **kwargs):
+        return self.raw("changeset", "verify", changeset_dir, **kwargs).decode()
 
-    def changeset_to_versiondb(self):
-        pass
-
-    def changeset_to_iavl(self):
-        pass
+    def changeset_restore_app_db(self, snapshot_dir, app_db, **kwargs):
+        return self.raw(
+            "changeset", "restore-app-db", snapshot_dir, app_db, **kwargs
+        ).decode()
