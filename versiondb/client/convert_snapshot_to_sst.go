@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/iavl"
@@ -25,10 +25,9 @@ import (
 
 var (
 	int64Size = 8
-	hashSize  = sha256.Size
 
-	nodeKeyFormat = iavl.NewKeyFormat('n', hashSize)  // n<hash>
-	rootKeyFormat = iavl.NewKeyFormat('r', int64Size) // r<version>
+	nodeKeyFormat = iavl.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
+	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
 )
 
 func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
@@ -73,7 +72,11 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 				})
 			}
 
-			return group.Wait()
+			if err := group.Wait(); err != nil {
+				return errors.Wrap(err, "worker pool wait fail")
+			}
+
+			return nil
 		},
 	}
 
@@ -91,7 +94,7 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 
 	snapshot, err := memiavl.OpenSnapshot(filepath.Join(snapshotDir, store))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "open snapshot fail: %s", store)
 	}
 	defer snapshot.Close()
 
@@ -104,7 +107,7 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 	if err := snapshot.ScanNodes(func(node memiavl.PersistedNode) error {
 		bz, err := encodeSorterNode(node)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "encode sorter node")
 		}
 		isEmpty = false
 		return sorter.Feed(bz)
@@ -121,8 +124,9 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 
 	sstSeq := 0
 	openNextFile := func() error {
-		if err := sstWriter.Open(filepath.Join(sstDir, sstFileName(store, sstSeq))); err != nil {
-			return err
+		sstFileName := filepath.Join(sstDir, sstFileName(store, sstSeq))
+		if err := sstWriter.Open(sstFileName); err != nil {
+			return errors.Wrapf(err, "open sst file fail: %s", sstFileName)
 		}
 		sstSeq++
 		return nil
@@ -146,12 +150,12 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 		value := item[memiavl.SizeHash:]
 		key := cloneAppend(prefix, nodeKeyFormat.Key(hash))
 		if err := sstWriter.Put(key, value); err != nil {
-			return err
+			return errors.Wrap(err, "sst write node fail")
 		}
 
 		if sstWriter.FileSize() >= sstFileSizeTarget {
 			if err := sstWriter.Finish(); err != nil {
-				return err
+				return errors.Wrap(err, "sst writer finish fail")
 			}
 			if err := openNextFile(); err != nil {
 				return err
@@ -160,12 +164,16 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 	}
 
 	// root record
-	rootKey := cloneAppend(prefix, rootKeyFormat.Key(snapshot.Version))
+	rootKey := cloneAppend(prefix, rootKeyFormat.Key(snapshot.Version()))
 	if err := sstWriter.Put(rootKey, snapshot.RootNode().Hash()); err != nil {
-		return err
+		return errors.Wrap(err, "sst write root fail")
 	}
 
-	return sstWriter.Finish()
+	if err := sstWriter.Finish(); err != nil {
+		return errors.Wrap(err, "sst writer finish fail")
+	}
+
+	return nil
 }
 
 func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {

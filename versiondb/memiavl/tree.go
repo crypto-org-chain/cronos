@@ -7,7 +7,8 @@ var emptyHash = sha256.New().Sum(nil)
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
 	version int64
-	root    Node
+	// root node of empty tree is represented as `nil`
+	root Node
 
 	initialVersion int64
 }
@@ -37,12 +38,8 @@ func LoadTreeFromSnapshot(snapshotDir string) (*Tree, *Snapshot, error) {
 		return nil, nil, err
 	}
 
-	if snapshot == nil {
-		return NewEmptyTree(int64(snapshot.Version)), nil, err
-	}
-
 	return &Tree{
-		version: int64(snapshot.Version),
+		version: int64(snapshot.Version()),
 		root:    snapshot.RootNode(),
 	}, snapshot, nil
 }

@@ -25,7 +25,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	require.Equal(t, tree.RootHash(), tree2.RootHash())
 
 	// verify all the node hashes in snapshot
-	for i := 0; i < snapshot.NodesLen(); i++ {
+	for i := 0; i < snapshot.nodesLen(); i++ {
 		node := snapshot.Node(uint32(i))
 		require.Equal(t, node.Hash(), HashNode(node))
 	}
