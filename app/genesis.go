@@ -16,6 +16,6 @@ import (
 type GenesisState map[string]json.RawMessage
 
 // NewDefaultGenesisState generates the default state for the application.
-func NewDefaultGenesisState(cdc codec.JSONCodec, experimental bool) GenesisState {
-	return GenModuleBasics(experimental).DefaultGenesis(cdc)
+func NewDefaultGenesisState(cdc codec.JSONCodec) GenesisState {
+	return GenModuleBasics().DefaultGenesis(cdc)
 }

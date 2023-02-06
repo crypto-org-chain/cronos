@@ -35,7 +35,6 @@ var (
 )
 
 const (
-	ExperimentalFlag = "unsafe-experimental"
 	ConsensusVersion = 2
 )
 
@@ -52,7 +51,6 @@ func NewAppModuleBasic() AppModuleBasic {
 
 // AddModuleInitFlags implements servertypes.ModuleInitFlags interface.
 func AddModuleInitFlags(startCmd *cobra.Command) {
-	startCmd.Flags().Bool(ExperimentalFlag, false, "Start the node with experimental features")
 }
 
 // Name returns the capability module's name.

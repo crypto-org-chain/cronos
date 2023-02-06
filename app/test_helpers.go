@@ -25,7 +25,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/simapp/helpers"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -36,7 +35,6 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -64,35 +62,19 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 	},
 }
 
-// ExperimentalAppOptions is a stub implementing AppOptions
-type ExperimentalAppOptions struct{}
-
-// Get implements AppOptions
-func (ao ExperimentalAppOptions) Get(o string) interface{} {
-	if o == cronos.ExperimentalFlag {
-		return true
-	}
-	return nil
-}
-
-func setup(withGenesis bool, invCheckPeriod uint, experimental bool) (*App, GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := MakeEncodingConfig()
-	var appOption servertypes.AppOptions
-	if experimental {
-		appOption = ExperimentalAppOptions{}
-	} else {
-		appOption = EmptyAppOptions{}
-	}
+	appOption := EmptyAppOptions{}
 	app := New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, invCheckPeriod, encCdc, appOption)
 	if withGenesis {
-		return app, NewDefaultGenesisState(encCdc.Codec, experimental)
+		return app, NewDefaultGenesisState(encCdc.Codec)
 	}
 	return app, GenesisState{}
 }
 
 // Setup initializes a new App. A Nop logger is set in App.
-func Setup(t *testing.T, cronosAdmin string, experimental bool) *App {
+func Setup(t *testing.T, cronosAdmin string) *App {
 	t.Helper()
 
 	privVal := mock.NewPV()
@@ -110,17 +92,17 @@ func Setup(t *testing.T, cronosAdmin string, experimental bool) *App {
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(100000000000000))),
 	}
-	return SetupWithGenesisValSet(t, cronosAdmin, experimental, valSet, []authtypes.GenesisAccount{acc}, balance)
+	return SetupWithGenesisValSet(t, cronosAdmin, valSet, []authtypes.GenesisAccount{acc}, balance)
 }
 
 // SetupWithGenesisValSet initializes a new App with a validator set and genesis accounts
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit (10^6) in the default token of the simapp from first genesis
 // account. A Nop logger is set in App.
-func SetupWithGenesisValSet(t *testing.T, cronosAdmin string, experimental bool, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
+func SetupWithGenesisValSet(t *testing.T, cronosAdmin string, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
 	t.Helper()
 
-	app, genesisState := setup(true, 5, experimental)
+	app, genesisState := setup(true, 5)
 	genesisState = genesisStateWithValSet(t, app, genesisState, valSet, genAccs, balances...)
 
 	cronosGen := cronostypes.DefaultGenesis()
@@ -215,7 +197,7 @@ func genesisStateWithValSet(t *testing.T,
 // SetupWithGenesisAccounts initializes a new App with the provided genesis
 // accounts and possible balances.
 func SetupWithGenesisAccounts(genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
-	app, genesisState := setup(true, 0, true)
+	app, genesisState := setup(true, 0)
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)
 
