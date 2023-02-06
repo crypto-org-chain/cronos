@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	"golang.org/x/exp/slices"
@@ -875,16 +874,6 @@ func (app *App) InterfaceRegistry() types.InterfaceRegistry {
 // NOTE: This is solely to be used for testing purposes.
 func (app *App) GetKey(storeKey string) *storetypes.KVStoreKey {
 	return app.keys[storeKey]
-}
-
-// GetStores return sorted list of IAVL store names
-func (app *App) GetStores() []string {
-	var stores []string
-	for key := range app.keys {
-		stores = append(stores, key)
-	}
-	sort.Strings(stores)
-	return stores
 }
 
 // GetTKey returns the TransientStoreKey for the provided store key.
