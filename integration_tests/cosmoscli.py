@@ -1404,7 +1404,7 @@ class CosmosCLI:
         ).decode()
 
     def changeset_ingest_versiondb_sst(self, versiondb_dir, sst_dir, **kwargs):
-        sst_files = os.listdir(sst_dir)
+        sst_files = [os.path.join(sst_dir, name) for name in os.listdir(sst_dir)]
         return self.raw(
             "changeset",
             "ingest-versiondb-sst",
