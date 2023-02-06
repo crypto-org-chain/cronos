@@ -103,13 +103,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    # estimateGas for an erc20 transfer tx
-    old_gas = contract.functions.transfer(ADDRS["community"], 100).build_transaction(
-        {"from": ADDRS["validator"]}
-    )["gas"]
-
-    plan_name = "v1.0.0"
-    rsp = cli.gov_propose_v0_7(
+    plan_name = "v2.0.0-testnet3"
+    rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
         {
@@ -124,7 +119,6 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
 
     # get proposal_id
     ev = parse_events(rsp["logs"])["submit_proposal"]
-    assert ev["proposal_type"] == "SoftwareUpgrade", rsp
     proposal_id = ev["proposal_id"]
 
     rsp = cli.gov_vote("validator", proposal_id, "yes")
@@ -175,12 +169,27 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         ADDRS["validator"]
     )
 
-    assert not cli.evm_params()["params"]["extra_eips"]
-
-    # check the gas cost is lower after upgrade
-    assert (
-        old_gas - 3700
-        == contract.functions.transfer(ADDRS["community"], 100).build_transaction(
-            {"from": ADDRS["validator"]}
-        )["gas"]
-    )
+    # check gravity params
+    assert cli.query_gravity_params() == {
+        "params": {
+            "gravity_id": "cronos_gravity_testnet",
+            "contract_source_hash": "",
+            "bridge_ethereum_address": "0x0000000000000000000000000000000000000000",
+            "bridge_chain_id": "0",
+            "signed_signer_set_txs_window": "10000",
+            "signed_batches_window": "10000",
+            "ethereum_signatures_window": "10000",
+            "target_eth_tx_timeout": "43200000",
+            "average_block_time": "5000",
+            "average_ethereum_block_time": "15000",
+            "slash_fraction_signer_set_tx": "0.001000000000000000",
+            "slash_fraction_batch": "0.001000000000000000",
+            "slash_fraction_ethereum_signature": "0.001000000000000000",
+            "slash_fraction_conflicting_ethereum_signature": "0.001000000000000000",
+            "unbond_slashing_signer_set_txs_window": "10000",
+            "bridge_active": False,
+            "batch_creation_period": "10",
+            "batch_max_element": "100",
+            "observe_ethereum_height_period": "50",
+        }
+    }

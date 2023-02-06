@@ -7,10 +7,10 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  released = (fetchFlake "crypto-org-chain/cronos" "2f2cc88b501b47149690fdef05afbbbe5bc116c9").default;
+  released = (fetchFlake "crypto-org-chain/cronos" "b3da22dcff6176ec5120c84e446a79fb54e3d9de").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v1.0.0"; path = current; }
+  { name = "v2.0.0-testnet3"; path = current; }
 ]
