@@ -163,69 +163,26 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 }
 
 // oneStore process a single store, can run in parallel with other stores,
-// it spawns another goroutines to parallelize the pipeline:
-// - main thread scan the snapshot and pass the nodes to worker thread.
-// - worker thread encode the nodes and feed the external sorter.
-// - after finished the sorting, worker thread scan the external sorter, pass the result to main thread.
-// - main thread do the sst file writing.
 func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
 	defer snapshot.Close()
 
 	prefix := []byte(fmt.Sprintf(storeKeyPrefix, store))
 
-	// main thread pass the unsorted `PersistedNode`s to worker thread
-	toSortChan := make(chan memiavl.PersistedNode, PipelineBufferSize)
-	// worker thread do the external sorting and pass the sorted key-value pairs to main thread
-	sortedChan := make(chan kvPair, PipelineBufferSize)
-
-	go func() {
-		defer close(sortedChan)
-
-		sorter := extsort.New(sstDir, extsort.Options{
-			MaxChunkSize:      int64(sorterChunkSize),
-			LesserFunc:        compareSorterNode,
-			SnappyCompression: true,
-		})
-		defer sorter.Close()
-
-		for node := range toSortChan {
-			bz, err := encodeSorterNode(node)
-			if err != nil {
-				panic(errors.Wrap(err, "encode sorter node"))
-			}
-			if err := sorter.Feed(bz); err != nil {
-				panic(err)
-			}
-		}
-
-		reader, err := sorter.Finalize()
-		if err != nil {
-			panic(errors.Wrap(err, "external sorter finalize fail"))
-		}
-		for {
-			item, err := reader.Next()
-			if err != nil {
-				panic(err)
-			}
-			if item == nil {
-				break
-			}
-
-			hash := item[:memiavl.SizeHash]
-			value := item[memiavl.SizeHash:]
-			sortedChan <- kvPair{
-				key:   cloneAppend(prefix, nodeKeyFormat.Key(hash)),
-				value: value,
-			}
-		}
-	}()
+	inputChan, outputChan := extsort.Spawn(sstDir, extsort.Options{
+		MaxChunkSize:      int64(sorterChunkSize),
+		LesserFunc:        compareSorterNode,
+		SnappyCompression: true,
+	}, PipelineBufferSize)
 
 	err := snapshot.ScanNodes(func(node memiavl.PersistedNode) error {
-		_ = node.Height() // trigger the IO on main thread
-		toSortChan <- node
+		bz, err := encodeSorterNode(node)
+		if err != nil {
+			return err
+		}
+		inputChan <- bz
 		return nil
 	})
-	close(toSortChan)
+	close(inputChan)
 	if err != nil {
 		return err
 	}
@@ -246,8 +203,12 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 	if err := openNextFile(); err != nil {
 		return err
 	}
-	for pair := range sortedChan {
-		if err := sstWriter.Put(pair.key, pair.value); err != nil {
+	for item := range outputChan {
+		hash := item[:memiavl.SizeHash]
+		value := item[memiavl.SizeHash:]
+		key := cloneAppend(prefix, nodeKeyFormat.Key(hash))
+
+		if err := sstWriter.Put(key, value); err != nil {
 			return errors.Wrap(err, "sst write node fail")
 		}
 
@@ -261,7 +222,7 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 		}
 	}
 
-	// root record
+	// root record, it use empty slice for root hash of empty tree
 	rootKey := cloneAppend(prefix, rootKeyFormat.Key(int64(snapshot.Version())))
 	var rootHash []byte
 	if !snapshot.IsEmpty() {
@@ -276,11 +237,6 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 	}
 
 	return nil
-}
-
-type kvPair struct {
-	key   []byte
-	value []byte
 }
 
 // writeMetadata writes the rootmulti commit info and latest version to the db
