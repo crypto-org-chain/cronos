@@ -37,7 +37,7 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 		Short: "convert memiavl snapshot to sst file, ready to be ingested into `application.db`",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sstFileSize, err := cmd.Flags().GetUint64(flagSSTFileSize)
+			sstFileSizeTarget, err := cmd.Flags().GetUint64(flagSSTFileSize)
 			if err != nil {
 				return err
 			}
@@ -69,7 +69,7 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 			for _, store := range stores {
 				store := store
 				group.Submit(func() error {
-					return oneStore(store, snapshotDir, sstDir, sstFileSize, sorterChunkSize)
+					return oneStore(store, snapshotDir, sstDir, sstFileSizeTarget, sorterChunkSize)
 				})
 			}
 
@@ -86,14 +86,16 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 }
 
 // oneStore process a single store, can run in parallel with other stores
-func oneStore(store string, snapshotDir, sstDir string, sstFileSize, sorterChunkSize uint64) error {
+func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
 	prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
 
 	snapshot, err := memiavl.OpenSnapshot(filepath.Join(snapshotDir, store))
 	if err != nil {
 		return err
 	}
+	defer snapshot.Close()
 
+	// if snapshot is empty, skip the sst file writing step, because `SSTFileWriter` don't support writing empty files.
 	isEmpty := true
 
 	sorter := extsort.New(sstDir, int64(sorterChunkSize), compareSorterNode)
@@ -111,14 +113,13 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSize, sorterChunk
 	}
 
 	if isEmpty {
-		// SSTFileWriter don't support writing empty files, return early
 		return nil
 	}
 
 	sstWriter := newIAVLSSTFileWriter()
 	defer sstWriter.Destroy()
-	sstSeq := 0
 
+	sstSeq := 0
 	openNextFile := func() error {
 		if err := sstWriter.Open(filepath.Join(sstDir, sstFileName(store, sstSeq))); err != nil {
 			return err
@@ -148,7 +149,7 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSize, sorterChunk
 			return err
 		}
 
-		if sstWriter.FileSize() >= sstFileSize {
+		if sstWriter.FileSize() >= sstFileSizeTarget {
 			if err := sstWriter.Finish(); err != nil {
 				return err
 			}
@@ -165,7 +166,6 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSize, sorterChunk
 	}
 
 	return sstWriter.Finish()
-
 }
 
 func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
@@ -173,7 +173,7 @@ func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
 	return grocksdb.NewSSTFileWriter(envOpts, open_db.NewRocksdbOptions(true))
 }
 
-// encodeNode encodes the node using the same as the existing iavl implementation.
+// encodeNode encodes the node in the same way as the existing iavl implementation.
 func encodeNode(w io.Writer, node memiavl.PersistedNode) error {
 	var buf [binary.MaxVarintLen64]byte
 
