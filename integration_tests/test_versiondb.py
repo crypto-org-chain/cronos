@@ -43,12 +43,13 @@ def test_versiondb_migration(cronos: Cronos):
 
     print("start all nodes")
     print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
     wait_for_port(ports.evmrpc_port(cronos.base_port(1)))
 
     # check query still works, node1 don't enable versiondb,
     # so we are testing iavl query here.
-    w3 = cronos.node_w3(1)
-    assert w3.eth.get_balance(ADDRS["community"]) == old_balance
+    w3_1 = cronos.node_w3(1)
+    assert w3_1.eth.get_balance(ADDRS["community"]) == old_balance
 
     # check the chain is still growing
     w3.eth.wait_for_transaction_receipt(
