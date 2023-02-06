@@ -43,6 +43,9 @@ func (suite *KeeperTestSuite) TestHasPermissions() {
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
 	cosmosAddress := sdk.AccAddress(address.Bytes())
 
+	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, 0))
+	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, 0))
+
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanChangeTokenMapping))
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanTurnBridge))
 
