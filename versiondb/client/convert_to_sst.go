@@ -103,7 +103,7 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 	}, PipelineBufferSize)
 
 	for _, file := range csFiles {
-		if err := withChangeSetFile(file.FileName, func(reader Reader) error {
+		if err = withChangeSetFile(file.FileName, func(reader Reader) error {
 			_, err := IterateChangeSets(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
 				for _, pair := range changeSet.Pairs {
 					inputChan <- encodeSorterItem(uint64(version), pair)
@@ -114,8 +114,12 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 
 			return err
 		}); err != nil {
-			return err
+			break
 		}
+	}
+	close(inputChan)
+	if err != nil {
+		return err
 	}
 
 	if isEmpty {
