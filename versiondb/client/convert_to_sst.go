@@ -105,7 +105,12 @@ func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize u
 
 	isEmpty := true
 
-	sorter := extsort.New(sstDir, sorterChunkSize, compareSorterItem)
+	sorter := extsort.New(sstDir, extsort.Options{
+		MaxChunkSize:      sorterChunkSize,
+		LesserFunc:        compareSorterItem,
+		DeltaEncoding:     true,
+		SnappyCompression: true,
+	})
 	defer sorter.Close()
 	for _, file := range csFiles {
 		if err := withChangeSetFile(file.FileName, func(reader Reader) error {

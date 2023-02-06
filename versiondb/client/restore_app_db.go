@@ -38,7 +38,8 @@ const (
 	// part.
 	StoreSSTFileName = "tmp-%s-%d.sst"
 
-	PipelineBufferSize = 1024
+	PipelineBufferSize         = 1024
+	DefaultSorterChunkSizeIAVL = 64 * 1024 * 1024
 )
 
 var (
@@ -161,7 +162,7 @@ func RestoreAppDB(appCreator types.AppCreator) *cobra.Command {
 
 	cmd.Flags().Uint64(flagSSTFileSize, DefaultSSTFileSize, "the target sst file size, note the actual file size may be larger because sst files must be split on different key names")
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
-	cmd.Flags().Uint64(flagSorterChunkSize, DefaultSorterChunkSize, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
+	cmd.Flags().Uint64(flagSorterChunkSize, DefaultSorterChunkSizeIAVL, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
 
 	return cmd
@@ -186,7 +187,11 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 	go func() {
 		defer close(sortedChan)
 
-		sorter := extsort.New(sstDir, int64(sorterChunkSize), compareSorterNode)
+		sorter := extsort.New(sstDir, extsort.Options{
+			MaxChunkSize:      int64(sorterChunkSize),
+			LesserFunc:        compareSorterNode,
+			SnappyCompression: true,
+		})
 		defer sorter.Close()
 
 		for node := range toSortChan {

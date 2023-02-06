@@ -6,6 +6,8 @@
 package extsort
 
 import (
+	"bufio"
+	"encoding/binary"
 	"errors"
 	"io"
 	"math"
@@ -18,15 +20,26 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
+// Options defines configurable options for `ExtSorter`
+type Options struct {
+	// if apply delta encoding to the items in sorted chunk
+	DeltaEncoding bool
+	// if apply snappy compression to the items in sorted chunk
+	SnappyCompression bool
+	// Maxiumum uncompressed size of the sorted chunk
+	MaxChunkSize int64
+	// function that compares two items
+	LesserFunc LesserFunc
+}
+
 // ExtSorter implements external sorting.
 // It split the inputs into chunks, sort each chunk separately and save to disk file,
 // then provide an iterator of sorted items by doing a k-way merge with all the sorted chunk files.
 type ExtSorter struct {
+	opts Options
+
 	// directory to store temporary chunk files
 	tmpDir string
-	// target chunk size
-	chunkSize  int64
-	lesserFunc LesserFunc
 
 	// current chunk
 	currentChunk     [][]byte
@@ -42,11 +55,10 @@ type ExtSorter struct {
 }
 
 // New creates a new `ExtSorter`.
-func New(tmpDir string, chunkSize int64, lesserFunc LesserFunc) *ExtSorter {
+func New(tmpDir string, opts Options) *ExtSorter {
 	return &ExtSorter{
-		tmpDir:     tmpDir,
-		chunkSize:  chunkSize,
-		lesserFunc: lesserFunc,
+		tmpDir: tmpDir,
+		opts:   opts,
 	}
 }
 
@@ -59,7 +71,7 @@ func (s *ExtSorter) Feed(item []byte) error {
 	s.currentChunkSize += int64(len(item)) + 4
 	s.currentChunk = append(s.currentChunk, item)
 
-	if s.currentChunkSize >= s.chunkSize {
+	if s.currentChunkSize >= s.opts.MaxChunkSize {
 		return s.sortChunkAndRotate()
 	}
 	return nil
@@ -80,7 +92,7 @@ func (s *ExtSorter) sortChunkAndRotate() error {
 	s.chunkWG.Add(1)
 	go func() {
 		defer s.chunkWG.Done()
-		if err := sortAndSaveChunk(chunk, s.lesserFunc, chunkFile); err != nil {
+		if err := s.sortAndSaveChunk(chunk, chunkFile); err != nil {
 			chunkFile.Close()
 			s.lock.Lock()
 			defer s.lock.Unlock()
@@ -113,18 +125,42 @@ func (s *ExtSorter) Finalize() (*MultiWayMerge, error) {
 		if _, err := chunkFile.Seek(0, 0); err != nil {
 			return nil, err
 		}
-		decoder := NewDeltaDecoder()
-		reader := snappy.NewReader(chunkFile)
-		streams[i] = func() ([]byte, error) {
-			item, err := decoder.Read(reader)
-			if err == io.EOF {
-				return nil, nil
+
+		var reader reader
+		if s.opts.SnappyCompression {
+			reader = snappy.NewReader(chunkFile)
+		} else {
+			reader = bufio.NewReader(chunkFile)
+		}
+
+		if s.opts.DeltaEncoding {
+			decoder := NewDeltaDecoder()
+			streams[i] = func() ([]byte, error) {
+				item, err := decoder.Read(reader)
+				if err == io.EOF {
+					return nil, nil
+				}
+				return item, err
 			}
-			return item, err
+		} else {
+			streams[i] = func() ([]byte, error) {
+				size, err := binary.ReadUvarint(reader)
+				if err != nil {
+					if err == io.EOF && size == 0 {
+						return nil, nil
+					}
+					return nil, err
+				}
+				item := make([]byte, size)
+				if _, err := io.ReadFull(reader, item); err != nil {
+					return nil, err
+				}
+				return item, nil
+			}
 		}
 	}
 
-	return NewMultiWayMerge(streams, s.lesserFunc)
+	return NewMultiWayMerge(streams, s.opts.LesserFunc)
 }
 
 // Close closes and remove all the temporary chunk files
@@ -141,21 +177,45 @@ func (s *ExtSorter) Close() error {
 	return err
 }
 
+type bufWriter interface {
+	io.Writer
+	Flush() error
+}
+
 // sortAndSaveChunk sort the chunk in memory and save to disk in order,
 // it applies delta encoding and snappy compression to the items.
-func sortAndSaveChunk(chunk [][]byte, lesserFunc LesserFunc, output *os.File) error {
+func (s *ExtSorter) sortAndSaveChunk(chunk [][]byte, output *os.File) error {
 	// sort the chunk and write to file
 	sort.Slice(chunk, func(i, j int) bool {
-		return lesserFunc(chunk[i], chunk[j])
+		return s.opts.LesserFunc(chunk[i], chunk[j])
 	})
 
-	writer := snappy.NewBufferedWriter(output)
+	var writer bufWriter
+	if s.opts.SnappyCompression {
+		writer = snappy.NewBufferedWriter(output)
+	} else {
+		writer = bufio.NewWriter(output)
+	}
 
-	encoder := NewDeltaEncoder()
-	for _, item := range chunk {
-		if err := encoder.Write(writer, item); err != nil {
-			return err
+	if s.opts.DeltaEncoding {
+		encoder := NewDeltaEncoder()
+		for _, item := range chunk {
+			if err := encoder.Write(writer, item); err != nil {
+				return err
+			}
+		}
+	} else {
+		for _, item := range chunk {
+			var buf [binary.MaxVarintLen64]byte
+			n := binary.PutUvarint(buf[:], uint64(len(item)))
+			if _, err := writer.Write(buf[:n]); err != nil {
+				return err
+			}
+			if _, err := writer.Write(item); err != nil {
+				return err
+			}
 		}
 	}
+
 	return writer.Flush()
 }
