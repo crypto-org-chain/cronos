@@ -65,6 +65,7 @@ func ConvertToSSTTSCmd(appCreator types.AppCreator) *cobra.Command {
 
 			group, _ := pool.GroupContext(context.Background())
 			for _, store := range stores {
+				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := store
 				group.Submit(func() error {
 					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)

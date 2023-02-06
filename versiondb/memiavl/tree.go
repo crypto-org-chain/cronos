@@ -1,6 +1,8 @@
 package memiavl
 
-import "crypto/sha256"
+import (
+	"crypto/sha256"
+)
 
 var emptyHash = sha256.New().Sum(nil)
 
@@ -31,17 +33,15 @@ func NewWithInitialVersion(initialVersion int64) *Tree {
 	return tree
 }
 
-// LoadTreeFromSnapshot mmap the blob files and create the root node.
-func LoadTreeFromSnapshot(snapshotDir string) (*Tree, *Snapshot, error) {
-	snapshot, err := OpenSnapshot(snapshotDir)
-	if err != nil {
-		return nil, nil, err
+// NewFromSnapshot mmap the blob files and create the root node.
+func NewFromSnapshot(snapshot *Snapshot) *Tree {
+	if snapshot.IsEmpty() {
+		return NewEmptyTree(int64(snapshot.Version()))
 	}
-
 	return &Tree{
 		version: int64(snapshot.Version()),
 		root:    snapshot.RootNode(),
-	}, snapshot, nil
+	}
 }
 
 func (t *Tree) Set(key, value []byte) {

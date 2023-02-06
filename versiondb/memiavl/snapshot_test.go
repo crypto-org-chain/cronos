@@ -18,8 +18,10 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	snapshotDir := t.TempDir()
 	require.NoError(t, tree.WriteSnapshot(snapshotDir))
 
-	tree2, snapshot, err := LoadTreeFromSnapshot(snapshotDir)
+	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
+
+	tree2 := NewFromSnapshot(snapshot)
 
 	require.Equal(t, tree.Version(), tree2.Version())
 	require.Equal(t, tree.RootHash(), tree2.RootHash())
@@ -33,8 +35,9 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	require.NoError(t, snapshot.Close())
 
 	// test modify tree loaded from snapshot
-	tree3, snapshot, err := LoadTreeFromSnapshot(snapshotDir)
+	snapshot, err = OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
+	tree3 := NewFromSnapshot(snapshot)
 	applyChangeSet(tree3, ChangeSets[len(ChangeSets)-1])
 	hash, v, err := tree3.SaveVersion(true)
 	require.NoError(t, err)

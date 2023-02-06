@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"sync"
 
 	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
@@ -71,20 +72,32 @@ func VerifyChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
 			// create fixed size task pool with big enough buffer.
 			pool := pond.New(concurrency, 0)
 			defer pool.StopAndWait()
+			group, _ := pool.GroupContext(context.Background())
 
+			var (
+				lastestVersion int64
+				storeInfosLock sync.Mutex
+			)
 			storeInfos := []storetypes.StoreInfo{
-				// hacky, keep compatible with production
+				// https://github.com/cosmos/cosmos-sdk/issues/14916
 				storetypes.StoreInfo{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
 			}
-			group, _ := pool.GroupContext(context.Background())
+
 			for _, store := range stores {
+				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := store
 				group.Submit(func() error {
 					storeInfo, err := verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot, targetVersion)
 					if err != nil {
 						return err
 					}
+
+					storeInfosLock.Lock()
+					defer storeInfosLock.Unlock()
 					storeInfos = append(storeInfos, *storeInfo)
+					if storeInfo.CommitId.Version > lastestVersion {
+						lastestVersion = storeInfo.CommitId.Version
+					}
 					return nil
 				})
 			}
@@ -92,14 +105,7 @@ func VerifyChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
 				return err
 			}
 
-			sort.SliceStable(storeInfos, func(i, j int) bool {
-				return storeInfos[i].Name < storeInfos[j].Name
-			})
-
-			commitInfo := storetypes.CommitInfo{
-				Version:    storeInfos[0].CommitId.Version,
-				StoreInfos: storeInfos,
-			}
+			commitInfo := buildCommitInfo(storeInfos, lastestVersion)
 
 			// write out the replay result
 			var buf bytes.Buffer
@@ -175,18 +181,17 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 	initialVersion := filesWithVersion[0].Version
 
 	var (
-		tree     *memiavl.Tree
-		snapshot *memiavl.Snapshot
+		tree *memiavl.Tree
 	)
 	if len(loadSnapshot) > 0 {
-		snapshotDir := filepath.Join(loadSnapshot, store)
-		tree, snapshot, err = memiavl.LoadTreeFromSnapshot(snapshotDir)
+		path := filepath.Join(loadSnapshot, store)
+		snapshot, err := memiavl.OpenSnapshot(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fail to load snapshot: %s", loadSnapshot)
+			return nil, errors.Wrapf(err, "fail to load snapshot: %s", path)
 		}
-		if snapshot != nil {
-			defer snapshot.Close()
-		}
+		defer snapshot.Close()
+
+		tree = memiavl.NewFromSnapshot(snapshot)
 		fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
 	} else {
 		tree = memiavl.NewWithInitialVersion(int64(initialVersion))
@@ -250,10 +255,30 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 	}
 
 	return &storetypes.StoreInfo{
-		Name: store,
-		CommitId: storetypes.CommitID{
-			Version: tree.Version(),
-			Hash:    tree.RootHash(),
-		},
+		Name:     store,
+		CommitId: lastCommitID(tree),
 	}, nil
+}
+
+// lastCommitID build `CommitID` from a memiavl tree.
+func lastCommitID(tree *memiavl.Tree) storetypes.CommitID {
+	// copy out the hash in case it's relied on mmap-ed file.
+	var hash [memiavl.SizeHash]byte
+	copy(hash[:], tree.RootHash())
+	return storetypes.CommitID{
+		Version: tree.Version(),
+		Hash:    hash[:],
+	}
+}
+
+// buildCommitInfo sort the storeInfos by store name, and built `CommitInfo`.
+func buildCommitInfo(storeInfos []storetypes.StoreInfo, version int64) storetypes.CommitInfo {
+	sort.SliceStable(storeInfos, func(i, j int) bool {
+		return storeInfos[i].Name < storeInfos[j].Name
+	})
+
+	return storetypes.CommitInfo{
+		Version:    storeInfos[0].CommitId.Version,
+		StoreInfos: storeInfos,
+	}
 }

@@ -181,13 +181,11 @@ func (snapshot *Snapshot) Version() uint64 {
 }
 
 // RootNode returns the root node
-func (snapshot *Snapshot) RootNode() *PersistedNode {
-	if len(snapshot.nodes) == 0 {
-		// root node of empty tree is represented as `nil`
-		return nil
+func (snapshot *Snapshot) RootNode() PersistedNode {
+	if snapshot.rootIndex == EmptyRootNodeIndex {
+		panic("RootNode not supported on an empty snapshot")
 	}
-	node := snapshot.Node(snapshot.rootIndex)
-	return &node
+	return snapshot.Node(snapshot.rootIndex)
 }
 
 // nodesLen returns the number of nodes in the snapshot

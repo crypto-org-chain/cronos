@@ -18,7 +18,7 @@ func ChangeSetGroupCmd(appCreator types.AppCreator) *cobra.Command {
 		ConvertToSSTTSCmd(appCreator),
 		ChangeSetToVersionDBCmd(),
 		IngestSSTCmd(),
-		ConvertSnapshotToSST(appCreator),
+		RestoreAppDB(appCreator),
 	)
 	return cmd
 }

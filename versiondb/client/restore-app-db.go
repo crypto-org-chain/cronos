@@ -9,31 +9,45 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
-	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/iavl"
+	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
+
+	"github.com/cosmos/cosmos-sdk/server/types"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
 	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
-	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
+)
+
+const (
+	int64Size = 8
+
+	storeKeyPrefix   = "s/k:%s/"
+	latestVersionKey = "s/latest"
+	commitInfoKeyFmt = "s/%d" // s/<version>
+
+	// We creates the temporary sst files in the target database to make sure the file renaming is cheap in ingestion
+	// part.
+	StoreSSTFileName = "tmp-%s-%d.sst"
 )
 
 var (
-	int64Size = 8
-
 	nodeKeyFormat = iavl.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
 	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
 )
 
-func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
+func RestoreAppDB(appCreator types.AppCreator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "convert-snapshot-to-sst snapshot-dir sst-dir",
-		Short: "convert memiavl snapshot to sst file, ready to be ingested into `application.db`",
+		Use:   "restore-app-db snapshot-dir application.db",
+		Short: "Restore `application.db` from memiavl snapshots",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sstFileSizeTarget, err := cmd.Flags().GetUint64(flagSSTFileSize)
@@ -55,20 +69,49 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 			}
 
 			snapshotDir := args[0]
-			sstDir := args[1]
-			if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
+			iavlDir := args[1]
+			if err := os.MkdirAll(iavlDir, os.ModePerm); err != nil {
 				return err
 			}
+
+			// load the snapshots and compute commit info first
+			var lastestVersion int64
+			storeInfos := []storetypes.StoreInfo{
+				// https://github.com/cosmos/cosmos-sdk/issues/14916
+				storetypes.StoreInfo{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
+			}
+			snapshots := make([]*memiavl.Snapshot, len(stores))
+			for i, store := range stores {
+				path := filepath.Join(snapshotDir, store)
+				snapshot, err := memiavl.OpenSnapshot(path)
+				if err != nil {
+					return errors.Wrapf(err, "open snapshot fail: %s", path)
+				}
+				snapshots[i] = snapshot
+
+				tree := memiavl.NewFromSnapshot(snapshot)
+				commitId := lastCommitID(tree)
+				storeInfos = append(storeInfos, storetypes.StoreInfo{
+					Name:     store,
+					CommitId: commitId,
+				})
+
+				if commitId.Version > lastestVersion {
+					lastestVersion = commitId.Version
+				}
+			}
+			commitInfo := buildCommitInfo(storeInfos, lastestVersion)
 
 			// create fixed size task pool with big enough buffer.
 			pool := pond.New(concurrency, 0)
 			defer pool.StopAndWait()
 
 			group, _ := pool.GroupContext(context.Background())
-			for _, store := range stores {
-				store := store
+			for i := 0; i < len(stores); i++ {
+				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+				i := i
 				group.Submit(func() error {
-					return oneStore(store, snapshotDir, sstDir, sstFileSizeTarget, sorterChunkSize)
+					return oneStore(stores[i], snapshots[i], iavlDir, sstFileSizeTarget, sorterChunkSize)
 				})
 			}
 
@@ -76,6 +119,40 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 				return errors.Wrap(err, "worker pool wait fail")
 			}
 
+			// collect the sst files
+			entries, err := os.ReadDir(iavlDir)
+			if err != nil {
+				return errors.Wrapf(err, "read directory fail: %s iavlDir")
+			}
+			sstFiles := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				name := entry.Name()
+				if strings.HasPrefix(name, "tmp-") {
+					sstFiles = append(sstFiles, filepath.Join(iavlDir, name))
+				}
+			}
+
+			// sst files ingestion
+			ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
+			defer ingestOpts.Destroy()
+			ingestOpts.SetMoveFiles(true)
+
+			db, err := grocksdb.OpenDb(open_db.NewRocksdbOptions(false), iavlDir)
+			if err != nil {
+				return errors.Wrap(err, "open iavl db fail")
+			}
+			defer db.Close()
+
+			if err := db.IngestExternalFile(sstFiles, ingestOpts); err != nil {
+				return errors.Wrap(err, "ingset sst files fail")
+			}
+
+			// write the metadata part separately, because it overlaps with the other sst files
+			if err := writeMetadata(db, &commitInfo); err != nil {
+				return errors.Wrap(err, "write metadata fail")
+			}
+
+			fmt.Printf("version: %d, app hash: %X\n", commitInfo.Version, commitInfo.Hash())
 			return nil
 		},
 	}
@@ -89,17 +166,10 @@ func ConvertSnapshotToSST(appCreator types.AppCreator) *cobra.Command {
 }
 
 // oneStore process a single store, can run in parallel with other stores
-func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
-	prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-
-	snapshot, err := memiavl.OpenSnapshot(filepath.Join(snapshotDir, store))
-	if err != nil {
-		return errors.Wrapf(err, "open snapshot fail: %s", store)
-	}
+func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
 	defer snapshot.Close()
 
-	// if snapshot is empty, skip the sst file writing step, because `SSTFileWriter` don't support writing empty files.
-	isEmpty := true
+	prefix := []byte(fmt.Sprintf(storeKeyPrefix, store))
 
 	sorter := extsort.New(sstDir, int64(sorterChunkSize), compareSorterNode)
 	defer sorter.Close()
@@ -109,14 +179,9 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 		if err != nil {
 			return errors.Wrap(err, "encode sorter node")
 		}
-		isEmpty = false
 		return sorter.Feed(bz)
 	}); err != nil {
 		return err
-	}
-
-	if isEmpty {
-		return nil
 	}
 
 	sstWriter := newIAVLSSTFileWriter()
@@ -124,7 +189,7 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 
 	sstSeq := 0
 	openNextFile := func() error {
-		sstFileName := filepath.Join(sstDir, sstFileName(store, sstSeq))
+		sstFileName := filepath.Join(sstDir, fmt.Sprintf(StoreSSTFileName, store, sstSeq))
 		if err := sstWriter.Open(sstFileName); err != nil {
 			return errors.Wrapf(err, "open sst file fail: %s", sstFileName)
 		}
@@ -137,6 +202,9 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 	}
 
 	reader, err := sorter.Finalize()
+	if err != nil {
+		return errors.Wrap(err, "external sorter finalize fail")
+	}
 	for {
 		item, err := reader.Next()
 		if err != nil {
@@ -164,8 +232,12 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 	}
 
 	// root record
-	rootKey := cloneAppend(prefix, rootKeyFormat.Key(snapshot.Version()))
-	if err := sstWriter.Put(rootKey, snapshot.RootNode().Hash()); err != nil {
+	rootKey := cloneAppend(prefix, rootKeyFormat.Key(int64(snapshot.Version())))
+	var rootHash []byte
+	if !snapshot.IsEmpty() {
+		rootHash = snapshot.RootNode().Hash()
+	}
+	if err := sstWriter.Put(rootKey, rootHash); err != nil {
 		return errors.Wrap(err, "sst write root fail")
 	}
 
@@ -174,6 +246,28 @@ func oneStore(store string, snapshotDir, sstDir string, sstFileSizeTarget, sorte
 	}
 
 	return nil
+}
+
+// writeMetadata writes the rootmulti commit info and latest version to the db
+func writeMetadata(db *grocksdb.DB, cInfo *storetypes.CommitInfo) error {
+	writeOpts := grocksdb.NewDefaultWriteOptions()
+
+	bz, err := cInfo.Marshal()
+	if err != nil {
+		return errors.Wrap(err, "marshal CommitInfo fail")
+	}
+
+	cInfoKey := fmt.Sprintf(commitInfoKeyFmt, cInfo.Version)
+	if err := db.Put(writeOpts, []byte(cInfoKey), bz); err != nil {
+		return err
+	}
+
+	bz, err = gogotypes.StdInt64Marshal(cInfo.Version)
+	if err != nil {
+		return err
+	}
+
+	return db.Put(writeOpts, []byte(latestVersionKey), bz)
 }
 
 func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
