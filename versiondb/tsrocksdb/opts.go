@@ -34,15 +34,13 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 	// improve sst file creation speed: compaction or sst file writer.
 	opts.SetCompressionOptionsParallelThreads(4)
 
-	// compression options at bottommost level
-	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
-	compressOpts := grocksdb.NewDefaultCompressionOptions()
 	if !sstFileWriter {
+		// compression options at bottommost level
+		opts.SetBottommostCompression(grocksdb.ZSTDCompression)
+		compressOpts := grocksdb.NewDefaultCompressionOptions()
 		compressOpts.MaxDictBytes = 112640 // 110k
-	}
-	compressOpts.Level = 12
-	opts.SetBottommostCompressionOptions(compressOpts, true)
-	if !sstFileWriter {
+		compressOpts.Level = 12
+		opts.SetBottommostCompressionOptions(compressOpts, true)
 		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	}
 	return opts
