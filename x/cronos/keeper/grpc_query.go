@@ -135,10 +135,16 @@ func (k Keeper) Permissions(goCtx context.Context, req *types.QueryPermissionsRe
 	if err != nil {
 		return nil, err
 	}
-	canChangeTokenMapping := k.HasPermission(ctx, acc, CanChangeTokenMapping)
-	canTurnBridge := k.HasPermission(ctx, acc, CanTurnBridge)
+	admin := k.GetParams(ctx).CronosAdmin
+	if admin == acc.String() {
+		return &types.QueryPermissionsResponse{
+			CanChangeTokenMapping: true,
+			CanTurnBridge:         true,
+		}, nil
+	}
+	permissions := k.GetPermissions(ctx, acc)
 	return &types.QueryPermissionsResponse{
-		CanChangeTokenMapping: canChangeTokenMapping,
-		CanTurnBridge:         canTurnBridge,
+		CanChangeTokenMapping: CanChangeTokenMapping == (permissions & CanChangeTokenMapping),
+		CanTurnBridge:         CanTurnBridge == (permissions & CanTurnBridge),
 	}, nil
 }
