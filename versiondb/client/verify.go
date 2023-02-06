@@ -17,24 +17,18 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/spf13/cobra"
 
-	"github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
 
-func VerifyChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
+func VerifyChangeSetCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify changeSetDir",
 		Short: "Replay the input change set files in order to rebuild iavl tree in memory and output app hash and full json encoded commit info, user can compare the root hash against the block headers",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stores, err := GetStoreNames(cmd, appCreator)
-			if err != nil {
-				return err
-			}
-
 			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
 			if err != nil {
 				return err

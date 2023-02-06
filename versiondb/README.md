@@ -33,8 +33,7 @@ The legacy state migration process is done in two main steps:
 ### Extract Change Sets
 
 ```bash
-$ export STORES="distribution acc authz bank capability cronos evidence evm feegrant feeibc feemarket gov ibc mint params slashing staking transfer upgrade"
-$ cronosd changeset dump --home /chain/.cronosd/ --output data $STORES
+$ cronosd changeset dump data --home /chain/.cronosd
 ```
 
 `dump` command will extract the change sets from the IAVL tree, and store each store in separate directories. The change set files are segmented into different chunks and compressed with zlib level 6 by default, the chunk size defaults to 1m blocks, the result `data` directly will look like this:
@@ -57,127 +56,52 @@ For rocksdb backend, `dump` command opens the db in readonly mode, it can run on
 #### Verify Change Sets
 
 ```bash
-$ cronosd changeset verify data/acc/*.zz
-7130689 8DF52D6F7A7690916894AF67B07D64B678FB686626B2B3109813BBE172E74F08
+$ cronosd changeset verify data
+35b85a775ff51cbcc48537247eb786f98fc6a178531d48560126e00f545251be
+{"version":"189","storeInfos":[{"name":"acc","commitId":{"version":"189" ...
 ```
 
-`verify` command will replay all the change sets and rebuild the final IAVL tree and output the root hash of the final version, user can check the root hash against the IAVL tree.
-
-> TODO: will provide command to generate app-hash directly, combining the root hashes of each store, so it'll be easier for end user to verify.
+`verify` command will replay all the change sets and rebuild the final IAVL tree and output the app hash and commit info of the final version, user can check the app hash against the block headers.
 
 `verify` command takes several minutes and several gigabytes of ram to run, if ram usage is a problem, it can also run incrementally, you can export the snapshot for a middle version, then verify the remaining versions start from that snapshot:
 
 ```bash
-$ cronosd changeset verify --save-snapshot /tmp/snapshot data/acc/block-0.zz data/acc/block-1000000.zz data/acc/block-2000000.zz
-$ cronosd changeset verify --load-snapshot /tmp/snapshot data/acc/block-3000000.zz data/acc/block-4000000.zz data/acc/block-5000000.zz
+$ cronosd changeset verify data --save-snapshot snapshot --target-version 3000000
+$ cronosd changeset verify data --load-snapshot snapshot
 ```
 
 The format of change set files are documented [here](memiavl/README.md#change-set-file).
 
-### Convert To VersionDB
+### Build VersionDB
 
-#### SST File Writing
-
-To maximize the speed of initial data ingestion into rocksdb, we take advantage of the sst file writer in rocksdb, with that we can write out sst files directly without causing contention on a shared database, the sst files for each store can be written out in parallel. We also developed an external sorting algorithm to sort the data before writing the sst files, so the sst files don't have overlaps and can be ingested into the bottom-most level in db.
+To maximize the speed of initial data ingestion speed into rocksdb, we take advantage of the sst file writer feature to write out sst files first, then ingest them into final db, the sst files for each store can be written out in parallel. We also developed an external sorting algorithm to sort the data before writing the sst files, so the sst files don't have overlaps and can be ingested into the bottom-most level in db.
 
 ```bash
-$ # convert a single store
-$ cronosd changeset convert-to-sst --store distribution ./sst/distribution.sst data/distribution/*.zz
-
-$ # convert all stores sequentially
-$ for store in $STORES
-> do
-> cronosd changeset convert-to-sst --store $store ./sst/$store.sst data/$store/*.zz
-> done
+$ cronosd changeset build-versiondb-sst ./data ./sst
+$ cronosd changeset ingest-versiondb-sst /home/.cronosd/data/versiondb sst/*.sst --move-files --maximum-version 189
 ```
 
-You can also wrap it in a simple script to run multiple stores in parallel. Here's an example Python script:
+User can control the peak ram usage by controlling the `--concurrency` and `--sorter-chunk-size`.
 
-```python
-import os
-import sys
-from datetime import datetime
-from pathlib import Path
-import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
+With default parameters it can finish in around 12minutes for testnet archive node.
 
-CRONOSD = './result/bin/cronosd'
-DEFAULT_STORES = "distribution acc authz bank capability cronos evidence evm feegrant feeibc feemarket gov ibc mint params slashing staking transfer upgrade".split()
+### Restore IAVL Tree
 
-SOURCE = Path("./data")
-DEST = Path("./sst")
-
-# translate to around 2-3G peak ram usage for each task,
-# tune it according to available ram and concurrency level
-SORT_CHUNK_SIZE = 256*1024*1024
-
-
-def run_store(executor, store, srcd, dstd):
-    sst = dstd / f'{store}.sst'
-    inputs = [src for src in (srcd / store).glob('block-*')]
-    return executor.submit(subprocess.run, [CRONOSD, 'changeset', 'convert-to-sst', '--store', store, '--sorter-chunk-size', str(SORT_CHUNK_SIZE), sst] + inputs, check=True)
-
-def main(stores, concurrency):
-    DEST.mkdir(exist_ok=True, parents=True)
-    with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futs = []
-        for store in stores:
-            futs.append(run_store(executor, store, SOURCE, DEST))
-        for fut in as_completed(futs):
-            fut.result()
-
-if __name__ == '__main__':
-    try:
-        stores = sys.argv[1].split()
-    except IndexError:
-        stores = DEFAULT_STORES
-    main(stores, os.cpu_count())
-```
-
-User can control the peak ram usage by controlling the parallel level and `--sorter-chunk-size`.
-
-The provided python script can finish in around 20minutes for testnet archive node.
-
-#### SST File Ingestion
-
-Finally, we can ingest the generated sst files into final versiondb:
+When migrating an existing archive node to versiondb, it's recommended to rebuild the `application.db` from scratch to reclaim disk space, we provide a command to restore a single version of IAVL trees from memiavl snapshot.
 
 ```bash
-$ cronosd changeset ingest-sst /chain/.cronosd/data/versiondb/ sst/*.sst --maximum-version 7130689 --move-files
+$ # create memiavl snapshot
+$ cronosd changeset verify data --save-snapshot snapshot
+$ # restore application.db
+$ cronosd changeset restore-app-db snapshot application.db
 ```
 
-This command takes around 1 second to finish, `--move-files` will move the sst files instead of copy them, `--maximum-version` specifies the maximum version in the change sets, it'll override the existing latest version if it's bigger,
-the sst files will be put at bottom-most level possible, because the generation step make sure there's no key overlap between them.
+Then replace the whole `application.db` in the node with the newly generated one.
 
-#### Catch Up With IAVL Tree
+It only takes a few minutes to run on testnet node.
 
-If an non-empty versiondb lags behind from the current IAVL tree, the node will refuse to startup, in this case user need to manually sync them, the steps are quite similar to the migration process since genesis:
+### Catch Up With IAVL Tree
 
-- Stop the node so it don't process new blocks.
-
-- Dump change sets for the block range between the latest version in versiondb and iavl tree, just specify the `--start-version` parameter to versiondb's latest version plus one:
-
-  ```bash
-  $ cronosd changeset dump --home /chain/.cronosd/ --output /tmp/data --start-version 7241675 $STORES
-  ```
-
-- Feed the change set to versiondb, here we can skip the sst file writer generation, that is for parallel processing of big amount of change sets, since we are dealing with much smaller amount here, this one should be fast enough:
-
-  ```bash
-  $ for store in $STORES
-  > do
-  > ./result/bin/cronosd changeset to-versiondb /chain/.cronosd/data/versiondb data2/$store/*.zz --store $store
-  > done
-  ```
-
-- Finally, use `ingest-sst` command to update the lastest version, just don't pass any sst files:
-
-  ```bash
-  $ cronosd changeset ingest-sst /chain/.cronosd/data/versiondb/ --maximum-version 7300922
-  ```
-
-Of course, you can always follow the sst file generation and ingestion process if the data amount if big.
-
-
+If an non-empty versiondb lags behind from the current `application.db`, the node will refuse to startup, in this case user can either sync versiondb to catch up with  `application.db`, or simply restore the  `application.db` with the correct version of snapshot. To catch up, you can follow the similar procedure as migrating from genesis, just passing the block range in change set dump command.
 
 [^1]: https://github.com/facebook/rocksdb/wiki/User-defined-Timestamp-%28Experimental%29

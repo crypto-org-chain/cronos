@@ -127,7 +127,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
-	changeSetCmd := ChangeSetCmd(a.newApp)
+	changeSetCmd := ChangeSetCmd()
 	if changeSetCmd != nil {
 		rootCmd.AddCommand(changeSetCmd)
 	}

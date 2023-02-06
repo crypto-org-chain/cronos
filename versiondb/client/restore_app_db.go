@@ -18,7 +18,6 @@ import (
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
-	"github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
@@ -47,7 +46,7 @@ var (
 	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
 )
 
-func RestoreAppDBCmd(appCreator types.AppCreator) *cobra.Command {
+func RestoreAppDBCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore-app-db snapshot-dir application.db",
 		Short: "Restore `application.db` from memiavl snapshots",
@@ -62,11 +61,6 @@ func RestoreAppDBCmd(appCreator types.AppCreator) *cobra.Command {
 				return err
 			}
 			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
-			if err != nil {
-				return err
-			}
-
-			stores, err := GetStoreNames(cmd, appCreator)
 			if err != nil {
 				return err
 			}

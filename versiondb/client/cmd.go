@@ -1,24 +1,33 @@
 package client
 
 import (
-	"github.com/cosmos/cosmos-sdk/server/types"
+	"sort"
+
+	"github.com/crypto-org-chain/cronos/app"
 	"github.com/spf13/cobra"
 )
 
-func ChangeSetGroupCmd(appCreator types.AppCreator) *cobra.Command {
+func ChangeSetGroupCmd() *cobra.Command {
+	keys, _, _ := app.StoreKeys(false)
+	stores := make([]string, 0, len(keys))
+	for name := range keys {
+		stores = append(stores, name)
+	}
+	sort.Strings(stores)
+
 	cmd := &cobra.Command{
 		Use:   "changeset",
 		Short: "dump and manage change sets files and ingest into versiondb",
 	}
 	cmd.AddCommand(
-		ListStoresCmd(appCreator),
-		DumpChangeSetCmd(appCreator),
+		ListStoresCmd(stores),
+		DumpChangeSetCmd(stores),
 		PrintChangeSetCmd(),
-		VerifyChangeSetCmd(appCreator),
-		BuildVersionDBSSTCmd(appCreator),
+		VerifyChangeSetCmd(stores),
+		BuildVersionDBSSTCmd(stores),
 		IngestVersionDBSSTCmd(),
 		ChangeSetToVersionDBCmd(),
-		RestoreAppDBCmd(appCreator),
+		RestoreAppDBCmd(stores),
 	)
 	return cmd
 }

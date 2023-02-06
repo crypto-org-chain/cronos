@@ -22,7 +22,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/cosmos/cosmos-sdk/server/types"
 
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
@@ -30,7 +29,7 @@ import (
 
 const DefaultChunkSize = 1000000
 
-func DumpChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
+func DumpChangeSetCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dump outDir",
 		Short: "Extract changesets from iavl versions, and save to plain file format",
@@ -65,11 +64,6 @@ func DumpChangeSetCmd(appCreator types.AppCreator) *cobra.Command {
 				return err
 			}
 			zlibLevel, err := cmd.Flags().GetInt(flagZlibLevel)
-			if err != nil {
-				return err
-			}
-
-			stores, err := GetStoreNames(cmd, appCreator)
 			if err != nil {
 				return err
 			}

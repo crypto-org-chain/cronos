@@ -10,7 +10,6 @@ import (
 	"runtime"
 
 	"github.com/alitto/pond"
-	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/iavl"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
@@ -28,7 +27,7 @@ const (
 	SizeKeyLength = 4
 )
 
-func BuildVersionDBSSTCmd(appCreator types.AppCreator) *cobra.Command {
+func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build-versiondb-sst changeSetDir sstDir",
 		Short: "Build versiondb rocksdb sst files from changesets, different stores can run in parallel, the sst files are used to rebuild versiondb later",
@@ -44,10 +43,6 @@ func BuildVersionDBSSTCmd(appCreator types.AppCreator) *cobra.Command {
 				return err
 			}
 			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
-			if err != nil {
-				return err
-			}
-			stores, err := GetStoreNames(cmd, appCreator)
 			if err != nil {
 				return err
 			}

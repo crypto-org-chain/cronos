@@ -242,6 +242,37 @@ func GenModuleBasics(experimental bool) module.BasicManager {
 	return module.NewBasicManager(basicModules...)
 }
 
+func StoreKeys(experimental bool) (
+	map[string]*storetypes.KVStoreKey,
+	map[string]*storetypes.MemoryStoreKey,
+	map[string]*storetypes.TransientStoreKey,
+) {
+	storeKeys := []string{
+		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
+		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
+		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
+		evidencetypes.StoreKey, capabilitytypes.StoreKey,
+		feegrant.StoreKey, authzkeeper.StoreKey,
+		// ibc keys
+		ibchost.StoreKey, ibctransfertypes.StoreKey,
+		ibcfeetypes.StoreKey,
+		// ethermint keys
+		evmtypes.StoreKey, feemarkettypes.StoreKey,
+		// this line is used by starport scaffolding # stargate/app/storeKey
+		cronostypes.StoreKey,
+	}
+	if experimental {
+		storeKeys = append(storeKeys, gravitytypes.StoreKey)
+	}
+	keys := sdk.NewKVStoreKeys(storeKeys...)
+
+	// Add the EVM transient store key
+	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
+	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
+
+	return keys, memKeys, tkeys
+}
+
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
@@ -325,28 +356,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	storeKeys := []string{
-		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
-		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
-		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		feegrant.StoreKey, authzkeeper.StoreKey,
-		// ibc keys
-		ibchost.StoreKey, ibctransfertypes.StoreKey,
-		ibcfeetypes.StoreKey,
-		// ethermint keys
-		evmtypes.StoreKey, feemarkettypes.StoreKey,
-		// this line is used by starport scaffolding # stargate/app/storeKey
-		cronostypes.StoreKey,
-	}
-	if experimental {
-		storeKeys = append(storeKeys, gravitytypes.StoreKey)
-	}
-	keys := sdk.NewKVStoreKeys(storeKeys...)
-
-	// Add the EVM transient store key
-	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
-	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
+	keys, memKeys, tkeys := StoreKeys(experimental)
 
 	// load state streaming if enabled
 	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
