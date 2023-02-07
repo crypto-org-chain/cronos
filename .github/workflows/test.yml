@@ -36,7 +36,7 @@ jobs:
         if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
-          extraPullNames: dapp
+          extraPullNames: dapp crypto-com
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -52,6 +52,17 @@ jobs:
           name: debug-files
           path: debug_files.tar.gz
           if-no-files-found: ignore
+      - name: Convert coverage data
+        run: |
+          nix profile install nixpkgs#go_1_20
+          go tool covdata textfmt -i=coverage -o profile.txt
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.*.txt
+          file: ./profile.txt
+          flags: integration_tests
 
   upload-cache:
     if: github.event_name == 'push'
