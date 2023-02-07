@@ -36,7 +36,7 @@ jobs:
         if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
-          extraPullNames: dapp crypto-com
+          extraPullNames: dapp
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
