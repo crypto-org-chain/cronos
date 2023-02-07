@@ -285,34 +285,24 @@ func encodeNode(w io.Writer, node memiavl.PersistedNode) error {
 	}
 
 	// Unlike writeHashBytes, key is written for inner nodes.
-	if err := encodeBytes(w, node.Key()); err != nil {
+	if err := memiavl.EncodeBytes(w, node.Key()); err != nil {
 		return err
 	}
 
 	if height == 0 {
-		if err := encodeBytes(w, node.Value()); err != nil {
+		if err := memiavl.EncodeBytes(w, node.Value()); err != nil {
 			return err
 		}
 	} else {
-		if err := encodeBytes(w, node.Left().Hash()); err != nil {
+		if err := memiavl.EncodeBytes(w, node.Left().Hash()); err != nil {
 			return err
 		}
-		if err := encodeBytes(w, node.Right().Hash()); err != nil {
+		if err := memiavl.EncodeBytes(w, node.Right().Hash()); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func encodeBytes(w io.Writer, bz []byte) error {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], uint64(len(bz)))
-	if _, err := w.Write(buf[:n]); err != nil {
-		return err
-	}
-	_, err := w.Write(bz)
-	return err
 }
 
 func encodeSorterNode(node memiavl.PersistedNode) ([]byte, error) {
