@@ -4,7 +4,7 @@ import tempfile
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, wait_for_port
+from .utils import ADDRS, send_transaction, wait_for_port
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -83,12 +83,11 @@ def test_versiondb_migration(cronos: Cronos):
     assert w3_1.eth.get_balance(ADDRS["community"]) == balance1
 
     # check the chain is still growing
-    w3.eth.wait_for_transaction_receipt(
-        w3.eth.send_transaction(
-            {
-                "from": ADDRS["community"],
-                "to": ADDRS["validator"],
-                "value": 1000,
-            }
-        )
+    send_transaction(
+        w3,
+        {
+            "from": ADDRS["community"],
+            "to": ADDRS["validator"],
+            "value": 1000,
+        },
     )
