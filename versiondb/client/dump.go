@@ -23,7 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
@@ -40,7 +40,7 @@ func DumpChangeSetCmd(stores []string) *cobra.Command {
 				return err
 			}
 
-			db, err := open_db.OpenReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := opendb.OpenReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}

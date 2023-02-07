@@ -40,7 +40,7 @@ import (
 
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/experimental"
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	// this line is used by starport scaffolding # stargate/root/import
 )
@@ -135,7 +135,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	opts := ethermintserver.StartOptions{
 		AppCreator:      a.newApp,
 		DefaultNodeHome: app.DefaultNodeHome,
-		DBOpener:        open_db.OpenDB,
+		DBOpener:        opendb.OpenDB,
 	}
 	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 	experimental.AddCommands(rootCmd)

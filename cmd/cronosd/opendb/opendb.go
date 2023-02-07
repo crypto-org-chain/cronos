@@ -1,7 +1,7 @@
 //go:build !rocksdb
 // +build !rocksdb
 
-package open_db
+package opendb
 
 import (
 	"path/filepath"

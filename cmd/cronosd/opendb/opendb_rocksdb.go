@@ -1,7 +1,7 @@
 //go:build rocksdb
 // +build rocksdb
 
-package open_db
+package opendb
 
 import (
 	"path/filepath"
@@ -83,13 +83,11 @@ func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
 	// train bytes is recommended to be set at 100x dict bytes.
 	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
 	compressOpts := grocksdb.NewDefaultCompressionOptions()
+	compressOpts.Level = 12
 	if !sstFileWriter {
 		compressOpts.MaxDictBytes = 110 * 1024
-	}
-	compressOpts.Level = 12
-	opts.SetBottommostCompressionOptions(compressOpts, true)
-	if !sstFileWriter {
 		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	}
+	opts.SetBottommostCompressionOptions(compressOpts, true)
 	return opts
 }

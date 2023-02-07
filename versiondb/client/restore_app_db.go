@@ -21,7 +21,7 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/open_db"
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
@@ -106,9 +106,11 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			group, _ := pool.GroupContext(context.Background())
 			for i := 0; i < len(stores); i++ {
 				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-				i := i
+				store := stores[i]
+				snapshot := snapshots[i]
 				group.Submit(func() error {
-					return oneStore(stores[i], snapshots[i], iavlDir, sstFileSizeTarget, sorterChunkSize)
+					defer snapshot.Close()
+					return oneStore(store, snapshot, iavlDir, sstFileSizeTarget, sorterChunkSize)
 				})
 			}
 
@@ -134,7 +136,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			defer ingestOpts.Destroy()
 			ingestOpts.SetMoveFiles(true)
 
-			db, err := grocksdb.OpenDb(open_db.NewRocksdbOptions(false), iavlDir)
+			db, err := grocksdb.OpenDb(opendb.NewRocksdbOptions(false), iavlDir)
 			if err != nil {
 				return errors.Wrap(err, "open iavl db fail")
 			}
@@ -164,8 +166,6 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 
 // oneStore process a single store, can run in parallel with other stores,
 func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
-	defer snapshot.Close()
-
 	prefix := []byte(fmt.Sprintf(storeKeyPrefix, store))
 
 	inputChan, outputChan := extsort.Spawn(sstDir, extsort.Options{
@@ -263,7 +263,7 @@ func writeMetadata(db *grocksdb.DB, cInfo *storetypes.CommitInfo) error {
 
 func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
-	return grocksdb.NewSSTFileWriter(envOpts, open_db.NewRocksdbOptions(true))
+	return grocksdb.NewSSTFileWriter(envOpts, opendb.NewRocksdbOptions(true))
 }
 
 // encodeNode encodes the node in the same way as the existing iavl implementation.
