@@ -26,15 +26,12 @@ def test_versiondb_migration(cronos: Cronos):
     balance0 = w3.eth.get_balance(ADDRS["community"])
     block0 = w3.eth.block_number
 
-    w3.eth.wait_for_transaction_receipt(
-        w3.eth.send_transaction(
-            {
-                "from": ADDRS["validator"],
-                "to": ADDRS["community"],
-                "value": 1000,
-            }
-        )
-    )
+    tx = {
+        "from": ADDRS["validator"],
+        "to": ADDRS["community"],
+        "value": 1000,
+    }
+    send_transaction(w3, tx)
     balance1 = w3.eth.get_balance(ADDRS["community"])
     block1 = w3.eth.block_number
 
