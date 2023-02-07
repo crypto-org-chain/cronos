@@ -9,10 +9,10 @@ import (
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
-func IngestSSTCmd() *cobra.Command {
+func IngestVersionDBSSTCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ingest-sst db-path [file1.sst file2.sst ...]",
-		Short: "Ingest sst files into versiondb and set latest version",
+		Use:   "ingest-versiondb-sst versiondb-path [file1.sst file2.sst ...]",
+		Short: "Ingest sst files into versiondb and update the latest version",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dbPath := args[0]

@@ -1,9 +1,16 @@
 package memiavl
 
+import (
+	"crypto/sha256"
+)
+
+var emptyHash = sha256.New().Sum(nil)
+
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
 	version int64
-	root    Node
+	// root node of empty tree is represented as `nil`
+	root Node
 
 	initialVersion int64
 }
@@ -26,21 +33,15 @@ func NewWithInitialVersion(initialVersion int64) *Tree {
 	return tree
 }
 
-// LoadTreeFromSnapshot mmap the blob files and create the root node.
-func LoadTreeFromSnapshot(snapshotDir string) (*Tree, *Snapshot, error) {
-	snapshot, err := OpenSnapshot(snapshotDir)
-	if err != nil {
-		return nil, nil, err
+// NewFromSnapshot mmap the blob files and create the root node.
+func NewFromSnapshot(snapshot *Snapshot) *Tree {
+	if snapshot.IsEmpty() {
+		return NewEmptyTree(int64(snapshot.Version()))
 	}
-
-	if snapshot == nil {
-		return NewEmptyTree(int64(snapshot.version)), nil, err
-	}
-
 	return &Tree{
-		version: int64(snapshot.version),
+		version: int64(snapshot.Version()),
 		root:    snapshot.RootNode(),
-	}, snapshot, nil
+	}
 }
 
 func (t *Tree) Set(key, value []byte) {
@@ -76,7 +77,7 @@ func (t *Tree) Version() int64 {
 // RootHash updates the hashes and return the current root hash
 func (t *Tree) RootHash() []byte {
 	if t.root == nil {
-		return nil
+		return emptyHash
 	}
 	return t.root.Hash()
 }

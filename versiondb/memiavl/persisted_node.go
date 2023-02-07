@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 )
 
@@ -14,7 +15,7 @@ const (
 	OffsetValue   = OffsetKey + 8
 	OffsetHash    = OffsetValue + 8
 
-	SizeHash            = 32
+	SizeHash            = sha256.Size
 	SizeNodeWithoutHash = OffsetHash
 	SizeNode            = SizeNodeWithoutHash + SizeHash
 

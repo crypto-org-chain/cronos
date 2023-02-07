@@ -1,6 +1,7 @@
 package tsrocksdb
 
 import (
+	"encoding/binary"
 	"runtime"
 
 	"github.com/linxGnu/grocksdb"
@@ -33,20 +34,21 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 	// improve sst file creation speed: compaction or sst file writer.
 	opts.SetCompressionOptionsParallelThreads(4)
 
-	// compression options at bottommost level
-	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
-	compressOpts := grocksdb.NewDefaultCompressionOptions()
 	if !sstFileWriter {
+		// compression options at bottommost level
+		opts.SetBottommostCompression(grocksdb.ZSTDCompression)
+		compressOpts := grocksdb.NewDefaultCompressionOptions()
 		compressOpts.MaxDictBytes = 112640 // 110k
-	}
-	compressOpts.Level = 12
-	opts.SetBottommostCompressionOptions(compressOpts, true)
-	if !sstFileWriter {
+		compressOpts.Level = 12
+		opts.SetBottommostCompressionOptions(compressOpts, true)
 		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	}
 	return opts
 }
 
+// OpenVersionDB opens versiondb, the default column family is used for metadata,
+// actually key-value pairs are stored on another column family named with "versiondb",
+// which has user-defined timestamp enabled.
 func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
@@ -54,6 +56,26 @@ func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, erro
 	db, cfHandles, err := grocksdb.OpenDbColumnFamilies(
 		opts, dir, []string{"default", VersionDBCFName},
 		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	return db, cfHandles[1], nil
+}
+
+// OpenVersionDBAndTrimHistory opens versiondb similar to `OpenVersionDB`,
+// but it also trim the versions newer than target one, can be used for rollback.
+func OpenVersionDBAndTrimHistory(dir string, version int64) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
+	var ts [TimestampSize]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(version))
+
+	opts := grocksdb.NewDefaultOptions()
+	opts.SetCreateIfMissing(true)
+	opts.SetCreateIfMissingColumnFamilies(true)
+	db, cfHandles, err := grocksdb.OpenDbAndTrimHistory(
+		opts, dir, []string{"default", VersionDBCFName},
+		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+		ts[:],
 	)
 	if err != nil {
 		return nil, nil, err

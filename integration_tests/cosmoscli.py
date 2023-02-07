@@ -1,6 +1,8 @@
+import binascii
 import enum
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 
@@ -1377,3 +1379,37 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+
+    def changeset_dump(self, changeset_dir, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
+        return self.raw(
+            "changeset", "dump", changeset_dir, **(default_kwargs | kwargs)
+        ).decode()
+
+    def changeset_verify(self, changeset_dir, **kwargs):
+        output = self.raw("changeset", "verify", changeset_dir, **kwargs).decode()
+        hash, commit_info = output.split("\n")
+        return binascii.unhexlify(hash), json.loads(commit_info)
+
+    def changeset_restore_app_db(self, snapshot_dir, app_db, **kwargs):
+        return self.raw(
+            "changeset", "restore-app-db", snapshot_dir, app_db, **kwargs
+        ).decode()
+
+    def changeset_build_versiondb_sst(self, changeset_dir, sst_dir, **kwargs):
+        return self.raw(
+            "changeset", "build-versiondb-sst", changeset_dir, sst_dir, **kwargs
+        ).decode()
+
+    def changeset_ingest_versiondb_sst(self, versiondb_dir, sst_dir, **kwargs):
+        sst_files = [os.path.join(sst_dir, name) for name in os.listdir(sst_dir)]
+        return self.raw(
+            "changeset",
+            "ingest-versiondb-sst",
+            versiondb_dir,
+            *sst_files,
+            "--move-files",
+            **kwargs,
+        ).decode()

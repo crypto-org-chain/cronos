@@ -1,7 +1,7 @@
 //go:build rocksdb
 // +build rocksdb
 
-package cmd
+package opendb
 
 import (
 	"path/filepath"
@@ -11,11 +11,11 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
-	dataDir := filepath.Join(rootDir, "data")
+func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
+	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
 		// customize rocksdb options
-		db, err := grocksdb.OpenDb(newRocksdbOptions(), filepath.Join(dataDir, "application.db"))
+		db, err := grocksdb.OpenDb(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"))
 		if err != nil {
 			return nil, err
 		}
@@ -29,7 +29,27 @@ func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 	return dbm.NewDB("application", backendType, dataDir)
 }
 
-func newRocksdbOptions() *grocksdb.Options {
+// OpenReadOnlyDB opens rocksdb backend in read-only mode.
+func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
+	dataDir := filepath.Join(home, "data")
+	if backendType == dbm.RocksDBBackend {
+		// customize rocksdb options
+		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"), false)
+		if err != nil {
+			return nil, err
+		}
+
+		ro := grocksdb.NewDefaultReadOptions()
+		wo := grocksdb.NewDefaultWriteOptions()
+		woSync := grocksdb.NewDefaultWriteOptions()
+		woSync.SetSync(true)
+		return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
+	}
+
+	return dbm.NewDB("application", backendType, dataDir)
+}
+
+func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
@@ -63,9 +83,11 @@ func newRocksdbOptions() *grocksdb.Options {
 	// train bytes is recommended to be set at 100x dict bytes.
 	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
 	compressOpts := grocksdb.NewDefaultCompressionOptions()
-	compressOpts.MaxDictBytes = 110 * 1024
 	compressOpts.Level = 12
+	if !sstFileWriter {
+		compressOpts.MaxDictBytes = 110 * 1024
+		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
+	}
 	opts.SetBottommostCompressionOptions(compressOpts, true)
-	opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
 	return opts
 }

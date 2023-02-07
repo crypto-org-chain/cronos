@@ -2,10 +2,14 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 
+	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
@@ -23,19 +27,12 @@ const (
 	SizeKeyLength = 4
 )
 
-func ConvertToSSTTSCmd() *cobra.Command {
+func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "convert-to-sst sst-output plain-1 [plain-2] ...",
-		Short: "Convert change set files to versiondb/rocksdb sst files, which can be ingested into versiondb later",
-		Args:  cobra.MinimumNArgs(2),
+		Use:   "build-versiondb-sst changeSetDir sstDir",
+		Short: "Build versiondb rocksdb sst files from changesets, different stores can run in parallel, the sst files are used to rebuild versiondb later",
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			sstFile := args[0]
-
-			csFiles, err := sortChangeSetFiles(args[1:])
-			if err != nil {
-				return err
-			}
-
 			sstFileSize, err := cmd.Flags().GetUint64(flagSSTFileSize)
 			if err != nil {
 				return err
@@ -45,98 +42,151 @@ func ConvertToSSTTSCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store, err := cmd.Flags().GetString(flagStore)
+			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
 			if err != nil {
 				return err
 			}
 
-			var prefix []byte
-			if len(store) > 0 {
-				prefix = []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-			}
+			changeSetDir := args[0]
+			sstDir := args[1]
 
-			sorter := extsort.New(filepath.Dir(sstFile), sorterChunkSize, compareSorterItem)
-			defer sorter.Close()
-			for _, plainFile := range csFiles {
-				if err := withChangeSetFile(plainFile, func(reader Reader) error {
-					_, err := IterateChangeSets(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
-						for _, pair := range changeSet.Pairs {
-							item := encodeSorterItem(uint64(version), pair)
-							if err := sorter.Feed(item); err != nil {
-								return false, err
-							}
-						}
-						return true, nil
-					})
-
-					return err
-				}); err != nil {
-					return err
-				}
-			}
-
-			mergedReader, err := sorter.Finalize()
-			if err != nil {
+			if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
 				return err
 			}
 
-			sstWriter := newSSTFileWriter()
-			defer sstWriter.Destroy()
-			sstSeq := 0
-			if err := sstWriter.Open(sstFileName(sstFile, sstSeq)); err != nil {
-				return err
+			// create fixed size task pool with big enough buffer.
+			pool := pond.New(concurrency, 0)
+			defer pool.StopAndWait()
+
+			group, _ := pool.GroupContext(context.Background())
+			for _, store := range stores {
+				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+				store := store
+				group.Submit(func() error {
+					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
+				})
 			}
-			sstSeq++
 
-			var lastKey []byte
-			for {
-				item, err := mergedReader.Next()
-				if err != nil {
-					return err
-				}
-				if item == nil {
-					break
-				}
-
-				ts, pair := decodeSorterItem(item)
-
-				// Only breakup sst file when the next key different, don't cause overlap in keys without the timestamp part in sst files,
-				// because the rocksdb ingestion logic checks for overlap in keys without the timestamp part currently.
-				if sstWriter.FileSize() >= sstFileSize && !bytes.Equal(lastKey, pair.Key) {
-					if err := sstWriter.Finish(); err != nil {
-						return err
-					}
-					if err := sstWriter.Open(sstFileName(sstFile, sstSeq)); err != nil {
-						return err
-					}
-					sstSeq++
-				}
-
-				key := cloneAppend(prefix, pair.Key)
-				if pair.Delete {
-					err = sstWriter.DeleteWithTS(key, ts)
-				} else {
-					err = sstWriter.PutWithTS(key, ts, pair.Value)
-				}
-				if err != nil {
-					return err
-				}
-
-				lastKey = pair.Key
-			}
-			return sstWriter.Finish()
+			return group.Wait()
 		},
 	}
+
 	cmd.Flags().Uint64(flagSSTFileSize, DefaultSSTFileSize, "the target sst file size, note the actual file size may be larger because sst files must be split on different key names")
-	cmd.Flags().String(flagStore, "", "store name, the keys are prefixed with \"s/k:{store}/\"")
+	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().Int64(flagSorterChunkSize, DefaultSorterChunkSize, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
+	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
+
 	return cmd
 }
 
+// convertSingleStore handles a single store, can run in parallel with other stores,
+// it starts extra goroutines for parallel pipeline.
+func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
+	csFiles, err := scanChangeSetFiles(changeSetDir, store)
+	if err != nil {
+		return err
+	}
+
+	prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
+	isEmpty := true
+
+	inputChan, outputChan := extsort.Spawn(sstDir, extsort.Options{
+		MaxChunkSize:      sorterChunkSize,
+		LesserFunc:        compareSorterItem,
+		DeltaEncoding:     true,
+		SnappyCompression: true,
+	}, PipelineBufferSize)
+
+	for _, file := range csFiles {
+		if err = withChangeSetFile(file.FileName, func(reader Reader) error {
+			_, err := IterateChangeSets(reader, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
+				for _, pair := range changeSet.Pairs {
+					inputChan <- encodeSorterItem(uint64(version), pair)
+					isEmpty = false
+				}
+				return true, nil
+			})
+
+			return err
+		}); err != nil {
+			break
+		}
+	}
+	close(inputChan)
+	if err != nil {
+		return err
+	}
+
+	if isEmpty {
+		// SSTFileWriter don't support writing empty files, so we stop early here.
+		return nil
+	}
+
+	sstWriter := newSSTFileWriter()
+	defer sstWriter.Destroy()
+
+	sstSeq := 0
+	openNextFile := func() error {
+		if err := sstWriter.Open(filepath.Join(sstDir, sstFileName(store, sstSeq))); err != nil {
+			return err
+		}
+		sstSeq++
+		return nil
+	}
+
+	if err := openNextFile(); err != nil {
+		return err
+	}
+
+	var lastKey []byte
+	for item := range outputChan {
+		ts, pair := decodeSorterItem(item)
+
+		// Only breakup sst file when the user-key(without timestamp) is different,
+		// because the rocksdb ingestion logic checks for overlap in keys without the timestamp part currently.
+		if sstWriter.FileSize() >= sstFileSize && !bytes.Equal(lastKey, pair.Key) {
+			if err := sstWriter.Finish(); err != nil {
+				return err
+			}
+			if err := openNextFile(); err != nil {
+				return err
+			}
+		}
+
+		key := cloneAppend(prefix, pair.Key)
+		if pair.Delete {
+			err = sstWriter.DeleteWithTS(key, ts)
+		} else {
+			err = sstWriter.PutWithTS(key, ts, pair.Value)
+		}
+		if err != nil {
+			return err
+		}
+
+		lastKey = pair.Key
+	}
+	return sstWriter.Finish()
+}
+
+// scanChangeSetFiles find change set files from the directory and sort them by the first version included, filter out
+// empty files.
+func scanChangeSetFiles(changeSetDir, store string) ([]FileWithVersion, error) {
+	// scan directory to find the change set files
+	storeDir := filepath.Join(changeSetDir, store)
+	entries, err := os.ReadDir(storeDir)
+	if err != nil {
+		return nil, err
+	}
+	fileNames := make([]string, len(entries))
+	for i, entry := range entries {
+		fileNames[i] = filepath.Join(storeDir, entry.Name())
+	}
+	return SortFilesByFirstVerson(fileNames)
+}
+
 // sstFileName inserts the seq integer into the base file name
-func sstFileName(fileName string, seq int) string {
-	stem := fileName[:len(fileName)-len(SSTFileExtension)]
-	return stem + fmt.Sprintf("-%d", seq) + SSTFileExtension
+func sstFileName(store string, seq int) string {
+	return fmt.Sprintf("%s-%d%s", store, seq, SSTFileExtension)
 }
 
 func newSSTFileWriter() *grocksdb.SSTFileWriter {
