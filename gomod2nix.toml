@@ -103,7 +103,7 @@ schema = 3
     hash = "sha256-oATkuj+fM5eBn+ywO+w/tL0AFSIEkx0J3Yz+VhVe0QA="
   [mod."github.com/cosmos/cosmos-sdk"]
     version = "v0.46.9-rc.0"
-    hash = "sha256-V/ghG07THSmbU6C1p/bAHnLnGuHdJafAChqfl4RMlHY="
+    hash = "sha256-thkSWjeaDQLb8Pw/xzrfHGx9vjReJ9Kgo6mHc+67Gs8="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -164,8 +164,8 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.20.2-cronos"
-    hash = "sha256-GUXw/MVVngPQhHYx7fHSW9y+u+uV8IpJMYDX7fak09s="
+    version = "v0.20.1-cronos.0.20230208024851-7cb66283dc14"
+    hash = "sha256-an6c98LSF1tjRSX2cGCRo6E24MvV1osCYkH/Pnx8a/s="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
