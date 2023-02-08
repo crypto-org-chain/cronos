@@ -121,7 +121,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			// collect the sst files
 			entries, err := os.ReadDir(iavlDir)
 			if err != nil {
-				return errors.Wrapf(err, "read directory fail: %s iavlDir")
+				return errors.Wrapf(err, "read directory fail: %s", iavlDir)
 			}
 			sstFiles := make([]string, 0, len(entries))
 			for _, entry := range entries {
