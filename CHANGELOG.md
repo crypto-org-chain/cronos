@@ -1,5 +1,13 @@
 # Changelog
 
+Feb 08, 2023
+
+## v1.0.3
+
+### Bug Fixes
+
+- [#]() Disable authz message
+
 *Jan 04, 2023*
 
 ## v1.0.2

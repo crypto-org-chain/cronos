@@ -770,8 +770,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
-github.com/crypto-org-chain/ethermint v0.20.1-cronos h1:tZpuLhdW40Ue/Gb5yz3wGn2jRIZrwO82bJQWqL2kRP4=
-github.com/crypto-org-chain/ethermint v0.20.1-cronos/go.mod h1:slhuvGjkZaRJCapuHaKVIraxRgI7C70yEznP2YokfkA=
+github.com/crypto-org-chain/ethermint v0.20.1-cronos.0.20230208024851-7cb66283dc14 h1:iiT4DRlCUkK2ROLpfj7wam6JSyhQhftReUeTiF0m3Z0=
+github.com/crypto-org-chain/ethermint v0.20.1-cronos.0.20230208024851-7cb66283dc14/go.mod h1:slhuvGjkZaRJCapuHaKVIraxRgI7C70yEznP2YokfkA=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee h1:qzkim8QAf6AdRKlAPgLU5nI7S9JoefLDI76PmJeOTgk=
