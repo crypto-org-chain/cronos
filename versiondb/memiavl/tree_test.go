@@ -125,5 +125,5 @@ func TestNewKey(t *testing.T) {
 
 func TestEmptyTree(t *testing.T) {
 	tree := New()
-	require.Empty(t, tree.RootHash())
+	require.Equal(t, emptyHash, tree.RootHash())
 }
