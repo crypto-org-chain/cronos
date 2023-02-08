@@ -55,7 +55,7 @@ jobs:
       - name: Convert coverage data
         run: |
           nix profile install nixpkgs#go_1_20
-          go tool covdata textfmt -i=coverage -o profile.txt
+          go tool covdata textfmt -i=integration_tests/coverage -o profile.txt
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
         with:
