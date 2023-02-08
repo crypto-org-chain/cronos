@@ -87,14 +87,14 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 				snapshots[i] = snapshot
 
 				tree := memiavl.NewFromSnapshot(snapshot)
-				commitId := lastCommitID(tree)
+				commitID := lastCommitID(tree)
 				storeInfos = append(storeInfos, storetypes.StoreInfo{
 					Name:     store,
-					CommitId: commitId,
+					CommitId: commitID,
 				})
 
-				if commitId.Version > lastestVersion {
-					lastestVersion = commitId.Version
+				if commitID.Version > lastestVersion {
+					lastestVersion = commitID.Version
 				}
 			}
 			commitInfo := buildCommitInfo(storeInfos, lastestVersion)
