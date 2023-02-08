@@ -1,5 +1,6 @@
 name: integration tests
 on:
+  merge_group:
   pull_request:
   push:
     branches:
