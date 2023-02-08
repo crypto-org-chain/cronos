@@ -75,7 +75,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			var lastestVersion int64
 			storeInfos := []storetypes.StoreInfo{
 				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				storetypes.StoreInfo{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
+				{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
 			}
 			snapshots := make([]*memiavl.Snapshot, len(stores))
 			for i, store := range stores {
