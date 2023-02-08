@@ -452,9 +452,9 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.24-0.20221110131553-ec471ba27efd"
-    hash = "sha256-wdkMisD8IPwZJ0mbtVg9J6A+R/zYkpVK7e47OR53BCU="
-    replaced = "github.com/tendermint/tendermint"
+    version = "v0.34.26"
+    hash = "sha256-vnobLRBnlGm46WOvgHX+MOks+rdFEgY17u3d2t91+0s="
+    replaced = "github.com/informalsystems/tendermint"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.8-0.20230118040049-14dc6b00a5b3"
     hash = "sha256-kCe9nqzVgG+7ynuvYAGAOTCPESBnV28dDvRuAtsssbw="
