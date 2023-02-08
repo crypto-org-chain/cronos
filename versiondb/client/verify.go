@@ -74,7 +74,7 @@ func VerifyChangeSetCmd(stores []string) *cobra.Command {
 			)
 			storeInfos := []storetypes.StoreInfo{
 				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				storetypes.StoreInfo{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
+				{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}},
 			}
 
 			for _, store := range stores {
@@ -174,9 +174,7 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 	// the initial version for the store
 	initialVersion := filesWithVersion[0].Version
 
-	var (
-		tree *memiavl.Tree
-	)
+	var tree *memiavl.Tree
 	if len(loadSnapshot) > 0 {
 		path := filepath.Join(loadSnapshot, store)
 		snapshot, err := memiavl.OpenSnapshot(path)

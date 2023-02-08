@@ -16,8 +16,13 @@ const (
 )
 
 func doTestExtSorter(t *testing.T, chunkSize int64, inputCount int) {
-	sorter := New("/tmp", chunkSize, func(a, b []byte) bool {
-		return bytes.Compare(a, b) == -1
+	sorter := New("/tmp", Options{
+		MaxChunkSize: chunkSize,
+		LesserFunc: func(a, b []byte) bool {
+			return bytes.Compare(a, b) == -1
+		},
+		DeltaEncoding:     true,
+		SnappyCompression: true,
 	})
 	defer func() {
 		require.NoError(t, sorter.Close())

@@ -75,7 +75,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			var lastestVersion int64
 			storeInfos := []storetypes.StoreInfo{
 				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				storetypes.StoreInfo{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
+				{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}},
 			}
 			snapshots := make([]*memiavl.Snapshot, len(stores))
 			for i, store := range stores {
@@ -87,14 +87,14 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 				snapshots[i] = snapshot
 
 				tree := memiavl.NewFromSnapshot(snapshot)
-				commitId := lastCommitID(tree)
+				commitID := lastCommitID(tree)
 				storeInfos = append(storeInfos, storetypes.StoreInfo{
 					Name:     store,
-					CommitId: commitId,
+					CommitId: commitID,
 				})
 
-				if commitId.Version > lastestVersion {
-					lastestVersion = commitId.Version
+				if commitID.Version > lastestVersion {
+					lastestVersion = commitID.Version
 				}
 			}
 			commitInfo := buildCommitInfo(storeInfos, lastestVersion)
@@ -121,7 +121,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			// collect the sst files
 			entries, err := os.ReadDir(iavlDir)
 			if err != nil {
-				return errors.Wrapf(err, "read directory fail: %s iavlDir")
+				return errors.Wrapf(err, "read directory fail: %s", iavlDir)
 			}
 			sstFiles := make([]string, 0, len(entries))
 			for _, entry := range entries {
