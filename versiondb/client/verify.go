@@ -74,7 +74,7 @@ func VerifyChangeSetCmd(stores []string) *cobra.Command {
 			)
 			storeInfos := []storetypes.StoreInfo{
 				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				{capabilitytypes.MemStoreKey, storetypes.CommitID{}},
+				{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}},
 			}
 
 			for _, store := range stores {
