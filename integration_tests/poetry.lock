@@ -1319,7 +1319,6 @@ colorama = [
 cprotobuf = [
     {file = "cprotobuf-0.1.11.tar.gz", hash = "sha256:d2d88c8de840275205e64e530052c653dd25a0fb9e5cd9f7e39ce8f762d7c0a4"},
 ]
-cprotobuf = []
 cytoolz = [
     {file = "cytoolz-0.11.2.tar.gz", hash = "sha256:ea23663153806edddce7e4153d1d407d62357c05120a4e8485bddf1bd5ab22b4"},
 ]
