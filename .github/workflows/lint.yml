@@ -3,6 +3,7 @@ name: Run Lint
 # run on every pull request and push to main The `golangci` will pass without
 # running if no *.{go, mod, sum} files have been changed.
 on:
+  merge_group:
   pull_request:
   push:
     branches:
