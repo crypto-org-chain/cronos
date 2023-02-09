@@ -255,6 +255,8 @@ func (s *ExtSorter) sortAndSaveChunk(chunk [][]byte, output *os.File) error {
 			}
 		}
 	}
-
-	return writer.Flush()
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+	return output.Sync()
 }
