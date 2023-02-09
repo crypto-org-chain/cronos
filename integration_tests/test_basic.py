@@ -26,7 +26,6 @@ from .utils import (
     parse_events,
     send_transaction,
     send_txs,
-    supervisorctl,
     wait_for_block,
     wait_for_block_time,
     wait_for_new_blocks,
@@ -682,7 +681,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         cronos.base_dir / "tasks.ini",
         lambda cmd: f"{cmd} --evm.max-tx-gas-wanted {max_gas_wanted}",
     )
-    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    cronos.supervisorctl("update")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     w3 = cronos.w3

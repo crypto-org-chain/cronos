@@ -83,7 +83,7 @@ def test_subscribe_basic(cronos: Cronos):
         assert not await c.unsubscribe(sub_id)
 
     async def async_test():
-        async with websockets.connect(cronos.w3_ws_endpoint) as ws:
+        async with websockets.connect(cronos.w3_ws_endpoint()) as ws:
             c = Client(ws)
             t = asyncio.create_task(c.receive_loop())
             # run three subscribers concurrently
