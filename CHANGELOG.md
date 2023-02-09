@@ -7,7 +7,7 @@
 ### Bug Fixes
 
 - [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
-- [#]() Fix block hash in block filters.
+- [#857](https://github.com/crypto-org-chain/cronos/pull/857) Fix block hash in block filters.
 
 ### Improvements
 
