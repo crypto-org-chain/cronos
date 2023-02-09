@@ -192,12 +192,13 @@ require (
 
 replace (
 	github.com/crypto-org-chain/cronos/v2 => ../
+	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.4-cronos
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/miguelmota/go-ethereum-hdwallet => github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2
 
-	// TODO: remove when gravity update dependencies
-	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee
+	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230126051749-d984b1562242
+
 	// use informal system fork of tendermint
 	github.com/tendermint/tendermint => github.com/informalsystems/tendermint v0.34.26
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
