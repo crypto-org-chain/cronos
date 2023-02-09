@@ -26,7 +26,6 @@ from .utils import (
     parse_events,
     send_to_cosmos,
     send_transaction,
-    supervisorctl,
     w3_wait_for_new_blocks,
     wait_for_block_time,
     wait_for_fn,
@@ -230,7 +229,7 @@ def gravity(cronos, geth):
         }
 
     add_ini_sections(cronos.base_dir / "tasks.ini", programs)
-    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    cronos.supervisorctl("update")
 
     yield GravityBridge(cronos, geth, contract)
 

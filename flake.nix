@@ -34,7 +34,9 @@
           };
         in
         rec {
-          packages = pkgs.cronos-matrix;
+          packages = pkgs.cronos-matrix // {
+            inherit (pkgs) rocksdb;
+          };
           apps = {
             cronosd = mkApp packages.cronosd;
             cronosd-testnet = mkApp packages.cronosd-testnet;

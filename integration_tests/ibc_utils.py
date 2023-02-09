@@ -6,7 +6,7 @@ from typing import NamedTuple
 from pystarport import ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
-from .utils import ADDRS, eth_to_bech32, supervisorctl, wait_for_port
+from .utils import ADDRS, eth_to_bech32, wait_for_port
 
 RATIO = 10**10
 
@@ -73,7 +73,7 @@ def prepare_network(tmp_path, file, incentivized=True):
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
-    supervisorctl(cronos.base_dir / "../tasks.ini", "start", "relayer-demo")
+    cronos.supervisorctl("start", "relayer-demo")
     wait_for_port(hermes.port)
     yield IBCNetwork(cronos, chainmain, hermes, incentivized)
 
