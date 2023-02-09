@@ -35,11 +35,6 @@ const (
 	denomGravity = "gravity0x0000000000000000000000000000000000000000"
 )
 
-const (
-	denom        = "testdenom"
-	denomGravity = "gravity0x0000000000000000000000000000000000000000"
-)
-
 func TestKeeperTestSuite(t *testing.T) {
 	suite.Run(t, new(KeeperTestSuite))
 }
