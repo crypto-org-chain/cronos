@@ -16,38 +16,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v3
         with:
           go-version: 1.20.0
-      - uses: technote-space/get-diff-action@v6
-        id: git_diff
+      - id: changed-files
+        uses: tj-actions/changed-files@v34
         with:
-          SUFFIX_FILTER: |
-            .go
-            .mod
-            .sum
+          files: |
+            *.go
+            *.mod
+            *.sum
       - run: |
+          # without rocksdb
           make build
-        if: "env.GIT_DIFF != ''"
+          # with rocksdb and enable versiondb
+          nix profile install nixpkgs#rocksdb
+          export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
+          export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
+          COSMOS_BUILD_OPTIONS=rocksdb make build
+        if: steps.changed-files.outputs.any_changed == 'true'
 
   unittest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v3
         with:
           go-version: 1.20.0
-      - uses: technote-space/get-diff-action@v6
-        id: git_diff
+      - id: changed-files
+        uses: tj-actions/changed-files@v34
         with:
-          SUFFIX_FILTER: |
-            .go
-            .mod
-            .sum
+          files: |
+            *.go
+            *.mod
+            *.sum
       - name: test & coverage report creation
-        run: make test
-        if: "env.GIT_DIFF != ''"
+        run: |
+          make test
+
+          # run versiondb tests
+          nix profile install nixpkgs#rocksdb
+          export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
+          export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
+          export LD_LIBRARY_PATH=$HOME/.nix-profile/lib
+          cd ./versiondb
+          go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt
+        if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
           excludelist+=" $(find ./ -type f -name '*.pb.go')"
@@ -56,13 +81,13 @@ jobs:
             echo "Excluding ${filename} from coverage report..."
             sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
           done
-        if: "env.GIT_DIFF != ''"
+        if: steps.changed-files.outputs.any_changed == 'true'
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.txt
+          files: ./coverage.txt,./versiondb/coverage.txt
           fail_ci_if_error: true
-        if: "env.GIT_DIFF != ''"
+        if: steps.changed-files.outputs.any_changed == 'true'
 
   gomod2nix:
     runs-on: ubuntu-latest
@@ -78,7 +103,7 @@ jobs:
             go.sum
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -112,7 +137,7 @@ jobs:
             contracts
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'

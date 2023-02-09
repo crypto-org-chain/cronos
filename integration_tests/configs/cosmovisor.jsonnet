@@ -8,6 +8,9 @@ config {
       streamers:: super.streamers,
       'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
+    validators: [super.validators[0] {
+      'app-config':: super['app-config'],
+    }] + super.validators[1:],
     genesis+: {
       app_state+: {
         evm+: {

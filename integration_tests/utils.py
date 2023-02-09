@@ -274,10 +274,9 @@ def add_ini_sections(inipath, sections):
 
 
 def supervisorctl(inipath, *args):
-    subprocess.run(
+    return subprocess.check_output(
         (sys.executable, "-msupervisor.supervisorctl", "-c", inipath, *args),
-        check=True,
-    )
+    ).decode()
 
 
 def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):

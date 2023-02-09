@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos"
-
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
@@ -41,6 +39,8 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/v2/app"
+	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -129,9 +129,14 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	opts := ethermintserver.StartOptions{
 		AppCreator:      a.newApp,
 		DefaultNodeHome: app.DefaultNodeHome,
-		DBOpener:        openDB,
+		DBOpener:        opendb.OpenDB,
 	}
 	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
+
+	changeSetCmd := ChangeSetCmd()
+	if changeSetCmd != nil {
+		rootCmd.AddCommand(changeSetCmd)
+	}
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
