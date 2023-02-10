@@ -40,7 +40,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 			}
 
 			if !options.CronosKeeper.HasPermission(ctx, accountToCheck, permissionToCheck) {
-				panic(sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is unauthorized"))
+				return newCtx, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is unauthorized")
 			}
 		}
 
