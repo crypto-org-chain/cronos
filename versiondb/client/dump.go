@@ -39,7 +39,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 				return err
 			}
 
-			db, err := opts.OpenAppDBReadOnly(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := opts.OpenReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}

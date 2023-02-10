@@ -9,7 +9,7 @@ import (
 // Options defines the customizable settings of ChangeSetGroupCmd
 type Options struct {
 	DefaultStores     []string
-	OpenAppDBReadOnly func(home string, backend dbm.BackendType) (dbm.DB, error)
+	OpenReadOnlyDB    func(home string, backend dbm.BackendType) (dbm.DB, error)
 	AppRocksDBOptions func(sstFileWriter bool) *grocksdb.Options
 }
 

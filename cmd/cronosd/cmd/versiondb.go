@@ -22,7 +22,7 @@ func ChangeSetCmd() *cobra.Command {
 
 	return versiondbclient.ChangeSetGroupCmd(versiondbclient.Options{
 		DefaultStores:     storeNames,
-		OpenAppDBReadOnly: opendb.OpenAppDBReadOnly,
+		OpenReadOnlyDB:    opendb.OpenReadOnlyDB,
 		AppRocksDBOptions: opendb.NewRocksdbOptions,
 	})
 }
