@@ -19,4 +19,4 @@ cd ..
 cp -r github.com/crypto-org-chain/cronos/v2/* ./
 rm -rf github.com
 
-go mod tidy -compat=1.17
+go mod tidy
