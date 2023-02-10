@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -133,7 +134,14 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	}
 	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 
-	changeSetCmd := ChangeSetCmd()
+	keys, _, _ := app.StoreKeys()
+	storeNames := make([]string, 0, len(keys))
+	for name := range keys {
+		storeNames = append(storeNames, name)
+	}
+	sort.Strings(storeNames)
+
+	changeSetCmd := ChangeSetCmd(storeNames)
 	if changeSetCmd != nil {
 		rootCmd.AddCommand(changeSetCmd)
 	}

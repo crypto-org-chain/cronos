@@ -1,33 +1,32 @@
 package client
 
 import (
-	"sort"
-
-	"github.com/crypto-org-chain/cronos/v2/app"
+	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
+	dbm "github.com/tendermint/tm-db"
 )
 
-func ChangeSetGroupCmd() *cobra.Command {
-	keys, _, _ := app.StoreKeys()
-	stores := make([]string, 0, len(keys))
-	for name := range keys {
-		stores = append(stores, name)
-	}
-	sort.Strings(stores)
+// Options defines the customizable settings of ChangeSetGroupCmd
+type Options struct {
+	DefaultStores     []string
+	OpenAppDBReadOnly func(home string, backend dbm.BackendType) (dbm.DB, error)
+	AppRocksDBOptions func(sstFileWriter bool) *grocksdb.Options
+}
 
+func ChangeSetGroupCmd(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "changeset",
 		Short: "dump and manage change sets files and ingest into versiondb",
 	}
 	cmd.AddCommand(
-		ListStoresCmd(stores),
-		DumpChangeSetCmd(stores),
+		ListDefaultStoresCmd(opts.DefaultStores),
+		DumpChangeSetCmd(opts),
 		PrintChangeSetCmd(),
-		VerifyChangeSetCmd(stores),
-		BuildVersionDBSSTCmd(stores),
+		VerifyChangeSetCmd(opts.DefaultStores),
+		BuildVersionDBSSTCmd(opts.DefaultStores),
 		IngestVersionDBSSTCmd(),
 		ChangeSetToVersionDBCmd(),
-		RestoreAppDBCmd(stores),
+		RestoreAppDBCmd(opts),
 	)
 	return cmd
 }

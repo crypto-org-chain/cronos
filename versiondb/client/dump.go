@@ -23,13 +23,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 
-	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
 const DefaultChunkSize = 1000000
 
-func DumpChangeSetCmd(stores []string) *cobra.Command {
+func DumpChangeSetCmd(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dump outDir",
 		Short: "Extract changesets from iavl versions, and save to plain file format",
@@ -40,7 +39,7 @@ func DumpChangeSetCmd(stores []string) *cobra.Command {
 				return err
 			}
 
-			db, err := opendb.OpenReadOnlyDB(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
+			db, err := opts.OpenAppDBReadOnly(ctx.Viper.GetString(flags.FlagHome), server.GetAppDBBackend(ctx.Viper))
 			if err != nil {
 				return err
 			}
@@ -67,7 +66,10 @@ func DumpChangeSetCmd(stores []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
+			stores, err := GetStoresOrDefault(cmd, opts.DefaultStores)
+			if err != nil {
+				return err
+			}
 			outDir := args[0]
 			if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 				return err
