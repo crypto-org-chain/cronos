@@ -1,6 +1,7 @@
 { lib
 , buildGoApplication
 , nix-gitignore
+, coverage ? false # https://tip.golang.org/doc/go1.20#cover
 , rocksdb
 , network ? "mainnet"  # mainnet|testnet
 , rev ? "dirty"
@@ -34,6 +35,7 @@ buildGoApplication rec {
   modules = ./gomod2nix.toml;
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
+  buildFlags = lib.optionalString coverage "-cover";
   CGO_ENABLED = "1";
 
   meta = with lib; {
