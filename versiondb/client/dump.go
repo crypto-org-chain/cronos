@@ -186,15 +186,14 @@ func splitWorkLoad(workers int, full Range) []Range {
 	return chunks
 }
 
-func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Range) error {
+func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Range) (returnErr error) {
 	fp, err := createFile(outputFile)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		cerr := fp.Close()
-		if err == nil {
-			err = cerr
+		if err := fp.Close(); returnErr == nil {
+			returnErr = err
 		}
 	}()
 
@@ -217,7 +216,7 @@ type chunk struct {
 }
 
 // collect wait for the tasks to complete and concatenate the files into a single output file.
-func (c *chunk) collect(outDir string, zlibLevel int) error {
+func (c *chunk) collect(outDir string, zlibLevel int) (returnErr error) {
 	storeDir := filepath.Join(outDir, c.store)
 	if err := os.MkdirAll(storeDir, os.ModePerm); err != nil {
 		return err
@@ -237,9 +236,8 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 		return err
 	}
 	defer func() {
-		cerr := fp.Close()
-		if err == nil {
-			err = cerr
+		if err := fp.Close(); returnErr == nil {
+			returnErr = err
 		}
 	}()
 
