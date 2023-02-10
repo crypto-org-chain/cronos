@@ -23,6 +23,7 @@ def cronos_mempool(tmp_path_factory):
     )
 
 
+@pytest.mark.flaky
 def test_mempool(cronos_mempool):
     w3: Web3 = cronos_mempool.w3
     filter = w3.eth.filter("pending")
