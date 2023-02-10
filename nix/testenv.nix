@@ -8,17 +8,5 @@ pkgs.poetry2nix.mkPoetryEnv {
         substituteInPlace setup.py --replace \'setuptools-markdown\' ""
       '';
     };
-
-    pystarport = super.pystarport.overridePythonAttrs (
-      old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.poetry ];
-      }
-    );
-
-    cprotobuf = super.cprotobuf.overridePythonAttrs (
-      old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.cython ];
-      }
-    );
   });
 }
