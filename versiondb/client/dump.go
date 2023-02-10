@@ -188,12 +188,16 @@ func splitWorkLoad(workers int, full Range) []Range {
 	return chunks
 }
 
-func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Range) error {
+func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Range) (returnErr error) {
 	fp, err := createFile(outputFile)
 	if err != nil {
 		return err
 	}
-	defer fp.Close()
+	defer func() {
+		if err := fp.Close(); returnErr == nil {
+			returnErr = err
+		}
+	}()
 
 	writer := snappy.NewBufferedWriter(fp)
 
@@ -214,7 +218,7 @@ type chunk struct {
 }
 
 // collect wait for the tasks to complete and concatenate the files into a single output file.
-func (c *chunk) collect(outDir string, zlibLevel int) error {
+func (c *chunk) collect(outDir string, zlibLevel int) (returnErr error) {
 	storeDir := filepath.Join(outDir, c.store)
 	if err := os.MkdirAll(storeDir, os.ModePerm); err != nil {
 		return err
@@ -233,7 +237,11 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 	if err != nil {
 		return err
 	}
-	defer fp.Close()
+	defer func() {
+		if err := fp.Close(); returnErr == nil {
+			returnErr = err
+		}
+	}()
 
 	bufWriter := bufio.NewWriter(fp)
 	writer := io.Writer(bufWriter)
