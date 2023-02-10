@@ -4,7 +4,7 @@ pkgs.mkShell {
     pkgs.jq
     pkgs.go
     pkgs.gomod2nix
-    (pkgs.callPackage ../. { }) # cronosd
+    (pkgs.callPackage ../. { coverage = true; }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
     pkgs.gorc
@@ -20,4 +20,8 @@ pkgs.mkShell {
     pkgs.chain-maind
     pkgs.hermes
   ];
+  shellHook = ''
+    mkdir ./coverage
+    export GOCOVERDIR=./coverage
+  '';
 }
