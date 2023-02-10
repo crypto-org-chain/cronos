@@ -7,6 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func ChangeSetCmd(storeNames []string) *cobra.Command {
+func ChangeSetCmd() *cobra.Command {
 	return nil
 }
