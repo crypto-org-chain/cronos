@@ -124,3 +124,27 @@ func (k Keeper) Params(goCtx context.Context, req *types.QueryParamsRequest) (*t
 
 	return &types.QueryParamsResponse{Params: params}, nil
 }
+
+// Permissions returns the permissions of a specific account
+func (k Keeper) Permissions(goCtx context.Context, req *types.QueryPermissionsRequest) (*types.QueryPermissionsResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "empty request")
+	}
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	acc, err := sdk.AccAddressFromBech32(req.Address)
+	if err != nil {
+		return nil, err
+	}
+	admin := k.GetParams(ctx).CronosAdmin
+	if admin == acc.String() {
+		return &types.QueryPermissionsResponse{
+			CanChangeTokenMapping: true,
+			CanTurnBridge:         true,
+		}, nil
+	}
+	permissions := k.GetPermissions(ctx, acc)
+	return &types.QueryPermissionsResponse{
+		CanChangeTokenMapping: CanChangeTokenMapping == (permissions & CanChangeTokenMapping),
+		CanTurnBridge:         CanTurnBridge == (permissions & CanTurnBridge),
+	}, nil
+}

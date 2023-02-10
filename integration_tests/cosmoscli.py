@@ -1458,6 +1458,34 @@ class CosmosCLI:
             )
         )
 
+    def query_permissions(self, address: str):
+        "query permissions for an address"
+        return json.loads(
+            self.raw(
+                "query",
+                "cronos",
+                "permissions",
+                address,
+                home=self.data_dir,
+            )
+        )
+
+    def update_permissions(self, address, permissions, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "update-permissions",
+                address,
+                permissions,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
 

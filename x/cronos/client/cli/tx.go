@@ -36,6 +36,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdSendToCryptoOrg())
 	cmd.AddCommand(CmdUpdateTokenMapping())
 	cmd.AddCommand(CmdTurnBridge())
+	cmd.AddCommand(CmdUpdatePermissions())
 
 	return cmd
 }
@@ -269,6 +270,35 @@ func CmdTurnBridge() *cobra.Command {
 				return err
 			}
 			msg := types.NewMsgTurnBridge(clientCtx.GetFromAddress().String(), enable)
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdUpdatePermissions returns a CLI command handler for updating cronos permissions
+func CmdUpdatePermissions() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-permissions [address] [permissions]",
+		Short: "Update Permissions, permission value: 1=CanChangeTokenMapping, 2:=CanTurnBridge, 3=All",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			argsAddress := args[0]
+			argPermissions, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			msg := types.NewMsgUpdatePermissions(clientCtx.GetFromAddress().String(), argsAddress, argPermissions)
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}

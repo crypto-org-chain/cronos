@@ -64,11 +64,6 @@ func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferT
 // UpdateTokenMapping implements the grpc method
 func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdateTokenMapping) (*types.MsgUpdateTokenMappingResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	admin := k.Keeper.GetParams(ctx).CronosAdmin
-	// if admin is empty, no sender could be equal to it
-	if admin != msg.Sender {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
-	}
 	// msg is already validated
 	if err := k.Keeper.RegisterOrUpdateTokenMapping(ctx, msg); err != nil {
 		return nil, err
@@ -79,12 +74,6 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 // TurnBridge implements the grpc method
 func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (*types.MsgTurnBridgeResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	admin := k.Keeper.GetParams(ctx).CronosAdmin
-	// if admin is empty, no sender could be equal to it
-	if admin != msg.Sender {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
-	}
-
 	gravityParams := k.gravityKeeper.GetParams(ctx)
 	gravityParams.BridgeActive = msg.Enable
 	k.gravityKeeper.SetParams(ctx, gravityParams)
@@ -103,4 +92,20 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 	}
 
 	return &types.MsgUpdateParamsResponse{}, nil
+}
+
+func (k msgServer) UpdatePermissions(goCtx context.Context, msg *types.MsgUpdatePermissions) (*types.MsgUpdatePermissionsResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	admin := k.Keeper.GetParams(ctx).CronosAdmin
+	// if admin is empty, no sender could be equal to it
+	if admin != msg.From {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
+	}
+	acc, err := sdk.AccAddressFromBech32(msg.Address)
+	if err != nil {
+		return nil, err
+	}
+	k.SetPermissions(ctx, acc, msg.Permissions)
+
+	return &types.MsgUpdatePermissionsResponse{}, nil
 }

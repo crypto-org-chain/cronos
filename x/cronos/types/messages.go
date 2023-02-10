@@ -11,7 +11,8 @@ const (
 	TypeMsgTransferTokens     = "TransferTokens"
 	TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
 	TypeMsgUpdateParams       = "UpdateParams"
-	TypeTurnBridge            = "TurnBridge"
+	TypeMsgTurnBridge         = "TurnBridge"
+	TypeMsgUpdatePermissions  = "UpdatePermissions"
 )
 
 var (
@@ -20,6 +21,7 @@ var (
 	_ sdk.Msg = &MsgUpdateTokenMapping{}
 	_ sdk.Msg = &MsgUpdateParams{}
 	_ sdk.Msg = &MsgTurnBridge{}
+	_ sdk.Msg = &MsgUpdatePermissions{}
 )
 
 func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
@@ -214,7 +216,7 @@ func (msg MsgTurnBridge) Route() string {
 
 // Type ...
 func (msg MsgTurnBridge) Type() string {
-	return TypeTurnBridge
+	return TypeMsgTurnBridge
 }
 
 // GetSignBytes ...
@@ -264,6 +266,54 @@ func (msg MsgUpdateParams) Type() string {
 
 // GetSignBytes ...
 func (msg *MsgUpdateParams) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
+}
+
+// NewMsgUpdatePermissions ...
+func NewMsgUpdatePermissions(from string, address string, permissions uint64) *MsgUpdatePermissions {
+	return &MsgUpdatePermissions{
+		From:        from,
+		Address:     address,
+		Permissions: permissions,
+	}
+}
+
+// GetSigners ...
+func (msg *MsgUpdatePermissions) GetSigners() []sdk.AccAddress {
+	sender, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{sender}
+}
+
+// ValidateBasic ...
+func (msg *MsgUpdatePermissions) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+	_, err = sdk.AccAddressFromBech32(msg.Address)
+	if err != nil {
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid target address (%s)", err)
+	}
+
+	return nil
+}
+
+// Route ...
+func (msg MsgUpdatePermissions) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgUpdatePermissions) Type() string {
+	return TypeMsgUpdatePermissions
+}
+
+// GetSignBytes ...
+func (msg *MsgUpdatePermissions) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
 }
