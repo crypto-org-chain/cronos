@@ -191,7 +191,12 @@ func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Ran
 	if err != nil {
 		return err
 	}
-	defer fp.Close()
+	defer func() {
+		cerr := fp.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	writer := snappy.NewBufferedWriter(fp)
 
@@ -201,10 +206,7 @@ func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Ran
 		return err
 	}
 
-	if err := writer.Flush(); err != nil {
-		return err
-	}
-	return fp.Sync()
+	return writer.Flush()
 }
 
 type chunk struct {
@@ -234,7 +236,12 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 	if err != nil {
 		return err
 	}
-	defer fp.Close()
+	defer func() {
+		cerr := fp.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	bufWriter := bufio.NewWriter(fp)
 	writer := io.Writer(bufWriter)
@@ -265,10 +272,7 @@ func (c *chunk) collect(outDir string, zlibLevel int) error {
 		}
 	}
 
-	if err := bufWriter.Flush(); err != nil {
-		return err
-	}
-	return fp.Sync()
+	return bufWriter.Flush()
 }
 
 // copyTmpFile append the snappy compressed temporary file to writer
@@ -280,10 +284,7 @@ func copyTmpFile(writer io.Writer, tmpFile string) error {
 	defer fp.Close()
 
 	_, err = io.Copy(writer, snappy.NewReader(fp))
-	if err != nil {
-		return err
-	}
-	return fp.Sync()
+	return err
 }
 
 func createFile(name string) (*os.File, error) {
