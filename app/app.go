@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	"golang.org/x/exp/slices"
 
@@ -755,7 +756,7 @@ func New(
 
 // use Ethermint's custom AnteHandler
 func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
-	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
+	evmOptions := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
 		EvmKeeper:              app.EvmKeeper,
@@ -767,7 +768,13 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		MaxTxGasWanted:         maxGasWanted,
 		ExtensionOptionChecker: ethermint.HasDynamicFeeExtensionOption,
 		TxFeeChecker:           evmante.NewDynamicFeeChecker(app.EvmKeeper),
-	})
+	}
+	options := ante.HandlerOptions{
+		EvmOptions:   evmOptions,
+		CronosKeeper: app.CronosKeeper,
+	}
+
+	anteHandler, err := ante.NewAnteHandler(options)
 	if err != nil {
 		panic(err)
 	}
