@@ -2,7 +2,7 @@ vue/node_modules
 vue/dist
 release/
 /build
-/coverage.txt
+coverage.txt
 __pycache__
 /dist
 /vendor

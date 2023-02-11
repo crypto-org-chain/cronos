@@ -7,10 +7,10 @@ require (
 	github.com/alitto/pond v1.8.2
 	github.com/cosmos/cosmos-sdk v0.46.9
 	github.com/cosmos/iavl v0.19.5
+	github.com/crypto-org-chain/cronos/memiavl v0.0.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ledgerwatch/erigon-lib v0.0.0-20230130172141-b594e6cdbf76
 	github.com/linxGnu/grocksdb v1.7.14
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
@@ -20,6 +20,8 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.107.0 // indirect
+	cloud.google.com/go/storage v1.27.0 // indirect
 	cosmossdk.io/math v1.0.0-beta.4 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -32,7 +34,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
-	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coinbase/rosetta-sdk-go v0.7.9 // indirect
 	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
@@ -78,6 +80,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
+	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263 // indirect
 	github.com/lib/pq v1.10.6 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
@@ -115,14 +118,15 @@ require (
 	github.com/zondax/hid v0.9.1 // indirect
 	github.com/zondax/ledger-go v0.14.1 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/exp v0.0.0-20230118134722-a68e582fa157 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
-	golang.org/x/term v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
-	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
-	google.golang.org/grpc v1.52.3 // indirect
+	golang.org/x/crypto v0.6.0 // indirect
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	google.golang.org/api v0.103.0 // indirect
+	google.golang.org/genproto v0.0.0-20230202175211-008b39050e57 // indirect
+	google.golang.org/grpc v1.53.0 // indirect
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -132,6 +136,7 @@ require (
 )
 
 replace (
+	github.com/crypto-org-chain/cronos/memiavl => ../memiavl
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// use informal system fork of tendermint

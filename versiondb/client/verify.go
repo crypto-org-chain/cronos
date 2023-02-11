@@ -20,7 +20,7 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
-	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
+	"github.com/crypto-org-chain/cronos/memiavl"
 )
 
 func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
