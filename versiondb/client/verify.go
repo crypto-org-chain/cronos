@@ -23,7 +23,7 @@ import (
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
 
-func VerifyChangeSetCmd(stores []string) *cobra.Command {
+func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify changeSetDir",
 		Short: "Replay the input change set files in order to rebuild iavl tree in memory and output app hash and full json encoded commit info, user can compare the root hash against the block headers",
@@ -50,6 +50,10 @@ func VerifyChangeSetCmd(stores []string) *cobra.Command {
 				return err
 			}
 			save, err := cmd.Flags().GetBool(flagSave)
+			if err != nil {
+				return err
+			}
+			stores, err := GetStoresOrDefault(cmd, defaultStores)
 			if err != nil {
 				return err
 			}
