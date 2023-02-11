@@ -6,6 +6,8 @@ release/
 __pycache__
 /dist
 /vendor
+go.work
+go.work.sum
 
 # nix
 /result
