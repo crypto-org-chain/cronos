@@ -30,6 +30,11 @@ service Query {
         option (google.api.http).get = "/cronos/v1/params";
     }
 
+    // Params queries permissions for a specific address..
+    rpc Permissions(QueryPermissionsRequest) returns (QueryPermissionsResponse) {
+        option (google.api.http).get = "/cronos/v1/permissions";
+    }
+
     // this line is used by starport scaffolding # 2
 }
 
@@ -84,6 +89,17 @@ message QueryParamsRequest {}
 message QueryParamsResponse {
     // params defines the parameters of the module.
     Params params = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryPermissionsRequest is the request type for the Query/Permissions RPC method.
+message QueryPermissionsRequest {
+    string address = 1;
+}
+
+// QueryPermissionsResponse is the response type for the Query/Permissions RPC method.
+message QueryPermissionsResponse {
+    bool can_change_token_mapping = 1;
+    bool can_turn_bridge = 2;
 }
 
 // this line is used by starport scaffolding # 3

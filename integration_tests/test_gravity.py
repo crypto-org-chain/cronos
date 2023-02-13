@@ -8,6 +8,7 @@ from eth_account.account import Account
 from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
+from web3.exceptions import BadFunctionCallOutput
 
 from .gorc import GoRc
 from .network import GravityBridge, setup_cronos, setup_geth
@@ -26,7 +27,6 @@ from .utils import (
     parse_events,
     send_to_cosmos,
     send_transaction,
-    supervisorctl,
     w3_wait_for_new_blocks,
     wait_for_block_time,
     wait_for_fn,
@@ -89,8 +89,13 @@ def check_auto_deployment(cli, denom, cronos_w3, recipient, amount):
     crc21_contract = cronos_w3.eth.contract(
         address=rsp["auto_contract"], abi=cronos_crc21_abi()
     )
-    if crc21_contract.caller.balanceOf(recipient) == amount:
-        return crc21_contract
+    try:
+        if crc21_contract.caller.balanceOf(recipient) == amount:
+            return crc21_contract
+    except BadFunctionCallOutput:
+        # there's a chance the contract is not ready for call,
+        # maybe due to inconsistency between different rpc services.
+        return None
     return None
 
 
@@ -230,7 +235,7 @@ def gravity(cronos, geth):
         }
 
     add_ini_sections(cronos.base_dir / "tasks.ini", programs)
-    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
+    cronos.supervisorctl("update")
 
     yield GravityBridge(cronos, geth, contract)
 

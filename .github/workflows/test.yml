@@ -1,5 +1,6 @@
 name: integration tests
 on:
+  merge_group:
   pull_request:
   push:
     branches:
@@ -15,6 +16,7 @@ concurrency:
 jobs:
   integration_tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v3
         with:
@@ -28,7 +30,7 @@ jobs:
             **/*.md
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
@@ -52,6 +54,17 @@ jobs:
           name: debug-files
           path: debug_files.tar.gz
           if-no-files-found: ignore
+      # FIXME https://github.com/golang/go/issues/58411
+      # - name: Convert coverage data
+      #   run: |
+      #     nix profile install nixpkgs#go_1_20
+      #     go tool covdata textfmt -i=integration_tests/coverage -o profile.txt
+      # - name: Upload coverage report
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     file: ./profile.txt
+      #     flags: integration_tests
 
   upload-cache:
     if: github.event_name == 'push'
@@ -73,7 +86,7 @@ jobs:
             **/*.md
       - uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'

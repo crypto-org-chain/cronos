@@ -5,7 +5,7 @@
 ### State Machine Breaking
 
 - [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
-- [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check. 
+- [cronos#728](https://github.com/crypto-org-chain/cronos/pull/728) Upgrade gravity bridge latest bugfix, including multi attestation processing and double spend check.
 - [cronos#742](https://github.com/crypto-org-chain/cronos/pull/742) Add upgrade handler for v0.8.0-gravity-alpha2.
 - [cronos#750](https://github.com/crypto-org-chain/cronos/pull/750) Add upgrade handler for v0.8.0-gravity-alpha3.
 - [cronos#769](https://github.com/crypto-org-chain/cronos/pull/769) Prevent cancellation function to be called outside the scope of the contract that manage it.
@@ -14,17 +14,33 @@
 - [cronos#830](https://github.com/crypto-org-chain/cronos/pull/830) Upgrade gravity bridge for latest bugfixes, patching two important DOS vulnerabilities
 - [cronos#834](https://github.com/crypto-org-chain/cronos/pull/834) Remove unsafe experimental flag.
 - [cronos#842](https://github.com/crypto-org-chain/cronos/pull/842) Add upgrade handler for v2.0.0-testnet3.
+- [cronos#795](https://github.com/crypto-org-chain/cronos/pull/795) Support permissions in cronos.
 
+### Bug Fixes
+
+- [#833](https://github.com/crypto-org-chain/cronos/pull/833) Fix rollback command.
+
+*Feb 09, 2022*
+
+## v1.0.4
 
 ### Bug Fixes
 
 - [#814](https://github.com/crypto-org-chain/cronos/pull/814) Fix prometheus metrics.
-- [#833](https://github.com/crypto-org-chain/cronos/pull/833) Fix rollback command.
 
 ### Improvements
 
 - [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
+- [#791](https://github.com/crypto-org-chain/cronos/pull/791) Implement versiondb and migration commands.
 - [#779](https://github.com/crypto-org-chain/cronos/pull/779) Add config iavl-lazy-loading to enable lazy loading of iavl store.
+
+*Feb 08, 2023*
+
+## v1.0.3
+
+### Bug Fixes
+
+- [#846](https://github.com/crypto-org-chain/cronos/pull/846) Disable authz message
 
 *Jan 04, 2023*
 

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -34,7 +34,9 @@
           };
         in
         rec {
-          packages = pkgs.cronos-matrix;
+          packages = pkgs.cronos-matrix // {
+            inherit (pkgs) rocksdb;
+          };
           apps = {
             cronosd = mkApp packages.cronosd;
             cronosd-testnet = mkApp packages.cronosd-testnet;
@@ -44,7 +46,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_18
+                go_1_20
                 rocksdb
                 gomod2nix
               ];
@@ -54,7 +56,7 @@
         }
       )
     ) // {
-      overlay = final: _: {
+      overlay = final: super: {
         bundle-exe = import nix-bundle-exe { pkgs = final; };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
@@ -63,7 +65,7 @@
             --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
             | "${gzip}/bin/gzip" -9 > $out
         '';
-        rocksdb = final.callPackage ./nix/rocksdb.nix { enableJemalloc = true; };
+        rocksdb = super.rocksdb.override { enableJemalloc = true; };
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {

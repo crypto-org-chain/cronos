@@ -28,6 +28,7 @@ func GetQueryCmd(queryRoute string) *cobra.Command {
 		GetContractByDenomCmd(),
 		GetDenomByContractCmd(),
 		QueryParamsCmd(),
+		GetPermissions(),
 	)
 
 	// this line is used by starport scaffolding # 1
@@ -116,6 +117,37 @@ func GetDenomByContractCmd() *cobra.Command {
 			}
 
 			res, err := queryClient.DenomByContract(rpctypes.ContextWithHeight(clientCtx.Height), req)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetPermissions queries the permission for a specific address
+func GetPermissions() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "permissions [addr]",
+		Short: "Gets the permissions of a specific address",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			req := &types.QueryPermissionsRequest{
+				Address: args[0],
+			}
+
+			res, err := queryClient.Permissions(rpctypes.ContextWithHeight(clientCtx.Height), req)
 			if err != nil {
 				return err
 			}
