@@ -143,7 +143,12 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 			defer ingestOpts.Destroy()
 			ingestOpts.SetMoveFiles(true)
 
-			db, err := grocksdb.OpenDb(opts.AppRocksDBOptions(false), iavlDir)
+			opts := opts.AppRocksDBOptions(false)
+			// it's a workaround because rocksdb always ingest files into level `num_levels-1`,
+			// the new data will take a very long time to reach that level,
+			// level3 is the bottommost level in practice.
+			opts.SetNumLevels(4)
+			db, err := grocksdb.OpenDb(opts, iavlDir)
 			if err != nil {
 				return errors.Wrap(err, "open iavl db fail")
 			}

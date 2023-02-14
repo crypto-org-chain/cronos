@@ -46,21 +46,25 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 	return opts
 }
 
-// OpenVersionDB opens versiondb, the default column family is used for metadata,
-// actually key-value pairs are stored on another column family named with "versiondb",
-// which has user-defined timestamp enabled.
-func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
+func OpenVersionDBWithOpts(dir string, versionDBOpts *grocksdb.Options) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
 	opts := grocksdb.NewDefaultOptions()
 	opts.SetCreateIfMissing(true)
 	opts.SetCreateIfMissingColumnFamilies(true)
 	db, cfHandles, err := grocksdb.OpenDbColumnFamilies(
 		opts, dir, []string{"default", VersionDBCFName},
-		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+		[]*grocksdb.Options{opts, versionDBOpts},
 	)
 	if err != nil {
 		return nil, nil, err
 	}
 	return db, cfHandles[1], nil
+}
+
+// OpenVersionDB opens versiondb, the default column family is used for metadata,
+// actually key-value pairs are stored on another column family named with "versiondb",
+// which has user-defined timestamp enabled.
+func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
+	return OpenVersionDBWithOpts(dir, NewVersionDBOpts(false))
 }
 
 // OpenVersionDBAndTrimHistory opens versiondb similar to `OpenVersionDB`,

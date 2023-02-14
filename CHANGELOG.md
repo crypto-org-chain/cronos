@@ -1,6 +1,6 @@
 # Changelog
 
-*Feb 09, 2022*
+*Feb 15, 2022*
 
 ## v1.0.4
 
@@ -13,7 +13,7 @@
 
 - [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
 - [#791](https://github.com/crypto-org-chain/cronos/pull/791) Implement versiondb and migration commands.
-- [#779](https://github.com/crypto-org-chain/cronos/pull/779) Add config iavl-lazy-loading to enable lazy loading of iavl store.
+- [#779](https://github.com/crypto-org-chain/cronos/pull/779) Add config `iavl-lazy-loading` to enable lazy loading of iavl store.
 
 *Feb 08, 2023*
 
