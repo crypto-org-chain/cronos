@@ -115,7 +115,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: steps.changes.outputs.changed == 1
         with:
           name: gomod2nix.toml
@@ -158,7 +158,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: steps.changes.outputs.changed == 1
         with:
           name: contracts_out
@@ -166,3 +166,21 @@ jobs:
           if-no-files-found: ignore
       - if: steps.changes.outputs.changed == 1
         run: echo "Working directory is dirty" && exit 1
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn
+      - name: get rocksdb & build
+        env:
+          PLATFORM: Windows_x86_64
+        shell: msys2 {0}
+        run: |
+          ./scripts/build-windows.sh
+          ./build/cronosd.exe version --long
