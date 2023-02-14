@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
@@ -90,7 +91,7 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 		}
 
 		oper, ops, err := simulation.GenAndDeliverTxWithRandFees(txCtx)
-		if simAccount.Address.String() != cronosAdmin && errors.Is(err, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")) {
+		if simAccount.Address.String() != cronosAdmin && errors.Is(err, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")) {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unauthorized tx should fail"), nil, nil
 		}
 		return oper, ops, err

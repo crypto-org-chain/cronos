@@ -21,7 +21,6 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
@@ -46,7 +45,7 @@ var (
 	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
 )
 
-func RestoreAppDBCmd(stores []string) *cobra.Command {
+func RestoreAppDBCmd(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "restore-app-db snapshot-dir application.db",
 		Short: "Restore `application.db` from memiavl snapshots",
@@ -61,6 +60,10 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 				return err
 			}
 			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
+			if err != nil {
+				return err
+			}
+			stores, err := GetStoresOrDefault(cmd, opts.DefaultStores)
 			if err != nil {
 				return err
 			}
@@ -110,7 +113,11 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 				snapshot := snapshots[i]
 				group.Submit(func() error {
 					defer snapshot.Close()
-					return oneStore(store, snapshot, iavlDir, sstFileSizeTarget, sorterChunkSize)
+
+					sstWriter := newIAVLSSTFileWriter(opts.AppRocksDBOptions)
+					defer sstWriter.Destroy()
+
+					return oneStore(sstWriter, store, snapshot, iavlDir, sstFileSizeTarget, sorterChunkSize)
 				})
 			}
 
@@ -136,7 +143,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 			defer ingestOpts.Destroy()
 			ingestOpts.SetMoveFiles(true)
 
-			db, err := grocksdb.OpenDb(opendb.NewRocksdbOptions(false), iavlDir)
+			db, err := grocksdb.OpenDb(opts.AppRocksDBOptions(false), iavlDir)
 			if err != nil {
 				return errors.Wrap(err, "open iavl db fail")
 			}
@@ -165,7 +172,7 @@ func RestoreAppDBCmd(stores []string) *cobra.Command {
 }
 
 // oneStore process a single store, can run in parallel with other stores,
-func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
+func oneStore(sstWriter *grocksdb.SSTFileWriter, store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSizeTarget, sorterChunkSize uint64) error {
 	prefix := []byte(fmt.Sprintf(storeKeyPrefix, store))
 
 	inputChan, outputChan := extsort.Spawn(sstDir, extsort.Options{
@@ -186,9 +193,6 @@ func oneStore(store string, snapshot *memiavl.Snapshot, sstDir string, sstFileSi
 	if err != nil {
 		return err
 	}
-
-	sstWriter := newIAVLSSTFileWriter()
-	defer sstWriter.Destroy()
 
 	sstSeq := 0
 	openNextFile := func() error {
@@ -261,9 +265,9 @@ func writeMetadata(db *grocksdb.DB, cInfo *storetypes.CommitInfo) error {
 	return db.Put(writeOpts, []byte(latestVersionKey), bz)
 }
 
-func newIAVLSSTFileWriter() *grocksdb.SSTFileWriter {
+func newIAVLSSTFileWriter(rocksdbOpts func(bool) *grocksdb.Options) *grocksdb.SSTFileWriter {
 	envOpts := grocksdb.NewDefaultEnvOptions()
-	return grocksdb.NewSSTFileWriter(envOpts, opendb.NewRocksdbOptions(true))
+	return grocksdb.NewSSTFileWriter(envOpts, rocksdbOpts(true))
 }
 
 // encodeNode encodes the node in the same way as the existing iavl implementation.

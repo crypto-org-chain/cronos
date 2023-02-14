@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -45,7 +45,7 @@ func (suite *CronosTestSuite) TestInvalidMsg() {
 	suite.Require().Error(err)
 	suite.Nil(res)
 
-	_, _, log := sdkerrors.ABCIInfo(err, false)
+	_, _, log := errorsmod.ABCIInfo(err, false)
 	suite.Require().True(strings.Contains(log, "unrecognized cronos message type"))
 }
 

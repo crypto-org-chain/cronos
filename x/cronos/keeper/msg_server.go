@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -65,7 +66,7 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 	admin := k.Keeper.GetParams(ctx).CronosAdmin
 	// if admin is empty, no sender could be equal to it
 	if admin != msg.Sender {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 	// msg is already validated
 	if err := k.Keeper.RegisterOrUpdateTokenMapping(ctx, msg); err != nil {

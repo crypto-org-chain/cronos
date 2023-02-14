@@ -27,7 +27,7 @@ const (
 	SizeKeyLength = 4
 )
 
-func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
+func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build-versiondb-sst changeSetDir sstDir",
 		Short: "Build versiondb rocksdb sst files from changesets, different stores can run in parallel, the sst files are used to rebuild versiondb later",
@@ -43,6 +43,10 @@ func BuildVersionDBSSTCmd(stores []string) *cobra.Command {
 				return err
 			}
 			concurrency, err := cmd.Flags().GetInt(flagConcurrency)
+			if err != nil {
+				return err
+			}
+			stores, err := GetStoresOrDefault(cmd, defaultStores)
 			if err != nil {
 				return err
 			}
