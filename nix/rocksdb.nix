@@ -9,6 +9,7 @@
 , snappy
 , zlib
 , zstd
+, windows
 , enableJemalloc ? false
 , jemalloc
 , enableLite ? false
@@ -21,17 +22,18 @@ stdenv.mkDerivation rec {
   version = "7.9.2";
 
   src = fetchFromGitHub {
-    owner = "facebook";
+    owner = "yihuang";
     repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-5P7IqJ14EZzDkbjaBvbix04ceGGdlWBuVFH/5dpD5VM=";
+    rev = "82d63cdd7db25cce3b97f30e11000a382c116aff"; # release/v7.9.x
+    sha256 = "sha256-ProQ5g5CqruWwnmbzD0HN4z9tgal9YCOgNiD9AHjjqo=";
   };
 
   nativeBuildInputs = [ cmake ninja ];
 
   propagatedBuildInputs = [ bzip2 lz4 snappy zlib zstd ];
 
-  buildInputs = lib.optional enableJemalloc jemalloc;
+  buildInputs = lib.optional enableJemalloc jemalloc
+    ++ lib.optional stdenv.hostPlatform.isMinGW windows.mingw_w64_pthreads;
 
   outputs = [
     "out"
@@ -67,7 +69,7 @@ stdenv.mkDerivation rec {
 
   preInstall = ''
     mkdir -p $tools/bin
-    cp tools/{ldb,sst_dump} $tools/bin/
+    cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
   '' + lib.optionalString stdenv.isDarwin ''
     ls -1 $tools/bin/* | xargs -I{} install_name_tool -change "@rpath/librocksdb.7.dylib" $out/lib/librocksdb.dylib {}
   '' + lib.optionalString (stdenv.isLinux && enableShared) ''
