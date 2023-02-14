@@ -1,6 +1,7 @@
 package types
 
 import (
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/common"
@@ -50,14 +51,14 @@ func (msg *MsgConvertVouchers) GetSignBytes() []byte {
 func (msg *MsgConvertVouchers) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address (%s)", err)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address (%s)", err)
 	}
 	if !msg.Coins.IsValid() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
+		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 
 	if !msg.Coins.IsAllPositive() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
+		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 	return nil
 }
@@ -101,17 +102,17 @@ func (msg *MsgTransferTokens) GetSignBytes() []byte {
 func (msg *MsgTransferTokens) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address address (%s)", err)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid address address (%s)", err)
 	}
 
 	// TODO, validate TO address format
 
 	if !msg.Coins.IsValid() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
+		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 
 	if !msg.Coins.IsAllPositive() {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
+		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, msg.Coins.String())
 	}
 	return nil
 }
@@ -142,15 +143,15 @@ func (msg *MsgUpdateTokenMapping) GetSigners() []sdk.AccAddress {
 func (msg *MsgUpdateTokenMapping) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
 	}
 
 	if !IsValidCoinDenom(msg.Denom) {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid denom format (%s)", msg.Denom)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid denom format (%s)", msg.Denom)
 	}
 
 	if !common.IsHexAddress(msg.Contract) {
-		return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid contract address (%s)", msg.Contract)
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid contract address (%s)", msg.Contract)
 	}
 
 	return nil
