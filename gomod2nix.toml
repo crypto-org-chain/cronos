@@ -331,7 +331,7 @@ schema = 3
   [mod."github.com/linxGnu/grocksdb"]
     version = "v1.7.11-0.20230214093311-ba44112a39c1"
     hash = "sha256-aNRJ5Ihlj90lz/VBSYVVpw6MElfTkivitmrmHGvQk3A="
-    replaced = "github.com/yihuang/grocksdb"
+    replaced = "github.com/crypto-org-chain/grocksdb"
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="

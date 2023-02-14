@@ -795,6 +795,8 @@ github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJ
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee h1:qzkim8QAf6AdRKlAPgLU5nI7S9JoefLDI76PmJeOTgk=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee/go.mod h1:w/nb6f8UbrqqevKYQm/r+qjRl4WgxRlTC+l9dQ1wDfg=
+github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1 h1:VClcM7YN+5SA46WPDWQVAycbegrTgVPv/wD895OXiAk=
+github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1/go.mod h1:pY55D0o+r8yUYLq70QmhdudxYvoDb9F+9puf4m3/W+U=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3 h1:msHkCjNEUSqknqzjBCQscfxVm1ifyxoRBb0goZKqGCU=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3/go.mod h1:JOMwkZce6XmnsAfSRa3VSA/e2tV1R2y7lqljiw5STlQ=
 github.com/curioswitch/go-reassign v0.2.0/go.mod h1:x6OpXuWvgfQaMGks2BZybTngWjT84hqJfKoO8Tt/Roc=
@@ -2392,8 +2394,6 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
-github.com/yihuang/grocksdb v1.7.11-0.20230214093311-ba44112a39c1 h1:eM2rpxysEiMKlFKoFc4DBn0DKoZB2Q7mS0Utlt/U6Ug=
-github.com/yihuang/grocksdb v1.7.11-0.20230214093311-ba44112a39c1/go.mod h1:pY55D0o+r8yUYLq70QmhdudxYvoDb9F+9puf4m3/W+U=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
