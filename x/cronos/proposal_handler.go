@@ -1,6 +1,7 @@
 package cronos
 
 import (
+	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
@@ -16,7 +17,7 @@ func NewTokenMappingChangeProposalHandler(k keeper.Keeper) govtypes.Handler {
 		case *types.TokenMappingChangeProposal:
 			// check first that the denom is one of the denom supported by cronos
 			if !types.IsValidCoinDenom(c.Denom) {
-				return sdkerrors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid coin denom %s", c.Denom)
+				return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid coin denom %s", c.Denom)
 			}
 
 			msg := types.MsgUpdateTokenMapping{
@@ -27,7 +28,7 @@ func NewTokenMappingChangeProposalHandler(k keeper.Keeper) govtypes.Handler {
 			}
 			return k.RegisterOrUpdateTokenMapping(ctx, &msg)
 		default:
-			return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized cronos proposal content type: %T", c)
+			return errorsmod.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized cronos proposal content type: %T", c)
 		}
 	}
 }
