@@ -22,7 +22,8 @@ func IngestVersionDBSSTCmd() *cobra.Command {
 			}
 
 			opts := tsrocksdb.NewVersionDBOpts(false)
-			// it's a workaround because rocksdb always ingest files into level `num_levels-1`,
+			// it's a workaround for rocksdb issue(https://github.com/facebook/rocksdb/issues/11212),
+			// because rocksdb always ingest files into level `num_levels-1`,
 			// the new data will take a very long time to reach that level,
 			// level3 is the bottommost level in practice.
 			opts.SetNumLevels(4)
