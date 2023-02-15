@@ -14,6 +14,7 @@
 - [#813](https://github.com/crypto-org-chain/cronos/pull/813) Tune up rocksdb options.
 - [#791](https://github.com/crypto-org-chain/cronos/pull/791) Implement versiondb and migration commands.
 - [#779](https://github.com/crypto-org-chain/cronos/pull/779) Add config `iavl-lazy-loading` to enable lazy loading of iavl store.
+- [#871](https://github.com/crypto-org-chain/cronos/pull/871) Only ingest sst files to level 3 in versiondb migration.
 
 *Feb 08, 2023*
 
