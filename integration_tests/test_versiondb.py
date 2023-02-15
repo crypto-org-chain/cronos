@@ -63,11 +63,15 @@ def test_versiondb_migration(cronos: Cronos):
     print("restore versiondb for node0")
     sst_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print(cli0.changeset_build_versiondb_sst(changeset_dir, sst_dir))
+    tmpdir = tempfile.mkdtemp(dir=cronos.base_dir)
     print(
         cli0.changeset_ingest_versiondb_sst(
-            cli0.data_dir / "data/versiondb", sst_dir, maximum_version=latest_version
+            tmpdir, sst_dir, maximum_version=latest_version
         )
     )
+    versiondb_dir = cli0.data_dir / "data/versiondb"
+    shutil.rmtree(versiondb_dir)
+    shutil.move(tmpdir, versiondb_dir)
 
     print("start all nodes")
     print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))

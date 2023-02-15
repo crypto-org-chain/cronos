@@ -22,10 +22,10 @@ stdenv.mkDerivation rec {
   version = "7.9.2";
 
   src = fetchFromGitHub {
-    owner = "yihuang";
+    owner = "facebook";
     repo = pname;
-    rev = "82d63cdd7db25cce3b97f30e11000a382c116aff"; # release/v7.9.x
-    sha256 = "sha256-ProQ5g5CqruWwnmbzD0HN4z9tgal9YCOgNiD9AHjjqo=";
+    rev = "v${version}";
+    sha256 = "sha256-5P7IqJ14EZzDkbjaBvbix04ceGGdlWBuVFH/5dpD5VM=";
   };
 
   nativeBuildInputs = [ cmake ninja ];
