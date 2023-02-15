@@ -24,12 +24,62 @@ jobs:
       - name: build and upload goreleaser binaries
         run: make release
 
-  x86_64:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  linux:
     needs: ["goreleaser"]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: cachix/cachix-action@v12
+        with:
+          name: cronos
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+
+      - name: build linux x86_64/arm64 binaries
+        run: |
+          BUILD_TYPE="tarball"
+          BASEURL="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
+
+          build() {
+            NETWORK=$1
+            ARCH=$2
+            PKG="cronosd${NETWORK}-${BUILD_TYPE}"
+            if [ "$ARCH" == "arm64" ]; then
+              FLAKE="${BASEURL}#legacyPackages.x86_64-linux.pkgsCross.aarch64-multiplatform.cronos-matrix.${PKG}"
+            else
+              FLAKE="${BASEURL}#${PKG}"
+            fi
+            nix build -L "$FLAKE"
+            cp result "cronos_${GITHUB_REF_NAME:1}${NETWORK}_Linux_${ARCH}.tar.gz"
+          }
+
+          build "" "x86_64"
+          build "-testnet" "x86_64"
+          build "" "arm64"
+          build "-testnet" "arm64"
+
+          nix-env -i coreutils -f '<nixpkgs>'
+          sha256sum *.tar.gz > "checksums-Linux.txt"
+
+          echo 'FILES<<EOF' >> $GITHUB_ENV
+          ls -1 *.tar.gz >> $GITHUB_ENV
+          ls -1 checksums-*.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+          cat $GITHUB_ENV
+      - name: upload linux x86_64/arm64 binaries
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: "${{ env.FILES }}"
+
+  macos:
+    needs: ["goreleaser"]
+    runs-on: macos-latest
     environment: release
     steps:
       - uses: actions/checkout@v3
@@ -39,7 +89,6 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: apple-actions/import-codesign-certs@v1
-        if: matrix.os == 'macos-latest'
         with:
           p12-file-base64: ${{ secrets.MAC_CODE_SIGN_CERT }}
           p12-password: ${{ secrets.MAC_CODE_SIGN_CERT_PASS }}
@@ -47,7 +96,7 @@ jobs:
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: build linux/mac x86_64 binaries
+      - name: build mac x86_64 binaries
         env:
           MAC_CODE_API_KEY: ${{ secrets.MAC_CODE_API_KEY }}
           MAC_CODE_API_KEY_ID: ${{ secrets.MAC_CODE_API_KEY_ID }}
@@ -62,12 +111,8 @@ jobs:
             NETWORK=$1
             nix build -L "${FLAKE}#cronosd${NETWORK}-${BUILD_TYPE}"
             OUTPUT="cronos_${GITHUB_REF_NAME:1}${NETWORK}_${PLATFORM}"
-            if [ "$(uname -s)" == "Darwin" ]; then
-              ./scripts/codesign_macos.sh ./result
-              mv signed.tar.gz "$OUTPUT.tar.gz"
-            else
-              cp result "$OUTPUT.tar.gz"
-            fi
+            ./scripts/codesign_macos.sh ./result
+            mv signed.tar.gz "$OUTPUT.tar.gz"
           }
 
           build ""
@@ -81,52 +126,7 @@ jobs:
           ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
-      - name: upload linux/mac x86_64 binaries
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          files: "${{ env.FILES }}"
-
-  aarch64-linux:
-    needs: ["goreleaser"]
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      - uses: cachix/install-nix-action@v18
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - run: |
-         DEBIAN_FRONTEND=noninteractive
-         sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
-         mkdir -p ~/.config/nix
-         sudo bash -c "echo system-features = aarch64-linux arm-linux >> /etc/nix/nix.conf"
-      - uses: cachix/cachix-action@v12
-        with:
-          name: cronos
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: build linux arm64 binaries
-        env:
-          PLATFORM: Linux_arm64
-        run: |
-          BUILD_TYPE="tarball"
-          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
-
-          nix build -L --extra-platforms aarch64-linux ${FLAKE}#packages.aarch64-linux.cronosd-testnet-$BUILD_TYPE
-          cp result cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
-
-          sha256sum *.tar.gz > checksums-$PLATFORM.txt
-
-          echo 'FILES<<EOF' >> $GITHUB_ENV
-          ls -1 *.tar.gz >> $GITHUB_ENV
-          ls -1 checksums-*.txt >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-          cat $GITHUB_ENV
-      - name: upload linux arm64 binaries
+      - name: upload mac x86_64 binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
@@ -144,36 +144,16 @@ jobs:
       - name: setup msys2
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64          
+          msystem: MINGW64
           update: false
-          install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-rocksdb  mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn        
+          install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn
       - name: get rocksdb & build
         env:
           PLATFORM: Windows_x86_64
         shell: msys2 {0}
         run: |
-          uname -a
-          export GOROOT=/mingw64/lib/go
-          export GOPATH=$HOME/go
-          export PATH=$GOPATH/bin:$GOROOT/bin:$PATH             
-          export CGO_CFLAGS="-I/mingw64/include/rocksdb" 
-          export CGO_LDFLAGS="-L/mingw64/lib -lrocksdb -lstdc++ -lm -lz -lbz2 -lsnappy -llz4 -lzstd" 
-          echo $PATH
-          go version
-          wget https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst
-          pacman -U mingw-w64-x86_64-rocksdb-6.26.1-1-any.pkg.tar.zst --noconfirm
-          COSMOS_BUILD_OPTIONS=rocksdb make build
-          ls -la ./build/
-          mv ./build/cronosd ./build/cronosd.exe
-          cp /mingw64/bin/libbz2-1.dll ./build 
-          cp /mingw64/bin/libgcc_s_seh-1.dll ./build
-          cp /mingw64/bin/liblz4.dll ./build
-          cp /mingw64/bin/librocksdb.dll ./build
-          cp /mingw64/bin/libsnappy.dll ./build
-          cp /mingw64/bin/libstdc++-6.dll ./build
-          cp /mingw64/bin/libwinpthread-1.dll ./build
-          cp /mingw64/bin/libzstd.dll ./build
-          cp /mingw64/bin/zlib1.dll ./build
+          ./scripts/build-windows.sh
+          ./build/cronosd.exe version --long
           cd ./build
           tar cvfz ../cronos.tar.gz *
           cd ..

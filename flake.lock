@@ -41,15 +41,15 @@
     "nix-bundle-exe": {
       "flake": false,
       "locked": {
-        "lastModified": 1652837534,
-        "narHash": "sha256-tdGPrIW+36z6e1W7Vni8ioUs4/h62I0fbMR2dymoBDo=",
-        "owner": "3noch",
+        "lastModified": 1676466009,
+        "narHash": "sha256-2a39dCyIsAhBEMk2UnU45LZK0aBKEoYPQxtTiuQVTP4=",
+        "owner": "yihuang",
         "repo": "nix-bundle-exe",
-        "rev": "c083d398032871b1cee49d9325e81aa12abf429a",
+        "rev": "43448fe015b22892907004f63f962b56deae9bdc",
         "type": "github"
       },
       "original": {
-        "owner": "3noch",
+        "owner": "yihuang",
         "repo": "nix-bundle-exe",
         "type": "github"
       }

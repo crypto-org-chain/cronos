@@ -41,6 +41,50 @@ jobs:
           COSMOS_BUILD_OPTIONS=rocksdb make build
         if: steps.changed-files.outputs.any_changed == 'true'
 
+  cross-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [aarch64-multiplatform, mingwW64, aarch64-darwin]
+        include:
+          - os: ubuntu-latest
+          - host: aarch64-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v18
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - id: changed-files
+        uses: tj-actions/changed-files@v34
+        with:
+          files: |
+            *.go
+            *.mod
+            *.sum
+      - uses: cachix/cachix-action@v12
+        if: steps.changed-files.outputs.any_changed == 'true'
+        with:
+          name: cronos
+          # github don't pass secrets for pull request from fork repos,
+          # in that case the push is disabled naturally.
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: Run build
+        env:
+          HOST: ${{ matrix.host }}
+        run: |
+          BUILD=$(nix eval --impure --raw --expr 'builtins.currentSystem')
+          nix build .#legacyPackages.${BUILD}.pkgsCross.${HOST}.cronos-matrix.cronosd-tarball
+        if: steps.changed-files.outputs.any_changed == 'true'
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "cronosd-tarball-${{ matrix.host }}"
+          path: result
+          if-no-files-found: ignore
+
   unittest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -116,7 +160,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: steps.changes.outputs.changed == 1
         with:
           name: gomod2nix.toml
@@ -159,7 +203,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: steps.changes.outputs.changed == 1
         with:
           name: contracts_out
