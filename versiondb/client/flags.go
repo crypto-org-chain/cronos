@@ -20,4 +20,5 @@ const (
 	flagLoadSnapshot     = "load-snapshot"
 	flagSorterChunkSize  = "sorter-chunk-size"
 	flagInitialVersion   = "initial-version"
+	flagNumLevels        = "num-levels"
 )

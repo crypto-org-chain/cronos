@@ -20,13 +20,18 @@ func IngestVersionDBSSTCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
+			numLevels, err := cmd.Flags().GetInt(flagNumLevels)
+			if err != nil {
+				return err
+			}
 			opts := tsrocksdb.NewVersionDBOpts(false)
 			// it's a workaround for rocksdb issue(https://github.com/facebook/rocksdb/issues/11212),
 			// because rocksdb always ingest files into level `num_levels-1`,
 			// the new data will take a very long time to reach that level,
 			// level3 is the bottommost level in practice.
-			opts.SetNumLevels(4)
+			if numLevels > 0 {
+				opts.SetNumLevels(numLevels)
+			}
 			db, cfHandle, err := tsrocksdb.OpenVersionDBWithOpts(dbPath, opts)
 			if err != nil {
 				return err
@@ -62,5 +67,6 @@ func IngestVersionDBSSTCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
 	cmd.Flags().Int64(flagMaximumVersion, 0, "Specify the maximum version covered by the ingested files, if it's bigger than existing recorded latest version, will update it.")
+	cmd.Flags().Int(flagNumLevels, 4, "Override the num levels in default options, when ingesting into a new db, the sst files will be ingested into level `num-levels-1`, set to 0 to not override.")
 	return cmd
 }
