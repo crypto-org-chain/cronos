@@ -3,6 +3,7 @@ module github.com/crypto-org-chain/cronos
 go 1.18
 
 require (
+	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.9
@@ -36,7 +37,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	cloud.google.com/go/iam v0.7.0 // indirect
 	cloud.google.com/go/storage v1.27.0 // indirect
-	cosmossdk.io/errors v1.0.0-beta.7 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
@@ -205,7 +205,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// use replace to force update grocksdb dependency in tm-db
-	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.7.14
+	github.com/linxGnu/grocksdb => github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1
 	github.com/miguelmota/go-ethereum-hdwallet => github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2
 
 	// TODO: remove when gravity update dependencies
