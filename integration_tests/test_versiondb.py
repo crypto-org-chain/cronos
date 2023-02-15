@@ -23,16 +23,17 @@ def test_versiondb_migration(cronos: Cronos):
       - node1 don't support historical queries
     """
     w3 = cronos.w3
-    balance0 = w3.eth.get_balance(ADDRS["community"])
+    community = ADDRS["community"]
+    balance0 = w3.eth.get_balance(community)
     block0 = w3.eth.block_number
 
     tx = {
         "from": ADDRS["validator"],
-        "to": ADDRS["community"],
+        "to": community,
         "value": 1000,
     }
     send_transaction(w3, tx)
-    balance1 = w3.eth.get_balance(ADDRS["community"])
+    balance1 = w3.eth.get_balance(community)
     block1 = w3.eth.block_number
 
     # stop the network first
@@ -77,20 +78,20 @@ def test_versiondb_migration(cronos: Cronos):
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
     wait_for_port(ports.evmrpc_port(cronos.base_port(1)))
 
-    w3.eth.get_balance(ADDRS["community"], block_identifier=block0) == balance0
-    w3.eth.get_balance(ADDRS["community"], block_identifier=block1) == balance1
-    w3.eth.get_balance(ADDRS["community"]) == balance1
+    assert w3.eth.get_balance(community, block_identifier=block0) == balance0
+    assert w3.eth.get_balance(community, block_identifier=block1) == balance1
+    assert w3.eth.get_balance(community) == balance1
 
     # check query still works, node1 don't enable versiondb,
     # so we are testing iavl query here.
     w3_1 = cronos.node_w3(1)
-    assert w3_1.eth.get_balance(ADDRS["community"]) == balance1
+    assert w3_1.eth.get_balance(community) == balance1
 
     # check the chain is still growing
     send_transaction(
         w3,
         {
-            "from": ADDRS["community"],
+            "from": community,
             "to": ADDRS["validator"],
             "value": 1000,
         },
