@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
@@ -102,7 +102,7 @@ func (im IBCConversionModule) OnRecvPacket(
 	if ack.Success() {
 		data, err := im.getFungibleTokenPacketData(packet)
 		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(errorsmod.Wrap(sdkerrors.ErrUnknownRequest,
+			return channeltypes.NewErrorAcknowledgement(errors.Wrap(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet data in middleware"))
 		}
 		denom := im.getIbcDenomFromPacketAndData(packet, data)
@@ -130,7 +130,7 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 		// Call the middle ware only at the "refund" case
 		var ack channeltypes.Acknowledgement
 		if err := transferTypes.ModuleCdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
-			return errorsmod.Wrapf(sdkerrors.ErrUnknownRequest,
+			return errors.Wrapf(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet acknowledgement in middleware: %v", err)
 		}
 		if _, ok := ack.Response.(*channeltypes.Acknowledgement_Error); ok {
@@ -172,7 +172,7 @@ func (im IBCConversionModule) OnTimeoutPacket(
 func (im IBCConversionModule) getFungibleTokenPacketData(packet channeltypes.Packet) (transferTypes.FungibleTokenPacketData, error) {
 	var data transferTypes.FungibleTokenPacketData
 	if err := transferTypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
-		return data, errorsmod.Wrapf(sdkerrors.ErrUnknownRequest,
+		return data, errors.Wrapf(sdkerrors.ErrUnknownRequest,
 			"cannot unmarshal ICS-20 transfer packet data in middleware: %s", err.Error())
 	}
 	return data, nil
@@ -182,7 +182,7 @@ func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferType
 	// parse the transfer amount
 	transferAmount, ok := sdk.NewIntFromString(data.Amount)
 	if !ok {
-		return errorsmod.Wrapf(transferTypes.ErrInvalidAmount,
+		return errors.Wrapf(transferTypes.ErrInvalidAmount,
 			"unable to parse transfer amount (%s) into sdk.Int in middleware", data.Amount)
 	}
 	token := sdk.NewCoin(denom, transferAmount)

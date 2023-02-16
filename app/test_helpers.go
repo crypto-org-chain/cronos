@@ -18,7 +18,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -455,7 +455,7 @@ func NewPubKeyFromHex(pk string) (res cryptotypes.PubKey) {
 		panic(err)
 	}
 	if len(pkBytes) != ed25519.PubKeySize {
-		panic(errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "invalid pubkey size"))
+		panic(errors.Wrap(sdkerrors.ErrInvalidPubKey, "invalid pubkey size"))
 	}
 	return &ed25519.PubKey{Key: pkBytes}
 }

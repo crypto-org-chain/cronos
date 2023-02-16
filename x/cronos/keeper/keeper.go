@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
@@ -223,7 +223,7 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		}
 		// we check that denom use the same contract address in checksum format
 		if contract != common.HexToAddress(msg.Contract).Hex() {
-			return errorsmod.Wrapf(
+			return errors.Wrapf(
 				sdkerrors.ErrInvalidRequest,
 				"coin denom %s does not match with contract address %s",
 				msg.Denom, common.HexToAddress(msg.Contract).Hex())
@@ -272,7 +272,7 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			k.DeleteExternalContractForDenom(ctx, msg.Denom)
 		} else {
 			if !common.IsHexAddress(msg.Contract) {
-				return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+				return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
 			}
 			// update the mapping
 			contract := common.HexToAddress(msg.Contract)

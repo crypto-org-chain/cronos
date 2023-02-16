@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -83,7 +83,7 @@ func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (
 
 func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
 	if msg.Authority != k.authority {
-		return nil, errorsmod.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
+		return nil, errors.Wrapf(govtypes.ErrInvalidSigner, "invalid authority; expected %s, got %s", k.authority, msg.Authority)
 	}
 
 	ctx := sdk.UnwrapSDKContext(goCtx)
@@ -99,7 +99,7 @@ func (k msgServer) UpdatePermissions(goCtx context.Context, msg *types.MsgUpdate
 	admin := k.Keeper.GetParams(ctx).CronosAdmin
 	// if admin is empty, no sender could be equal to it
 	if admin != msg.From {
-		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
+		return nil, errors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is authorized")
 	}
 	acc, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
