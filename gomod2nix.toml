@@ -105,8 +105,8 @@ schema = 3
     version = "v1.0.0-beta.1"
     hash = "sha256-oATkuj+fM5eBn+ywO+w/tL0AFSIEkx0J3Yz+VhVe0QA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.9"
-    hash = "sha256-4D8A/8IfzRICpR2mIwilS9HUVhMjKHwNygf7BeVPwNM="
+    version = "v0.46.10"
+    hash = "sha256-lCrSKm9WZCBcqJv/2c9fUhEPkd9kLo7a/7OgUqcGwdo="
     replaced = "github.com/cosmos/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -282,6 +282,9 @@ schema = 3
   [mod."github.com/hashicorp/go-safetemp"]
     version = "v1.0.0"
     hash = "sha256-g5i9m7FSRInQzZ4iRpIsoUu685AY7fppUwjhuZCezT8="
+  [mod."github.com/hashicorp/go-uuid"]
+    version = "v1.0.2"
+    hash = "sha256-SsIZNWnnjuPbiclz2bs9AKWHvpuVsrFUW2CzAVSx8qs="
   [mod."github.com/hashicorp/go-version"]
     version = "v1.6.0"
     hash = "sha256-UV0equpmW6BiJnp4W3TZlSJ+PTHuTA+CdOs2JTeHhjs="
