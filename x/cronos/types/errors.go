@@ -3,7 +3,7 @@ package types
 // DONTCOVER
 
 import (
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"cosmossdk.io/errors"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 
 // x/cronos module sentinel errors
 var (
-	ErrIbcCroDenomEmpty   = sdkerrors.Register(ModuleName, codeErrIbcCroDenomEmpty, "ibc cro denom is not set")
-	ErrIbcCroDenomInvalid = sdkerrors.Register(ModuleName, codeErrIbcCroDenomInvalid, "ibc cro denom is invalid")
+	ErrIbcCroDenomEmpty   = errors.Register(ModuleName, codeErrIbcCroDenomEmpty, "ibc cro denom is not set")
+	ErrIbcCroDenomInvalid = errors.Register(ModuleName, codeErrIbcCroDenomInvalid, "ibc cro denom is invalid")
 	// this line is used by starport scaffolding # ibc/errors
 )

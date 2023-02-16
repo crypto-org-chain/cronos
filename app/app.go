@@ -21,6 +21,7 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
+	"cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -964,10 +965,10 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // VerifyAddressFormat verifis the address is compatible with ethereum
 func VerifyAddressFormat(bz []byte) error {
 	if len(bz) == 0 {
-		return sdkerrors.Wrap(sdkerrors.ErrUnknownAddress, "invalid address; cannot be empty")
+		return errors.Wrap(sdkerrors.ErrUnknownAddress, "invalid address; cannot be empty")
 	}
 	if len(bz) != AddrLen {
-		return sdkerrors.Wrapf(
+		return errors.Wrapf(
 			sdkerrors.ErrUnknownAddress,
 			"invalid address length; got: %d, expect: %d", len(bz), AddrLen,
 		)

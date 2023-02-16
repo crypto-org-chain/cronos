@@ -3,8 +3,8 @@ package keeper
 import (
 	"strings"
 
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	transferTypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmTypes "github.com/evmos/ethermint/x/evm/types"
@@ -45,15 +45,15 @@ func (k Keeper) GetSourceChannelID(ctx sdk.Context, ibcVoucherDenom string) (cha
 	// remove the ibc
 	hash := strings.Split(ibcVoucherDenom, "/")
 	if len(hash) != 2 {
-		return "", sdkerrors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
+		return "", errors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
 	}
 	hexDenomBytes, err := transferTypes.ParseHexHash(hash[1])
 	if err != nil {
-		return "", sdkerrors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
+		return "", errors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
 	}
 	denomTrace, exists := k.transferKeeper.GetDenomTrace(ctx, hexDenomBytes)
 	if !exists {
-		return "", sdkerrors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
+		return "", errors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
 	}
 
 	// the path has for format port/channelId

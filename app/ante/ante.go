@@ -1,6 +1,7 @@
 package ante
 
 import (
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -40,7 +41,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 			}
 
 			if !options.CronosKeeper.HasPermission(ctx, accountToCheck, permissionToCheck) {
-				return newCtx, sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is unauthorized")
+				return newCtx, errors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is unauthorized")
 			}
 		}
 
