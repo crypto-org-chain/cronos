@@ -96,6 +96,7 @@ install: check-network print-ledger go.sum
 
 test:
 	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
+	@cd memiavl; go test -v -mod=readonly ./ -coverprofile=$(COVERAGE) -covermode=atomic
 
 .PHONY: clean build install test
 

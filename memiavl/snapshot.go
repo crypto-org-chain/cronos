@@ -204,7 +204,7 @@ func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) err
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string) error {
+func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 	var rootIndex uint32
 	if t.root == nil {
 		rootIndex = EmptyRootNodeIndex
@@ -217,20 +217,31 @@ func (t *Tree) WriteSnapshot(snapshotDir string) error {
 		if err != nil {
 			return err
 		}
-		defer fpNodes.Close()
+		defer func() {
+			if err := fpNodes.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 
 		fpKeys, err := createFile(keysFile)
 		if err != nil {
 			return err
 		}
-		defer fpKeys.Close()
+		defer func() {
+			if err := fpKeys.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 
 		fpValues, err := createFile(valuesFile)
 		if err != nil {
 			return err
 		}
-		defer fpValues.Close()
-
+		defer func() {
+			if err := fpValues.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 		nodesWriter := bufio.NewWriter(fpNodes)
 		keysWriter := bufio.NewWriter(fpKeys)
 		valuesWriter := bufio.NewWriter(fpValues)
@@ -274,7 +285,11 @@ func (t *Tree) WriteSnapshot(snapshotDir string) error {
 	if err != nil {
 		return err
 	}
-	defer fpMetadata.Close()
+	defer func() {
+		if err := fpMetadata.Close(); returnErr == nil {
+			returnErr = err
+		}
+	}()
 
 	if _, err := fpMetadata.Write(metadataBuf[:]); err != nil {
 		return err

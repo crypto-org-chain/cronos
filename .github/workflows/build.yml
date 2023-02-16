@@ -85,7 +85,7 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt,./versiondb/coverage.txt
+          files: ./coverage.txt,./memiavl/coverage.txt,./versiondb/coverage.txt
           fail_ci_if_error: true
         if: steps.changed-files.outputs.any_changed == 'true'
 
