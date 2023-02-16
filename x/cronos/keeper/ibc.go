@@ -9,7 +9,8 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	errorsmod "cosmossdk.io/errors"
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -27,7 +28,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 		switch c.Denom {
 		case params.IbcCroDenom:
 			if params.IbcCroDenom == "" {
-				return sdkerrors.Wrap(types.ErrIbcCroDenomEmpty, "ibc is disabled")
+				return errorsmod.Wrap(types.ErrIbcCroDenomEmpty, "ibc is disabled")
 			}
 
 			// Send ibc tokens to escrow address
