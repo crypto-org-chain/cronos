@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.9
+	github.com/cosmos/cosmos-sdk v0.46.10
 	github.com/cosmos/gogoproto v1.4.2
 	github.com/cosmos/ibc-go/v5 v5.2.0
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0
@@ -47,7 +47,7 @@ require (
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
 	github.com/alitto/pond v1.8.2 // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
-	github.com/aws/aws-sdk-go v1.40.45 // indirect
+	github.com/aws/aws-sdk-go v1.44.122 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
@@ -110,10 +110,11 @@ require (
 	github.com/gtank/ristretto255 v0.1.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-getter v1.6.1 // indirect
+	github.com/hashicorp/go-getter v1.7.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
+	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -139,7 +140,7 @@ require (
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
+	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
@@ -171,7 +172,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.10 // indirect
 	github.com/tklauser/numcpus v0.4.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
-	github.com/ulikunitz/xz v0.5.8 // indirect
+	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/zondax/hid v0.9.1 // indirect
 	github.com/zondax/ledger-go v0.14.1 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
@@ -196,7 +197,7 @@ require (
 replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.9
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.10
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
