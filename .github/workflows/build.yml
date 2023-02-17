@@ -22,7 +22,7 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
       - id: changed-files
         uses: tj-actions/changed-files@v34
         with:
@@ -52,7 +52,7 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
       - id: changed-files
         uses: tj-actions/changed-files@v34
         with:
