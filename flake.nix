@@ -60,7 +60,7 @@
         go_1_19 = prev.go_1_19.overrideAttrs (_: rec {
           version = "1.19.6";
           src = final.fetchurl {
-            url = "https://www.kernel.org/pub/software/scm/git/git-${version}.tar.xz";
+            url = "https://go.dev/dl/go${version}.src.tar.gz";
             hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
           };
         });
