@@ -57,7 +57,7 @@ import sources.nixpkgs {
       };
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
-    (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (final: _: {
       rocksdb = final.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })
