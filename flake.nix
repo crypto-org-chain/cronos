@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -46,7 +46,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_18
+                go_1_19
                 rocksdb
                 gomod2nix
               ];
@@ -56,7 +56,14 @@
         }
       )
     ) // {
-      overlay = final: _: {
+      overlay = final: prev: {
+        go_1_19 = prev.go_1_19.overrideAttrs (_: rec {
+          version = "1.19.6";
+          src = final.fetchurl {
+            url = "https://www.kernel.org/pub/software/scm/git/git-${version}.tar.xz";
+            hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
+          };
+        });
         bundle-exe = import nix-bundle-exe { pkgs = final; };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.

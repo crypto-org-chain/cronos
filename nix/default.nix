@@ -12,8 +12,15 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (_: pkgs: {
-      go = pkgs.go_1_18;
+    (final: pkgs: rec {
+      go_1_19 = pkgs.go_1_19.overrideAttrs (_: rec {
+        version = "1.19.6";
+        src = final.fetchurl {
+          url = "https://www.kernel.org/pub/software/scm/git/git-${version}.tar.xz";
+          hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
+        };
+      });
+      go = go_1_19;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
