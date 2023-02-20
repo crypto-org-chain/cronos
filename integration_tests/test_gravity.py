@@ -260,7 +260,7 @@ def test_gravity_transfer(gravity):
     assert txreceipt.status == 1, "should success"
     assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
-    denom = f"gravity{erc20.address}"
+    denom = f"gravity{erc20.address.lower()}"
 
     def check_gravity_native_tokens():
         "check the balance of gravity native token"
@@ -331,7 +331,7 @@ def test_gov_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc21 contract", crc21.address)
-    denom = f"gravity{erc20.address}"
+    denom = f"gravity{erc20.address.lower()}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
@@ -405,7 +405,7 @@ def test_direct_token_mapping(gravity):
         CONTRACTS["TestERC20Utility"],
     )
     print("crc21 contract", crc21.address)
-    denom = f"gravity{erc20.address}"
+    denom = f"gravity{erc20.address.lower()}"
 
     print("check the contract mapping not exists yet")
     with pytest.raises(AssertionError):
@@ -464,7 +464,7 @@ def test_gravity_cancel_transfer(gravity):
         send_to_cosmos(gravity.contract, erc20, community, amount, KEYS["validator"])
         assert erc20.caller.balanceOf(ADDRS["validator"]) == balance - amount
 
-        denom = f"gravity{erc20.address}"
+        denom = f"gravity{erc20.address.lower()}"
         crc21_contract = None
 
         def local_check_auto_deployment():
@@ -527,7 +527,7 @@ def test_gravity_source_tokens(gravity):
         cronos_cli = gravity.cronos.cosmos_cli()
 
         print("crc21 contract", contract.address)
-        denom = f"cronos{contract.address}"
+        denom = f"cronos{contract.address.lower()}"
 
         print("check the contract mapping not exists yet")
         with pytest.raises(AssertionError):
