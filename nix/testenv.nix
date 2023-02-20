@@ -28,6 +28,11 @@ poetry2nix.mkPoetryEnv {
           substituteInPlace setup.py --replace \'setuptools-markdown\' ""
         '';
       };
+      pyyaml-include = super.pyyaml-include.overridePythonAttrs {
+        preConfigure = ''
+          substituteInPlace setup.py --replace "setup()" "setup(version=\"1.3\")"
+        '';
+      };
     })
   ]);
 }
