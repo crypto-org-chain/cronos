@@ -1,12 +1,38 @@
-{ pkgs }:
-pkgs.poetry2nix.mkPoetryEnv {
+{ poetry2nix, python39, lib }:
+poetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
-  python = pkgs.python39;
-  overrides = pkgs.poetry2nix.overrides.withDefaults (self: super: {
-    eth-bloom = super.eth-bloom.overridePythonAttrs {
-      preConfigure = ''
-        substituteInPlace setup.py --replace \'setuptools-markdown\' ""
-      '';
-    };
-  });
+  python = python39;
+  overrides = poetry2nix.overrides.withDefaults (lib.composeManyExtensions [
+    (self: super:
+      let
+        buildSystems = {
+          eth-bloom = [ "setuptools" ];
+          cprotobuf = [ "setuptools" ];
+          durations = [ "setuptools" ];
+          multitail2 = [ "setuptools" ];
+          pytest-github-actions-annotate-failures = [ "setuptools" ];
+          flake8-black = [ "setuptools" ];
+          multiaddr = [ "setuptools" ];
+        };
+      in
+      lib.mapAttrs
+        (attr: systems: super.${attr}.overridePythonAttrs
+          (old: {
+            nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
+          }))
+        buildSystems
+    )
+    (self: super: {
+      eth-bloom = super.eth-bloom.overridePythonAttrs {
+        preConfigure = ''
+          substituteInPlace setup.py --replace \'setuptools-markdown\' ""
+        '';
+      };
+      pyyaml-include = super.pyyaml-include.overridePythonAttrs {
+        preConfigure = ''
+          substituteInPlace setup.py --replace "setup()" "setup(version=\"1.3\")"
+        '';
+      };
+    })
+  ]);
 }

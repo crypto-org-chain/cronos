@@ -12,8 +12,15 @@ in
 import sources.nixpkgs {
   overlays = [
     (_: pkgs: dapptools) # use released version to hit the binary cache
-    (_: pkgs: {
-      go = pkgs.go_1_18;
+    (final: pkgs: rec {
+      go_1_19 = pkgs.go_1_19.overrideAttrs (_: rec {
+        version = "1.19.6";
+        src = final.fetchurl {
+          url = "https://go.dev/dl/go${version}.src.tar.gz";
+          hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
+        };
+      });
+      go = go_1_19;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
@@ -37,7 +44,7 @@ import sources.nixpkgs {
         name = "gorc";
         src = sources.gravity-bridge;
         sourceRoot = "gravity-bridge-src/orchestrator";
-        cargoSha256 = "sha256-ufrwiXlb0RVaJiJ70TCNblhOUCIj7Jht5kX8SoXQQMA";
+        cargoSha256 = "sha256-FQ43PFGbagIi+KZ6KUtjF7OClIkCqKd4pGzHaYr2Q+A=";
         cargoBuildFlags = "-p ${name} --features ethermint";
         buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin
           (with pkgs.darwin.apple_sdk.frameworks; [ CoreFoundation Security ]);
@@ -50,7 +57,7 @@ import sources.nixpkgs {
       };
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
-    (_: pkgs: { test-env = import ./testenv.nix { inherit pkgs; }; })
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (final: _: {
       rocksdb = final.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })

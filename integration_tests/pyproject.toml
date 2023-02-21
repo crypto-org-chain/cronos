@@ -27,6 +27,7 @@ pysha3 = "^1.0.2"
 jsonnet = "^0.18.0"
 eth-account = { git = "https://github.com/mmsqe/eth-account.git", branch = "v0.5.8-rc0" }
 cprotobuf = "^0.1.11"
+pathspec = "^0.10.1"
 flaky = "^3.7.0"
 
 [tool.poetry.dev-dependencies]
