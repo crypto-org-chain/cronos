@@ -237,6 +237,7 @@ def gravity(cronos, geth):
     yield GravityBridge(cronos, geth, contract)
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_gravity_transfer(gravity):
     geth = gravity.geth
     cli = gravity.cronos.cosmos_cli()
@@ -308,6 +309,7 @@ def test_gravity_transfer(gravity):
     wait_for_fn("send-to-ethereum", check)
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_gov_token_mapping(gravity):
     """
     Test adding a token mapping through gov module
@@ -382,6 +384,7 @@ def test_gov_token_mapping(gravity):
     wait_for_fn("check balance on cronos", check)
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_direct_token_mapping(gravity):
     """
     Test adding a token mapping directly
@@ -437,6 +440,7 @@ def test_direct_token_mapping(gravity):
     wait_for_fn("check balance on cronos", check)
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_gravity_cancel_transfer(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
@@ -517,6 +521,7 @@ def test_gravity_cancel_transfer(gravity):
         wait_for_fn("cancel-send-to-ethereum", check_refund)
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_gravity_source_tokens(gravity):
     if not gravity.cronos.enable_auto_deployment:
         # deploy crc21 contract
@@ -613,6 +618,7 @@ def test_gravity_source_tokens(gravity):
         assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
 
 
+@pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
 def test_gravity_blacklisted_contract(gravity):
     if gravity.cronos.enable_auto_deployment:
         geth = gravity.geth

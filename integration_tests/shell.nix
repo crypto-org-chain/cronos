@@ -7,7 +7,7 @@ pkgs.mkShell {
     (pkgs.callPackage ../. { }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
-    pkgs.gorc
+    # pkgs.gorc
     pkgs.cosmovisor
     pkgs.poetry
     pkgs.nodejs
