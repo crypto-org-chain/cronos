@@ -3,15 +3,18 @@ module github.com/crypto-org-chain/cronos/memiavl
 go 1.20
 
 require (
+	github.com/RoaringBitmap/roaring v1.2.2
 	github.com/cosmos/iavl v0.19.5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tm-db v0.6.7
+	github.com/tidwall/btree v1.5.0
 )
 
 require (
 	github.com/DataDog/zstd v1.4.1 // indirect
+	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/confio/ics23/go v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -26,12 +29,14 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/linxGnu/grocksdb v1.7.10 // indirect
+	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tendermint/tendermint v0.34.20 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect

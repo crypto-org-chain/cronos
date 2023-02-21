@@ -10,6 +10,10 @@
 * 27 Jan 2023:
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
+* 21 Feb 2023:
+  * Reduce node size (without hash) from 32bytes to 16bytes.
+  * Append offset table to the end of keys/values file, try elias-fano coding for the values one.
+
 
 ## The Journey
 
@@ -65,47 +69,52 @@ IAVL snapshot is composed by four files:
   ```
   magic: uint32
   format: uint32
-  version: uint64
+  version: uint32
   root node index: uint32
   ```
 
-- `nodes`, array of fixed size(64bytes) nodes, the node format is like this:
+- `nodes`, array of fixed size(16+32bytes) nodes, the node format is like this:
 
   ```
-  height  : uint8          // padded to 4bytes
-  version : uint32
-  size    : uint64
-  key     : uint64         // offset in keys file
-  left    : uint32         // inner node only
-  right   : uint32         // inner node only
-  value   : uint64 offset  // offset in values file, leaf node only
-  hash    : [32]byte
+  height   : uint32         // padded to 4bytes
+  version  : uint32
+  size     : uint32
+  key_node : uint32
+  hash     : [32]byte
   ```
-  The node has fixed length, can be indexed directly. The nodes reference each other with the index, nodes are written in post-order, so the root node is always placed at the end.
+  The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
+
+  For branch node, the `key_node` field reference the minimal leaf node in the right branch for branch node, for leaf node, it's the leaf index instead, which can be used to find key and value in `keys` and `values` file.
+
+  The branch node don't need extra left/right children references, those are derived on the fly based on property of post-order traversal:
+
+  ```
+  right child index = self index - 1
+  left child index = key_node - 1
+  ```
 
   Some integers are using `uint32`, should be enough in forseeable future, but could be changed to `uint64` to be safer.
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
-- `keys`, sequence of length prefixed leaf node keys, ordered and no duplication.
+- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are appended to the end of the file, user can look up the key offset by leaf node index.
 
   ```
-  size: uint32
   payload
   *repeat*
+  key offset: uint32
+  *repeat*
+  offset: uint64    // begin offset of the offsets table
   ```
 
-  Key size is encoded in `uint32`, so the maximum key length supported is `1<<32-1`, around 4G.
-
-- `values`, sequence of length prefixed leaf node values.
+- `values`, sequence of leaf node values, the offsets are encoded with elias-fano coding and appended to the end of the file, user can look up the key offset by leaf node index.
 
   ```
-  size: uint32
   payload
   *repeat*
+  offsets table encoded with elias-fano coding
+  offset: uint64    // begin offset of the offsets table
   ```
-
-  Value size is encoded in `uint32`, so maximum value length supported is `1<<32-1`, around 4G.
 
 #### Compression
 
@@ -114,5 +123,7 @@ The items in snapshot reference with each other by file offsets, we can apply so
 ### VersionDB
 
 [VersionDB](../README.md) is to support query and iterating historical versions of key-values pairs, currently implemented with rocksdb's experimental user-defined timestamp feature, support query and iterate key-value pairs by version, it's an alternative way to support grpc query service, and much more compact than IAVL trees, similar in size with the compressed change set files.
+
+After versiondb is fully integrated, IAVL tree don't need to serve queries at all, it don't need to store the values at all, just store the value hashes would be enough.
 
 [^1]: https://github.com/facebook/zstd/blob/dev/contrib/seekable_format/zstd_seekable_compression_format.md

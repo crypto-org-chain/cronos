@@ -34,6 +34,9 @@ schema = 3
   [mod."github.com/ChainSafe/go-schnorrkel"]
     version = "v0.0.0-20200405005733-88cbf1b4c40d"
     hash = "sha256-i8RXZemJGlSjBT35oPm0SawFiBoIU5Pkq5xp4n/rzCY="
+  [mod."github.com/RoaringBitmap/roaring"]
+    version = "v1.2.2"
+    hash = "sha256-fU7+98nt+xznngUBczAVb0eZosu1qGbFlXROKQbCOmE="
   [mod."github.com/StackExchange/wmi"]
     version = "v1.2.1"
     hash = "sha256-1BoEeWAWyebH+1mMuyPhWZut8nWHb6r73MgcqlGuUEY="
@@ -64,6 +67,9 @@ schema = 3
   [mod."github.com/bgentry/speakeasy"]
     version = "v0.1.1-0.20220910012023-760eaf8b6816"
     hash = "sha256-Tx3sPuhsoVwrCfJdIwf4ipn7pD92OQNYvpCxl1Z9Wt0="
+  [mod."github.com/bits-and-blooms/bitset"]
+    version = "v1.2.2"
+    hash = "sha256-pKeW8JiAygNzSWozURhmVmbUj0VvOjAxjW1xTCdKL1w="
   [mod."github.com/btcsuite/btcd"]
     version = "v0.23.4"
     hash = "sha256-xP7TLBdOoUIjg5Q3MOjbT5P9tkCWjsd4bWgZLp539Wo="
@@ -337,18 +343,6 @@ schema = 3
     version = "v1.7.15-0.20230222024938-b61261a9193b"
     hash = "sha256-Hry5mpO8WqCuYZ0zCnOt6kopDGprc7/nI318A2D+Kk0="
     replaced = "github.com/linxGnu/grocksdb"
-  [mod."github.com/lispad/go-generics-tools"]
-    version = "v1.1.0"
-    hash = "sha256-MPeqIrDVGv6d/mBK4o48eaRc8Qga5l9i1tpUyrgMoII="
-  [mod."github.com/lucasjones/reggen"]
-    version = "v0.0.0-20180717132126-cdb49ff09d77"
-    hash = "sha256-gX55KvGzJkyghKIhmQFnwCI9mXYt/FtDgI/sQ4xNfrE="
-  [mod."github.com/lufeee/execinquery"]
-    version = "v1.2.1"
-    hash = "sha256-Hg+/0StXgoflSxwiw96IYhYybYy26o1QA66a5pMsswo="
-  [mod."github.com/lyft/protoc-gen-validate"]
-    version = "v0.0.13"
-    hash = "sha256-JhFMmEaP1amtJJBLWFVqjjHeHuAHRP0qwLMMFX2b3FM="
   [mod."github.com/magiconair/properties"]
     version = "v1.8.6"
     hash = "sha256-xToSfpuePctkTdhJtsuKIEkXwfMZbnkFT98ahIfd4wY="
@@ -382,6 +376,9 @@ schema = 3
   [mod."github.com/mitchellh/mapstructure"]
     version = "v1.5.0"
     hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
+  [mod."github.com/mschoch/smat"]
+    version = "v0.2.0"
+    hash = "sha256-DZvUJXjIcta3U+zxzgU3wpoGn/V4lpBY7Xme8aQUi+E="
   [mod."github.com/mtibben/percent"]
     version = "v0.2.1"
     hash = "sha256-Zj1lpCP6mKQ0UUTMs2By4LC414ou+iJzKkK+eBHfEcc="

@@ -20,6 +20,10 @@
 
 - [#833](https://github.com/crypto-org-chain/cronos/pull/833) Fix rollback command.
 
+### Improvements
+
+- [#890](https://github.com/crypto-org-chain/cronos/pull/890) reduce node size in memiavl and improve performance
+
 *Feb 09, 2022*
 
 ## v1.0.4

@@ -2,22 +2,27 @@ package memiavl
 
 import (
 	"crypto/sha256"
+	"errors"
+	"math"
 )
 
 var emptyHash = sha256.New().Sum(nil)
 
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
-	version int64
+	version uint32
 	// root node of empty tree is represented as `nil`
 	root Node
 
-	initialVersion int64
+	initialVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
 func NewEmptyTree(version int64) *Tree {
-	return &Tree{version: version}
+	if version >= math.MaxUint32 {
+		panic("version overflows uint32")
+	}
+	return &Tree{version: uint32(version)}
 }
 
 // New creates an empty tree at genesis version
@@ -28,8 +33,11 @@ func New() *Tree {
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
 func NewWithInitialVersion(initialVersion int64) *Tree {
+	if initialVersion >= math.MaxUint32 {
+		panic("version overflows uint32")
+	}
 	tree := New()
-	tree.initialVersion = initialVersion
+	tree.initialVersion = uint32(initialVersion)
 	return tree
 }
 
@@ -39,7 +47,7 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 		return NewEmptyTree(int64(snapshot.Version()))
 	}
 	return &Tree{
-		version: int64(snapshot.Version()),
+		version: snapshot.Version(),
 		root:    snapshot.RootNode(),
 	}
 }
@@ -58,6 +66,10 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 	if updateHash {
 		hash = t.root.Hash()
 	}
+
+	if t.version >= math.MaxUint32 {
+		return nil, 0, errors.New("version overflows uint32")
+	}
 	t.version++
 
 	// to be compatible with existing golang iavl implementation.
@@ -66,12 +78,12 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 		t.version = t.initialVersion
 	}
 
-	return hash, t.version, nil
+	return hash, int64(t.version), nil
 }
 
 // Version returns the current tree version
 func (t *Tree) Version() int64 {
-	return t.version
+	return int64(t.version)
 }
 
 // RootHash updates the hashes and return the current root hash
@@ -80,4 +92,12 @@ func (t *Tree) RootHash() []byte {
 		return emptyHash
 	}
 	return t.root.Hash()
+}
+
+func (t *Tree) Get(key []byte) []byte {
+	if t.root == nil {
+		return nil
+	}
+
+	return t.root.Get(key)
 }
