@@ -41,6 +41,8 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run build
         run: ./scripts/release.sh
+        env:
+          GITHUB_REF_NAME: devel
         if: steps.changed-files.outputs.any_changed == 'true'
       - uses: actions/upload-artifact@v3
         with:
