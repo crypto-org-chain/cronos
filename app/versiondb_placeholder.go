@@ -11,7 +11,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// FIXME dummy change to trigger workflows
 func setupVersionDB(
 	homePath string,
 	app *baseapp.BaseApp,
