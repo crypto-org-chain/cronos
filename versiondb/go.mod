@@ -5,7 +5,7 @@ go 1.19
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/alitto/pond v1.8.2
-	github.com/cosmos/cosmos-sdk v0.46.9
+	github.com/cosmos/cosmos-sdk v0.46.10
 	github.com/cosmos/iavl v0.19.5
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
