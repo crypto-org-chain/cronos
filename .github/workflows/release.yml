@@ -65,7 +65,7 @@ jobs:
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: build mac x86_64 binaries
+      - name: build binaries
         env:
           MAC_CODE_API_KEY: ${{ secrets.MAC_CODE_API_KEY }}
           MAC_CODE_API_KEY_ID: ${{ secrets.MAC_CODE_API_KEY_ID }}
@@ -92,7 +92,7 @@ jobs:
           ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
-      - name: upload mac x86_64 binaries
+      - name: upload binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
