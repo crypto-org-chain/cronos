@@ -4,10 +4,7 @@ set -e
 baseurl="."
 build_type="tarball"
 build_platform="$(nix eval --impure --raw --expr 'builtins.currentSystem')"
-
-if [[ "$GITHUB_REF_NAME" == "" ]]; then
-    GITHUB_REF_NAME=$(git symbolic-ref -q --short HEAD || git describe --tags --exact-match)
-fi
+GITHUB_REF_NAME=${GITHUB_REF_NAME:=devel}
 
 build() {
     network=$1
