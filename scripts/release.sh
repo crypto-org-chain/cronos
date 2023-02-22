@@ -38,7 +38,6 @@ fi
 for network in "" "-testnet"; do
     for t in $hosts; do
         IFS=',' read name host <<< "${t}"
-        echo "${item1}" and "${item2}"
         build "$network" "$host" "$name"
     done
 done
