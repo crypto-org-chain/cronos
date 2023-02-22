@@ -4,7 +4,7 @@ set -e
 baseurl="."
 build_type="tarball"
 build_platform="$(nix eval --impure --raw --expr 'builtins.currentSystem')"
-ref_name_escaped=$(printf '%q' "${GITHUB_REF_NAME:=devel}")
+ref_name_clean=$(echo "${GITHUB_REF_NAME:=vdevel}" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
 build() {
     network=$1
@@ -18,7 +18,7 @@ build() {
     fi
     echo "building $FLAKE"
     nix build -L "$FLAKE"
-    cp result "cronos_${ref_name_escaped:1}${network}_${name}.tar.gz"
+    cp result "cronos_${ref_name_clean:1}${network}_${name}.tar.gz"
 }
 
 if [[ "$build_platform" == "x86_64-linux" ]]; then
