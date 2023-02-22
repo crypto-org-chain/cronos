@@ -9,23 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: setup release environment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GITHUB_TOKEN}}' > .release-env
-      - name: build and upload goreleaser binaries
-        run: make release
-
-  linux:
-    needs: ["goreleaser"]
+  release:
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -40,45 +24,30 @@ jobs:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
-      - name: build linux x86_64/arm64 binaries
+      - name: build binaries
         run: |
-          BUILD_TYPE="tarball"
-          BASEURL="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-
-          build() {
-            NETWORK=$1
-            ARCH=$2
-            PKG="cronosd${NETWORK}-${BUILD_TYPE}"
-            if [ "$ARCH" == "arm64" ]; then
-              FLAKE="${BASEURL}#legacyPackages.x86_64-linux.pkgsCross.aarch64-multiplatform.cronos-matrix.${PKG}"
-            else
-              FLAKE="${BASEURL}#${PKG}"
-            fi
-            nix build -L "$FLAKE"
-            cp result "cronos_${GITHUB_REF_NAME:1}${NETWORK}_Linux_${ARCH}.tar.gz"
-          }
-
-          build "" "x86_64"
-          build "-testnet" "x86_64"
-          build "" "arm64"
-          build "-testnet" "arm64"
-
+          # install sha256sum
           nix-env -i coreutils -f '<nixpkgs>'
-          sha256sum *.tar.gz > "checksums-Linux.txt"
 
+          # build binaries
+          ./scripts/release.sh
+
+          # update checksum and upload
+          sha256sum *.tar.gz > "checksums.txt"
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
           ls -1 checksums-*.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
           cat $GITHUB_ENV
-      - name: upload linux x86_64/arm64 binaries
+      - name: upload binaries
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           files: "${{ env.FILES }}"
 
-  macos:
-    needs: ["goreleaser"]
+  release-macos:
+    # runs sequentially to avoid creating duplicated release
+    needs: ["release"]
     runs-on: macos-latest
     environment: release
     steps:
@@ -103,24 +72,21 @@ jobs:
           MAC_CODE_API_ISSUER_ID: ${{ secrets.MAC_CODE_API_ISSUER_ID }}
           MAC_CODE_API_DEVELOPER_ID: ${{ secrets.MAC_CODE_API_DEVELOPER_ID }}
         run: |
-          PLATFORM="$(uname -s)_x86_64"
-          BUILD_TYPE="tarball"
-          FLAKE="github:${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}"
-
-          build() {
-            NETWORK=$1
-            nix build -L "${FLAKE}#cronosd${NETWORK}-${BUILD_TYPE}"
-            OUTPUT="cronos_${GITHUB_REF_NAME:1}${NETWORK}_${PLATFORM}"
-            ./scripts/codesign_macos.sh ./result
-            mv signed.tar.gz "$OUTPUT.tar.gz"
-          }
-
-          build ""
-          build "-testnet"
-
+          # install sha256sum
           nix-env -i coreutils -f '<nixpkgs>'
-          sha256sum *.tar.gz > "checksums-$PLATFORM.txt"
 
+          # build binaries
+          ./scripts/release.sh
+
+          # codesign
+          for tarball in *.tar.gz;
+          do
+            ./scripts/codesign_macos.sh $tarball
+            mv signed.tar.gz $tarball
+          done
+
+          # update checksum and upload
+          sha256sum *.tar.gz > "checksums-macos.txt"
           echo 'FILES<<EOF' >> $GITHUB_ENV
           ls -1 *.tar.gz >> $GITHUB_ENV
           ls -1 checksums-*.txt >> $GITHUB_ENV
@@ -131,51 +97,3 @@ jobs:
         with:
           draft: true
           files: "${{ env.FILES }}"
-
-  x86_64-windows:
-    needs: ["goreleaser"]
-    runs-on: windows-latest
-    environment: release    
-    steps:
-      - name: get source
-        uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: setup msys2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: false
-          install: git msys2-devel base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-go  mingw-w64-x86_64-jq  mingw-w64-x86_64-dlfcn
-      - name: get rocksdb & build
-        env:
-          PLATFORM: Windows_x86_64
-        shell: msys2 {0}
-        run: |
-          ./scripts/build-windows.sh
-          ./build/cronosd.exe version --long
-          cd ./build
-          tar cvfz ../cronos.tar.gz *
-          cd ..
-          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}_${PLATFORM}.tar.gz
-          NETWORK=testnet COSMOS_BUILD_OPTIONS=rocksdb make build
-          mv ./build/cronosd ./build/cronosd.exe
-          cd ./build
-          tar cvfz ../cronos.tar.gz *
-          cd ..
-          mv ./cronos.tar.gz cronos_${GITHUB_REF_NAME:1}-testnet_${PLATFORM}.tar.gz
-          ls -la cronos_*.tar.gz
-          sha256sum cronos_*.tar.gz > "checksums-$PLATFORM.txt"
-          echo "OK"
-          echo 'FILES<<EOF' >> $GITHUB_ENV
-          ls -1 *.tar.gz >> $GITHUB_ENV
-          ls -1 checksums-*.txt >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
-          cat $GITHUB_ENV
-      - name: upload 
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: softprops/action-gh-release@v1
-        with: 
-          draft: true
-          files: "${{ env.FILES }}"          

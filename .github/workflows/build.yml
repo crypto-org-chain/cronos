@@ -13,43 +13,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v18
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-go@v3
-        with:
-          go-version: 1.20.0
-      - id: changed-files
-        uses: tj-actions/changed-files@v34
-        with:
-          files: |
-            *.go
-            *.mod
-            *.sum
-      - run: |
-          # without rocksdb
-          make build
-          # with rocksdb and enable versiondb
-          nix profile install nixpkgs#rocksdb
-          export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
-          export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
-          COSMOS_BUILD_OPTIONS=rocksdb make build
-        if: steps.changed-files.outputs.any_changed == 'true'
-
-  cross-build:
     strategy:
       fail-fast: false
       matrix:
-        host: [aarch64-multiplatform, mingwW64, aarch64-darwin]
-        include:
-          - os: ubuntu-latest
-          - host: aarch64-darwin
-            os: macos-latest
+        os: [ubuntu-latest macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -73,16 +40,12 @@ jobs:
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: Run build
-        env:
-          HOST: ${{ matrix.host }}
-        run: |
-          BUILD=$(nix eval --impure --raw --expr 'builtins.currentSystem')
-          nix build .#legacyPackages.${BUILD}.pkgsCross.${HOST}.cronos-matrix.cronosd-tarball
+        run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
       - uses: actions/upload-artifact@v3
         with:
-          name: "cronosd-tarball-${{ matrix.host }}"
-          path: result
+          name: "cronosd-tarball-${{ matrix.os }}"
+          path: *.tar.gz
           if-no-files-found: ignore
 
   unittest:
