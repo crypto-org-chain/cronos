@@ -7,6 +7,7 @@ build_platform="$(nix eval --impure --raw --expr 'builtins.currentSystem')"
 ref_name_clean=$(echo "${GITHUB_REF_NAME:=vdevel}" | sed -e 's/[^A-Za-z0-9._-]/_/g')
 
 build() {
+    set -e
     network=$1
     host="$2"
     name="$3"

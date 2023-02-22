@@ -58,7 +58,7 @@
       )
     ) // {
       overlay = final: super: {
-        bundle-exe = import nix-bundle-exe { pkgs = final.buildPackages; };
+        bundle-exe = final.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
         make-tarball = drv: final.runCommand "tarball-${drv.name}"
