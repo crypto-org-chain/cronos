@@ -45,7 +45,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: "cronosd-tarball-${{ matrix.os }}"
-          path: *.tar.gz
+          path: "*.tar.gz"
           if-no-files-found: ignore
 
   unittest:
