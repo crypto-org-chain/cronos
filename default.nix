@@ -2,7 +2,7 @@
 , stdenv
 , buildGoApplication
 , nix-gitignore
-, go_1_20
+, buildPackages
 , coverage ? false # https://tip.golang.org/doc/go1.20#cover
 , rocksdb
 , network ? "mainnet"  # mainnet|testnet
@@ -24,7 +24,7 @@ in
 buildGoApplication rec {
   inherit pname version buildInputs tags ldflags;
   # specify explicitly to workaround issue: https://github.com/nix-community/gomod2nix/issues/106
-  go = go_1_20;
+  go = buildPackages.go_1_20;
   src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
