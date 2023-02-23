@@ -3,7 +3,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
-      url = "github:yihuang/nix-bundle-exe";
+      url = "github:3noch/nix-bundle-exe";
       flake = false;
     };
     gomod2nix = {
@@ -58,7 +58,7 @@
       )
     ) // {
       overlay = final: super: {
-        bundle-exe = final.callPackage nix-bundle-exe { };
+        bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
         make-tarball = drv: final.runCommand "tarball-${drv.name}"
