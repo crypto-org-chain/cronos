@@ -53,26 +53,33 @@
             };
           };
           devShell = devShells.cronosd;
+          legacyPackages = pkgs;
         }
       )
     ) // {
-      overlay = final: prev: {
-        go_1_19 = prev.go_1_19.overrideAttrs (_: rec {
+      overlay = final: super: {
+        go_1_19 = super.go_1_19.overrideAttrs (_: rec {
           version = "1.19.6";
           src = final.fetchurl {
             url = "https://go.dev/dl/go${version}.src.tar.gz";
             hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
           };
         });
-        bundle-exe = import nix-bundle-exe { pkgs = final; };
+        bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
-        make-tarball = drv: with final; runCommand drv.name { } ''
-          "${gnutar}/bin/tar" cfv - -C ${drv} \
+        make-tarball = drv: final.runCommand "tarball-${drv.name}"
+          {
+            nativeBuildInputs = with final.buildPackages; [ gnutar gzip ];
+          } ''
+          tar cfv - -C "${drv}" \
             --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
-            | "${gzip}/bin/gzip" -9 > $out
+            | gzip -9 > $out
         '';
-        rocksdb = final.callPackage ./nix/rocksdb.nix { enableJemalloc = true; };
+        bundle-win-exe = drv: final.callPackage ./nix/bundle-win-exe.nix { cronosd = drv; };
+        # only enable jemalloc for non-windows platforms
+        # see: https://github.com/NixOS/nixpkgs/issues/216479
+        rocksdb = final.callPackage ./nix/rocksdb.nix { enableJemalloc = !final.stdenv.hostPlatform.isWindows; };
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
@@ -95,7 +102,11 @@
                   cronosd = callPackage ./. {
                     inherit rev network;
                   };
-                  bundle = bundle-exe cronosd;
+                  bundle =
+                    if stdenv.hostPlatform.isWindows then
+                      bundle-win-exe cronosd
+                    else
+                      bundle-exe cronosd;
                 in
                 if pkgtype == "bundle" then
                   bundle

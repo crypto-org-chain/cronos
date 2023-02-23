@@ -15,7 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/linxGnu/grocksdb v1.7.14
+	github.com/linxGnu/grocksdb v1.7.15-0.20230222024938-b61261a9193b
 	github.com/peggyjv/gravity-bridge/module/v2 v2.0.0-20220420162017-838c0d25e974
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
@@ -205,7 +205,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// use replace to force update grocksdb dependency in tm-db
-	github.com/linxGnu/grocksdb => github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1
+	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.7.15-0.20230222024938-b61261a9193b
 	github.com/miguelmota/go-ethereum-hdwallet => github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2
 
 	// TODO: remove when gravity update dependencies
