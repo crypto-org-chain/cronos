@@ -12,7 +12,11 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v18
@@ -20,9 +24,6 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
       - id: changed-files
         uses: tj-actions/changed-files@v34
         with:
@@ -30,15 +31,21 @@ jobs:
             *.go
             *.mod
             *.sum
-      - run: |
-          # without rocksdb
-          make build
-          # with rocksdb and enable versiondb
-          nix profile install nixpkgs#rocksdb
-          export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
-          export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
-          COSMOS_BUILD_OPTIONS=rocksdb make build
+      - uses: cachix/cachix-action@v12
         if: steps.changed-files.outputs.any_changed == 'true'
+        with:
+          name: cronos
+          # github don't pass secrets for pull request from fork repos,
+          # in that case the push is disabled naturally.
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: Run build
+        run: ./scripts/release.sh
+        if: steps.changed-files.outputs.any_changed == 'true'
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "cronosd-tarball-${{ matrix.os }}"
+          path: "*.tar.gz"
+          if-no-files-found: ignore
 
   unittest:
     runs-on: ubuntu-latest

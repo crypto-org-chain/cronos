@@ -796,8 +796,6 @@ github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJ
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee h1:qzkim8QAf6AdRKlAPgLU5nI7S9JoefLDI76PmJeOTgk=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20220815102151-48275db7e1ee/go.mod h1:w/nb6f8UbrqqevKYQm/r+qjRl4WgxRlTC+l9dQ1wDfg=
-github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1 h1:VClcM7YN+5SA46WPDWQVAycbegrTgVPv/wD895OXiAk=
-github.com/crypto-org-chain/grocksdb v1.7.11-0.20230214093311-ba44112a39c1/go.mod h1:pY55D0o+r8yUYLq70QmhdudxYvoDb9F+9puf4m3/W+U=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3 h1:msHkCjNEUSqknqzjBCQscfxVm1ifyxoRBb0goZKqGCU=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3/go.mod h1:JOMwkZce6XmnsAfSRa3VSA/e2tV1R2y7lqljiw5STlQ=
 github.com/curioswitch/go-reassign v0.2.0/go.mod h1:x6OpXuWvgfQaMGks2BZybTngWjT84hqJfKoO8Tt/Roc=
@@ -1633,6 +1631,8 @@ github.com/libp2p/go-buffer-pool v0.1.0/go.mod h1:N+vh8gMqimBzdKkSMVuydVDq+UV5QT
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/linuxkit/virtsock v0.0.0-20201010232012-f8cee7dfc7a3/go.mod h1:3r6x7q95whyfWQpmGZTu3gk3v2YkMi05HEzl7Tf7YEo=
+github.com/linxGnu/grocksdb v1.7.15-0.20230222024938-b61261a9193b h1:Olh1b4gdN5J9ZZyCiudSZ7HLrU+IL4SkYFcgyM9rGsA=
+github.com/linxGnu/grocksdb v1.7.15-0.20230222024938-b61261a9193b/go.mod h1:pY55D0o+r8yUYLq70QmhdudxYvoDb9F+9puf4m3/W+U=
 github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
 github.com/lucasjones/reggen v0.0.0-20180717132126-cdb49ff09d77/go.mod h1:5ELEyG+X8f+meRWHuqUOewBOhvHkl7M76pdGEansxW4=
 github.com/lufeee/execinquery v1.2.1/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=

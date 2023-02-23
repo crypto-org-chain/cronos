@@ -41,11 +41,11 @@
     "nix-bundle-exe": {
       "flake": false,
       "locked": {
-        "lastModified": 1652837534,
-        "narHash": "sha256-tdGPrIW+36z6e1W7Vni8ioUs4/h62I0fbMR2dymoBDo=",
+        "lastModified": 1660176694,
+        "narHash": "sha256-cJGZ/3CjVkoyk1W9mFVs6P/5LbJ8C+42chGYiB/wB/A=",
         "owner": "3noch",
         "repo": "nix-bundle-exe",
-        "rev": "c083d398032871b1cee49d9325e81aa12abf429a",
+        "rev": "91416cec283a33ae3448aacdc5cabdece9c08793",
         "type": "github"
       },
       "original": {
@@ -56,11 +56,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1676570994,
-        "narHash": "sha256-6y/vRBWzgXFfmiNLc2gwyWwAt3Rfy0wKmuMej8DCmGU=",
+        "lastModified": 1677036138,
+        "narHash": "sha256-3O/jaxPzrpUe1yEdrcJuyeVEsp6BETIiRvNRl7YCLpw=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "fd00212f449f62cf5ec51dc782dae36572142140",
+        "rev": "348e6da1fb8e95c5978de849106c187aa5e8b5ae",
         "type": "github"
       },
       "original": {
