@@ -51,8 +51,8 @@ import sources.nixpkgs {
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
-    (_: super: {
-      rocksdb = super.rocksdb.override { enableJemalloc = true; };
+    (pkgs: _: {
+      rocksdb = pkgs.callPackage ./rocksdb.nix { enableJemalloc = true; };
     })
     (_: pkgs: {
       cosmovisor = pkgs.buildGo118Module rec {
