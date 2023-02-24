@@ -40,8 +40,8 @@ type PersistedNode struct {
 
 var _ Node = PersistedNode{}
 
-func (node PersistedNode) data() *DNode {
-	return node.snapshot.nodesData.Node(node.index)
+func (node PersistedNode) data() *NodeLayout {
+	return node.snapshot.nodesLayout.Node(node.index)
 }
 
 func (node PersistedNode) Height() uint8 {
@@ -58,10 +58,11 @@ func (node PersistedNode) Size() int64 {
 
 func (node PersistedNode) Key() []byte {
 	var leafIndex uint32
-	if node.Height() == 0 {
-		leafIndex = node.data().LeafIndex()
+	data := node.data()
+	if data.Height() == 0 {
+		leafIndex = data.LeafIndex()
 	} else {
-		leafIndex = node.snapshot.nodesData.Node(node.data().KeyNode()).LeafIndex()
+		leafIndex = node.snapshot.nodesLayout.Node(data.KeyNode()).LeafIndex()
 	}
 	return node.snapshot.Key(uint64(leafIndex))
 }
@@ -87,9 +88,10 @@ func (node PersistedNode) Hash() []byte {
 }
 
 func (node PersistedNode) Mutate(version uint32) *MemNode {
+	data := node.data()
 	mnode := &MemNode{
-		height:  node.Height(),
-		size:    node.Size(),
+		height:  data.Height(),
+		size:    int64(data.Size()),
 		version: version,
 		key:     node.Key(),
 	}
@@ -106,12 +108,9 @@ func (node PersistedNode) Get(key []byte) []byte {
 	return getPersistedNode(node.snapshot, node.index, key)
 }
 
-func getHeight(data []byte) int8 {
-	return int8(data[OffsetHeight])
-}
-
+// getPersistedNode specialize the get function for `PersistedNode`.
 func getPersistedNode(snapshot *Snapshot, index uint32, key []byte) []byte {
-	nodes := snapshot.nodesData
+	nodes := snapshot.nodesLayout
 	keys := snapshot.keys
 	keysOffsets := snapshot.keysOffsets
 

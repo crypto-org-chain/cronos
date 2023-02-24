@@ -3,7 +3,6 @@ package memiavl
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -53,7 +52,7 @@ type Snapshot struct {
 	valuesOffsets *eliasfano32.EliasFano
 
 	// wrapping the raw nodes buffer
-	nodesData Nodes
+	nodesLayout Nodes
 }
 
 func NewEmptySnapshot(version uint32) *Snapshot {
@@ -169,7 +168,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		keysOffsets:   keysOffsets,
 		valuesOffsets: valuesOffsets,
 
-		nodesData: nodesData,
+		nodesLayout: nodesData,
 	}, nil
 }
 
@@ -324,15 +323,11 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		}
 	}
 
-	if t.version >= math.MaxUint32 {
-		return errors.New("version overflows uint32")
-	}
-
 	// write metadata
 	var metadataBuf [SizeMetadata]byte
 	binary.LittleEndian.PutUint32(metadataBuf[:], SnapshotFileMagic)
 	binary.LittleEndian.PutUint32(metadataBuf[4:], SnapshotFormat)
-	binary.LittleEndian.PutUint32(metadataBuf[8:], uint32(t.version))
+	binary.LittleEndian.PutUint32(metadataBuf[8:], t.version)
 	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
 
 	metadataFile := filepath.Join(snapshotDir, "metadata")
@@ -405,7 +400,7 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint32, uint32, error) {
 		minimalKeyIndex uint32
 	)
 
-	buf[OffsetHeight] = byte(node.Height())
+	buf[OffsetHeight] = node.Height()
 	binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
 	binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
 
@@ -417,7 +412,7 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint32, uint32, error) {
 			return 0, 0, err
 		}
 
-		binary.LittleEndian.PutUint32(buf[OffsetLeafIndex:], uint32(w.leafIndex))
+		binary.LittleEndian.PutUint32(buf[OffsetLeafIndex:], w.leafIndex)
 
 		minimalKeyIndex = w.nodeIndex
 		w.leafIndex++

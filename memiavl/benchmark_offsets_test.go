@@ -12,12 +12,12 @@ import (
 const TestN = 1000000
 
 func genTestData(n int) []uint64 {
-	rand.Seed(0)
+	r := rand.New(rand.NewSource(0))
 	result := make([]uint64, n)
 	var offset uint64
 	for i := 0; i < n; i++ {
 		result[i] = offset
-		offset += 32 + uint64(rand.Int63n(15))
+		offset += 32 + uint64(r.Int63n(15))
 	}
 	return result
 }

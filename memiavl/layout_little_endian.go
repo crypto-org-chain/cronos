@@ -16,35 +16,36 @@ func NewNodes(data []byte) (Nodes, error) {
 	return Nodes{data}, nil
 }
 
-func (nodes Nodes) Node(i uint32) *DNode {
-	return &DNode{data: nodes.data[i*SizeNode:]}
+func (nodes Nodes) Node(i uint32) *NodeLayout {
+	return &NodeLayout{data: nodes.data[i*SizeNode:]}
 }
 
-type DNode struct {
+// see comment of `PersistedNode`
+type NodeLayout struct {
 	data []byte
 }
 
-func (node *DNode) Height() uint8 {
-	return uint8(node.data[OffsetHeight])
+func (node *NodeLayout) Height() uint8 {
+	return node.data[OffsetHeight]
 }
 
-func (node *DNode) Version() uint32 {
+func (node *NodeLayout) Version() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetVersion : OffsetVersion+4])
 }
 
-func (node *DNode) Size() uint32 {
+func (node *NodeLayout) Size() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetSize : OffsetSize+4])
 }
 
-func (node *DNode) KeyNode() uint32 {
+func (node *NodeLayout) KeyNode() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetKeyNode : OffsetKeyNode+4])
 }
 
-func (node *DNode) LeafIndex() uint32 {
+func (node *NodeLayout) LeafIndex() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetLeafIndex : OffsetLeafIndex+4])
 }
 
-func (node *DNode) Hash() []byte {
+func (node *NodeLayout) Hash() []byte {
 	return node.data[OffsetHash : OffsetHash+SizeHash]
 }
 

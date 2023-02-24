@@ -10,66 +10,54 @@ import (
 
 // Nodes is a continuously stored IAVL nodes
 type Nodes struct {
-	nodes []DNode
+	nodes []NodeLayout
 }
 
 func NewNodes(buf []byte) (Nodes, error) {
 	// check alignment and size of the buffer
 	p := unsafe.Pointer(unsafe.SliceData(buf))
-	if uintptr(p)%unsafe.Alignof(DNode{}) != 0 {
+	if uintptr(p)%unsafe.Alignof(NodeLayout{}) != 0 {
 		return Nodes{}, errors.New("input buffer is not aligned")
 	}
-	size := int(unsafe.Sizeof(DNode{}))
+	size := int(unsafe.Sizeof(NodeLayout{}))
 	if len(buf)%size != 0 {
 		return Nodes{}, errors.New("input buffer length is not correct")
 	}
-	nodes := unsafe.Slice((*DNode)(p), len(buf)/size)
+	nodes := unsafe.Slice((*NodeLayout)(p), len(buf)/size)
 	return Nodes{nodes}, nil
 }
 
-func (nodes Nodes) Node(i uint32) *DNode {
+func (nodes Nodes) Node(i uint32) *NodeLayout {
 	return &nodes.nodes[i]
 }
 
-// # branch
-// - height
-// - version
-// - size
-// - key node
-// - hash
-//
-// # leaf
-// - height
-// - version
-// - size
-// - leaf_index   # index both key and value
-// - hash
-type DNode struct {
+// see comment of `PersistedNode`
+type NodeLayout struct {
 	data [4]uint32
 	hash [32]byte
 }
 
-func (node *DNode) Height() uint8 {
+func (node *NodeLayout) Height() uint8 {
 	return uint8(node.data[0])
 }
 
-func (node *DNode) Version() uint32 {
+func (node *NodeLayout) Version() uint32 {
 	return node.data[1]
 }
 
-func (node *DNode) Size() uint32 {
+func (node *NodeLayout) Size() uint32 {
 	return node.data[2]
 }
 
-func (node *DNode) KeyNode() uint32 {
+func (node *NodeLayout) KeyNode() uint32 {
 	return node.data[3]
 }
 
-func (node *DNode) LeafIndex() uint32 {
+func (node *NodeLayout) LeafIndex() uint32 {
 	return node.data[3]
 }
 
-func (node *DNode) Hash() []byte {
+func (node *NodeLayout) Hash() []byte {
 	return node.hash[:]
 }
 

@@ -67,7 +67,7 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 		hash = t.root.Hash()
 	}
 
-	if t.version >= math.MaxUint32 {
+	if t.version >= uint32(math.MaxUint32) {
 		return nil, 0, errors.New("version overflows uint32")
 	}
 	t.version++

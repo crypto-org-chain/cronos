@@ -136,12 +136,12 @@ func int64ToItemT(n uint64) itemT {
 }
 
 func genRandItems(n int) []itemT {
-	rand.Seed(0)
+	r := rand.New(rand.NewSource(0))
 	items := make([]itemT, n)
 	itemsM := make(map[uint64]bool)
 	for i := 0; i < n; i++ {
 		for {
-			key := uint64(rand.Int63n(10000000000000000))
+			key := uint64(r.Int63n(10000000000000000))
 			if !itemsM[key] {
 				itemsM[key] = true
 				items[i] = int64ToItemT(key)
