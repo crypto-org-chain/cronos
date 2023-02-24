@@ -10,7 +10,7 @@
 * 27 Jan 2023:
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
-* 21 Feb 2023:
+* 24 Feb 2023:
   * Reduce node size (without hash) from 32bytes to 16bytes.
   * Append offset table to the end of keys/values file, try elias-fano coding for the values one.
 
@@ -84,16 +84,16 @@ IAVL snapshot is composed by four files:
   ```
   The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
 
-  For branch node, the `key_node` field reference the minimal leaf node in the right branch for branch node, for leaf node, it's the leaf index instead, which can be used to find key and value in `keys` and `values` file.
+  For branch node, the `key_node` field reference the smallest leaf node in the right branch, for leaf node, it's the leaf index, which can be used to find key and value in `keys` and `values` file.
 
-  The branch node don't need extra left/right children references, those are derived on the fly based on property of post-order traversal:
+  The branch node don't need to reference left/right children explicitly, they can be derived from existing information and properties of post-order traversal:
 
   ```
   right child index = self index - 1
   left child index = key_node - 1
   ```
 
-  Some integers are using `uint32`, should be enough in forseeable future, but could be changed to `uint64` to be safer.
+  The version/size/node indexes are encoded with `uint32`, should be enough in foreseeable future, but could be changed to `uint64` in the future.
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
