@@ -53,11 +53,26 @@ type PlainOffsetTable struct {
 	data []byte
 }
 
-func (t PlainOffsetTable) Get2(i uint64) (uint32, uint32) {
-	offset := i * 4
-	start := binary.LittleEndian.Uint32(t.data[offset:])
-	end := binary.LittleEndian.Uint32(t.data[offset+4:])
-	return start, end
+func (t PlainOffsetTable) Get2(i uint64) (uint64, uint64) {
+	ichunk := i / OffsetRestartInteval
+	ii := i % OffsetRestartInteval
+	irestart := ichunk * (OffsetRestartInteval + 1) * 4
+	data := t.data[irestart:]
+
+	_ = data[3*4-1]
+	restart := binary.LittleEndian.Uint64(data[:8])
+
+	if ii == 0 {
+		return restart, restart + uint64(binary.LittleEndian.Uint32(data[8:12]))
+	}
+	if ii == OffsetRestartInteval-1 {
+		// the next one is at the beginning of the next chunk
+		return restart + uint64(binary.LittleEndian.Uint32(data[OffsetRestartInteval*4:])),
+			binary.LittleEndian.Uint64(data[(OffsetRestartInteval+1)*4:])
+	}
+	// the next one is in the same chunk
+	return restart + uint64(binary.LittleEndian.Uint32(data[(ii+1)*4:])),
+		restart + uint64(binary.LittleEndian.Uint32(data[(ii+2)*4:]))
 }
 
 func NewPlainOffsetTable(data []byte) (PlainOffsetTable, error) {

@@ -97,17 +97,18 @@ IAVL snapshot is composed by four files:
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
-- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are appended to the end of the file, user can look up the key offset by leaf node index.
+- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are encoded with custom format and appended to the end of the file, support query by leaf node index.
 
   ```
   payload
   *repeat*
-  key offset: uint32
+  offset restart: uint64
+  delta offsets: [65535]uint32
   *repeat*
-  offset: uint64    // begin offset of the offsets table
+  offset: uint64    // beginning offset of the above table
   ```
 
-- `values`, sequence of leaf node values, the offsets are encoded with elias-fano coding and appended to the end of the file, user can look up the key offset by leaf node index.
+- `values`, sequence of leaf node values, the offsets are encoded with elias-fano coding and appended to the end of the file, support query by leaf node index.
 
   ```
   payload

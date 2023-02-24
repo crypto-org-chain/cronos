@@ -29,6 +29,8 @@ const (
 	EmptyRootNodeIndex = math.MaxUint32
 
 	Alignment = 8
+
+	OffsetRestartInteval = 65536
 )
 
 // Snapshot manage the lifecycle of mmap-ed files for the snapshot,
@@ -498,14 +500,25 @@ func writePadding(w io.Writer, offset uint64) (uint64, error) {
 
 // writePlainOffsets writes the offset table in plain little-endian format
 func writePlainOffsets(w io.Writer, bitmap *roaring64.Bitmap) error {
-	var numBuf [4]byte
+	var numBuf [8]byte
 	it := bitmap.Iterator()
+	var counter, restart uint64
 	for it.HasNext() {
 		v := it.Next()
-		binary.LittleEndian.PutUint32(numBuf[:], uint32(v))
-		if _, err := w.Write(numBuf[:]); err != nil {
-			return err
+		if counter%OffsetRestartInteval == 0 {
+			binary.LittleEndian.PutUint64(numBuf[:], v)
+			restart = v
+
+			if _, err := w.Write(numBuf[:]); err != nil {
+				return err
+			}
+		} else {
+			binary.LittleEndian.PutUint32(numBuf[:], uint32(v-restart))
+			if _, err := w.Write(numBuf[:4]); err != nil {
+				return err
+			}
 		}
+		counter++
 	}
 	return nil
 }
