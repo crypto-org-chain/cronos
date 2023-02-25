@@ -37,6 +37,16 @@ func (node *NodeLayout) Size() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetSize : OffsetSize+4])
 }
 
+func (node *NodeLayout) KeyOffset() uint64 {
+	return binary.LittleEndian.Uint64(node.data[OffsetKeyOffset : OffsetKeyOffset+8])
+}
+
+func (node *NodeLayout) KeySlice() (uint64, uint32) {
+	_ = node.data[SizeNode-1]
+	l := uint32(node.data[OffsetKeyLen]) | uint32(node.data[OffsetKeyLen+1])<<8 | uint32(node.data[OffsetKeyLen+2])<<16
+	return node.KeyOffset(), l
+}
+
 func (node *NodeLayout) KeyNode() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetKeyNode : OffsetKeyNode+4])
 }
@@ -47,34 +57,4 @@ func (node *NodeLayout) LeafIndex() uint32 {
 
 func (node *NodeLayout) Hash() []byte {
 	return node.data[OffsetHash : OffsetHash+SizeHash]
-}
-
-type PlainOffsetTable struct {
-	data []byte
-}
-
-func (t PlainOffsetTable) Get2(i uint64) (uint64, uint64) {
-	ichunk := i / OffsetRestartInteval
-	ii := i % OffsetRestartInteval
-	irestart := ichunk * (OffsetRestartInteval + 1) * 4
-	data := t.data[irestart:]
-
-	_ = data[3*4-1]
-	restart := binary.LittleEndian.Uint64(data[:8])
-
-	if ii == 0 {
-		return restart, restart + uint64(binary.LittleEndian.Uint32(data[8:12]))
-	}
-	if ii == OffsetRestartInteval-1 {
-		// the next one is at the beginning of the next chunk
-		return restart + uint64(binary.LittleEndian.Uint32(data[OffsetRestartInteval*4:])),
-			binary.LittleEndian.Uint64(data[(OffsetRestartInteval+1)*4:])
-	}
-	// the next one is in the same chunk
-	return restart + uint64(binary.LittleEndian.Uint32(data[(ii+1)*4:])),
-		restart + uint64(binary.LittleEndian.Uint32(data[(ii+2)*4:]))
-}
-
-func NewPlainOffsetTable(data []byte) (PlainOffsetTable, error) {
-	return PlainOffsetTable{data}, nil
 }

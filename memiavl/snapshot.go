@@ -48,8 +48,8 @@ type Snapshot struct {
 	version   uint32
 	rootIndex uint32
 
-	// plain offset table for keys
-	keysOffsets PlainOffsetTable
+	// elias-fano encoded offsets for keys
+	keysOffsets *eliasfano32.EliasFano
 	// elias-fano encoded offsets for values
 	valuesOffsets *eliasfano32.EliasFano
 
@@ -139,10 +139,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	// Read the plain offsets table from the end of keys file
 	keys := keysMap.Data()
 	offset := binary.LittleEndian.Uint64(keys[len(keys)-8:])
-	keysOffsets, err := NewPlainOffsetTable(keys[offset:])
-	if err != nil {
-		return nil, err
-	}
+	keysOffsets, _ := eliasfano32.ReadEliasFano(keys[offset:])
 
 	// Read the elias-fano offsets table from the end of values file
 	values := valuesMap.Data()
@@ -296,7 +293,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		valuesWriter := bufio.NewWriter(fpValues)
 
 		w := newSnapshotWriter(nodesWriter, keysWriter, valuesWriter)
-		rootIndex, _, err = w.writeRecursive(t.root)
+		rootIndex, err = w.writeRecursive(t.root)
 		if err != nil {
 			return err
 		}
@@ -373,6 +370,17 @@ func newSnapshotWriter(nodesWriter, keysWriter, valuesWriter io.Writer) *snapsho
 	}
 }
 
+// writeVersion writes the leaf node's version in front of key
+func (w *snapshotWriter) writeVersion(version uint32) error {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], version)
+	if _, err := w.keysWriter.Write(buf[:]); err != nil {
+		return err
+	}
+	w.keysOffset += 4
+	return nil
+}
+
 // writeKey append key to keys file and record the offset
 func (w *snapshotWriter) writeKey(key []byte) error {
 	if _, err := w.keysWriter.Write(key); err != nil {
@@ -394,53 +402,53 @@ func (w *snapshotWriter) writeValue(value []byte) error {
 }
 
 // writeRecursive write the node recursively in depth-first post-order,
-// returns `(nodeIndex, offset of minimal key in subtree, err)`.
-func (w *snapshotWriter) writeRecursive(node Node) (uint32, uint32, error) {
-	var (
-		buf [SizeNodeWithoutHash]byte
-		// record the minimal leaf node in the current subtree, used to update key field in parent node.
-		minimalKeyIndex uint32
-	)
-
-	buf[OffsetHeight] = node.Height()
-	binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
-	binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
+// returns `(nodeIndex, err)`.
+func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
+	var buf [SizeNodeWithoutHash]byte
 
 	if isLeaf(node) {
-		if err := w.writeKey(node.Key()); err != nil {
-			return 0, 0, err
+		if err := w.writeVersion(node.Version()); err != nil {
+			return 0, err
+		}
+		nodeKey := node.Key()
+		keyOffset := w.keysOffset
+		if err := w.writeKey(nodeKey); err != nil {
+			return 0, err
 		}
 		if err := w.writeValue(node.Value()); err != nil {
-			return 0, 0, err
+			return 0, err
 		}
 
+		binary.LittleEndian.PutUint32(buf[OffsetHeight:], uint32(node.Height())|uint32(len(nodeKey))<<8)
+		binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
 		binary.LittleEndian.PutUint32(buf[OffsetLeafIndex:], w.leafIndex)
-
-		minimalKeyIndex = w.nodeIndex
 		w.leafIndex++
 	} else {
+		buf[OffsetHeight] = node.Height()
+		binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
+		binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
+
 		// store the minimal key from right subtree, but propagate the one from left subtree
-		var err error
-		if _, minimalKeyIndex, err = w.writeRecursive(node.Left()); err != nil {
-			return 0, 0, err
-		}
-		_, keyNode, err := w.writeRecursive(node.Right())
+		leftIndex, err := w.writeRecursive(node.Left())
 		if err != nil {
-			return 0, 0, err
+			return 0, err
 		}
-		binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], keyNode)
+		if _, err = w.writeRecursive(node.Right()); err != nil {
+			return 0, err
+		}
+		binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], leftIndex+1)
 	}
 
 	if _, err := w.nodesWriter.Write(buf[:]); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if _, err := w.nodesWriter.Write(node.Hash()); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	i := w.nodeIndex
 	w.nodeIndex++
-	return i, minimalKeyIndex, nil
+	return i, nil
 }
 
 // writeOffsets writes the keys/values offsets with elias-fano encoding.
@@ -459,8 +467,8 @@ func (w *snapshotWriter) writeOffsets() error {
 	if offset, err = writePadding(w.keysWriter, w.keysOffset); err != nil {
 		return err
 	}
-	// write plain little-endian offsets for keys
-	if err := writePlainOffsets(w.keysWriter, w.keysOffsetBM); err != nil {
+	// write elias-fano encoded offset table for values file
+	if err := writeEliasFano(w.keysWriter, w.keysOffsetBM); err != nil {
 		return err
 	}
 	// append the start offset of offset table to the file end
@@ -496,31 +504,6 @@ func writePadding(w io.Writer, offset uint64) (uint64, error) {
 		}
 	}
 	return aligned, nil
-}
-
-// writePlainOffsets writes the offset table in plain little-endian format
-func writePlainOffsets(w io.Writer, bitmap *roaring64.Bitmap) error {
-	var numBuf [8]byte
-	it := bitmap.Iterator()
-	var counter, restart uint64
-	for it.HasNext() {
-		v := it.Next()
-		if counter%OffsetRestartInteval == 0 {
-			binary.LittleEndian.PutUint64(numBuf[:], v)
-			restart = v
-
-			if _, err := w.Write(numBuf[:]); err != nil {
-				return err
-			}
-		} else {
-			binary.LittleEndian.PutUint32(numBuf[:], uint32(v-restart))
-			if _, err := w.Write(numBuf[:4]); err != nil {
-				return err
-			}
-		}
-		counter++
-	}
-	return nil
 }
 
 // writeEliasFano writes the elias-fano encoded offset table

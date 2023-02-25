@@ -42,10 +42,10 @@ It also integrates well with versiondb, because versiondb can also be derived fr
 ### Change Set File
 
 ```
-version: int64
-size: int64         // size of whole payload
+version: 8
+size:    8         // size of whole payload
 payload:
-  delete: int8
+  delete: 1
   keyLen: varint-uint64
   key
   [                 // if delete is false
@@ -67,45 +67,52 @@ IAVL snapshot is composed by four files:
 - `metadata`, 16bytes:
 
   ```
-  magic: uint32
-  format: uint32
-  version: uint32
-  root node index: uint32
+  magic: 4
+  format: 4
+  version: 4
+  root node index: 4
   ```
 
 - `nodes`, array of fixed size(16+32bytes) nodes, the node format is like this:
 
   ```
-  height   : uint32         // padded to 4bytes
-  version  : uint32
-  size     : uint32
-  key_node : uint32
+  # branch
+  height   : 1
+  _padding : 3
+  version  : 4
+  size     : 4
+  key node : 4
   hash     : [32]byte
+
+  # leaf
+  height      : 1
+  key len     : 3
+  key offset  : 8
+  value index : 4
   ```
   The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
 
-  For branch node, the `key_node` field reference the smallest leaf node in the right branch, for leaf node, it's the leaf index, which can be used to find key and value in `keys` and `values` file.
+  For branch node, the `key node` field reference the smallest leaf node in the right branch, the key slice is fetched from there indirectly, the leaf nodes will store key slice and value index informations, but the version field is stored in `keys` file instead.
 
-  The branch node don't need to reference left/right children explicitly, they can be derived from existing information and properties of post-order traversal:
+  The branch node's left/child node indexes are inferenced from existing information and properties of post-order traversal:
 
   ```
   right child index = self index - 1
-  left child index = key_node - 1
+  left child index = key node - 1
   ```
 
-  The version/size/node indexes are encoded with `uint32`, should be enough in foreseeable future, but could be changed to `uint64` in the future.
+  The version/size/node indexes are encoded with 4 bytes, should be enough in foreseeable future, but could be changed to more bytes in the future.
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
-- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are encoded with custom format and appended to the end of the file, support query by leaf node index.
+- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are encoded with elias-fano coding and appended to the end of the file, support query by leaf node index, the offsets table is not used currently becuase the leaf node in the tree also reference the offsets.
 
   ```
-  payload
+  version: 4   // the version field of corresponding leaf node
+  key
   *repeat*
-  offset restart: uint64
-  delta offsets: [65535]uint32
-  *repeat*
-  offset: uint64    // beginning offset of the above table
+  offsets table encoded with elias-fano coding
+  offset: uint64    // beginning offset of the offsets table
   ```
 
 - `values`, sequence of leaf node values, the offsets are encoded with elias-fano coding and appended to the end of the file, support query by leaf node index.

@@ -3,14 +3,18 @@ package memiavl
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 )
 
 const (
-	OffsetHeight    = 0
-	OffsetVersion   = OffsetHeight + 4
-	OffsetSize      = OffsetVersion + 4
-	OffsetKeyNode   = OffsetSize + 4
-	OffsetLeafIndex = OffsetSize + 4
+	OffsetHeight  = 0
+	OffsetVersion = OffsetHeight + 4
+	OffsetSize    = OffsetVersion + 4
+	OffsetKeyNode = OffsetSize + 4
+
+	OffsetKeyLen    = OffsetHeight + 1
+	OffsetKeyOffset = OffsetKeyLen + 3
+	OffsetLeafIndex = OffsetKeyOffset + 8
 
 	OffsetHash          = OffsetKeyNode + 4
 	SizeHash            = sha256.Size
@@ -22,17 +26,18 @@ const (
 // Encoding format (all integers are encoded in little endian):
 //
 // Branch node:
-// - height    : uint32
-// - version   : uint32
-// - size      : uint32
-// - key node  : uint32  // node index of the smallest leaf in right branch
-// - hash      : [32]byte
+// - height    : 1
+// - _padding  : 3
+// - version   : 4
+// - size      : 4
+// - key node  : 4  // node index of the smallest leaf in right branch
+// - hash      : 32
 // Leaf node:
-// - height      : uint32
-// - version     : uint32
-// - size        : uint32
-// - leaf index  : uint32 // can index both key and value
-// - hash      : [32]byte
+// - height     : 1
+// - key len    : 3
+// - key offset : 8
+// - value index : uint32
+// - hash       : 32
 type PersistedNode struct {
 	snapshot *Snapshot
 	index    uint32
@@ -49,22 +54,30 @@ func (node PersistedNode) Height() uint8 {
 }
 
 func (node PersistedNode) Version() uint32 {
-	return node.data().Version()
+	data := node.data()
+	if data.Height() != 0 {
+		return data.Version()
+	}
+
+	offset := data.KeyOffset()
+	return binary.LittleEndian.Uint32(node.snapshot.keys[offset-4 : offset])
 }
 
 func (node PersistedNode) Size() int64 {
-	return int64(node.data().Size())
+	data := node.data()
+	if node.Height() == 0 {
+		return 1
+	}
+	return int64(data.Size())
 }
 
 func (node PersistedNode) Key() []byte {
-	var leafIndex uint32
 	data := node.data()
-	if data.Height() == 0 {
-		leafIndex = data.LeafIndex()
-	} else {
-		leafIndex = node.snapshot.nodesLayout.Node(data.KeyNode()).LeafIndex()
+	if data.Height() != 0 {
+		data = node.snapshot.nodesLayout.Node(data.KeyNode())
 	}
-	return node.snapshot.Key(uint64(leafIndex))
+	offset, l := data.KeySlice()
+	return node.snapshot.keys[offset : offset+uint64(l)]
 }
 
 // Value result is not defined for non-leaf node.
@@ -112,23 +125,22 @@ func (node PersistedNode) Get(key []byte) []byte {
 func getPersistedNode(snapshot *Snapshot, index uint32, key []byte) []byte {
 	nodes := snapshot.nodesLayout
 	keys := snapshot.keys
-	keysOffsets := snapshot.keysOffsets
 
 	for {
 		node := nodes.Node(index)
 		if node.Height() == 0 {
-			leafKey := node.LeafIndex()
-			start, end := keysOffsets.Get2(uint64(leafKey))
-			nodeKey := keys[start:end]
+			offset, l := node.KeySlice()
+			nodeKey := keys[offset : offset+uint64(l)]
 			if bytes.Equal(key, nodeKey) {
-				return snapshot.Value(uint64(leafKey))
+				leafIndex := node.LeafIndex()
+				return snapshot.Value(uint64(leafIndex))
 			}
 			return nil
 		}
 
 		keyNode := node.KeyNode()
-		start, end := keysOffsets.Get2(uint64(nodes.Node(keyNode).LeafIndex()))
-		nodeKey := keys[start:end]
+		offset, l := nodes.Node(keyNode).KeySlice()
+		nodeKey := keys[offset : offset+uint64(l)]
 		if bytes.Compare(key, nodeKey) == -1 {
 			// left child
 			index = keyNode - 1
