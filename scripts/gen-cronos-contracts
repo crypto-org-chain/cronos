@@ -12,3 +12,7 @@ cat contracts/out/dapp.sol.json | \
     jq '.contracts."src/ModuleCRC20Proxy.sol".ModuleCRC20Proxy' | \
     jq '{abi, bin: .evm.bytecode.object}' \
     > x/cronos/types/contracts/ModuleCRC20Proxy.json
+cat contracts/out/dapp.sol.json | \
+    jq '.contracts."src/ModuleCRC20ProxyAuthority.sol".ModuleCRC20ProxyAuthority' | \
+    jq '{abi, bin: .evm.bytecode.object}' \
+    > x/cronos/types/contracts/ModuleCRC20ProxyAuthority.json
