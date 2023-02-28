@@ -41,18 +41,8 @@ func (node *NodeLayout) KeyOffset() uint64 {
 	return binary.LittleEndian.Uint64(node.data[OffsetKeyOffset : OffsetKeyOffset+8])
 }
 
-func (node *NodeLayout) KeySlice() (uint64, uint32) {
-	_ = node.data[SizeNode-1]
-	l := uint32(node.data[OffsetKeyLen]) | uint32(node.data[OffsetKeyLen+1])<<8 | uint32(node.data[OffsetKeyLen+2])<<16
-	return node.KeyOffset(), l
-}
-
 func (node *NodeLayout) KeyNode() uint32 {
 	return binary.LittleEndian.Uint32(node.data[OffsetKeyNode : OffsetKeyNode+4])
-}
-
-func (node *NodeLayout) LeafIndex() uint32 {
-	return binary.LittleEndian.Uint32(node.data[OffsetLeafIndex : OffsetLeafIndex+4])
 }
 
 func (node *NodeLayout) Hash() []byte {

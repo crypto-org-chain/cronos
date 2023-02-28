@@ -11,8 +11,8 @@
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
 * 24 Feb 2023:
-  * Reduce node size (without hash) from 32bytes to 16bytes.
-  * Append offset table to the end of keys/values file, try elias-fano coding for the values one.
+  * Reduce node size without hash) from 32bytes to 16bytes, leverage properties of post-order traversal.
+  * Merge key-values into single kvs file, build MPHF hash table to index it.
 
 
 ## The Journey
@@ -86,9 +86,9 @@ IAVL snapshot is composed by four files:
 
   # leaf
   height      : 1
-  key len     : 3
+  _padding    : 3
+  version     : 4
   key offset  : 8
-  value index : 4
   ```
   The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
 
@@ -105,24 +105,17 @@ IAVL snapshot is composed by four files:
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
-- `keys`, sequence of leaf node keys, ordered and no duplication, the offsets are encoded with elias-fano coding and appended to the end of the file, support query by leaf node index, the offsets table is not used currently becuase the leaf node in the tree also reference the offsets.
+- `kvs`, sequence of leaf node key-value pairs, the keys are ordered and no duplication.
 
   ```
-  version: 4   // the version field of corresponding leaf node
+  keyLen: varint-uint64
   key
+  valueLen: varint-uint64
+  value
   *repeat*
-  offsets table encoded with elias-fano coding
-  offset: uint64    // beginning offset of the offsets table
   ```
 
-- `values`, sequence of leaf node values, the offsets are encoded with elias-fano coding and appended to the end of the file, support query by leaf node index.
-
-  ```
-  payload
-  *repeat*
-  offsets table encoded with elias-fano coding
-  offset: uint64    // begin offset of the offsets table
-  ```
+- `kvs.index`, Minimal-perfect-hash-function build from `kvs`, support query as a hash map.
 
 #### Compression
 

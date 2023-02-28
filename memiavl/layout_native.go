@@ -46,23 +46,18 @@ func (node *NodeLayout) Version() uint32 {
 }
 
 func (node *NodeLayout) Size() uint32 {
+	if node.Height() == 0 {
+		return 1
+	}
 	return node.data[2]
-}
-
-func (node *NodeLayout) KeyOffset() uint64 {
-	return uint64(node.data[1]) | uint64(node.data[2])<<32
-}
-
-func (node *NodeLayout) KeySlice() (uint64, uint32) {
-	return node.KeyOffset(), node.data[0] >> 8
 }
 
 func (node *NodeLayout) KeyNode() uint32 {
 	return node.data[3]
 }
 
-func (node *NodeLayout) LeafIndex() uint32 {
-	return node.data[3]
+func (node *NodeLayout) KeyOffset() uint64 {
+	return uint64(node.data[2]) | uint64(node.data[3])<<32
 }
 
 func (node *NodeLayout) Hash() []byte {

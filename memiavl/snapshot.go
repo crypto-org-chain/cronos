@@ -36,22 +36,15 @@ const (
 // Snapshot manage the lifecycle of mmap-ed files for the snapshot,
 // it must out live the objects that derived from it.
 type Snapshot struct {
-	nodesMap  *MmapFile
-	keysMap   *MmapFile
-	valuesMap *MmapFile
+	nodesMap *MmapFile
+	kvsMap   *MmapFile
 
-	nodes  []byte
-	keys   []byte
-	values []byte
+	nodes []byte
+	kvs   []byte
 
 	// parsed from metadata file
 	version   uint32
 	rootIndex uint32
-
-	// elias-fano encoded offsets for keys
-	keysOffsets *eliasfano32.EliasFano
-	// elias-fano encoded offsets for values
-	valuesOffsets *eliasfano32.EliasFano
 
 	// wrapping the raw nodes buffer
 	nodesLayout Nodes
@@ -92,20 +85,15 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		return NewEmptySnapshot(version), nil
 	}
 
-	var nodesMap, keysMap, valuesMap *MmapFile
+	var nodesMap, kvsMap *MmapFile
 	cleanupHandles := func(err error) error {
 		if nodesMap != nil {
 			if merr := nodesMap.Close(); merr != nil {
 				err = multierror.Append(merr, err)
 			}
 		}
-		if keysMap != nil {
-			if merr := keysMap.Close(); merr != nil {
-				err = multierror.Append(merr, err)
-			}
-		}
-		if valuesMap != nil {
-			if merr := valuesMap.Close(); merr != nil {
+		if kvsMap != nil {
+			if merr := kvsMap.Close(); merr != nil {
 				err = multierror.Append(merr, err)
 			}
 		}
@@ -115,14 +103,12 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, "nodes")); err != nil {
 		return nil, cleanupHandles(err)
 	}
-	if keysMap, err = NewMmap(filepath.Join(snapshotDir, "keys")); err != nil {
-		return nil, cleanupHandles(err)
-	}
-	if valuesMap, err = NewMmap(filepath.Join(snapshotDir, "values")); err != nil {
+	if kvsMap, err = NewMmap(filepath.Join(snapshotDir, "kvs")); err != nil {
 		return nil, cleanupHandles(err)
 	}
 
 	nodes := nodesMap.Data()
+	kvs := kvsMap.Data()
 
 	if len(nodes) == 0 && rootIndex != 0 {
 		return nil, cleanupHandles(
@@ -136,36 +122,21 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		)
 	}
 
-	// Read the plain offsets table from the end of keys file
-	keys := keysMap.Data()
-	offset := binary.LittleEndian.Uint64(keys[len(keys)-8:])
-	keysOffsets, _ := eliasfano32.ReadEliasFano(keys[offset:])
-
-	// Read the elias-fano offsets table from the end of values file
-	values := valuesMap.Data()
-	offset = binary.LittleEndian.Uint64(values[len(values)-8:])
-	valuesOffsets, _ := eliasfano32.ReadEliasFano(values[offset:])
-
 	nodesData, err := NewNodes(nodes)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Snapshot{
-		nodesMap:  nodesMap,
-		keysMap:   keysMap,
-		valuesMap: valuesMap,
+		nodesMap: nodesMap,
+		kvsMap:   kvsMap,
 
 		// cache the pointers
-		nodes:  nodes,
-		keys:   keys,
-		values: values,
+		nodes: nodes,
+		kvs:   kvs,
 
 		version:   version,
 		rootIndex: rootIndex,
-
-		keysOffsets:   keysOffsets,
-		valuesOffsets: valuesOffsets,
 
 		nodesLayout: nodesData,
 	}, nil
@@ -180,13 +151,8 @@ func (snapshot *Snapshot) Close() error {
 			err = multierror.Append(err, merr)
 		}
 	}
-	if snapshot.keysMap != nil {
-		if merr := snapshot.keysMap.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
-	}
-	if snapshot.valuesMap != nil {
-		if merr := snapshot.valuesMap.Close(); merr != nil {
+	if snapshot.kvsMap != nil {
+		if merr := snapshot.kvsMap.Close(); merr != nil {
 			err = multierror.Append(err, merr)
 		}
 	}
@@ -237,16 +203,23 @@ func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) err
 	return nil
 }
 
-// Key returns a zero-copy slice of key by index
-func (snapshot *Snapshot) Key(i uint64) []byte {
-	start, end := snapshot.keysOffsets.Get2(i)
-	return snapshot.keys[start:end]
+// Key returns a zero-copy slice of key by offset
+func (snapshot *Snapshot) Key(offset uint64) []byte {
+	keyLen := binary.LittleEndian.Uint32(snapshot.kvs[offset:])
+	offset += 4
+	return snapshot.kvs[offset : offset+uint64(keyLen)]
 }
 
-// Value returns a zero-copy slice of value by index
-func (snapshot *Snapshot) Value(i uint64) []byte {
-	begin, end := snapshot.valuesOffsets.Get2(i)
-	return snapshot.values[begin:end]
+// KeyValue returns a zero-copy slice of key/value pair by offset
+func (snapshot *Snapshot) KeyValue(offset uint64) ([]byte, []byte) {
+	len := uint64(binary.LittleEndian.Uint32(snapshot.kvs[offset:]))
+	offset += 4
+	key := snapshot.kvs[offset : offset+len]
+	offset += len
+	len = uint64(binary.LittleEndian.Uint32(snapshot.kvs[offset:]))
+	offset += 4
+	value := snapshot.kvs[offset : offset+len]
+	return key, value
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
@@ -256,8 +229,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		rootIndex = EmptyRootNodeIndex
 	} else {
 		nodesFile := filepath.Join(snapshotDir, "nodes")
-		keysFile := filepath.Join(snapshotDir, "keys")
-		valuesFile := filepath.Join(snapshotDir, "values")
+		kvsFile := filepath.Join(snapshotDir, "kvs")
 
 		fpNodes, err := createFile(nodesFile)
 		if err != nil {
@@ -269,30 +241,20 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 			}
 		}()
 
-		fpKeys, err := createFile(keysFile)
+		fpKVs, err := createFile(kvsFile)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			if err := fpKeys.Close(); returnErr == nil {
+			if err := fpKVs.Close(); returnErr == nil {
 				returnErr = err
 			}
 		}()
 
-		fpValues, err := createFile(valuesFile)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := fpValues.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
 		nodesWriter := bufio.NewWriter(fpNodes)
-		keysWriter := bufio.NewWriter(fpKeys)
-		valuesWriter := bufio.NewWriter(fpValues)
+		kvsWriter := bufio.NewWriter(fpKVs)
 
-		w := newSnapshotWriter(nodesWriter, keysWriter, valuesWriter)
+		w := newSnapshotWriter(nodesWriter, kvsWriter)
 		rootIndex, err = w.writeRecursive(t.root)
 		if err != nil {
 			return err
@@ -304,17 +266,11 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		if err := nodesWriter.Flush(); err != nil {
 			return err
 		}
-		if err := keysWriter.Flush(); err != nil {
-			return err
-		}
-		if err := valuesWriter.Flush(); err != nil {
+		if err := kvsWriter.Flush(); err != nil {
 			return err
 		}
 
-		if err := fpKeys.Sync(); err != nil {
-			return err
-		}
-		if err := fpValues.Sync(); err != nil {
+		if err := fpKVs.Sync(); err != nil {
 			return err
 		}
 		if err := fpNodes.Sync(); err != nil {
@@ -348,56 +304,43 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 }
 
 type snapshotWriter struct {
-	nodesWriter, keysWriter, valuesWriter io.Writer
+	nodesWriter, kvWriter io.Writer
 
 	// record the current node index and leaf node index
-	nodeIndex, leafIndex uint32
+	nodeIndex uint32
 
 	// record the current writing offset in keys/values file
-	keysOffset, valuesOffset uint64
-
-	// record the offsets for keys and values
-	keysOffsetBM, valuesOffsetBM *roaring64.Bitmap
+	kvsOffset uint64
 }
 
-func newSnapshotWriter(nodesWriter, keysWriter, valuesWriter io.Writer) *snapshotWriter {
+func newSnapshotWriter(nodesWriter, kvsWriter io.Writer) *snapshotWriter {
 	return &snapshotWriter{
-		nodesWriter:    nodesWriter,
-		keysWriter:     keysWriter,
-		valuesWriter:   valuesWriter,
-		keysOffsetBM:   roaring64.New(),
-		valuesOffsetBM: roaring64.New(),
+		nodesWriter: nodesWriter,
+		kvWriter:    kvsWriter,
 	}
 }
 
-// writeVersion writes the leaf node's version in front of key
-func (w *snapshotWriter) writeVersion(version uint32) error {
-	var buf [4]byte
-	binary.LittleEndian.PutUint32(buf[:], version)
-	if _, err := w.keysWriter.Write(buf[:]); err != nil {
-		return err
-	}
-	w.keysOffset += 4
-	return nil
-}
+// writeKeyValue append key to keys file and record the offset
+func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
+	var numBuf [4]byte
 
-// writeKey append key to keys file and record the offset
-func (w *snapshotWriter) writeKey(key []byte) error {
-	if _, err := w.keysWriter.Write(key); err != nil {
+	binary.LittleEndian.PutUint32(numBuf[:], uint32(len(key)))
+	if _, err := w.kvWriter.Write(numBuf[:]); err != nil {
 		return err
 	}
-	w.keysOffsetBM.Add(w.keysOffset)
-	w.keysOffset += uint64(len(key))
-	return nil
-}
+	if _, err := w.kvWriter.Write(key); err != nil {
+		return err
+	}
 
-// writeValue append value to values file and record the offset
-func (w *snapshotWriter) writeValue(value []byte) error {
-	if _, err := w.valuesWriter.Write(value); err != nil {
+	binary.LittleEndian.PutUint32(numBuf[:], uint32(len(value)))
+	if _, err := w.kvWriter.Write(numBuf[:]); err != nil {
 		return err
 	}
-	w.valuesOffsetBM.Add(w.valuesOffset)
-	w.valuesOffset += uint64(len(value))
+	if _, err := w.kvWriter.Write(value); err != nil {
+		return err
+	}
+
+	w.kvsOffset += 4 + 4 + uint64(len(key)) + uint64(len(value))
 	return nil
 }
 
@@ -406,26 +349,17 @@ func (w *snapshotWriter) writeValue(value []byte) error {
 func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
 	var buf [SizeNodeWithoutHash]byte
 
+	buf[OffsetHeight] = node.Height()
+	binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
+
 	if isLeaf(node) {
-		if err := w.writeVersion(node.Version()); err != nil {
-			return 0, err
-		}
-		nodeKey := node.Key()
-		keyOffset := w.keysOffset
-		if err := w.writeKey(nodeKey); err != nil {
-			return 0, err
-		}
-		if err := w.writeValue(node.Value()); err != nil {
+		keyOffset := w.kvsOffset
+		if err := w.writeKeyValue(node.Key(), node.Value()); err != nil {
 			return 0, err
 		}
 
-		binary.LittleEndian.PutUint32(buf[OffsetHeight:], uint32(node.Height())|uint32(len(nodeKey))<<8)
 		binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
-		binary.LittleEndian.PutUint32(buf[OffsetLeafIndex:], w.leafIndex)
-		w.leafIndex++
 	} else {
-		buf[OffsetHeight] = node.Height()
-		binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
 		binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
 
 		// store the minimal key from right subtree, but propagate the one from left subtree
@@ -453,43 +387,6 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
 
 // writeOffsets writes the keys/values offsets with elias-fano encoding.
 func (w *snapshotWriter) writeOffsets() error {
-	// add the ending offset
-	w.keysOffsetBM.Add(w.keysOffset)
-	w.valuesOffsetBM.Add(w.valuesOffset)
-
-	var (
-		err    error
-		offset uint64
-		numBuf [8]byte
-	)
-
-	// align to multiples of 8
-	if offset, err = writePadding(w.keysWriter, w.keysOffset); err != nil {
-		return err
-	}
-	// write elias-fano encoded offset table for values file
-	if err := writeEliasFano(w.keysWriter, w.keysOffsetBM); err != nil {
-		return err
-	}
-	// append the start offset of offset table to the file end
-	binary.LittleEndian.PutUint64(numBuf[:], offset)
-	if _, err := w.keysWriter.Write(numBuf[:]); err != nil {
-		return err
-	}
-
-	// align to multiples of 8
-	if offset, err = writePadding(w.valuesWriter, w.valuesOffset); err != nil {
-		return err
-	}
-	// write elias-fano encoded offset table for values file
-	if err := writeEliasFano(w.valuesWriter, w.valuesOffsetBM); err != nil {
-		return err
-	}
-	// append the start offset of offset table to the file end
-	binary.LittleEndian.PutUint64(numBuf[:], offset)
-	if _, err := w.valuesWriter.Write(numBuf[:]); err != nil {
-		return err
-	}
 
 	return nil
 }
