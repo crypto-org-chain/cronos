@@ -54,6 +54,7 @@ func BenchmarkRandomGet(b *testing.B) {
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
+	require.Equal(b, targetValue, snapshot.Get(targetKey))
 	v, _ := bt2.Get(targetItem)
 	require.Equal(b, targetValue, v.value)
 	v, _ = bt32.Get(targetItem)
@@ -68,6 +69,11 @@ func BenchmarkRandomGet(b *testing.B) {
 	b.Run("memiavl-disk", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = diskTree.Get(targetKey)
+		}
+	})
+	b.Run("snapshot-get", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = snapshot.Get(targetKey)
 		}
 	})
 	b.Run("btree-degree-2", func(b *testing.B) {

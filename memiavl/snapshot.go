@@ -2,17 +2,19 @@ package memiavl
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
+	"math/bits"
 	"os"
 	"path/filepath"
 
-	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/hashicorp/go-multierror"
+	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/mmap"
-	"github.com/ledgerwatch/erigon-lib/recsplit/eliasfano32"
+	"github.com/ledgerwatch/erigon-lib/recsplit"
 )
 
 const (
@@ -31,6 +33,11 @@ const (
 	Alignment = 8
 
 	OffsetRestartInteval = 65536
+
+	FileNameNodes    = "nodes"
+	FileNameKVs      = "kvs"
+	FileNameKVIndex  = "kvs.index"
+	FileNameMetadata = "metadata"
 )
 
 // Snapshot manage the lifecycle of mmap-ed files for the snapshot,
@@ -41,6 +48,10 @@ type Snapshot struct {
 
 	nodes []byte
 	kvs   []byte
+
+	// hash index of kvs
+	index       *recsplit.Index
+	indexReader *recsplit.IndexReader // reader for the index
 
 	// parsed from metadata file
 	version   uint32
@@ -61,7 +72,7 @@ func NewEmptySnapshot(version uint32) *Snapshot {
 // and mmap the other files.
 func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	// read metadata file
-	bz, err := os.ReadFile(filepath.Join(snapshotDir, "metadata"))
+	bz, err := os.ReadFile(filepath.Join(snapshotDir, FileNameMetadata))
 	if err != nil {
 		return nil, err
 	}
@@ -100,10 +111,10 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		return err
 	}
 
-	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, "nodes")); err != nil {
+	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameNodes)); err != nil {
 		return nil, cleanupHandles(err)
 	}
-	if kvsMap, err = NewMmap(filepath.Join(snapshotDir, "kvs")); err != nil {
+	if kvsMap, err = NewMmap(filepath.Join(snapshotDir, FileNameKVs)); err != nil {
 		return nil, cleanupHandles(err)
 	}
 
@@ -122,6 +133,11 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		)
 	}
 
+	index, err := recsplit.OpenIndex(filepath.Join(snapshotDir, FileNameKVIndex))
+	if err != nil {
+		return nil, cleanupHandles(err)
+	}
+
 	nodesData, err := NewNodes(nodes)
 	if err != nil {
 		return nil, err
@@ -134,6 +150,9 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		// cache the pointers
 		nodes: nodes,
 		kvs:   kvs,
+
+		index:       index,
+		indexReader: recsplit.NewIndexReader(index),
 
 		version:   version,
 		rootIndex: rootIndex,
@@ -153,6 +172,12 @@ func (snapshot *Snapshot) Close() error {
 	}
 	if snapshot.kvsMap != nil {
 		if merr := snapshot.kvsMap.Close(); merr != nil {
+			err = multierror.Append(err, merr)
+		}
+	}
+
+	if snapshot.index != nil {
+		if merr := snapshot.index.Close(); merr != nil {
 			err = multierror.Append(err, merr)
 		}
 	}
@@ -203,6 +228,16 @@ func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) err
 	return nil
 }
 
+// Get lookup the value for the key through the hash index
+func (snapshot *Snapshot) Get(key []byte) []byte {
+	offset := snapshot.indexReader.Lookup(key)
+	candidate, value := snapshot.KeyValue(offset)
+	if bytes.Equal(key, candidate) {
+		return value
+	}
+	return nil
+}
+
 // Key returns a zero-copy slice of key by offset
 func (snapshot *Snapshot) Key(offset uint64) []byte {
 	keyLen := binary.LittleEndian.Uint32(snapshot.kvs[offset:])
@@ -228,8 +263,9 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 	if t.root == nil {
 		rootIndex = EmptyRootNodeIndex
 	} else {
-		nodesFile := filepath.Join(snapshotDir, "nodes")
-		kvsFile := filepath.Join(snapshotDir, "kvs")
+		nodesFile := filepath.Join(snapshotDir, FileNameNodes)
+		kvsFile := filepath.Join(snapshotDir, FileNameKVs)
+		kvsIndexFile := filepath.Join(snapshotDir, FileNameKVIndex)
 
 		fpNodes, err := createFile(nodesFile)
 		if err != nil {
@@ -259,9 +295,6 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		if err != nil {
 			return err
 		}
-		if err := w.writeOffsets(); err != nil {
-			return err
-		}
 
 		if err := nodesWriter.Flush(); err != nil {
 			return err
@@ -276,6 +309,16 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		if err := fpNodes.Sync(); err != nil {
 			return err
 		}
+
+		// re-open kvs file for reading
+		input, err := os.Open(kvsFile)
+		if err != nil {
+			return err
+		}
+		defer input.Close()
+		if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
+			return fmt.Errorf("build MPHF index failed: %w", err)
+		}
 	}
 
 	// write metadata
@@ -285,7 +328,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 	binary.LittleEndian.PutUint32(metadataBuf[8:], t.version)
 	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
 
-	metadataFile := filepath.Join(snapshotDir, "metadata")
+	metadataFile := filepath.Join(snapshotDir, FileNameMetadata)
 	fpMetadata, err := createFile(metadataFile)
 	if err != nil {
 		return err
@@ -385,35 +428,70 @@ func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
 	return i, nil
 }
 
-// writeOffsets writes the keys/values offsets with elias-fano encoding.
-func (w *snapshotWriter) writeOffsets() error {
+// buildIndex build MPHF index for the kvs file.
+func buildIndex(input *os.File, idxPath, tmpDir string, count int) error {
+	var numBuf [4]byte
 
-	return nil
-}
-
-func writePadding(w io.Writer, offset uint64) (uint64, error) {
-	// align the beginning of EliasFano buffer to multiples of 8
-	aligned := roundUp(offset, Alignment)
-	if aligned > offset {
-		// write padding zeroes
-		if _, err := w.Write(make([]byte, aligned-offset)); err != nil {
-			return 0, err
-		}
-	}
-	return aligned, nil
-}
-
-// writeEliasFano writes the elias-fano encoded offset table
-func writeEliasFano(w io.Writer, bitmap *roaring64.Bitmap) error {
-	ef := eliasfano32.NewEliasFano(bitmap.GetCardinality(), bitmap.Maximum())
-	it := bitmap.Iterator()
-	for it.HasNext() {
-		v := it.Next()
-		ef.AddOffset(v)
-	}
-	ef.Build()
-	if err := ef.Write(w); err != nil {
+	rs, err := recsplit.NewRecSplit(recsplit.RecSplitArgs{
+		KeyCount:    count,
+		Enums:       false,
+		BucketSize:  2000,
+		LeafSize:    8,
+		TmpDir:      tmpDir,
+		IndexFile:   idxPath,
+		EtlBufLimit: etl.BufferOptimalSize / 2,
+	})
+	if err != nil {
 		return err
+	}
+
+	defer rs.Close()
+
+	for {
+		if _, err := input.Seek(0, 0); err != nil {
+			return err
+		}
+		reader := bufio.NewReader(input)
+
+		var pos uint64
+		for {
+			if _, err := io.ReadFull(reader, numBuf[:]); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			len1 := uint64(binary.LittleEndian.Uint32(numBuf[:]))
+			key := make([]byte, len1)
+			if _, err := io.ReadFull(reader, key); err != nil {
+				return err
+			}
+
+			// skip the value part
+			if _, err := io.ReadFull(reader, numBuf[:]); err != nil {
+				return err
+			}
+			len2 := uint64(binary.LittleEndian.Uint32(numBuf[:]))
+			if _, err := io.CopyN(io.Discard, reader, int64(len2)); err != nil {
+				return err
+			}
+
+			if err := rs.AddKey(key, pos); err != nil {
+				return err
+			}
+			pos += 8 + len1 + len2
+		}
+
+		if err := rs.Build(); err != nil {
+			if rs.Collision() {
+				rs.ResetNextSalt()
+				continue
+			}
+
+			return err
+		}
+
+		break
 	}
 
 	return nil
@@ -433,4 +511,15 @@ func createFile(name string) (*os.File, error) {
 
 func roundUp(a, n uint64) uint64 {
 	return ((a + n - 1) / n) * n
+}
+
+// uvarintSize returns the size (in bytes) of uint64 encoded with the `binary.PutUvarint`.
+func uvarintSize(num uint64) uint64 {
+	bits := uint64(bits.Len64(num))
+	q, r := bits/7, bits%7
+	size := q
+	if r > 0 || size == 0 {
+		size++
+	}
+	return size
 }
