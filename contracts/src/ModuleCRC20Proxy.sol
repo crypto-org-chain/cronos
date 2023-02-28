@@ -3,24 +3,6 @@ pragma solidity ^0.6.8;
 import "ds-math/math.sol";
 import "./ModuleCRC20.sol";
 
-contract ProxyAuthority {
-    address proxyAddress;
-
-    constructor(address _proxyAddress) public {
-        proxyAddress = _proxyAddress;
-    }
-
-    function canCall(
-        address src, address dst, bytes4 sig
-    ) public view returns (bool) {
-        if (msg.sender == proxyAddress) {
-            return true;
-        }
-
-        return false;
-    }
-}
-
 contract ModuleCRC20Proxy is DSMath {
     // sha256('cronos-evm')[:20]
     address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
@@ -31,11 +13,12 @@ contract ModuleCRC20Proxy is DSMath {
     event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
     /**
-        Can be instantiated only by crc20 contract owner
+        Instantiate a ModuleCRC20Proxy contract. Need to set manually the crc20 contract authority to be the proxy
+        like the following call:
+        crc20Contract.setAuthority(DSAuthority(address(new ModuleCRC20ProxyAuthority(address(this)))));
     **/
     constructor(address crc20Contract_, bool isSource_) public {
         crc20Contract = ModuleCRC20(crc20Contract_);
-        crc20Contract.setAuthority(DSAuthority(address(new ProxyAuthority(address(this)))));
         isSource = isSource_;
     }
 
