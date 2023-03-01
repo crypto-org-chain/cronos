@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/bits"
 	"os"
 	"path/filepath"
 
@@ -507,19 +506,4 @@ func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
 
 func createFile(name string) (*os.File, error) {
 	return os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-}
-
-func roundUp(a, n uint64) uint64 {
-	return ((a + n - 1) / n) * n
-}
-
-// uvarintSize returns the size (in bytes) of uint64 encoded with the `binary.PutUvarint`.
-func uvarintSize(num uint64) uint64 {
-	bits := uint64(bits.Len64(num))
-	q, r := bits/7, bits%7
-	size := q
-	if r > 0 || size == 0 {
-		size++
-	}
-	return size
 }
