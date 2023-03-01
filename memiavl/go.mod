@@ -3,7 +3,6 @@ module github.com/crypto-org-chain/cronos/memiavl
 go 1.20
 
 require (
-	github.com/RoaringBitmap/roaring v1.2.2
 	github.com/cosmos/iavl v0.19.5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
@@ -15,7 +14,6 @@ require (
 require (
 	github.com/DataDog/zstd v1.4.1 // indirect
 	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
-	github.com/bits-and-blooms/bitset v1.2.2 // indirect
 	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/confio/ics23/go v0.7.0 // indirect
@@ -35,7 +33,6 @@ require (
 	github.com/linxGnu/grocksdb v1.7.10 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
