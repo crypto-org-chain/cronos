@@ -22,7 +22,7 @@
 
 ### Improvements
 
-- [#890](https://github.com/crypto-org-chain/cronos/pull/890) reduce node size in memiavl and improve performance
+- [#890](https://github.com/crypto-org-chain/cronos/pull/890) optimize memiavl snapshot format.
 
 *Feb 09, 2022*
 

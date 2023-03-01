@@ -344,10 +344,10 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 type snapshotWriter struct {
 	nodesWriter, kvWriter io.Writer
 
-	// record the current node index and leaf node index
+	// record the current node index
 	nodeIndex uint32
 
-	// record the current writing offset in keys/values file
+	// record the current writing offset in kvs file
 	kvsOffset uint64
 }
 
@@ -358,7 +358,7 @@ func newSnapshotWriter(nodesWriter, kvsWriter io.Writer) *snapshotWriter {
 	}
 }
 
-// writeKeyValue append key to keys file and record the offset
+// writeKeyValue append key-value pair to kvs file and record the offset
 func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
 	var numBuf [4]byte
 

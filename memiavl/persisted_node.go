@@ -57,7 +57,7 @@ func (node PersistedNode) Version() uint32 {
 
 func (node PersistedNode) Size() int64 {
 	data := node.data()
-	if node.Height() == 0 {
+	if data.Height() == 0 {
 		return 1
 	}
 	return int64(data.Size())
