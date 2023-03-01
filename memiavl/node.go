@@ -10,9 +10,9 @@ import (
 
 // Node interface encapsulate the interface of both PersistedNode and MemNode.
 type Node interface {
-	Height() int8
+	Height() uint8
 	Size() int64
-	Version() int64
+	Version() uint32
 	Key() []byte
 	Value() []byte
 	Left() Node
@@ -20,7 +20,10 @@ type Node interface {
 	Hash() []byte
 
 	// PersistedNode clone a new node, MemNode modify in place
-	Mutate(version int64) *MemNode
+	Mutate(version uint32) *MemNode
+
+	// Get query the value for a key, it's put into interface because a specialized implementation is more efficient.
+	Get(key []byte) []byte
 }
 
 func isLeaf(node Node) bool {
@@ -30,7 +33,7 @@ func isLeaf(node Node) bool {
 // setRecursive do set operation.
 // it always do modification and return new `MemNode`, even if the value is the same.
 // also returns if it's an update or insertion, if update, the tree height and balance is not changed.
-func setRecursive(node Node, key, value []byte, version int64) (*MemNode, bool) {
+func setRecursive(node Node, key, value []byte, version uint32) (*MemNode, bool) {
 	if node == nil {
 		return newLeafNode(key, value, version), true
 	}
@@ -89,7 +92,7 @@ func setRecursive(node Node, key, value []byte, version int64) (*MemNode, bool) 
 // - (nil, origNode, nil) -> nothing changed in subtree
 // - (value, nil, newKey) -> leaf node is removed
 // - (value, new node, newKey) -> subtree changed
-func removeRecursive(node Node, key []byte, version int64) ([]byte, Node, []byte) {
+func removeRecursive(node Node, key []byte, version uint32) ([]byte, Node, []byte) {
 	if node == nil {
 		return nil, nil, nil
 	}
@@ -148,7 +151,7 @@ func writeHashBytes(node Node, w io.Writer) error {
 	if _, err := w.Write(buf[0:n]); err != nil {
 		return fmt.Errorf("writing size, %w", err)
 	}
-	n = binary.PutVarint(buf[:], node.Version())
+	n = binary.PutVarint(buf[:], int64(node.Version()))
 	if _, err := w.Write(buf[0:n]); err != nil {
 		return fmt.Errorf("writing version, %w", err)
 	}

@@ -10,6 +10,10 @@
 * 27 Jan 2023:
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
+* 24 Feb 2023:
+  * Reduce node size without hash) from 32bytes to 16bytes, leverage properties of post-order traversal.
+  * Merge key-values into single kvs file, build MPHF hash table to index it.
+
 
 ## The Journey
 
@@ -38,10 +42,10 @@ It also integrates well with versiondb, because versiondb can also be derived fr
 ### Change Set File
 
 ```
-version: int64
-size: int64         // size of whole payload
+version: 8
+size:    8         // size of whole payload
 payload:
-  delete: int8
+  delete: 1
   keyLen: varint-uint64
   key
   [                 // if delete is false
@@ -63,49 +67,55 @@ IAVL snapshot is composed by four files:
 - `metadata`, 16bytes:
 
   ```
-  magic: uint32
-  format: uint32
-  version: uint64
-  root node index: uint32
+  magic: 4
+  format: 4
+  version: 4
+  root node index: 4
   ```
 
-- `nodes`, array of fixed size(64bytes) nodes, the node format is like this:
+- `nodes`, array of fixed size(16+32bytes) nodes, the node format is like this:
 
   ```
-  height  : uint8          // padded to 4bytes
-  version : uint32
-  size    : uint64
-  key     : uint64         // offset in keys file
-  left    : uint32         // inner node only
-  right   : uint32         // inner node only
-  value   : uint64 offset  // offset in values file, leaf node only
-  hash    : [32]byte
-  ```
-  The node has fixed length, can be indexed directly. The nodes reference each other with the index, nodes are written in post-order, so the root node is always placed at the end.
+  # branch
+  height   : 1
+  _padding : 3
+  version  : 4
+  size     : 4
+  key node : 4
+  hash     : [32]byte
 
-  Some integers are using `uint32`, should be enough in forseeable future, but could be changed to `uint64` to be safer.
+  # leaf
+  height      : 1
+  _padding    : 3
+  version     : 4
+  key offset  : 8
+  ```
+  The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
+
+  For branch node, the `key node` field reference the smallest leaf node in the right branch, the key slice is fetched from there indirectly, the leaf nodes will store key slice and value index informations, but the version field is stored in `keys` file instead.
+
+  The branch node's left/child node indexes are inferenced from existing information and properties of post-order traversal:
+
+  ```
+  right child index = self index - 1
+  left child index = key node - 1
+  ```
+
+  The version/size/node indexes are encoded with 4 bytes, should be enough in foreseeable future, but could be changed to more bytes in the future.
 
   The implementation will read the mmap-ed content in a zero-copy way, won't use extra node cache, it will only rely on the OS page cache.
 
-- `keys`, sequence of length prefixed leaf node keys, ordered and no duplication.
+- `kvs`, sequence of leaf node key-value pairs, the keys are ordered and no duplication.
 
   ```
-  size: uint32
-  payload
+  keyLen: varint-uint64
+  key
+  valueLen: varint-uint64
+  value
   *repeat*
   ```
 
-  Key size is encoded in `uint32`, so the maximum key length supported is `1<<32-1`, around 4G.
-
-- `values`, sequence of length prefixed leaf node values.
-
-  ```
-  size: uint32
-  payload
-  *repeat*
-  ```
-
-  Value size is encoded in `uint32`, so maximum value length supported is `1<<32-1`, around 4G.
+- `kvs.index`, Minimal-perfect-hash-function build from `kvs`, support query as a hash map.
 
 #### Compression
 
@@ -114,5 +124,7 @@ The items in snapshot reference with each other by file offsets, we can apply so
 ### VersionDB
 
 [VersionDB](../README.md) is to support query and iterating historical versions of key-values pairs, currently implemented with rocksdb's experimental user-defined timestamp feature, support query and iterate key-value pairs by version, it's an alternative way to support grpc query service, and much more compact than IAVL trees, similar in size with the compressed change set files.
+
+After versiondb is fully integrated, IAVL tree don't need to serve queries at all, it don't need to store the values at all, just store the value hashes would be enough.
 
 [^1]: https://github.com/facebook/zstd/blob/dev/contrib/seekable_format/zstd_seekable_compression_format.md

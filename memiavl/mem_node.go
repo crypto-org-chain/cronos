@@ -1,14 +1,15 @@
 package memiavl
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 )
 
 type MemNode struct {
-	height  int8
+	height  uint8
 	size    int64
-	version int64
+	version uint32
 	key     []byte
 	value   []byte
 	left    Node
@@ -19,7 +20,7 @@ type MemNode struct {
 
 var _ Node = (*MemNode)(nil)
 
-func newLeafNode(key, value []byte, version int64) *MemNode {
+func newLeafNode(key, value []byte, version uint32) *MemNode {
 	return &MemNode{
 		key: key, value: value, version: version, size: 1,
 	}
@@ -29,7 +30,7 @@ func (node *MemNode) isLeaf() bool {
 	return node.height == 0
 }
 
-func (node *MemNode) Height() int8 {
+func (node *MemNode) Height() uint8 {
 	return node.height
 }
 
@@ -37,7 +38,7 @@ func (node *MemNode) Size() int64 {
 	return node.size
 }
 
-func (node *MemNode) Version() int64 {
+func (node *MemNode) Version() uint32 {
 	return node.version
 }
 
@@ -58,7 +59,7 @@ func (node *MemNode) Right() Node {
 }
 
 // Mutate clears hash and update version field to prepare for further modifications.
-func (node *MemNode) Mutate(version int64) *MemNode {
+func (node *MemNode) Mutate(version uint32) *MemNode {
 	node.version = version
 	node.hash = nil
 	return node
@@ -78,7 +79,7 @@ func (node *MemNode) Hash() []byte {
 }
 
 func (node *MemNode) updateHeightSize() {
-	node.height = maxInt8(node.left.Height(), node.right.Height()) + 1
+	node.height = maxUInt8(node.left.Height(), node.right.Height()) + 1
 	node.size = node.left.Size() + node.right.Size()
 }
 
@@ -97,7 +98,7 @@ func calcBalance(node Node) int {
 //	 L                   S
 //	/ \                 / \
 //	  LR               LR
-func (node *MemNode) rotateRight(version int64) *MemNode {
+func (node *MemNode) rotateRight(version uint32) *MemNode {
 	newSelf := node.left.Mutate(version)
 	node.left = node.left.Right()
 	newSelf.right = node
@@ -113,7 +114,7 @@ func (node *MemNode) rotateRight(version int64) *MemNode {
 //	    R         S
 //	   / \       / \
 //	 RL             RL
-func (node *MemNode) rotateLeft(version int64) *MemNode {
+func (node *MemNode) rotateLeft(version uint32) *MemNode {
 	newSelf := node.right.Mutate(version)
 	node.right = node.right.Left()
 	newSelf.left = node
@@ -123,7 +124,7 @@ func (node *MemNode) rotateLeft(version int64) *MemNode {
 }
 
 // Invariant: node is returned by `Mutate(version)`.
-func (node *MemNode) reBalance(version int64) *MemNode {
+func (node *MemNode) reBalance(version uint32) *MemNode {
 	balance := node.calcBalance()
 	switch {
 	case balance > 1:
@@ -150,6 +151,20 @@ func (node *MemNode) reBalance(version int64) *MemNode {
 	}
 }
 
+func (node *MemNode) Get(key []byte) []byte {
+	if node.isLeaf() {
+		if bytes.Equal(key, node.key) {
+			return node.value
+		}
+		return nil
+	}
+
+	if bytes.Compare(key, node.key) == -1 {
+		return node.Left().Get(key)
+	}
+	return node.Right().Get(key)
+}
+
 // EncodeBytes writes a varint length-prefixed byte slice to the writer,
 // it's used for hash computation, must be compactible with the official IAVL implementation.
 func EncodeBytes(w io.Writer, bz []byte) error {
@@ -162,7 +177,7 @@ func EncodeBytes(w io.Writer, bz []byte) error {
 	return err
 }
 
-func maxInt8(a, b int8) int8 {
+func maxUInt8(a, b uint8) uint8 {
 	if a > b {
 		return a
 	}
