@@ -29,10 +29,6 @@ const (
 	// EmptyRootNodeIndex is a special value of root node index to represent empty tree
 	EmptyRootNodeIndex = math.MaxUint32
 
-	Alignment = 8
-
-	OffsetRestartInteval = 65536
-
 	FileNameNodes    = "nodes"
 	FileNameKVs      = "kvs"
 	FileNameKVIndex  = "kvs.index"
