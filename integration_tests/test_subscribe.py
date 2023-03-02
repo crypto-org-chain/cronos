@@ -7,7 +7,6 @@ from web3 import Web3
 
 from .network import Cronos
 from .utils import (
-    ADDRS,
     CONTRACTS,
     KEYS,
     deploy_contract,
@@ -72,6 +71,8 @@ class Client:
 
 # ChangeGreeting topic from Greeter contract calculated from event signature
 CHANGE_GREETING_TOPIC = Web3.keccak(text="ChangeGreeting(address,string)")
+# TestEvent topic from TestMessageCall contract calculated from event signature
+TEST_EVENT_TOPIC = Web3.keccak(text="TestEvent(uint256)")
 
 
 def test_subscribe_basic(cronos: Cronos):
@@ -99,37 +100,47 @@ def test_subscribe_basic(cronos: Cronos):
         await assert_unsubscribe(c, sub_id)
 
     async def log_test(c: Client, w3, contract):
+        sub_id = await c.subscribe("logs", {"address": contract.address})
         # update greeting
         new_greeting = "hello, world"
-        tx = contract.functions.setGreeting(new_greeting).build_transaction(
-            {"from": ADDRS["validator"]}
-        )
-        sub_id = await c.subscribe("logs", {"address": contract.address})
-
+        tx = contract.functions.setGreeting(new_greeting).build_transaction()
         raw_transactions = []
         for key_from in KEYS.values():
             signed = sign_transaction(w3, tx, key_from)
             raw_transactions.append(signed.rawTransaction)
-
-        # send transactions
         send_raw_transactions(w3, raw_transactions)
         msgs = [await c.recv_subscription(sub_id) for i in range(len(KEYS))]
         assert len(msgs) == len(KEYS)
         assert all(msg["topics"] == [CHANGE_GREETING_TOPIC.hex()] for msg in msgs)
         await assert_unsubscribe(c, sub_id)
 
-    async def async_test():
-        # deploy greeter contract
-        contract = deploy_contract(cronos.w3, CONTRACTS["Greeter"])
-        # test the contract was deployed successfully
-        assert contract.caller.greet() == "Hello"
+    async def logs_test(c: Client, w3, contract, address):
+        sub_id = await c.subscribe("logs", {"address": address})
+        iterations = 100
+        tx = contract.functions.test(iterations).build_transaction()
+        raw_transactions = []
+        for key_from in KEYS.values():
+            signed = sign_transaction(w3, tx, key_from)
+            raw_transactions.append(signed.rawTransaction)
+        send_raw_transactions(w3, raw_transactions)
+        total = len(KEYS) * iterations
+        msgs = [await c.recv_subscription(sub_id) for i in range(total)]
+        assert len(msgs) == total
+        assert all(msg["topics"] == [TEST_EVENT_TOPIC.hex()] for msg in msgs)
+        await assert_unsubscribe(c, sub_id)
 
+    async def async_test():
         async with websockets.connect(cronos.w3_ws_endpoint()) as ws:
             c = Client(ws)
             t = asyncio.create_task(c.receive_loop())
             # run three subscribers concurrently
             await asyncio.gather(*[subscriber_test(c) for i in range(3)])
+            contract = deploy_contract(cronos.w3, CONTRACTS["Greeter"])
+            assert contract.caller.greet() == "Hello"
             await asyncio.gather(*[log_test(c, cronos.w3, contract)])
+            contract = deploy_contract(cronos.w3, CONTRACTS["TestMessageCall"])
+            inner = contract.caller.inner()
+            await asyncio.gather(*[logs_test(c, cronos.w3, contract, inner)])
             t.cancel()
             try:
                 await t
