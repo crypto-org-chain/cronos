@@ -9,8 +9,10 @@ from .network import Cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
+    KEYS,
     deploy_contract,
-    send_transaction,
+    send_raw_transactions,
+    sign_transaction,
     wait_for_new_blocks,
 )
 
@@ -103,10 +105,17 @@ def test_subscribe_basic(cronos: Cronos):
             {"from": ADDRS["validator"]}
         )
         sub_id = await c.subscribe("logs", {"address": contract.address})
-        receipt = send_transaction(w3, tx)
-        assert receipt.status == 1
-        msg = await c.recv_subscription(sub_id)
-        assert msg["topics"] == [CHANGE_GREETING_TOPIC.hex()]
+
+        raw_transactions = []
+        for key_from in KEYS.values():
+            signed = sign_transaction(w3, tx, key_from)
+            raw_transactions.append(signed.rawTransaction)
+
+        # send transactions
+        send_raw_transactions(w3, raw_transactions)
+        msgs = [await c.recv_subscription(sub_id) for i in range(len(KEYS))]
+        assert len(msgs) == len(KEYS)
+        assert all(msg["topics"] == [CHANGE_GREETING_TOPIC.hex()] for msg in msgs)
         await assert_unsubscribe(c, sub_id)
 
     async def async_test():
