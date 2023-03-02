@@ -3,9 +3,16 @@ import json
 from collections import defaultdict
 
 import websockets
+from web3 import Web3
 
 from .network import Cronos
-from .utils import wait_for_new_blocks
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    deploy_contract,
+    send_transaction,
+    wait_for_new_blocks,
+)
 
 
 class Client:
@@ -61,12 +68,24 @@ class Client:
         return rsp["result"]
 
 
+# ChangeGreeting topic from Greeter contract calculated from event signature
+CHANGE_GREETING_TOPIC = Web3.keccak(text="ChangeGreeting(address,string)")
+
+
 def test_subscribe_basic(cronos: Cronos):
     """
     test basic subscribe and unsubscribe
     """
     cli = cronos.cosmos_cli()
     loop = asyncio.get_event_loop()
+
+    async def assert_unsubscribe(c: Client, sub_id):
+        assert await c.unsubscribe(sub_id)
+        # check no more messages
+        await loop.run_in_executor(None, wait_for_new_blocks, cli, 2)
+        assert c.sub_qsize(sub_id) == 0
+        # unsubscribe again return False
+        assert not await c.unsubscribe(sub_id)
 
     async def subscriber_test(c: Client):
         sub_id = await c.subscribe("newHeads")
@@ -75,19 +94,33 @@ def test_subscribe_basic(cronos: Cronos):
         # check blocks are consecutive
         assert int(msgs[1]["number"], 0) == int(msgs[0]["number"], 0) + 1
         assert int(msgs[2]["number"], 0) == int(msgs[1]["number"], 0) + 1
-        assert await c.unsubscribe(sub_id)
-        # check no more messages
-        await loop.run_in_executor(None, wait_for_new_blocks, cli, 2)
-        assert c.sub_qsize(sub_id) == 0
-        # unsubscribe again return False
-        assert not await c.unsubscribe(sub_id)
+        await assert_unsubscribe(c, sub_id)
+
+    async def log_test(c: Client, w3, contract):
+        # update greeting
+        new_greeting = "hello, world"
+        tx = contract.functions.setGreeting(new_greeting).build_transaction(
+            {"from": ADDRS["validator"]}
+        )
+        sub_id = await c.subscribe("logs", {"address": contract.address})
+        receipt = send_transaction(w3, tx)
+        assert receipt.status == 1
+        msg = await c.recv_subscription(sub_id)
+        assert msg["topics"] == [CHANGE_GREETING_TOPIC.hex()]
+        await assert_unsubscribe(c, sub_id)
 
     async def async_test():
+        # deploy greeter contract
+        contract = deploy_contract(cronos.w3, CONTRACTS["Greeter"])
+        # test the contract was deployed successfully
+        assert contract.caller.greet() == "Hello"
+
         async with websockets.connect(cronos.w3_ws_endpoint()) as ws:
             c = Client(ws)
             t = asyncio.create_task(c.receive_loop())
             # run three subscribers concurrently
             await asyncio.gather(*[subscriber_test(c) for i in range(3)])
+            await asyncio.gather(*[log_test(c, cronos.w3, contract)])
             t.cancel()
             try:
                 await t
