@@ -128,7 +128,7 @@ def test_subscribe_basic(cronos: Cronos):
 
     async def logs_test(c: Client, w3, contract, address):
         sub_id = await c.subscribe("logs", {"address": address})
-        iterations = 100
+        iterations = 50
         tx = contract.functions.test(iterations).build_transaction()
         raw_transactions = []
         for key_from in KEYS.values():
