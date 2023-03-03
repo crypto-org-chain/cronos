@@ -72,7 +72,7 @@ func loadLatestOptions(dir string) (*grocksdb.Options, error) {
 }
 
 // NewRocksdbOptions build options for `application.db`,
-// it overrides exisitng options if provided, otherwise create new one assuming it's a new database.
+// it overrides existing options if provided, otherwise create new one assuming it's a new database.
 func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Options {
 	if opts == nil {
 		opts = grocksdb.NewDefaultOptions()
