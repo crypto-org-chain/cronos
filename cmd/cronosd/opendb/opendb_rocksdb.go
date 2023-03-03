@@ -17,21 +17,7 @@ const BlockCacheSize = 1 << 30
 func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
-		dir := filepath.Join(dataDir, "application.db")
-		opts, err := loadLatestOptions(dir)
-		if err != nil {
-			return nil, err
-		}
-		// customize rocksdb options
-		db, err := grocksdb.OpenDb(NewRocksdbOptions(opts, false), dir)
-		if err != nil {
-			return nil, err
-		}
-		ro := grocksdb.NewDefaultReadOptions()
-		wo := grocksdb.NewDefaultWriteOptions()
-		woSync := grocksdb.NewDefaultWriteOptions()
-		woSync.SetSync(true)
-		return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
+		return openRocksdb(filepath.Join(dataDir, "application.db"), false)
 	}
 
 	return dbm.NewDB("application", backendType, dataDir)
@@ -41,25 +27,38 @@ func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
-		dir := filepath.Join(dataDir, "application.db")
-		opts, err := loadLatestOptions(dir)
-		if err != nil {
-			return nil, err
-		}
-		// customize rocksdb options
-		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(opts, false), dir, false)
-		if err != nil {
-			return nil, err
-		}
-
-		ro := grocksdb.NewDefaultReadOptions()
-		wo := grocksdb.NewDefaultWriteOptions()
-		woSync := grocksdb.NewDefaultWriteOptions()
-		woSync.SetSync(true)
-		return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
+		return openRocksdb(filepath.Join(dataDir, "application.db"), true)
 	}
 
 	return dbm.NewDB("application", backendType, dataDir)
+}
+
+func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
+	opts, err := loadLatestOptions(dir)
+	if err != nil {
+		return nil, err
+	}
+	// customize rocksdb options
+	opts = NewRocksdbOptions(opts, false)
+
+	var (
+		db  *grocksdb.DB
+		err error
+	)
+	if readonly {
+		db, err = grocksdb.OpenDbForReadOnly(opts, dir, false)
+	} else {
+		db, err = grocksdb.OpenDb(opts, dir, false)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	ro := grocksdb.NewDefaultReadOptions()
+	wo := grocksdb.NewDefaultWriteOptions()
+	woSync := grocksdb.NewDefaultWriteOptions()
+	woSync.SetSync(true)
+	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
 }
 
 // loadLatestOptions try to load options from existing db, returns nil if not exists.
