@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+- [#]() Forbids negative priority fee.
+
 ### Improvements
 
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
