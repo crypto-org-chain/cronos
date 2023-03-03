@@ -31,17 +31,21 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
 	bbto.SetIndexType(grocksdb.KBinarySearchWithFirstKey)
 	opts.SetBlockBasedTableFactory(bbto)
-	// improve sst file creation speed: compaction or sst file writer.
-	opts.SetCompressionOptionsParallelThreads(4)
 
+	// use zstd dict compression for all level start from 2
+	opts.SetCompression(grocksdb.ZSTDCompression)
+	compressOpts := grocksdb.NewDefaultCompressionOptions()
+	// 110k dict bytes is default in zstd library,
+	// train bytes is recommended to be set at 100x dict bytes.
+	compressOpts.MaxDictBytes = 112640 // 110k
+	compressOpts.Level = 12
+	opts.SetCompressionOptions(compressOpts)
 	if !sstFileWriter {
-		// compression options at bottommost level
-		opts.SetBottommostCompression(grocksdb.ZSTDCompression)
-		compressOpts := grocksdb.NewDefaultCompressionOptions()
-		compressOpts.MaxDictBytes = 112640 // 110k
-		compressOpts.Level = 12
-		opts.SetBottommostCompressionOptions(compressOpts, true)
-		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
+		opts.SetMinLevelToCompress(2)
+		// don't enable dict compression for sst file writer.
+		// see: https://github.com/facebook/rocksdb/issues/11146
+		opts.SetCompressionOptionsZstdDictTrainer(true)
+		opts.SetCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes * 100)
 	}
 	return opts
 }

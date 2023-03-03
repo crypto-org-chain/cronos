@@ -78,16 +78,20 @@ func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
 
-	// heavier compression option at bottommost level,
+	// use zstd dict compression for all level start from 2
+	opts.SetCompression(grocksdb.ZSTDCompression)
+	compressOpts := grocksdb.NewDefaultCompressionOptions()
 	// 110k dict bytes is default in zstd library,
 	// train bytes is recommended to be set at 100x dict bytes.
-	opts.SetBottommostCompression(grocksdb.ZSTDCompression)
-	compressOpts := grocksdb.NewDefaultCompressionOptions()
+	compressOpts.MaxDictBytes = 112640 // 110k
 	compressOpts.Level = 12
+	opts.SetCompressionOptions(compressOpts)
 	if !sstFileWriter {
-		compressOpts.MaxDictBytes = 110 * 1024
-		opts.SetBottommostCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes*100, true)
+		opts.SetMinLevelToCompress(2)
+		// don't enable dict compression for sst file writer.
+		// see: https://github.com/facebook/rocksdb/issues/11146
+		opts.SetCompressionOptionsZstdDictTrainer(true)
+		opts.SetCompressionOptionsZstdMaxTrainBytes(compressOpts.MaxDictBytes * 100)
 	}
-	opts.SetBottommostCompressionOptions(compressOpts, true)
 	return opts
 }
