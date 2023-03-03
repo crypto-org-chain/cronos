@@ -11,7 +11,7 @@ require (
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/linxGnu/grocksdb v1.7.14
+	github.com/linxGnu/grocksdb v1.7.15
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.1
@@ -55,7 +55,7 @@ require (
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/gin-gonic/gin v1.7.0 // indirect
+	github.com/gin-gonic/gin v1.7.7 // indirect
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
