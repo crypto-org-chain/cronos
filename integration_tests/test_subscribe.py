@@ -99,8 +99,8 @@ def test_subscribe_basic(cronos: Cronos):
         assert int(msgs[2]["number"], 0) == int(msgs[1]["number"], 0) + 1
         await assert_unsubscribe(c, sub_id)
 
-    async def log_test(c: Client, w3, contract):
-        sub_id = await c.subscribe("logs", {"address": contract.address})
+    async def log_test(c: Client, w3, contract, address):
+        sub_id = await c.subscribe("logs", {"address": address})
         # update greeting
         new_greeting = "hello, world"
         tx = contract.functions.setGreeting(new_greeting).build_transaction()
@@ -137,7 +137,9 @@ def test_subscribe_basic(cronos: Cronos):
             await asyncio.gather(*[subscriber_test(c) for i in range(3)])
             contract = deploy_contract(cronos.w3, CONTRACTS["Greeter"])
             assert contract.caller.greet() == "Hello"
-            await asyncio.gather(*[log_test(c, cronos.w3, contract)])
+            address = contract.address
+            await asyncio.gather(*[log_test(c, cronos.w3, contract, address)])
+            await asyncio.gather(*[log_test(c, cronos.w3, contract, address.upper())])
             contract = deploy_contract(cronos.w3, CONTRACTS["TestMessageCall"])
             inner = contract.caller.inner()
             await asyncio.gather(*[logs_test(c, cronos.w3, contract, inner)])
