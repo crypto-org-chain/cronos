@@ -6,16 +6,24 @@ package opendb
 import (
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/linxGnu/grocksdb"
 	dbm "github.com/tendermint/tm-db"
 )
 
+const BlockCacheSize = 1 << 30
+
 func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
+		dir := filepath.Join(dataDir, "application.db")
+		opts, err := loadLatestOptions(dir)
+		if err != nil {
+			return nil, err
+		}
 		// customize rocksdb options
-		db, err := grocksdb.OpenDb(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"))
+		db, err := grocksdb.OpenDb(NewRocksdbOptions(opts, false), dir)
 		if err != nil {
 			return nil, err
 		}
@@ -33,8 +41,13 @@ func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
+		dir := filepath.Join(dataDir, "application.db")
+		opts, err := loadLatestOptions(dir)
+		if err != nil {
+			return nil, err
+		}
 		// customize rocksdb options
-		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(false), filepath.Join(dataDir, "application.db"), false)
+		db, err := grocksdb.OpenDbForReadOnly(NewRocksdbOptions(opts, false), dir, false)
 		if err != nil {
 			return nil, err
 		}
@@ -49,8 +62,27 @@ func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	return dbm.NewDB("application", backendType, dataDir)
 }
 
-func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
-	opts := grocksdb.NewDefaultOptions()
+// loadLatestOptions try to load options from existing db, returns nil if not exists.
+func loadLatestOptions(dir string) (*grocksdb.Options, error) {
+	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, grocksdb.NewLRUCache(BlockCacheSize))
+	if err != nil {
+		// not found is not an error
+		if strings.HasPrefix(err.Error(), "NotFound: ") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return opts.Options(), nil
+}
+
+// NewRocksdbOptions build options for `application.db`,
+// it overrides exisitng options if provided, otherwise create new one assuming it's a new database.
+func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Options {
+	if opts == nil {
+		opts = grocksdb.NewDefaultOptions()
+		// only enable dynamic-level-bytes on new db, don't override for existing db
+		opts.SetLevelCompactionDynamicLevelBytes(true)
+	}
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
@@ -60,7 +92,7 @@ func NewRocksdbOptions(sstFileWriter bool) *grocksdb.Options {
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
 
 	// 1G block cache
-	bbto.SetBlockCache(grocksdb.NewLRUCache(1 << 30))
+	bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
 
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))

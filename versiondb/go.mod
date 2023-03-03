@@ -11,7 +11,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230130172141-b594e6cdbf76
-	github.com/linxGnu/grocksdb v1.7.14
+	github.com/linxGnu/grocksdb v1.7.15
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
 	github.com/stretchr/testify v1.8.1
