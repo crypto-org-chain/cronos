@@ -23,6 +23,7 @@
 ### Improvements
 
 - [#890](https://github.com/crypto-org-chain/cronos/pull/890) optimize memiavl snapshot format.
+- [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
 
 *Feb 09, 2022*
 
