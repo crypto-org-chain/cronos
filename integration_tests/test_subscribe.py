@@ -3,14 +3,18 @@ import json
 from collections import defaultdict
 
 import websockets
+from eth_utils import abi
+from hexbytes import HexBytes
 from web3 import Web3
 
 from .network import Cronos
 from .utils import (
+    ADDRS,
     CONTRACTS,
     KEYS,
     deploy_contract,
     send_raw_transactions,
+    send_transaction,
     sign_transaction,
     wait_for_new_blocks,
 )
@@ -99,19 +103,29 @@ def test_subscribe_basic(cronos: Cronos):
         assert int(msgs[2]["number"], 0) == int(msgs[1]["number"], 0) + 1
         await assert_unsubscribe(c, sub_id)
 
-    async def log_test(c: Client, w3, contract, address):
+    async def transfer_test(c: Client, w3, contract, address):
         sub_id = await c.subscribe("logs", {"address": address})
-        # update greeting
-        new_greeting = "hello, world"
-        tx = contract.functions.setGreeting(new_greeting).build_transaction()
-        raw_transactions = []
-        for key_from in KEYS.values():
-            signed = sign_transaction(w3, tx, key_from)
-            raw_transactions.append(signed.rawTransaction)
-        send_raw_transactions(w3, raw_transactions)
-        msgs = [await c.recv_subscription(sub_id) for i in range(len(KEYS))]
-        assert len(msgs) == len(KEYS)
-        assert all(msg["topics"] == [CHANGE_GREETING_TOPIC.hex()] for msg in msgs)
+        to = ADDRS["community"]
+        _from = ADDRS["validator"]
+        total = 5
+        topic = abi.event_signature_to_log_topic("Transfer(address,address,uint256)")
+        for i in range(total):
+            amt = 10 + i
+            tx = contract.functions.transfer(to, amt).build_transaction({"from": _from})
+            txreceipt = send_transaction(w3, tx)
+            assert len(txreceipt.logs) == 1
+            expect_log = {
+                "address": address,
+                "topics": [
+                    HexBytes(topic),
+                    HexBytes(b"\x00" * 12 + HexBytes(_from)),
+                    HexBytes(b"\x00" * 12 + HexBytes(to)),
+                ],
+                "data": HexBytes(b"\x00" * 12 + HexBytes(amt)),
+            }
+            assert expect_log.items() <= txreceipt.logs[0].items()
+        msgs = [await c.recv_subscription(sub_id) for i in range(total)]
+        assert len(msgs) == total
         await assert_unsubscribe(c, sub_id)
 
     async def logs_test(c: Client, w3, contract, address):
@@ -135,11 +149,9 @@ def test_subscribe_basic(cronos: Cronos):
             t = asyncio.create_task(c.receive_loop())
             # run three subscribers concurrently
             await asyncio.gather(*[subscriber_test(c) for i in range(3)])
-            contract = deploy_contract(cronos.w3, CONTRACTS["Greeter"])
-            assert contract.caller.greet() == "Hello"
+            contract = deploy_contract(cronos.w3, CONTRACTS["TestERC20A"])
             address = contract.address
-            await asyncio.gather(*[log_test(c, cronos.w3, contract, address)])
-            await asyncio.gather(*[log_test(c, cronos.w3, contract, address.upper())])
+            await asyncio.gather(*[transfer_test(c, cronos.w3, contract, address)])
             contract = deploy_contract(cronos.w3, CONTRACTS["TestMessageCall"])
             inner = contract.caller.inner()
             await asyncio.gather(*[logs_test(c, cronos.w3, contract, inner)])
