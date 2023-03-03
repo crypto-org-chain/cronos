@@ -73,8 +73,6 @@ class Client:
         return rsp["result"]
 
 
-# ChangeGreeting topic from Greeter contract calculated from event signature
-CHANGE_GREETING_TOPIC = Web3.keccak(text="ChangeGreeting(address,string)")
 # TestEvent topic from TestMessageCall contract calculated from event signature
 TEST_EVENT_TOPIC = Web3.keccak(text="TestEvent(uint256)")
 
