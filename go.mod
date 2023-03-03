@@ -205,7 +205,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	// use replace to force update grocksdb dependency in tm-db
-	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.15-0.20230303073550-e611b544c0cf
+	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.7.16-0.20230303082518-587b6c4f0dab
 	github.com/miguelmota/go-ethereum-hdwallet => github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2
 
 	// TODO: remove when gravity update dependencies
