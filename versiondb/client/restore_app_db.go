@@ -63,10 +63,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			numLevels, err := cmd.Flags().GetInt(flagNumLevels)
-			if err != nil {
-				return err
-			}
 			stores, err := GetStoresOrDefault(cmd, opts.DefaultStores)
 			if err != nil {
 				return err
@@ -148,13 +144,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 			ingestOpts.SetMoveFiles(true)
 
 			opts := opts.AppRocksDBOptions(false)
-			// it's a workaround for rocksdb issue(https://github.com/facebook/rocksdb/issues/11212),
-			// because rocksdb always ingest files into level `num_levels-1`,
-			// the new data will take a very long time to reach that level,
-			// level3 is the bottommost level in practice.
-			if numLevels > 0 {
-				opts.SetNumLevels(numLevels)
-			}
 			db, err := grocksdb.OpenDb(opts, iavlDir)
 			if err != nil {
 				return errors.Wrap(err, "open iavl db fail")
@@ -179,7 +168,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().Uint64(flagSorterChunkSize, DefaultSorterChunkSizeIAVL, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
-	cmd.Flags().Int(flagNumLevels, 4, "Override the num levels in default options, when ingesting into a new db, the sst files will be ingested into level `num-levels-1`, set to 0 to not override.")
 
 	return cmd
 }
