@@ -215,7 +215,7 @@ replace (
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// use replace to force update grocksdb dependency in tm-db
-	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.7.15-0.20230222024938-b61261a9193b
+	github.com/linxGnu/grocksdb => github.com/yihuang/grocksdb v1.7.15-0.20230303073550-e611b544c0cf
 	github.com/miguelmota/go-ethereum-hdwallet => github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2
 
 	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230126051749-d984b1562242
