@@ -41,14 +41,11 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	// customize rocksdb options
 	opts = NewRocksdbOptions(opts, false)
 
-	var (
-		db  *grocksdb.DB
-		err error
-	)
+	var db *grocksdb.DB
 	if readonly {
 		db, err = grocksdb.OpenDbForReadOnly(opts, dir, false)
 	} else {
-		db, err = grocksdb.OpenDb(opts, dir, false)
+		db, err = grocksdb.OpenDb(opts, dir)
 	}
 	if err != nil {
 		return nil, err
