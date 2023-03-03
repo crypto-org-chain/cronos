@@ -121,7 +121,7 @@ def test_subscribe_basic(cronos: Cronos):
                     HexBytes(b"\x00" * 12 + HexBytes(_from)),
                     HexBytes(b"\x00" * 12 + HexBytes(to)),
                 ],
-                "data": HexBytes(b"\x00" * 12 + HexBytes(amt)),
+                "data": HexBytes(b"\x00" * 31 + HexBytes(amt)),
             }
             assert expect_log.items() <= txreceipt.logs[0].items()
         msgs = [await c.recv_subscription(sub_id) for i in range(total)]
