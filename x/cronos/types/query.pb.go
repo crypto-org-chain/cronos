@@ -7,15 +7,15 @@ import (
 	context "context"
 	fmt "fmt"
 	_ "github.com/cosmos/gogoproto/gogoproto"
+	grpc1 "github.com/cosmos/gogoproto/grpc"
+	proto "github.com/cosmos/gogoproto/proto"
+	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
 	types "github.com/evmos/ethermint/x/evm/types"
-	grpc1 "github.com/gogo/protobuf/grpc"
-	proto "github.com/gogo/protobuf/proto"
-	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+	_ "github.com/gogo/protobuf/types"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	_ "google.golang.org/protobuf/types/known/timestamppb"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -378,7 +378,8 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
-// QueryPermissionsRequest is the request type for the Query/Permissions RPC method.
+// QueryPermissionsRequest is the request type for the Query/Permissions RPC
+// method.
 type QueryPermissionsRequest struct {
 	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 }
@@ -423,7 +424,8 @@ func (m *QueryPermissionsRequest) GetAddress() string {
 	return ""
 }
 
-// QueryPermissionsResponse is the response type for the Query/Permissions RPC method.
+// QueryPermissionsResponse is the response type for the Query/Permissions RPC
+// method.
 type QueryPermissionsResponse struct {
 	CanChangeTokenMapping bool `protobuf:"varint,1,opt,name=can_change_token_mapping,json=canChangeTokenMapping,proto3" json:"can_change_token_mapping,omitempty"`
 	CanTurnBridge         bool `protobuf:"varint,2,opt,name=can_turn_bridge,json=canTurnBridge,proto3" json:"can_turn_bridge,omitempty"`
@@ -560,7 +562,8 @@ type QueryClient interface {
 	ContractByDenom(ctx context.Context, in *ContractByDenomRequest, opts ...grpc.CallOption) (*ContractByDenomResponse, error)
 	// DenomByContract queries native denom by contract address
 	DenomByContract(ctx context.Context, in *DenomByContractRequest, opts ...grpc.CallOption) (*DenomByContractResponse, error)
-	// ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+	// ReplayBlock replay the eth messages in the block to recover the results of
+	// false-failed txs.
 	ReplayBlock(ctx context.Context, in *ReplayBlockRequest, opts ...grpc.CallOption) (*ReplayBlockResponse, error)
 	// Params queries all parameters.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
@@ -627,7 +630,8 @@ type QueryServer interface {
 	ContractByDenom(context.Context, *ContractByDenomRequest) (*ContractByDenomResponse, error)
 	// DenomByContract queries native denom by contract address
 	DenomByContract(context.Context, *DenomByContractRequest) (*DenomByContractResponse, error)
-	// ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+	// ReplayBlock replay the eth messages in the block to recover the results of
+	// false-failed txs.
 	ReplayBlock(context.Context, *ReplayBlockRequest) (*ReplayBlockResponse, error)
 	// Params queries all parameters.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
@@ -925,7 +929,7 @@ func (m *ReplayBlockRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	n1, err1 := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.BlockTime, dAtA[i-github_com_gogo_protobuf_types.SizeOfStdTime(m.BlockTime):])
+	n1, err1 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.BlockTime, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.BlockTime):])
 	if err1 != nil {
 		return 0, err1
 	}
@@ -1214,7 +1218,7 @@ func (m *ReplayBlockRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.BlockTime)
+	l = github_com_cosmos_gogoproto_types.SizeOfStdTime(m.BlockTime)
 	n += 1 + l + sovQuery(uint64(l))
 	return n
 }
@@ -1791,7 +1795,7 @@ func (m *ReplayBlockRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.BlockTime, dAtA[iNdEx:postIndex]); err != nil {
+			if err := github_com_cosmos_gogoproto_types.StdTimeUnmarshal(&m.BlockTime, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

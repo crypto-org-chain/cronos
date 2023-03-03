@@ -9,8 +9,8 @@ import (
 	github_com_cosmos_cosmos_sdk_types "github.com/cosmos/cosmos-sdk/types"
 	types "github.com/cosmos/cosmos-sdk/types"
 	_ "github.com/cosmos/gogoproto/gogoproto"
-	grpc1 "github.com/gogo/protobuf/grpc"
-	proto "github.com/gogo/protobuf/proto"
+	grpc1 "github.com/cosmos/gogoproto/grpc"
+	proto "github.com/cosmos/gogoproto/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -517,7 +517,8 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
-// MsgUpdatePermissions defines the request type for updating cronos permissions.
+// MsgUpdatePermissions defines the request type for updating cronos
+// permissions.
 type MsgUpdatePermissions struct {
 	From        string `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
 	Address     string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`

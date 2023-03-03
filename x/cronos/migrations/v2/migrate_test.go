@@ -3,7 +3,8 @@ package v2_test
 import (
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
+	"github.com/cosmos/cosmos-sdk/codec"
+	amino "github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/exported"
@@ -28,7 +29,7 @@ func TestMigrate(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey(types.ModuleName)
 	ctx := testutil.DefaultContext(storeKey, sdk.NewTransientStoreKey("test"))
 	store := ctx.KVStore(storeKey)
-	cdc := simapp.MakeTestEncodingConfig().Codec
+	cdc := codec.NewAminoCodec(amino.NewLegacyAmino())
 	legacySubspace := newMockSubspace(types.DefaultParams())
 	v2.Migrate(ctx, store, legacySubspace, cdc)
 	var p types.Params
