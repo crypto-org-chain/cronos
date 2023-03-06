@@ -679,7 +679,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     """
     modify_command_in_supervisor_config(
         cronos.base_dir / "tasks.ini",
-        lambda cmd: f"{cmd} --evm.max-tx-gas-wanted {max_gas_wanted}",
+        lambda _: f"cronosd start --home . --trace --evm.max-tx-gas-wanted {max_gas_wanted}",
     )
     cronos.supervisorctl("update")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
