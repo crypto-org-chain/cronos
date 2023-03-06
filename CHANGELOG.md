@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Mar 6, 2023*
+
+## v1.0.5
 
 ### Bug Fixes
 
@@ -10,8 +12,9 @@
 
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
 - [#907](https://github.com/crypto-org-chain/cronos/pull/907) Apply a configurable limit in rpc apis.
+- [#909](https://github.com/crypto-org-chain/cronos/pull/909) Update to cosmos-sdk v0.46.11.
 
-*Feb 15, 2022*
+*Feb 15, 2023*
 
 ## v1.0.4
 
