@@ -119,7 +119,7 @@ def test_subscribe_basic(cronos: Cronos):
         topic = abi.event_signature_to_log_topic("Transfer(address,address,uint256)")
         for i in range(total):
             amt = 10 + i
-            tx = contract.functions.transfer(to, amt).build_transaction({"from": _from})
+            tx = contract.functions.transfer(to, amt).buildTransaction({"from": _from})
             txreceipt = send_transaction(w3, tx)
             assert len(txreceipt.logs) == 1
             expect_log = {
@@ -129,7 +129,7 @@ def test_subscribe_basic(cronos: Cronos):
                     HexBytes(b"\x00" * 12 + HexBytes(_from)),
                     HexBytes(b"\x00" * 12 + HexBytes(to)),
                 ],
-                "data": HexBytes(b"\x00" * 31 + HexBytes(amt)),
+                "data": HexBytes(b"\x00" * 31 + HexBytes(amt)).hex(),
             }
             assert expect_log.items() <= txreceipt.logs[0].items()
         msgs = [await c.recv_subscription(sub_id) for i in range(total)]
@@ -139,7 +139,7 @@ def test_subscribe_basic(cronos: Cronos):
     async def logs_test(c: Client, w3, contract, address):
         sub_id = await c.subscribe("logs", {"address": address})
         iterations = 10000
-        tx = contract.functions.test(iterations).build_transaction()
+        tx = contract.functions.test(iterations).buildTransaction()
         raw_transactions = []
         for key_from in KEYS.values():
             signed = sign_transaction(w3, tx, key_from)
