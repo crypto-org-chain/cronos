@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Mar 6, 2022*
+
+## v1.0.5
 
 ### Bug Fixes
 
