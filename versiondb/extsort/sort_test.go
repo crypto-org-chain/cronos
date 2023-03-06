@@ -40,8 +40,8 @@ func doTestExtSorter(t *testing.T, chunkSize int64, inputCount int) {
 
 	randItems := make([][]byte, len(expItems))
 	copy(randItems, expItems)
-	rand.Seed(0)
-	rand.Shuffle(len(randItems), func(i, j int) { randItems[i], randItems[j] = randItems[j], randItems[i] })
+	r := rand.New(rand.NewSource(0))
+	r.Shuffle(len(randItems), func(i, j int) { randItems[i], randItems[j] = randItems[j], randItems[i] })
 
 	// feed in random order
 	for _, item := range randItems {
