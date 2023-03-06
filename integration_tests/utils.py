@@ -507,10 +507,6 @@ def send_txs(w3, cli, to, keys, params):
     print(f"block number start: {block_num_0}")
 
     # send transactions
-    with ThreadPoolExecutor(len(raw_transactions)) as exec:
-        tasks = [
-            exec.submit(w3.eth.send_raw_transaction, raw) for raw in raw_transactions
-        ]
-        sended_hash_set = {future.result() for future in as_completed(tasks)}
+    sended_hash_set = send_raw_transactions(w3, raw_transactions)
 
     return block_num_0, sended_hash_set
