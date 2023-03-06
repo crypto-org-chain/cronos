@@ -48,3 +48,9 @@ def test_event_log_filter(cronos):
     print(f"get event: {new_entries}")
     assert new_entries[0] == log
     assert "world" == mycontract.caller.greet()
+    # without new txs since last call
+    assert event_filter.get_new_entries() == []
+    assert event_filter.get_all_entries() == new_entries
+    # Uninstall
+    assert w3.eth.uninstall_filter(event_filter.filter_id)
+    assert not w3.eth.uninstall_filter(event_filter.filter_id)
