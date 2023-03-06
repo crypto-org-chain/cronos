@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from collections import defaultdict
 
 import websockets
@@ -128,7 +129,7 @@ def test_subscribe_basic(cronos: Cronos):
 
     async def logs_test(c: Client, w3, contract, address):
         sub_id = await c.subscribe("logs", {"address": address})
-        iterations = 50
+        iterations = 10000
         tx = contract.functions.test(iterations).build_transaction()
         raw_transactions = []
         for key_from in KEYS.values():
@@ -152,7 +153,9 @@ def test_subscribe_basic(cronos: Cronos):
             await asyncio.gather(*[transfer_test(c, cronos.w3, contract, address)])
             contract = deploy_contract(cronos.w3, CONTRACTS["TestMessageCall"])
             inner = contract.caller.inner()
+            begin = time.time()
             await asyncio.gather(*[logs_test(c, cronos.w3, contract, inner)])
+            print("msg call time", time.time() - begin)
             t.cancel()
             try:
                 await t
