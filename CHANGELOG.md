@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#]() Forbids negative priority fee.
+- [#908](https://github.com/crypto-org-chain/cronos/pull/908) Forbids negative priority fee.
 
 ### Improvements
 
