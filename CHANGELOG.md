@@ -5,6 +5,7 @@
 ### Improvements
 
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
+- [#907](https://github.com/crypto-org-chain/cronos/pull/907) Apply a configurable limit in rpc apis.
 
 *Feb 15, 2022*
 
