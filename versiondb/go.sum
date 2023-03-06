@@ -222,6 +222,8 @@ github.com/creachadair/taskgroup v0.3.2 h1:zlfutDS+5XG40AOxcHDSThxKzns8Tnr9jnr6V
 github.com/creachadair/taskgroup v0.3.2/go.mod h1:wieWwecHVzsidg2CsUnFinW1faVN4+kq+TDlRJQ0Wbk=
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
+github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4 h1:xDvRBIwKnuL3KD+X9YyuKWgKKhfJCCxcuwWfm4JhstI=
+github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4/go.mod h1:mMa2D5nczwheRX7IhbCBbq57BG3jIArkoOoCn/fZZug=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3 h1:msHkCjNEUSqknqzjBCQscfxVm1ifyxoRBb0goZKqGCU=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3/go.mod h1:JOMwkZce6XmnsAfSRa3VSA/e2tV1R2y7lqljiw5STlQ=
 github.com/cyberdelia/templates v0.0.0-20141128023046-ca7fffd4298c/go.mod h1:GyV+0YP4qX0UQ7r2MoYZ+AvYDp12OF5yg4q8rGnyNh4=
@@ -918,8 +920,6 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/cometbft-db v0.7.1-0.20230306024652-3af958bced3e h1:qobFbj4AGY7B9t5LGiYCqr4Y+3cwYDj2MNJwhonVy9M=
-github.com/yihuang/cometbft-db v0.7.1-0.20230306024652-3af958bced3e/go.mod h1:mMa2D5nczwheRX7IhbCBbq57BG3jIArkoOoCn/fZZug=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

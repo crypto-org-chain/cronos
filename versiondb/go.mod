@@ -134,7 +134,7 @@ require (
 
 replace (
 	// https://github.com/cometbft/cometbft-db/pull/42
-	github.com/cometbft/cometbft-db => github.com/yihuang/cometbft-db v0.7.1-0.20230306024652-3af958bced3e
+	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// use cometbft
 	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27

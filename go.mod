@@ -195,7 +195,7 @@ require (
 
 replace (
 	// https://github.com/cometbft/cometbft-db/pull/42
-	github.com/cometbft/cometbft-db => github.com/yihuang/cometbft-db v0.7.1-0.20230306024652-3af958bced3e
+	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.11
