@@ -17,9 +17,13 @@ contract TestMessageCall {
 
     function test(uint iterations) public returns (uint256) {
         uint256 n = 0;
-        for (uint i=0; i < iterations; i++) {
+        for (uint i = 0; i < iterations; i++) {
             n += _inner.test();
         }
         return n;
+    }
+
+    function inner() public view returns (address) {
+        return address(_inner);
     }
 }
