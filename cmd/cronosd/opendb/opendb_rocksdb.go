@@ -68,6 +68,16 @@ func loadLatestOptions(dir string) (*grocksdb.Options, error) {
 		}
 		return nil, err
 	}
+
+	cfNames := opts.ColumnFamilyNames()
+	cfOpts := opts.ColumnFamilyOpts()
+
+	for i := 0; i < len(cfNames); i++ {
+		if cfNames[i] == "default" {
+			return &cfOpts[i], nil
+		}
+	}
+
 	return opts.Options(), nil
 }
 
