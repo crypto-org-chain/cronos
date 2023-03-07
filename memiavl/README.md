@@ -11,8 +11,8 @@
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
 * 24 Feb 2023:
-  * Reduce node size without hash) from 32bytes to 16bytes, leverage properties of post-order traversal.
-  * Merge key-values into single kvs file, build MPHF hash table to index it.
+  * Reduce node size without hash from 32bytes to 16bytes, leverage properties of post-order traversal.
+  * Merge key-values into single kvs file, build optional MPHF hash table to index it.
 
 
 ## The Journey
@@ -89,10 +89,11 @@ IAVL snapshot is composed by four files:
   _padding    : 3
   version     : 4
   key offset  : 8
+  hash        : [32]byte
   ```
-  The node has fixed length, can be indexed directly. The nodes reference each other with the node index, nodes are written in post-order, so the root node is always placed at the end.
+  The node has fixed length, can be indexed directly. The nodes references each other with the node index, nodes are written with post-order depth-first traversal, so the root node is always placed at the end.
 
-  For branch node, the `key node` field reference the smallest leaf node in the right branch, the key slice is fetched from there indirectly, the leaf nodes will store key slice and value index informations, but the version field is stored in `keys` file instead.
+  For branch node, the `key node` field reference the smallest leaf node in the right branch, the key slice is fetched from there indirectly, the leaf nodes stores the `offset` into the `kvs` file, where the key and value slices can be built.
 
   The branch node's left/child node indexes are inferenced from existing information and properties of post-order traversal:
 
@@ -115,7 +116,7 @@ IAVL snapshot is composed by four files:
   *repeat*
   ```
 
-- `kvs.index`, Minimal-perfect-hash-function build from `kvs`, support query as a hash map.
+- `kvs.index`, optional MPHF(Minimal-Perfect-Hash-Function) hash index build from `kvs`, support query key-values as a hash map.
 
 #### Compression
 
