@@ -11,7 +11,7 @@
   * Update metadata file format
   * Encode key length with 4 bytes instead of 2.
 * 24 Feb 2023:
-  * Reduce node size without hash) from 32bytes to 16bytes, leverage properties of post-order traversal.
+  * Reduce node size without hash from 32bytes to 16bytes, leverage properties of post-order traversal.
   * Merge key-values into single kvs file, build optional MPHF hash table to index it.
 
 
