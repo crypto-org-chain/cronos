@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 
 	sdkmath "cosmossdk.io/math"
@@ -58,7 +59,7 @@ func StateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes
 
 		case config.ParamsFile != "":
 			appParams := make(simtypes.AppParams)
-			bz, err := os.ReadFile(config.ParamsFile)
+			bz, err := os.ReadFile(filepath.Clean(config.ParamsFile))
 			if err != nil {
 				panic(err)
 			}
@@ -216,7 +217,7 @@ func StateRandomizedFn(
 // StateFromGenesisFileFn util function to generate the genesis AppState
 // from a genesis.json file.
 func StateFromGenesisFileFn(r io.Reader, cdc codec.JSONCodec, genesisFile string) (tmtypes.GenesisDoc, []simtypes.Account) {
-	bytes, err := os.ReadFile(genesisFile)
+	bytes, err := os.ReadFile(filepath.Clean(genesisFile))
 	if err != nil {
 		panic(err)
 	}

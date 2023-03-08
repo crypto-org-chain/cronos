@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/bits"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -199,7 +200,7 @@ func openChangeSetFile(fileName string) (ReadCloser, error) {
 	}
 
 	var reader Reader
-	fp, err := os.Open(fileName)
+	fp, err := os.Open(filepath.Clean(fileName))
 	if err != nil {
 		return nil, err
 	}

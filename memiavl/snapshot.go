@@ -67,7 +67,7 @@ func NewEmptySnapshot(version uint32) *Snapshot {
 // and mmap the other files.
 func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	// read metadata file
-	bz, err := os.ReadFile(filepath.Join(snapshotDir, FileNameMetadata))
+	bz, err := os.ReadFile(filepath.Clean(filepath.Join(snapshotDir, FileNameMetadata)))
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 		}
 
 		// re-open kvs file for reading
-		input, err := os.Open(kvsFile)
+		input, err := os.Open(filepath.Clean(kvsFile))
 		if err != nil {
 			return err
 		}
@@ -501,5 +501,5 @@ func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
 }
 
 func createFile(name string) (*os.File, error) {
-	return os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	return os.OpenFile(filepath.Clean(name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 }

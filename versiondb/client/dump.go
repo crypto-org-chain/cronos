@@ -277,7 +277,7 @@ func (c *chunk) collect(outDir string, zlibLevel int) (returnErr error) {
 
 // copyTmpFile append the snappy compressed temporary file to writer
 func copyTmpFile(writer io.Writer, tmpFile string) error {
-	fp, err := os.Open(tmpFile)
+	fp, err := os.Open(filepath.Clean(tmpFile))
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func copyTmpFile(writer io.Writer, tmpFile string) error {
 }
 
 func createFile(name string) (*os.File, error) {
-	return os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	return os.OpenFile(filepath.Clean(name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 }
 
 func getNextVersion(db dbm.DB, version int64) (int64, error) {

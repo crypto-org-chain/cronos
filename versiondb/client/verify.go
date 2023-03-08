@@ -117,7 +117,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			verifiedFileName := filepath.Join(changeSetDir, fmt.Sprintf("verified-%d", commitInfo.Version))
 			if check {
 				// check commitInfo against the one stored in change set
-				bz, err := os.ReadFile(verifiedFileName)
+				bz, err := os.ReadFile(filepath.Clean(verifiedFileName))
 				if err != nil {
 					return err
 				}
