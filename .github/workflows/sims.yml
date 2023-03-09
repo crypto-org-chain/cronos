@@ -49,11 +49,11 @@ jobs:
         id: setValid
         run: |
           if [[ "${{ steps.checkMember.outputs.isTeamMember }}" == "true" ]]; then
-            echo "name=valid::true" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "push" || "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "name=valid::true" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
           else  
-            echo "name=valid::false" >> $GITHUB_OUTPUT
+            echo "valid=false" >> $GITHUB_OUTPUT
           fi
 
   build:
@@ -88,12 +88,12 @@ jobs:
         env:
           COMMENTBODY: ${{ github.event.comment.body }}
         run: |
-          echo "name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}" >> $GITHUB_OUTPUT
+          echo "repo_name=${{ fromJson(steps.request.outputs.data).head.repo.full_name }}" >> $GITHUB_OUTPUT
           comment_hash=`echo "$COMMENTBODY" | cut -d' ' -f2` # get commit hash if any
           if [[ "${comment_hash}" == "/runsim" ]]; then 
-            echo "name=ref::${{ fromJson(steps.request.outputs.data).head.ref }}" >> $GITHUB_OUTPUT # use default head ref
+            echo "ref=${{ fromJson(steps.request.outputs.data).head.ref }}" >> $GITHUB_OUTPUT # use default head ref
           else
-            echo "name=ref::${comment_hash}" >> $GITHUB_OUTPUT # use comment provided ref
+            echo "ref=${comment_hash}" >> $GITHUB_OUTPUT # use comment provided ref
           fi
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v3
@@ -412,12 +412,12 @@ jobs:
         id: set_outputs
         continue-on-error: true
         run: |
-          echo "name=status_job01::$(<pass_status_build/status_build.txt)" >> $GITHUB_OUTPUT
-          echo "name=status_job02::$(<pass_status_install/status_install.txt)" >> $GITHUB_OUTPUT
-          echo "name=status_job03::$(<pass_status_sim1/status_sim1.txt)" >> $GITHUB_OUTPUT
-          echo "name=status_job04::$(<pass_status_sim2/status_sim2.txt)" >> $GITHUB_OUTPUT
-          echo "name=status_job05::$(<pass_status_sim3/status_sim3.txt)" >> $GITHUB_OUTPUT
-          echo "name=status_job06::$(<pass_status_sim4/status_sim4.txt)" >> $GITHUB_OUTPUT
+          echo "status_job01=$(<pass_status_build/status_build.txt)" >> $GITHUB_OUTPUT
+          echo "status_job02=$(<pass_status_install/status_install.txt)" >> $GITHUB_OUTPUT
+          echo "status_job03=$(<pass_status_sim1/status_sim1.txt)" >> $GITHUB_OUTPUT
+          echo "status_job04=$(<pass_status_sim2/status_sim2.txt)" >> $GITHUB_OUTPUT
+          echo "status_job05=$(<pass_status_sim3/status_sim3.txt)" >> $GITHUB_OUTPUT
+          echo "status_job06=$(<pass_status_sim4/status_sim4.txt)" >> $GITHUB_OUTPUT
       - name: The sim jobs has succeed
         uses: crypto-org-chain/actions-pull-request-add-comment@master
         if: >-
