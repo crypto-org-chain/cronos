@@ -553,22 +553,14 @@ func New(
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
-	if !skipGravity {
-		app.StakingKeeper = *stakingKeeper.SetHooks(
-			stakingtypes.NewMultiStakingHooks(
-				app.DistrKeeper.Hooks(),
-				app.SlashingKeeper.Hooks(),
-				app.GravityKeeper.Hooks(),
-			),
-		)
-	} else {
-		app.StakingKeeper = *stakingKeeper.SetHooks(
-			stakingtypes.NewMultiStakingHooks(
-				app.DistrKeeper.Hooks(),
-				app.SlashingKeeper.Hooks(),
-			),
-		)
+	hooks := []stakingtypes.StakingHooks{
+		app.DistrKeeper.Hooks(),
+		app.SlashingKeeper.Hooks(),
 	}
+	if !skipGravity {
+		hooks = append(hooks, app.GravityKeeper.Hooks())
+	}
+	app.StakingKeeper = *stakingKeeper.SetHooks(stakingtypes.NewMultiStakingHooks(hooks...))
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
