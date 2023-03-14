@@ -59,7 +59,7 @@ import sources.nixpkgs {
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (pkgs: _: {
-      rocksdb = pkgs.callPackage ./rocksdb.nix { enableJemalloc = true; };
+      rocksdb = pkgs.callPackage ./rocksdb.nix { };
     })
     (_: pkgs: {
       cosmovisor = pkgs.buildGo118Module rec {
