@@ -252,6 +252,11 @@ func (snapshot *Snapshot) KeyValue(offset uint64) ([]byte, []byte) {
 	return key, value
 }
 
+// Export exports the nodes in DFS post-order, resemble the API of existing iavl library
+func (snapshot *Snapshot) Export() *Exporter {
+	return &Exporter{snapshot: snapshot, count: snapshot.nodesLen()}
+}
+
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
 func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 	var rootIndex uint32
