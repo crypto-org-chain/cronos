@@ -5,7 +5,7 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/alitto/pond v1.8.2
-	github.com/cosmos/cosmos-sdk v0.46.10
+	github.com/cosmos/cosmos-sdk v0.46.11
 	github.com/cosmos/iavl v0.19.5
 	github.com/crypto-org-chain/cronos/memiavl v0.0.1
 	github.com/gogo/protobuf v1.3.3
@@ -14,14 +14,13 @@ require (
 	github.com/linxGnu/grocksdb v1.7.15
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.1
-	github.com/tendermint/tendermint v0.34.26
+	github.com/stretchr/testify v1.8.2
+	github.com/tendermint/tendermint v0.34.27
 	github.com/tendermint/tm-db v0.6.7
 )
 
 require (
 	cloud.google.com/go v0.107.0 // indirect
-	cloud.google.com/go/storage v1.27.0 // indirect
 	cosmossdk.io/math v1.0.0-beta.4 // indirect
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -38,6 +37,7 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coinbase/rosetta-sdk-go v0.7.9 // indirect
+	github.com/cometbft/cometbft-db v0.7.0 // indirect
 	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1 // indirect
@@ -125,7 +125,7 @@ require (
 	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/zondax/hid v0.9.1 // indirect
 	github.com/zondax/ledger-go v0.14.1 // indirect
-	go.etcd.io/bbolt v1.3.6 // indirect
+	go.etcd.io/bbolt v1.3.7 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
@@ -145,11 +145,13 @@ require (
 )
 
 replace (
+	// https://github.com/cometbft/cometbft-db/pull/42
+	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4
 	github.com/crypto-org-chain/cronos/memiavl => ../memiavl
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
-	// use informal system fork of tendermint
-	github.com/tendermint/tendermint => github.com/informalsystems/tendermint v0.34.26
+	// use cometbft
+	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
 	github.com/tendermint/tm-db => github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3
 )
