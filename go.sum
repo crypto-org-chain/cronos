@@ -406,6 +406,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4 h1:xDvRBIwKnuL3KD+X9YyuKWgKKhfJCCxcuwWfm4JhstI=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4/go.mod h1:mMa2D5nczwheRX7IhbCBbq57BG3jIArkoOoCn/fZZug=
+github.com/crypto-org-chain/ethermint v0.20.8-cronos.0.20230315032257-cb741e1d8196 h1:mCl1Nc2yzZe3oolGbeKPoU2CHD3XS9PR1x90KLJhGGk=
+github.com/crypto-org-chain/ethermint v0.20.8-cronos.0.20230315032257-cb741e1d8196/go.mod h1:2KWQM+xgbwTjhx+fEG4XN8s2953c8mbiNfBLhPy6ptE=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
@@ -1199,8 +1201,6 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/ethermint v0.20.2-cronos.0.20230314094949-f1f845d74751 h1:Xbc9RXdv19mY+BBqOu9yX5z4dASCOyIUW7v0wj/LEYM=
-github.com/yihuang/ethermint v0.20.2-cronos.0.20230314094949-f1f845d74751/go.mod h1:2KWQM+xgbwTjhx+fEG4XN8s2953c8mbiNfBLhPy6ptE=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
