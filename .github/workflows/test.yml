@@ -56,16 +56,6 @@ jobs:
           name: debug-files
           path: debug_files.tar.gz
           if-no-files-found: ignore
-      - name: Convert coverage data
-        run: |
-          nix profile install ./nix#go_1_20
-          go tool covdata textfmt -i=integration_tests/coverage -o profile.txt
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./profile.txt
-          flags: integration_tests
 
   upload-cache:
     if: github.event_name == 'push'
