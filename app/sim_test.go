@@ -9,8 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	ethermintapp "github.com/evmos/ethermint/app"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	evmante "github.com/evmos/ethermint/app/ante"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -19,10 +20,12 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	"github.com/cosmos/cosmos-sdk/store"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -112,7 +115,7 @@ func TestFullAppSimulation(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -153,7 +156,7 @@ func TestAppImportExport(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -274,7 +277,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -324,7 +327,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		os.Stdout,
 		newApp.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(newApp, newApp.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -376,7 +379,7 @@ func TestAppStateDeterminism(t *testing.T) {
 				os.Stdout,
 				app.BaseApp,
 				StateFn(app.AppCodec(), app.SimulationManager()),
-				ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+				RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 				simapp.SimulationOperations(app, app.AppCodec(), config),
 				app.ModuleAccountAddrs(),
 				config,
@@ -399,4 +402,27 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 		}
 	}
+}
+
+// RandomAccounts creates random accounts with an ethsecp256k1 private key
+// TODO: replace secp256k1.GenPrivKeyFromSecret() with similar function in go-ethereum
+func RandomAccounts(r *rand.Rand, n int) []simtypes.Account {
+	accs := make([]simtypes.Account, n)
+
+	for i := 0; i < n; i++ {
+		// don't need that much entropy for simulation
+		privkeySeed := make([]byte, 15)
+		_, _ = r.Read(privkeySeed)
+
+		prv := secp256k1.GenPrivKeyFromSecret(privkeySeed)
+		ethPrv := &ethsecp256k1.PrivKey{}
+		_ = ethPrv.UnmarshalAmino(prv.Bytes()) // UnmarshalAmino simply copies the bytes and assigns them to ethPrv.Key
+		accs[i].PrivKey = ethPrv
+		accs[i].PubKey = accs[i].PrivKey.PubKey()
+		accs[i].Address = sdk.AccAddress(accs[i].PubKey.Address())
+
+		accs[i].ConsKey = ed25519.GenPrivKeyFromSecret(privkeySeed)
+	}
+
+	return accs
 }

@@ -8,8 +8,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
+	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -33,16 +32,7 @@ type BankKeeper interface {
 
 // TransferKeeper defines the expected interface needed to transfer coin through IBC.
 type TransferKeeper interface {
-	SendTransfer(
-		ctx sdk.Context,
-		sourcePort,
-		sourceChannel string,
-		token sdk.Coin,
-		sender sdk.AccAddress,
-		receiver string,
-		timeoutHeight clienttypes.Height,
-		timeoutTimestamp uint64,
-	) error
+	Transfer(context.Context, *types.MsgTransfer) (*types.MsgTransferResponse, error)
 	GetDenomTrace(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.DenomTrace, bool)
 }
 
@@ -79,8 +69,6 @@ type EvmKeeper interface {
 
 	// to replay the messages
 	EthereumTx(goCtx context.Context, msg *evmtypes.MsgEthereumTx) (*evmtypes.MsgEthereumTxResponse, error)
-	DeductTxCostsFromUserBalance(
-		ctx sdk.Context, msgEthTx evmtypes.MsgEthereumTx, txData evmtypes.TxData, denom string, homestead, istanbul, london bool,
-	) (fees sdk.Coins, priority int64, err error)
+	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
 	ChainID() *big.Int
 }
