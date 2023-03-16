@@ -1206,8 +1206,8 @@ github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6Ut
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/ethermint v0.6.1-0.20230316010921-36e8a3fff310 h1:xlChJu/C/3M4fR8svK/w2E0SCr0oLqU/wj41PvdKwgA=
-github.com/yihuang/ethermint v0.6.1-0.20230316010921-36e8a3fff310/go.mod h1:x2yuz5Erk4/R15jqSWDgjX+LiYAggDKKJn0iwTZ6N+8=
+github.com/yihuang/ethermint v0.6.1-0.20230316012256-0f24686eabe4 h1:L3XKJVy7RvQvOpAQDl2jO0q3i6MyeFTs9TBRCEK643I=
+github.com/yihuang/ethermint v0.6.1-0.20230316012256-0f24686eabe4/go.mod h1:x2yuz5Erk4/R15jqSWDgjX+LiYAggDKKJn0iwTZ6N+8=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

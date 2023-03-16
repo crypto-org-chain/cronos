@@ -210,7 +210,7 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.11
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
-	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20230316010921-36e8a3fff310
+	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.6.1-0.20230316012256-0f24686eabe4
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
