@@ -46,6 +46,9 @@ schema = 3
   [mod."github.com/alitto/pond"]
     version = "v1.8.2"
     hash = "sha256-GbTih6gDKGuCP0V0iEo1DfEePAjm6lBxiUpqmL8hD1I="
+  [mod."github.com/allegro/bigcache"]
+    version = "v1.2.1"
+    hash = "sha256-/DwqBxg75m1zzOB8BWbpjQ/jYnhoe/SMXc4310mOlMA="
   [mod."github.com/armon/go-metrics"]
     version = "v0.4.1"
     hash = "sha256-usxTUHA0QQMdM6sHi2z51nmnEKMbA0qUilxJFpWHlYE="
@@ -112,9 +115,6 @@ schema = 3
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
-  [mod."github.com/cosmos/gogoproto"]
-    version = "v1.4.2"
-    hash = "sha256-hOY+mhPDYWcSYSdth2AW7IONdgicqQir0z/1XrXt9NY="
   [mod."github.com/cosmos/iavl"]
     version = "v0.19.5"
     hash = "sha256-8PerCyxQrBCtr2zkhgriqauhCSoIe580dsYpZ44o+cE="
@@ -127,9 +127,6 @@ schema = 3
   [mod."github.com/creachadair/taskgroup"]
     version = "v0.3.2"
     hash = "sha256-Y261IO/d9xjV0UScqHvo31broxvnKn4IQQC9Mu6jNkE="
-  [mod."github.com/crypto-org-chain/cronos/v2"]
-    version = "v2.0.0-20230315094328-672a3e7cea6b"
-    hash = "sha256-GI7we4o5ueVq/iBla7yWYMEhL11hreGNXVprxRaMZLM="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.1.2"
     hash = "sha256-Nnklfg12vmWCOhELGyoRqEF4w4srp0WbPwreaChYLKs="
@@ -174,8 +171,8 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.20.8-cronos.0.20230315032257-cb741e1d8196"
-    hash = "sha256-X9c/qdOtaleOzzVxQZaGow0Evoo5nkK7TNgxIXZBKv0="
+    version = "v0.20.8-cronos.0.20230314071400-c5e93382c318"
+    hash = "sha256-LKMAzqD1f7KnLPq5fUA79L/s3zvJQiLpYt6ue9KAKgw="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
@@ -286,6 +283,9 @@ schema = 3
   [mod."github.com/hashicorp/go-safetemp"]
     version = "v1.0.0"
     hash = "sha256-g5i9m7FSRInQzZ4iRpIsoUu685AY7fppUwjhuZCezT8="
+  [mod."github.com/hashicorp/go-uuid"]
+    version = "v1.0.2"
+    hash = "sha256-SsIZNWnnjuPbiclz2bs9AKWHvpuVsrFUW2CzAVSx8qs="
   [mod."github.com/hashicorp/go-version"]
     version = "v1.6.0"
     hash = "sha256-UV0equpmW6BiJnp4W3TZlSJ+PTHuTA+CdOs2JTeHhjs="
