@@ -1011,8 +1011,8 @@ github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4 h1:xDvRBIwKnuL3KD+X9YyuKWgKKhfJCCxcuwWfm4JhstI=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230306031617-b3e4fd3331c4/go.mod h1:mMa2D5nczwheRX7IhbCBbq57BG3jIArkoOoCn/fZZug=
-github.com/crypto-org-chain/ethermint v0.20.8-cronos.0.20230314071400-c5e93382c318 h1:7kwdEogE6jFiVticyqD2Lyp70HZd3uLuOTZuhDYr/Lw=
-github.com/crypto-org-chain/ethermint v0.20.8-cronos.0.20230314071400-c5e93382c318/go.mod h1:2KWQM+xgbwTjhx+fEG4XN8s2953c8mbiNfBLhPy6ptE=
+github.com/crypto-org-chain/ethermint v0.20.9-cronos h1:34TyjOUFmrc/ffAOS0g+dSATrzBrDrTn9rGsWIr5j0Q=
+github.com/crypto-org-chain/ethermint v0.20.9-cronos/go.mod h1:2KWQM+xgbwTjhx+fEG4XN8s2953c8mbiNfBLhPy6ptE=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=

@@ -1,5 +1,13 @@
 # Changelog
 
+*Mar 16, 2023*
+
+## v1.0.6
+
+### Bug Fixes
+
+* [#932](https://github.com/crypto-org-chain/cronos/pull/932) Backport multiple json-rpc bug fixes in ethermint ([commits](https://github.com/crypto-org-chain/ethermint/compare/v0.20.8-cronos...v0.20.9-cronos)).
+
 *Mar 6, 2023*
 
 ## v1.0.5
