@@ -75,7 +75,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 		Address: acc.GetAddress().String(),
 		Coins:   sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(10000000, 18))),
 	}
-	genesisState := NewDefaultGenesisState(encodingConfig.Codec)
+	genesisState := NewDefaultGenesisState(encodingConfig.Codec, true)
 	genesisState = genesisStateWithValSet(b, app, genesisState, valSet, []authtypes.GenesisAccount{acc}, balance)
 
 	appState, err := json.MarshalIndent(genesisState, "", "  ")
