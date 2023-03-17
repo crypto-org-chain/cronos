@@ -128,8 +128,19 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		)
 	}
 
-	index, err := recsplit.OpenIndex(filepath.Join(snapshotDir, FileNameKVIndex))
-	if err != nil {
+	var (
+		index       *recsplit.Index
+		indexReader *recsplit.IndexReader
+	)
+	indexFile := filepath.Join(snapshotDir, FileNameKVIndex)
+	_, err = os.Stat(indexFile)
+	if err == nil {
+		index, err = recsplit.OpenIndex(indexFile)
+		if err != nil {
+			return nil, cleanupHandles(err)
+		}
+		indexReader = recsplit.NewIndexReader(index)
+	} else if !os.IsNotExist(err) {
 		return nil, cleanupHandles(err)
 	}
 
@@ -147,7 +158,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		kvs:   kvs,
 
 		index:       index,
-		indexReader: recsplit.NewIndexReader(index),
+		indexReader: indexReader,
 
 		version:   version,
 		rootIndex: rootIndex,
@@ -258,7 +269,7 @@ func (snapshot *Snapshot) Export() *Exporter {
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
+func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr error) {
 	var rootIndex uint32
 	if t.root == nil {
 		rootIndex = EmptyRootNodeIndex
@@ -310,14 +321,20 @@ func (t *Tree) WriteSnapshot(snapshotDir string) (returnErr error) {
 			return err
 		}
 
-		// re-open kvs file for reading
-		input, err := os.Open(kvsFile)
-		if err != nil {
-			return err
-		}
-		defer input.Close()
-		if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
-			return fmt.Errorf("build MPHF index failed: %w", err)
+		if writeHashIndex {
+			// re-open kvs file for reading
+			input, err := os.Open(kvsFile)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := input.Close(); returnErr == nil {
+					returnErr = err
+				}
+			}()
+			if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
+				return fmt.Errorf("build MPHF index failed: %w", err)
+			}
 		}
 	}
 
