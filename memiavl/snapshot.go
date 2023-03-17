@@ -327,7 +327,11 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr
 			if err != nil {
 				return err
 			}
-			defer input.Close()
+			defer func() {
+				if err := input.Close(); returnErr == nil {
+					returnErr = err
+				}
+			}()
 			if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
 				return fmt.Errorf("build MPHF index failed: %w", err)
 			}
