@@ -17,7 +17,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	}
 
 	snapshotDir := t.TempDir()
-	require.NoError(t, tree.WriteSnapshot(snapshotDir))
+	require.NoError(t, tree.WriteSnapshot(snapshotDir, true))
 
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestSnapshotExport(t *testing.T) {
 	}
 
 	snapshotDir := t.TempDir()
-	require.NoError(t, tree.WriteSnapshot(snapshotDir))
+	require.NoError(t, tree.WriteSnapshot(snapshotDir, true))
 
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
