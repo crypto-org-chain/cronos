@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/cosmos/iavl v0.19.5
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tm-db v0.6.7
