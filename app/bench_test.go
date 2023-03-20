@@ -43,7 +43,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	gasPrice := big.NewInt(100000000000)
 
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{})
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{})
 
 	priv, err := ethsecp256k1.GenerateKey()
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
