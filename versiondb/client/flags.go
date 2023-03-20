@@ -17,6 +17,7 @@ const (
 	flagMaximumVersion   = "maximum-version"
 	flagTargetVersion    = "target-version"
 	flagSaveSnapshot     = "save-snapshot"
+	flagBuildHashIndex   = "build-hash-index"
 	flagLoadSnapshot     = "load-snapshot"
 	flagSorterChunkSize  = "sorter-chunk-size"
 	flagInitialVersion   = "initial-version"
