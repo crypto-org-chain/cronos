@@ -24,6 +24,7 @@
 
 - [#890](https://github.com/crypto-org-chain/cronos/pull/890) optimize memiavl snapshot format.
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
+- [#924](https://github.com/crypto-org-chain/cronos/pull/924) memiavl support `Export` API.
 
 *Feb 09, 2022*
 
