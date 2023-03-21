@@ -4,20 +4,22 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+	"os"
 
-	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
+	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)
 
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
+	snapshot       *Snapshot
+	initialVersion uint32
+
 	version uint32
 	// root node of empty tree is represented as `nil`
 	root Node
-
-	initialVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
@@ -50,9 +52,30 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 		return NewEmptyTree(int64(snapshot.Version()))
 	}
 	return &Tree{
-		version: snapshot.Version(),
-		root:    snapshot.RootNode(),
+		snapshot: snapshot,
+		version:  snapshot.Version(),
+		root:     snapshot.RootNode(),
 	}
+}
+
+// Load try to load an existing memiavl tree at the directory,
+// if the directory don't exists, creates an empty tree with the provided initial version.
+func Load(dir string, initialVersion int64) (*Tree, error) {
+	snapshot, err := OpenSnapshot(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return NewWithInitialVersion(initialVersion), nil
+		}
+		return nil, err
+	}
+	return NewFromSnapshot(snapshot), nil
+}
+
+func (t *Tree) SetInitialVersion(version int64) {
+	if version >= int64(math.MaxUint32) {
+		panic("version overflows uint32")
+	}
+	t.initialVersion = uint32(version)
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
@@ -80,7 +103,11 @@ func (t *Tree) remove(key []byte) {
 func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	var hash []byte
 	if updateHash {
-		hash = t.root.Hash()
+		if t.root == nil {
+			hash = emptyHash
+		} else {
+			hash = t.root.Hash()
+		}
 	}
 
 	if t.version >= uint32(math.MaxUint32) {
@@ -116,6 +143,13 @@ func (t *Tree) Get(key []byte) []byte {
 	}
 
 	return t.root.Get(key)
+}
+
+func (t *Tree) Has(key []byte) bool {
+	if t.Get(key) == nil {
+		return false
+	}
+	return true
 }
 
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
