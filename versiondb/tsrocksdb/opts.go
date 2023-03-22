@@ -30,6 +30,7 @@ func NewVersionDBOpts(sstFileWriter bool) *grocksdb.Options {
 
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
 	bbto.SetIndexType(grocksdb.KBinarySearchWithFirstKey)
+	bbto.SetOptimizeFiltersForMemory(true)
 	opts.SetBlockBasedTableFactory(bbto)
 	// improve sst file creation speed: compaction or sst file writer.
 	opts.SetCompressionOptionsParallelThreads(4)
