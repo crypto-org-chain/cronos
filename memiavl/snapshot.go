@@ -404,45 +404,56 @@ func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
 	return nil
 }
 
-// writeRecursive write the node recursively in depth-first post-order,
-// returns `(nodeIndex, err)`.
-func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
-	var buf [SizeNodeWithoutHash]byte
-
-	buf[OffsetHeight] = node.Height()
-	binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
-
-	if isLeaf(node) {
-		keyOffset := w.kvsOffset
-		if err := w.writeKeyValue(node.Key(), node.Value()); err != nil {
-			return 0, err
-		}
-
-		binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
-	} else {
-		binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
-
-		// store the minimal key from right subtree, but propagate the one from left subtree
-		leftIndex, err := w.writeRecursive(node.Left())
-		if err != nil {
-			return 0, err
-		}
-		if _, err = w.writeRecursive(node.Right()); err != nil {
-			return 0, err
-		}
-		binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], leftIndex+1)
-	}
-
-	if _, err := w.nodesWriter.Write(buf[:]); err != nil {
+func (w *snapshotWriter) writeNode(node, hash []byte) (uint32, error) {
+	if _, err := w.nodesWriter.Write(node); err != nil {
 		return 0, err
 	}
-	if _, err := w.nodesWriter.Write(node.Hash()); err != nil {
+	if _, err := w.nodesWriter.Write(hash); err != nil {
 		return 0, err
 	}
 
 	i := w.nodeIndex
 	w.nodeIndex++
 	return i, nil
+}
+
+func (w *snapshotWriter) writeLeaf(version uint32, key, value, hash []byte) (uint32, error) {
+	var buf [SizeNodeWithoutHash]byte
+	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
+	keyOffset := w.kvsOffset
+	if err := w.writeKeyValue(key, value); err != nil {
+		return 0, err
+	}
+	binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
+
+	return w.writeNode(buf[:], hash)
+}
+
+func (w *snapshotWriter) writeBranch(version, size uint32, height uint8, keyNode uint32, hash []byte) (uint32, error) {
+	var buf [SizeNodeWithoutHash]byte
+	buf[OffsetHeight] = height
+	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
+	binary.LittleEndian.PutUint32(buf[OffsetSize:], size)
+	binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], keyNode)
+
+	return w.writeNode(buf[:], hash)
+}
+
+// writeRecursive write the node recursively in depth-first post-order,
+// returns `(nodeIndex, err)`.
+func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
+	if isLeaf(node) {
+		return w.writeLeaf(node.Version(), node.Key(), node.Value(), node.Hash())
+	}
+
+	leftIndex, err := w.writeRecursive(node.Left())
+	if err != nil {
+		return 0, err
+	}
+	if _, err := w.writeRecursive(node.Right()); err != nil {
+		return 0, err
+	}
+	return w.writeBranch(node.Version(), uint32(node.Size()), node.Height(), leftIndex+1, node.Hash())
 }
 
 // buildIndex build MPHF index for the kvs file.
