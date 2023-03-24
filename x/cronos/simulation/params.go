@@ -13,19 +13,19 @@ import (
 
 // ParamChanges defines the parameters that can be modified by param change proposals
 // on the simulation.
-func ParamChanges(r *rand.Rand) []simtypes.ParamChange {
-	return []simtypes.ParamChange{
-		simulation.NewSimParamChange(types.ModuleName, string(types.KeyIbcCroDenom),
+func ParamChanges(r *rand.Rand) []simtypes.LegacyParamChange {
+	return []simtypes.LegacyParamChange{
+		simulation.NewSimLegacyParamChange(types.ModuleName, string(types.KeyIbcCroDenom),
 			func(r *rand.Rand) string {
 				return fmt.Sprintf("%v", GenIbcCroDenom(r))
 			},
 		),
-		simulation.NewSimParamChange(types.ModuleName, string(types.KeyIbcTimeout),
+		simulation.NewSimLegacyParamChange(types.ModuleName, string(types.KeyIbcTimeout),
 			func(r *rand.Rand) string {
 				return fmt.Sprintf("%v", GenIbcTimeout(r))
 			},
 		),
-		simulation.NewSimParamChange(types.ModuleName, string(types.KeyEnableAutoDeployment),
+		simulation.NewSimLegacyParamChange(types.ModuleName, string(types.KeyEnableAutoDeployment),
 			func(r *rand.Rand) string {
 				return fmt.Sprintf("%v", GenEnableAutoDeployment(r))
 			},

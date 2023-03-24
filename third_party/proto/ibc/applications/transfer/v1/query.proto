@@ -31,16 +31,21 @@ service Query {
     option (google.api.http).get = "/ibc/apps/transfer/v1/denom_hashes/{trace}";
   }
 
-  // EscrowAddress returns the escrow address for a particular port and channel id.
-  rpc EscrowAddress(QueryEscrowAddressRequest) returns (QueryEscrowAddressResponse) {
-    option (google.api.http).get = "/ibc/apps/transfer/v1/channels/{channel_id}/ports/{port_id}/escrow_address";
+  // EscrowAddress returns the escrow address for a particular port and channel
+  // id.
+  rpc EscrowAddress(QueryEscrowAddressRequest)
+      returns (QueryEscrowAddressResponse) {
+    option (google.api.http).get =
+        "/ibc/apps/transfer/v1/channels/{channel_id}/ports/{port_id}/"
+        "escrow_address";
   }
 }
 
 // QueryDenomTraceRequest is the request type for the Query/DenomTrace RPC
 // method
 message QueryDenomTraceRequest {
-  // hash (in hex format) or denom (full denom with ibc prefix) of the denomination trace information.
+  // hash (in hex format) or denom (full denom with ibc prefix) of the
+  // denomination trace information.
   string hash = 1;
 }
 
@@ -62,7 +67,8 @@ message QueryDenomTracesRequest {
 // method.
 message QueryDenomTracesResponse {
   // denom_traces returns all denominations trace information.
-  repeated DenomTrace denom_traces = 1 [(gogoproto.castrepeated) = "Traces", (gogoproto.nullable) = false];
+  repeated DenomTrace denom_traces = 1
+      [ (gogoproto.castrepeated) = "Traces", (gogoproto.nullable) = false ];
   // pagination defines the pagination in the response.
   cosmos.base.query.v1beta1.PageResponse pagination = 2;
 }
@@ -90,7 +96,8 @@ message QueryDenomHashResponse {
   string hash = 1;
 }
 
-// QueryEscrowAddressRequest is the request type for the EscrowAddress RPC method.
+// QueryEscrowAddressRequest is the request type for the EscrowAddress RPC
+// method.
 message QueryEscrowAddressRequest {
   // unique port identifier
   string port_id = 1;
@@ -98,7 +105,8 @@ message QueryEscrowAddressRequest {
   string channel_id = 2;
 }
 
-// QueryEscrowAddressResponse is the response type of the EscrowAddress RPC method.
+// QueryEscrowAddressResponse is the response type of the EscrowAddress RPC
+// method.
 message QueryEscrowAddressResponse {
   // the escrow account address
   string escrow_address = 1;

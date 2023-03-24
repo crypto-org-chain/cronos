@@ -8,11 +8,12 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
+	"github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -79,8 +80,8 @@ type EvmKeeper interface {
 
 	// to replay the messages
 	EthereumTx(goCtx context.Context, msg *evmtypes.MsgEthereumTx) (*evmtypes.MsgEthereumTxResponse, error)
-	DeductTxCostsFromUserBalance(
-		ctx sdk.Context, msgEthTx evmtypes.MsgEthereumTx, txData evmtypes.TxData, denom string, homestead, istanbul, london bool,
-	) (fees sdk.Coins, priority int64, err error)
+	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
 	ChainID() *big.Int
+
+	GetBaseFee(ctx sdk.Context, ethCfg *params.ChainConfig) *big.Int
 }

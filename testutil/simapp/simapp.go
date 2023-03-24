@@ -3,13 +3,13 @@ package simapp
 import (
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/simapp"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	tmdb "github.com/tendermint/tm-db"
 
+	"github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/crypto-org-chain/cronos/v2/app"
 )
 
@@ -22,7 +22,7 @@ func New(dir string) *app.App {
 
 	a := app.New(logger, db, nil, true, map[int64]bool{}, dir, 0, encoding,
 		// this line is used by starport scaffolding # stargate/testutil/appArgument
-		simapp.EmptyAppOptions{})
+		sims.EmptyAppOptions{}, nil)
 	// InitChain updates deliverState which is required when app.NewContext is called
 	a.InitChain(abci.RequestInitChain{
 		ConsensusParams: defaultConsensusParams,
@@ -31,8 +31,8 @@ func New(dir string) *app.App {
 	return a
 }
 
-var defaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
+var defaultConsensusParams = &tmproto.ConsensusParams{
+	Block: &tmproto.BlockParams{
 		MaxBytes: 200000,
 		MaxGas:   2000000,
 	},

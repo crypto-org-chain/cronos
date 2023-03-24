@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cosmos/cosmos-sdk/simapp/params"
+	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
 	"github.com/spf13/cast"
@@ -38,6 +38,9 @@ import (
 	servercfg "github.com/evmos/ethermint/server/config"
 	ethermint "github.com/evmos/ethermint/types"
 
+	rosettaCmd "cosmossdk.io/tools/rosetta/cmd"
+	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
@@ -62,7 +65,7 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 		WithLegacyAmino(encodingConfig.Amino).
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
-		WithBroadcastMode(flags.BroadcastBlock).
+		WithBroadcastMode(flags.FlagBroadcastMode).
 		WithHomeDir(app.DefaultNodeHome).
 		WithKeyringOptions(hd.EthSecp256k1Option()).
 		WithViper(EnvPrefix)
@@ -113,7 +116,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		ethermintclient.ValidateChainID(
 			WrapInitCmd(app.DefaultNodeHome),
 		),
-		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
+		genutilcli.CollectGenTxsCmd(banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome, genutiltypes.DefaultMessageValidator),
 		genutilcli.MigrateGenesisCmd(),
 		WrapGenTxCmd(encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		WrapValidateGenesisCmd(),
@@ -129,7 +132,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	opts := ethermintserver.StartOptions{
 		AppCreator:      a.newApp,
 		DefaultNodeHome: app.DefaultNodeHome,
-		DBOpener:        opendb.OpenDB,
+		DBOpener:        opendb.WithAppOpts,
 	}
 	ethermintserver.AddCommands(rootCmd, opts, a.appExport, addModuleInitFlags)
 
@@ -147,7 +150,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 	)
 
 	// add rosetta
-	rootCmd.AddCommand(server.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
+	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
@@ -237,6 +240,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		a.encCfg,
 		// this line is used by starport scaffolding # stargate/root/appArgument
 		appOpts,
+		[]string{},
 		baseappOptions...,
 	)
 }
@@ -244,7 +248,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 // appExport creates a new simapp (optionally at a given height)
 func (a appCreator) appExport(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailAllowedAddrs []string,
-	appOpts servertypes.AppOptions,
+	appOpts servertypes.AppOptions, modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
 	var anApp *app.App
 
@@ -265,6 +269,7 @@ func (a appCreator) appExport(
 			a.encCfg,
 			// this line is used by starport scaffolding # stargate/root/exportArgument
 			appOpts,
+			modulesToExport,
 		)
 
 		if err := anApp.LoadHeight(height); err != nil {
@@ -282,10 +287,11 @@ func (a appCreator) appExport(
 			a.encCfg,
 			// this line is used by starport scaffolding # stargate/root/noHeightExportArgument
 			appOpts,
+			modulesToExport,
 		)
 	}
 
-	return anApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
+	return anApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
 }
 
 func overwriteFlagDefaults(c *cobra.Command, defaults map[string]string) {
