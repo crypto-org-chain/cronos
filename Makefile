@@ -5,7 +5,7 @@ COVERAGE ?= coverage.txt
 GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
 NETWORK ?= mainnet
-LEDGER_ENABLED ?= false
+LEDGER_ENABLED ?= true
 PROJECT_NAME = $(shell git remote get-url origin | xargs basename -s .git)
 
 TESTNET_FLAGS ?=
