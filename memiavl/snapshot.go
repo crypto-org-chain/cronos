@@ -269,44 +269,54 @@ func (snapshot *Snapshot) Export() *Exporter {
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr error) {
-	var rootIndex uint32
-	if t.root == nil {
-		rootIndex = EmptyRootNodeIndex
-	} else {
-		nodesFile := filepath.Join(snapshotDir, FileNameNodes)
-		kvsFile := filepath.Join(snapshotDir, FileNameKVs)
-		kvsIndexFile := filepath.Join(snapshotDir, FileNameKVIndex)
-
-		fpNodes, err := createFile(nodesFile)
-		if err != nil {
-			return err
+func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
+	return writeSnapshot(snapshotDir, t.version, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+		if t.root == nil {
+			return EmptyRootNodeIndex, nil
+		} else {
+			return w.writeRecursive(t.root)
 		}
-		defer func() {
-			if err := fpNodes.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
+	})
+}
 
-		fpKVs, err := createFile(kvsFile)
-		if err != nil {
-			return err
+func writeSnapshot(
+	dir string, version uint32, writeHashIndex bool,
+	doWrite func(*snapshotWriter) (uint32, error),
+) (returnErr error) {
+	nodesFile := filepath.Join(dir, FileNameNodes)
+	kvsFile := filepath.Join(dir, FileNameKVs)
+	kvsIndexFile := filepath.Join(dir, FileNameKVIndex)
+
+	fpNodes, err := createFile(nodesFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fpNodes.Close(); returnErr == nil {
+			returnErr = err
 		}
-		defer func() {
-			if err := fpKVs.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
+	}()
 
-		nodesWriter := bufio.NewWriter(fpNodes)
-		kvsWriter := bufio.NewWriter(fpKVs)
-
-		w := newSnapshotWriter(nodesWriter, kvsWriter)
-		rootIndex, err = w.writeRecursive(t.root)
-		if err != nil {
-			return err
+	fpKVs, err := createFile(kvsFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fpKVs.Close(); returnErr == nil {
+			returnErr = err
 		}
+	}()
 
+	nodesWriter := bufio.NewWriter(fpNodes)
+	kvsWriter := bufio.NewWriter(fpKVs)
+
+	w := newSnapshotWriter(nodesWriter, kvsWriter)
+	rootIndex, err := doWrite(w)
+	if err != nil {
+		return err
+	}
+
+	if rootIndex != EmptyRootNodeIndex {
 		if err := nodesWriter.Flush(); err != nil {
 			return err
 		}
@@ -332,7 +342,9 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr
 					returnErr = err
 				}
 			}()
-			if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
+			// N = 2L-1
+			leaves := (rootIndex + 2) / 2
+			if err := buildIndex(input, kvsIndexFile, dir, int(leaves)); err != nil {
 				return fmt.Errorf("build MPHF index failed: %w", err)
 			}
 		}
@@ -342,10 +354,10 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr
 	var metadataBuf [SizeMetadata]byte
 	binary.LittleEndian.PutUint32(metadataBuf[:], SnapshotFileMagic)
 	binary.LittleEndian.PutUint32(metadataBuf[4:], SnapshotFormat)
-	binary.LittleEndian.PutUint32(metadataBuf[8:], t.version)
+	binary.LittleEndian.PutUint32(metadataBuf[8:], version)
 	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
 
-	metadataFile := filepath.Join(snapshotDir, FileNameMetadata)
+	metadataFile := filepath.Join(dir, FileNameMetadata)
 	fpMetadata, err := createFile(metadataFile)
 	if err != nil {
 		return err
