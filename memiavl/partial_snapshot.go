@@ -8,12 +8,10 @@ package memiavl
 // 	"path/filepath"
 // )
 
-// type PartialSnapshot struct {
-// 	rootHash   []byte
-// 	sinceHash  []byte
-// 	dir        string
-// 	nodeWriter *os.File
-// }
+type PartialSnapshot struct {
+	Snapshot
+	previousFullVersion uint64 // version of previous full snapshot
+}
 
 // func OpenPartialSnapshot(snapshotDir, rootHash, sinceHash string) (*PartialSnapshot, error) {
 // 	dir := filepath.Join(snapshotDir, fmt.Sprintf("partial-%s-%s", rootHash, sinceHash))
@@ -94,3 +92,37 @@ package memiavl
 
 // 	return nil
 // }
+
+func (t *Tree) WritePartialSnapshot(snapshotDir string, writeHashIndex bool, latestSnapshot *Snapshot) {
+	var rootIndex uint64
+	if t.root == nil {
+		rootIndex = EmptyRootNodeIndex
+	} else {
+		var traverse func(n *Node) error
+		traverse = func(n *Node) error {
+			if n == nil {
+				return nil
+			}
+
+			// if the node is persisted to disk in the latest snapshot, skip it
+			if pnode, ok := (*n).(PersistedNode); ok {
+				if pnode.Version() == latestSnapshot.Version() {
+					return nil
+				}
+			}
+
+			// if the node is in-memory, check if it's not in the latest snapshot
+			if mnode, ok := (*n).(*MemNode); ok {
+				savedNode := latestSnapshot.Get(mnode.hash)
+				if savedNode != nil {
+					return nil
+				}
+			}
+
+			// At this point, we know that the node was added after the latest snapshot was taken
+
+			return nil
+		}
+
+	}
+}
