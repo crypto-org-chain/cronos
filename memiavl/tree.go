@@ -7,6 +7,7 @@ import (
 
 	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
+	"github.com/tidwall/wal"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -16,7 +17,8 @@ type Tree struct {
 	version uint32
 	// root node of empty tree is represented as `nil`
 	root Node
-
+	// write ahead log to store changesets
+	wal            *wal.Log
 	initialVersion uint32
 }
 
