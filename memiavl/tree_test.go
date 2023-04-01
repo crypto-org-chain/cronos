@@ -2,6 +2,7 @@ package memiavl
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/cosmos/iavl"
@@ -79,6 +80,8 @@ func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 
 func TestRootHashes(t *testing.T) {
 	tree := NewEmptyTree(0)
+	defer os.RemoveAll(DefaultPathToWAL)
+	defer tree.bwal.Close()
 
 	for i, changes := range ChangeSets {
 		hash, v, err := tree.ApplyChangeSet(&changes, true)
@@ -90,6 +93,10 @@ func TestRootHashes(t *testing.T) {
 
 func TestNewKey(t *testing.T) {
 	tree := NewEmptyTree(0)
+
+	defer os.RemoveAll(DefaultPathToWAL)
+	defer tree.bwal.Close()
+
 	for i := 0; i < 4; i++ {
 		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
 	}
@@ -108,11 +115,18 @@ func TestNewKey(t *testing.T) {
 
 func TestEmptyTree(t *testing.T) {
 	tree := New()
+
+	defer os.RemoveAll(DefaultPathToWAL)
+	defer tree.bwal.Close()
+
 	require.Equal(t, emptyHash, tree.RootHash())
 }
 
 func TestWAL(t *testing.T) {
 	tree := NewEmptyTree(0)
+
+	defer os.RemoveAll(DefaultPathToWAL)
+	defer tree.bwal.Close()
 
 	tree.Set([]byte("hello"), []byte("world"))
 	tree.Set([]byte("hello1"), []byte("world1"))
@@ -127,14 +141,14 @@ func TestWAL(t *testing.T) {
 	data, err := tree.bwal.Read(uint64(version))
 	require.NoError(t, err)
 
-	changesBz := [][]byte{
+	changesBz := []ChangeBz{
 		[]byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
 		[]byte("\x00\x06\x00\x00\x00hello1\x06\x00\x00\x00world1"),
 		[]byte("\x01\x06\x00\x00\x00hello1"),
 		[]byte("\x00\x06\x00\x00\x00hello2\x06\x00\x00\x00world2"),
 	}
 
-	expectedData := []byte{}
+	expectedData := BlockChangesBz{}
 	for _, i := range changesBz {
 		expectedData = append(expectedData, i...)
 	}

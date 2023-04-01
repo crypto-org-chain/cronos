@@ -59,6 +59,8 @@ func init() {
 }
 
 // newBlockWAL creates a new blockWAL.
+// TODO: creating a WAL at non 0 version will fail, because the log will try to store changes from that version right away.
+// It is not supported by the library, write-ahead log supposed to start with index 1 and increase monotonically.
 func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (blockWAL, error) {
 	if pathToWAL == "" {
 		return blockWAL{}, fmt.Errorf("failed trying to create a new WAL: path to WAL is empty")
@@ -113,7 +115,7 @@ func (bwal blockWAL) Close() error {
 }
 
 // Read reads the write-ahead log from the given index.
-func (bwal blockWAL) Read(index uint64) ([]byte, error) {
+func (bwal blockWAL) Read(index uint64) (BlockChangesBz, error) {
 	return bwal.wal.Read(index)
 }
 
@@ -197,7 +199,6 @@ func OpenWAL(pathToWAL string, opts *wal.Options) (*wal.Log, error) {
 // changesetFromBz generates a changeset from a byte slice.
 func (bz BlockChangesBz) changesetFromBz() ([]Change, error) {
 	var changes []Change
-	// var offset uint64
 
 	indexes, err := indexBlockChangesBytes(bz)
 	if err != nil {

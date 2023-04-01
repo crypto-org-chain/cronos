@@ -3,6 +3,7 @@ package memiavl
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/cosmos/iavl"
@@ -138,27 +139,40 @@ func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
 }
 
-// func (t *Tree) ReplayWAL(untilVersion uint64) error {
-// 	if untilVersion <= uint64(t.version) {
-// 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
-// 	}
+func (t *Tree) ReplayWAL(untilVersion uint64) error {
+	if untilVersion <= uint64(t.version) {
+		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
+	}
 
-// 	var changes [][]Change
+	var changeset [][]Change
 
-// 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
-// 		bz, err := t.bwal.Read(i)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		changes = append(changes, changeset)
-// 	}
-// 	// for _, change := range changes {
-// 	// 	if change.value == nil {
-// 	// 		_, t.root, _ = removeRecursive(t.root, change.key, t.version+1)
-// 	// 	} else {
-// 	// 		t.root, _ = setRecursive(t.root, change.key, change.value, t.version+1)
-// 	// 	}
-// 	// }
+	for i := uint64(t.version + 1); i <= untilVersion; i++ {
+		bz, err := t.bwal.Read(i)
+		if err != nil {
+			return err
+		}
 
-// 	return nil
-// }
+		blockChanges, err := bz.changesetFromBz()
+		if err != nil {
+			return err
+		}
+
+		changeset = append(changeset, blockChanges)
+	}
+
+	for _, change := range changeset {
+		applyChangeSet(t, change)
+	}
+
+	return nil
+}
+
+func applyChangeSet(t *Tree, changes []Change) {
+	for _, change := range changes {
+		if change.Delete {
+			t.Remove(change.Key)
+		} else {
+			t.Set(change.Key, change.Value)
+		}
+	}
+}

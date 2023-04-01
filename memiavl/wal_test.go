@@ -25,7 +25,7 @@ var (
 )
 
 func TestFlush(t *testing.T) {
-	log, err := newBlockWAL("test", 1, nil)
+	log, err := newBlockWAL("test", 0, nil)
 	require.NoError(t, err)
 
 	defer os.RemoveAll("test")
