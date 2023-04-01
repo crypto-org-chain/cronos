@@ -5,8 +5,8 @@ import (
 	"errors"
 	"math"
 
-	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
+	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -137,3 +137,28 @@ func (t *Tree) Get(key []byte) []byte {
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
 }
+
+// func (t *Tree) ReplayWAL(untilVersion uint64) error {
+// 	if untilVersion <= uint64(t.version) {
+// 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
+// 	}
+
+// 	var changes [][]Change
+
+// 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
+// 		bz, err := t.bwal.Read(i)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		changes = append(changes, changeset)
+// 	}
+// 	// for _, change := range changes {
+// 	// 	if change.value == nil {
+// 	// 		_, t.root, _ = removeRecursive(t.root, change.key, t.version+1)
+// 	// 	} else {
+// 	// 		t.root, _ = setRecursive(t.root, change.key, change.value, t.version+1)
+// 	// 	}
+// 	// }
+
+// 	return nil
+// }

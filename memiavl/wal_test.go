@@ -46,3 +46,23 @@ func TestFlush(t *testing.T) {
 
 	require.True(t, bytes.Equal(data, expectedData))
 }
+
+func TestIndexBlockChangesBytes(t *testing.T) {
+	changesBz := [][]byte{
+		[]byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
+		[]byte("\x00\x05\x00\x00\x00hello\x06\x00\x00\x00world1"),
+		[]byte("\x00\x06\x00\x00\x00hello1\x06\x00\x00\x00world1"),
+		[]byte("\x01\x06\x00\x00\x00hello2"),
+	}
+
+	blockChanges := BlockChangesBz{}
+	for _, i := range changesBz {
+		blockChanges = append(blockChanges, i...)
+	}
+
+	indexes, err := indexBlockChangesBytes(blockChanges)
+	require.NoError(t, err)
+
+	expectedIndexes := []uint64{0, 19, 39, 60}
+	require.Equal(t, expectedIndexes, indexes)
+}

@@ -58,6 +58,7 @@ func init() {
 	DefaultPathToWAL = filepath.Join(userHomeDir, ".cronosd/data/application.wal")
 }
 
+// newBlockWAL creates a new blockWAL.
 func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (blockWAL, error) {
 	if pathToWAL == "" {
 		return blockWAL{}, fmt.Errorf("failed trying to create a new WAL: path to WAL is empty")
@@ -186,4 +187,87 @@ func (bwal *blockWAL) Flush() error {
 	bwal.BlockChangeset = nil
 	bwal.version++
 	return nil
+}
+
+// OpenWAL returns an instance of the write-ahead log.
+func OpenWAL(pathToWAL string, opts *wal.Options) (*wal.Log, error) {
+	return wal.Open(pathToWAL, opts)
+}
+
+// changesetFromBz generates a changeset from a byte slice.
+// func changesetFromBz(bz BlockChangesBz) []Change {
+// 	var changes []Change
+// 	var offset uint64
+// 	for offset < uint64(len(bz)) {
+// 		changeBz := bz[offset:]
+// 		change, offset := changeFromBz(bz, offset)
+// 		changes = append(changes, change)
+// 	}
+// 	return changes
+// }
+
+// func changeFromBz(bz ChangeBz, offset uint64) (Change, uint64) {
+// 	var change Change
+// 	var keyLen, valueLen uint32
+
+// 	if bz[offset] == uint8(1) {
+// 		change.Delete = true
+// 		offset++
+// 	} else {
+// 		change.Delete = false
+// 		offset++
+// 	}
+
+// 	keyLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
+// 	offset += KeyValueLen
+
+// 	change.Key = bz[offset : offset+uint64(keyLen)]
+// 	offset += uint64(keyLen)
+
+// 	if !change.Delete {
+// 		valueLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
+// 		offset += KeyValueLen
+
+// 		change.Value = bz[offset : offset+uint64(valueLen)]
+// 		offset += uint64(valueLen)
+// 	}
+
+// 	return change, offset
+// }
+
+// indexBlockChangesBytes returns an array with indexes of the first element of each ChangeBz in BlockChangesBz.
+func indexBlockChangesBytes(bz BlockChangesBz) ([]uint64, error) {
+	var hoppingIndex uint64
+	var indexes []uint64
+
+	indexes = append(indexes, hoppingIndex) // add 0 to indicate the first Change
+
+	for hoppingIndex < uint64(len(bz))-1 {
+		var length uint64
+		length++ // account for delete/set byte either ways
+
+		switch bz[hoppingIndex] {
+		case uint8(0): // indicates set
+			length += KeyValueLen * 2
+			// add key and value length
+			keyLen := binary.LittleEndian.Uint32(bz[1+hoppingIndex : KeyValueLen+1+hoppingIndex])                                               // key's length comes after the first bit up to the key length (4 bytes) + the current hopping index
+			valueLen := binary.LittleEndian.Uint32(bz[1+KeyValueLen+keyLen+uint32(hoppingIndex) : 1+KeyValueLen*2+keyLen+uint32(hoppingIndex)]) // value's length comes after the key length (4 bytes) + the key + the current hopping index
+
+			length += uint64(keyLen + valueLen)
+		case uint8(1): // indicates delete
+			length += KeyValueLen // add key length
+
+			keyLen := binary.LittleEndian.Uint32(bz[1 : KeyValueLen+1])
+
+			length += uint64(keyLen)
+		default:
+			return []uint64{}, fmt.Errorf("invalid first delete/set byte , expected: 1 or 0, got: %d", bz[hoppingIndex])
+		}
+		hoppingIndex += length
+
+		if hoppingIndex < uint64(len(bz)-1) { // this is to ensure we don't add the last index (which is the length of the byte slice)
+			indexes = append(indexes, hoppingIndex)
+		}
+	}
+	return indexes, nil
 }
