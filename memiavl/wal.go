@@ -43,10 +43,10 @@ type (
 
 	// valueLen: 4 bytes (length of value)
 	// value: value bytes
-	ChangeBz = []byte
+	ChangeBz []byte
 
 	// BlockChangesBz is a byte slice containing information about changes to memiavl in specific block.
-	BlockChangesBz = []byte
+	BlockChangesBz []byte
 )
 
 func init() {
@@ -195,45 +195,66 @@ func OpenWAL(pathToWAL string, opts *wal.Options) (*wal.Log, error) {
 }
 
 // changesetFromBz generates a changeset from a byte slice.
-// func changesetFromBz(bz BlockChangesBz) []Change {
-// 	var changes []Change
-// 	var offset uint64
-// 	for offset < uint64(len(bz)) {
-// 		changeBz := bz[offset:]
-// 		change, offset := changeFromBz(bz, offset)
-// 		changes = append(changes, change)
-// 	}
-// 	return changes
-// }
+func (bz BlockChangesBz) changesetFromBz() ([]Change, error) {
+	var changes []Change
+	// var offset uint64
 
-// func changeFromBz(bz ChangeBz, offset uint64) (Change, uint64) {
-// 	var change Change
-// 	var keyLen, valueLen uint32
+	indexes, err := indexBlockChangesBytes(bz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to index block changes bytes: %w", err)
+	}
 
-// 	if bz[offset] == uint8(1) {
-// 		change.Delete = true
-// 		offset++
-// 	} else {
-// 		change.Delete = false
-// 		offset++
-// 	}
+	for i := 0; i < len(indexes); i++ {
+		var changeBz ChangeBz
+		var change Change
+		if i == len(indexes)-1 { // if we are iterating through the last change bytes, we collect all remaining bytes
+			changeBz = append(changeBz, bz[indexes[i]:]...)
+		} else {
+			changeBz = append(changeBz, bz[indexes[i]:indexes[i+1]]...)
+		}
+		change, err = changeBz.changeFromBz()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate change from bytes: %w", err)
+		}
 
-// 	keyLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
-// 	offset += KeyValueLen
+		changes = append(changes, change)
+	}
+	return changes, nil
+}
 
-// 	change.Key = bz[offset : offset+uint64(keyLen)]
-// 	offset += uint64(keyLen)
+func (bz ChangeBz) changeFromBz() (Change, error) {
+	var change Change
+	var offset uint64
+	var keyLen, valueLen uint32
 
-// 	if !change.Delete {
-// 		valueLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
-// 		offset += KeyValueLen
+	if !bz.Valid() {
+		return Change{}, fmt.Errorf("invalid change bytes")
+	}
 
-// 		change.Value = bz[offset : offset+uint64(valueLen)]
-// 		offset += uint64(valueLen)
-// 	}
+	if bz[offset] == uint8(1) {
+		change.Delete = true
+		offset++
+	} else {
+		change.Delete = false
+		offset++
+	}
 
-// 	return change, offset
-// }
+	keyLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
+	offset += KeyValueLen
+
+	change.Key = bz[offset : offset+uint64(keyLen)]
+	offset += uint64(keyLen)
+
+	if !change.Delete {
+		valueLen = binary.LittleEndian.Uint32(bz[offset : offset+KeyValueLen])
+		offset += KeyValueLen
+
+		change.Value = bz[offset : offset+uint64(valueLen)]
+		offset += uint64(valueLen)
+	}
+
+	return change, nil
+}
 
 // indexBlockChangesBytes returns an array with indexes of the first element of each ChangeBz in BlockChangesBz.
 func indexBlockChangesBytes(bz BlockChangesBz) ([]uint64, error) {
@@ -270,4 +291,32 @@ func indexBlockChangesBytes(bz BlockChangesBz) ([]uint64, error) {
 		}
 	}
 	return indexes, nil
+}
+
+// Valid asserts ChangeBz length is valid.
+func (cbz ChangeBz) Valid() bool {
+	if len(cbz) == 0 {
+		return false
+	}
+
+	if cbz[0] != 0 && cbz[0] != 1 {
+		return false
+	}
+
+	switch cbz[0] {
+	case 0:
+		keyLen := binary.LittleEndian.Uint32(cbz[1 : KeyValueLen+1])
+		valueLen := binary.LittleEndian.Uint32(cbz[1+KeyValueLen+keyLen : KeyValueLen*2+keyLen+1])
+
+		if 1+KeyValueLen*2+keyLen+valueLen != uint32(len(cbz)) { // set/del byte + key length + value length + key + value
+			return false
+		}
+	case 1:
+		keyLen := binary.LittleEndian.Uint32(cbz[1 : KeyValueLen+1])
+		if 1+KeyValueLen+keyLen != uint32(len(cbz)) { // set/del byte + key length + key
+			return false
+		}
+	}
+
+	return true
 }
