@@ -7,7 +7,6 @@ import (
 
 	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
-	"github.com/tidwall/wal"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -17,17 +16,22 @@ type Tree struct {
 	version uint32
 	// root node of empty tree is represented as `nil`
 	root Node
-	// write ahead log to store changesets
-	wal            *wal.Log
+	// write ahead log to store changesets for each block
+	bwal           blockWAL
 	initialVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version int64) *Tree {
+func NewEmptyTree(version uint64) *Tree {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
-	return &Tree{version: uint32(version)}
+
+	wal, err := newBlockWAL(DefaultPathToWAL, version, nil)
+	if err != nil {
+		panic(err)
+	}
+	return &Tree{version: uint32(version), bwal: wal}
 }
 
 // New creates an empty tree at genesis version
@@ -49,11 +53,18 @@ func NewWithInitialVersion(initialVersion int64) *Tree {
 // NewFromSnapshot mmap the blob files and create the root node.
 func NewFromSnapshot(snapshot *Snapshot) *Tree {
 	if snapshot.IsEmpty() {
-		return NewEmptyTree(int64(snapshot.Version()))
+		return NewEmptyTree(uint64(snapshot.Version()))
 	}
+
+	wal, err := newBlockWAL(DefaultPathToWAL, uint64(snapshot.Version()), nil)
+	if err != nil {
+		panic(err)
+	}
+
 	return &Tree{
 		version: snapshot.Version(),
 		root:    snapshot.RootNode(),
+		bwal:    wal,
 	}
 }
 
@@ -84,6 +95,9 @@ func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	if updateHash {
 		hash = t.root.Hash()
 	}
+
+	// Save changesets to write ahead log.
+	t.bwal.Flush()
 
 	if t.version >= uint32(math.MaxUint32) {
 		return nil, 0, errors.New("version overflows uint32")
