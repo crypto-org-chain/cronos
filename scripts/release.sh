@@ -13,9 +13,19 @@ build() {
     name="$3"
     pkg="cronosd${network}-${build_type}"
     if [[ "$host" == "native" ]]; then
-        FLAKE="${baseurl}#${pkg}"
+        if [[ "${build_platform: -6}" == "-linux" ]]; then
+            # static link for linux targets
+            FLAKE="${baseurl}#legacyPackages.${build_platform}.pkgsStatic.cronos-matrix.${pkg}"
+        else
+            FLAKE="${baseurl}#${pkg}"
+        fi
     else
-        FLAKE="${baseurl}#legacyPackages.${build_platform}.pkgsCross.${host}.cronos-matrix.${pkg}"
+        if [[ "$host" == "aarch64-multiplatform" || "$host" == "gnu64" ]]; then
+            # static link for linux targets
+            FLAKE="${baseurl}#legacyPackages.${build_platform}.pkgsCross.${host}.pkgsStatic.cronos-matrix.${pkg}"
+        else
+            FLAKE="${baseurl}#legacyPackages.${build_platform}.pkgsCross.${host}.cronos-matrix.${pkg}"
+        fi
     fi
     echo "building $FLAKE"
     nix build -L "$FLAKE"
