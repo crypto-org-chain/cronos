@@ -8,7 +8,7 @@ import (
 )
 
 // Import a stream of `iavl.ExportNode`s into a new snapshot.
-func Import(dir string, version int64, nodes chan *iavl.ExportNode, writeHashIndex bool) (returnErr error) {
+func Import(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHashIndex bool) (returnErr error) {
 	if version > int64(math.MaxUint32) {
 		return errors.New("version overflows uint32")
 	}
