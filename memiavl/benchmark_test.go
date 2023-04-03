@@ -27,7 +27,7 @@ func BenchmarkRandomGet(b *testing.B) {
 
 	tree := New()
 	for _, item := range items {
-		tree.Set(item.key, item.value)
+		tree.set(item.key, item.value)
 	}
 
 	snapshotDir := b.TempDir()
@@ -126,7 +126,7 @@ func BenchmarkRandomSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tree := New()
 			for _, item := range items {
-				tree.Set(item.key, item.value)
+				tree.set(item.key, item.value)
 			}
 		}
 	})

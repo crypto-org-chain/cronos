@@ -52,16 +52,29 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 	}
 }
 
-func (t *Tree) Set(key, value []byte) {
+// ApplyChangeSet apply the change set of a whole version, and update hashes.
+func (t *Tree) ApplyChangeSet(changeSet *ChangeSet, updateHash bool) ([]byte, int64, error) {
+	for _, pair := range changeSet.Pairs {
+		if pair.Delete {
+			t.remove(pair.Key)
+		} else {
+			t.set(pair.Key, pair.Value)
+		}
+	}
+
+	return t.saveVersion(updateHash)
+}
+
+func (t *Tree) set(key, value []byte) {
 	t.root, _ = setRecursive(t.root, key, value, t.version+1)
 }
 
-func (t *Tree) Remove(key []byte) {
+func (t *Tree) remove(key []byte) {
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
 }
 
-// SaveVersion increases the version number and optionally updates the hashes
-func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
+// saveVersion increases the version number and optionally updates the hashes
+func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	var hash []byte
 	if updateHash {
 		hash = t.root.Hash()
