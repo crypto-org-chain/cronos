@@ -8,7 +8,7 @@
 
 ### Bug Fixes
 
-* [#]() Include third-party bug fixes:
+* [#953](https://github.com/crypto-org-chain/cronos/pull/953) Include third-party bug fixes:
   - update ethermint to include two bug fixes
     - https://github.com/crypto-org-chain/ethermint/pull/234
     - https://github.com/crypto-org-chain/ethermint/pull/233
