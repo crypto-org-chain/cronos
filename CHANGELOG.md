@@ -6,6 +6,15 @@
 
 - [#936](https://github.com/crypto-org-chain/cronos/pull/936) Reuse recovered sender address to optimize performance ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/cb741e1d819683795aa32e286d31d8155f903cae)).
 
+### Bug Fixes
+
+* [#]() Include third-party bug fixes:
+  - update ethermint to include two bug fixes
+    - https://github.com/crypto-org-chain/ethermint/pull/234
+    - https://github.com/crypto-org-chain/ethermint/pull/233
+  - update cosmos-sdk to include one bug fix
+    - https://github.com/cosmos/cosmos-sdk/pull/15667
+
 *Mar 16, 2023*
 
 ## v1.0.6
