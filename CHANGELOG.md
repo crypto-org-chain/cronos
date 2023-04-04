@@ -14,6 +14,7 @@
     - https://github.com/crypto-org-chain/ethermint/pull/233
   - update cosmos-sdk to include one bug fix
     - https://github.com/cosmos/cosmos-sdk/pull/15667
+* [#945](https://github.com/crypto-org-chain/cronos/pull/945) Fix no handler exists for proposal type error when update-client due to wrong ibc route.
 
 *Mar 16, 2023*
 

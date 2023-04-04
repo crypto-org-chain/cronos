@@ -1108,6 +1108,31 @@ class CosmosCLI:
             )
         )
 
+    def gov_propose_update_client_legacy(self, proposal, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", 600000)
+        return json.loads(
+            self.raw(
+                "tx",
+                "gov",
+                "submit-legacy-proposal",
+                "update-client",
+                proposal.get("subject_client_id"),
+                proposal.get("substitute_client_id"),
+                "-y",
+                from_=proposal.get("from"),
+                keyring_backend="test",
+                # content
+                title=proposal.get("title"),
+                description=proposal.get("description"),
+                deposit=proposal.get("deposit"),
+                chain_id=self.chain_id,
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **kwargs,
+            )
+        )
+
     def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         return json.loads(
