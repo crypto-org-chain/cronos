@@ -23,23 +23,6 @@ var (
 	DefaultPathToWAL string
 )
 
-// type (
-// 	// ChangeBz is a byte slice containing information about one change to memiavl.
-// 	// Structure is as follows:
-// 	// deleteByte: 1 byte (0 or 1)
-// 	// keyLen: 4 bytes (length of key)
-// 	// key: key bytes
-
-// 	// if delete is 0, also contains:
-
-// 	// valueLen: 4 bytes (length of value)
-// 	// value: value bytes
-// 	ChangeBz []byte
-
-// 	// BlockChangesBz is a byte slice containing information about changes to memiavl in specific block.
-// 	BlockChangesBz []byte
-// )
-
 func init() {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -102,14 +85,6 @@ func (bwal blockWAL) Close() error {
 func (bwal blockWAL) Read(index uint64) ([]byte, error) {
 	return bwal.wal.Read(index)
 }
-
-// writeBytes writes a byte slice to another byte slice at a given offset.
-// func writeBytes(bz, data []byte, offset, length uint64) []byte {
-// 	for i := offset; i < offset+length; i++ {
-// 		bz[i] = data[i-offset]
-// 	}
-// 	return bz
-// }
 
 // addChange adds a change to the block changeset.
 func (bwal *blockWAL) addChange(pair iavl.KVPair) {
