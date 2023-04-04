@@ -5,22 +5,25 @@ import (
 	"os"
 	"testing"
 
+	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
 )
 
 var (
-	DefaultChangesBz = []ChangeBz{
-		[]byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
-		[]byte("\x00\x05\x00\x00\x00hello\x06\x00\x00\x00world1"),
-		[]byte("\x00\x06\x00\x00\x00hello1\x06\x00\x00\x00world1"),
-		[]byte("\x01\x06\x00\x00\x00hello2"),
+	DefaultChangesBz = [][]byte{
+		[]byte("\x00\x05hello\x05world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
+		[]byte("\x00\x05hello\x06world1"),
+		[]byte("\x00\x06hello1\x06world1"),
+		[]byte("\x01\x06hello2"),
 	}
 
-	DefaultChanges = []Change{
-		{Key: []byte("hello"), Value: []byte("world")},
-		{Key: []byte("hello"), Value: []byte("world1")},
-		{Key: []byte("hello1"), Value: []byte("world1")},
-		{Key: []byte("hello2"), Delete: true},
+	DefaultChanges = iavl.ChangeSet{
+		Pairs: []iavl.KVPair{
+			{Key: []byte("hello"), Value: []byte("world")},
+			{Key: []byte("hello"), Value: []byte("world1")},
+			{Key: []byte("hello1"), Value: []byte("world1")},
+			{Key: []byte("hello2"), Delete: true},
+		},
 	}
 )
 
@@ -36,7 +39,7 @@ func TestFlush(t *testing.T) {
 		expectedData = append(expectedData, i...)
 	}
 
-	for _, change := range DefaultChanges {
+	for _, change := range DefaultChanges.Pairs {
 		log.addChange(change)
 	}
 
@@ -49,43 +52,30 @@ func TestFlush(t *testing.T) {
 	require.True(t, bytes.Equal(data, expectedData))
 }
 
-func TestIndexBlockChangesBytes(t *testing.T) {
-	blockChanges := BlockChangesBz{}
-	for _, i := range DefaultChangesBz {
-		blockChanges = append(blockChanges, i...)
-	}
-
-	indexes, err := indexBlockChangesBytes(blockChanges)
-	require.NoError(t, err)
-
-	expectedIndexes := []uint64{0, 19, 39, 60}
-	require.Equal(t, expectedIndexes, indexes)
-}
-
-func TestValid(t *testing.T) {
+func TestAreValidChangeBytes(t *testing.T) {
 	tests := []struct {
 		name  string
-		bz    ChangeBz
+		bz    []byte
 		valid bool
 	}{
 		{
 			name:  "valid",
-			bz:    []byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"),
+			bz:    []byte("\x00\x05hello\x05world"),
 			valid: true,
 		},
 		{
 			name:  "invalid: value length",
-			bz:    []byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world\x00"),
+			bz:    []byte("\x00\x05hello\x05world\x00"),
 			valid: false,
 		},
 		{
 			name:  "invalid: key length",
-			bz:    []byte("\x00\x05\x00\x00\x00helloooooo\x05\x00\x00\x00world\x00\x00"),
+			bz:    []byte("\x00\x05helloooooo\x05world\x00\x00"),
 			valid: false,
 		},
 		{
 			name:  "invalid: first byte",
-			bz:    []byte("\x05\x05\x00\x00\x00hello\x05\x00\x00\x00world\x01"),
+			bz:    []byte("\x05\x05hello\x05world\x01"),
 			valid: false,
 		},
 		{
@@ -97,7 +87,7 @@ func TestValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid := tt.bz.Valid()
+			valid := areValidChangeBytes(tt.bz)
 			if tt.valid {
 				require.True(t, valid)
 			} else {
@@ -105,33 +95,4 @@ func TestValid(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestChangesetFromBz(t *testing.T) {
-	blockChanges := BlockChangesBz{}
-	for _, i := range DefaultChangesBz {
-		blockChanges = append(blockChanges, i...)
-	}
-
-	changes, err := blockChanges.changesetFromBz()
-	require.NoError(t, err)
-
-	for i, change := range changes {
-		require.Equal(t, DefaultChanges[i], change)
-	}
-}
-
-func TestChangeFromBz(t *testing.T) {
-	var changeBz ChangeBz
-	for i, changeBz := range DefaultChangesBz {
-		change, err := changeBz.changeFromBz()
-		require.NoError(t, err)
-
-		require.Equal(t, DefaultChanges[i], change)
-	}
-
-	// add invalid change case
-	changeBz = []byte("\x00\x05\x00\x00\x00hello\x06\x00\x00\x00world")
-	_, err := changeBz.changeFromBz()
-	require.Error(t, err)
 }

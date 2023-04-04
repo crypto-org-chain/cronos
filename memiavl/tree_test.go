@@ -141,14 +141,14 @@ func TestWAL(t *testing.T) {
 	data, err := tree.bwal.Read(uint64(version))
 	require.NoError(t, err)
 
-	changesBz := []ChangeBz{
+	changesBz := [][]byte{
 		[]byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
 		[]byte("\x00\x06\x00\x00\x00hello1\x06\x00\x00\x00world1"),
 		[]byte("\x01\x06\x00\x00\x00hello1"),
 		[]byte("\x00\x06\x00\x00\x00hello2\x06\x00\x00\x00world2"),
 	}
 
-	expectedData := BlockChangesBz{}
+	expectedData := []byte{}
 	for _, i := range changesBz {
 		expectedData = append(expectedData, i...)
 	}

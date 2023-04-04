@@ -144,7 +144,7 @@ func (t *Tree) ReplayWAL(untilVersion uint64) error {
 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
 	}
 
-	var changeset [][]Change
+	var changeset iavl.ChangeSet
 
 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
 		bz, err := t.bwal.Read(i)
@@ -157,22 +157,10 @@ func (t *Tree) ReplayWAL(untilVersion uint64) error {
 			return err
 		}
 
-		changeset = append(changeset, blockChanges)
+		changeset.Pairs = append(changeset.Pairs, blockChanges)
 	}
 
-	for _, change := range changeset {
-		applyChangeSet(t, change)
-	}
+	t.ApplyChangeSet(&changeset, true)
 
 	return nil
-}
-
-func applyChangeSet(t *Tree, changes []Change) {
-	for _, change := range changes {
-		if change.Delete {
-			t.remove(change.Key)
-		} else {
-			t.set(change.Key, change.Value)
-		}
-	}
 }
