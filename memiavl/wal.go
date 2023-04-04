@@ -86,11 +86,6 @@ func (bwal blockWAL) Read(index uint64) ([]byte, error) {
 	return bwal.wal.Read(index)
 }
 
-// addChange adds a change to the block changeset.
-func (bwal *blockWAL) addChange(pair iavl.KVPair) {
-	bwal.BlockChangeset.Pairs = append(bwal.BlockChangeset.Pairs, pair)
-}
-
 // Flush flushes the block changeset to the write-ahead log.
 func (bwal *blockWAL) Flush() error {
 	err := bwal.writeBlockChanges(bwal.BlockChangeset, bwal.version)

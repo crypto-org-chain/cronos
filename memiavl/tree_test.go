@@ -159,8 +159,10 @@ func TestWAL(t *testing.T) {
 
 func TestReplayWAL(t *testing.T) {
 	tree := NewEmptyTree(0, DefaultPathToWAL)
+	secondTreeWALPath := "test_wal"
 
 	defer os.RemoveAll(DefaultPathToWAL)
+	defer os.RemoveAll(secondTreeWALPath)
 	defer tree.bwal.Close()
 
 	// FOR REVIEW: maybe it is not worth it randomizing this test?
@@ -188,7 +190,9 @@ func TestReplayWAL(t *testing.T) {
 
 	// replay WAL
 	tree2 := NewEmptyTree(0, DefaultPathToWAL)
-	err = tree2.ReplayWAL(uint64(version), DefaultPathToWAL)
+	defer tree2.bwal.Close()
+
+	err = tree2.ReplayWAL(uint64(version), secondTreeWALPath)
 
 	deepEqualTrees(t, tree, tree2)
 }

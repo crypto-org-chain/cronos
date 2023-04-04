@@ -73,6 +73,7 @@ func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) *Tree {
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
 // Returns hash, new version, and potential error.
 func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
+	t.bwal.Flush()
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
@@ -85,12 +86,10 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 }
 
 func (t *Tree) set(key, value []byte) {
-	t.bwal.addChange(preparePair(key, value))
 	t.root, _ = setRecursive(t.root, key, value, t.version+1)
 }
 
 func (t *Tree) remove(key []byte) {
-	t.bwal.addChange(preparePair(key, nil))
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
 }
 
@@ -100,9 +99,6 @@ func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	if updateHash {
 		hash = t.root.Hash()
 	}
-
-	// Save changesets to write ahead log.
-	t.bwal.Flush()
 
 	if t.version >= uint32(math.MaxUint32) {
 		return nil, 0, errors.New("version overflows uint32")
