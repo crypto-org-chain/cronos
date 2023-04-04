@@ -96,6 +96,7 @@ func TestIteratorRange(t *testing.T) {
 		{[]byte("aello09"), []byte("world1")},
 	}
 	require.Equal(t, expItems, collect(tree.Iterator([]byte("aello05"), []byte("aello10"), true)))
+	require.Equal(t, reverse(expItems), collect(tree.Iterator([]byte("aello05"), []byte("aello10"), false)))
 }
 
 type pair struct {
