@@ -19,6 +19,7 @@
 ### Bug Fixes
 
 - [#833](https://github.com/crypto-org-chain/cronos/pull/833) Fix rollback command.
+- [#945](https://github.com/crypto-org-chain/cronos/pull/945) Fix no handler exists for proposal type error when update-client due to wrong ibc route.
 
 ### Improvements
 
