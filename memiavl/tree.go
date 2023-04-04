@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 
+	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
 )
 
@@ -115,4 +116,8 @@ func (t *Tree) Get(key []byte) []byte {
 	}
 
 	return t.root.Get(key)
+}
+
+func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+	return NewIterator(start, end, ascending, t.root)
 }
