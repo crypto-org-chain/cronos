@@ -7,7 +7,7 @@ import (
 )
 
 type Iterator struct {
-	// domain of iteartion, end is exclusive
+	// domain of iteration, end is exclusive
 	start, end []byte
 	ascending  bool
 
