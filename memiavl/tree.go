@@ -83,10 +83,12 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 }
 
 func (t *Tree) set(key, value []byte) {
+	t.bwal.addChange(preparePair(key, value))
 	t.root, _ = setRecursive(t.root, key, value, t.version+1)
 }
 
 func (t *Tree) remove(key []byte) {
+	t.bwal.addChange(preparePair(key, nil))
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
 }
 

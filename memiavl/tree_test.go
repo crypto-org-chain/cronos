@@ -142,10 +142,10 @@ func TestWAL(t *testing.T) {
 	require.NoError(t, err)
 
 	changesBz := [][]byte{
-		[]byte("\x00\x05\x00\x00\x00hello\x05\x00\x00\x00world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
-		[]byte("\x00\x06\x00\x00\x00hello1\x06\x00\x00\x00world1"),
-		[]byte("\x01\x06\x00\x00\x00hello1"),
-		[]byte("\x00\x06\x00\x00\x00hello2\x06\x00\x00\x00world2"),
+		[]byte("\x00\x05hello\x05world"),
+		[]byte("\x00\x06hello1\x06world1"),
+		[]byte("\x01\x06hello1"),
+		[]byte("\x00\x06hello2\x06world2"),
 	}
 
 	expectedData := []byte{}

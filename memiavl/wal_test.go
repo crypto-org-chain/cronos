@@ -11,7 +11,7 @@ import (
 
 var (
 	DefaultChangesBz = [][]byte{
-		[]byte("\x00\x05hello\x05world"), // PS: multiple <\x00> because we want 4 bytes as a key/value length field
+		[]byte("\x00\x05hello\x05world"),
 		[]byte("\x00\x05hello\x06world1"),
 		[]byte("\x00\x06hello1\x06world1"),
 		[]byte("\x01\x06hello2"),
