@@ -170,9 +170,9 @@ func (t *Tree) ReplayWAL(untilVersion uint64) error {
 func applyChangeSet(t *Tree, changes []Change) {
 	for _, change := range changes {
 		if change.Delete {
-			t.Remove(change.Key)
+			t.remove(change.Key)
 		} else {
-			t.Set(change.Key, change.Value)
+			t.set(change.Key, change.Value)
 		}
 	}
 }

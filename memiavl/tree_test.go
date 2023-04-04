@@ -128,13 +128,13 @@ func TestWAL(t *testing.T) {
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
 
-	tree.Set([]byte("hello"), []byte("world"))
-	tree.Set([]byte("hello1"), []byte("world1"))
-	tree.Remove([]byte("hello1"))
-	tree.Set([]byte("hello2"), []byte("world2"))
+	tree.set([]byte("hello"), []byte("world"))
+	tree.set([]byte("hello1"), []byte("world1"))
+	tree.remove([]byte("hello1"))
+	tree.set([]byte("hello2"), []byte("world2"))
 
 	// save version
-	_, version, err := tree.SaveVersion(true)
+	_, version, err := tree.saveVersion(true)
 	require.NoError(t, err)
 
 	// get data from WAL

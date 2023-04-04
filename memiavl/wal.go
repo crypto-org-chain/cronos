@@ -167,12 +167,12 @@ func prepareChangeBz(change Change) (ChangeBz, uint64) {
 }
 
 // writeBytes writes a byte slice to another byte slice at a given offset.
-func writeBytes(bz, data []byte, offset, length uint64) []byte {
-	for i := offset; i < offset+length; i++ {
-		bz[i] = data[i-offset]
-	}
-	return bz
-}
+// func writeBytes(bz, data []byte, offset, length uint64) []byte {
+// 	for i := offset; i < offset+length; i++ {
+// 		bz[i] = data[i-offset]
+// 	}
+// 	return bz
+// }
 
 // addChange adds a change to the block changeset.
 func (bwal *blockWAL) addChange(change Change) {
