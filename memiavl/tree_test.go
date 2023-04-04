@@ -2,6 +2,7 @@ package memiavl
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -79,7 +80,7 @@ func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 }
 
 func TestRootHashes(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := NewEmptyTree(0, DefaultPathToWAL)
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
 
@@ -92,7 +93,7 @@ func TestRootHashes(t *testing.T) {
 }
 
 func TestNewKey(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := NewEmptyTree(0, DefaultPathToWAL)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -114,7 +115,7 @@ func TestNewKey(t *testing.T) {
 }
 
 func TestEmptyTree(t *testing.T) {
-	tree := New()
+	tree := New(DefaultPathToWAL)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -123,7 +124,7 @@ func TestEmptyTree(t *testing.T) {
 }
 
 func TestWAL(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := NewEmptyTree(0, DefaultPathToWAL)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -154,4 +155,90 @@ func TestWAL(t *testing.T) {
 	}
 
 	require.Equal(t, expectedData, data)
+}
+
+func TestReplayWAL(t *testing.T) {
+	tree := NewEmptyTree(0, DefaultPathToWAL)
+
+	defer os.RemoveAll(DefaultPathToWAL)
+	defer tree.bwal.Close()
+
+	// FOR REVIEW: maybe it is not worth it randomizing this test?
+	var randKeys [][]byte
+	// apply 50 random sets
+	for i := 0; i < 50; i++ {
+		randomKey, randomValue := randomSet()
+		tree.set(randomKey, randomValue)
+
+		randKeys = append(randKeys, randomKey)
+	}
+	_, _, err := tree.saveVersion(true)
+	require.NoError(t, err)
+
+	// apply 7 random removes
+	for i := 0; i < 7; i++ {
+		randomRemoveIndex := randomRemove(randKeys)
+		tree.remove(randKeys[randomRemoveIndex])
+		randKeys = removeIndex(randKeys, randomRemoveIndex)
+	}
+
+	// save version
+	_, version, err := tree.saveVersion(false)
+	require.NoError(t, err)
+
+	// replay WAL
+	tree2 := NewEmptyTree(0, DefaultPathToWAL)
+	err = tree2.ReplayWAL(uint64(version), DefaultPathToWAL)
+
+	deepEqualTrees(t, tree, tree2)
+}
+
+func randomSet() ([]byte, []byte) {
+	key := make([]byte, 32)
+	value := make([]byte, 32)
+	rand.Read(key)
+	rand.Read(value)
+	return key, value
+}
+
+func randomRemove(allKeys [][]byte) int {
+	randint := rand.Int()
+	return randint % len(allKeys)
+}
+
+func removeIndex(s [][]byte, index int) [][]byte {
+	ret := make([][]byte, 0)
+	ret = append(ret, s[:index]...)
+	return append(ret, s[index+1:]...)
+}
+
+// deepEqualTrees compares two trees' nodes recursively.
+func deepEqualTrees(t *testing.T, tree1 *Tree, tree2 *Tree) {
+	require.Equal(t, tree1.version, tree2.version)
+	if tree1.root == nil && tree2.root == nil {
+		return
+	} else if tree1.root == nil || tree2.root == nil {
+		require.Fail(t, "only one of trees has nil root")
+	}
+
+	deepRecursiveEqual(t, tree1.root, tree2.root)
+}
+
+func deepRecursiveEqual(t *testing.T, node1 Node, node2 Node) {
+	require.Equal(t, node1.Key(), node2.Key())
+	require.Equal(t, node1.Value(), node2.Value())
+	require.Equal(t, node1.Height(), node2.Height())
+	require.Equal(t, node1.Size(), node2.Size())
+	require.Equal(t, node1.Version(), node2.Version())
+
+	if isLeaf(node1) && isLeaf(node2) {
+		return
+	}
+
+	if node1.Left() != nil {
+		deepRecursiveEqual(t, node1.Left(), node2.Left())
+	}
+	if node1.Right() != nil {
+		deepRecursiveEqual(t, node1.Right(), node2.Right())
+	}
 }

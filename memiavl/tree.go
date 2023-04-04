@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/iavl"
 	dbm "github.com/tendermint/tm-db"
+	"github.com/tidwall/wal"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -23,7 +24,7 @@ type Tree struct {
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version uint64) *Tree {
+func NewEmptyTree(version uint64, pathToWAL string) *Tree {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
@@ -36,28 +37,28 @@ func NewEmptyTree(version uint64) *Tree {
 }
 
 // New creates an empty tree at genesis version
-func New() *Tree {
-	return NewEmptyTree(0)
+func New(pathToWAL string) *Tree {
+	return NewEmptyTree(0, pathToWAL)
 }
 
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
-func NewWithInitialVersion(initialVersion int64) *Tree {
+func NewWithInitialVersion(initialVersion int64, pathToWAL string) *Tree {
 	if initialVersion >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
-	tree := New()
+	tree := New(pathToWAL)
 	tree.initialVersion = uint32(initialVersion)
 	return tree
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
-func NewFromSnapshot(snapshot *Snapshot) *Tree {
+func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) *Tree {
 	if snapshot.IsEmpty() {
-		return NewEmptyTree(uint64(snapshot.Version()))
+		return NewEmptyTree(uint64(snapshot.Version()), pathToWAL)
 	}
 
-	wal, err := newBlockWAL(DefaultPathToWAL, uint64(snapshot.Version()), nil)
+	wal, err := newBlockWAL(pathToWAL, uint64(snapshot.Version()), nil)
 	if err != nil {
 		panic(err)
 	}
@@ -142,15 +143,20 @@ func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
 }
 
-func (t *Tree) ReplayWAL(untilVersion uint64) error {
+func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 	if untilVersion <= uint64(t.version) {
 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
+	}
+
+	wal, err := wal.Open(walPath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to open wal: %w", err)
 	}
 
 	var changesets []iavl.ChangeSet
 	// collect all changesets from WAL
 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
-		bz, err := t.bwal.Read(i)
+		bz, err := wal.Read(i)
 		if err != nil {
 			return err
 		}
