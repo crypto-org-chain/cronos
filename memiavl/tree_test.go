@@ -10,37 +10,37 @@ import (
 )
 
 var (
-	ChangeSets []ChangeSet
+	ChangeSets []iavl.ChangeSet
 	RefHashes  [][]byte
 )
 
 func init() {
 	ChangeSets = append(ChangeSets,
-		ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
-		ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
-		ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
 	)
 
-	changes := ChangeSet{}
+	changes := iavl.ChangeSet{}
 	for i := 0; i < 1; i++ {
-		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
 	}
 
 	ChangeSets = append(ChangeSets, changes)
-	ChangeSets = append(ChangeSets, ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}}})
+	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}}})
 
-	changes = ChangeSet{}
+	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
-	changes = ChangeSet{}
+	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
 	}
 	for i := 0; i < 19; i++ {
-		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
@@ -62,7 +62,7 @@ func init() {
 	}
 }
 
-func applyChangeSetRef(t *iavl.MutableTree, changes ChangeSet) error {
+func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 	for _, change := range changes.Pairs {
 		if change.Delete {
 			if _, _, err := t.Remove(change.Key); err != nil {

@@ -87,8 +87,7 @@ func TestSnapshotImportExport(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets {
-		applyChangeSet(tree, changes)
-		_, _, err := tree.SaveVersion(true)
+		_, _, err := tree.ApplyChangeSet(&changes, true)
 		require.NoError(t, err)
 	}
 

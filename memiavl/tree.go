@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+
+	"github.com/cosmos/iavl"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -53,7 +55,7 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
-func (t *Tree) ApplyChangeSet(changeSet *ChangeSet, updateHash bool) ([]byte, int64, error) {
+func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
