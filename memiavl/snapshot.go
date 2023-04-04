@@ -269,44 +269,54 @@ func (snapshot *Snapshot) Export() *Exporter {
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr error) {
-	var rootIndex uint32
-	if t.root == nil {
-		rootIndex = EmptyRootNodeIndex
-	} else {
-		nodesFile := filepath.Join(snapshotDir, FileNameNodes)
-		kvsFile := filepath.Join(snapshotDir, FileNameKVs)
-		kvsIndexFile := filepath.Join(snapshotDir, FileNameKVIndex)
-
-		fpNodes, err := createFile(nodesFile)
-		if err != nil {
-			return err
+func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
+	return writeSnapshot(snapshotDir, t.version, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+		if t.root == nil {
+			return EmptyRootNodeIndex, nil
+		} else {
+			return w.writeRecursive(t.root)
 		}
-		defer func() {
-			if err := fpNodes.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
+	})
+}
 
-		fpKVs, err := createFile(kvsFile)
-		if err != nil {
-			return err
+func writeSnapshot(
+	dir string, version uint32, writeHashIndex bool,
+	doWrite func(*snapshotWriter) (uint32, error),
+) (returnErr error) {
+	nodesFile := filepath.Join(dir, FileNameNodes)
+	kvsFile := filepath.Join(dir, FileNameKVs)
+	kvsIndexFile := filepath.Join(dir, FileNameKVIndex)
+
+	fpNodes, err := createFile(nodesFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fpNodes.Close(); returnErr == nil {
+			returnErr = err
 		}
-		defer func() {
-			if err := fpKVs.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
+	}()
 
-		nodesWriter := bufio.NewWriter(fpNodes)
-		kvsWriter := bufio.NewWriter(fpKVs)
-
-		w := newSnapshotWriter(nodesWriter, kvsWriter)
-		rootIndex, err = w.writeRecursive(t.root)
-		if err != nil {
-			return err
+	fpKVs, err := createFile(kvsFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fpKVs.Close(); returnErr == nil {
+			returnErr = err
 		}
+	}()
 
+	nodesWriter := bufio.NewWriter(fpNodes)
+	kvsWriter := bufio.NewWriter(fpKVs)
+
+	w := newSnapshotWriter(nodesWriter, kvsWriter)
+	rootIndex, err := doWrite(w)
+	if err != nil {
+		return err
+	}
+
+	if rootIndex != EmptyRootNodeIndex {
 		if err := nodesWriter.Flush(); err != nil {
 			return err
 		}
@@ -332,7 +342,9 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr
 					returnErr = err
 				}
 			}()
-			if err := buildIndex(input, kvsIndexFile, snapshotDir, int(t.root.Size())); err != nil {
+			// N = 2L-1
+			leaves := (rootIndex + 2) / 2
+			if err := buildIndex(input, kvsIndexFile, dir, int(leaves)); err != nil {
 				return fmt.Errorf("build MPHF index failed: %w", err)
 			}
 		}
@@ -342,10 +354,10 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) (returnErr
 	var metadataBuf [SizeMetadata]byte
 	binary.LittleEndian.PutUint32(metadataBuf[:], SnapshotFileMagic)
 	binary.LittleEndian.PutUint32(metadataBuf[4:], SnapshotFormat)
-	binary.LittleEndian.PutUint32(metadataBuf[8:], t.version)
+	binary.LittleEndian.PutUint32(metadataBuf[8:], version)
 	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
 
-	metadataFile := filepath.Join(snapshotDir, FileNameMetadata)
+	metadataFile := filepath.Join(dir, FileNameMetadata)
 	fpMetadata, err := createFile(metadataFile)
 	if err != nil {
 		return err
@@ -404,45 +416,56 @@ func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
 	return nil
 }
 
-// writeRecursive write the node recursively in depth-first post-order,
-// returns `(nodeIndex, err)`.
-func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
-	var buf [SizeNodeWithoutHash]byte
-
-	buf[OffsetHeight] = node.Height()
-	binary.LittleEndian.PutUint32(buf[OffsetVersion:], node.Version())
-
-	if isLeaf(node) {
-		keyOffset := w.kvsOffset
-		if err := w.writeKeyValue(node.Key(), node.Value()); err != nil {
-			return 0, err
-		}
-
-		binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
-	} else {
-		binary.LittleEndian.PutUint32(buf[OffsetSize:], uint32(node.Size()))
-
-		// store the minimal key from right subtree, but propagate the one from left subtree
-		leftIndex, err := w.writeRecursive(node.Left())
-		if err != nil {
-			return 0, err
-		}
-		if _, err = w.writeRecursive(node.Right()); err != nil {
-			return 0, err
-		}
-		binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], leftIndex+1)
-	}
-
-	if _, err := w.nodesWriter.Write(buf[:]); err != nil {
+func (w *snapshotWriter) writeNode(node, hash []byte) (uint32, error) {
+	if _, err := w.nodesWriter.Write(node); err != nil {
 		return 0, err
 	}
-	if _, err := w.nodesWriter.Write(node.Hash()); err != nil {
+	if _, err := w.nodesWriter.Write(hash); err != nil {
 		return 0, err
 	}
 
 	i := w.nodeIndex
 	w.nodeIndex++
 	return i, nil
+}
+
+func (w *snapshotWriter) writeLeaf(version uint32, key, value, hash []byte) (uint32, error) {
+	var buf [SizeNodeWithoutHash]byte
+	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
+	keyOffset := w.kvsOffset
+	if err := w.writeKeyValue(key, value); err != nil {
+		return 0, err
+	}
+	binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
+
+	return w.writeNode(buf[:], hash)
+}
+
+func (w *snapshotWriter) writeBranch(version, size uint32, height uint8, keyNode uint32, hash []byte) (uint32, error) {
+	var buf [SizeNodeWithoutHash]byte
+	buf[OffsetHeight] = height
+	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
+	binary.LittleEndian.PutUint32(buf[OffsetSize:], size)
+	binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], keyNode)
+
+	return w.writeNode(buf[:], hash)
+}
+
+// writeRecursive write the node recursively in depth-first post-order,
+// returns `(nodeIndex, err)`.
+func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
+	if isLeaf(node) {
+		return w.writeLeaf(node.Version(), node.Key(), node.Value(), node.Hash())
+	}
+
+	leftIndex, err := w.writeRecursive(node.Left())
+	if err != nil {
+		return 0, err
+	}
+	if _, err := w.writeRecursive(node.Right()); err != nil {
+		return 0, err
+	}
+	return w.writeBranch(node.Version(), uint32(node.Size()), node.Height(), leftIndex+1, node.Hash())
 }
 
 // buildIndex build MPHF index for the kvs file.
