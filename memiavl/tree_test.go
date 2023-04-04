@@ -9,44 +9,38 @@ import (
 	db "github.com/tendermint/tm-db"
 )
 
-type Change struct {
-	Delete     bool
-	Key, Value []byte
-}
-
 var (
-	ChangeSets [][]Change
+	ChangeSets []iavl.ChangeSet
 	RefHashes  [][]byte
 )
 
 func init() {
-	var changes []Change
 	ChangeSets = append(ChangeSets,
-		[]Change{{Key: []byte("hello"), Value: []byte("world")}},
-		[]Change{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}},
-		[]Change{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
+		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
 	)
 
-	changes = nil
+	changes := iavl.ChangeSet{}
 	for i := 0; i < 1; i++ {
-		changes = append(changes, Change{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
 	}
 
 	ChangeSets = append(ChangeSets, changes)
-	ChangeSets = append(ChangeSets, []Change{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}})
+	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}}})
 
-	changes = nil
+	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes = append(changes, Change{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
-	changes = nil
+	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes = append(changes, Change{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
 	}
 	for i := 0; i < 19; i++ {
-		changes = append(changes, Change{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
@@ -68,18 +62,8 @@ func init() {
 	}
 }
 
-func applyChangeSet(t *Tree, changes []Change) {
-	for _, change := range changes {
-		if change.Delete {
-			t.Remove(change.Key)
-		} else {
-			t.Set(change.Key, change.Value)
-		}
-	}
-}
-
-func applyChangeSetRef(t *iavl.MutableTree, changes []Change) error {
-	for _, change := range changes {
+func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
+	for _, change := range changes.Pairs {
 		if change.Delete {
 			if _, _, err := t.Remove(change.Key); err != nil {
 				return err
@@ -97,8 +81,7 @@ func TestRootHashes(t *testing.T) {
 	tree := NewEmptyTree(0)
 
 	for i, changes := range ChangeSets {
-		applyChangeSet(tree, changes)
-		hash, v, err := tree.SaveVersion(true)
+		hash, v, err := tree.ApplyChangeSet(&changes, true)
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
@@ -108,16 +91,16 @@ func TestRootHashes(t *testing.T) {
 func TestNewKey(t *testing.T) {
 	tree := NewEmptyTree(0)
 	for i := 0; i < 4; i++ {
-		tree.Set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
+		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
 	}
-	_, _, err := tree.SaveVersion(true)
+	_, _, err := tree.saveVersion(true)
 	require.NoError(t, err)
 
 	// the smallest key in the right half of the tree
 	require.Equal(t, tree.root.Key(), []byte("key-2"))
 
 	// remove this key
-	tree.Remove([]byte("key-2"))
+	tree.remove([]byte("key-2"))
 
 	// check root node's key is changed
 	require.Equal(t, []byte("key-3"), tree.root.Key())
