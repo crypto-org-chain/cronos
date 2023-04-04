@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+
+	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -100,4 +102,8 @@ func (t *Tree) Get(key []byte) []byte {
 	}
 
 	return t.root.Get(key)
+}
+
+func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+	return NewIterator(start, end, ascending, t.root)
 }
