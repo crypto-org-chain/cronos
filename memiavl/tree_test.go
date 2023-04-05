@@ -81,7 +81,7 @@ func TestRootHashes(t *testing.T) {
 	tree := NewEmptyTree(0)
 
 	for i, changes := range ChangeSets {
-		hash, v, err := tree.ApplyChangeSet(&changes, true)
+		hash, v, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
@@ -109,4 +109,35 @@ func TestNewKey(t *testing.T) {
 func TestEmptyTree(t *testing.T) {
 	tree := New()
 	require.Equal(t, emptyHash, tree.RootHash())
+}
+
+func TestTreeCopy(t *testing.T) {
+	tree := NewEmptyTree(0)
+
+	_, _, err := tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+		{Key: []byte("hello"), Value: []byte("world")},
+	}}, true)
+	require.NoError(t, err)
+
+	snapshot := tree.Copy()
+
+	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+		{Key: []byte("hello"), Value: []byte("world1")},
+	}}, true)
+	require.NoError(t, err)
+
+	require.Equal(t, []byte("world1"), tree.Get([]byte("hello")))
+	require.Equal(t, []byte("world"), snapshot.Get([]byte("hello")))
+
+	// check that normal copy don't work
+	fakeSnapshot := *tree
+
+	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+		{Key: []byte("hello"), Value: []byte("world2")},
+	}}, true)
+	require.NoError(t, err)
+
+	// get modified in-place
+	require.Equal(t, []byte("world2"), tree.Get([]byte("hello")))
+	require.Equal(t, []byte("world2"), fakeSnapshot.Get([]byte("hello")))
 }

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"math"
 
-	dbm "github.com/tendermint/tm-db"
 	"github.com/cosmos/iavl"
+	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -17,7 +17,7 @@ type Tree struct {
 	// root node of empty tree is represented as `nil`
 	root Node
 
-	initialVersion uint32
+	initialVersion, cowVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
@@ -46,17 +46,29 @@ func NewWithInitialVersion(initialVersion int64) *Tree {
 
 // NewFromSnapshot mmap the blob files and create the root node.
 func NewFromSnapshot(snapshot *Snapshot) *Tree {
+	version := snapshot.Version()
 	if snapshot.IsEmpty() {
-		return NewEmptyTree(int64(snapshot.Version()))
+		return &Tree{version: version}
 	}
+
 	return &Tree{
-		version: snapshot.Version(),
+		version: version,
 		root:    snapshot.RootNode(),
 	}
 }
 
+// Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
+func (t *Tree) Copy() *Tree {
+	if _, ok := t.root.(*MemNode); ok {
+		// protect the existing `MemNode`s from get modified in-place
+		t.cowVersion = t.version
+	}
+	newTree := *t
+	return &newTree
+}
+
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
-func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
+func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
@@ -69,18 +81,18 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 }
 
 func (t *Tree) set(key, value []byte) {
-	t.root, _ = setRecursive(t.root, key, value, t.version+1)
+	t.root, _ = setRecursive(t.root, key, value, t.version+1, t.cowVersion)
 }
 
 func (t *Tree) remove(key []byte) {
-	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
+	_, t.root, _ = removeRecursive(t.root, key, t.version+1, t.cowVersion)
 }
 
 // saveVersion increases the version number and optionally updates the hashes
 func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	var hash []byte
 	if updateHash {
-		hash = t.root.Hash()
+		hash = t.RootHash()
 	}
 
 	if t.version >= uint32(math.MaxUint32) {
