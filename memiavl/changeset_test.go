@@ -13,6 +13,6 @@ func TestChangeSetMarshal(t *testing.T) {
 
 		cs, err := UnmarshalChangeSet(bz)
 		require.NoError(t, err)
-		require.Equal(t, changes, cs)
+		require.Equal(t, changes, *cs)
 	}
 }
