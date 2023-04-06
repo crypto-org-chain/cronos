@@ -153,6 +153,7 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 	// collect all changesets from WAL
 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
 		bz, err := wal.Read(i)
+		fmt.Println(bz, err)
 		if err != nil {
 			return err
 		}

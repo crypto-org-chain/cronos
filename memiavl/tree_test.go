@@ -189,11 +189,12 @@ func TestReplayWAL(t *testing.T) {
 	require.NoError(t, err)
 
 	// replay WAL
-	tree2 := NewEmptyTree(0, DefaultPathToWAL)
+	tree2 := NewEmptyTree(0, secondTreeWALPath)
 	defer tree2.bwal.Close()
+	err = tree2.ReplayWAL(uint64(version), DefaultPathToWAL) // using wal from tree 1
+	require.NoError(t, err)
 
-	err = tree2.ReplayWAL(uint64(version), secondTreeWALPath)
-
+	fmt.Println(tree2.version)
 	deepEqualTrees(t, tree, tree2)
 }
 
