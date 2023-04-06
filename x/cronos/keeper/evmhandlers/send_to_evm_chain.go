@@ -144,7 +144,7 @@ func (h SendToEvmChainHandler) Handle(
 
 	if !chainID.Equal(sdk.NewInt(1)) && !chainID.Equal(sdk.NewInt(3)) &&
 		!chainID.Equal(sdk.NewInt(4)) && !chainID.Equal(sdk.NewInt(5)) {
-		return fmt.Errorf("only ethereum network is not supported")
+		return fmt.Errorf("only ethereum network is supported")
 	}
 
 	coins := sdk.NewCoins(sdk.NewCoin(denom, amount.Add(bridgeFee)))
