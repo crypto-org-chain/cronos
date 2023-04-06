@@ -16,8 +16,10 @@ import (
 // keyLen: varint-uint64
 // key
 // [ // if delete is false
-//   valueLen: varint-uint64
-//   value
+//
+//	valueLen: varint-uint64
+//	value
+//
 // ]
 // ```
 func MarshalChangeSet(cs *iavl.ChangeSet) ([]byte, error) {
@@ -83,7 +85,7 @@ func writeBytes(w io.Writer, payload []byte) error {
 
 // readKVPair decode a key-value pair from reader
 //
-// 	n == 0: buf too small
+//	n == 0: buf too small
 //	n  < 0: value larger than 64 bits (overflow)
 func readKVPair(buf []byte) (iavl.KVPair, int) {
 	if len(buf) == 0 {
@@ -109,7 +111,7 @@ func readKVPair(buf []byte) (iavl.KVPair, int) {
 	offset += int(keyLen)
 
 	if pair.Delete {
-		return iavl.KVPair{}, offset
+		return pair, offset
 	}
 
 	valueLen, n := binary.Uvarint(buf[offset:])
