@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ChangeSetMarshal(t *testing.T) {
+func TestChangeSetMarshal(t *testing.T) {
 	for _, changes := range ChangeSets {
 		bz, err := MarshalChangeSet(&changes)
 		require.NoError(t, err)
