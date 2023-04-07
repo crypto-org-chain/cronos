@@ -73,7 +73,7 @@ func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) *Tree {
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
 // Returns hash, new version, and potential error.
 func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
-	t.bwal.Flush()
+	t.bwal.BlockChangeset = *changeSet
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
@@ -81,6 +81,7 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 			t.set(pair.Key, pair.Value)
 		}
 	}
+	t.bwal.Flush()
 
 	return t.saveVersion(updateHash)
 }
@@ -150,12 +151,12 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 	}
 
 	var changesets []iavl.ChangeSet
+
 	// collect all changesets from WAL
 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
 		bz, err := wal.Read(i)
-		fmt.Println(bz, err)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read changeset with index %d from wal: %w", i, err)
 		}
 
 		blockChanges, err := UnmarshalChangeSet(bz)

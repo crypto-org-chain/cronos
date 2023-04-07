@@ -2,7 +2,6 @@ package memiavl
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"testing"
 
@@ -165,56 +164,22 @@ func TestReplayWAL(t *testing.T) {
 	defer os.RemoveAll(secondTreeWALPath)
 	defer tree.bwal.Close()
 
-	// FOR REVIEW: maybe it is not worth it randomizing this test?
-	var randKeys [][]byte
-	// apply 50 random sets
-	for i := 0; i < 50; i++ {
-		randomKey, randomValue := randomSet()
-		tree.set(randomKey, randomValue)
-
-		randKeys = append(randKeys, randomKey)
+	var latestVersion int64
+	var err error
+	for _, cs := range ChangeSets {
+		_, latestVersion, err = tree.ApplyChangeSet(&cs, true)
+		require.NoError(t, err)
 	}
-	_, _, err := tree.saveVersion(true)
-	require.NoError(t, err)
-
-	// apply 7 random removes
-	for i := 0; i < 7; i++ {
-		randomRemoveIndex := randomRemove(randKeys)
-		tree.remove(randKeys[randomRemoveIndex])
-		randKeys = removeIndex(randKeys, randomRemoveIndex)
-	}
-
-	// save version
-	_, version, err := tree.saveVersion(false)
 	require.NoError(t, err)
 
 	// replay WAL
 	tree2 := NewEmptyTree(0, secondTreeWALPath)
 	defer tree2.bwal.Close()
-	err = tree2.ReplayWAL(uint64(version), DefaultPathToWAL) // using wal from tree 1
+
+	err = tree2.ReplayWAL(uint64(latestVersion), DefaultPathToWAL) // using wal from tree 1
 	require.NoError(t, err)
 
-	fmt.Println(tree2.version)
 	deepEqualTrees(t, tree, tree2)
-}
-
-func randomSet() ([]byte, []byte) {
-	key := make([]byte, 32)
-	value := make([]byte, 32)
-	rand.Read(key)
-	rand.Read(value)
-	return key, value
-}
-
-func randomRemove(allKeys [][]byte) int {
-	randint := rand.Int()
-	return randint % len(allKeys)
-}
-
-func removeIndex(s [][]byte, index int) [][]byte {
-	ret := make([][]byte, 0)
-	ret = append(ret, s[:index]...)
-	return append(ret, s[index+1:]...)
 }
 
 // deepEqualTrees compares two trees' nodes recursively.
