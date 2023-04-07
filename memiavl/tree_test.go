@@ -151,19 +151,16 @@ func TestReplayWAL(t *testing.T) {
 	defer os.RemoveAll(secondTreeWALPath)
 	defer tree.bwal.Close()
 
-	var latestVersion int64
-	var err error
 	for _, cs := range ChangeSets {
-		_, latestVersion, err = tree.ApplyChangeSet(&cs, true)
+		_, _, err := tree.ApplyChangeSet(&cs, true)
 		require.NoError(t, err)
 	}
-	require.NoError(t, err)
 
 	// replay WAL
 	tree2 := NewEmptyTree(0, secondTreeWALPath)
 	defer tree2.bwal.Close()
 
-	err = tree2.ReplayWAL(uint64(latestVersion), DefaultPathToWAL) // using wal from tree 1
+	err := tree2.ReplayWAL(0, DefaultPathToWAL) // using wal from tree 1
 	require.NoError(t, err)
 
 	deepEqualTrees(t, tree, tree2)

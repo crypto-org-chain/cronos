@@ -139,8 +139,10 @@ func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
 }
 
+// ReplayWAL replays all the changesets on the tree sequentially until version "untilVersion" from the WAL with "walPath".
+// If untilVersion is 0, it replays all the changesets from the WAL.
 func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
-	if untilVersion <= uint64(t.version) {
+	if untilVersion <= uint64(t.version) && untilVersion != 0 {
 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
 	}
 
@@ -150,6 +152,13 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 	}
 
 	var changesets []iavl.ChangeSet
+
+	if untilVersion == 0 {
+		untilVersion, err = wal.LastIndex()
+		if err != nil {
+			return fmt.Errorf("failed to get last index of wal: %w", err)
+		}
+	}
 
 	// collect all changesets from WAL
 	for i := uint64(t.version + 1); i <= untilVersion; i++ {
