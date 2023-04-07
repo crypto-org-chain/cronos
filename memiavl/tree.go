@@ -73,7 +73,6 @@ func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) *Tree {
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
 // Returns hash, new version, and potential error.
 func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
-	t.bwal.BlockChangeset = *changeSet
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
@@ -81,7 +80,7 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 			t.set(pair.Key, pair.Value)
 		}
 	}
-	t.bwal.Flush()
+	t.bwal.Flush(*changeSet)
 
 	return t.saveVersion(updateHash)
 }

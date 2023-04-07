@@ -14,9 +14,8 @@ import (
 // Version is an index at which changes are stored in WAL.
 // At version X, changes stored correspond to changesets that have been made from block X-1 to block X.
 type blockWAL struct {
-	wal            *wal.Log
-	version        uint64
-	BlockChangeset iavl.ChangeSet
+	wal     *wal.Log
+	version uint64
 }
 
 var (
@@ -44,9 +43,8 @@ func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (blockWAL,
 		return blockWAL{}, err
 	}
 	return blockWAL{
-		wal:            log,
-		version:        version,
-		BlockChangeset: iavl.ChangeSet{},
+		wal:     log,
+		version: version,
 	}, nil
 }
 
@@ -83,17 +81,21 @@ func (bwal blockWAL) Close() error {
 
 // Read reads the write-ahead log from the given index.
 func (bwal blockWAL) Read(index uint64) ([]byte, error) {
-	return bwal.wal.Read(index)
+	bz, err := bwal.wal.Read(index)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read index %d from WAL: %w", index, err)
+	}
+
+	return bz, nil
 }
 
 // Flush flushes the block changeset to the write-ahead log.
-func (bwal *blockWAL) Flush() error {
-	err := bwal.writeBlockChanges(bwal.BlockChangeset, bwal.version)
+func (bwal *blockWAL) Flush(blockChangeset iavl.ChangeSet) error {
+	err := bwal.writeBlockChanges(blockChangeset, bwal.version)
 	if err != nil {
 		return err
 	}
 
-	bwal.BlockChangeset = iavl.ChangeSet{}
 	bwal.version++
 	return nil
 }

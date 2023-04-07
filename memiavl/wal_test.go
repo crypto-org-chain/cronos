@@ -39,9 +39,7 @@ func TestFlush(t *testing.T) {
 		expectedData = append(expectedData, i...)
 	}
 
-	log.BlockChangeset.Pairs = append(log.BlockChangeset.Pairs, DefaultChanges.Pairs...)
-
-	err = log.Flush()
+	err = log.Flush(DefaultChanges)
 	require.NoError(t, err)
 
 	data, err := log.Read(1)
