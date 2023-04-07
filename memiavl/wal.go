@@ -48,16 +48,6 @@ func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (blockWAL,
 	}, nil
 }
 
-// prepareChange prepares a change for write-ahead log.
-// If value provided is nil, it implies the Change should indicate deletion.
-func preparePair(key []byte, value []byte) iavl.KVPair {
-	return iavl.KVPair{
-		Delete: value == nil,
-		Key:    key,
-		Value:  value,
-	}
-}
-
 // writeChange writes a change to the write-ahead log.
 // Returns bytes written
 func (bwal blockWAL) writeBlockChanges(changeset iavl.ChangeSet, index uint64) error {
