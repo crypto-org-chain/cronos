@@ -97,6 +97,21 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) {
 	}
 }
 
+// Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
+func (t *MultiTree) Copy() *MultiTree {
+	trees := make([]treeEntry, len(t.trees))
+	treesByName := make(map[string]int, len(t.trees))
+	for i, entry := range t.trees {
+		trees[i] = treeEntry{tree: entry.tree.Copy(), name: entry.name}
+		treesByName[entry.name] = i
+	}
+
+	clone := *t
+	clone.trees = trees
+	clone.treesByName = treesByName
+	return &clone
+}
+
 func (t *MultiTree) ApplyChangeSets(changeSet map[string]iavl.ChangeSet, updateHash bool) ([]storetypes.StoreInfo, int64, error) {
 	var infos []storetypes.StoreInfo
 	for _, entry := range t.trees {
