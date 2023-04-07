@@ -177,11 +177,13 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 
 	// sequentially replay changesets
 	for i := range changesets {
-		_, _, err := t.ApplyChangeSet(&changesets[i], true)
+		_, _, err := t.ApplyChangeSet(&changesets[i], false)
 		if err != nil {
 			return err
 		}
 	}
+
+	t.RootHash()
 
 	return nil
 }

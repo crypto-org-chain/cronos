@@ -152,9 +152,10 @@ func TestReplayWAL(t *testing.T) {
 	defer tree.bwal.Close()
 
 	for _, cs := range ChangeSets {
-		_, _, err := tree.ApplyChangeSet(&cs, true)
+		_, _, err := tree.ApplyChangeSet(&cs, false)
 		require.NoError(t, err)
 	}
+	tree.RootHash()
 
 	// replay WAL
 	tree2 := NewEmptyTree(0, secondTreeWALPath)
