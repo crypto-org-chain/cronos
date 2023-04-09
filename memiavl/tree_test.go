@@ -161,10 +161,54 @@ func TestReplayWAL(t *testing.T) {
 	tree2 := NewEmptyTree(0, secondTreeWALPath)
 	defer tree2.bwal.Close()
 
-	err := tree2.ReplayWAL(0, DefaultPathToWAL) // using wal from tree 1
-	require.NoError(t, err)
+	randomWalPath := "random_wal_path"
+	defer os.RemoveAll(randomWalPath)
 
-	deepEqualTrees(t, tree, tree2)
+	tests := map[string]struct {
+		untilVersion uint64
+		walPath      string
+		tree         *Tree
+		expectingErr bool
+	}{
+		"valid: replay all versions": {
+			untilVersion: 0,
+			tree:         tree2,
+			walPath:      DefaultPathToWAL,
+		},
+		"invalid: untilVersion too high": {
+			untilVersion: 100,
+			tree:         tree2,
+			walPath:      DefaultPathToWAL,
+			expectingErr: true,
+		},
+		"invalid: tree already up to date": {
+			untilVersion: 0,
+			tree:         tree,
+			walPath:      DefaultPathToWAL,
+			expectingErr: true,
+		},
+		"random wal path: will create empty new wal: should fail": {
+			untilVersion: 0,
+			tree:         tree2,
+			walPath:      randomWalPath,
+			expectingErr: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := tree2.ReplayWAL(tc.untilVersion, tc.walPath)
+
+			if tc.expectingErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			deepEqualTrees(t, tree, tree2)
+
+		})
+	}
 }
 
 // deepEqualTrees compares two trees' nodes recursively.

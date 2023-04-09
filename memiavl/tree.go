@@ -142,6 +142,7 @@ func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 // ReplayWAL replays all the changesets on the tree sequentially until version "untilVersion" from the WAL with "walPath".
 // If untilVersion is 0, it replays all the changesets from the WAL.
 func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
+	// if true, means the tree is up to date with the WAL
 	if untilVersion <= uint64(t.version) && untilVersion != 0 {
 		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
 	}
@@ -151,8 +152,18 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 		return fmt.Errorf("failed to open wal: %w", err)
 	}
 
-	var changesets []iavl.ChangeSet
+	// check if the untilVersion exists in wal
+	latestVersion, err := wal.LastIndex()
+	if err != nil {
+		return fmt.Errorf("failed to get last index of wal: %w", err)
+	}
 
+	// error if untilVersion is greater than max version in wal
+	if untilVersion > latestVersion || untilVersion == 0 && uint64(t.version) >= latestVersion {
+		return fmt.Errorf("untilVersion %d is greater than latest version in wal %d", untilVersion, latestVersion)
+	}
+
+	// if untilVersion is 0, replay all changesets from the WAL
 	if untilVersion == 0 {
 		untilVersion, err = wal.LastIndex()
 		if err != nil {
@@ -172,15 +183,8 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 			return err
 		}
 
-		changesets = append(changesets, *blockChanges)
-	}
-
-	// sequentially replay changesets
-	for i := range changesets {
-		_, _, err := t.ApplyChangeSet(&changesets[i], false)
-		if err != nil {
-			return err
-		}
+		// apply changes right away
+		t.ApplyChangeSet(blockChanges, false)
 	}
 
 	t.RootHash()

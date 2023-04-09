@@ -1,7 +1,6 @@
 package memiavl
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,43 +92,4 @@ func (bwal *blockWAL) Flush(blockChangeset iavl.ChangeSet) error {
 // OpenWAL returns an instance of the write-ahead log.
 func OpenWAL(pathToWAL string, opts *wal.Options) (*wal.Log, error) {
 	return wal.Open(pathToWAL, opts)
-}
-
-// Valid asserts KVPair bytes' length is valid.
-func areValidChangeBytes(changeBz []byte) bool {
-	if len(changeBz) == 0 {
-		return false
-	}
-
-	if changeBz[0] != 0 && changeBz[0] != 1 {
-		return false
-	}
-
-	switch changeBz[0] {
-	case 0:
-		keyLen, nk := binary.Uvarint(changeBz[1:])
-		if nk <= 0 {
-			panic(fmt.Sprintf("failed to read key length, with n = %d", nk))
-		}
-
-		valueLen, nv := binary.Uvarint(changeBz[1+uint64(nk)+keyLen:])
-		if nv <= 0 {
-			panic(fmt.Sprintf("failed to read value length, with n = %d", nv))
-		}
-
-		if 1+uint64(nk)+uint64(nv)+keyLen+valueLen != uint64(len(changeBz)) { // set/del byte + key length + value length + key + value
-			return false
-		}
-	case 1:
-		keyLen, nk := binary.Uvarint(changeBz[1:])
-		if nk <= 0 {
-			panic(fmt.Sprintf("failed to read key length, with n = %d", nk))
-		}
-
-		if 1+uint64(nk)+keyLen != uint64(len(changeBz)) { // set/del byte + key length + key
-			return false
-		}
-	}
-
-	return true
 }
