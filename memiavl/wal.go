@@ -17,9 +17,7 @@ type blockWAL struct {
 	version uint64
 }
 
-var (
-	DefaultPathToWAL string
-)
+var DefaultPathToWAL string
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
@@ -50,7 +48,7 @@ func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (*blockWAL
 // writeChange writes a change to the write-ahead log.
 // Returns bytes written
 func (bwal blockWAL) writeBlockChanges(changeset iavl.ChangeSet, index uint64) error {
-	bz, err := MarshalChangeSet(&changeset)
+	bz, err := MarshalChangeSet(changeset)
 	if err != nil {
 		return fmt.Errorf("failed to marshal changeset: %w", err)
 	}

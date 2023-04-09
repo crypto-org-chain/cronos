@@ -73,7 +73,7 @@ func TestIterator(t *testing.T) {
 	require.Equal(t, expItems[0], collect(tree.Iterator(nil, nil, true)))
 
 	for _, changes := range ChangeSets {
-		_, v, err := tree.ApplyChangeSet(&changes, true)
+		_, v, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 		require.Equal(t, expItems[v], collect(tree.Iterator(nil, nil, true)))
 		require.Equal(t, reverse(expItems[v]), collect(tree.Iterator(nil, nil, false)))
@@ -84,7 +84,7 @@ func TestIteratorRange(t *testing.T) {
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
 	for _, changes := range ChangeSets[:6] {
-		_, _, err := tree.ApplyChangeSet(&changes, true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 

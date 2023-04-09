@@ -85,7 +85,7 @@ func TestRootHashes(t *testing.T) {
 	defer tree.bwal.Close()
 
 	for i, changes := range ChangeSets {
-		hash, v, err := tree.ApplyChangeSet(&changes, true)
+		hash, v, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
@@ -132,7 +132,7 @@ func TestWAL(t *testing.T) {
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
 
-	_, version, err := tree.ApplyChangeSet(&DefaultChanges, true)
+	_, version, err := tree.ApplyChangeSet(DefaultChanges, true)
 	require.NoError(t, err)
 
 	// get data from WAL
@@ -157,7 +157,7 @@ func TestReplayWAL(t *testing.T) {
 	defer tree.bwal.Close()
 
 	for _, cs := range ChangeSets {
-		_, _, err := tree.ApplyChangeSet(&cs, false)
+		_, _, err := tree.ApplyChangeSet(cs, false)
 		require.NoError(t, err)
 	}
 	tree.RootHash()
@@ -212,7 +212,6 @@ func TestReplayWAL(t *testing.T) {
 
 			require.NoError(t, err)
 			deepEqualTrees(t, tree, tree2)
-
 		})
 	}
 }
