@@ -22,7 +22,7 @@ import (
 //
 // ]
 // ```
-func MarshalChangeSet(cs *iavl.ChangeSet) ([]byte, error) {
+func MarshalChangeSet(cs iavl.ChangeSet) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	if err := MarshalChangeSetTo(cs, buf); err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func MarshalChangeSet(cs *iavl.ChangeSet) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func MarshalChangeSetTo(cs *iavl.ChangeSet, w io.Writer) error {
+func MarshalChangeSetTo(cs iavl.ChangeSet, w io.Writer) error {
 	for _, pair := range cs.Pairs {
 		if _, err := w.Write([]byte{bool2byte(pair.Delete)}); err != nil {
 			return err
@@ -49,18 +49,18 @@ func MarshalChangeSetTo(cs *iavl.ChangeSet, w io.Writer) error {
 	return nil
 }
 
-func UnmarshalChangeSet(data []byte) (*iavl.ChangeSet, error) {
+func UnmarshalChangeSet(data []byte) (iavl.ChangeSet, error) {
 	var offset int
 	var cs iavl.ChangeSet
 	for offset < len(data) {
 		pair, n := readKVPair(data[offset:])
 		if n <= 0 {
-			return nil, fmt.Errorf("decode kv pair failed: %d", n)
+			return iavl.ChangeSet{}, fmt.Errorf("decode kv pair failed: %d", n)
 		}
 		offset += n
 		cs.Pairs = append(cs.Pairs, pair)
 	}
-	return &cs, nil
+	return cs, nil
 }
 
 func bool2byte(b bool) byte {

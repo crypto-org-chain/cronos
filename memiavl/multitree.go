@@ -25,12 +25,14 @@ type treeEntry struct {
 // The snapshot structure is like this:
 // ```
 // snapshot-V
-//   bank
-//     kvs
-//     nodes
-//     metadata
-//   acc
-//   ... other stores
+//
+//	bank
+//	  kvs
+//	  nodes
+//	  metadata
+//	acc
+//	... other stores
+//
 // ```
 type MultiTree struct {
 	initialVersion uint32

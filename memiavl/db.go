@@ -16,12 +16,14 @@ import (
 // ```
 // current -> snapshot-N
 // snapshot-N
-//   bank
-//     kvs
-//     nodes
-//     metadata
-//   acc
-//   ... other stores
+//
+//	bank
+//	  kvs
+//	  nodes
+//	  metadata
+//	acc
+//	... other stores
+//
 // wal
 // ```
 type DB struct {
