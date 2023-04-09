@@ -85,7 +85,7 @@ func (t *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			// TODO replay buffer in background to minimize blocking on main thread
 			t.MultiTree = *result.mtree
 			for _, cs := range rewriteBuffer {
-				if _, _, err := t.ApplyChangeSet(cs, true); err != nil {
+				if _, _, err := t.ApplyChangeSet(cs, false); err != nil {
 					return nil, 0, fmt.Errorf("snapshot rewrite buffer replay failed: %w", err)
 				}
 			}
