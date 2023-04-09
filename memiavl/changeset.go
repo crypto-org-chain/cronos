@@ -87,9 +87,9 @@ func writeBytes(w io.Writer, payload []byte) error {
 //
 //	n == 0: buf too small
 //	n  < 0: value larger than 64 bits (overflow)
-func readKVPair(buf []byte) (iavl.KVPair, int) {
+func readKVPair(buf []byte) (*iavl.KVPair, int) {
 	if len(buf) == 0 {
-		return iavl.KVPair{}, 0
+		return nil, 0
 	}
 
 	deletion := buf[0]
@@ -97,12 +97,12 @@ func readKVPair(buf []byte) (iavl.KVPair, int) {
 
 	keyLen, n := binary.Uvarint(buf[offset:])
 	if n <= 0 {
-		return iavl.KVPair{}, n
+		return nil, n
 	}
 	offset += n
 
 	if len(buf) < offset+int(keyLen) {
-		return iavl.KVPair{}, 0
+		return nil, 0
 	}
 	pair := iavl.KVPair{
 		Delete: deletion == 1,
@@ -111,20 +111,20 @@ func readKVPair(buf []byte) (iavl.KVPair, int) {
 	offset += int(keyLen)
 
 	if pair.Delete {
-		return pair, offset
+		return &pair, offset
 	}
 
 	valueLen, n := binary.Uvarint(buf[offset:])
 	if n <= 0 {
-		return iavl.KVPair{}, n
+		return nil, n
 	}
 	offset += n
 
 	if len(buf) < offset+int(valueLen) {
-		return iavl.KVPair{}, 0
+		return nil, 0
 	}
 	pair.Value = buf[offset : offset+int(valueLen)]
 	offset += int(valueLen)
 
-	return pair, offset
+	return &pair, offset
 }

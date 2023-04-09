@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -10,6 +11,8 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
 )
+
+const CommitInfoFileName = "commit_info"
 
 type treeEntry struct {
 	tree *Tree
@@ -31,16 +34,42 @@ type treeEntry struct {
 // ```
 type MultiTree struct {
 	initialVersion uint32
-	version        uint32
 
 	trees          []treeEntry
 	treesByName    map[string]int
 	lastCommitInfo storetypes.CommitInfo
 }
 
-func LoadMultiTree(dir string) (*MultiTree, error) {
+func NewEmptyMultiTree(names []string, initialVersion uint32) *MultiTree {
+	trees := make([]treeEntry, len(names))
+	treesByName := make(map[string]int, len(names))
+	infos := make([]storetypes.StoreInfo, len(names))
+	for i, name := range names {
+		trees[i] = treeEntry{
+			tree: NewWithInitialVersion(initialVersion),
+			name: name,
+		}
+		treesByName[name] = i
+		infos[i] = storetypes.StoreInfo{
+			Name: name,
+			CommitId: storetypes.CommitID{
+				Hash: trees[i].tree.RootHash(),
+			},
+		}
+	}
+	return &MultiTree{
+		initialVersion: initialVersion,
+		trees:          trees,
+		treesByName:    treesByName,
+		lastCommitInfo: storetypes.CommitInfo{
+			StoreInfos: infos,
+		},
+	}
+}
+
+func LoadMultiTree(dir string, initialVersion uint32) (*MultiTree, error) {
 	// load commit info
-	bz, err := os.ReadFile(filepath.Join(dir, "commit_info"))
+	bz, err := os.ReadFile(filepath.Join(dir, CommitInfoFileName))
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +89,9 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 	treeMap := make(map[string]*Tree, len(entries))
 	treeNames := make([]string, 0, len(entries))
 	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
 		name := e.Name()
 		treeNames = append(treeNames, name)
 		snapshot, err := OpenSnapshot(filepath.Join(dir, name))
@@ -79,6 +111,7 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 	}
 
 	return &MultiTree{
+		initialVersion: initialVersion,
 		trees:          trees,
 		treesByName:    treesByName,
 		lastCommitInfo: *cInfo,
@@ -112,25 +145,82 @@ func (t *MultiTree) Copy() *MultiTree {
 	return &clone
 }
 
-func (t *MultiTree) ApplyChangeSets(changeSet map[string]iavl.ChangeSet, updateHash bool) ([]storetypes.StoreInfo, int64, error) {
-	var infos []storetypes.StoreInfo
+func (t *MultiTree) Version() int64 {
+	return t.lastCommitInfo.Version
+}
+
+// ApplyChangeSet applies change sets for all trees.
+// if `updateCommitInfo` is `false`, the `lastCommitInfo.StoreInfos` is dirty.
+func (t *MultiTree) ApplyChangeSet(changeSets MultiChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
+	var version int64
+	if t.lastCommitInfo.Version == 0 && t.initialVersion > 1 {
+		version = int64(t.initialVersion)
+	} else {
+		version = t.lastCommitInfo.Version + 1
+	}
+
+	var (
+		infos   []storetypes.StoreInfo
+		csIndex int
+	)
 	for _, entry := range t.trees {
-		hash, v, err := entry.tree.ApplyChangeSet(changeSet[entry.name], updateHash)
+		var changeSet iavl.ChangeSet
+		if entry.name == changeSets.Changesets[csIndex].Name {
+			changeSet = changeSets.Changesets[csIndex].Changeset
+			csIndex++
+		}
+		hash, v, err := entry.tree.ApplyChangeSet(changeSet, updateCommitInfo)
 		if err != nil {
 			return nil, 0, err
 		}
+		if updateCommitInfo {
+			infos = append(infos, storetypes.StoreInfo{
+				Name: entry.name,
+				CommitId: storetypes.CommitID{
+					Version: v,
+					Hash:    hash,
+				},
+			})
+		}
+	}
+
+	if csIndex != len(changeSets.Changesets) {
+		return nil, 0, fmt.Errorf("non-exhaustive change sets")
+	}
+
+	t.lastCommitInfo.Version = version
+	t.lastCommitInfo.StoreInfos = infos
+
+	var hash []byte
+	if updateCommitInfo {
+		hash = t.lastCommitInfo.Hash()
+	}
+	return hash, t.lastCommitInfo.Version, nil
+}
+
+// UpdateCommitInfo update lastCommitInfo based on current status of trees.
+// it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
+func (t *MultiTree) UpdateCommitInfo(changeSets MultiChangeSet, updateCommitInfo bool) []byte {
+	var infos []storetypes.StoreInfo
+	for _, entry := range t.trees {
 		infos = append(infos, storetypes.StoreInfo{
 			Name: entry.name,
 			CommitId: storetypes.CommitID{
-				Version: v,
-				Hash:    hash,
+				Version: entry.tree.Version(),
+				Hash:    entry.tree.RootHash(),
 			},
 		})
 	}
-	return infos, int64(t.version), nil
+
+	t.lastCommitInfo.StoreInfos = infos
+	return t.lastCommitInfo.Hash()
 }
 
 func (t *MultiTree) WriteSnapshot(dir string) error {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return err
+	}
+
 	// TODO make it parallel
 	for _, entry := range t.trees {
 		if err := entry.tree.WriteSnapshot(filepath.Join(dir, entry.name), false); err != nil {
@@ -143,7 +233,7 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileSync(filepath.Join(dir, "commit_info"), bz)
+	return writeFileSync(filepath.Join(dir, CommitInfoFileName), bz)
 }
 
 func writeFileSync(name string, data []byte) error {
@@ -159,4 +249,15 @@ func writeFileSync(name string, data []byte) error {
 		err = err1
 	}
 	return err
+}
+
+func (t *MultiTree) Close() error {
+	errs := make([]error, 0, len(t.trees))
+	for _, entry := range t.trees {
+		errs = append(errs, entry.tree.Close())
+	}
+	t.trees = nil
+	t.treesByName = nil
+	t.lastCommitInfo = storetypes.CommitInfo{}
+	return errors.Join(errs...)
 }

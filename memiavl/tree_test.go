@@ -16,31 +16,31 @@ var (
 
 func init() {
 	ChangeSets = append(ChangeSets,
-		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
-		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
-		iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
 	)
 
 	changes := iavl.ChangeSet{}
 	for i := 0; i < 1; i++ {
-		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
 	}
 
 	ChangeSets = append(ChangeSets, changes)
-	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []iavl.KVPair{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}}})
+	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Delete: true}, {Key: []byte("hello19"), Delete: true}}})
 
 	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
+		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
 	changes = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
 	}
 	for i := 0; i < 19; i++ {
-		changes.Pairs = append(changes.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
+		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
 	}
 	ChangeSets = append(ChangeSets, changes)
 
@@ -114,14 +114,14 @@ func TestEmptyTree(t *testing.T) {
 func TestTreeCopy(t *testing.T) {
 	tree := NewEmptyTree(0)
 
-	_, _, err := tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+	_, _, err := tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world")},
 	}}, true)
 	require.NoError(t, err)
 
 	snapshot := tree.Copy()
 
-	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world1")},
 	}}, true)
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestTreeCopy(t *testing.T) {
 	// check that normal copy don't work
 	fakeSnapshot := *tree
 
-	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []iavl.KVPair{
+	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world2")},
 	}}, true)
 	require.NoError(t, err)

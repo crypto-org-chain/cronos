@@ -15,7 +15,8 @@ var emptyHash = sha256.New().Sum(nil)
 type Tree struct {
 	version uint32
 	// root node of empty tree is represented as `nil`
-	root Node
+	root     Node
+	snapshot *Snapshot
 
 	initialVersion, cowVersion uint32
 }
@@ -35,26 +36,24 @@ func New() *Tree {
 
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
-func NewWithInitialVersion(initialVersion int64) *Tree {
-	if initialVersion >= math.MaxUint32 {
-		panic("version overflows uint32")
-	}
+func NewWithInitialVersion(initialVersion uint32) *Tree {
 	tree := New()
-	tree.initialVersion = uint32(initialVersion)
+	tree.initialVersion = initialVersion
 	return tree
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
 func NewFromSnapshot(snapshot *Snapshot) *Tree {
-	version := snapshot.Version()
-	if snapshot.IsEmpty() {
-		return &Tree{version: version}
+	tree := &Tree{
+		version:  snapshot.Version(),
+		snapshot: snapshot,
 	}
 
-	return &Tree{
-		version: version,
-		root:    snapshot.RootNode(),
+	if !snapshot.IsEmpty() {
+		tree.root = snapshot.RootNode()
 	}
+
+	return tree
 }
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
@@ -132,4 +131,14 @@ func (t *Tree) Get(key []byte) []byte {
 
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
+}
+
+func (t *Tree) Close() error {
+	var err error
+	if t.snapshot != nil {
+		err = t.snapshot.Close()
+		t.snapshot = nil
+	}
+	t.root = nil
+	return err
 }
