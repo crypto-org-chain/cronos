@@ -217,7 +217,7 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 				}
 
 				// no need to update hashes for intermediate versions.
-				_, v, err := tree.ApplyChangeSet(changeSet, false)
+				_, v, err := tree.ApplyChangeSet(*changeSet, false)
 				if err != nil {
 					return false, err
 				}
