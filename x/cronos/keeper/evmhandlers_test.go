@@ -175,7 +175,7 @@ func (suite *KeeperTestSuite) TestSendToEvmChainHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("only ethereum network is not supported"),
+			errors.New("only ethereum network is supported"),
 		},
 		{
 			"non associated coin denom, expect fail",
