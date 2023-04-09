@@ -24,6 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// NamedChangeSet combine a store name with the changeset
 type NamedChangeSet struct {
 	Changeset proto1.ChangeSet `protobuf:"bytes,1,opt,name=changeset,proto3" json:"changeset"`
 	Name      string           `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -76,6 +77,7 @@ func (m *NamedChangeSet) GetName() string {
 	return ""
 }
 
+// MultiChangeSet defines change sets for multiple stores.
 type MultiChangeSet struct {
 	Changesets []*NamedChangeSet `protobuf:"bytes,1,rep,name=changesets,proto3" json:"changesets,omitempty"`
 }

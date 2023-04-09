@@ -7,11 +7,13 @@ import "gogoproto/gogo.proto";
 import "iavl/changeset.proto";
 
 
+// NamedChangeSet combine a store name with the changeset
 message NamedChangeSet {
   iavl.ChangeSet changeset = 1 [(gogoproto.nullable) = false];
   string name = 2;
 }
 
+// MultiChangeSet defines change sets for multiple stores.
 message MultiChangeSet {
   repeated NamedChangeSet changesets = 1;
 }
