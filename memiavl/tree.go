@@ -201,7 +201,10 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 		}
 
 		// apply changes right away
-		t.ApplyChangeSet(blockChanges, false)
+		if _, _, err := t.ApplyChangeSet(blockChanges, false); err != nil {
+			return err
+
+		}
 	}
 
 	t.RootHash()
