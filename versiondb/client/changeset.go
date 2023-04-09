@@ -90,8 +90,8 @@ func ReadChangeSet(reader Reader, parseChangeset bool) (int64, int64, *iavl.Chan
 			if err != nil {
 				return 0, 0, nil, err
 			}
-			offset += int64(encodedSizeOfKVPair(*pair))
-			changeSet.Pairs = append(changeSet.Pairs, *pair)
+			offset += int64(encodedSizeOfKVPair(pair))
+			changeSet.Pairs = append(changeSet.Pairs, pair)
 		}
 		if offset != size {
 			return 0, 0, nil, fmt.Errorf("read beyond payload size limit, size: %d, offset: %d", size, offset)
@@ -107,7 +107,7 @@ func ReadChangeSet(reader Reader, parseChangeset bool) (int64, int64, *iavl.Chan
 // encodedSizeOfKVPair returns the encoded length of a key-value pair
 //
 // layout: deletion(1) + keyLen(varint) + key + [ valueLen(varint) + value ]
-func encodedSizeOfKVPair(pair iavl.KVPair) int {
+func encodedSizeOfKVPair(pair *iavl.KVPair) int {
 	keyLen := len(pair.Key)
 	size := 1 + uvarintSize(uint64(keyLen)) + keyLen
 	if pair.Delete {
@@ -121,7 +121,7 @@ func encodedSizeOfKVPair(pair iavl.KVPair) int {
 // encodeKVPair encode a key-value pair in change set.
 // see godoc of `encodedSizeOfKVPair` for layout description,
 // returns error if key/value length overflows.
-func encodeKVPair(pair iavl.KVPair) ([]byte, error) {
+func encodeKVPair(pair *iavl.KVPair) ([]byte, error) {
 	buf := make([]byte, encodedSizeOfKVPair(pair))
 
 	offset := 1
