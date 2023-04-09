@@ -25,18 +25,20 @@ func BenchmarkRandomGet(b *testing.B) {
 	targetValue := items[500].value
 	targetItem := itemT{key: targetKey}
 
-	tree := New(DefaultPathToWAL)
+	tree, err := New(DefaultPathToWAL)
+	require.NoError(b, err)
 	for _, item := range items {
 		tree.set(item.key, item.value)
 	}
 
 	snapshotDir := b.TempDir()
-	err := tree.WriteSnapshot(snapshotDir, true)
+	err = tree.WriteSnapshot(snapshotDir, true)
 	require.NoError(b, err)
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(b, err)
 	defer snapshot.Close()
-	diskTree := NewFromSnapshot(snapshot, DefaultPathToWAL)
+	diskTree, err := NewFromSnapshot(snapshot, DefaultPathToWAL)
+	require.NoError(b, err)
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
@@ -124,7 +126,8 @@ func BenchmarkRandomSet(b *testing.B) {
 	b.ResetTimer()
 	b.Run("memiavl", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tree := New(DefaultPathToWAL)
+			tree, err := New(DefaultPathToWAL)
+			require.NoError(b, err)
 			for _, item := range items {
 				tree.set(item.key, item.value)
 			}

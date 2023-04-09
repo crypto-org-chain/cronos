@@ -79,7 +79,8 @@ func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 }
 
 func TestRootHashes(t *testing.T) {
-	tree := NewEmptyTree(0, DefaultPathToWAL)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
 
@@ -92,7 +93,8 @@ func TestRootHashes(t *testing.T) {
 }
 
 func TestNewKey(t *testing.T) {
-	tree := NewEmptyTree(0, DefaultPathToWAL)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -100,7 +102,7 @@ func TestNewKey(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
 	}
-	_, _, err := tree.saveVersion(true)
+	_, _, err = tree.saveVersion(true)
 	require.NoError(t, err)
 
 	// the smallest key in the right half of the tree
@@ -114,7 +116,8 @@ func TestNewKey(t *testing.T) {
 }
 
 func TestEmptyTree(t *testing.T) {
-	tree := New(DefaultPathToWAL)
+	tree, err := New(DefaultPathToWAL)
+	require.NoError(t, err)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -123,7 +126,8 @@ func TestEmptyTree(t *testing.T) {
 }
 
 func TestWAL(t *testing.T) {
-	tree := NewEmptyTree(0, DefaultPathToWAL)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 
 	defer os.RemoveAll(DefaultPathToWAL)
 	defer tree.bwal.Close()
@@ -144,7 +148,8 @@ func TestWAL(t *testing.T) {
 }
 
 func TestReplayWAL(t *testing.T) {
-	tree := NewEmptyTree(0, DefaultPathToWAL)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 	secondTreeWALPath := "test_wal"
 
 	defer os.RemoveAll(DefaultPathToWAL)
@@ -158,7 +163,8 @@ func TestReplayWAL(t *testing.T) {
 	tree.RootHash()
 
 	// replay WAL
-	tree2 := NewEmptyTree(0, secondTreeWALPath)
+	tree2, err := NewEmptyTree(0, secondTreeWALPath)
+	require.NoError(t, err)
 	defer tree2.bwal.Close()
 
 	randomWalPath := "random_wal_path"

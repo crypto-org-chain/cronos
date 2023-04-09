@@ -33,15 +33,15 @@ func init() {
 // newBlockWAL creates a new blockWAL.
 // TODO: creating a WAL at non 0 version will fail, because the log will try to store changes from that version right away.
 // It is not supported by the library, write-ahead log supposed to start with index 1 and increase monotonically.
-func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (blockWAL, error) {
+func newBlockWAL(pathToWAL string, version uint64, opts *wal.Options) (*blockWAL, error) {
 	if pathToWAL == "" {
-		return blockWAL{}, fmt.Errorf("failed trying to create a new WAL: path to WAL is empty")
+		return nil, fmt.Errorf("failed trying to create a new WAL: path to WAL is empty")
 	}
 	log, err := wal.Open(pathToWAL, opts)
 	if err != nil {
-		return blockWAL{}, err
+		return nil, err
 	}
-	return blockWAL{
+	return &blockWAL{
 		wal:     log,
 		version: version,
 	}, nil

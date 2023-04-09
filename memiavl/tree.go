@@ -19,55 +19,70 @@ type Tree struct {
 	// root node of empty tree is represented as `nil`
 	root Node
 	// write ahead log to store changesets for each block
-	bwal           blockWAL
+	bwal           *blockWAL
 	initialVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version uint64, pathToWAL string) *Tree {
+func NewEmptyTree(version uint64, pathToWAL string) (*Tree, error) {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
 
-	wal, err := newBlockWAL(DefaultPathToWAL, version, nil)
-	if err != nil {
-		panic(err)
+	var (
+		wal *blockWAL
+		err error
+	)
+	if pathToWAL != "" {
+		wal, err = newBlockWAL(pathToWAL, version, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return &Tree{version: uint32(version), bwal: wal}
+	return &Tree{version: uint32(version), bwal: wal}, nil
 }
 
 // New creates an empty tree at genesis version
-func New(pathToWAL string) *Tree {
+func New(pathToWAL string) (*Tree, error) {
 	return NewEmptyTree(0, pathToWAL)
 }
 
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
-func NewWithInitialVersion(initialVersion int64, pathToWAL string) *Tree {
+func NewWithInitialVersion(initialVersion int64, pathToWAL string) (*Tree, error) {
 	if initialVersion >= math.MaxUint32 {
-		panic("version overflows uint32")
+		return nil, errors.New("version overflows uint32")
 	}
-	tree := New(pathToWAL)
+	tree, err := New(pathToWAL)
+	if err != nil {
+		return nil, err
+	}
 	tree.initialVersion = uint32(initialVersion)
-	return tree
+	return tree, nil
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
-func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) *Tree {
+func NewFromSnapshot(snapshot *Snapshot, pathToWAL string) (*Tree, error) {
 	if snapshot.IsEmpty() {
 		return NewEmptyTree(uint64(snapshot.Version()), pathToWAL)
 	}
 
-	wal, err := newBlockWAL(pathToWAL, uint64(snapshot.Version()), nil)
-	if err != nil {
-		panic(err)
+	var (
+		wal *blockWAL
+		err error
+	)
+	if pathToWAL != "" {
+		wal, err = newBlockWAL(pathToWAL, uint64(snapshot.Version()), nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Tree{
 		version: snapshot.Version(),
 		root:    snapshot.RootNode(),
 		bwal:    wal,
-	}
+	}, nil
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
@@ -80,7 +95,9 @@ func (t *Tree) ApplyChangeSet(changeSet *iavl.ChangeSet, updateHash bool) ([]byt
 			t.set(pair.Key, pair.Value)
 		}
 	}
-	t.bwal.Flush(*changeSet)
+	if t.bwal != nil {
+		t.bwal.Flush(*changeSet)
+	}
 
 	return t.saveVersion(updateHash)
 }
