@@ -8,6 +8,8 @@ import (
 )
 
 func TestSnapshotEncodingRoundTrip(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	// setup test tree
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
@@ -49,6 +51,8 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 }
 
 func TestSnapshotExport(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	expNodes := []*iavl.ExportNode{
 		{Key: []byte("hello"), Value: []byte("world1"), Version: 2, Height: 0},
 		{Key: []byte("hello1"), Value: []byte("world1"), Version: 2, Height: 0},
@@ -88,6 +92,8 @@ func TestSnapshotExport(t *testing.T) {
 }
 
 func TestSnapshotImportExport(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	// setup test tree
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)

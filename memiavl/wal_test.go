@@ -47,3 +47,7 @@ func TestFlush(t *testing.T) {
 
 	require.True(t, bytes.Equal(data, expectedData))
 }
+
+func removeDefaultWal() {
+	os.RemoveAll(DefaultPathToWAL)
+}

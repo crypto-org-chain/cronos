@@ -79,6 +79,8 @@ func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 }
 
 func TestRootHashes(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
 	defer os.RemoveAll(DefaultPathToWAL)
@@ -148,13 +150,13 @@ func TestWAL(t *testing.T) {
 }
 
 func TestReplayWAL(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
 	secondTreeWALPath := "test_wal"
 
-	defer os.RemoveAll(DefaultPathToWAL)
 	defer os.RemoveAll(secondTreeWALPath)
-	defer tree.bwal.Close()
 
 	for _, cs := range ChangeSets {
 		_, _, err := tree.ApplyChangeSet(cs, false)
