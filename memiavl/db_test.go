@@ -62,3 +62,28 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	}
 	<-db.snapshotRewriteChan
 }
+
+func TestWAL(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}})
+	require.NoError(t, err)
+
+	for _, changes := range ChangeSets {
+		cs := MultiChangeSet{
+			Changesets: []*NamedChangeSet{
+				{
+					Name:      "test",
+					Changeset: changes,
+				},
+			},
+		}
+		_, _, err := db.Commit(cs)
+		require.NoError(t, err)
+	}
+	require.NoError(t, db.Close())
+
+	db, err = Load(dir, Options{})
+	require.NoError(t, err)
+
+	require.Equal(t, RefHashes[len(RefHashes)-1], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
+}

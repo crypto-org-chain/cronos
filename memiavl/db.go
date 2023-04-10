@@ -1,16 +1,18 @@
 package memiavl
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/tidwall/wal"
 )
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
-// - TODO Write-ahead-log
+// - Write-ahead-log
 //
 // The memiavl.db directory looks like this:
 // ```
@@ -30,8 +32,10 @@ type DB struct {
 	MultiTree
 	dir string
 
-	snapshotRewriteChan   chan snapshotResult
-	snapshotRewriteBuffer []MultiChangeSet
+	snapshotRewriteChan chan snapshotResult
+
+	// invariant: the LastIndex always match the current version of MultiTree
+	wal *wal.Log
 }
 
 type Options struct {
@@ -61,85 +65,109 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
+	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := mtree.CatchupWAL(wal); err != nil {
+		return nil, err
+	}
+
 	return &DB{
 		MultiTree: *mtree,
 		dir:       dir,
+		wal:       wal,
 	}, nil
 }
 
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
 // - manage background snapshot rewriting
 // - write WAL
-func (t *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
-	if t.snapshotRewriteChan != nil {
+func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
+	if db.snapshotRewriteChan != nil {
 		// check the completeness of background snapshot rewriting
 		select {
-		case result := <-t.snapshotRewriteChan:
-			rewriteBuffer := t.snapshotRewriteBuffer
-			t.snapshotRewriteChan = nil
-			t.snapshotRewriteBuffer = nil
+		case result := <-db.snapshotRewriteChan:
+			db.snapshotRewriteChan = nil
 
 			if result.mtree == nil {
 				// background snapshot rewrite failed
 				return nil, 0, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 			}
-			// snapshot rewrite succeeded, switch and catchup
-			// TODO replay buffer in background to minimize blocking on main thread
+
+			// snapshot rewrite succeeded, catchup and switch
 			// TODO prune the old snapshots
-			t.reloadMultiTree(result.mtree)
-			for _, cs := range rewriteBuffer {
-				if _, _, err := t.ApplyChangeSet(cs, false); err != nil {
-					return nil, 0, fmt.Errorf("snapshot rewrite buffer replay failed: %w", err)
-				}
-			}
+			result.mtree.CatchupWAL(db.wal)
+			db.reloadMultiTree(result.mtree)
 		default:
-			t.snapshotRewriteBuffer = append(t.snapshotRewriteBuffer, changeSets)
 		}
 	}
 
-	return t.ApplyChangeSet(changeSets, true)
+	return db.ApplyChangeSet(changeSets, true)
 }
 
-func (t *DB) Copy() *DB {
-	mtree := t.MultiTree.Copy()
+func (db *DB) Copy() *DB {
+	mtree := db.MultiTree.Copy()
 	return &DB{
 		MultiTree: *mtree,
-		dir:       t.dir,
+		dir:       db.dir,
 	}
+}
+
+// ApplyChangeSet adds write-ahead-log on top of `MultiTree.ApplyChangeSet`.
+func (db *DB) ApplyChangeSet(changeSets MultiChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
+	hash, v, err := db.MultiTree.ApplyChangeSet(changeSets, updateCommitInfo)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if db.wal != nil {
+		// write write-ahead-log
+		bz, err := changeSets.Marshal()
+		if err != nil {
+			return nil, 0, err
+		}
+		if err := db.wal.Write(uint64(v), bz); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return hash, v, nil
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
-func (t *DB) RewriteSnapshot() error {
-	version := uint32(t.lastCommitInfo.Version)
-	snapshotDir := snapshotPath(t.dir, version)
+func (db *DB) RewriteSnapshot() error {
+	version := uint32(db.lastCommitInfo.Version)
+	snapshotDir := snapshotPath(db.dir, version)
 	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
 		return err
 	}
-	if err := t.WriteSnapshot(snapshotDir); err != nil {
+	if err := db.WriteSnapshot(snapshotDir); err != nil {
 		return err
 	}
-	tmpLink := filepath.Join(t.dir, "current-tmp")
+	tmpLink := filepath.Join(db.dir, "current-tmp")
 	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
 		return err
 	}
 	// assuming file renaming operation is atomic
-	return os.Rename(tmpLink, currentPath(t.dir))
+	return os.Rename(tmpLink, currentPath(db.dir))
 }
 
-func (t *DB) Reload() error {
-	mtree, err := LoadMultiTree(currentPath(t.dir), t.initialVersion)
+func (db *DB) Reload() error {
+	mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
 	if err != nil {
 		return err
 	}
-	return t.reloadMultiTree(mtree)
+	return db.reloadMultiTree(mtree)
 }
 
-func (t *DB) reloadMultiTree(mtree *MultiTree) error {
-	if err := t.MultiTree.Close(); err != nil {
+func (db *DB) reloadMultiTree(mtree *MultiTree) error {
+	if err := db.MultiTree.Close(); err != nil {
 		return err
 	}
 
-	t.MultiTree = *mtree
+	db.MultiTree = *mtree
 	return nil
 }
 
@@ -150,22 +178,28 @@ type snapshotResult struct {
 
 // RewriteSnapshotBackground rewrite snapshot in a background goroutine,
 // `Commit` will check the complete status, and switch to the new snapshot.
-func (t *DB) RewriteSnapshotBackground() error {
-	if t.snapshotRewriteChan != nil {
+func (db *DB) RewriteSnapshotBackground() error {
+	if db.snapshotRewriteChan != nil {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
 	ch := make(chan snapshotResult)
-	t.snapshotRewriteChan = ch
+	db.snapshotRewriteChan = ch
 
-	cloned := t.Copy()
+	cloned := db.Copy()
+	wal := db.wal
 	go func() {
 		defer close(ch)
 		if err := cloned.RewriteSnapshot(); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		mtree, err := LoadMultiTree(currentPath(t.dir), t.initialVersion)
+		mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
 		if err != nil {
+			ch <- snapshotResult{err: err}
+			return
+		}
+		// do a best effort catch-up first, will try catch-up again in main thread.
+		if err := mtree.CatchupWAL(wal); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
@@ -176,10 +210,18 @@ func (t *DB) RewriteSnapshotBackground() error {
 	return nil
 }
 
+func (db *DB) Close() error {
+	return stderrors.Join(db.MultiTree.Close(), db.wal.Close())
+}
+
 func snapshotPath(root string, version uint32) string {
 	return filepath.Join(root, fmt.Sprintf("snapshot-%d", version))
 }
 
 func currentPath(root string) string {
 	return filepath.Join(root, "current")
+}
+
+func walPath(root string) string {
+	return filepath.Join(root, "wal")
 }

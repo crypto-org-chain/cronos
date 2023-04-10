@@ -8,7 +8,6 @@ import (
 )
 
 func TestIterator(t *testing.T) {
-	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
 	expItems := [][]pair{
 		{},
 		{{[]byte("hello"), []byte("world")}},
@@ -69,8 +68,7 @@ func TestIterator(t *testing.T) {
 		},
 	}
 
-	tree, err := NewEmptyTree(0, DefaultPathToWAL)
-	require.NoError(t, err)
+	tree := NewEmptyTree(0)
 	require.Equal(t, expItems[0], collect(tree.Iterator(nil, nil, true)))
 
 	for _, changes := range ChangeSets {
@@ -82,9 +80,7 @@ func TestIterator(t *testing.T) {
 }
 
 func TestIteratorRange(t *testing.T) {
-	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
-	tree, err := NewEmptyTree(0, DefaultPathToWAL)
-	require.NoError(t, err)
+	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets[:6] {
 		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)

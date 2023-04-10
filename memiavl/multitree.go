@@ -2,15 +2,18 @@ package memiavl
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/pkg/errors"
+
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
+	"github.com/tidwall/wal"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -204,7 +207,7 @@ func (t *MultiTree) ApplyChangeSet(changeSets MultiChangeSet, updateCommitInfo b
 
 // UpdateCommitInfo update lastCommitInfo based on current status of trees.
 // it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
-func (t *MultiTree) UpdateCommitInfo(changeSets MultiChangeSet, updateCommitInfo bool) []byte {
+func (t *MultiTree) UpdateCommitInfo() []byte {
 	var infos []storetypes.StoreInfo
 	for _, entry := range t.trees {
 		infos = append(infos, storetypes.StoreInfo{
@@ -218,6 +221,36 @@ func (t *MultiTree) UpdateCommitInfo(changeSets MultiChangeSet, updateCommitInfo
 
 	t.lastCommitInfo.StoreInfos = infos
 	return t.lastCommitInfo.Hash()
+}
+
+// CatchupWAL replay the new entries in the WAL on the tree to catch-up to the latest state.
+func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
+	walVersion, err := wal.LastIndex()
+	if err != nil {
+		return errors.Wrap(err, "read wal last index failed")
+	}
+
+	snapshotVersion := uint64(t.Version())
+	if walVersion <= snapshotVersion {
+		// already up-to-date
+		return nil
+	}
+
+	for v := snapshotVersion + 1; v <= walVersion; v++ {
+		bz, err := wal.Read(v)
+		if err != nil {
+			return errors.Wrap(err, "read wal log failed")
+		}
+		var cs MultiChangeSet
+		if err := cs.Unmarshal(bz); err != nil {
+			return errors.Wrap(err, "unmarshal wal log failed")
+		}
+		if _, _, err := t.ApplyChangeSet(cs, false); err != nil {
+			return errors.Wrap(err, "replay change set failed")
+		}
+	}
+	t.UpdateCommitInfo()
+	return nil
 }
 
 func (t *MultiTree) WriteSnapshot(dir string) error {
@@ -268,5 +301,5 @@ func (t *MultiTree) Close() error {
 	t.trees = nil
 	t.treesByName = nil
 	t.lastCommitInfo = storetypes.CommitInfo{}
-	return errors.Join(errs...)
+	return stderrors.Join(errs...)
 }
