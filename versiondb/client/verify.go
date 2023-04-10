@@ -192,16 +192,10 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 		}
 		defer snapshot.Close()
 
-		tree, err = memiavl.NewFromSnapshot(snapshot, "")
-		if err != nil {
-			return nil, errors.Wrap(err, "fail to load memiavl tree")
-		}
+		tree = memiavl.NewFromSnapshot(snapshot)
 		fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
 	} else {
-		tree, err = memiavl.NewWithInitialVersion(int64(initialVersion), "")
-		if err != nil {
-			return nil, errors.Wrap(err, "fail to load memiavl tree")
-		}
+		tree = memiavl.NewWithInitialVersion(uint32(initialVersion))
 	}
 
 	for _, file := range filesWithVersion {

@@ -283,6 +283,10 @@ func writeSnapshot(
 	dir string, version uint32, writeHashIndex bool,
 	doWrite func(*snapshotWriter) (uint32, error),
 ) (returnErr error) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return err
+	}
+
 	nodesFile := filepath.Join(dir, FileNameNodes)
 	kvsFile := filepath.Join(dir, FileNameKVs)
 	kvsIndexFile := filepath.Join(dir, FileNameKVIndex)

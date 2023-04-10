@@ -91,11 +91,11 @@ func (node PersistedNode) Hash() []byte {
 	return node.data().Hash()
 }
 
-func (node PersistedNode) Mutate(version uint32) *MemNode {
+func (node PersistedNode) Mutate(version, _ uint32) *MemNode {
 	data := node.data()
 	mnode := &MemNode{
 		height:  data.Height(),
-		size:    int64(data.Size()),
+		size:    node.Size(),
 		version: version,
 		key:     node.Key(),
 	}

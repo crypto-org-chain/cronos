@@ -89,10 +89,7 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 				}
 				snapshots[i] = snapshot
 
-				tree, err := memiavl.NewFromSnapshot(snapshot, "")
-				if err != nil {
-					return errors.Wrapf(err, "load memiavl tree failed")
-				}
+				tree := memiavl.NewFromSnapshot(snapshot)
 				commitID := lastCommitID(tree)
 				storeInfos = append(storeInfos, storetypes.StoreInfo{
 					Name:     store,
