@@ -244,5 +244,4 @@ func deepRecursiveEqual(t *testing.T, node1 Node, node2 Node) {
 	if node1.Right() != nil {
 		deepRecursiveEqual(t, node1.Right(), node2.Right())
 	}
-
 }
