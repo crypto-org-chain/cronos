@@ -108,20 +108,7 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 		}
 	}
 
-	return db.ApplyChangeSet(changeSets, true)
-}
-
-func (db *DB) Copy() *DB {
-	mtree := db.MultiTree.Copy()
-	return &DB{
-		MultiTree: *mtree,
-		dir:       db.dir,
-	}
-}
-
-// ApplyChangeSet adds write-ahead-log on top of `MultiTree.ApplyChangeSet`.
-func (db *DB) ApplyChangeSet(changeSets MultiChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
-	hash, v, err := db.MultiTree.ApplyChangeSet(changeSets, updateCommitInfo)
+	hash, v, err := db.ApplyChangeSet(changeSets, true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -138,6 +125,14 @@ func (db *DB) ApplyChangeSet(changeSets MultiChangeSet, updateCommitInfo bool) (
 	}
 
 	return hash, v, nil
+}
+
+func (db *DB) Copy() *DB {
+	mtree := db.MultiTree.Copy()
+	return &DB{
+		MultiTree: *mtree,
+		dir:       db.dir,
+	}
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
