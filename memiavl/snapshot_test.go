@@ -8,8 +8,11 @@ import (
 )
 
 func TestSnapshotEncodingRoundTrip(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	// setup test tree
-	tree := NewEmptyTree(0)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 	for _, changes := range ChangeSets[:len(ChangeSets)-1] {
 		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
@@ -21,7 +24,8 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
 
-	tree2 := NewFromSnapshot(snapshot)
+	tree2, err := NewFromSnapshot(snapshot, DefaultPathToWAL)
+	require.NoError(t, err)
 
 	require.Equal(t, tree.Version(), tree2.Version())
 	require.Equal(t, tree.RootHash(), tree2.RootHash())
@@ -37,7 +41,8 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	// test modify tree loaded from snapshot
 	snapshot, err = OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
-	tree3 := NewFromSnapshot(snapshot)
+	tree3, err := NewFromSnapshot(snapshot, DefaultPathToWAL)
+	require.NoError(t, err)
 	hash, v, err := tree3.ApplyChangeSet(ChangeSets[len(ChangeSets)-1], true)
 	require.NoError(t, err)
 	require.Equal(t, RefHashes[len(ChangeSets)-1], hash)
@@ -46,6 +51,8 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 }
 
 func TestSnapshotExport(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	expNodes := []*iavl.ExportNode{
 		{Key: []byte("hello"), Value: []byte("world1"), Version: 2, Height: 0},
 		{Key: []byte("hello1"), Value: []byte("world1"), Version: 2, Height: 0},
@@ -57,7 +64,8 @@ func TestSnapshotExport(t *testing.T) {
 	}
 
 	// setup test tree
-	tree := NewEmptyTree(0)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 	for _, changes := range ChangeSets[:3] {
 		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
@@ -84,8 +92,11 @@ func TestSnapshotExport(t *testing.T) {
 }
 
 func TestSnapshotImportExport(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
+
 	// setup test tree
-	tree := NewEmptyTree(0)
+	tree, err := NewEmptyTree(0, DefaultPathToWAL)
+	require.NoError(t, err)
 	for _, changes := range ChangeSets {
 		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)

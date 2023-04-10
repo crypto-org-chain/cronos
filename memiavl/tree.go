@@ -3,10 +3,12 @@ package memiavl
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/cosmos/iavl"
 	dbm "github.com/tendermint/tm-db"
+	"github.com/tidwall/wal"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -19,19 +21,33 @@ type Tree struct {
 	snapshot *Snapshot
 
 	initialVersion, cowVersion uint32
+
+	// write ahead log to store changesets for each block
+	bwal *blockWAL
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version int64) *Tree {
+func NewEmptyTree(version uint64, pathToWAL string) (*Tree, error) {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
-	return &Tree{version: uint32(version)}
+
+	var (
+		wal *blockWAL
+		err error
+	)
+	if pathToWAL != "" {
+		wal, err = newBlockWAL(pathToWAL, version, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &Tree{version: uint32(version), bwal: wal}, nil
 }
 
 // New creates an empty tree at genesis version
-func New() *Tree {
-	return NewEmptyTree(0)
+func New(pathToWAL string) (*Tree, error) {
+	return NewEmptyTree(0, pathToWAL)
 }
 
 // New creates a empty tree with initial-version,
@@ -141,4 +157,59 @@ func (t *Tree) Close() error {
 	}
 	t.root = nil
 	return err
+}
+
+// ReplayWAL replays all the changesets on the tree sequentially until version "untilVersion" from the WAL with "walPath".
+// If untilVersion is 0, it replays all the changesets from the WAL.
+func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
+	// if true, means the tree is up to date with the WAL
+	if untilVersion <= uint64(t.version) && untilVersion != 0 {
+		return fmt.Errorf("tree already up to date with untilVersion: %d with current version %d", untilVersion, t.version)
+	}
+
+	wal, err := wal.Open(walPath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to open wal: %w", err)
+	}
+
+	// check if the untilVersion exists in wal
+	latestVersion, err := wal.LastIndex()
+	if err != nil {
+		return fmt.Errorf("failed to get last index of wal: %w", err)
+	}
+
+	// if untilVersion is 0, replay all changesets from the WAL
+	if untilVersion == 0 {
+		untilVersion = latestVersion
+		if untilVersion <= uint64(t.version) {
+			return fmt.Errorf("tree already up to date with latest version %d", t.version)
+		}
+	}
+
+	// error if untilVersion is greater than max version in wal
+	if untilVersion > latestVersion {
+		return fmt.Errorf("untilVersion %d is greater than latest version in wal %d", untilVersion, latestVersion)
+	}
+
+	// collect all changesets from WAL
+	for i := uint64(t.version + 1); i <= untilVersion; i++ {
+		bz, err := wal.Read(i)
+		if err != nil {
+			return fmt.Errorf("failed to read changeset with index %d from wal: %w", i, err)
+		}
+
+		blockChanges, err := UnmarshalChangeSet(bz)
+		if err != nil {
+			return err
+		}
+
+		// apply changes right away
+		if _, _, err := t.ApplyChangeSet(blockChanges, false); err != nil {
+			return err
+		}
+	}
+
+	t.RootHash()
+
+	return nil
 }
