@@ -99,7 +99,9 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			// snapshot rewrite succeeded, catchup and switch
 			// TODO prune the old snapshots
 			result.mtree.CatchupWAL(db.wal)
-			db.reloadMultiTree(result.mtree)
+			if err := db.reloadMultiTree(result.mtree); err != nil {
+				return nil, 0, fmt.Errorf("switch multitree failed: %w", result.err)
+			}
 		default:
 		}
 	}
