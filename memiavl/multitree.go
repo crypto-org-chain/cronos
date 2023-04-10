@@ -14,7 +14,7 @@ import (
 
 const CommitInfoFileName = "commit_info"
 
-type treeEntry struct {
+type namedTree struct {
 	tree *Tree
 	name string
 }
@@ -37,21 +37,19 @@ type treeEntry struct {
 type MultiTree struct {
 	initialVersion uint32
 
-	trees          []treeEntry
-	treesByName    map[string]int
+	trees          []namedTree
+	treesByName    map[string]*Tree // reversed index of the trees
 	lastCommitInfo storetypes.CommitInfo
 }
 
 func NewEmptyMultiTree(names []string, initialVersion uint32) *MultiTree {
-	trees := make([]treeEntry, len(names))
-	treesByName := make(map[string]int, len(names))
+	trees := make([]namedTree, len(names))
+	treesByName := make(map[string]*Tree, len(names))
 	infos := make([]storetypes.StoreInfo, len(names))
 	for i, name := range names {
-		trees[i] = treeEntry{
-			tree: NewWithInitialVersion(initialVersion),
-			name: name,
-		}
-		treesByName[name] = i
+		tree := NewWithInitialVersion(initialVersion)
+		trees[i] = namedTree{tree, name}
+		treesByName[name] = tree
 		infos[i] = storetypes.StoreInfo{
 			Name: name,
 			CommitId: storetypes.CommitID{
@@ -105,11 +103,12 @@ func LoadMultiTree(dir string, initialVersion uint32) (*MultiTree, error) {
 
 	sort.Strings(treeNames)
 
-	trees := make([]treeEntry, len(treeNames))
-	treesByName := make(map[string]int, len(treeNames))
+	trees := make([]namedTree, len(treeNames))
+	treesByName := make(map[string]*Tree, len(treeNames))
 	for i, name := range treeNames {
-		trees[i] = treeEntry{tree: treeMap[name], name: name}
-		treesByName[name] = i
+		tree := treeMap[name]
+		trees[i] = namedTree{tree: tree, name: name}
+		treesByName[name] = tree
 	}
 
 	return &MultiTree{
@@ -134,11 +133,12 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) {
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
 func (t *MultiTree) Copy() *MultiTree {
-	trees := make([]treeEntry, len(t.trees))
-	treesByName := make(map[string]int, len(t.trees))
+	trees := make([]namedTree, len(t.trees))
+	treesByName := make(map[string]*Tree, len(t.trees))
 	for i, entry := range t.trees {
-		trees[i] = treeEntry{tree: entry.tree.Copy(), name: entry.name}
-		treesByName[entry.name] = i
+		tree := entry.tree.Copy()
+		trees[i] = namedTree{tree: tree, name: entry.name}
+		treesByName[entry.name] = tree
 	}
 
 	clone := *t
