@@ -14,6 +14,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tm-db v0.6.7
 	github.com/tidwall/btree v1.5.0
+	golang.org/x/sync v0.1.0
 )
 
 require (

@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -10,6 +11,7 @@ import (
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
+	"golang.org/x/sync/errgroup"
 )
 
 const CommitInfoFileName = "commit_info"
@@ -223,11 +225,16 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 		return err
 	}
 
-	// TODO make it parallel
+	// write the snapshots in parallel
+	g, _ := errgroup.WithContext(context.Background())
 	for _, entry := range t.trees {
-		if err := entry.tree.WriteSnapshot(filepath.Join(dir, entry.name), false); err != nil {
-			return err
-		}
+		tree, name := entry.tree, entry.name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		g.Go(func() error {
+			return tree.WriteSnapshot(filepath.Join(dir, name), false)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	// write commit info

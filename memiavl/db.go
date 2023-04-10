@@ -85,7 +85,8 @@ func (t *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			}
 			// snapshot rewrite succeeded, switch and catchup
 			// TODO replay buffer in background to minimize blocking on main thread
-			t.MultiTree = *result.mtree
+			// TODO prune the old snapshots
+			t.reloadMultiTree(result.mtree)
 			for _, cs := range rewriteBuffer {
 				if _, _, err := t.ApplyChangeSet(cs, false); err != nil {
 					return nil, 0, fmt.Errorf("snapshot rewrite buffer replay failed: %w", err)
@@ -130,6 +131,14 @@ func (t *DB) Reload() error {
 	if err != nil {
 		return err
 	}
+	return t.reloadMultiTree(mtree)
+}
+
+func (t *DB) reloadMultiTree(mtree *MultiTree) error {
+	if err := t.MultiTree.Close(); err != nil {
+		return err
+	}
+
 	t.MultiTree = *mtree
 	return nil
 }
@@ -165,14 +174,6 @@ func (t *DB) RewriteSnapshotBackground() error {
 	}()
 
 	return nil
-}
-
-func (t *DB) Close() error {
-	err := t.MultiTree.Close()
-	// TODO kill the snapshot rewrite goroutine
-	t.snapshotRewriteChan = nil
-	t.snapshotRewriteBuffer = nil
-	return err
 }
 
 func snapshotPath(root string, version uint32) string {
