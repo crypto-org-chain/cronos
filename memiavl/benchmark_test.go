@@ -19,24 +19,28 @@ func BenchmarkByteCompare(b *testing.B) {
 }
 
 func BenchmarkRandomGet(b *testing.B) {
+	b.Cleanup(removeDefaultWal)
+
 	amount := 1000000
 	items := genRandItems(amount)
 	targetKey := items[500].key
 	targetValue := items[500].value
 	targetItem := itemT{key: targetKey}
 
-	tree := New()
+	tree, err := New(DefaultPathToWAL)
+	require.NoError(b, err)
 	for _, item := range items {
 		tree.set(item.key, item.value)
 	}
 
 	snapshotDir := b.TempDir()
-	err := tree.WriteSnapshot(snapshotDir, true)
+	err = tree.WriteSnapshot(snapshotDir, true)
 	require.NoError(b, err)
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(b, err)
 	defer snapshot.Close()
-	diskTree := NewFromSnapshot(snapshot)
+	diskTree, err := NewFromSnapshot(snapshot, DefaultPathToWAL)
+	require.NoError(b, err)
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
@@ -109,22 +113,24 @@ func BenchmarkRandomGet(b *testing.B) {
 		for _, item := range items {
 			m[string(item.key)] = item.value
 		}
-		v, _ := m[string(targetItem.key)]
+		v := m[string(targetItem.key)]
 		require.Equal(b, targetValue, v)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = m[string(targetKey)]
+			_ = m[string(targetKey)]
 		}
 	})
 }
 
 func BenchmarkRandomSet(b *testing.B) {
+	b.Cleanup(removeDefaultWal)
 	items := genRandItems(1000000)
 	b.ResetTimer()
 	b.Run("memiavl", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			tree := New()
+			tree, err := New(DefaultPathToWAL)
+			require.NoError(b, err)
 			for _, item := range items {
 				tree.set(item.key, item.value)
 			}

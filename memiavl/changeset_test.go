@@ -8,11 +8,11 @@ import (
 
 func TestChangeSetMarshal(t *testing.T) {
 	for _, changes := range ChangeSets {
-		bz, err := MarshalChangeSet(&changes)
+		bz, err := MarshalChangeSet(changes)
 		require.NoError(t, err)
 
 		cs, err := UnmarshalChangeSet(bz)
 		require.NoError(t, err)
-		require.Equal(t, changes, *cs)
+		require.Equal(t, changes, cs)
 	}
 }
