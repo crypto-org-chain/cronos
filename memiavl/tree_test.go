@@ -95,11 +95,9 @@ func TestRootHashes(t *testing.T) {
 }
 
 func TestNewKey(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
-
-	defer os.RemoveAll(DefaultPathToWAL)
-	defer tree.bwal.Close()
 
 	for i := 0; i < 4; i++ {
 		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
@@ -118,21 +116,18 @@ func TestNewKey(t *testing.T) {
 }
 
 func TestEmptyTree(t *testing.T) {
+	t.Cleanup(removeDefaultWal)
+
 	tree, err := New(DefaultPathToWAL)
 	require.NoError(t, err)
-
-	defer os.RemoveAll(DefaultPathToWAL)
-	defer tree.bwal.Close()
 
 	require.Equal(t, emptyHash, tree.RootHash())
 }
 
 func TestWAL(t *testing.T) {
+	t.Cleanup(removeDefaultWal) // removes default wal file from filesystem
 	tree, err := NewEmptyTree(0, DefaultPathToWAL)
 	require.NoError(t, err)
-
-	defer os.RemoveAll(DefaultPathToWAL)
-	defer tree.bwal.Close()
 
 	_, version, err := tree.ApplyChangeSet(DefaultChanges, true)
 	require.NoError(t, err)
@@ -163,6 +158,7 @@ func TestReplayWAL(t *testing.T) {
 		require.NoError(t, err)
 	}
 	tree.RootHash()
+	v := uint64(tree.Version())
 
 	// replay WAL
 	tree2, err := NewEmptyTree(0, secondTreeWALPath)
@@ -195,17 +191,17 @@ func TestReplayWAL(t *testing.T) {
 			walPath:      DefaultPathToWAL,
 			expectingErr: true,
 		},
-		"random wal path: will create empty new wal: should fail": {
-			untilVersion: 0,
-			tree:         tree2,
-			walPath:      randomWalPath,
+		"invalid: tree already up to date (explicit version)": {
+			untilVersion: v,
+			tree:         tree,
+			walPath:      DefaultPathToWAL,
 			expectingErr: true,
 		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := tree2.ReplayWAL(tc.untilVersion, tc.walPath)
+			err := tc.tree.ReplayWAL(tc.untilVersion, tc.walPath)
 
 			if tc.expectingErr {
 				require.Error(t, err)
@@ -213,6 +209,7 @@ func TestReplayWAL(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+
 			deepEqualTrees(t, tree, tree2)
 		})
 	}
@@ -220,12 +217,12 @@ func TestReplayWAL(t *testing.T) {
 
 // deepEqualTrees compares two trees' nodes recursively.
 func deepEqualTrees(t *testing.T, tree1 *Tree, tree2 *Tree) {
-	require.Equal(t, tree1.version, tree2.version)
 	if tree1.root == nil && tree2.root == nil {
 		return
 	} else if tree1.root == nil || tree2.root == nil {
-		require.Fail(t, "only one of trees has nil root")
+		require.FailNow(t, "one of the trees is nil")
 	}
+	require.Equal(t, tree1.version, tree2.version)
 
 	deepRecursiveEqual(t, tree1.root, tree2.root)
 }
@@ -247,4 +244,5 @@ func deepRecursiveEqual(t *testing.T, node1 Node, node2 Node) {
 	if node1.Right() != nil {
 		deepRecursiveEqual(t, node1.Right(), node2.Right())
 	}
+
 }

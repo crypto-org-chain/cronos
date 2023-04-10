@@ -19,6 +19,8 @@ func BenchmarkByteCompare(b *testing.B) {
 }
 
 func BenchmarkRandomGet(b *testing.B) {
+	b.Cleanup(removeDefaultWal)
+
 	amount := 1000000
 	items := genRandItems(amount)
 	targetKey := items[500].key
@@ -122,6 +124,7 @@ func BenchmarkRandomGet(b *testing.B) {
 }
 
 func BenchmarkRandomSet(b *testing.B) {
+	b.Cleanup(removeDefaultWal)
 	items := genRandItems(1000000)
 	b.ResetTimer()
 	b.Run("memiavl", func(b *testing.B) {

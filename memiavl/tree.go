@@ -178,17 +178,17 @@ func (t *Tree) ReplayWAL(untilVersion uint64, walPath string) error {
 		return fmt.Errorf("failed to get last index of wal: %w", err)
 	}
 
-	// error if untilVersion is greater than max version in wal
-	if untilVersion > latestVersion || untilVersion == 0 && uint64(t.version) >= latestVersion {
-		return fmt.Errorf("untilVersion %d is greater than latest version in wal %d", untilVersion, latestVersion)
-	}
-
 	// if untilVersion is 0, replay all changesets from the WAL
 	if untilVersion == 0 {
-		untilVersion, err = wal.LastIndex()
-		if err != nil {
-			return fmt.Errorf("failed to get last index of wal: %w", err)
+		untilVersion = latestVersion
+		if untilVersion <= uint64(t.version) {
+			return fmt.Errorf("tree already up to date with latest version %d", t.version)
 		}
+	}
+
+	// error if untilVersion is greater than max version in wal
+	if untilVersion > latestVersion {
+		return fmt.Errorf("untilVersion %d is greater than latest version in wal %d", untilVersion, latestVersion)
 	}
 
 	// collect all changesets from WAL
