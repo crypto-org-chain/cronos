@@ -141,3 +141,14 @@ func TestTreeCopy(t *testing.T) {
 	require.Equal(t, []byte("world2"), tree.Get([]byte("hello")))
 	require.Equal(t, []byte("world2"), fakeSnapshot.Get([]byte("hello")))
 }
+
+func TestChangeSetMarshal(t *testing.T) {
+	for _, changes := range ChangeSets {
+		bz, err := changes.Marshal()
+		require.NoError(t, err)
+
+		var cs iavl.ChangeSet
+		require.NoError(t, cs.Unmarshal(bz))
+		require.Equal(t, changes, cs)
+	}
+}
