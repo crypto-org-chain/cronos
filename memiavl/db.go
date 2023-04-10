@@ -10,7 +10,7 @@ import (
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
-// - Write-ahead-log
+// - TODO Write-ahead-log
 //
 // The memiavl.db directory looks like this:
 // ```
