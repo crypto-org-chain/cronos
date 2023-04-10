@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/cosmos/cosmos-sdk v0.46.11
 	github.com/cosmos/gogoproto v1.4.7
-	github.com/cosmos/iavl v0.19.5
+	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa
 	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
@@ -77,7 +77,6 @@ require (
 )
 
 replace (
-	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// use cometbft
 	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27

@@ -68,7 +68,7 @@ require (
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/cosmos/iavl v0.19.5 // indirect
+	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
 	github.com/crypto-org-chain/cronos/memiavl v0.0.1 // indirect
@@ -214,7 +214,6 @@ replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.11
-	github.com/cosmos/iavl => github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable

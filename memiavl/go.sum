@@ -52,6 +52,8 @@ github.com/cosmos/cosmos-sdk v0.46.11/go.mod h1:bG4AkW9bqc8ycrryyKGQEl3YV9BY2wr6
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/gogoproto v1.4.7 h1:RzYKVnsEC7UIkDnhTIkqEB7LnIQbsySvmNEqPCiPevk=
 github.com/cosmos/gogoproto v1.4.7/go.mod h1:gxGePp9qedovvl/StQL2BIJ6qlIBn1+9YxR0IulGBKA=
+github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa h1:nRlSq1UT5NSiTfcQMDCrxxexLt4+VrFNAVyMIUrb6ro=
+github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
 github.com/cosmos/ledger-cosmos-go v0.12.2 h1:/XYaBlE2BJxtvpkHiBm97gFGSGmYGKunKyF3nNqAXZA=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3 h1:msHkCjNEUSqknqzjBCQscfxVm1ifyxoRBb0goZKqGCU=
@@ -275,8 +277,6 @@ github.com/valyala/fastrand v1.1.0/go.mod h1:HWqCzkrkg6QXT8V2EXWvXCoow7vLwOFN002
 github.com/valyala/histogram v1.2.0 h1:wyYGAZZt3CpwUiIb9AU/Zbllg1llXyrtApRS815OLoQ=
 github.com/valyala/histogram v1.2.0/go.mod h1:Hb4kBwb4UxsaNbbbh+RRz8ZR6pdodR57tzWUS3BUzXY=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
-github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8 h1:qzxputWxNlHVPMo8/C56PkrgqZN430+BzgehwSgzk0g=
-github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/zondax/hid v0.9.1 h1:gQe66rtmyZ8VeGFcOpbuH3r7erYtNEAezCAYu8LdkJo=

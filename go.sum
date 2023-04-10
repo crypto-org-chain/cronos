@@ -391,6 +391,8 @@ github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
 github.com/cosmos/gogoproto v1.4.7 h1:RzYKVnsEC7UIkDnhTIkqEB7LnIQbsySvmNEqPCiPevk=
 github.com/cosmos/gogoproto v1.4.7/go.mod h1:gxGePp9qedovvl/StQL2BIJ6qlIBn1+9YxR0IulGBKA=
+github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa h1:nRlSq1UT5NSiTfcQMDCrxxexLt4+VrFNAVyMIUrb6ro=
+github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
 github.com/cosmos/ibc-go/v5 v5.2.0 h1:LxwttRQqdUJpQ3/Gc3XPg5lkRo3pcbzx65dxFIY6ONE=
 github.com/cosmos/ibc-go/v5 v5.2.0/go.mod h1:MhDUMDVSboK5JW2pEWHNcw0wJHaHqKV/vwwP7awGhzI=
 github.com/cosmos/ledger-cosmos-go v0.12.2 h1:/XYaBlE2BJxtvpkHiBm97gFGSGmYGKunKyF3nNqAXZA=
@@ -1208,8 +1210,6 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6UtZfjr22oyGxGLbauSBp2YVXpARAosm7dHBg=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8 h1:qzxputWxNlHVPMo8/C56PkrgqZN430+BzgehwSgzk0g=
-github.com/yihuang/iavl v0.16.1-0.20230408123915-ab52f3c136e8/go.mod h1:X9PKD3J0iFxdmgNLa7b2LYWdsGd90ToV5cAONApkEPw=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
