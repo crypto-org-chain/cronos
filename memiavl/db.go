@@ -107,13 +107,15 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 				return nil, 0, fmt.Errorf("switch multitree failed: %w", err)
 			}
 			// prune the old snapshots
+			version := result.version
+			latestSnapshot := snapshotName(version)
 			entries, err := os.ReadDir(db.dir)
 			if err == nil {
 				for _, entry := range entries {
-					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-						fullPath := filepath.Join(db.dir, entry.Name())
-						if fullPath != result.path {
-							err := os.RemoveAll(fullPath)
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
+						entry.Name() != latestSnapshot {
+						err := os.RemoveAll(filepath.Join(db.dir, entry.Name()))
+						if err != nil {
 							fmt.Printf("failed when remove old snapshot: %s\n", err)
 						}
 					}
@@ -151,21 +153,24 @@ func (db *DB) Copy() *DB {
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
-func (db *DB) RewriteSnapshot() (string, error) {
+func (db *DB) RewriteSnapshot() (uint32, error) {
 	version := uint32(db.lastCommitInfo.Version)
 	snapshotDir := snapshotPath(db.dir, version)
 	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
-		return "", err
+		return 0, err
 	}
 	if err := db.WriteSnapshot(snapshotDir); err != nil {
-		return "", err
+		return 0, err
 	}
 	tmpLink := filepath.Join(db.dir, "current-tmp")
 	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
-		return "", err
+		return 0, err
 	}
 	// assuming file renaming operation is atomic
-	return snapshotDir, os.Rename(tmpLink, currentPath(db.dir))
+	if err := os.Rename(tmpLink, currentPath(db.dir)); err != nil {
+		return 0, err
+	}
+	return version, nil
 }
 
 func (db *DB) Reload() error {
@@ -186,9 +191,9 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 }
 
 type snapshotResult struct {
-	mtree *MultiTree
-	err   error
-	path  string
+	mtree   *MultiTree
+	err     error
+	version uint32
 }
 
 // RewriteSnapshotBackground rewrite snapshot in a background goroutine,
@@ -204,7 +209,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 	wal := db.wal
 	go func() {
 		defer close(ch)
-		path, err := cloned.RewriteSnapshot()
+		version, err := cloned.RewriteSnapshot()
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -220,7 +225,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			return
 		}
 
-		ch <- snapshotResult{mtree: mtree, path: path}
+		ch <- snapshotResult{mtree: mtree, version: version}
 	}()
 
 	return nil
