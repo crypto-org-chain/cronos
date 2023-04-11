@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
@@ -44,6 +45,8 @@ type Options struct {
 	// the initial stores when initialize the empty instance
 	InitialStores []string
 }
+
+const SnapshotPrefix = "snapshot-"
 
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
@@ -97,13 +100,26 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			}
 
 			// snapshot rewrite succeeded, catchup and switch
-			// TODO prune the old snapshots
 			if err := result.mtree.CatchupWAL(db.wal); err != nil {
 				return nil, 0, fmt.Errorf("catchup failed: %w", err)
 			}
 			if err := db.reloadMultiTree(result.mtree); err != nil {
 				return nil, 0, fmt.Errorf("switch multitree failed: %w", err)
 			}
+			// prune the old snapshots
+			go func() {
+				entries, err := os.ReadDir(db.dir)
+				if err == nil {
+					for _, entry := range entries {
+						if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
+							entry.Name() != snapshotName(result.version) {
+							if err := os.RemoveAll(filepath.Join(db.dir, entry.Name())); err != nil {
+								fmt.Printf("failed when remove old snapshot: %s\n", err)
+							}
+						}
+					}
+				}
+			}()
 		default:
 		}
 	}
@@ -171,8 +187,9 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 }
 
 type snapshotResult struct {
-	mtree *MultiTree
-	err   error
+	mtree   *MultiTree
+	err     error
+	version uint32
 }
 
 // RewriteSnapshotBackground rewrite snapshot in a background goroutine,
@@ -203,7 +220,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			return
 		}
 
-		ch <- snapshotResult{mtree: mtree}
+		ch <- snapshotResult{mtree: mtree, version: uint32(cloned.lastCommitInfo.Version)}
 	}()
 
 	return nil
@@ -213,8 +230,12 @@ func (db *DB) Close() error {
 	return stderrors.Join(db.MultiTree.Close(), db.wal.Close())
 }
 
+func snapshotName(version uint32) string {
+	return fmt.Sprintf("%s%d", SnapshotPrefix, version)
+}
+
 func snapshotPath(root string, version uint32) string {
-	return filepath.Join(root, fmt.Sprintf("snapshot-%d", version))
+	return filepath.Join(root, snapshotName(version))
 }
 
 func currentPath(root string) string {
