@@ -46,6 +46,8 @@ type Options struct {
 	InitialStores []string
 }
 
+const SnapshotPrefix = "snapshot-"
+
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
 	mtree, err := LoadMultiTree(currentDir, opts.InitialVersion)
@@ -107,19 +109,15 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			// prune the old snapshots
 			version := uint32(db.lastCommitInfo.Version)
 			latestSnapshot := snapshotName(version)
-			prefix := strings.TrimSuffix(latestSnapshot, fmt.Sprintf("%d", version))
-			filepath.WalkDir(db.dir, func(path string, entry os.DirEntry, err error) error {
-				if err != nil {
-					return err
+			entries, err := os.ReadDir(db.dir)
+			if err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
+						entry.Name() != latestSnapshot {
+						os.RemoveAll(filepath.Join(db.dir, entry.Name()))
+					}
 				}
-
-				if entry.IsDir() &&
-					strings.HasPrefix(entry.Name(), prefix) &&
-					entry.Name() != latestSnapshot {
-					os.RemoveAll(path)
-				}
-				return nil
-			})
+			}
 		default:
 		}
 	}
@@ -230,11 +228,11 @@ func (db *DB) Close() error {
 }
 
 func snapshotName(version uint32) string {
-	return fmt.Sprintf("snapshot-%d", version)
+	return fmt.Sprintf("%s%d", SnapshotPrefix, version)
 }
 
 func snapshotPath(root string, version uint32) string {
-	return filepath.Join(root, snapshotName(version))
+	return filepath.Join(root, fmt.Sprintf("%s%d", SnapshotPrefix, version))
 }
 
 func currentPath(root string) string {
