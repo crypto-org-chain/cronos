@@ -111,15 +111,16 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			latestSnapshot := snapshotName(version)
 			entries, err := os.ReadDir(db.dir)
 			if err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
-						entry.Name() != latestSnapshot {
-						err := os.RemoveAll(filepath.Join(db.dir, entry.Name()))
-						if err != nil {
-							fmt.Printf("failed when remove old snapshot: %s\n", err)
+				go func() {
+					for _, entry := range entries {
+						if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
+							entry.Name() != latestSnapshot {
+							if err := os.RemoveAll(filepath.Join(db.dir, entry.Name())); err != nil {
+								fmt.Printf("failed when remove old snapshot: %s\n", err)
+							}
 						}
 					}
-				}
+				}()
 			}
 		default:
 		}
