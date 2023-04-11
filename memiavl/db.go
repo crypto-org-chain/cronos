@@ -205,8 +205,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 	wal := db.wal
 	go func() {
 		defer close(ch)
-		err := cloned.RewriteSnapshot()
-		if err != nil {
+		if err := cloned.RewriteSnapshot(); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
