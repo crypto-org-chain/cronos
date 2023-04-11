@@ -31,7 +31,7 @@ type namedTree struct {
 // The snapshot structure is like this:
 // ```
 // snapshot-V
-//  commit_info
+//  metadata
 //
 //	bank
 //	  kvs
