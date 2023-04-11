@@ -29,8 +29,7 @@ func TestRewriteSnapshot(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, i+1, int(v))
 			require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
-			_, err = db.RewriteSnapshot()
-			require.NoError(t, err)
+			require.NoError(t, db.RewriteSnapshot())
 			require.NoError(t, db.Reload())
 		})
 	}

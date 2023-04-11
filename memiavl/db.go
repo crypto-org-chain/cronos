@@ -152,24 +152,21 @@ func (db *DB) Copy() *DB {
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
-func (db *DB) RewriteSnapshot() (uint32, error) {
+func (db *DB) RewriteSnapshot() error {
 	version := uint32(db.lastCommitInfo.Version)
 	snapshotDir := snapshotPath(db.dir, version)
 	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
-		return 0, err
+		return err
 	}
 	if err := db.WriteSnapshot(snapshotDir); err != nil {
-		return 0, err
+		return err
 	}
 	tmpLink := filepath.Join(db.dir, "current-tmp")
 	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
-		return 0, err
+		return err
 	}
 	// assuming file renaming operation is atomic
-	if err := os.Rename(tmpLink, currentPath(db.dir)); err != nil {
-		return 0, err
-	}
-	return version, nil
+	return os.Rename(tmpLink, currentPath(db.dir))
 }
 
 func (db *DB) Reload() error {
@@ -208,7 +205,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 	wal := db.wal
 	go func() {
 		defer close(ch)
-		version, err := cloned.RewriteSnapshot()
+		err := cloned.RewriteSnapshot()
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -224,7 +221,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			return
 		}
 
-		ch <- snapshotResult{mtree: mtree, version: version}
+		ch <- snapshotResult{mtree: mtree, version: uint32(cloned.lastCommitInfo.Version)}
 	}()
 
 	return nil
@@ -239,7 +236,7 @@ func snapshotName(version uint32) string {
 }
 
 func snapshotPath(root string, version uint32) string {
-	return filepath.Join(root, fmt.Sprintf("%s%d", SnapshotPrefix, version))
+	return filepath.Join(root, snapshotName(version))
 }
 
 func currentPath(root string) string {
