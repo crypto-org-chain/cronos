@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
@@ -97,13 +98,28 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			}
 
 			// snapshot rewrite succeeded, catchup and switch
-			// TODO prune the old snapshots
 			if err := result.mtree.CatchupWAL(db.wal); err != nil {
 				return nil, 0, fmt.Errorf("catchup failed: %w", err)
 			}
 			if err := db.reloadMultiTree(result.mtree); err != nil {
 				return nil, 0, fmt.Errorf("switch multitree failed: %w", err)
 			}
+			// prune the old snapshots
+			version := uint32(db.lastCommitInfo.Version)
+			latestSnapshot := snapshotName(version)
+			prefix := strings.TrimSuffix(latestSnapshot, fmt.Sprintf("%d", version))
+			filepath.WalkDir(db.dir, func(path string, entry os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+
+				if entry.IsDir() &&
+					strings.HasPrefix(entry.Name(), prefix) &&
+					entry.Name() != latestSnapshot {
+					os.RemoveAll(path)
+				}
+				return nil
+			})
 		default:
 		}
 	}
@@ -213,8 +229,12 @@ func (db *DB) Close() error {
 	return stderrors.Join(db.MultiTree.Close(), db.wal.Close())
 }
 
+func snapshotName(version uint32) string {
+	return fmt.Sprintf("snapshot-%d", version)
+}
+
 func snapshotPath(root string, version uint32) string {
-	return filepath.Join(root, fmt.Sprintf("snapshot-%d", version))
+	return filepath.Join(root, snapshotName(version))
 }
 
 func currentPath(root string) string {
