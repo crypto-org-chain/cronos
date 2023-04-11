@@ -7,13 +7,24 @@ import "gogoproto/gogo.proto";
 import "iavl/changeset.proto";
 
 
-// NamedChangeSet combine a store name with the changeset
+// NamedChangeSet combine a tree name with the changeset
 message NamedChangeSet {
   iavl.ChangeSet changeset = 1 [(gogoproto.nullable) = false];
   string name = 2;
 }
 
-// MultiChangeSet defines change sets for multiple stores.
-message MultiChangeSet {
+// TreeNameUpgrade defines upgrade of tree names:
+// - New tree: { name: "tree" }
+// - Delete tree: { name: "tree", delete: true }
+// - Rename tree: { name: "new-tree", rename_from: "old-tree" }
+message TreeNameUpgrade {
+  string name = 1;
+  string rename_from = 2;
+  bool delete = 3;
+}
+
+// WALEntry is a single Write-Ahead-Log entry
+message WALEntry {
   repeated NamedChangeSet changesets = 1;
+  repeated TreeNameUpgrade upgrades = 2;  
 }

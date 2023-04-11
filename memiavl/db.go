@@ -36,7 +36,8 @@ type DB struct {
 	snapshotRewriteChan chan snapshotResult
 
 	// invariant: the LastIndex always match the current version of MultiTree
-	wal *wal.Log
+	wal             *wal.Log
+	pendingUpgrades []*TreeNameUpgrade
 }
 
 type Options struct {
@@ -53,12 +54,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	mtree, err := LoadMultiTree(currentDir, opts.InitialVersion)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
-			tmp := NewEmptyMultiTree(opts.InitialStores, 0)
-			snapshotDir := snapshotPath(dir, 0)
-			if err := tmp.WriteSnapshot(snapshotDir); err != nil {
-				return nil, err
-			}
-			if err := os.Symlink(snapshotDir, currentDir); err != nil {
+			if err := initEmptyDB(dir); err != nil {
 				return nil, err
 			}
 			mtree, err = LoadMultiTree(currentDir, opts.InitialVersion)
@@ -77,17 +73,41 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{
+	db := &DB{
 		MultiTree: *mtree,
 		dir:       dir,
 		wal:       wal,
-	}, nil
+	}
+
+	// upgrade with opts.InitialStores
+	if len(opts.InitialStores) > 0 {
+		var upgrades []*TreeNameUpgrade
+		for _, name := range opts.InitialStores {
+			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
+		}
+		if err := db.ApplyUpgrades(upgrades); err != nil {
+			return nil, err
+		}
+	}
+
+	return db, nil
+}
+
+// ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
+// and include in the WAL entry in next Commit call.
+func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
+	if err := db.MultiTree.ApplyUpgrades(upgrades); err != nil {
+		return err
+	}
+
+	db.pendingUpgrades = append(db.pendingUpgrades, upgrades...)
+	return nil
 }
 
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
 // - manage background snapshot rewriting
 // - write WAL
-func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
+func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	if db.snapshotRewriteChan != nil {
 		// check the completeness of background snapshot rewriting
 		select {
@@ -131,7 +151,11 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 
 	if db.wal != nil {
 		// write write-ahead-log
-		bz, err := changeSets.Marshal()
+		entry := WALEntry{
+			Changesets: changeSets,
+			Upgrades:   db.pendingUpgrades,
+		}
+		bz, err := entry.Marshal()
 		if err != nil {
 			return nil, 0, err
 		}
@@ -139,6 +163,8 @@ func (db *DB) Commit(changeSets MultiChangeSet) ([]byte, int64, error) {
 			return nil, 0, err
 		}
 	}
+
+	db.pendingUpgrades = db.pendingUpgrades[:0]
 
 	return hash, v, nil
 }
@@ -244,4 +270,20 @@ func currentPath(root string) string {
 
 func walPath(root string) string {
 	return filepath.Join(root, "wal")
+}
+
+// init a empty memiavl db
+//
+// ```
+// snapshot-0
+//   commit_info
+// current -> snapshot-0
+// ```
+func initEmptyDB(dir string) error {
+	tmp := NewEmptyMultiTree(0)
+	snapshotDir := snapshotPath(dir, 0)
+	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
+		return err
+	}
+	return os.Symlink(snapshotDir, currentPath(dir))
 }

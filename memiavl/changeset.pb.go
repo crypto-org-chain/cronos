@@ -24,7 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// NamedChangeSet combine a store name with the changeset
+// NamedChangeSet combine a tree name with the changeset
 type NamedChangeSet struct {
 	Changeset proto1.ChangeSet `protobuf:"bytes,1,opt,name=changeset,proto3" json:"changeset"`
 	Name      string           `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -77,23 +77,28 @@ func (m *NamedChangeSet) GetName() string {
 	return ""
 }
 
-// MultiChangeSet defines change sets for multiple stores.
-type MultiChangeSet struct {
-	Changesets []*NamedChangeSet `protobuf:"bytes,1,rep,name=changesets,proto3" json:"changesets,omitempty"`
+// TreeNameUpgrade defines upgrade of tree names:
+// - New tree: { name: "tree" }
+// - Delete tree: { name: "tree", delete: true }
+// - Rename tree: { name: "new-tree", rename_from: "old-tree" }
+type TreeNameUpgrade struct {
+	Name       string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	RenameFrom string `protobuf:"bytes,2,opt,name=rename_from,json=renameFrom,proto3" json:"rename_from,omitempty"`
+	Delete     bool   `protobuf:"varint,3,opt,name=delete,proto3" json:"delete,omitempty"`
 }
 
-func (m *MultiChangeSet) Reset()         { *m = MultiChangeSet{} }
-func (m *MultiChangeSet) String() string { return proto.CompactTextString(m) }
-func (*MultiChangeSet) ProtoMessage()    {}
-func (*MultiChangeSet) Descriptor() ([]byte, []int) {
+func (m *TreeNameUpgrade) Reset()         { *m = TreeNameUpgrade{} }
+func (m *TreeNameUpgrade) String() string { return proto.CompactTextString(m) }
+func (*TreeNameUpgrade) ProtoMessage()    {}
+func (*TreeNameUpgrade) Descriptor() ([]byte, []int) {
 	return fileDescriptor_54242fa334002fa1, []int{1}
 }
-func (m *MultiChangeSet) XXX_Unmarshal(b []byte) error {
+func (m *TreeNameUpgrade) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MultiChangeSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *TreeNameUpgrade) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MultiChangeSet.Marshal(b, m, deterministic)
+		return xxx_messageInfo_TreeNameUpgrade.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -103,49 +108,122 @@ func (m *MultiChangeSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return b[:n], nil
 	}
 }
-func (m *MultiChangeSet) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MultiChangeSet.Merge(m, src)
+func (m *TreeNameUpgrade) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TreeNameUpgrade.Merge(m, src)
 }
-func (m *MultiChangeSet) XXX_Size() int {
+func (m *TreeNameUpgrade) XXX_Size() int {
 	return m.Size()
 }
-func (m *MultiChangeSet) XXX_DiscardUnknown() {
-	xxx_messageInfo_MultiChangeSet.DiscardUnknown(m)
+func (m *TreeNameUpgrade) XXX_DiscardUnknown() {
+	xxx_messageInfo_TreeNameUpgrade.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MultiChangeSet proto.InternalMessageInfo
+var xxx_messageInfo_TreeNameUpgrade proto.InternalMessageInfo
 
-func (m *MultiChangeSet) GetChangesets() []*NamedChangeSet {
+func (m *TreeNameUpgrade) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *TreeNameUpgrade) GetRenameFrom() string {
+	if m != nil {
+		return m.RenameFrom
+	}
+	return ""
+}
+
+func (m *TreeNameUpgrade) GetDelete() bool {
+	if m != nil {
+		return m.Delete
+	}
+	return false
+}
+
+// WALEntry is a single Write-Ahead-Log entry
+type WALEntry struct {
+	Changesets []*NamedChangeSet  `protobuf:"bytes,1,rep,name=changesets,proto3" json:"changesets,omitempty"`
+	Upgrades   []*TreeNameUpgrade `protobuf:"bytes,2,rep,name=upgrades,proto3" json:"upgrades,omitempty"`
+}
+
+func (m *WALEntry) Reset()         { *m = WALEntry{} }
+func (m *WALEntry) String() string { return proto.CompactTextString(m) }
+func (*WALEntry) ProtoMessage()    {}
+func (*WALEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_54242fa334002fa1, []int{2}
+}
+func (m *WALEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *WALEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_WALEntry.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *WALEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WALEntry.Merge(m, src)
+}
+func (m *WALEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *WALEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_WALEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WALEntry proto.InternalMessageInfo
+
+func (m *WALEntry) GetChangesets() []*NamedChangeSet {
 	if m != nil {
 		return m.Changesets
 	}
 	return nil
 }
 
+func (m *WALEntry) GetUpgrades() []*TreeNameUpgrade {
+	if m != nil {
+		return m.Upgrades
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*NamedChangeSet)(nil), "memiavl.NamedChangeSet")
-	proto.RegisterType((*MultiChangeSet)(nil), "memiavl.MultiChangeSet")
+	proto.RegisterType((*TreeNameUpgrade)(nil), "memiavl.TreeNameUpgrade")
+	proto.RegisterType((*WALEntry)(nil), "memiavl.WALEntry")
 }
 
 func init() { proto.RegisterFile("memiavl/changeset.proto", fileDescriptor_54242fa334002fa1) }
 
 var fileDescriptor_54242fa334002fa1 = []byte{
-	// 237 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xcf, 0x4d, 0xcd, 0xcd,
-	0x4c, 0x2c, 0xcb, 0xd1, 0x4f, 0xce, 0x48, 0xcc, 0x4b, 0x4f, 0x2d, 0x4e, 0x2d, 0xd1, 0x2b, 0x28,
-	0xca, 0x2f, 0xc9, 0x17, 0x62, 0x87, 0x4a, 0x48, 0x89, 0xa4, 0xe7, 0xa7, 0xe7, 0x83, 0xc5, 0xf4,
-	0x41, 0x2c, 0x88, 0xb4, 0x94, 0x08, 0x36, 0x4d, 0x4a, 0x91, 0x5c, 0x7c, 0x7e, 0x89, 0xb9, 0xa9,
-	0x29, 0xce, 0x60, 0xf1, 0xe0, 0xd4, 0x12, 0x21, 0x63, 0x2e, 0x4e, 0xb8, 0x22, 0x09, 0x46, 0x05,
-	0x46, 0x0d, 0x6e, 0x23, 0x7e, 0x3d, 0x90, 0x5e, 0x3d, 0xb8, 0x1a, 0x27, 0x96, 0x13, 0xf7, 0xe4,
-	0x19, 0x82, 0x10, 0xea, 0x84, 0x84, 0xb8, 0x58, 0xf2, 0x12, 0x73, 0x53, 0x25, 0x98, 0x14, 0x18,
-	0x35, 0x38, 0x83, 0xc0, 0x6c, 0x25, 0x4f, 0x2e, 0x3e, 0xdf, 0xd2, 0x9c, 0x92, 0x4c, 0x84, 0xd1,
-	0xe6, 0x5c, 0x5c, 0x70, 0x2d, 0xc5, 0x12, 0x8c, 0x0a, 0xcc, 0x1a, 0xdc, 0x46, 0xe2, 0x7a, 0x50,
-	0x67, 0xeb, 0xa1, 0xba, 0x23, 0x08, 0x49, 0xa9, 0x93, 0xcb, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e,
-	0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37,
-	0x1e, 0xcb, 0x31, 0x44, 0x69, 0xa5, 0x67, 0x96, 0x64, 0x94, 0x26, 0xe9, 0x25, 0xe7, 0xe7, 0xea,
-	0x27, 0x17, 0x55, 0x16, 0x94, 0xe4, 0xeb, 0xe6, 0x17, 0xa5, 0xeb, 0x26, 0x67, 0x24, 0x66, 0xe6,
-	0xe9, 0x27, 0x17, 0xe5, 0xe7, 0xe5, 0x17, 0xeb, 0x43, 0x2d, 0x48, 0x62, 0x03, 0x7b, 0xd9, 0x18,
-	0x10, 0x00, 0x00, 0xff, 0xff, 0x1a, 0xde, 0x6b, 0x47, 0x42, 0x01, 0x00, 0x00,
+	// 319 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0x4f, 0x4b, 0x02, 0x41,
+	0x18, 0xc6, 0x77, 0x54, 0x4c, 0x5f, 0x21, 0x61, 0x90, 0x5c, 0x3c, 0xac, 0x8b, 0xa7, 0x25, 0x70,
+	0x17, 0x34, 0xe8, 0x9c, 0xfd, 0x39, 0x45, 0x87, 0xad, 0x88, 0x3a, 0x14, 0xe3, 0xfa, 0x36, 0x0a,
+	0xce, 0x8e, 0xcc, 0x8e, 0x81, 0xdf, 0xa2, 0x8f, 0xe5, 0xd1, 0x63, 0xa7, 0x08, 0xfd, 0x22, 0xb1,
+	0x7f, 0x18, 0x2b, 0xba, 0xbd, 0xf3, 0xbc, 0xbf, 0xe7, 0xe1, 0x99, 0x19, 0x68, 0x0b, 0x14, 0x33,
+	0xf6, 0x36, 0x0f, 0xa2, 0x29, 0x8b, 0x39, 0x26, 0xa8, 0xfd, 0x85, 0x92, 0x5a, 0xd2, 0x83, 0x62,
+	0xd1, 0x69, 0x71, 0xc9, 0x65, 0xa6, 0x05, 0xe9, 0x94, 0xaf, 0x3b, 0xad, 0xff, 0x4c, 0xbd, 0x47,
+	0x38, 0xbc, 0x61, 0x02, 0x27, 0xe7, 0x99, 0x7e, 0x8b, 0x9a, 0x0e, 0xa1, 0x6e, 0x20, 0x9b, 0xb8,
+	0xc4, 0x6b, 0x0c, 0x9a, 0x7e, 0xea, 0xf5, 0x0d, 0x33, 0xaa, 0xac, 0x3f, 0xbb, 0x56, 0xb8, 0xe7,
+	0x28, 0x85, 0x4a, 0xcc, 0x04, 0xda, 0x25, 0x97, 0x78, 0xf5, 0x30, 0x9b, 0x7b, 0xcf, 0xd0, 0xbc,
+	0x53, 0x88, 0x69, 0xfc, 0xfd, 0x82, 0x2b, 0x36, 0x41, 0x83, 0x91, 0x3d, 0x46, 0xbb, 0xd0, 0x50,
+	0x98, 0x4e, 0x2f, 0xaf, 0x4a, 0x8a, 0x22, 0x01, 0x72, 0xe9, 0x4a, 0x49, 0x41, 0x8f, 0xa0, 0x3a,
+	0xc1, 0x39, 0x6a, 0xb4, 0xcb, 0x2e, 0xf1, 0x6a, 0x61, 0x71, 0xea, 0xad, 0xa0, 0xf6, 0x70, 0x76,
+	0x7d, 0x19, 0x6b, 0xb5, 0xa2, 0xa7, 0x00, 0xa6, 0x4c, 0x62, 0x13, 0xb7, 0xec, 0x35, 0x06, 0x6d,
+	0xbf, 0x78, 0x10, 0xff, 0xf7, 0x0d, 0xc3, 0x1f, 0x28, 0x3d, 0x81, 0xda, 0x32, 0x2f, 0x97, 0xd8,
+	0xa5, 0xcc, 0x66, 0x1b, 0xdb, 0x9f, 0xf6, 0xa1, 0x21, 0x47, 0x17, 0xeb, 0xad, 0x43, 0x36, 0x5b,
+	0x87, 0x7c, 0x6d, 0x1d, 0xf2, 0xbe, 0x73, 0xac, 0xcd, 0xce, 0xb1, 0x3e, 0x76, 0x8e, 0xf5, 0x74,
+	0xcc, 0x67, 0x7a, 0xba, 0x1c, 0xfb, 0x91, 0x14, 0x41, 0xa4, 0x56, 0x0b, 0x2d, 0xfb, 0x52, 0xf1,
+	0x7e, 0x34, 0x65, 0xb3, 0x38, 0x88, 0x94, 0x8c, 0x65, 0x12, 0x14, 0xf9, 0xe3, 0x6a, 0xf6, 0x05,
+	0xc3, 0xef, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa3, 0xc6, 0x84, 0xe9, 0xd2, 0x01, 0x00, 0x00,
 }
 
 func (m *NamedChangeSet) Marshal() (dAtA []byte, err error) {
@@ -188,7 +266,7 @@ func (m *NamedChangeSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MultiChangeSet) Marshal() (dAtA []byte, err error) {
+func (m *TreeNameUpgrade) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -198,16 +276,77 @@ func (m *MultiChangeSet) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MultiChangeSet) MarshalTo(dAtA []byte) (int, error) {
+func (m *TreeNameUpgrade) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MultiChangeSet) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *TreeNameUpgrade) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if m.Delete {
+		i--
+		if m.Delete {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.RenameFrom) > 0 {
+		i -= len(m.RenameFrom)
+		copy(dAtA[i:], m.RenameFrom)
+		i = encodeVarintChangeset(dAtA, i, uint64(len(m.RenameFrom)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintChangeset(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *WALEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *WALEntry) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WALEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Upgrades) > 0 {
+		for iNdEx := len(m.Upgrades) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Upgrades[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintChangeset(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
 	if len(m.Changesets) > 0 {
 		for iNdEx := len(m.Changesets) - 1; iNdEx >= 0; iNdEx-- {
 			{
@@ -251,7 +390,27 @@ func (m *NamedChangeSet) Size() (n int) {
 	return n
 }
 
-func (m *MultiChangeSet) Size() (n int) {
+func (m *TreeNameUpgrade) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovChangeset(uint64(l))
+	}
+	l = len(m.RenameFrom)
+	if l > 0 {
+		n += 1 + l + sovChangeset(uint64(l))
+	}
+	if m.Delete {
+		n += 2
+	}
+	return n
+}
+
+func (m *WALEntry) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -259,6 +418,12 @@ func (m *MultiChangeSet) Size() (n int) {
 	_ = l
 	if len(m.Changesets) > 0 {
 		for _, e := range m.Changesets {
+			l = e.Size()
+			n += 1 + l + sovChangeset(uint64(l))
+		}
+	}
+	if len(m.Upgrades) > 0 {
+		for _, e := range m.Upgrades {
 			l = e.Size()
 			n += 1 + l + sovChangeset(uint64(l))
 		}
@@ -387,7 +552,7 @@ func (m *NamedChangeSet) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MultiChangeSet) Unmarshal(dAtA []byte) error {
+func (m *TreeNameUpgrade) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -410,10 +575,144 @@ func (m *MultiChangeSet) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MultiChangeSet: wiretype end group for non-group")
+			return fmt.Errorf("proto: TreeNameUpgrade: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MultiChangeSet: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: TreeNameUpgrade: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChangeset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RenameFrom", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChangeset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RenameFrom = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Delete", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChangeset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Delete = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipChangeset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *WALEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowChangeset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: WALEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: WALEntry: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -447,6 +746,40 @@ func (m *MultiChangeSet) Unmarshal(dAtA []byte) error {
 			}
 			m.Changesets = append(m.Changesets, &NamedChangeSet{})
 			if err := m.Changesets[len(m.Changesets)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrades", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChangeset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthChangeset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Upgrades = append(m.Upgrades, &TreeNameUpgrade{})
+			if err := m.Upgrades[len(m.Upgrades)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
