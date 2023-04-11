@@ -77,7 +77,7 @@ func (m *NamedChangeSet) GetName() string {
 	return ""
 }
 
-// TreeNameUpgrade defines upgarde of tree names:
+// TreeNameUpgrade defines upgrade of tree names:
 // - New tree: { name: "tree" }
 // - Delete tree: { name: "tree", delete: true }
 // - Rename tree: { name: "new-tree", rename_from: "old-tree" }
