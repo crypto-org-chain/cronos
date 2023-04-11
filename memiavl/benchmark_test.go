@@ -109,12 +109,12 @@ func BenchmarkRandomGet(b *testing.B) {
 		for _, item := range items {
 			m[string(item.key)] = item.value
 		}
-		v, _ := m[string(targetItem.key)]
+		v := m[string(targetItem.key)]
 		require.Equal(b, targetValue, v)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = m[string(targetKey)]
+			_ = m[string(targetKey)]
 		}
 	})
 }

@@ -11,7 +11,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets[:len(ChangeSets)-1] {
-		_, _, err := tree.ApplyChangeSet(&changes, true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 
@@ -38,7 +38,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	snapshot, err = OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
 	tree3 := NewFromSnapshot(snapshot)
-	hash, v, err := tree3.ApplyChangeSet(&ChangeSets[len(ChangeSets)-1], true)
+	hash, v, err := tree3.ApplyChangeSet(ChangeSets[len(ChangeSets)-1], true)
 	require.NoError(t, err)
 	require.Equal(t, RefHashes[len(ChangeSets)-1], hash)
 	require.Equal(t, len(ChangeSets), int(v))
@@ -59,7 +59,7 @@ func TestSnapshotExport(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets[:3] {
-		_, _, err := tree.ApplyChangeSet(&changes, true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 
@@ -87,7 +87,7 @@ func TestSnapshotImportExport(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets {
-		_, _, err := tree.ApplyChangeSet(&changes, true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 

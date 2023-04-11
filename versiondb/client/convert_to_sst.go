@@ -202,7 +202,7 @@ func newSSTFileWriter() *grocksdb.SSTFileWriter {
 //
 // layout: key + version(8) + delete(1) + [ value ] + key length(SizeKeyLength)
 // we put the key and version in the front of payload so it can take advantage of the delta encoding in the `ExtSorter`.
-func encodeSorterItem(version uint64, pair iavl.KVPair) []byte {
+func encodeSorterItem(version uint64, pair *iavl.KVPair) []byte {
 	item := make([]byte, sizeOfSorterItem(pair))
 	copy(item, pair.Key)
 	offset := len(pair.Key)
@@ -224,7 +224,7 @@ func encodeSorterItem(version uint64, pair iavl.KVPair) []byte {
 // sizeOfSorterItem compute the encoded size of pair
 //
 // see godoc of `encodeSorterItem` for layout
-func sizeOfSorterItem(pair iavl.KVPair) int {
+func sizeOfSorterItem(pair *iavl.KVPair) int {
 	size := len(pair.Key) + tsrocksdb.TimestampSize + 1 + SizeKeyLength
 	if !pair.Delete {
 		size += len(pair.Value)

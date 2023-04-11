@@ -12,11 +12,11 @@ func TestSorterItemEncoding(t *testing.T) {
 	testCases := []struct {
 		name    string
 		version uint64
-		pair    iavl.KVPair
+		pair    *iavl.KVPair
 	}{
-		{"default", 1, iavl.KVPair{Delete: false, Key: []byte{1}, Value: []byte{1}}},
-		{"delete", 1, iavl.KVPair{Delete: true, Key: []byte{1}}},
-		{"empty value", 1, iavl.KVPair{Delete: false, Key: []byte{1}, Value: []byte{}}},
+		{"default", 1, &iavl.KVPair{Delete: false, Key: []byte{1}, Value: []byte{1}}},
+		{"delete", 1, &iavl.KVPair{Delete: true, Key: []byte{1}}},
+		{"empty value", 1, &iavl.KVPair{Delete: false, Key: []byte{1}, Value: []byte{}}},
 	}
 
 	for _, tc := range testCases {
@@ -25,7 +25,7 @@ func TestSorterItemEncoding(t *testing.T) {
 			ts, p := decodeSorterItem(buf)
 			v := binary.LittleEndian.Uint64(ts)
 			require.Equal(t, tc.version, v)
-			require.Equal(t, tc.pair, p)
+			require.Equal(t, tc.pair, &p)
 		})
 	}
 }
@@ -34,16 +34,16 @@ func TestSorterItemCompare(t *testing.T) {
 	testCases := []struct {
 		name     string
 		version1 uint64
-		pair1    iavl.KVPair
+		pair1    *iavl.KVPair
 		version2 uint64
-		pair2    iavl.KVPair
+		pair2    *iavl.KVPair
 		result   bool
 	}{
-		{"lesser", 1, iavl.KVPair{Key: []byte{1}}, 2, iavl.KVPair{Key: []byte{2}}, true},
-		{"equal", 1, iavl.KVPair{Key: []byte{1}}, 1, iavl.KVPair{Key: []byte{1}}, false},
-		{"greater", 1, iavl.KVPair{Key: []byte{2}}, 2, iavl.KVPair{Key: []byte{1}}, false},
-		{"smaller version", 1, iavl.KVPair{Key: []byte{1}}, 2, iavl.KVPair{Key: []byte{1}}, false},
-		{"bigger version", 2, iavl.KVPair{Key: []byte{1}}, 1, iavl.KVPair{Key: []byte{1}}, true},
+		{"lesser", 1, &iavl.KVPair{Key: []byte{1}}, 2, &iavl.KVPair{Key: []byte{2}}, true},
+		{"equal", 1, &iavl.KVPair{Key: []byte{1}}, 1, &iavl.KVPair{Key: []byte{1}}, false},
+		{"greater", 1, &iavl.KVPair{Key: []byte{2}}, 2, &iavl.KVPair{Key: []byte{1}}, false},
+		{"smaller version", 1, &iavl.KVPair{Key: []byte{1}}, 2, &iavl.KVPair{Key: []byte{1}}, false},
+		{"bigger version", 2, &iavl.KVPair{Key: []byte{1}}, 1, &iavl.KVPair{Key: []byte{1}}, true},
 	}
 
 	for _, tc := range testCases {

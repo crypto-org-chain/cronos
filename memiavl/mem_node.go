@@ -58,11 +58,16 @@ func (node *MemNode) Right() Node {
 	return node.right
 }
 
-// Mutate clears hash and update version field to prepare for further modifications.
-func (node *MemNode) Mutate(version uint32) *MemNode {
-	node.version = version
-	node.hash = nil
-	return node
+// Mutate clones the node if it's version is smaller than or equal to cowVersion, otherwise modify in-place
+func (node *MemNode) Mutate(version, cowVersion uint32) *MemNode {
+	n := node
+	if node.version <= cowVersion {
+		cloned := *node
+		n = &cloned
+	}
+	n.version = version
+	n.hash = nil
+	return n
 }
 
 // Computes the hash of the node without computing its descendants. Must be
@@ -98,8 +103,8 @@ func calcBalance(node Node) int {
 //	 L                   S
 //	/ \                 / \
 //	  LR               LR
-func (node *MemNode) rotateRight(version uint32) *MemNode {
-	newSelf := node.left.Mutate(version)
+func (node *MemNode) rotateRight(version, cowVersion uint32) *MemNode {
+	newSelf := node.left.Mutate(version, cowVersion)
 	node.left = node.left.Right()
 	newSelf.right = node
 	node.updateHeightSize()
@@ -107,15 +112,15 @@ func (node *MemNode) rotateRight(version uint32) *MemNode {
 	return newSelf
 }
 
-// Invariant: node is returned by `Mutate(version)`.
+// Invariant: node is returned by `Mutate(version, cowVersion)`.
 //
 //	 S              R
 //	/ \     =>     / \
 //	    R         S
 //	   / \       / \
 //	 RL             RL
-func (node *MemNode) rotateLeft(version uint32) *MemNode {
-	newSelf := node.right.Mutate(version)
+func (node *MemNode) rotateLeft(version, cowVersion uint32) *MemNode {
+	newSelf := node.right.Mutate(version, cowVersion)
 	node.right = node.right.Left()
 	newSelf.left = node
 	node.updateHeightSize()
@@ -123,28 +128,28 @@ func (node *MemNode) rotateLeft(version uint32) *MemNode {
 	return newSelf
 }
 
-// Invariant: node is returned by `Mutate(version)`.
-func (node *MemNode) reBalance(version uint32) *MemNode {
+// Invariant: node is returned by `Mutate(version, cowVersion)`.
+func (node *MemNode) reBalance(version, cowVersion uint32) *MemNode {
 	balance := node.calcBalance()
 	switch {
 	case balance > 1:
 		leftBalance := calcBalance(node.left)
 		if leftBalance >= 0 {
 			// left left
-			return node.rotateRight(version)
+			return node.rotateRight(version, cowVersion)
 		}
 		// left right
-		node.left = node.left.Mutate(version).rotateLeft(version)
-		return node.rotateRight(version)
+		node.left = node.left.Mutate(version, cowVersion).rotateLeft(version, cowVersion)
+		return node.rotateRight(version, cowVersion)
 	case balance < -1:
 		rightBalance := calcBalance(node.right)
 		if rightBalance <= 0 {
 			// right right
-			return node.rotateLeft(version)
+			return node.rotateLeft(version, cowVersion)
 		}
 		// right left
-		node.right = node.right.Mutate(version).rotateRight(version)
-		return node.rotateLeft(version)
+		node.right = node.right.Mutate(version, cowVersion).rotateRight(version, cowVersion)
+		return node.rotateLeft(version, cowVersion)
 	default:
 		// nothing changed
 		return node
