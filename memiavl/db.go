@@ -51,13 +51,13 @@ const SnapshotPrefix = "snapshot-"
 
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
-	mtree, err := LoadMultiTree(currentDir, opts.InitialVersion)
+	mtree, err := LoadMultiTree(currentDir)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
-			if err := initEmptyDB(dir); err != nil {
+			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(currentDir, opts.InitialVersion)
+			mtree, err = LoadMultiTree(currentDir)
 		}
 		if err != nil {
 			return nil, err
@@ -79,8 +79,8 @@ func Load(dir string, opts Options) (*DB, error) {
 		wal:       wal,
 	}
 
-	// upgrade with opts.InitialStores
-	if len(opts.InitialStores) > 0 {
+	if db.Version() == 0 && len(opts.InitialStores) > 0 {
+		// do the initial upgrade with the `opts.InitialStores`
 		var upgrades []*TreeNameUpgrade
 		for _, name := range opts.InitialStores {
 			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
@@ -155,6 +155,12 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 			Changesets: changeSets,
 			Upgrades:   db.pendingUpgrades,
 		}
+
+		// write InitialVersion in the first commit
+		if v == 1 || v == int64(db.initialVersion) {
+			entry.InitialVersion = int64(db.initialVersion)
+		}
+
 		bz, err := entry.Marshal()
 		if err != nil {
 			return nil, 0, err
@@ -196,7 +202,7 @@ func (db *DB) RewriteSnapshot() error {
 }
 
 func (db *DB) Reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
+	mtree, err := LoadMultiTree(currentPath(db.dir))
 	if err != nil {
 		return err
 	}
@@ -235,7 +241,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
+		mtree, err := LoadMultiTree(currentPath(db.dir))
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -279,8 +285,8 @@ func walPath(root string) string {
 //   commit_info
 // current -> snapshot-0
 // ```
-func initEmptyDB(dir string) error {
-	tmp := NewEmptyMultiTree(0)
+func initEmptyDB(dir string, initialVersion uint32) error {
+	tmp := NewEmptyMultiTree(initialVersion)
 	snapshotDir := snapshotPath(dir, 0)
 	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
 		return err

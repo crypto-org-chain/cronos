@@ -23,8 +23,12 @@ const (
 	// the initial snapshot format
 	SnapshotFormat = 0
 
-	// magic: uint32, format: uint32, version: uint32, root node index: uint32
-	SizeMetadata = 16
+	// magic: uint32
+	// format: uint32
+	// version: uint32
+	// root node index: uint32
+	// initialVersion: uint32
+	SizeMetadata = 20
 
 	// EmptyRootNodeIndex is a special value of root node index to represent empty tree
 	EmptyRootNodeIndex = math.MaxUint32
@@ -49,8 +53,8 @@ type Snapshot struct {
 	indexReader *recsplit.IndexReader // reader for the index
 
 	// parsed from metadata file
-	version   uint32
-	rootIndex uint32
+	version, initialVersion uint32
+	rootIndex               uint32
 
 	// wrapping the raw nodes buffer
 	nodesLayout Nodes
@@ -85,6 +89,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	}
 	version := binary.LittleEndian.Uint32(bz[8:])
 	rootIndex := binary.LittleEndian.Uint32(bz[12:])
+	initialVersion := binary.LittleEndian.Uint32(bz[16:])
 
 	if rootIndex == EmptyRootNodeIndex {
 		// we can't mmap empty files, so have to return early
@@ -160,8 +165,9 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		index:       index,
 		indexReader: indexReader,
 
-		version:   version,
-		rootIndex: rootIndex,
+		version:        version,
+		initialVersion: initialVersion,
+		rootIndex:      rootIndex,
 
 		nodesLayout: nodesData,
 	}, nil
@@ -209,6 +215,11 @@ func (snapshot *Snapshot) Node(index uint32) PersistedNode {
 // Version returns the version of the snapshot
 func (snapshot *Snapshot) Version() uint32 {
 	return snapshot.version
+}
+
+// InitialVersion returns the initial version of the store
+func (snapshot *Snapshot) InitialVersion() uint32 {
+	return snapshot.initialVersion
 }
 
 // RootNode returns the root node
@@ -270,7 +281,7 @@ func (snapshot *Snapshot) Export() *Exporter {
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
 func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
-	return writeSnapshot(snapshotDir, t.version, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+	return writeSnapshot(snapshotDir, t.version, t.initialVersion, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
 		if t.root == nil {
 			return EmptyRootNodeIndex, nil
 		} else {
@@ -280,7 +291,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
 }
 
 func writeSnapshot(
-	dir string, version uint32, writeHashIndex bool,
+	dir string, version, initialVersion uint32, writeHashIndex bool,
 	doWrite func(*snapshotWriter) (uint32, error),
 ) (returnErr error) {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -360,6 +371,7 @@ func writeSnapshot(
 	binary.LittleEndian.PutUint32(metadataBuf[4:], SnapshotFormat)
 	binary.LittleEndian.PutUint32(metadataBuf[8:], version)
 	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
+	binary.LittleEndian.PutUint32(metadataBuf[16:], initialVersion)
 
 	metadataFile := filepath.Join(dir, FileNameMetadata)
 	fpMetadata, err := createFile(metadataFile)
