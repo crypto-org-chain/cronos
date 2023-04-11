@@ -15,6 +15,7 @@ require (
 	github.com/tendermint/tm-db v0.6.7
 	github.com/tidwall/btree v1.5.0
 	github.com/tidwall/wal v1.1.7
+	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/sync v0.1.0
 )
 
@@ -64,7 +65,6 @@ require (
 	go.etcd.io/bbolt v1.3.6 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
-	golang.org/x/exp v0.0.0-20230206171751-46f607a40771 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect

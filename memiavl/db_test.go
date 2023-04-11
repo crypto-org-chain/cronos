@@ -16,12 +16,10 @@ func TestRewriteSnapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	for i, changes := range ChangeSets {
-		cs := MultiChangeSet{
-			Changesets: []*NamedChangeSet{
-				{
-					Name:      "test",
-					Changeset: changes,
-				},
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test",
+				Changeset: changes,
 			},
 		}
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -44,12 +42,10 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	require.NoError(t, err)
 
 	for i, changes := range ChangeSets {
-		cs := MultiChangeSet{
-			Changesets: []*NamedChangeSet{
-				{
-					Name:      "test",
-					Changeset: changes,
-				},
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test",
+				Changeset: changes,
 			},
 		}
 		_, v, err := db.Commit(cs)
@@ -65,25 +61,41 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 
 func TestWAL(t *testing.T) {
 	dir := t.TempDir()
-	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}})
+	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test", "delete"}})
 	require.NoError(t, err)
 
 	for _, changes := range ChangeSets {
-		cs := MultiChangeSet{
-			Changesets: []*NamedChangeSet{
-				{
-					Name:      "test",
-					Changeset: changes,
-				},
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test",
+				Changeset: changes,
 			},
 		}
 		_, _, err := db.Commit(cs)
 		require.NoError(t, err)
 	}
+
+	require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
+
+	require.NoError(t, db.ApplyUpgrades([]*TreeNameUpgrade{
+		{
+			Name:       "newtest",
+			RenameFrom: "test",
+		},
+		{
+			Name:   "delete",
+			Delete: true,
+		},
+	}))
+	_, _, err = db.Commit(nil)
+	require.NoError(t, err)
+
 	require.NoError(t, db.Close())
 
 	db, err = Load(dir, Options{})
 	require.NoError(t, err)
 
+	require.Equal(t, "newtest", db.lastCommitInfo.StoreInfos[0].Name)
+	require.Equal(t, 1, len(db.lastCommitInfo.StoreInfos))
 	require.Equal(t, RefHashes[len(RefHashes)-1], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
 }
