@@ -116,53 +116,54 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 // if a snapshot rewrite is in progress. It returns true if a snapshot rewrite has completed
 // and false otherwise, along with any error encountered during the cleanup process.
 func (db *DB) cleanupSnapshotRewrite() (bool, error) {
-	if db.snapshotRewriteChan != nil {
-		// check the completeness of background snapshot rewriting
-		select {
-		case result := <-db.snapshotRewriteChan:
-			db.snapshotRewriteChan = nil
+	if db.snapshotRewriteChan == nil {
+		return false, nil
+	}
+	// check the completeness of background snapshot rewriting
+	select {
+	case result := <-db.snapshotRewriteChan:
+		db.snapshotRewriteChan = nil
 
-			if result.mtree == nil {
-				// background snapshot rewrite failed
-				return true, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
-			}
+		if result.mtree == nil {
+			// background snapshot rewrite failed
+			return true, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+		}
 
-			// snapshot rewrite succeeded, catchup and switch
-			if err := result.mtree.CatchupWAL(db.wal); err != nil {
-				return true, fmt.Errorf("catchup failed: %w", err)
-			}
-			if err := db.reloadMultiTree(result.mtree); err != nil {
-				return true, fmt.Errorf("switch multitree failed: %w", err)
-			}
-			// prune the old snapshots
-			// wait until last prune finish
-			db.pruneSnapshotLock.Lock()
-			go func() {
-				defer db.pruneSnapshotLock.Unlock()
+		// snapshot rewrite succeeded, catchup and switch
+		if err := result.mtree.CatchupWAL(db.wal); err != nil {
+			return true, fmt.Errorf("catchup failed: %w", err)
+		}
+		if err := db.reloadMultiTree(result.mtree); err != nil {
+			return true, fmt.Errorf("switch multitree failed: %w", err)
+		}
+		// prune the old snapshots
+		// wait until last prune finish
+		db.pruneSnapshotLock.Lock()
+		go func() {
+			defer db.pruneSnapshotLock.Unlock()
 
-				entries, err := os.ReadDir(db.dir)
-				if err == nil {
-					for _, entry := range entries {
-						if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-							currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
-							if err != nil {
-								fmt.Printf("failed when parse current version: %s\n", err)
-								continue
-							}
-							if result.version-uint32(currentVersion) > db.snapshotKeepRecent {
-								fullPath := filepath.Join(db.dir, entry.Name())
-								if err := os.RemoveAll(fullPath); err != nil {
-									fmt.Printf("failed when remove old snapshot: %s\n", err)
-								}
+			entries, err := os.ReadDir(db.dir)
+			if err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+						currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+						if err != nil {
+							fmt.Printf("failed when parse current version: %s\n", err)
+							continue
+						}
+						if result.version-uint32(currentVersion) > db.snapshotKeepRecent {
+							fullPath := filepath.Join(db.dir, entry.Name())
+							if err := os.RemoveAll(fullPath); err != nil {
+								fmt.Printf("failed when remove old snapshot: %s\n", err)
 							}
 						}
 					}
 				}
-			}()
-			return true, nil
+			}
+		}()
+		return true, nil
 
-		default:
-		}
+	default:
 	}
 	return false, nil
 }
