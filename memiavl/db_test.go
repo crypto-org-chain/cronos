@@ -63,6 +63,9 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 		}
 	}
 
+	db.pruneSnapshotLock.Lock()
+	defer db.pruneSnapshotLock.Unlock()
+
 	entries, err := os.ReadDir(db.dir)
 	require.NoError(t, err)
 	version := uint64(db.lastCommitInfo.Version)

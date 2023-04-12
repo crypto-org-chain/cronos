@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
@@ -36,6 +37,8 @@ type DB struct {
 
 	snapshotRewriteChan chan snapshotResult
 	snapshotKeepRecent  uint32
+	pruneSnapshotLock   sync.Mutex
+
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal             *wal.Log
 	pendingUpgrades []*TreeNameUpgrade
@@ -129,7 +132,11 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 				return true, fmt.Errorf("switch multitree failed: %w", err)
 			}
 			// prune the old snapshots
+			// wait until last prune finish
+			db.pruneSnapshotLock.Lock()
 			go func() {
+				defer db.pruneSnapshotLock.Unlock()
+
 				entries, err := os.ReadDir(db.dir)
 				if err == nil {
 					for _, entry := range entries {
