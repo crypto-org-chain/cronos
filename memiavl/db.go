@@ -112,6 +112,9 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	return nil
 }
 
+// cleanupSnapshotRewrite cleans up the old snapshots and switches to a new multitree
+// if a snapshot rewrite is in progress. It returns true if a snapshot rewrite has completed
+// and false otherwise, along with any error encountered during the cleanup process.
 func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 	if db.snapshotRewriteChan != nil {
 		// check the completeness of background snapshot rewriting
