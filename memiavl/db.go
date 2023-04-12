@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
@@ -32,6 +34,8 @@ type DB struct {
 	dir string
 
 	snapshotRewriteChan chan snapshotResult
+	snapshotKeepRecent  uint32
+	pruneSnapshotLock   sync.Mutex
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal             *wal.Log
@@ -42,10 +46,13 @@ type Options struct {
 	CreateIfMissing bool
 	InitialVersion  uint32
 	// the initial stores when initialize the empty instance
-	InitialStores []string
+	InitialStores      []string
+	SnapshotKeepRecent uint32
 }
 
-const SnapshotPrefix = "snapshot-"
+const (
+	SnapshotPrefix = "snapshot-"
+)
 
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
@@ -72,9 +79,10 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	db := &DB{
-		MultiTree: *mtree,
-		dir:       dir,
-		wal:       wal,
+		MultiTree:          *mtree,
+		dir:                dir,
+		wal:                wal,
+		snapshotKeepRecent: opts.SnapshotKeepRecent,
 	}
 
 	if db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -119,44 +127,68 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	return nil
 }
 
-// Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
-// - manage background snapshot rewriting
-// - write WAL
-func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
-	if db.snapshotRewriteChan != nil {
-		// check the completeness of background snapshot rewriting
-		select {
-		case result := <-db.snapshotRewriteChan:
-			db.snapshotRewriteChan = nil
+// cleanupSnapshotRewrite cleans up the old snapshots and switches to a new multitree
+// if a snapshot rewrite is in progress. It returns true if a snapshot rewrite has completed
+// and false otherwise, along with any error encountered during the cleanup process.
+func (db *DB) cleanupSnapshotRewrite() (bool, error) {
+	if db.snapshotRewriteChan == nil {
+		return false, nil
+	}
+	// check the completeness of background snapshot rewriting
+	select {
+	case result := <-db.snapshotRewriteChan:
+		db.snapshotRewriteChan = nil
 
-			if result.mtree == nil {
-				// background snapshot rewrite failed
-				return nil, 0, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
-			}
+		if result.mtree == nil {
+			// background snapshot rewrite failed
+			return true, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+		}
 
-			// snapshot rewrite succeeded, catchup and switch
-			if err := result.mtree.CatchupWAL(db.wal); err != nil {
-				return nil, 0, fmt.Errorf("catchup failed: %w", err)
-			}
-			if err := db.reloadMultiTree(result.mtree); err != nil {
-				return nil, 0, fmt.Errorf("switch multitree failed: %w", err)
-			}
-			// prune the old snapshots
-			go func() {
-				entries, err := os.ReadDir(db.dir)
-				if err == nil {
-					for _, entry := range entries {
-						if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) &&
-							entry.Name() != snapshotName(result.version) {
-							if err := os.RemoveAll(filepath.Join(db.dir, entry.Name())); err != nil {
+		// snapshot rewrite succeeded, catchup and switch
+		if err := result.mtree.CatchupWAL(db.wal); err != nil {
+			return true, fmt.Errorf("catchup failed: %w", err)
+		}
+		if err := db.reloadMultiTree(result.mtree); err != nil {
+			return true, fmt.Errorf("switch multitree failed: %w", err)
+		}
+		// prune the old snapshots
+		// wait until last prune finish
+		db.pruneSnapshotLock.Lock()
+		go func() {
+			defer db.pruneSnapshotLock.Unlock()
+
+			entries, err := os.ReadDir(db.dir)
+			if err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+						currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+						if err != nil {
+							fmt.Printf("failed when parse current version: %s\n", err)
+							continue
+						}
+						if result.version-uint32(currentVersion) > db.snapshotKeepRecent {
+							fullPath := filepath.Join(db.dir, entry.Name())
+							if err := os.RemoveAll(fullPath); err != nil {
 								fmt.Printf("failed when remove old snapshot: %s\n", err)
 							}
 						}
 					}
 				}
-			}()
-		default:
-		}
+			}
+		}()
+		return true, nil
+
+	default:
+	}
+	return false, nil
+}
+
+// Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
+// - manage background snapshot rewriting
+// - write WAL
+func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
+	if _, err := db.cleanupSnapshotRewrite(); err != nil {
+		return nil, 0, err
 	}
 
 	hash, v, err := db.ApplyChangeSet(changeSets, true)

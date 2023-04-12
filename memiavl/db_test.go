@@ -2,9 +2,10 @@ package memiavl
 
 import (
 	"encoding/hex"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
@@ -37,8 +38,9 @@ func TestRewriteSnapshot(t *testing.T) {
 
 func TestRewriteSnapshotBackground(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing: true,
-		InitialStores:   []string{"test"},
+		CreateIfMissing:    true,
+		InitialStores:      []string{"test"},
+		SnapshotKeepRecent: 1,
 	})
 	require.NoError(t, err)
 
@@ -54,10 +56,29 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
 
-		_ = db.RewriteSnapshotBackground()
-		time.Sleep(time.Millisecond * 20)
+		err = db.RewriteSnapshotBackground()
+		require.NoError(t, err)
+		for {
+			if cleaned, _ := db.cleanupSnapshotRewrite(); cleaned {
+				break
+			}
+		}
 	}
-	<-db.snapshotRewriteChan
+
+	db.pruneSnapshotLock.Lock()
+	defer db.pruneSnapshotLock.Unlock()
+
+	entries, err := os.ReadDir(db.dir)
+	require.NoError(t, err)
+	version := uint64(db.lastCommitInfo.Version)
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+			currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, currentVersion, version-uint64(db.snapshotKeepRecent))
+			require.LessOrEqual(t, currentVersion, version)
+		}
+	}
 }
 
 func TestWAL(t *testing.T) {
