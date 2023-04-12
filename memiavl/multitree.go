@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const MetadataFileName = "metadata"
+const MetadataFileName = "__metadata"
 
 type namedTree struct {
 	tree *Tree
