@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const CommitInfoFileName = "commit_info"
+const MetadataFileName = "__metadata"
 
 type namedTree struct {
 	tree *Tree
@@ -30,17 +30,19 @@ type namedTree struct {
 //
 // The snapshot structure is like this:
 // ```
-// snapshot-V
-//
-//	bank
-//	  kvs
-//	  nodes
-//	  metadata
-//	acc
-//	... other stores
-//
+// > snapshot-V
+// >  metadata
+// >  bank
+// >   kvs
+// >   nodes
+// >   metadata
+// >  acc
+// >  other stores...
 // ```
 type MultiTree struct {
+	// if the tree is start from genesis, it's the initial version of the chain,
+	// if the tree is imported from snapshot, it's the imported version plus one,
+	// it always corresponds to the wal entry with index 1.
 	initialVersion uint32
 
 	trees          []namedTree
@@ -55,18 +57,21 @@ func NewEmptyMultiTree(initialVersion uint32) *MultiTree {
 	}
 }
 
-func LoadMultiTree(dir string, initialVersion uint32) (*MultiTree, error) {
+func LoadMultiTree(dir string) (*MultiTree, error) {
 	// load commit info
-	bz, err := os.ReadFile(filepath.Join(dir, CommitInfoFileName))
+	bz, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
 	if err != nil {
 		return nil, err
 	}
-	cInfo := &storetypes.CommitInfo{}
-	if err := cInfo.Unmarshal(bz); err != nil {
+	var metadata MultiTreeMetadata
+	if err := metadata.Unmarshal(bz); err != nil {
 		return nil, err
 	}
-	if cInfo.Version > math.MaxUint32 {
-		return nil, fmt.Errorf("commit info version overflows uint32: %d", cInfo.Version)
+	if metadata.CommitInfo.Version > math.MaxUint32 {
+		return nil, fmt.Errorf("commit info version overflows uint32: %d", metadata.CommitInfo.Version)
+	}
+	if metadata.InitialVersion > math.MaxUint32 {
+		return nil, fmt.Errorf("initial version overflows uint32: %d", metadata.InitialVersion)
 	}
 
 	entries, err := os.ReadDir(dir)
@@ -99,23 +104,39 @@ func LoadMultiTree(dir string, initialVersion uint32) (*MultiTree, error) {
 		treesByName[name] = i
 	}
 
-	return &MultiTree{
-		initialVersion: initialVersion,
+	mtree := &MultiTree{
 		trees:          trees,
 		treesByName:    treesByName,
-		lastCommitInfo: *cInfo,
-	}, nil
+		lastCommitInfo: *metadata.CommitInfo,
+	}
+	// initial version is nesserary for wal index conversion
+	mtree.setInitialVersion(metadata.InitialVersion)
+	return mtree, nil
 }
 
-func (t *MultiTree) SetInitialVersion(initialVersion int64) {
+func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 	if initialVersion >= math.MaxUint32 {
-		panic("version overflows uint32")
+		return fmt.Errorf("version overflows uint32: %d", initialVersion)
 	}
 
-	v := uint32(initialVersion)
-	t.initialVersion = v
+	if t.Version() != 0 {
+		return fmt.Errorf("multi tree is not empty: %d", t.Version())
+	}
+
 	for _, entry := range t.trees {
-		entry.tree.initialVersion = v
+		if !entry.tree.IsEmpty() {
+			return fmt.Errorf("tree is not empty: %s", entry.name)
+		}
+	}
+
+	t.setInitialVersion(initialVersion)
+	return nil
+}
+
+func (t *MultiTree) setInitialVersion(initialVersion int64) {
+	t.initialVersion = uint32(initialVersion)
+	for _, entry := range t.trees {
+		entry.tree.initialVersion = t.initialVersion
 	}
 }
 
@@ -133,6 +154,10 @@ func (t *MultiTree) Copy() *MultiTree {
 	clone.trees = trees
 	clone.treesByName = treesByName
 	return &clone
+}
+
+func (t *MultiTree) Hash() []byte {
+	return t.lastCommitInfo.Hash()
 }
 
 func (t *MultiTree) Version() int64 {
@@ -170,11 +195,14 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 			t.trees[i].name = upgrade.Name
 		default:
 			// add tree
-			tree := NewWithInitialVersion(uint32(t.Version()))
+			tree := NewWithInitialVersion(uint32(nextVersion(t.Version(), t.initialVersion)))
 			t.trees = append(t.trees, namedTree{tree: tree, name: upgrade.Name})
 		}
 	}
 
+	sort.SliceStable(t.trees, func(i, j int) bool {
+		return t.trees[i].name < t.trees[j].name
+	})
 	t.treesByName = make(map[string]int, len(t.trees))
 	for i, tree := range t.trees {
 		t.treesByName[tree.name] = i
@@ -186,12 +214,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 // ApplyChangeSet applies change sets for all trees.
 // if `updateCommitInfo` is `false`, the `lastCommitInfo.StoreInfos` is dirty.
 func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
-	var version int64
-	if t.lastCommitInfo.Version == 0 && t.initialVersion > 1 {
-		version = int64(t.initialVersion)
-	} else {
-		version = t.lastCommitInfo.Version + 1
-	}
+	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 
 	var (
 		infos   []storetypes.StoreInfo
@@ -207,6 +230,9 @@ func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInf
 		hash, v, err := entry.tree.ApplyChangeSet(changeSet, updateCommitInfo)
 		if err != nil {
 			return nil, 0, err
+		}
+		if v != version {
+			return nil, 0, fmt.Errorf("multi tree version don't match(%d != %d)", v, version)
 		}
 		if updateCommitInfo {
 			infos = append(infos, storetypes.StoreInfo{
@@ -253,19 +279,19 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 
 // CatchupWAL replay the new entries in the WAL on the tree to catch-up to the latest state.
 func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
-	walVersion, err := wal.LastIndex()
+	lastIndex, err := wal.LastIndex()
 	if err != nil {
 		return errors.Wrap(err, "read wal last index failed")
 	}
 
-	snapshotVersion := uint64(t.Version())
-	if walVersion <= snapshotVersion {
+	firstIndex := walIndex(nextVersion(t.Version(), t.initialVersion), t.initialVersion)
+	if firstIndex > lastIndex {
 		// already up-to-date
 		return nil
 	}
 
-	for v := snapshotVersion + 1; v <= walVersion; v++ {
-		bz, err := wal.Read(v)
+	for i := firstIndex; i <= lastIndex; i++ {
+		bz, err := wal.Read(i)
 		if err != nil {
 			return errors.Wrap(err, "read wal log failed")
 		}
@@ -302,11 +328,15 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 	}
 
 	// write commit info
-	bz, err := t.lastCommitInfo.Marshal()
+	metadata := MultiTreeMetadata{
+		CommitInfo:     &t.lastCommitInfo,
+		InitialVersion: int64(t.initialVersion),
+	}
+	bz, err := metadata.Marshal()
 	if err != nil {
 		return err
 	}
-	return writeFileSync(filepath.Join(dir, CommitInfoFileName), bz)
+	return writeFileSync(filepath.Join(dir, MetadataFileName), bz)
 }
 
 func writeFileSync(name string, data []byte) error {
@@ -333,4 +363,19 @@ func (t *MultiTree) Close() error {
 	t.treesByName = nil
 	t.lastCommitInfo = storetypes.CommitInfo{}
 	return stderrors.Join(errs...)
+}
+
+func nextVersion(v int64, initialVersion uint32) int64 {
+	if v == 0 && initialVersion > 1 {
+		return int64(initialVersion)
+	}
+	return v + 1
+}
+
+// walIndex converts version to wal index based on initial version
+func walIndex(v int64, initialVersion uint32) uint64 {
+	if initialVersion > 1 {
+		return uint64(v) - uint64(initialVersion) + 1
+	}
+	return uint64(v)
 }

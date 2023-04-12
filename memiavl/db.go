@@ -19,17 +19,15 @@ import (
 //
 // The memiavl.db directory looks like this:
 // ```
-// current -> snapshot-N
-// snapshot-N
-//
-//	bank
-//	  kvs
-//	  nodes
-//	  metadata
-//	acc
-//	... other stores
-//
-// wal
+// > current -> snapshot-N
+// > snapshot-N
+// >  bank
+// >    kvs
+// >    nodes
+// >    metadata
+// >  acc
+// >  ... other stores
+// > wal
 // ```
 type DB struct {
 	MultiTree
@@ -58,13 +56,13 @@ const (
 
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
-	mtree, err := LoadMultiTree(currentDir, opts.InitialVersion)
+	mtree, err := LoadMultiTree(currentDir)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
-			if err := initEmptyDB(dir); err != nil {
+			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(currentDir, opts.InitialVersion)
+			mtree, err = LoadMultiTree(currentDir)
 		}
 		if err != nil {
 			return nil, err
@@ -87,8 +85,8 @@ func Load(dir string, opts Options) (*DB, error) {
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
 	}
 
-	// upgrade with opts.InitialStores
-	if len(opts.InitialStores) > 0 {
+	if db.Version() == 0 && len(opts.InitialStores) > 0 {
+		// do the initial upgrade with the `opts.InitialStores`
 		var upgrades []*TreeNameUpgrade
 		for _, name := range opts.InitialStores {
 			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
@@ -99,6 +97,23 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	return db, nil
+}
+
+// SetInitialVersion wraps `MultiTree.SetInitialVersion`.
+// it do an immediate snapshot rewrite, because we can't use wal log to record this change,
+// because we need it to convert versions to wal index in the first place.
+func (db *DB) SetInitialVersion(initialVersion int64) {
+	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
+		panic(err)
+	}
+
+	if err := db.RewriteSnapshot(); err != nil {
+		panic(err)
+	}
+
+	if err := db.Reload(); err != nil {
+		panic(err)
+	}
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
@@ -191,7 +206,7 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		if err := db.wal.Write(uint64(v), bz); err != nil {
+		if err := db.wal.Write(walIndex(v, db.initialVersion), bz); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -228,7 +243,7 @@ func (db *DB) RewriteSnapshot() error {
 }
 
 func (db *DB) Reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
+	mtree, err := LoadMultiTree(currentPath(db.dir))
 	if err != nil {
 		return err
 	}
@@ -241,6 +256,7 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	db.MultiTree = *mtree
+	db.pendingUpgrades = nil
 	return nil
 }
 
@@ -267,7 +283,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		mtree, err := LoadMultiTree(currentPath(db.dir), db.initialVersion)
+		mtree, err := LoadMultiTree(currentPath(db.dir))
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -313,8 +329,8 @@ func walPath(root string) string {
 //
 // current -> snapshot-0
 // ```
-func initEmptyDB(dir string) error {
-	tmp := NewEmptyMultiTree(0)
+func initEmptyDB(dir string, initialVersion uint32) error {
+	tmp := NewEmptyMultiTree(initialVersion)
 	snapshotDir := snapshotPath(dir, 0)
 	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
 		return err
