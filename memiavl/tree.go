@@ -46,9 +46,8 @@ func NewWithInitialVersion(initialVersion uint32) *Tree {
 // NewFromSnapshot mmap the blob files and create the root node.
 func NewFromSnapshot(snapshot *Snapshot) *Tree {
 	tree := &Tree{
-		initialVersion: snapshot.InitialVersion(),
-		version:        snapshot.Version(),
-		snapshot:       snapshot,
+		version:  snapshot.Version(),
+		snapshot: snapshot,
 	}
 
 	if !snapshot.IsEmpty() {
@@ -56,6 +55,10 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 	}
 
 	return tree
+}
+
+func (t *Tree) IsEmpty() bool {
+	return t.root == nil
 }
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.

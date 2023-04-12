@@ -82,5 +82,4 @@ replace (
 	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
 	github.com/tendermint/tm-db => github.com/crypto-org-chain/tm-db v0.6.8-0.20230118040049-14dc6b00a5b3
-	github.com/tidwall/wal => github.com/yihuang/wal v1.1.8-0.20230412034935-cac7e793fa45
 )

@@ -91,6 +91,23 @@ func Load(dir string, opts Options) (*DB, error) {
 	return db, nil
 }
 
+// SetInitialVersion wraps `MultiTree.SetInitialVersion`.
+// it do an immediate snapshot rewrite, because we can't use wal log to record this change,
+// because we need it to convert versions to wal index in the first place.
+func (db *DB) SetInitialVersion(initialVersion int64) {
+	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
+		panic(err)
+	}
+
+	if err := db.RewriteSnapshot(); err != nil {
+		panic(err)
+	}
+
+	if err := db.Reload(); err != nil {
+		panic(err)
+	}
+}
+
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
 // and include in the WAL entry in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
@@ -153,17 +170,11 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 			Changesets: changeSets,
 			Upgrades:   db.pendingUpgrades,
 		}
-
-		// write InitialVersion in the first commit
-		if v == 1 || v == int64(db.initialVersion) {
-			entry.InitialVersion = int64(db.initialVersion)
-		}
-
 		bz, err := entry.Marshal()
 		if err != nil {
 			return nil, 0, err
 		}
-		if err := db.wal.Write(uint64(v), bz); err != nil {
+		if err := db.wal.Write(walIndex(v, db.initialVersion), bz); err != nil {
 			return nil, 0, err
 		}
 	}
@@ -213,6 +224,7 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	db.MultiTree = *mtree
+	db.pendingUpgrades = nil
 	return nil
 }
 

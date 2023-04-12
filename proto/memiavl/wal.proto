@@ -27,9 +27,6 @@ message TreeNameUpgrade {
 message WALEntry {
   repeated NamedChangeSet changesets = 1;
   repeated TreeNameUpgrade upgrades = 2;
-  // the commit of the first version might set an initial_version,
-  // the other version must not change initial_version.
-  int64 initial_version = 3;
 }
 
 // MultiTreeMetadata stores the metadata for MultiTree

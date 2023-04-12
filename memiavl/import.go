@@ -13,7 +13,7 @@ func Import(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHashI
 		return errors.New("version overflows uint32")
 	}
 
-	return writeSnapshot(dir, uint32(version), 0, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+	return writeSnapshot(dir, uint32(version), writeHashIndex, func(w *snapshotWriter) (uint32, error) {
 		i := &importer{
 			snapshotWriter: *w,
 		}

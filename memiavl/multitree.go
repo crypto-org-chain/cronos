@@ -40,6 +40,9 @@ type namedTree struct {
 // >  other stores...
 // ```
 type MultiTree struct {
+	// if the tree is start from genesis, it's the initial version of the chain,
+	// if the tree is imported from snapshot, it's the imported version plus one,
+	// it always corresponds to the wal entry with index 1.
 	initialVersion uint32
 
 	trees          []namedTree
@@ -101,23 +104,39 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 		treesByName[name] = i
 	}
 
-	return &MultiTree{
-		initialVersion: uint32(metadata.InitialVersion),
+	mtree := &MultiTree{
 		trees:          trees,
 		treesByName:    treesByName,
 		lastCommitInfo: *metadata.CommitInfo,
-	}, nil
+	}
+	// initial version is nesserary for wal index conversion
+	mtree.setInitialVersion(metadata.InitialVersion)
+	return mtree, nil
 }
 
-func (t *MultiTree) SetInitialVersion(initialVersion int64) {
+func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 	if initialVersion >= math.MaxUint32 {
-		panic("version overflows uint32")
+		return fmt.Errorf("version overflows uint32: %d", initialVersion)
 	}
 
-	v := uint32(initialVersion)
-	t.initialVersion = v
+	if t.Version() != 0 {
+		return fmt.Errorf("multi tree is not empty: %d", t.Version())
+	}
+
 	for _, entry := range t.trees {
-		entry.tree.initialVersion = v
+		if !entry.tree.IsEmpty() {
+			return fmt.Errorf("tree is not empty: %s", entry.name)
+		}
+	}
+
+	t.setInitialVersion(initialVersion)
+	return nil
+}
+
+func (t *MultiTree) setInitialVersion(initialVersion int64) {
+	t.initialVersion = uint32(initialVersion)
+	for _, entry := range t.trees {
+		entry.tree.initialVersion = t.initialVersion
 	}
 }
 
@@ -260,31 +279,25 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 
 // CatchupWAL replay the new entries in the WAL on the tree to catch-up to the latest state.
 func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
-	walVersion, err := wal.LastIndex()
+	lastIndex, err := wal.LastIndex()
 	if err != nil {
 		return errors.Wrap(err, "read wal last index failed")
 	}
 
-	nextVersion := uint64(nextVersion(t.Version(), t.initialVersion))
-	if nextVersion > walVersion {
+	firstIndex := walIndex(nextVersion(t.Version(), t.initialVersion), t.initialVersion)
+	if firstIndex > lastIndex {
 		// already up-to-date
 		return nil
 	}
 
-	for v := nextVersion; v <= walVersion; v++ {
-		bz, err := wal.Read(v)
+	for i := firstIndex; i <= lastIndex; i++ {
+		bz, err := wal.Read(i)
 		if err != nil {
 			return errors.Wrap(err, "read wal log failed")
 		}
 		var entry WALEntry
 		if err := entry.Unmarshal(bz); err != nil {
 			return errors.Wrap(err, "unmarshal wal log failed")
-		}
-		if entry.InitialVersion > 0 {
-			if entry.InitialVersion > math.MaxUint32 {
-				return fmt.Errorf("WAL initial version overflows uint32")
-			}
-			t.initialVersion = uint32(entry.InitialVersion)
 		}
 		if err := t.ApplyUpgrades(entry.Upgrades); err != nil {
 			return errors.Wrap(err, "replay store upgrades failed")
@@ -357,4 +370,12 @@ func nextVersion(v int64, initialVersion uint32) int64 {
 		return int64(initialVersion)
 	}
 	return v + 1
+}
+
+// walIndex converts version to wal index based on initial version
+func walIndex(v int64, initialVersion uint32) uint64 {
+	if initialVersion > 1 {
+		return uint64(v) - uint64(initialVersion) + 1
+	}
+	return uint64(v)
 }
