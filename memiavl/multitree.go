@@ -30,16 +30,14 @@ type namedTree struct {
 //
 // The snapshot structure is like this:
 // ```
-// snapshot-V
-//  commit_info
-//
-//	bank
-//	  kvs
-//	  nodes
-//	  metadata
-//	acc
-//	... other stores
-//
+// > snapshot-V
+// >  metadata
+// >  bank
+// >   kvs
+// >   nodes
+// >   metadata
+// >  acc
+// >  other stores...
 // ```
 type MultiTree struct {
 	initialVersion uint32

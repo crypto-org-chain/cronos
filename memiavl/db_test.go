@@ -153,7 +153,7 @@ func TestInitialVersion(t *testing.T) {
 	db.ApplyUpgrades([]*TreeNameUpgrade{
 		{Name: "new"},
 	})
-	hash, v, err = db.Commit([]*NamedChangeSet{
+	_, v, err = db.Commit([]*NamedChangeSet{
 		{
 			Name: "new",
 			Changeset: iavl.ChangeSet{
@@ -166,7 +166,8 @@ func TestInitialVersion(t *testing.T) {
 			},
 		},
 	})
-	require.Equal(t, int64(102), db.Version())
+	require.NoError(t, err)
+	require.Equal(t, int64(102), v)
 	require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
 	info := db.lastCommitInfo.StoreInfos[0]
 	require.Equal(t, "new", info.Name)
@@ -181,7 +182,7 @@ func TestInitialVersion(t *testing.T) {
 	db.ApplyUpgrades([]*TreeNameUpgrade{
 		{Name: "new2"},
 	})
-	hash, v, err = db.Commit([]*NamedChangeSet{
+	_, v, err = db.Commit([]*NamedChangeSet{
 		{
 			Name: "new2",
 			Changeset: iavl.ChangeSet{
@@ -194,7 +195,8 @@ func TestInitialVersion(t *testing.T) {
 			},
 		},
 	})
-	require.Equal(t, int64(103), db.Version())
+	require.NoError(t, err)
+	require.Equal(t, int64(103), v)
 	require.Equal(t, 3, len(db.lastCommitInfo.StoreInfos))
 	info = db.lastCommitInfo.StoreInfos[1]
 	require.Equal(t, "new2", info.Name)

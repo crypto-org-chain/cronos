@@ -17,17 +17,15 @@ import (
 //
 // The memiavl.db directory looks like this:
 // ```
-// current -> snapshot-N
-// snapshot-N
-//
-//	bank
-//	  kvs
-//	  nodes
-//	  metadata
-//	acc
-//	... other stores
-//
-// wal
+// > current -> snapshot-N
+// > snapshot-N
+// >  bank
+// >    kvs
+// >    nodes
+// >    metadata
+// >  acc
+// >  ... other stores
+// > wal
 // ```
 type DB struct {
 	MultiTree
@@ -282,7 +280,9 @@ func walPath(root string) string {
 //
 // ```
 // snapshot-0
-//   commit_info
+//
+//	commit_info
+//
 // current -> snapshot-0
 // ```
 func initEmptyDB(dir string, initialVersion uint32) error {
