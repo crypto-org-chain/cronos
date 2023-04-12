@@ -183,6 +183,9 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 		}
 	}
 
+	sort.SliceStable(t.trees, func(i, j int) bool {
+		return t.trees[i].name < t.trees[j].name
+	})
 	t.treesByName = make(map[string]int, len(t.trees))
 	for i, tree := range t.trees {
 		t.treesByName[tree.name] = i

@@ -149,4 +149,55 @@ func TestInitialVersion(t *testing.T) {
 	require.Equal(t, uint32(100), db.initialVersion)
 	require.Equal(t, int64(101), db.Version())
 	require.Equal(t, "b7669ab9c167dcf1bb6e69b88ae8573bda2905f556a8f37a65de6cabd31a552d", hex.EncodeToString(db.Hash()))
+
+	db.ApplyUpgrades([]*TreeNameUpgrade{
+		{Name: "new"},
+	})
+	hash, v, err = db.Commit([]*NamedChangeSet{
+		{
+			Name: "new",
+			Changeset: iavl.ChangeSet{
+				Pairs: []*iavl.KVPair{
+					{
+						Key:   []byte("hello"),
+						Value: []byte("world"),
+					},
+				},
+			},
+		},
+	})
+	require.Equal(t, int64(102), db.Version())
+	require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
+	info := db.lastCommitInfo.StoreInfos[0]
+	require.Equal(t, "new", info.Name)
+	require.Equal(t, int64(102), info.CommitId.Version)
+	require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
+	// the nodes are created with version 1, which is compatible with iavl behavior: https://github.com/cosmos/iavl/pull/660
+	require.Equal(t, info.CommitId.Hash, HashNode(newLeafNode([]byte("hello"), []byte("world"), 1)))
+
+	require.NoError(t, db.RewriteSnapshot())
+	require.NoError(t, db.Reload())
+
+	db.ApplyUpgrades([]*TreeNameUpgrade{
+		{Name: "new2"},
+	})
+	hash, v, err = db.Commit([]*NamedChangeSet{
+		{
+			Name: "new2",
+			Changeset: iavl.ChangeSet{
+				Pairs: []*iavl.KVPair{
+					{
+						Key:   []byte("hello"),
+						Value: []byte("world"),
+					},
+				},
+			},
+		},
+	})
+	require.Equal(t, int64(103), db.Version())
+	require.Equal(t, 3, len(db.lastCommitInfo.StoreInfos))
+	info = db.lastCommitInfo.StoreInfos[1]
+	require.Equal(t, "new2", info.Name)
+	require.Equal(t, int64(103), info.CommitId.Version)
+	require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
 }
