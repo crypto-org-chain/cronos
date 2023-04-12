@@ -119,9 +119,9 @@ schema = 3
     version = "v0.7.9"
     hash = "sha256-ZWIXIXcHGjeCNgMrpXymry8/8esDDauGFfF/+gEoO1Y="
   [mod."github.com/cometbft/cometbft-db"]
-    version = "v0.0.0-20230315164120-2075c351ce13"
+    version = "v0.0.0-20230412133340-ac70df4b45f6"
     hash = "sha256-WOubYACTuk6OeHMSbcKIYbQWarWIljQUEvyX3hiXmq8="
-    replaced = "github.com/cifer76/cometbft-db"
+    replaced = "github.com/crypto-org-chain/cometbft-db"
   [mod."github.com/confio/ics23/go"]
     version = "v0.9.0"
     hash = "sha256-guD8w7YygfUp7lpTAUyXQuCPx8F3lXkcg+yR5+JOCbk="
@@ -515,9 +515,9 @@ schema = 3
     hash = "sha256-BbpfLcLRf6PwB1xmgkhTm9ckZekelrDUlXDX0/FSMU8="
     replaced = "github.com/cometbft/cometbft"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.0.0-20230316085219-f1ce11040506"
+    version = "v0.6.8-0.20230412133356-5e16d347f5b9"
     hash = "sha256-qWM+P4sAgvsl3m7fHAIQfav4DF4wZ6WfTP6mx3j1JrQ="
-    replaced = "github.com/yihuang/tm-db"
+    replaced = "github.com/crypto-org-chain/tm-db"
   [mod."github.com/tidwall/btree"]
     version = "v1.5.0"
     hash = "sha256-iWll4/+ADLVse3VAHxXYLprILugX/+3u0ZIk0YlLv/Q="

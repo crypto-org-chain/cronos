@@ -218,9 +218,7 @@ require (
 )
 
 replace (
-	// https://github.com/cometbft/cometbft-db/pull/42
-	// https://github.com/crypto-org-chain/cometbft-db/pull/1
-	github.com/cometbft/cometbft-db => github.com/cifer76/cometbft-db v0.0.0-20230315164120-2075c351ce13
+	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.11
@@ -240,8 +238,7 @@ replace (
 	// use cometbft
 	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.27
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
-	// https://github.com/crypto-org-chain/tm-db/pull/4
-	github.com/tendermint/tm-db => github.com/yihuang/tm-db v0.0.0-20230316085219-f1ce11040506
+	github.com/tendermint/tm-db => github.com/crypto-org-chain/tm-db v0.6.8-0.20230412133356-5e16d347f5b9
 
 	// TODO: remove after fixed https://github.com/cosmos/cosmos-sdk/issues/11364
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
