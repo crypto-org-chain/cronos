@@ -37,6 +37,9 @@ schema = 3
   [mod."github.com/DataDog/zstd"]
     version = "v1.5.0"
     hash = "sha256-i+vPadZcmSHCALA50FaADRmj6oqe1t5SIfqEbCxr9Ao="
+  [mod."github.com/HdrHistogram/hdrhistogram-go"]
+    version = "v1.1.2"
+    hash = "sha256-GZWNKwUmZLQ+krFvyFwBlGp/cLw/ihYuMuhKutuQIlA="
   [mod."github.com/StackExchange/wmi"]
     version = "v1.2.1"
     hash = "sha256-1BoEeWAWyebH+1mMuyPhWZut8nWHb6r73MgcqlGuUEY="
@@ -107,8 +110,9 @@ schema = 3
     version = "v0.0.0-20190617123548-eb05cc24525f"
     hash = "sha256-mdcKZsPfCiaTyxLRkZprVIijeZzbTD3J7WGb4zOQgn4="
   [mod."github.com/cockroachdb/pebble"]
-    version = "v0.0.0-20230315005856-dcb60b9212f9"
-    hash = "sha256-LJqpI+MoHq8tCky86nIuqIH+WgTuPMUdcAltvAXwroc="
+    version = "v0.0.0-20230206180212-744ea7cc8f90"
+    hash = "sha256-P6TPgp2xCBM3IhqJ7sz9Jl7Gj41p63ZPrdR+8YzxMiE="
+    replaced = "github.com/cockroachdb/pebble"
   [mod."github.com/cockroachdb/redact"]
     version = "v1.0.8"
     hash = "sha256-V/qBOGQUMbpPAQOpLTZk8MZiBr66Epml8snn9suCbs4="

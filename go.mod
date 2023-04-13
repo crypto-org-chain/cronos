@@ -43,6 +43,7 @@ require (
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
 	github.com/DataDog/zstd v1.5.0 // indirect
+	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
 	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
@@ -218,6 +219,8 @@ require (
 )
 
 replace (
+	// the version used by cockroach v22.2.7 release
+	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230206180212-744ea7cc8f90
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
