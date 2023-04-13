@@ -8,6 +8,7 @@
 
 - [#936](https://github.com/crypto-org-chain/cronos/pull/936) Reuse recovered sender address to optimize performance ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/cb741e1d819683795aa32e286d31d8155f903cae)).
 - [#949](https://github.com/crypto-org-chain/cronos/pull/949) Release static-linked binaries for linux platform.
+- [#934](https://github.com/crypto-org-chain/cronos/pull/934) Add pebbledb backend.
 
 ### Bug Fixes
 
