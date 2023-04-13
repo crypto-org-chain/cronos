@@ -34,6 +34,12 @@ schema = 3
   [mod."github.com/ChainSafe/go-schnorrkel"]
     version = "v0.0.0-20200405005733-88cbf1b4c40d"
     hash = "sha256-i8RXZemJGlSjBT35oPm0SawFiBoIU5Pkq5xp4n/rzCY="
+  [mod."github.com/DataDog/zstd"]
+    version = "v1.5.0"
+    hash = "sha256-i+vPadZcmSHCALA50FaADRmj6oqe1t5SIfqEbCxr9Ao="
+  [mod."github.com/HdrHistogram/hdrhistogram-go"]
+    version = "v1.1.2"
+    hash = "sha256-GZWNKwUmZLQ+krFvyFwBlGp/cLw/ihYuMuhKutuQIlA="
   [mod."github.com/StackExchange/wmi"]
     version = "v1.2.1"
     hash = "sha256-1BoEeWAWyebH+1mMuyPhWZut8nWHb6r73MgcqlGuUEY="
@@ -97,12 +103,28 @@ schema = 3
   [mod."github.com/cockroachdb/apd/v2"]
     version = "v2.0.2"
     hash = "sha256-UrPHkvqVF8V78+kXKmjTHl79XsgDBnqFsje5BMYh0E4="
+  [mod."github.com/cockroachdb/errors"]
+    version = "v1.8.1"
+    hash = "sha256-fpxeq5kDoP9NxP1XAWulmHfAKo0p0gDNj65YqPM318s="
+  [mod."github.com/cockroachdb/logtags"]
+    version = "v0.0.0-20190617123548-eb05cc24525f"
+    hash = "sha256-mdcKZsPfCiaTyxLRkZprVIijeZzbTD3J7WGb4zOQgn4="
+  [mod."github.com/cockroachdb/pebble"]
+    version = "v0.0.0-20230206180212-744ea7cc8f90"
+    hash = "sha256-P6TPgp2xCBM3IhqJ7sz9Jl7Gj41p63ZPrdR+8YzxMiE="
+    replaced = "github.com/cockroachdb/pebble"
+  [mod."github.com/cockroachdb/redact"]
+    version = "v1.0.8"
+    hash = "sha256-V/qBOGQUMbpPAQOpLTZk8MZiBr66Epml8snn9suCbs4="
+  [mod."github.com/cockroachdb/sentry-go"]
+    version = "v0.6.1-cockroachdb.2"
+    hash = "sha256-3C9tuGU6f2DOz6yPcOdUf1LRvCXFg+prfqAPob9Sz2E="
   [mod."github.com/coinbase/rosetta-sdk-go"]
     version = "v0.7.9"
     hash = "sha256-ZWIXIXcHGjeCNgMrpXymry8/8esDDauGFfF/+gEoO1Y="
   [mod."github.com/cometbft/cometbft-db"]
-    version = "v0.0.0-20230306031617-b3e4fd3331c4"
-    hash = "sha256-fGolPb6TBdk3+PPpVYpjSWAsfeDCG88X6H4edpTMgds="
+    version = "v0.0.0-20230412133340-ac70df4b45f6"
+    hash = "sha256-WOubYACTuk6OeHMSbcKIYbQWarWIljQUEvyX3hiXmq8="
     replaced = "github.com/crypto-org-chain/cometbft-db"
   [mod."github.com/confio/ics23/go"]
     version = "v0.9.0"
@@ -332,8 +354,14 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-xEd0mDBeq3eR/GYeXjoTVb2sPs8sTCosn5ayWkcgENI="
   [mod."github.com/klauspost/compress"]
-    version = "v1.15.11"
-    hash = "sha256-9MXm0TObg6DyqnYMIw3IChrorHc2ILf5djZYoM0e1J0="
+    version = "v1.15.15"
+    hash = "sha256-fMVJFz/P37vjZAf82nHjaItaB3gesOa+xV7uBuo3kmg="
+  [mod."github.com/kr/pretty"]
+    version = "v0.3.0"
+    hash = "sha256-5KfVas96NAU7pmN2ZOwQFFpUeagiJTqYKBLxq5aM5W4="
+  [mod."github.com/kr/text"]
+    version = "v0.2.0"
+    hash = "sha256-fadcWxZOORv44oak3jTxm6YcITcFxdGt4bpn869HxUE="
   [mod."github.com/ledgerwatch/erigon-lib"]
     version = "v0.0.0-20230210071639-db0e7ed11263"
     hash = "sha256-SKFGLsJV6G4xIQ5IU+qq9EY3v0/I8B/CTMcDOhXGfc4="
@@ -435,6 +463,9 @@ schema = 3
   [mod."github.com/rjeczalik/notify"]
     version = "v0.9.1"
     hash = "sha256-YLGNrHHM+mN4ElW/XWuylOnFrA/VjSY+eBuC4LN//5c="
+  [mod."github.com/rogpeppe/go-internal"]
+    version = "v1.8.1"
+    hash = "sha256-kXGiB1aTKIfgCKhZvSfIOyTL09EvMhzQEyhRmUhe7Ho="
   [mod."github.com/rs/cors"]
     version = "v1.8.2"
     hash = "sha256-FxBbQVb8zIoDGGaAJKfsYV0+POkh1tyX7P6A/Lk5Vsc="
@@ -488,8 +519,8 @@ schema = 3
     hash = "sha256-BbpfLcLRf6PwB1xmgkhTm9ckZekelrDUlXDX0/FSMU8="
     replaced = "github.com/cometbft/cometbft"
   [mod."github.com/tendermint/tm-db"]
-    version = "v0.6.8-0.20230118040049-14dc6b00a5b3"
-    hash = "sha256-kCe9nqzVgG+7ynuvYAGAOTCPESBnV28dDvRuAtsssbw="
+    version = "v0.6.8-0.20230412133356-5e16d347f5b9"
+    hash = "sha256-qWM+P4sAgvsl3m7fHAIQfav4DF4wZ6WfTP6mx3j1JrQ="
     replaced = "github.com/crypto-org-chain/tm-db"
   [mod."github.com/tidwall/btree"]
     version = "v1.5.0"

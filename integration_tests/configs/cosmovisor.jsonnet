@@ -3,6 +3,7 @@ local config = import 'default.jsonnet';
 config {
   'cronos_777-1'+: {
     'app-config'+: {
+      'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '100000000000basetcro',
       store:: super.store,
       streamers:: super.streamers,

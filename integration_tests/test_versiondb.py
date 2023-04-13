@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 
+import tomlkit
 from pystarport import ports
 
 from .network import Cronos
@@ -69,6 +70,10 @@ def test_versiondb_migration(cronos: Cronos):
         )
     )
 
+    # force app-db-backend to be rocksdb
+    patch_app_db_backend(cli0.data_dir / "config/app.toml", "rocksdb")
+    patch_app_db_backend(cli1.data_dir / "config/app.toml", "rocksdb")
+
     print("start all nodes")
     print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
@@ -92,3 +97,9 @@ def test_versiondb_migration(cronos: Cronos):
             "value": 1000,
         },
     )
+
+
+def patch_app_db_backend(path, backend):
+    cfg = tomlkit.parse(path.read_text())
+    cfg["app-db-backend"] = backend
+    path.write_text(tomlkit.dumps(cfg))
