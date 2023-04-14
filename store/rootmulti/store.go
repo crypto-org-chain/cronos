@@ -23,9 +23,7 @@ import (
 
 const CommitInfoFileName = "commit_infos"
 
-var (
-	_ types.CommitMultiStore = (*Store)(nil)
-)
+var _ types.CommitMultiStore = (*Store)(nil)
 
 type Store struct {
 	dir    string
@@ -39,8 +37,6 @@ type Store struct {
 	keysByName   map[string]types.StoreKey
 	stores       map[types.StoreKey]types.CommitKVStore
 	listeners    map[types.StoreKey][]types.WriteListener
-
-	initialVersion int64
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -192,7 +188,7 @@ func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
 }
 
 // Implements interface CommitMultiStore
-func (rs *Store) MountStoreWithDB(key types.StoreKey, typ types.StoreType, db dbm.DB) {
+func (rs *Store) MountStoreWithDB(key types.StoreKey, typ types.StoreType, _ dbm.DB) {
 	if key == nil {
 		panic("MountIAVLStore() key cannot be nil")
 	}
@@ -202,9 +198,8 @@ func (rs *Store) MountStoreWithDB(key types.StoreKey, typ types.StoreType, db db
 	if _, ok := rs.keysByName[key.Name()]; ok {
 		panic(fmt.Sprintf("store duplicate store key name %v", key))
 	}
-	rs.storesParams[key] = newStoreParams(key, db, typ, 0)
+	rs.storesParams[key] = newStoreParams(key, typ)
 	rs.keysByName[key.Name()] = key
-
 }
 
 // Implements interface CommitMultiStore
@@ -385,18 +380,14 @@ func (rs *Store) AddListeners(key types.StoreKey, listeners []types.WriteListene
 }
 
 type storeParams struct {
-	key            types.StoreKey
-	db             dbm.DB
-	typ            types.StoreType
-	initialVersion uint64
+	key types.StoreKey
+	typ types.StoreType
 }
 
-func newStoreParams(key types.StoreKey, db dbm.DB, typ types.StoreType, initialVersion uint64) storeParams {
+func newStoreParams(key types.StoreKey, typ types.StoreType) storeParams {
 	return storeParams{
-		key:            key,
-		db:             db,
-		typ:            typ,
-		initialVersion: initialVersion,
+		key: key,
+		typ: typ,
 	}
 }
 

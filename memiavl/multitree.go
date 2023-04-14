@@ -217,6 +217,9 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	})
 	t.treesByName = make(map[string]int, len(t.trees))
 	for i, tree := range t.trees {
+		if _, ok := t.treesByName[tree.name]; ok {
+			return fmt.Errorf("memiavl tree name conflicts: %s", tree.name)
+		}
 		t.treesByName[tree.name] = i
 	}
 

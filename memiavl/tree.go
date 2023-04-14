@@ -135,10 +135,7 @@ func (t *Tree) Get(key []byte) []byte {
 }
 
 func (t *Tree) Has(key []byte) bool {
-	if t.Get(key) == nil {
-		return false
-	}
-	return true
+	return t.Get(key) != nil
 }
 
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
