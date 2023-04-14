@@ -3,7 +3,7 @@ module github.com/crypto-org-chain/cronos/store
 go 1.20
 
 require (
-	github.com/cosmos/cosmos-sdk v0.46.11
+	github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa
 	github.com/crypto-org-chain/cronos/memiavl v0.0.1
 	github.com/gogo/protobuf v1.3.2

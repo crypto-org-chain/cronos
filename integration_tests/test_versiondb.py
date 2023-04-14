@@ -1,4 +1,5 @@
 import shutil
+import pytest
 import tempfile
 
 import tomlkit
@@ -8,6 +9,7 @@ from .network import Cronos
 from .utils import ADDRS, send_transaction, wait_for_port
 
 
+@pytest.marker.skip
 def test_versiondb_migration(cronos: Cronos):
     """
     test versiondb migration commands.

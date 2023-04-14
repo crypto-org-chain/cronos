@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.11
+	github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/ibc-go/v5 v5.2.0
 	github.com/crypto-org-chain/cronos/store v0.0.0
@@ -225,7 +225,7 @@ replace (
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.12-0.20230403092311-152465bd0ca7
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/store => ./store
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
