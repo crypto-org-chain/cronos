@@ -14,12 +14,23 @@ var (
 	RefHashes  [][]byte
 )
 
+func mockKVPairs(kvPairs ...string) []*iavl.KVPair {
+	result := make([]*iavl.KVPair, len(kvPairs)/2)
+	for i := 0; i < len(kvPairs); i += 2 {
+		result[i/2] = &iavl.KVPair{
+			Key:   []byte(kvPairs[i]),
+			Value: []byte(kvPairs[i+1]),
+		}
+	}
+	return result
+}
+
 func init() {
-	ChangeSets = append(ChangeSets,
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world")}}},
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello"), Value: []byte("world1")}, {Key: []byte("hello1"), Value: []byte("world1")}}},
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{{Key: []byte("hello2"), Value: []byte("world1")}, {Key: []byte("hello3"), Value: []byte("world1")}}},
-	)
+	ChangeSets = []iavl.ChangeSet{
+		{Pairs: mockKVPairs("hello", "world")},
+		{Pairs: mockKVPairs("hello", "world1", "hello1", "world1")},
+		{Pairs: mockKVPairs("hello2", "world1", "hello3", "world1")},
+	}
 
 	changes := iavl.ChangeSet{}
 	for i := 0; i < 1; i++ {
