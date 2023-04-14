@@ -347,7 +347,7 @@ func New(
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "memiavl.db"), logger))
+		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger))
 	}
 
 	bApp.SetCommitMultiStoreTracer(traceStore)

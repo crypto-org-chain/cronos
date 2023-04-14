@@ -235,7 +235,7 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 		InitialStores:   initialStores,
 	})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
 	}
 
 	var treeUpgrades []*memiavl.TreeNameUpgrade
@@ -245,8 +245,6 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), Delete: true})
 		case upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != "":
 			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), RenameFrom: upgrades.RenamedFrom(key.Name())})
-		default:
-			return errors.New("invalid upgrade specification")
 		}
 	}
 

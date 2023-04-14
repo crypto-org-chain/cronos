@@ -233,7 +233,7 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	tmpLink := currentTmpPath(db.dir)
-	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
+	if err := os.Symlink(filepath.Base(snapshotDir), tmpLink); err != nil {
 		return err
 	}
 	// assuming file renaming operation is atomic
@@ -342,7 +342,7 @@ func initEmptyDB(dir string, initialVersion uint32) error {
 		return err
 	}
 	tmpPath := currentTmpPath(dir)
-	if err := os.Symlink(snapshotDir, tmpPath); err != nil {
+	if err := os.Symlink(filepath.Base(snapshotDir), tmpPath); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, currentPath(dir))
