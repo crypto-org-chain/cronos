@@ -172,8 +172,8 @@ func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
 
-func (t *MultiTree) LastCommitInfo() storetypes.CommitInfo {
-	return t.lastCommitInfo
+func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
+	return &t.lastCommitInfo
 }
 
 // ApplyUpgrades store name upgrades

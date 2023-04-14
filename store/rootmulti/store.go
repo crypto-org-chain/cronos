@@ -32,6 +32,9 @@ type Store struct {
 	db     *memiavl.DB
 	logger log.Logger
 
+	// to keep it comptaible with cosmos-sdk 0.46, merge the memstores into commit info
+	lastCommitInfo *types.CommitInfo
+
 	storesParams map[types.StoreKey]storeParams
 	keysByName   map[string]types.StoreKey
 	stores       map[types.StoreKey]types.CommitKVStore
@@ -55,33 +58,39 @@ func NewStore(dir string, logger log.Logger) *Store {
 // Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
 	var changeSets []*memiavl.NamedChangeSet
-	for storeKey, store := range rs.stores {
+	var extraStoreInfos []types.StoreInfo
+	for key, store := range rs.stores {
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
 			changeSets = append(changeSets, &memiavl.NamedChangeSet{
-				Name:      storeKey.Name(),
+				Name:      key.Name(),
 				Changeset: memiavlStore.PopChangeSet(),
 			})
 		} else {
-			_ = store.Commit()
+			commitID := store.Commit()
+			// to keep the root hash compatible with cosmos-sdk 0.46
+			if store.GetStoreType() != types.StoreTypeTransient {
+				si := types.StoreInfo{
+					Name:     key.Name(),
+					CommitId: commitID,
+				}
+				extraStoreInfos = append(extraStoreInfos, si)
+			}
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
 		return changeSets[i].Name < changeSets[j].Name
 	})
-	hash, v, err := rs.db.Commit(changeSets)
+	_, _, err := rs.db.Commit(changeSets)
 	if err != nil {
 		panic(err)
 	}
-
-	return types.CommitID{
-		Version: v,
-		Hash:    hash,
-	}
+	rs.lastCommitInfo = mergeStoreInfos(rs.db.LastCommitInfo(), extraStoreInfos)
+	return rs.lastCommitInfo.CommitID()
 }
 
 // Implements interface Committer
 func (rs *Store) LastCommitID() types.CommitID {
-	return rs.db.LastCommitInfo().CommitID()
+	return rs.lastCommitInfo.CommitID()
 }
 
 // Implements interface Committer
@@ -226,9 +235,20 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 		return storesKeys[i].Name() < storesKeys[j].Name()
 	})
 
-	initialStores := make([]string, len(storesKeys))
-	for i, key := range storesKeys {
-		initialStores[i] = key.Name()
+	initialStores := make([]string, 0, len(storesKeys))
+	var extraStoreInfos []types.StoreInfo
+	for _, key := range storesKeys {
+		switch rs.storesParams[key].typ {
+		case types.StoreTypeIAVL:
+			initialStores = append(initialStores, key.Name())
+		case types.StoreTypeTransient:
+			continue
+		default:
+			extraStoreInfos = append(extraStoreInfos, types.StoreInfo{
+				Name:     key.Name(),
+				CommitId: types.CommitID{},
+			})
+		}
 	}
 	db, err := memiavl.Load(rs.dir, memiavl.Options{
 		CreateIfMissing: true,
@@ -264,6 +284,8 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 
 	rs.db = db
 	rs.stores = newStores
+	// to keep the root hash compatible with cosmos-sdk 0.46
+	rs.lastCommitInfo = mergeStoreInfos(db.LastCommitInfo(), extraStoreInfos)
 	return nil
 }
 
@@ -371,5 +393,18 @@ func newStoreParams(key types.StoreKey, db dbm.DB, typ types.StoreType, initialV
 		db:             db,
 		typ:            typ,
 		initialVersion: initialVersion,
+	}
+}
+
+func mergeStoreInfos(commitInfo *types.CommitInfo, storeInfos []types.StoreInfo) *types.CommitInfo {
+	infos := make([]types.StoreInfo, 0, len(commitInfo.StoreInfos)+len(storeInfos))
+	infos = append(infos, commitInfo.StoreInfos...)
+	infos = append(infos, storeInfos...)
+	sort.SliceStable(infos, func(i, j int) bool {
+		return infos[i].Name < infos[j].Name
+	})
+	return &types.CommitInfo{
+		Version:    commitInfo.Version,
+		StoreInfos: infos,
 	}
 }
