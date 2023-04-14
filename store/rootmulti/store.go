@@ -285,7 +285,11 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 	rs.db = db
 	rs.stores = newStores
 	// to keep the root hash compatible with cosmos-sdk 0.46
-	rs.lastCommitInfo = mergeStoreInfos(db.LastCommitInfo(), extraStoreInfos)
+	if db.Version() != 0 {
+		rs.lastCommitInfo = mergeStoreInfos(db.LastCommitInfo(), extraStoreInfos)
+	} else {
+		rs.lastCommitInfo = &types.CommitInfo{}
+	}
 	return nil
 }
 
