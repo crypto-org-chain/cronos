@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
-	"os"
 
 	"github.com/cosmos/iavl"
 	dbm "github.com/tendermint/tm-db"
@@ -70,26 +69,6 @@ func (t *Tree) Copy() *Tree {
 	}
 	newTree := *t
 	return &newTree
-}
-
-// Load try to load an existing memiavl tree at the directory,
-// if the directory don't exists, creates an empty tree with the provided initial version.
-func Load(dir string, initialVersion int64) (*Tree, error) {
-	snapshot, err := OpenSnapshot(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return NewWithInitialVersion(initialVersion), nil
-		}
-		return nil, err
-	}
-	return NewFromSnapshot(snapshot), nil
-}
-
-func (t *Tree) SetInitialVersion(version int64) {
-	if version >= int64(math.MaxUint32) {
-		panic("version overflows uint32")
-	}
-	t.initialVersion = uint32(version)
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.

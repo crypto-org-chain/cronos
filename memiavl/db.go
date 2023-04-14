@@ -102,18 +102,16 @@ func Load(dir string, opts Options) (*DB, error) {
 // SetInitialVersion wraps `MultiTree.SetInitialVersion`.
 // it do an immediate snapshot rewrite, because we can't use wal log to record this change,
 // because we need it to convert versions to wal index in the first place.
-func (db *DB) SetInitialVersion(initialVersion int64) {
+func (db *DB) SetInitialVersion(initialVersion int64) error {
 	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
-		panic(err)
+		return err
 	}
 
-	if err := db.RewriteSnapshot(); err != nil {
-		panic(err)
+	if err := initEmptyDB(db.dir, db.initialVersion); err != nil {
+		return err
 	}
 
-	if err := db.Reload(); err != nil {
-		panic(err)
-	}
+	return db.Reload()
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
@@ -234,7 +232,7 @@ func (db *DB) RewriteSnapshot() error {
 	if err := db.WriteSnapshot(snapshotDir); err != nil {
 		return err
 	}
-	tmpLink := filepath.Join(db.dir, "current-tmp")
+	tmpLink := currentTmpPath(db.dir)
 	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
 		return err
 	}
@@ -256,7 +254,11 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	db.MultiTree = *mtree
-	db.pendingUpgrades = nil
+
+	if len(db.pendingUpgrades) > 0 {
+		db.MultiTree.ApplyUpgrades(db.pendingUpgrades)
+	}
+
 	return nil
 }
 
@@ -316,6 +318,10 @@ func currentPath(root string) string {
 	return filepath.Join(root, "current")
 }
 
+func currentTmpPath(root string) string {
+	return filepath.Join(root, "current-tmp")
+}
+
 func walPath(root string) string {
 	return filepath.Join(root, "wal")
 }
@@ -335,5 +341,9 @@ func initEmptyDB(dir string, initialVersion uint32) error {
 	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
 		return err
 	}
-	return os.Symlink(snapshotDir, currentPath(dir))
+	tmpPath := currentTmpPath(dir)
+	if err := os.Symlink(snapshotDir, tmpPath); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, currentPath(dir))
 }

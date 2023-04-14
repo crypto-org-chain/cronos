@@ -3,12 +3,10 @@ package rootmulti
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
+	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/crypto-org-chain/cronos/store/memiavlstore"
 	"github.com/pkg/errors"
 	"github.com/tendermint/tendermint/libs/log"
@@ -31,6 +29,7 @@ var (
 
 type Store struct {
 	dir    string
+	db     *memiavl.DB
 	logger log.Logger
 
 	storesParams map[types.StoreKey]storeParams
@@ -39,7 +38,6 @@ type Store struct {
 	listeners    map[types.StoreKey][]types.WriteListener
 
 	initialVersion int64
-	lastCommitInfo *types.CommitInfo
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -56,34 +54,34 @@ func NewStore(dir string, logger log.Logger) *Store {
 
 // Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
-	var previousHeight, version int64
-	if rs.lastCommitInfo.GetVersion() == 0 && rs.initialVersion > 1 {
-		// This case means that no commit has been made in the store, we
-		// start from initialVersion.
-		version = rs.initialVersion
-	} else {
-		// This case can means two things:
-		// - either there was already a previous commit in the store, in which
-		// case we increment the version from there,
-		// - or there was no previous commit, and initial version was not set,
-		// in which case we start at version 1.
-		previousHeight = rs.lastCommitInfo.GetVersion()
-		version = previousHeight + 1
+	var changeSets []*memiavl.NamedChangeSet
+	for storeKey, store := range rs.stores {
+		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
+			changeSets = append(changeSets, &memiavl.NamedChangeSet{
+				Name:      storeKey.Name(),
+				Changeset: memiavlStore.PopChangeSet(),
+			})
+		} else {
+			_ = store.Commit()
+		}
+	}
+	sort.SliceStable(changeSets, func(i, j int) bool {
+		return changeSets[i].Name < changeSets[j].Name
+	})
+	hash, v, err := rs.db.Commit(changeSets)
+	if err != nil {
+		panic(err)
 	}
 
-	rs.lastCommitInfo = commitStores(version, rs.stores, nil)
-
-	// TODO persist to disk
-
 	return types.CommitID{
-		Version: version,
-		Hash:    rs.lastCommitInfo.Hash(),
+		Version: v,
+		Hash:    hash,
 	}
 }
 
 // Implements interface Committer
 func (rs *Store) LastCommitID() types.CommitID {
-	return rs.lastCommitInfo.CommitID()
+	return rs.db.LastCommitInfo().CommitID()
 }
 
 // Implements interface Committer
@@ -134,22 +132,12 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 
 // Implements interface MultiStore
 func (rs *Store) GetStore(key types.StoreKey) types.Store {
-	return rs.GetKVStore(key)
+	panic("uncached KVStore is not supposed to be accessed directly")
 }
 
 // Implements interface MultiStore
 func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
-	s := rs.stores[key]
-	if s == nil {
-		panic(fmt.Sprintf("store does not exist for key: %s", key.Name()))
-	}
-	store := types.KVStore(s)
-
-	if rs.ListeningEnabled(key) {
-		store = listenkv.NewStore(store, key, rs.listeners[key])
-	}
-
-	return store
+	panic("uncached KVStore is not supposed to be accessed directly")
 }
 
 // Implements interface MultiStore
@@ -169,7 +157,7 @@ func (rs *Store) SetTracingContext(types.TraceContext) types.MultiStore {
 
 // Implements interface MultiStore
 func (rs *Store) LatestVersion() int64 {
-	return rs.lastCommitInfo.Version
+	return rs.db.Version()
 }
 
 // Implements interface Snapshotter
@@ -229,28 +217,6 @@ func (rs *Store) LoadLatestVersion() error {
 // Implements interface CommitMultiStore
 // used by node startup with UpgradeStoreLoader
 func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
-	cInfo := &types.CommitInfo{}
-	bz, err := os.ReadFile(filepath.Join(rs.dir, CommitInfoFileName))
-	if err != nil {
-		// if file not exists, assume empty db
-		if !os.IsNotExist(err) {
-			return errors.Wrap(err, "fail to read commit info file")
-		}
-	} else {
-		if err := cInfo.Unmarshal(bz); err != nil {
-			return errors.Wrap(err, "failed unmarshal commit info")
-		}
-	}
-
-	infos := make(map[string]types.StoreInfo)
-	// convert StoreInfos slice to map
-	for _, storeInfo := range cInfo.StoreInfos {
-		infos[storeInfo.Name] = storeInfo
-	}
-
-	// load each Store (note this doesn't panic on unmounted keys now)
-	newStores := make(map[types.StoreKey]types.CommitKVStore)
-
 	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
 	for key := range rs.storesParams {
 		storesKeys = append(storesKeys, key)
@@ -260,51 +226,59 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 		return storesKeys[i].Name() < storesKeys[j].Name()
 	})
 
-	var (
-		commitID types.CommitID
-	)
+	initialStores := make([]string, len(storesKeys))
+	for i, key := range storesKeys {
+		initialStores[i] = key.Name()
+	}
+	db, err := memiavl.Load(rs.dir, memiavl.Options{
+		CreateIfMissing: true,
+		InitialStores:   initialStores,
+	})
+	if err != nil {
+		return err
+	}
+
+	var treeUpgrades []*memiavl.TreeNameUpgrade
 	for _, key := range storesKeys {
-		storeParams := rs.storesParams[key]
-
-		if info, ok := infos[key.Name()]; !ok {
-			commitID = info.CommitId
-		} else {
-			commitID = types.CommitID{}
-		}
-
-		// If it has been added, set the initial version
-		if upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != "" {
-			storeParams.initialVersion = uint64(cInfo.Version) + 1
-		} else if commitID.Version != cInfo.Version && storeParams.typ == types.StoreTypeIAVL {
-			return fmt.Errorf("version of store %s mismatch root store's version; expected %d got %d", key.Name(), cInfo.Version, commitID.Version)
-		}
-
-		store, err := rs.loadCommitStoreFromParams(key, commitID, storeParams)
-		if err != nil {
-			return errors.Wrap(err, "failed to load store")
-		}
-
-		newStores[key] = store
-		// If it was deleted, remove all data
-		if upgrades.IsDeleted(key.Name()) {
-			// TODO efficient deletion
-		} else if oldName := upgrades.RenamedFrom(key.Name()); oldName != "" {
-			// TODO efficient rename
+		switch {
+		case upgrades.IsDeleted(key.Name()):
+			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), Delete: true})
+		case upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != "":
+			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), RenameFrom: upgrades.RenamedFrom(key.Name())})
+		default:
+			return errors.New("invalid upgrade specification")
 		}
 	}
 
-	rs.lastCommitInfo = cInfo
+	if len(treeUpgrades) > 0 {
+		if err := db.ApplyUpgrades(treeUpgrades); err != nil {
+			return err
+		}
+	}
+
+	newStores := make(map[types.StoreKey]types.CommitKVStore, len(storesKeys))
+	for _, key := range storesKeys {
+		newStores[key], err = rs.loadCommitStoreFromParams(db, key, rs.storesParams[key])
+		if err != nil {
+			return err
+		}
+	}
+
+	rs.db = db
 	rs.stores = newStores
 	return nil
 }
 
-func (rs *Store) loadCommitStoreFromParams(key types.StoreKey, id types.CommitID, params storeParams) (types.CommitKVStore, error) {
+func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, params storeParams) (types.CommitKVStore, error) {
 	switch params.typ {
 	case types.StoreTypeMulti:
 		panic("recursive MultiStores not yet supported")
 	case types.StoreTypeIAVL:
-		dir := filepath.Join(rs.dir, key.Name())
-		return memiavlstore.LoadStoreWithInitialVersion(dir, rs.logger, int64(params.initialVersion))
+		tree := db.TreeByName(key.Name())
+		if tree == nil {
+			return nil, fmt.Errorf("new store is not added in upgrades")
+		}
+		return memiavlstore.New(tree, rs.logger), nil
 	case types.StoreTypeDB:
 		panic("recursive MultiStores not yet supported")
 	case types.StoreTypeTransient:
@@ -349,20 +323,7 @@ func (rs *Store) SetInterBlockCache(_ types.MultiStorePersistentCache) {
 // Implements interface CommitMultiStore
 // used by InitChain when the initial height is bigger than 1
 func (rs *Store) SetInitialVersion(version int64) error {
-	rs.initialVersion = version
-
-	// Loop through all the stores, if it's an IAVL store, then set initial
-	// version on it.
-	for key, store := range rs.stores {
-		if store.GetStoreType() == types.StoreTypeIAVL {
-			// If the store is wrapped with an inter-block cache, we must first unwrap
-			// it to get the underlying IAVL store.
-			store = rs.GetCommitKVStore(key)
-			store.(types.StoreWithInitialVersion).SetInitialVersion(version)
-		}
-	}
-
-	return nil
+	return rs.db.SetInitialVersion(version)
 }
 
 // Implements interface CommitMultiStore
@@ -412,42 +373,5 @@ func newStoreParams(key types.StoreKey, db dbm.DB, typ types.StoreType, initialV
 		db:             db,
 		typ:            typ,
 		initialVersion: initialVersion,
-	}
-}
-
-// Commits each store and returns a new commitInfo.
-func commitStores(version int64, storeMap map[types.StoreKey]types.CommitKVStore, removalMap map[types.StoreKey]bool) *types.CommitInfo {
-	storeInfos := make([]types.StoreInfo, 0, len(storeMap))
-
-	for key, store := range storeMap {
-		last := store.LastCommitID()
-
-		// If a commit event execution is interrupted, a new iavl store's version will be larger than the rootmulti's metadata, when the block is replayed, we should avoid committing that iavl store again.
-		var commitID types.CommitID
-		if last.Version >= version {
-			last.Version = version
-			commitID = last
-		} else {
-			commitID = store.Commit()
-		}
-		if store.GetStoreType() == types.StoreTypeTransient {
-			continue
-		}
-
-		if !removalMap[key] {
-			si := types.StoreInfo{}
-			si.Name = key.Name()
-			si.CommitId = commitID
-			storeInfos = append(storeInfos, si)
-		}
-	}
-
-	sort.SliceStable(storeInfos, func(i, j int) bool {
-		return strings.Compare(storeInfos[i].Name, storeInfos[j].Name) < 0
-	})
-
-	return &types.CommitInfo{
-		Version:    version,
-		StoreInfos: storeInfos,
 	}
 }

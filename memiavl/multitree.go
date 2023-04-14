@@ -20,7 +20,7 @@ import (
 
 const MetadataFileName = "__metadata"
 
-type namedTree struct {
+type NamedTree struct {
 	tree *Tree
 	name string
 }
@@ -45,7 +45,7 @@ type MultiTree struct {
 	// it always corresponds to the wal entry with index 1.
 	initialVersion uint32
 
-	trees          []namedTree
+	trees          []NamedTree
 	treesByName    map[string]int // reversed index of the trees
 	lastCommitInfo storetypes.CommitInfo
 }
@@ -96,11 +96,11 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 
 	sort.Strings(treeNames)
 
-	trees := make([]namedTree, len(treeNames))
+	trees := make([]NamedTree, len(treeNames))
 	treesByName := make(map[string]int, len(trees))
 	for i, name := range treeNames {
 		tree := treeMap[name]
-		trees[i] = namedTree{tree: tree, name: name}
+		trees[i] = NamedTree{tree: tree, name: name}
 		treesByName[name] = i
 	}
 
@@ -112,6 +112,14 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
 	return mtree, nil
+}
+
+func (t *MultiTree) Trees() []NamedTree {
+	return t.trees
+}
+
+func (t *MultiTree) TreeByName(name string) *Tree {
+	return t.trees[t.treesByName[name]].tree
 }
 
 func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
@@ -142,11 +150,11 @@ func (t *MultiTree) setInitialVersion(initialVersion int64) {
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
 func (t *MultiTree) Copy() *MultiTree {
-	trees := make([]namedTree, len(t.trees))
+	trees := make([]NamedTree, len(t.trees))
 	treesByName := make(map[string]int, len(t.trees))
 	for i, entry := range t.trees {
 		tree := entry.tree.Copy()
-		trees[i] = namedTree{tree: tree, name: entry.name}
+		trees[i] = NamedTree{tree: tree, name: entry.name}
 		treesByName[entry.name] = i
 	}
 
@@ -164,6 +172,10 @@ func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
 
+func (t *MultiTree) LastCommitInfo() storetypes.CommitInfo {
+	return t.lastCommitInfo
+}
+
 // ApplyUpgrades store name upgrades
 func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	if len(upgrades) == 0 {
@@ -175,7 +187,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	for _, upgrade := range upgrades {
 		switch {
 		case upgrade.Delete:
-			i := slices.IndexFunc(t.trees, func(entry namedTree) bool {
+			i := slices.IndexFunc(t.trees, func(entry NamedTree) bool {
 				return entry.name == upgrade.Name
 			})
 			if i < 0 {
@@ -186,7 +198,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 			t.trees = t.trees[:len(t.trees)-1]
 		case upgrade.RenameFrom != "":
 			// rename tree
-			i := slices.IndexFunc(t.trees, func(entry namedTree) bool {
+			i := slices.IndexFunc(t.trees, func(entry NamedTree) bool {
 				return entry.name == upgrade.RenameFrom
 			})
 			if i < 0 {
@@ -196,7 +208,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 		default:
 			// add tree
 			tree := NewWithInitialVersion(uint32(nextVersion(t.Version(), t.initialVersion)))
-			t.trees = append(t.trees, namedTree{tree: tree, name: upgrade.Name})
+			t.trees = append(t.trees, NamedTree{tree: tree, name: upgrade.Name})
 		}
 	}
 

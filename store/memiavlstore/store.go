@@ -22,31 +22,18 @@ var (
 
 // Store Implements types.KVStore and CommitKVStore.
 type Store struct {
-	tree   memiavl.Tree
+	tree   *memiavl.Tree
 	logger log.Logger
 
 	changeSet iavl.ChangeSet
 }
 
-func LoadStoreWithInitialVersion(dir string, logger log.Logger, initialVersion int64) (types.CommitKVStore, error) {
-	tree, err := memiavl.Load(dir, initialVersion)
-	if err != nil {
-		return nil, err
-	}
-	return &Store{tree: *tree, logger: logger}, nil
+func New(tree *memiavl.Tree, logger log.Logger) *Store {
+	return &Store{tree: tree, logger: logger}
 }
 
 func (st *Store) Commit() types.CommitID {
-	hash, version, err := st.tree.ApplyChangeSet(&st.changeSet, true)
-	if err != nil {
-		panic(err)
-	}
-	st.changeSet.Pairs = st.changeSet.Pairs[:0]
-
-	return types.CommitID{
-		Version: version,
-		Hash:    hash,
-	}
+	panic("memiavl store is not supposed to be committed alone")
 }
 
 func (st *Store) LastCommitID() types.CommitID {
@@ -87,7 +74,7 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 //
 // we assume Set is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Set(key, value []byte) {
-	st.changeSet.Pairs = append(st.changeSet.Pairs, iavl.KVPair{
+	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
 		Key: key, Value: value,
 	})
 }
@@ -106,7 +93,7 @@ func (st *Store) Has(key []byte) bool {
 //
 // we assume Delete is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Delete(key []byte) {
-	st.changeSet.Pairs = append(st.changeSet.Pairs, iavl.KVPair{
+	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
 		Key: key, Delete: true,
 	})
 }
@@ -123,5 +110,12 @@ func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
 // starting a new chain at an arbitrary height.
 // implements interface StoreWithInitialVersion
 func (st *Store) SetInitialVersion(version int64) {
-	st.tree.SetInitialVersion(version)
+	panic("memiavl store's SetInitialVersion is not supposed to be called directly")
+}
+
+// PopChangeSet returns the change set and clear it
+func (st *Store) PopChangeSet() iavl.ChangeSet {
+	cs := st.changeSet
+	st.changeSet = iavl.ChangeSet{}
+	return cs
 }
