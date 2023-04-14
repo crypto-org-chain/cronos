@@ -122,105 +122,87 @@ func TestWAL(t *testing.T) {
 	require.Equal(t, RefHashes[len(RefHashes)-1], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
 }
 
+func mockNameChangeSet(name, key, value string) []*NamedChangeSet {
+	return []*NamedChangeSet{
+		{
+			Name: name,
+			Changeset: iavl.ChangeSet{
+				Pairs: mockKVPairs(key, value),
+			},
+		},
+	}
+}
+
+// 0/1 -> v :1
+// ...
+// 100 -> v: 100
 func TestInitialVersion(t *testing.T) {
-	dir := t.TempDir()
-	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}})
-	require.NoError(t, err)
+	name := "test"
+	name1 := "new"
+	name2 := "new2"
+	key := "hello"
+	value := "world"
+	for _, initialVersion := range []int64{0, 1, 100} {
+		dir := t.TempDir()
+		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}})
+		require.NoError(t, err)
+		db.SetInitialVersion(initialVersion)
+		hash, v, err := db.Commit(mockNameChangeSet(name, key, value))
+		require.NoError(t, err)
+		if initialVersion <= 1 {
+			require.Equal(t, int64(1), v)
+		} else {
+			require.Equal(t, initialVersion, v)
+		}
+		require.Equal(t, "2b650e7f3495c352dbf575759fee86850e4fc63291a5889847890ebf12e3f585", hex.EncodeToString(hash))
+		hash, v, err = db.Commit(mockNameChangeSet(name, key, "world1"))
+		require.NoError(t, err)
+		if initialVersion <= 1 {
+			require.Equal(t, int64(2), v)
+			require.Equal(t, "e102a3393cc7a5c0ea115b00bcdf9d77f407040627354b0dde57f6d7edadfd83", hex.EncodeToString(hash))
+		} else {
+			require.Equal(t, initialVersion+1, v)
+			require.Equal(t, "b7669ab9c167dcf1bb6e69b88ae8573bda2905f556a8f37a65de6cabd31a552d", hex.EncodeToString(hash))
+		}
+		require.NoError(t, db.Close())
 
-	db.SetInitialVersion(100)
+		db, err = Load(dir, Options{})
+		require.NoError(t, err)
+		require.Equal(t, uint32(initialVersion), db.initialVersion)
+		require.Equal(t, v, db.Version())
+		require.Equal(t, hex.EncodeToString(hash), hex.EncodeToString(hash))
 
-	hash, v, err := db.Commit([]*NamedChangeSet{
-		{
-			Name: "test",
-			Changeset: iavl.ChangeSet{
-				Pairs: []*iavl.KVPair{
-					{
-						Key:   []byte("hello"),
-						Value: []byte("world"),
-					},
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(100), v)
-	require.Equal(t, "2b650e7f3495c352dbf575759fee86850e4fc63291a5889847890ebf12e3f585", hex.EncodeToString(hash))
+		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
+		_, v, err = db.Commit((mockNameChangeSet(name1, key, value)))
+		require.NoError(t, err)
+		if initialVersion <= 1 {
+			require.Equal(t, int64(3), v)
+		} else {
+			require.Equal(t, initialVersion+2, v)
+		}
+		require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
+		info := db.lastCommitInfo.StoreInfos[0]
+		require.Equal(t, name1, info.Name)
+		require.Equal(t, v, info.CommitId.Version)
+		require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
+		// the nodes are created with version 1, which is compatible with iavl behavior: https://github.com/cosmos/iavl/pull/660
+		require.Equal(t, info.CommitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value), 1)))
 
-	hash, v, err = db.Commit([]*NamedChangeSet{
-		{
-			Name: "test",
-			Changeset: iavl.ChangeSet{
-				Pairs: []*iavl.KVPair{
-					{
-						Key:   []byte("hello"),
-						Value: []byte("world1"),
-					},
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(101), v)
-	require.Equal(t, "b7669ab9c167dcf1bb6e69b88ae8573bda2905f556a8f37a65de6cabd31a552d", hex.EncodeToString(hash))
+		require.NoError(t, db.RewriteSnapshot())
+		require.NoError(t, db.Reload())
 
-	require.NoError(t, db.Close())
-
-	db, err = Load(dir, Options{})
-	require.NoError(t, err)
-	require.Equal(t, uint32(100), db.initialVersion)
-	require.Equal(t, int64(101), db.Version())
-	require.Equal(t, "b7669ab9c167dcf1bb6e69b88ae8573bda2905f556a8f37a65de6cabd31a552d", hex.EncodeToString(db.Hash()))
-
-	db.ApplyUpgrades([]*TreeNameUpgrade{
-		{Name: "new"},
-	})
-	_, v, err = db.Commit([]*NamedChangeSet{
-		{
-			Name: "new",
-			Changeset: iavl.ChangeSet{
-				Pairs: []*iavl.KVPair{
-					{
-						Key:   []byte("hello"),
-						Value: []byte("world"),
-					},
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(102), v)
-	require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
-	info := db.lastCommitInfo.StoreInfos[0]
-	require.Equal(t, "new", info.Name)
-	require.Equal(t, int64(102), info.CommitId.Version)
-	require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
-	// the nodes are created with version 1, which is compatible with iavl behavior: https://github.com/cosmos/iavl/pull/660
-	require.Equal(t, info.CommitId.Hash, HashNode(newLeafNode([]byte("hello"), []byte("world"), 1)))
-
-	require.NoError(t, db.RewriteSnapshot())
-	require.NoError(t, db.Reload())
-
-	db.ApplyUpgrades([]*TreeNameUpgrade{
-		{Name: "new2"},
-	})
-	_, v, err = db.Commit([]*NamedChangeSet{
-		{
-			Name: "new2",
-			Changeset: iavl.ChangeSet{
-				Pairs: []*iavl.KVPair{
-					{
-						Key:   []byte("hello"),
-						Value: []byte("world"),
-					},
-				},
-			},
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, int64(103), v)
-	require.Equal(t, 3, len(db.lastCommitInfo.StoreInfos))
-	info = db.lastCommitInfo.StoreInfos[1]
-	require.Equal(t, "new2", info.Name)
-	require.Equal(t, int64(103), info.CommitId.Version)
-	require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
+		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name2}})
+		_, v, err = db.Commit((mockNameChangeSet(name2, key, value)))
+		require.NoError(t, err)
+		if initialVersion <= 1 {
+			require.Equal(t, int64(4), v)
+		} else {
+			require.Equal(t, initialVersion+3, v)
+		}
+		require.Equal(t, 3, len(db.lastCommitInfo.StoreInfos))
+		info2 := db.lastCommitInfo.StoreInfos[1]
+		require.Equal(t, name2, info2.Name)
+		require.Equal(t, v, info2.CommitId.Version)
+		require.Equal(t, hex.EncodeToString(info.CommitId.Hash), hex.EncodeToString(info2.CommitId.Hash))
+	}
 }
