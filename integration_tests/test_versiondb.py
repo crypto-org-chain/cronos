@@ -1,7 +1,7 @@
 import shutil
-import pytest
 import tempfile
 
+import pytest
 import tomlkit
 from pystarport import ports
 
