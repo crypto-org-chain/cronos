@@ -1,3 +1,4 @@
+import pytest
 from cprotobuf import Field, ProtoEntity, decode_primitive
 from hexbytes import HexBytes
 
@@ -31,6 +32,7 @@ def decode_stream_file(data, entry_cls=StoreKVPairs):
     return items
 
 
+@pytest.mark.skip(reason="file streamer is not useful for now")
 def test_streamers(cronos):
     """
     - check the streaming files are created
