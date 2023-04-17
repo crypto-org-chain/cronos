@@ -3,7 +3,6 @@ import json
 import pytest
 import sha3
 import toml
-from dateutil.parser import isoparse
 from eth_account.account import Account
 from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
@@ -18,17 +17,16 @@ from .utils import (
     CONTRACTS,
     KEYS,
     add_ini_sections,
+    approve_proposal,
     deploy_contract,
     deploy_erc20,
     dump_toml,
     eth_to_bech32,
     get_contract,
     multiple_send_to_cosmos,
-    parse_events,
     send_to_cosmos,
     send_transaction,
     w3_wait_for_new_blocks,
-    wait_for_block_time,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -432,26 +430,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
     rsp = submit_proposal(cli, tmp_path, is_legacy, denom, crc21.address)
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
-    proposal_id = ev["proposal_id"]
-    print("gov proposal submitted", proposal_id)
-
-    # not sure why, but sometimes can't find the proposal immediatelly
-    wait_for_new_blocks(cli, 1)
-    proposal = cli.query_proposal(proposal_id)
-
-    # each validator vote yes
-    for i in range(len(gravity.cronos.config["validators"])):
-        rsp = gravity.cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
-        assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli, 1)
-    assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
-    ), "all validators should have voted yes"
-    print("wait for proposal to be activated")
-    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
-    wait_for_new_blocks(cli, 1)
+    approve_proposal(gravity.cronos, rsp)
 
     print("check the contract mapping exists now")
     rsp = cli.query_contract_by_denom(denom)

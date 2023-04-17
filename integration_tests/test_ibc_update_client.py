@@ -1,10 +1,9 @@
 import subprocess
 
 import pytest
-from dateutil.parser import isoparse
 
 from .ibc_utils import prepare_network
-from .utils import parse_events, wait_for_block_time, wait_for_fn
+from .utils import approve_proposal, wait_for_fn
 
 
 @pytest.fixture(scope="module")
@@ -104,16 +103,6 @@ def test_ibc_update_client(ibc):
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
-    proposal_id = ev["proposal_id"]
-    rsp = cli.gov_vote("validator", proposal_id, "yes")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    rsp = ibc.cronos.cosmos_cli(1).gov_vote("validator", proposal_id, "yes")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    proposal = cli.query_proposal(proposal_id)
-    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
-    proposal = cli.query_proposal(proposal_id)
-    assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+    approve_proposal(ibc.cronos, rsp)
     default_trust_period = "1209600s"
     assert_trust_period(default_trust_period)
