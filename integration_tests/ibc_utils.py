@@ -18,7 +18,7 @@ class IBCNetwork(NamedTuple):
     incentivized: bool
 
 
-def prepare_network(tmp_path, file, incentivized=True):
+def prepare_network(tmp_path, file, incentivized=True, start_relay=True):
     file = f"configs/{file}.jsonnet"
     gen = setup_custom_cronos(tmp_path, 26700, Path(__file__).parent / file)
     cronos = next(gen)
@@ -72,9 +72,9 @@ def prepare_network(tmp_path, file, incentivized=True):
             fees="100000000basecro",
         )
         assert rsp["code"] == 0, rsp["raw_log"]
-
-    cronos.supervisorctl("start", "relayer-demo")
-    wait_for_port(hermes.port)
+    if start_relay:
+        cronos.supervisorctl("start", "relayer-demo")
+        wait_for_port(hermes.port)
     yield IBCNetwork(cronos, chainmain, hermes, incentivized)
 
 
