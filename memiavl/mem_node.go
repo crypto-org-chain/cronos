@@ -156,18 +156,42 @@ func (node *MemNode) reBalance(version, cowVersion uint32) *MemNode {
 	}
 }
 
-func (node *MemNode) Get(key []byte) []byte {
+func (node *MemNode) Get(key []byte) ([]byte, uint32) {
 	if node.isLeaf() {
-		if bytes.Equal(key, node.key) {
-			return node.value
+		switch bytes.Compare(node.key, key) {
+		case -1:
+			return nil, 1
+		case 1:
+			return nil, 0
+		default:
+			return node.value, 0
 		}
-		return nil
 	}
 
 	if bytes.Compare(key, node.key) == -1 {
 		return node.Left().Get(key)
 	}
-	return node.Right().Get(key)
+	right := node.Right()
+	value, index := right.Get(key)
+	return value, index + uint32(node.Size()) - uint32(right.Size())
+}
+
+func (node *MemNode) GetByIndex(index uint32) ([]byte, []byte) {
+	if node.isLeaf() {
+		if index == 0 {
+			return node.key, node.value
+		}
+		return nil, nil
+	}
+
+	left := node.Left()
+	leftSize := uint32(left.Size())
+	if index < leftSize {
+		return left.GetByIndex(index)
+	}
+
+	right := node.Right()
+	return right.GetByIndex(index - leftSize)
 }
 
 // EncodeBytes writes a varint length-prefixed byte slice to the writer,

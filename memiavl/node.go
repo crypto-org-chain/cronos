@@ -23,7 +23,8 @@ type Node interface {
 	Mutate(version, cowVersion uint32) *MemNode
 
 	// Get query the value for a key, it's put into interface because a specialized implementation is more efficient.
-	Get(key []byte) []byte
+	Get(key []byte) ([]byte, uint32)
+	GetByIndex(uint32) ([]byte, []byte)
 }
 
 func isLeaf(node Node) bool {
