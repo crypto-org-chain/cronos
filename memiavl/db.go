@@ -48,6 +48,8 @@ type Options struct {
 	// the initial stores when initialize the empty instance
 	InitialStores      []string
 	SnapshotKeepRecent uint32
+	// load the target version instead of latest version
+	TargetVersion uint32
 }
 
 const (
@@ -74,7 +76,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
-	if err := mtree.CatchupWAL(wal); err != nil {
+	if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
 		return nil, err
 	}
 
@@ -143,7 +145,7 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 		}
 
 		// snapshot rewrite succeeded, catchup and switch
-		if err := result.mtree.CatchupWAL(db.wal); err != nil {
+		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
 			return true, fmt.Errorf("catchup failed: %w", err)
 		}
 		if err := db.reloadMultiTree(result.mtree); err != nil {
@@ -291,7 +293,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			return
 		}
 		// do a best effort catch-up first, will try catch-up again in main thread.
-		if err := mtree.CatchupWAL(wal); err != nil {
+		if err := mtree.CatchupWAL(wal, 0); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}

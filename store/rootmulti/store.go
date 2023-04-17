@@ -3,12 +3,16 @@ package rootmulti
 import (
 	"fmt"
 	"io"
+	"math"
 	"sort"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/crypto-org-chain/cronos/store/memiavlstore"
 	"github.com/pkg/errors"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
@@ -17,13 +21,17 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/mem"
 	"github.com/cosmos/cosmos-sdk/store/transient"
 	"github.com/cosmos/cosmos-sdk/store/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	protoio "github.com/gogo/protobuf/io"
 	dbm "github.com/tendermint/tm-db"
 )
 
 const CommitInfoFileName = "commit_infos"
 
-var _ types.CommitMultiStore = (*Store)(nil)
+var (
+	_ types.CommitMultiStore = (*Store)(nil)
+	_ types.Queryable        = (*Store)(nil)
+)
 
 type Store struct {
 	dir    string
@@ -54,23 +62,12 @@ func NewStore(dir string, logger log.Logger) *Store {
 // Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
 	var changeSets []*memiavl.NamedChangeSet
-	var extraStoreInfos []types.StoreInfo
 	for key, store := range rs.stores {
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
 			changeSets = append(changeSets, &memiavl.NamedChangeSet{
 				Name:      key.Name(),
 				Changeset: memiavlStore.PopChangeSet(),
 			})
-		} else {
-			commitID := store.Commit()
-			// to keep the root hash compatible with cosmos-sdk 0.46
-			if store.GetStoreType() != types.StoreTypeTransient {
-				si := types.StoreInfo{
-					Name:     key.Name(),
-					CommitId: commitID,
-				}
-				extraStoreInfos = append(extraStoreInfos, si)
-			}
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
@@ -80,7 +77,7 @@ func (rs *Store) Commit() types.CommitID {
 	if err != nil {
 		panic(err)
 	}
-	rs.lastCommitInfo = mergeStoreInfos(rs.db.LastCommitInfo(), extraStoreInfos)
+	rs.lastCommitInfo = amendCommitInfo(rs.db.LastCommitInfo(), rs.storesParams)
 	return rs.lastCommitInfo.CommitID()
 }
 
@@ -215,12 +212,21 @@ func (rs *Store) GetCommitKVStore(key types.StoreKey) types.CommitKVStore {
 // Implements interface CommitMultiStore
 // used by normal node startup.
 func (rs *Store) LoadLatestVersion() error {
-	return rs.LoadLatestVersionAndUpgrade(nil)
+	return rs.LoadVersionAndUpgrade(0, nil)
+}
+
+// Implements interface CommitMultiStore
+func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
+	return rs.LoadVersionAndUpgrade(0, upgrades)
 }
 
 // Implements interface CommitMultiStore
 // used by node startup with UpgradeStoreLoader
-func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
+func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgrades) error {
+	if version > math.MaxUint32 {
+		return fmt.Errorf("version overflows uint32: %d", version)
+	}
+
 	storesKeys := make([]types.StoreKey, 0, len(rs.storesParams))
 	for key := range rs.storesParams {
 		storesKeys = append(storesKeys, key)
@@ -248,6 +254,7 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 	db, err := memiavl.Load(rs.dir, memiavl.Options{
 		CreateIfMissing: true,
 		InitialStores:   initialStores,
+		TargetVersion:   uint32(version),
 	})
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
@@ -281,7 +288,7 @@ func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) erro
 	rs.stores = newStores
 	// to keep the root hash compatible with cosmos-sdk 0.46
 	if db.Version() != 0 {
-		rs.lastCommitInfo = mergeStoreInfos(db.LastCommitInfo(), extraStoreInfos)
+		rs.lastCommitInfo = amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
 	} else {
 		rs.lastCommitInfo = &types.CommitInfo{}
 	}
@@ -321,18 +328,9 @@ func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, p
 }
 
 // Implements interface CommitMultiStore
-// not used in sdk
-func (rs *Store) LoadVersionAndUpgrade(ver int64, upgrades *types.StoreUpgrades) error {
-	panic("rootmulti store don't support LoadVersionAndUpgrade")
-}
-
-// Implements interface CommitMultiStore
 // used by export cmd
 func (rs *Store) LoadVersion(ver int64) error {
-	if ver != 0 {
-		return errors.New("rootmulti store only support load the latest version")
-	}
-	return rs.LoadLatestVersion()
+	return rs.LoadVersionAndUpgrade(ver, nil)
 }
 
 // Implements interface CommitMultiStore
@@ -379,6 +377,84 @@ func (rs *Store) AddListeners(key types.StoreKey, listeners []types.WriteListene
 	}
 }
 
+// getStoreByName performs a lookup of a StoreKey given a store name typically
+// provided in a path. The StoreKey is then used to perform a lookup and return
+// a Store. If the Store is wrapped in an inter-block cache, it will be unwrapped
+// prior to being returned. If the StoreKey does not exist, nil is returned.
+func (rs *Store) GetStoreByName(name string) types.Store {
+	key := rs.keysByName[name]
+	if key == nil {
+		return nil
+	}
+
+	return rs.GetCommitKVStore(key)
+}
+
+// Implements interface Queryable
+func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
+	version := req.Height
+	if version == 0 {
+		version = rs.db.Version()
+	}
+
+	db := rs.db
+	if version != rs.lastCommitInfo.Version {
+		var err error
+		db, err = memiavl.Load(rs.dir, memiavl.Options{TargetVersion: uint32(version)})
+		if err != nil {
+			return sdkerrors.QueryResult(err, false)
+		}
+	}
+
+	path := req.Path
+	storeName, subpath, err := parsePath(path)
+	if err != nil {
+		return sdkerrors.QueryResult(err, false)
+	}
+
+	store := types.Queryable(memiavlstore.New(db.TreeByName(storeName), rs.logger))
+
+	// trim the path and make the query
+	req.Path = subpath
+	res := store.Query(req)
+
+	if !req.Prove || !rootmulti.RequireProof(subpath) {
+		return res
+	}
+
+	if res.ProofOps == nil || len(res.ProofOps.Ops) == 0 {
+		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
+	}
+
+	// If the request's height is the latest height we've committed, then utilize
+	// the store's lastCommitInfo as this commit info may not be flushed to disk.
+	// Otherwise, we query for the commit info from disk.
+	commitInfo := amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
+
+	// Restore origin path and append proof op.
+	res.ProofOps.Ops = append(res.ProofOps.Ops, commitInfo.ProofOp(storeName))
+
+	return res
+}
+
+// parsePath expects a format like /<storeName>[/<subpath>]
+// Must start with /, subpath may be empty
+// Returns error if it doesn't start with /
+func parsePath(path string) (storeName string, subpath string, err error) {
+	if !strings.HasPrefix(path, "/") {
+		return storeName, subpath, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
+	}
+
+	paths := strings.SplitN(path[1:], "/", 2)
+	storeName = paths[0]
+
+	if len(paths) == 2 {
+		subpath = "/" + paths[1]
+	}
+
+	return storeName, subpath, nil
+}
+
 type storeParams struct {
 	key types.StoreKey
 	typ types.StoreType
@@ -402,4 +478,19 @@ func mergeStoreInfos(commitInfo *types.CommitInfo, storeInfos []types.StoreInfo)
 		Version:    commitInfo.Version,
 		StoreInfos: infos,
 	}
+}
+
+// amendCommitInfo add mem stores commit infos to keep it compatible with cosmos-sdk 0.46
+func amendCommitInfo(commitInfo *types.CommitInfo, storeParams map[types.StoreKey]storeParams) *types.CommitInfo {
+	var extraStoreInfos []types.StoreInfo
+	for key := range storeParams {
+		typ := storeParams[key].typ
+		if typ != types.StoreTypeIAVL && typ != types.StoreTypeTransient {
+			extraStoreInfos = append(extraStoreInfos, types.StoreInfo{
+				Name:     key.Name(),
+				CommitId: types.CommitID{},
+			})
+		}
+	}
+	return mergeStoreInfos(commitInfo, extraStoreInfos)
 }

@@ -48,6 +48,9 @@ type MultiTree struct {
 	trees          []NamedTree
 	treesByName    map[string]int // reversed index of the trees
 	lastCommitInfo storetypes.CommitInfo
+
+	// the initial metadata loaded from disk snapshot
+	metadata MultiTreeMetadata
 }
 
 func NewEmptyMultiTree(initialVersion uint32) *MultiTree {
@@ -108,6 +111,7 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 		trees:          trees,
 		treesByName:    treesByName,
 		lastCommitInfo: *metadata.CommitInfo,
+		metadata:       metadata,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
@@ -293,7 +297,7 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 }
 
 // CatchupWAL replay the new entries in the WAL on the tree to catch-up to the latest state.
-func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
+func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	lastIndex, err := wal.LastIndex()
 	if err != nil {
 		return errors.Wrap(err, "read wal last index failed")
@@ -305,7 +309,15 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
 		return nil
 	}
 
-	for i := firstIndex; i <= lastIndex; i++ {
+	endIndex := lastIndex
+	if endVersion != 0 {
+		endIndex = walIndex(endVersion, t.initialVersion)
+		if endIndex > lastIndex || endIndex < firstIndex {
+			return fmt.Errorf("endIndex %d not in valid range: [%d, %d]", endIndex, firstIndex, lastIndex)
+		}
+	}
+
+	for i := firstIndex; i <= endIndex; i++ {
 		bz, err := wal.Read(i)
 		if err != nil {
 			return errors.Wrap(err, "read wal log failed")

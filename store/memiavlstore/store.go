@@ -2,22 +2,29 @@ package memiavlstore
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
+	ics23 "github.com/confio/ics23/go"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/iavl"
 	"github.com/crypto-org-chain/cronos/memiavl"
+	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	tmcrypto "github.com/tendermint/tendermint/proto/tendermint/crypto"
 
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
 	"github.com/cosmos/cosmos-sdk/store/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
 var (
 	_ types.KVStore       = (*Store)(nil)
 	_ types.CommitStore   = (*Store)(nil)
 	_ types.CommitKVStore = (*Store)(nil)
+	_ types.Queryable     = (*Store)(nil)
 )
 
 // Store Implements types.KVStore and CommitKVStore.
@@ -118,4 +125,77 @@ func (st *Store) PopChangeSet() iavl.ChangeSet {
 	cs := st.changeSet
 	st.changeSet = iavl.ChangeSet{}
 	return cs
+}
+
+func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
+	if req.Height > 0 && req.Height != st.tree.Version() {
+		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidHeight, "invalid height"), false)
+	}
+
+	res.Height = st.tree.Version()
+
+	switch req.Path {
+	case "/key": // get by key
+		res.Key = req.Data // data holds the key bytes
+		res.Value = st.tree.Get(res.Key)
+
+		if !req.Prove {
+			break
+		}
+
+		// get proof from tree and convert to merkle.Proof before adding to result
+		res.ProofOps = getProofFromTree(st.tree, req.Data, res.Value != nil)
+	case "/subspace":
+		pairs := kv.Pairs{
+			Pairs: make([]kv.Pair, 0),
+		}
+
+		subspace := req.Data
+		res.Key = subspace
+
+		iterator := types.KVStorePrefixIterator(st, subspace)
+		for ; iterator.Valid(); iterator.Next() {
+			pairs.Pairs = append(pairs.Pairs, kv.Pair{Key: iterator.Key(), Value: iterator.Value()})
+		}
+		iterator.Close()
+
+		bz, err := pairs.Marshal()
+		if err != nil {
+			panic(fmt.Errorf("failed to marshal KV pairs: %w", err))
+		}
+
+		res.Value = bz
+	default:
+		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
+	}
+	return
+}
+
+// Takes a MutableTree, a key, and a flag for creating existence or absence proof and returns the
+// appropriate merkle.Proof. Since this must be called after querying for the value, this function should never error
+// Thus, it will panic on error rather than returning it
+func getProofFromTree(tree *memiavl.Tree, key []byte, exists bool) *tmcrypto.ProofOps {
+	var (
+		commitmentProof *ics23.CommitmentProof
+		err             error
+	)
+
+	if exists {
+		// value was found
+		commitmentProof, err = tree.GetMembershipProof(key)
+		if err != nil {
+			// sanity check: If value was found, membership proof must be creatable
+			panic(fmt.Sprintf("unexpected value for empty proof: %s", err.Error()))
+		}
+	} else {
+		// value wasn't found
+		commitmentProof, err = tree.GetNonMembershipProof(key)
+		if err != nil {
+			// sanity check: If value wasn't found, nonmembership proof must be creatable
+			panic(fmt.Sprintf("unexpected error for nonexistence proof: %s", err.Error()))
+		}
+	}
+
+	op := types.NewIavlCommitmentOp(key, commitmentProof)
+	return &tmcrypto.ProofOps{Ops: []tmcrypto.ProofOp{op.ProofOp()}}
 }

@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ChangeSets []iavl.ChangeSet
-	RefHashes  [][]byte
+	ChangeSets  []iavl.ChangeSet
+	RefHashes   [][]byte
+	ExpectItems [][]pair
 )
 
 func mockKVPairs(kvPairs ...string) []*iavl.KVPair {
@@ -71,6 +72,66 @@ func init() {
 			panic(err)
 		}
 		RefHashes = append(RefHashes, refHash)
+	}
+
+	ExpectItems = [][]pair{
+		{},
+		{{[]byte("hello"), []byte("world")}},
+		{
+			{[]byte("hello"), []byte("world1")},
+			{[]byte("hello1"), []byte("world1")},
+		},
+		{
+			{[]byte("hello"), []byte("world1")},
+			{[]byte("hello1"), []byte("world1")},
+			{[]byte("hello2"), []byte("world1")},
+			{[]byte("hello3"), []byte("world1")},
+		},
+		{
+			{[]byte("hello"), []byte("world1")},
+			{[]byte("hello00"), []byte("world1")},
+			{[]byte("hello1"), []byte("world1")},
+			{[]byte("hello2"), []byte("world1")},
+			{[]byte("hello3"), []byte("world1")},
+		},
+		{
+			{[]byte("hello00"), []byte("world1")},
+			{[]byte("hello1"), []byte("world1")},
+			{[]byte("hello2"), []byte("world1")},
+			{[]byte("hello3"), []byte("world1")},
+		},
+		{
+			{[]byte("aello00"), []byte("world1")},
+			{[]byte("aello01"), []byte("world1")},
+			{[]byte("aello02"), []byte("world1")},
+			{[]byte("aello03"), []byte("world1")},
+			{[]byte("aello04"), []byte("world1")},
+			{[]byte("aello05"), []byte("world1")},
+			{[]byte("aello06"), []byte("world1")},
+			{[]byte("aello07"), []byte("world1")},
+			{[]byte("aello08"), []byte("world1")},
+			{[]byte("aello09"), []byte("world1")},
+			{[]byte("aello10"), []byte("world1")},
+			{[]byte("aello11"), []byte("world1")},
+			{[]byte("aello12"), []byte("world1")},
+			{[]byte("aello13"), []byte("world1")},
+			{[]byte("aello14"), []byte("world1")},
+			{[]byte("aello15"), []byte("world1")},
+			{[]byte("aello16"), []byte("world1")},
+			{[]byte("aello17"), []byte("world1")},
+			{[]byte("aello18"), []byte("world1")},
+			{[]byte("aello19"), []byte("world1")},
+			{[]byte("aello20"), []byte("world1")},
+			{[]byte("hello00"), []byte("world1")},
+			{[]byte("hello1"), []byte("world1")},
+			{[]byte("hello2"), []byte("world1")},
+			{[]byte("hello3"), []byte("world1")},
+		},
+		{
+			{[]byte("hello1"), []byte("world1")},
+			{[]byte("hello2"), []byte("world1")},
+			{[]byte("hello3"), []byte("world1")},
+		},
 	}
 }
 
