@@ -1,8 +1,6 @@
 import json
 
-from dateutil.parser import isoparse
-
-from .utils import parse_events, wait_for_block_time, wait_for_new_blocks
+from .utils import approve_proposal
 
 
 def test_gov_update_params(cronos, tmp_path):
@@ -31,28 +29,7 @@ def test_gov_update_params(cronos, tmp_path):
     rsp = cli.submit_gov_proposal(proposal, from_="community")
 
     assert rsp["code"] == 0, rsp["raw_log"]
-
-    # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
-    proposal_id = ev["proposal_id"]
-    print("gov proposal submitted", proposal_id)
-
-    # not sure why, but sometimes can't find the proposal immediatelly
-    wait_for_new_blocks(cli, 1)
-    proposal = cli.query_proposal(proposal_id)
-
-    # each validator vote yes
-    for i in range(len(cronos.config["validators"])):
-        rsp = cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
-        assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli, 1)
-    assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
-    ), "all validators should have voted yes"
-    print("wait for proposal to be activated")
-    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
-    wait_for_new_blocks(cli, 1)
-
+    approve_proposal(cronos, rsp)
     print("check params have been updated now")
     rsp = cli.query_params()
     print("params", rsp)

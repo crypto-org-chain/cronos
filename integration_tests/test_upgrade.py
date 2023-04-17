@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from dateutil.parser import isoparse
 from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
@@ -13,11 +12,10 @@ from .network import Cronos, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
+    approve_proposal,
     deploy_contract,
-    parse_events,
     send_transaction,
     wait_for_block,
-    wait_for_block_time,
     wait_for_port,
 )
 
@@ -116,20 +114,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
-    # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
-    proposal_id = ev["proposal_id"]
-
-    rsp = cli.gov_vote("validator", proposal_id, "yes")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    rsp = custom_cronos.cosmos_cli(1).gov_vote("validator", proposal_id, "yes")
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-    proposal = cli.query_proposal(proposal_id)
-    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
-    proposal = cli.query_proposal(proposal_id)
-    assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+    approve_proposal(custom_cronos, rsp)
 
     # update cli chain binary
     custom_cronos.chain_binary = (
