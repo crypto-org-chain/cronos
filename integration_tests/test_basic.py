@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 import web3
-from dateutil.parser import isoparse
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -17,18 +16,16 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    approve_proposal,
     build_batch_tx,
     contract_address,
     contract_path,
     deploy_contract,
     get_receipts_by_block,
     modify_command_in_supervisor_config,
-    parse_events,
     send_transaction,
     send_txs,
     wait_for_block,
-    wait_for_block_time,
-    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -765,26 +762,7 @@ def test_submit_any_proposal(cronos, tmp_path):
     rsp = cli.submit_gov_proposal(proposal_file, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
-    print(ev)
-    proposal_id = ev["proposal_id"]
-    print("gov proposal submitted", proposal_id)
-
-    wait_for_new_blocks(cli, 1)
-    proposal = cli.query_proposal(proposal_id)
-
-    # each validator vote yes
-    for i in range(len(cronos.config["validators"])):
-        rsp = cronos.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
-        assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cli, 1)
-    assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
-    ), "all validators should have voted yes"
-    print("wait for proposal to be activated")
-    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
-    wait_for_new_blocks(cli, 1)
+    approve_proposal(cronos, rsp)
 
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr

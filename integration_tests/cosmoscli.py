@@ -1302,6 +1302,23 @@ class CosmosCLI:
             )
         )
 
+    def ibc_query_client_state(self, port_id, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "client-state",
+                port_id,
+                channel_id,
+                **(default_kwargs | kwargs),
+            )
+        )
+
     def query_icactl_params(self, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,

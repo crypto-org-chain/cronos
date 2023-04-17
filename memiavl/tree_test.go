@@ -2,6 +2,7 @@ package memiavl
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/cosmos/iavl"
@@ -162,5 +163,44 @@ func TestChangeSetMarshal(t *testing.T) {
 		var cs iavl.ChangeSet
 		require.NoError(t, cs.Unmarshal(bz))
 		require.Equal(t, changes, cs)
+	}
+}
+
+func TestGetByIndex(t *testing.T) {
+	changes := iavl.ChangeSet{}
+	for i := 0; i < 20; i++ {
+		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte(strconv.Itoa(i))})
+	}
+
+	tree := NewEmptyTree(0)
+	_, _, err := tree.ApplyChangeSet(changes, true)
+	require.NoError(t, err)
+
+	for i, pair := range changes.Pairs {
+		idx, v := tree.GetWithIndex(pair.Key)
+		require.Equal(t, pair.Value, v)
+		require.Equal(t, int64(i), idx)
+
+		k, v := tree.GetByIndex(idx)
+		require.Equal(t, pair.Key, k)
+		require.Equal(t, pair.Value, v)
+	}
+
+	// test persisted tree
+	dir := t.TempDir()
+	require.NoError(t, tree.WriteSnapshot(dir, false))
+	snapshot, err := OpenSnapshot(dir)
+	require.NoError(t, err)
+	ptree := NewFromSnapshot(snapshot)
+	defer ptree.Close()
+
+	for i, pair := range changes.Pairs {
+		idx, v := ptree.GetWithIndex(pair.Key)
+		require.Equal(t, pair.Value, v)
+		require.Equal(t, int64(i), idx)
+
+		k, v := ptree.GetByIndex(idx)
+		require.Equal(t, pair.Key, k)
+		require.Equal(t, pair.Value, v)
 	}
 }

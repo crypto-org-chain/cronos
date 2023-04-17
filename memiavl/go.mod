@@ -3,6 +3,7 @@ module github.com/crypto-org-chain/cronos/memiavl
 go 1.20
 
 require (
+	github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa
@@ -33,7 +34,6 @@ require (
 	github.com/cockroachdb/pebble v0.0.0-20230117234908-f91ad392a02b // indirect
 	github.com/cockroachdb/redact v1.0.8 // indirect
 	github.com/cockroachdb/sentry-go v0.6.1-cockroachdb.2 // indirect
-	github.com/confio/ics23/go v0.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
