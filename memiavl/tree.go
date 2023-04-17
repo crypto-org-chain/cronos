@@ -126,12 +126,33 @@ func (t *Tree) RootHash() []byte {
 	return t.root.Hash()
 }
 
+func (t *Tree) GetWithIndex(key []byte) (int64, []byte) {
+	if t.root == nil {
+		return 0, nil
+	}
+
+	value, index := t.root.Get(key)
+	return int64(index), value
+}
+
+func (t *Tree) GetByIndex(index int64) ([]byte, []byte) {
+	if index > math.MaxUint32 {
+		return nil, nil
+	}
+	if t.root == nil {
+		return nil, nil
+	}
+
+	return t.root.GetByIndex(uint32(index))
+}
+
 func (t *Tree) Get(key []byte) []byte {
 	if t.root == nil {
 		return nil
 	}
 
-	return t.root.Get(key)
+	value, _ := t.root.Get(key)
+	return value
 }
 
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
