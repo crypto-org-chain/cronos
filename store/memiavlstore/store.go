@@ -169,7 +169,8 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	default:
 		return sdkerrors.QueryResult(errors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
 	}
-	return
+
+	return res
 }
 
 // Takes a MutableTree, a key, and a flag for creating existence or absence proof and returns the

@@ -246,18 +246,9 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	})
 
 	initialStores := make([]string, 0, len(storesKeys))
-	var extraStoreInfos []types.StoreInfo
 	for _, key := range storesKeys {
-		switch rs.storesParams[key].typ {
-		case types.StoreTypeIAVL:
+		if rs.storesParams[key].typ == types.StoreTypeIAVL {
 			initialStores = append(initialStores, key.Name())
-		case types.StoreTypeTransient:
-			continue
-		default:
-			extraStoreInfos = append(extraStoreInfos, types.StoreInfo{
-				Name:     key.Name(),
-				CommitId: types.CommitID{},
-			})
 		}
 	}
 	db, err := memiavl.Load(rs.dir, memiavl.Options{
