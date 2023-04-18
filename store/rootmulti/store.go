@@ -170,8 +170,12 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 
 // Implements interface Snapshotter
 func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reader) (snapshottypes.SnapshotItem, error) {
-	// TODO
-	return snapshottypes.SnapshotItem{}, nil
+	item, err := memiavl.Import(rs.dir, height, format, protoReader)
+	if err != nil {
+		return item, err
+	}
+
+	return item, rs.LoadLatestVersion()
 }
 
 // Implements interface Snapshotter
