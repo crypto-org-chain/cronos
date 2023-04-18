@@ -68,6 +68,8 @@ func (rs *Store) Commit() types.CommitID {
 				Name:      key.Name(),
 				Changeset: memiavlStore.PopChangeSet(),
 			})
+		} else {
+			_ = store.Commit()
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
