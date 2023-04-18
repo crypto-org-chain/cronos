@@ -113,7 +113,7 @@ func TestSnapshotImportExport(t *testing.T) {
 	}()
 
 	snapshotDir2 := t.TempDir()
-	err = Import(snapshotDir2, tree.Version(), ch, true)
+	err = doImport(snapshotDir2, tree.Version(), ch, true)
 	require.NoError(t, err)
 
 	snapshot2, err := OpenSnapshot(snapshotDir2)
