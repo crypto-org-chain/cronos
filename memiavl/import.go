@@ -1,15 +1,16 @@
 package memiavl
 
 import (
+	stderrors "errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"path/filepath"
 
+	"cosmossdk.io/errors"
 	"github.com/cosmos/iavl"
 	protoio "github.com/gogo/protobuf/io"
-	"github.com/pkg/errors"
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -36,7 +37,7 @@ loop:
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(err, "invalid protobuf message")
+			return snapshottypes.SnapshotItem{}, errors.Wrap(err, "invalid protobuf message")
 		}
 
 		switch item := snapshotItem.Item.(type) {
@@ -48,10 +49,10 @@ loop:
 			defer importer.Close()
 		case *snapshottypes.SnapshotItem_IAVL:
 			if importer == nil {
-				return snapshottypes.SnapshotItem{}, sdkerrors.Wrap(sdkerrors.ErrLogic, "received IAVL node item before store item")
+				return snapshottypes.SnapshotItem{}, errors.Wrap(sdkerrors.ErrLogic, "received IAVL node item before store item")
 			}
 			if item.IAVL.Height > math.MaxInt8 {
-				return snapshottypes.SnapshotItem{}, sdkerrors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
+				return snapshottypes.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
 					item.IAVL.Height, math.MaxInt8)
 			}
 			node := &iavl.ExportNode{
@@ -122,7 +123,7 @@ func (ai *TreeImporter) Close() error {
 // doImport a stream of `iavl.ExportNode`s into a new snapshot.
 func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHashIndex bool) (returnErr error) {
 	if version > int64(math.MaxUint32) {
-		return errors.New("version overflows uint32")
+		return stderrors.New("version overflows uint32")
 	}
 
 	return writeSnapshot(dir, uint32(version), writeHashIndex, func(w *snapshotWriter) (uint32, error) {
@@ -142,7 +143,7 @@ func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHas
 		case 1:
 			return i.indexStack[0], nil
 		default:
-			return 0, errors.Errorf("invalid node structure, found stack size %v after imported", len(i.indexStack))
+			return 0, fmt.Errorf("invalid node structure, found stack size %v after imported", len(i.indexStack))
 		}
 	})
 }
@@ -156,7 +157,7 @@ type importer struct {
 
 func (i *importer) Add(n *iavl.ExportNode) error {
 	if n.Version > int64(math.MaxUint32) {
-		return errors.New("version overflows uint32")
+		return stderrors.New("version overflows uint32")
 	}
 
 	if n.Height == 0 {

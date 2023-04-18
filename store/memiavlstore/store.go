@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"cosmossdk.io/errors"
 	ics23 "github.com/confio/ics23/go"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/iavl"
@@ -129,7 +130,7 @@ func (st *Store) PopChangeSet() iavl.ChangeSet {
 
 func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	if req.Height > 0 && req.Height != st.tree.Version() {
-		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidHeight, "invalid height"), false)
+		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidHeight, "invalid height"), false)
 	}
 
 	res.Height = st.tree.Version()
@@ -166,7 +167,7 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 		res.Value = bz
 	default:
-		return sdkerrors.QueryResult(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
+		return sdkerrors.QueryResult(errors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
 	}
 	return
 }

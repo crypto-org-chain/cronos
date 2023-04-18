@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"cosmossdk.io/errors"
+
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/memiavl"
@@ -430,7 +432,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 	}
 
 	if res.ProofOps == nil || len(res.ProofOps.Ops) == 0 {
-		return sdkerrors.QueryResult(sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
+		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
 	}
 
 	// If the request's height is the latest height we've committed, then utilize
@@ -449,7 +451,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 // Returns error if it doesn't start with /
 func parsePath(path string) (storeName string, subpath string, err error) {
 	if !strings.HasPrefix(path, "/") {
-		return storeName, subpath, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
+		return storeName, subpath, errors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
 	}
 
 	paths := strings.SplitN(path[1:], "/", 2)
