@@ -45,7 +45,7 @@ loop:
 			if importer != nil {
 				importer.Close()
 			}
-			importer := NewTreeImporter(filepath.Join(snapshotDir, item.Store.Name), int64(height))
+			importer = NewTreeImporter(filepath.Join(snapshotDir, item.Store.Name), int64(height))
 			defer importer.Close()
 		case *snapshottypes.SnapshotItem_IAVL:
 			if importer == nil {
