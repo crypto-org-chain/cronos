@@ -3,6 +3,7 @@ module github.com/crypto-org-chain/cronos/memiavl
 go 1.20
 
 require (
+	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/cosmos/gogoproto v1.4.7
@@ -21,7 +22,6 @@ require (
 )
 
 require (
-	cosmossdk.io/errors v1.0.0-beta.7 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/VictoriaMetrics/metrics v1.23.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

@@ -1,6 +1,7 @@
 package rootmulti
 
 import (
+	stderrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -8,24 +9,23 @@ import (
 	"strings"
 
 	"cosmossdk.io/errors"
-
-	"github.com/cosmos/cosmos-sdk/store/listenkv"
-	"github.com/cosmos/cosmos-sdk/store/rootmulti"
-	"github.com/crypto-org-chain/cronos/memiavl"
-	"github.com/crypto-org-chain/cronos/store/memiavlstore"
-	"github.com/pkg/errors"
+	protoio "github.com/gogo/protobuf/io"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	dbm "github.com/tendermint/tm-db"
 
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/store/cachemulti"
+	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/mem"
+	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	"github.com/cosmos/cosmos-sdk/store/transient"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	protoio "github.com/gogo/protobuf/io"
-	dbm "github.com/tendermint/tm-db"
+
+	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/crypto-org-chain/cronos/store/memiavlstore"
 )
 
 const CommitInfoFileName = "commit_infos"
@@ -366,7 +366,7 @@ func (rs *Store) SetLazyLoading(lazyLoading bool) {
 
 // Implements interface CommitMultiStore
 func (rs *Store) RollbackToVersion(version int64) error {
-	return errors.New("rootmulti store don't support rollback")
+	return stderrors.New("rootmulti store don't support rollback")
 }
 
 // Implements interface CommitMultiStore
