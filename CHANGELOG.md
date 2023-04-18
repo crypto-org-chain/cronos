@@ -27,6 +27,7 @@
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
 - [#924](https://github.com/crypto-org-chain/cronos/pull/924) memiavl support `Export` API.
 - [#934](https://github.com/crypto-org-chain/cronos/pull/934) Add pebbledb backend.
+- [#950](https://github.com/crypto-org-chain/cronos/pull/950) Implement memiavl and integrate with state machine.
 
 *Feb 09, 2022*
 
