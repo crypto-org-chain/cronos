@@ -227,19 +227,15 @@ func (db *DB) Copy() *DB {
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
 func (db *DB) RewriteSnapshot() error {
 	version := uint32(db.lastCommitInfo.Version)
-	snapshotDir := snapshotPath(db.dir, version)
-	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
+	snapshotDir := snapshotName(version)
+	snapshotPath := filepath.Join(db.dir, snapshotDir)
+	if err := os.MkdirAll(snapshotPath, os.ModePerm); err != nil {
 		return err
 	}
-	if err := db.WriteSnapshot(snapshotDir); err != nil {
+	if err := db.WriteSnapshot(snapshotPath); err != nil {
 		return err
 	}
-	tmpLink := currentTmpPath(db.dir)
-	if err := os.Symlink(filepath.Base(snapshotDir), tmpLink); err != nil {
-		return err
-	}
-	// assuming file renaming operation is atomic
-	return os.Rename(tmpLink, currentPath(db.dir))
+	return updateCurrentSymlink(db.dir, snapshotDir)
 }
 
 func (db *DB) Reload() error {
@@ -339,13 +335,20 @@ func walPath(root string) string {
 // ```
 func initEmptyDB(dir string, initialVersion uint32) error {
 	tmp := NewEmptyMultiTree(initialVersion)
-	snapshotDir := snapshotPath(dir, 0)
-	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
+	snapshotDir := snapshotName(0)
+	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
 		return err
 	}
+	return updateCurrentSymlink(dir, snapshotDir)
+}
+
+// updateCurrentSymlink creates or replace the current symblic link atomically.
+// it could fail under concurrent usage for tmp file conflicts.
+func updateCurrentSymlink(dir, snapshot string) error {
 	tmpPath := currentTmpPath(dir)
-	if err := os.Symlink(filepath.Base(snapshotDir), tmpPath); err != nil {
+	if err := os.Symlink(snapshot, tmpPath); err != nil {
 		return err
 	}
+	// assuming file renaming operation is atomic
 	return os.Rename(tmpPath, currentPath(dir))
 }

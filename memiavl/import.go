@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"path/filepath"
 
 	"cosmossdk.io/errors"
@@ -23,7 +22,7 @@ func Import(
 	if height > math.MaxUint32 {
 		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
 	}
-	snapshotDir := snapshotPath(dir, uint32(height))
+	snapshotDir := snapshotName(uint32(height))
 
 	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
 	// a SnapshotStoreItem, telling us which store to import into. The following items will contain
@@ -45,7 +44,7 @@ loop:
 			if importer != nil {
 				importer.Close()
 			}
-			importer = NewTreeImporter(filepath.Join(snapshotDir, item.Store.Name), int64(height))
+			importer = NewTreeImporter(filepath.Join(dir, snapshotDir, item.Store.Name), int64(height))
 			defer importer.Close()
 		case *snapshottypes.SnapshotItem_IAVL:
 			if importer == nil {
@@ -81,12 +80,7 @@ loop:
 		}
 	}
 
-	tmpLink := currentTmpPath(dir)
-	if err := os.Symlink(filepath.Base(snapshotDir), tmpLink); err != nil {
-		return snapshottypes.SnapshotItem{}, err
-	}
-
-	if err := os.Rename(tmpLink, currentPath(dir)); err != nil {
+	if err := updateCurrentSymlink(dir, snapshotDir); err != nil {
 		return snapshottypes.SnapshotItem{}, err
 	}
 	return snapshotItem, nil
