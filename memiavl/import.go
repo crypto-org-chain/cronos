@@ -42,7 +42,9 @@ loop:
 		switch item := snapshotItem.Item.(type) {
 		case *snapshottypes.SnapshotItem_Store:
 			if importer != nil {
-				importer.Close()
+				if err := importer.Close(); err != nil {
+					return snapshottypes.SnapshotItem{}, err
+				}
 			}
 			importer = NewTreeImporter(filepath.Join(dir, snapshotDir, item.Store.Name), int64(height))
 			defer importer.Close()
