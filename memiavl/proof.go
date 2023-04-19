@@ -3,11 +3,11 @@ package memiavl
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	ics23 "github.com/confio/ics23/go"
 	"github.com/cosmos/iavl"
-	"github.com/pkg/errors"
 )
 
 /*

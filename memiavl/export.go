@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"cosmossdk.io/errors"
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/iavl"
 	protoio "github.com/gogo/protobuf/io"
@@ -16,7 +17,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 
 	mtree, err := LoadMultiTree(snapshotPath(db.dir, uint32(height)))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "invalid snapshot height: %d", height)
 	}
 
 	for _, tree := range mtree.trees {

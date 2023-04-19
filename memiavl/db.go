@@ -1,7 +1,7 @@
 package memiavl
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
 )
 
@@ -301,7 +300,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 }
 
 func (db *DB) Close() error {
-	return stderrors.Join(db.MultiTree.Close(), db.wal.Close())
+	return errors.Join(db.MultiTree.Close(), db.wal.Close())
 }
 
 func snapshotName(version uint32) string {
