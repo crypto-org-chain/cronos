@@ -206,3 +206,37 @@ func TestInitialVersion(t *testing.T) {
 		require.Equal(t, hex.EncodeToString(info.CommitId.Hash), hex.EncodeToString(info2.CommitId.Hash))
 	}
 }
+
+func TestLoadVersion(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Load(dir, Options{
+		CreateIfMissing: true,
+		InitialStores:   []string{"test"},
+	})
+	require.NoError(t, err)
+
+	for i, changes := range ChangeSets {
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test",
+				Changeset: changes,
+			},
+		}
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			_, _, err := db.Commit(cs)
+			require.NoError(t, err)
+		})
+	}
+
+	for v, expItems := range ExpectItems {
+		if v == 0 {
+			continue
+		}
+		tmp, err := Load(dir, Options{
+			TargetVersion: uint32(v),
+		})
+		require.NoError(t, err)
+		require.Equal(t, RefHashes[v-1], tmp.TreeByName("test").RootHash())
+		require.Equal(t, expItems, collectIter(tmp.TreeByName("test").Iterator(nil, nil, true)))
+	}
+}

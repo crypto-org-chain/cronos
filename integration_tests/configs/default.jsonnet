@@ -21,22 +21,15 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
-      store: {
-        streamers: ['file'],
-      },
-      streamers: {
-        file: {
-          write_dir: 'data/file_streamer',
-        },
-      },
     },
     validators: [{
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
       'app-config': {
+        memiavl: true,
         store: {
-          streamers: ['file', 'versiondb'],
+          streamers: ['versiondb'],
         },
       },
     }, {

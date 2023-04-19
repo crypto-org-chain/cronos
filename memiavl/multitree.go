@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/pkg/errors"
+	"cosmossdk.io/errors"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
@@ -48,6 +48,9 @@ type MultiTree struct {
 	trees          []namedTree
 	treesByName    map[string]int // reversed index of the trees
 	lastCommitInfo storetypes.CommitInfo
+
+	// the initial metadata loaded from disk snapshot
+	metadata MultiTreeMetadata
 }
 
 func NewEmptyMultiTree(initialVersion uint32) *MultiTree {
@@ -108,10 +111,15 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 		trees:          trees,
 		treesByName:    treesByName,
 		lastCommitInfo: *metadata.CommitInfo,
+		metadata:       metadata,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
 	return mtree, nil
+}
+
+func (t *MultiTree) TreeByName(name string) *Tree {
+	return t.trees[t.treesByName[name]].tree
 }
 
 func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
@@ -164,6 +172,10 @@ func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
 
+func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
+	return &t.lastCommitInfo
+}
+
 // ApplyUpgrades store name upgrades
 func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	if len(upgrades) == 0 {
@@ -205,6 +217,9 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	})
 	t.treesByName = make(map[string]int, len(t.trees))
 	for i, tree := range t.trees {
+		if _, ok := t.treesByName[tree.name]; ok {
+			return fmt.Errorf("memiavl tree name conflicts: %s", tree.name)
+		}
 		t.treesByName[tree.name] = i
 	}
 
@@ -277,8 +292,8 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 	return t.lastCommitInfo.Hash()
 }
 
-// CatchupWAL replay the new entries in the WAL on the tree to catch-up to the latest state.
-func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
+// CatchupWAL replay the new entries in the WAL on the tree to catch-up to the target or latest version.
+func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	lastIndex, err := wal.LastIndex()
 	if err != nil {
 		return errors.Wrap(err, "read wal last index failed")
@@ -290,7 +305,15 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log) error {
 		return nil
 	}
 
-	for i := firstIndex; i <= lastIndex; i++ {
+	endIndex := lastIndex
+	if endVersion != 0 {
+		endIndex = walIndex(endVersion, t.initialVersion)
+		if endIndex > lastIndex || endIndex < firstIndex {
+			return fmt.Errorf("endIndex %d not in valid range: [%d, %d]", endIndex, firstIndex, lastIndex)
+		}
+	}
+
+	for i := firstIndex; i <= endIndex; i++ {
 		bz, err := wal.Read(i)
 		if err != nil {
 			return errors.Wrap(err, "read wal log failed")

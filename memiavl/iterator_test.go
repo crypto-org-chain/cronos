@@ -8,74 +8,14 @@ import (
 )
 
 func TestIterator(t *testing.T) {
-	expItems := [][]pair{
-		{},
-		{{[]byte("hello"), []byte("world")}},
-		{
-			{[]byte("hello"), []byte("world1")},
-			{[]byte("hello1"), []byte("world1")},
-		},
-		{
-			{[]byte("hello"), []byte("world1")},
-			{[]byte("hello1"), []byte("world1")},
-			{[]byte("hello2"), []byte("world1")},
-			{[]byte("hello3"), []byte("world1")},
-		},
-		{
-			{[]byte("hello"), []byte("world1")},
-			{[]byte("hello00"), []byte("world1")},
-			{[]byte("hello1"), []byte("world1")},
-			{[]byte("hello2"), []byte("world1")},
-			{[]byte("hello3"), []byte("world1")},
-		},
-		{
-			{[]byte("hello00"), []byte("world1")},
-			{[]byte("hello1"), []byte("world1")},
-			{[]byte("hello2"), []byte("world1")},
-			{[]byte("hello3"), []byte("world1")},
-		},
-		{
-			{[]byte("aello00"), []byte("world1")},
-			{[]byte("aello01"), []byte("world1")},
-			{[]byte("aello02"), []byte("world1")},
-			{[]byte("aello03"), []byte("world1")},
-			{[]byte("aello04"), []byte("world1")},
-			{[]byte("aello05"), []byte("world1")},
-			{[]byte("aello06"), []byte("world1")},
-			{[]byte("aello07"), []byte("world1")},
-			{[]byte("aello08"), []byte("world1")},
-			{[]byte("aello09"), []byte("world1")},
-			{[]byte("aello10"), []byte("world1")},
-			{[]byte("aello11"), []byte("world1")},
-			{[]byte("aello12"), []byte("world1")},
-			{[]byte("aello13"), []byte("world1")},
-			{[]byte("aello14"), []byte("world1")},
-			{[]byte("aello15"), []byte("world1")},
-			{[]byte("aello16"), []byte("world1")},
-			{[]byte("aello17"), []byte("world1")},
-			{[]byte("aello18"), []byte("world1")},
-			{[]byte("aello19"), []byte("world1")},
-			{[]byte("aello20"), []byte("world1")},
-			{[]byte("hello00"), []byte("world1")},
-			{[]byte("hello1"), []byte("world1")},
-			{[]byte("hello2"), []byte("world1")},
-			{[]byte("hello3"), []byte("world1")},
-		},
-		{
-			{[]byte("hello1"), []byte("world1")},
-			{[]byte("hello2"), []byte("world1")},
-			{[]byte("hello3"), []byte("world1")},
-		},
-	}
-
 	tree := NewEmptyTree(0)
-	require.Equal(t, expItems[0], collect(tree.Iterator(nil, nil, true)))
+	require.Equal(t, ExpectItems[0], collectIter(tree.Iterator(nil, nil, true)))
 
 	for _, changes := range ChangeSets {
 		_, v, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
-		require.Equal(t, expItems[v], collect(tree.Iterator(nil, nil, true)))
-		require.Equal(t, reverse(expItems[v]), collect(tree.Iterator(nil, nil, false)))
+		require.Equal(t, ExpectItems[v], collectIter(tree.Iterator(nil, nil, true)))
+		require.Equal(t, reverse(ExpectItems[v]), collectIter(tree.Iterator(nil, nil, false)))
 	}
 }
 
@@ -93,15 +33,15 @@ func TestIteratorRange(t *testing.T) {
 		{[]byte("aello08"), []byte("world1")},
 		{[]byte("aello09"), []byte("world1")},
 	}
-	require.Equal(t, expItems, collect(tree.Iterator([]byte("aello05"), []byte("aello10"), true)))
-	require.Equal(t, reverse(expItems), collect(tree.Iterator([]byte("aello05"), []byte("aello10"), false)))
+	require.Equal(t, expItems, collectIter(tree.Iterator([]byte("aello05"), []byte("aello10"), true)))
+	require.Equal(t, reverse(expItems), collectIter(tree.Iterator([]byte("aello05"), []byte("aello10"), false)))
 }
 
 type pair struct {
 	key, value []byte
 }
 
-func collect(iter dbm.Iterator) []pair {
+func collectIter(iter dbm.Iterator) []pair {
 	result := []pair{}
 	for ; iter.Valid(); iter.Next() {
 		result = append(result, pair{key: iter.Key(), value: iter.Value()})

@@ -155,6 +155,10 @@ func (t *Tree) Get(key []byte) []byte {
 	return value
 }
 
+func (t *Tree) Has(key []byte) bool {
+	return t.Get(key) != nil
+}
+
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root)
 }

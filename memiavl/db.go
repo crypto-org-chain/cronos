@@ -1,7 +1,7 @@
 package memiavl
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/tidwall/wal"
 )
 
@@ -48,6 +47,8 @@ type Options struct {
 	// the initial stores when initialize the empty instance
 	InitialStores      []string
 	SnapshotKeepRecent uint32
+	// load the target version instead of latest version
+	TargetVersion uint32
 }
 
 const (
@@ -74,7 +75,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
-	if err := mtree.CatchupWAL(wal); err != nil {
+	if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
 		return nil, err
 	}
 
@@ -102,18 +103,16 @@ func Load(dir string, opts Options) (*DB, error) {
 // SetInitialVersion wraps `MultiTree.SetInitialVersion`.
 // it do an immediate snapshot rewrite, because we can't use wal log to record this change,
 // because we need it to convert versions to wal index in the first place.
-func (db *DB) SetInitialVersion(initialVersion int64) {
+func (db *DB) SetInitialVersion(initialVersion int64) error {
 	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
-		panic(err)
+		return err
 	}
 
-	if err := db.RewriteSnapshot(); err != nil {
-		panic(err)
+	if err := initEmptyDB(db.dir, db.initialVersion); err != nil {
+		return err
 	}
 
-	if err := db.Reload(); err != nil {
-		panic(err)
-	}
+	return db.Reload()
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
@@ -145,7 +144,7 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 		}
 
 		// snapshot rewrite succeeded, catchup and switch
-		if err := result.mtree.CatchupWAL(db.wal); err != nil {
+		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
 			return true, fmt.Errorf("catchup failed: %w", err)
 		}
 		if err := db.reloadMultiTree(result.mtree); err != nil {
@@ -227,19 +226,15 @@ func (db *DB) Copy() *DB {
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
 func (db *DB) RewriteSnapshot() error {
 	version := uint32(db.lastCommitInfo.Version)
-	snapshotDir := snapshotPath(db.dir, version)
-	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
+	snapshotDir := snapshotName(version)
+	snapshotPath := filepath.Join(db.dir, snapshotDir)
+	if err := os.MkdirAll(snapshotPath, os.ModePerm); err != nil {
 		return err
 	}
-	if err := db.WriteSnapshot(snapshotDir); err != nil {
+	if err := db.WriteSnapshot(snapshotPath); err != nil {
 		return err
 	}
-	tmpLink := filepath.Join(db.dir, "current-tmp")
-	if err := os.Symlink(snapshotDir, tmpLink); err != nil {
-		return err
-	}
-	// assuming file renaming operation is atomic
-	return os.Rename(tmpLink, currentPath(db.dir))
+	return updateCurrentSymlink(db.dir, snapshotDir)
 }
 
 func (db *DB) Reload() error {
@@ -256,7 +251,11 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	db.MultiTree = *mtree
-	db.pendingUpgrades = nil
+
+	if len(db.pendingUpgrades) > 0 {
+		db.MultiTree.ApplyUpgrades(db.pendingUpgrades)
+	}
+
 	return nil
 }
 
@@ -289,7 +288,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			return
 		}
 		// do a best effort catch-up first, will try catch-up again in main thread.
-		if err := mtree.CatchupWAL(wal); err != nil {
+		if err := mtree.CatchupWAL(wal, 0); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
@@ -301,7 +300,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 }
 
 func (db *DB) Close() error {
-	return stderrors.Join(db.MultiTree.Close(), db.wal.Close())
+	return errors.Join(db.MultiTree.Close(), db.wal.Close())
 }
 
 func snapshotName(version uint32) string {
@@ -314,6 +313,10 @@ func snapshotPath(root string, version uint32) string {
 
 func currentPath(root string) string {
 	return filepath.Join(root, "current")
+}
+
+func currentTmpPath(root string) string {
+	return filepath.Join(root, "current-tmp")
 }
 
 func walPath(root string) string {
@@ -331,9 +334,20 @@ func walPath(root string) string {
 // ```
 func initEmptyDB(dir string, initialVersion uint32) error {
 	tmp := NewEmptyMultiTree(initialVersion)
-	snapshotDir := snapshotPath(dir, 0)
-	if err := tmp.WriteSnapshot(snapshotDir); err != nil {
+	snapshotDir := snapshotName(0)
+	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
 		return err
 	}
-	return os.Symlink(snapshotDir, currentPath(dir))
+	return updateCurrentSymlink(dir, snapshotDir)
+}
+
+// updateCurrentSymlink creates or replace the current symblic link atomically.
+// it could fail under concurrent usage for tmp file conflicts.
+func updateCurrentSymlink(dir, snapshot string) error {
+	tmpPath := currentTmpPath(dir)
+	if err := os.Symlink(snapshot, tmpPath); err != nil {
+		return err
+	}
+	// assuming file renaming operation is atomic
+	return os.Rename(tmpPath, currentPath(dir))
 }
