@@ -14,7 +14,7 @@ import (
 )
 
 func ChangeSetCmd() *cobra.Command {
-	keys, _, _ := app.StoreKeys()
+	keys, _, _ := app.StoreKeys(false)
 	storeNames := make([]string, 0, len(keys))
 	for name := range keys {
 		storeNames = append(storeNames, name)

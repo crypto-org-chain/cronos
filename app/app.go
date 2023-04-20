@@ -242,7 +242,7 @@ func GenModuleBasics() module.BasicManager {
 	return module.NewBasicManager(basicModules...)
 }
 
-func StoreKeys() (
+func StoreKeys(skipGravity bool) (
 	map[string]*storetypes.KVStoreKey,
 	map[string]*storetypes.MemoryStoreKey,
 	map[string]*storetypes.TransientStoreKey,
@@ -260,7 +260,9 @@ func StoreKeys() (
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronostypes.StoreKey,
-		gravitytypes.StoreKey,
+	}
+	if !skipGravity {
+		storeKeys = append(storeKeys, gravitytypes.StoreKey)
 	}
 	keys := sdk.NewKVStoreKeys(storeKeys...)
 
@@ -335,7 +337,7 @@ type App struct {
 // New returns a reference to an initialized chain.
 // NewSimApp returns a reference to an initialized SimApp.
 func New(
-	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool, skipUpgradeHeights map[int64]bool,
+	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest, skipGravity bool, skipUpgradeHeights map[int64]bool,
 	homePath string, invCheckPeriod uint, encodingConfig appparams.EncodingConfig,
 	// this line is used by starport scaffolding # stargate/app/newArgument
 	appOpts servertypes.AppOptions, baseAppOptions ...func(*baseapp.BaseApp),
@@ -354,7 +356,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	keys, memKeys, tkeys := StoreKeys()
+	keys, memKeys, tkeys := StoreKeys(skipGravity)
 
 	// load state streaming if enabled
 	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
@@ -390,7 +392,7 @@ func New(
 		memKeys:           memKeys,
 	}
 
-	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
+	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey], skipGravity)
 
 	// set the BaseApp's parameter store
 	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
@@ -480,19 +482,22 @@ func New(
 		nil, geth.NewEVM, tracer,
 	)
 
-	gravityKeeper := gravitykeeper.NewKeeper(
-		appCodec,
-		keys[gravitytypes.StoreKey],
-		app.GetSubspace(gravitytypes.ModuleName),
-		app.AccountKeeper,
-		stakingKeeper,
-		app.BankKeeper,
-		app.SlashingKeeper,
-		app.DistrKeeper,
-		sdk.DefaultPowerReduction,
-		make(map[string]string),
-		make(map[string]string),
-	)
+	var gravityKeeper gravitykeeper.Keeper
+	if !skipGravity {
+		gravityKeeper = gravitykeeper.NewKeeper(
+			appCodec,
+			keys[gravitytypes.StoreKey],
+			app.GetSubspace(gravitytypes.ModuleName),
+			app.AccountKeeper,
+			stakingKeeper,
+			app.BankKeeper,
+			app.SlashingKeeper,
+			app.DistrKeeper,
+			sdk.DefaultPowerReduction,
+			make(map[string]string),
+			make(map[string]string),
+		)
+	}
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
@@ -538,8 +543,11 @@ func New(
 		&stakingKeeper, govRouter, app.MsgServiceRouter(), govConfig,
 	)
 
-	app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
-	gravitySrv := gravitykeeper.NewMsgServerImpl(app.GravityKeeper)
+	var gravitySrv gravitytypes.MsgServer
+	if !skipGravity {
+		app.GravityKeeper = *gravityKeeper.SetHooks(app.CronosKeeper)
+		gravitySrv = gravitykeeper.NewMsgServerImpl(app.GravityKeeper)
+	}
 
 	app.EvmKeeper.SetHooks(cronoskeeper.NewLogProcessEvmHook(
 		evmhandlers.NewSendToAccountHandler(app.BankKeeper, app.CronosKeeper),
@@ -552,13 +560,14 @@ func New(
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
-	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(
-			app.DistrKeeper.Hooks(),
-			app.SlashingKeeper.Hooks(),
-			app.GravityKeeper.Hooks(),
-		),
-	)
+	hooks := []stakingtypes.StakingHooks{
+		app.DistrKeeper.Hooks(),
+		app.SlashingKeeper.Hooks(),
+	}
+	if !skipGravity {
+		hooks = append(hooks, app.GravityKeeper.Hooks())
+	}
+	app.StakingKeeper = *stakingKeeper.SetHooks(stakingtypes.NewMultiStakingHooks(hooks...))
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
@@ -600,7 +609,6 @@ func New(
 		feeModule,
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
 		feemarket.NewAppModule(app.FeeMarketKeeper),
-		gravity.NewAppModule(appCodec, app.GravityKeeper, app.AccountKeeper, app.BankKeeper),
 		cronosModule,
 	}
 
@@ -626,7 +634,6 @@ func New(
 		paramstypes.ModuleName,
 		vestingtypes.ModuleName,
 		feemarkettypes.ModuleName,
-		gravitytypes.ModuleName,
 		cronostypes.ModuleName,
 	}
 	endBlockersOrder := []string{
@@ -648,7 +655,6 @@ func New(
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
-		gravitytypes.ModuleName,
 		cronostypes.ModuleName,
 	}
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -681,9 +687,18 @@ func New(
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
-		gravitytypes.ModuleName,
 		cronostypes.ModuleName,
 	}
+
+	if !skipGravity {
+		modules = append(modules,
+			gravity.NewAppModule(appCodec, app.GravityKeeper, app.AccountKeeper, app.BankKeeper),
+		)
+		beginBlockersOrder = append(beginBlockersOrder, gravitytypes.ModuleName)
+		endBlockersOrder = append(endBlockersOrder, gravitytypes.ModuleName)
+		initGenesisOrder = append(initGenesisOrder, gravitytypes.ModuleName)
+	}
+
 	app.mm = module.NewManager(modules...)
 	app.mm.SetOrderBeginBlockers(beginBlockersOrder...)
 	app.mm.SetOrderEndBlockers(endBlockersOrder...)
@@ -947,7 +962,7 @@ func GetMaccPerms() map[string][]string {
 }
 
 // initParamsKeeper init params keeper and its subspaces
-func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {
+func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey, skipGravity bool) paramskeeper.Keeper {
 	paramsKeeper := paramskeeper.NewKeeper(appCodec, legacyAmino, key, tkey)
 
 	paramsKeeper.Subspace(authtypes.ModuleName)
@@ -962,7 +977,9 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName)
 	paramsKeeper.Subspace(feemarkettypes.ModuleName)
-	paramsKeeper.Subspace(gravitytypes.ModuleName)
+	if !skipGravity {
+		paramsKeeper.Subspace(gravitytypes.ModuleName)
+	}
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(cronostypes.ModuleName).WithKeyTable(cronostypes.ParamKeyTable())
 
