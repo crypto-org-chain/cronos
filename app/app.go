@@ -124,6 +124,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
+	"github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -150,6 +151,8 @@ const (
 	AddrLen = 20
 
 	FileStreamerDirectory = "file_streamer"
+
+	FlagMemIAVL = "memiavl"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -353,6 +356,12 @@ func New(
 	experimental := cast.ToBool(appOpts.Get(cronos.ExperimentalFlag))
 
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+
+	// experimental memiavl integration
+	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
+		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger))
+	}
+
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)

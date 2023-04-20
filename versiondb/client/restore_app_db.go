@@ -21,8 +21,8 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
+	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/crypto-org-chain/cronos/versiondb/extsort"
-	"github.com/crypto-org-chain/cronos/versiondb/memiavl"
 )
 
 const (
@@ -284,7 +284,7 @@ func encodeNode(w io.Writer, node memiavl.PersistedNode) error {
 	if _, err := w.Write(buf[:n]); err != nil {
 		return err
 	}
-	n = binary.PutVarint(buf[:], node.Version())
+	n = binary.PutVarint(buf[:], int64(node.Version()))
 	if _, err := w.Write(buf[:n]); err != nil {
 		return err
 	}
