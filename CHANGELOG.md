@@ -28,6 +28,7 @@
 - [#924](https://github.com/crypto-org-chain/cronos/pull/924) memiavl support `Export` API.
 - [#934](https://github.com/crypto-org-chain/cronos/pull/934) Add pebbledb backend.
 - [#950](https://github.com/crypto-org-chain/cronos/pull/950) Implement memiavl and integrate with state machine.
+- [#]() Fix versiondb verify command on older versions
 
 *Feb 09, 2022*
 
