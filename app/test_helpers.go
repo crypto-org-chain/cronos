@@ -67,7 +67,7 @@ func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := MakeEncodingConfig()
 	appOption := EmptyAppOptions{}
-	app := New(log.NewNopLogger(), db, nil, true, map[int64]bool{}, DefaultNodeHome, invCheckPeriod, encCdc, appOption)
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, invCheckPeriod, encCdc, appOption)
 	if withGenesis {
 		return app, NewDefaultGenesisState(encCdc.Codec)
 	}

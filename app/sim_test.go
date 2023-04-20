@@ -65,7 +65,7 @@ func interBlockCacheOpt() func(*baseapp.BaseApp) {
 // NewSimApp disable feemarket on native tx, otherwise the cosmos-sdk simulation tests will fail.
 func NewSimApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*baseapp.BaseApp)) (*App, error) {
 	encodingConfig := MakeEncodingConfig()
-	app := New(logger, db, nil, false, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, encodingConfig, EmptyAppOptions{}, baseAppOptions...)
+	app := New(logger, db, nil, false, true, map[int64]bool{}, DefaultNodeHome, simapp.FlagPeriodValue, encodingConfig, EmptyAppOptions{}, baseAppOptions...)
 	// disable feemarket on native tx
 	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
 		AccountKeeper:   app.AccountKeeper,
