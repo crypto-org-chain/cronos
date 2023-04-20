@@ -46,7 +46,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_19
+                go_1_20
                 rocksdb
                 gomod2nix
               ];
@@ -58,13 +58,6 @@
       )
     ) // {
       overlay = final: super: {
-        go_1_19 = super.go_1_19.overrideAttrs (_: rec {
-          version = "1.19.6";
-          src = final.fetchurl {
-            url = "https://go.dev/dl/go${version}.src.tar.gz";
-            hash = "sha256-1/ABP4Lm1/hizGy1yM20ju9fLiObNbqpfi8adGYEN2c=";
-          };
-        });
         bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
