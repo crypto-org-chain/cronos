@@ -202,7 +202,7 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 	}
 	// set the initial version for the store
 	initialVersion := filesWithVersion[0].Version
-	if targetVersion  > 0 && initialVersion > uint64(targetVersion) {
+	if targetVersion > 0 && initialVersion > uint64(targetVersion) {
 		return nil, nil
 	}
 
