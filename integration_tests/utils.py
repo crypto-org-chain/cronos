@@ -120,6 +120,25 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
+def approve_proposal(n, rsp):
+    cli = n.cosmos_cli()
+    # get proposal_id
+    ev = parse_events(rsp["logs"])["submit_proposal"]
+    proposal_id = ev["proposal_id"]
+    for i in range(len(n.config["validators"])):
+        rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+        assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+    assert (
+        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
+    ), "all validators should have voted yes"
+    print("wait for proposal to be activated")
+    proposal = cli.query_proposal(proposal_id)
+    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+
+
 def wait_for_port(port, host="127.0.0.1", timeout=40.0):
     start_time = time.perf_counter()
     while True:

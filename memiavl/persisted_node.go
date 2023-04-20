@@ -91,11 +91,11 @@ func (node PersistedNode) Hash() []byte {
 	return node.data().Hash()
 }
 
-func (node PersistedNode) Mutate(version uint32) *MemNode {
+func (node PersistedNode) Mutate(version, _ uint32) *MemNode {
 	data := node.data()
 	mnode := &MemNode{
 		height:  data.Height(),
-		size:    int64(data.Size()),
+		size:    node.Size(),
 		version: version,
 		key:     node.Key(),
 	}
@@ -108,22 +108,33 @@ func (node PersistedNode) Mutate(version uint32) *MemNode {
 	return mnode
 }
 
-func (node PersistedNode) Get(key []byte) []byte {
+func (node PersistedNode) Get(key []byte) ([]byte, uint32) {
 	return getPersistedNode(node.snapshot, node.index, key)
 }
 
+func (node PersistedNode) GetByIndex(leafIndex uint32) ([]byte, []byte) {
+	return getPersistedNodeByIndex(node.snapshot, node.index, leafIndex)
+}
+
 // getPersistedNode specialize the get function for `PersistedNode`.
-func getPersistedNode(snapshot *Snapshot, index uint32, key []byte) []byte {
+// returns the value and the leaf index
+func getPersistedNode(snapshot *Snapshot, root uint32, key []byte) ([]byte, uint32) {
 	nodes := snapshot.nodesLayout
+	index := root
+	var leafIndex uint32
 
 	for {
 		node := nodes.Node(index)
 		if node.Height() == 0 {
 			nodeKey, value := snapshot.KeyValue(node.KeyOffset())
-			if bytes.Equal(key, nodeKey) {
-				return value
+			switch bytes.Compare(nodeKey, key) {
+			case -1:
+				return nil, leafIndex + 1
+			case 1:
+				return nil, leafIndex
+			default:
+				return value, leafIndex
 			}
-			return nil
 		}
 
 		keyNode := node.KeyNode()
@@ -132,8 +143,44 @@ func getPersistedNode(snapshot *Snapshot, index uint32, key []byte) []byte {
 			// left child
 			index = keyNode - 1
 		} else {
+
+			size := node.Size()
+			// calculate the leaf size using formula `N=2L-1`.
+			rightSize := (index - keyNode + 1) / 2
+			leafIndex += (size - rightSize)
+
 			// right child
 			index--
 		}
+	}
+}
+
+func getPersistedNodeByIndex(snapshot *Snapshot, root uint32, leafIndex uint32) ([]byte, []byte) {
+	nodes := snapshot.nodesLayout
+	index := root
+
+	for {
+		node := nodes.Node(index)
+		if node.Height() == 0 {
+			if leafIndex == 0 {
+				return snapshot.KeyValue(node.KeyOffset())
+			}
+			return nil, nil
+		}
+
+		keyNode := node.KeyNode()
+		size := node.Size()
+		// calculate the leaf size using formula `N=2L-1`.
+		rightSize := (index - keyNode + 1) / 2
+		leftSize := size - rightSize
+		if leafIndex < leftSize {
+			// left child
+			index = keyNode - 1
+			continue
+		}
+
+		// right child
+		index--
+		leafIndex -= leftSize
 	}
 }

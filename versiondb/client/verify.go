@@ -195,7 +195,7 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 		tree = memiavl.NewFromSnapshot(snapshot)
 		fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
 	} else {
-		tree = memiavl.NewWithInitialVersion(int64(initialVersion))
+		tree = memiavl.NewWithInitialVersion(uint32(initialVersion))
 	}
 
 	for _, file := range filesWithVersion {
@@ -210,16 +210,8 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 					return true, nil
 				}
 
-				for _, pair := range changeSet.Pairs {
-					if pair.Delete {
-						tree.Remove(pair.Key)
-					} else {
-						tree.Set(pair.Key, pair.Value)
-					}
-				}
-
 				// no need to update hashes for intermediate versions.
-				_, v, err := tree.SaveVersion(false)
+				_, v, err := tree.ApplyChangeSet(*changeSet, false)
 				if err != nil {
 					return false, err
 				}

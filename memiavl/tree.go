@@ -4,6 +4,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+
+	"github.com/cosmos/iavl"
+	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)
@@ -12,16 +15,18 @@ var emptyHash = sha256.New().Sum(nil)
 type Tree struct {
 	version uint32
 	// root node of empty tree is represented as `nil`
-	root Node
+	root     Node
+	snapshot *Snapshot
 
-	initialVersion uint32
+	initialVersion, cowVersion uint32
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version int64) *Tree {
+func NewEmptyTree(version uint64) *Tree {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
+
 	return &Tree{version: uint32(version)}
 }
 
@@ -32,39 +37,66 @@ func New() *Tree {
 
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
-func NewWithInitialVersion(initialVersion int64) *Tree {
-	if initialVersion >= math.MaxUint32 {
-		panic("version overflows uint32")
-	}
+func NewWithInitialVersion(initialVersion uint32) *Tree {
 	tree := New()
-	tree.initialVersion = uint32(initialVersion)
+	tree.initialVersion = initialVersion
 	return tree
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
 func NewFromSnapshot(snapshot *Snapshot) *Tree {
-	if snapshot.IsEmpty() {
-		return NewEmptyTree(int64(snapshot.Version()))
+	tree := &Tree{
+		version:  snapshot.Version(),
+		snapshot: snapshot,
 	}
-	return &Tree{
-		version: snapshot.Version(),
-		root:    snapshot.RootNode(),
+
+	if !snapshot.IsEmpty() {
+		tree.root = snapshot.RootNode()
 	}
+
+	return tree
 }
 
-func (t *Tree) Set(key, value []byte) {
-	t.root, _ = setRecursive(t.root, key, value, t.version+1)
+func (t *Tree) IsEmpty() bool {
+	return t.root == nil
 }
 
-func (t *Tree) Remove(key []byte) {
-	_, t.root, _ = removeRecursive(t.root, key, t.version+1)
+// Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
+func (t *Tree) Copy() *Tree {
+	if _, ok := t.root.(*MemNode); ok {
+		// protect the existing `MemNode`s from get modified in-place
+		t.cowVersion = t.version
+	}
+	newTree := *t
+	return &newTree
 }
 
-// SaveVersion increases the version number and optionally updates the hashes
-func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
+// ApplyChangeSet apply the change set of a whole version, and update hashes.
+func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
+	for _, pair := range changeSet.Pairs {
+		if pair.Delete {
+			t.remove(pair.Key)
+		} else {
+			t.set(pair.Key, pair.Value)
+		}
+	}
+
+	return t.saveVersion(updateHash)
+}
+
+func (t *Tree) set(key, value []byte) {
+	t.root, _ = setRecursive(t.root, key, value, t.version+1, t.cowVersion)
+}
+
+func (t *Tree) remove(key []byte) {
+	_, t.root, _ = removeRecursive(t.root, key, t.version+1, t.cowVersion)
+}
+
+// saveVersion increases the version number and optionally updates the hashes
+func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
 	var hash []byte
 	if updateHash {
-		hash = t.root.Hash()
+		hash = t.RootHash()
 	}
 
 	if t.version >= uint32(math.MaxUint32) {
@@ -94,10 +126,49 @@ func (t *Tree) RootHash() []byte {
 	return t.root.Hash()
 }
 
+func (t *Tree) GetWithIndex(key []byte) (int64, []byte) {
+	if t.root == nil {
+		return 0, nil
+	}
+
+	value, index := t.root.Get(key)
+	return int64(index), value
+}
+
+func (t *Tree) GetByIndex(index int64) ([]byte, []byte) {
+	if index > math.MaxUint32 {
+		return nil, nil
+	}
+	if t.root == nil {
+		return nil, nil
+	}
+
+	return t.root.GetByIndex(uint32(index))
+}
+
 func (t *Tree) Get(key []byte) []byte {
 	if t.root == nil {
 		return nil
 	}
 
-	return t.root.Get(key)
+	value, _ := t.root.Get(key)
+	return value
+}
+
+func (t *Tree) Has(key []byte) bool {
+	return t.Get(key) != nil
+}
+
+func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+	return NewIterator(start, end, ascending, t.root)
+}
+
+func (t *Tree) Close() error {
+	var err error
+	if t.snapshot != nil {
+		err = t.snapshot.Close()
+		t.snapshot = nil
+	}
+	t.root = nil
+	return err
 }

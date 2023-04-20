@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/btree"
 )
@@ -18,34 +19,19 @@ func BenchmarkByteCompare(b *testing.B) {
 }
 
 func BenchmarkRandomGet(b *testing.B) {
-	items := genRandItems(1000000)
+	amount := 1000000
+	items := genRandItems(amount)
 	targetKey := items[500].key
 	targetValue := items[500].value
 	targetItem := itemT{key: targetKey}
 
 	tree := New()
 	for _, item := range items {
-		tree.Set(item.key, item.value)
-	}
-
-	bt2 := btree.NewBTreeGOptions(lessG, btree.Options{
-		NoLocks: true,
-		Degree:  2,
-	})
-	for _, item := range items {
-		bt2.Set(item)
-	}
-
-	bt32 := btree.NewBTreeGOptions(lessG, btree.Options{
-		NoLocks: true,
-		Degree:  32,
-	})
-	for _, item := range items {
-		bt32.Set(item)
+		tree.set(item.key, item.value)
 	}
 
 	snapshotDir := b.TempDir()
-	err := tree.WriteSnapshot(snapshotDir, false)
+	err := tree.WriteSnapshot(snapshotDir, true)
 	require.NoError(b, err)
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(b, err)
@@ -55,10 +41,6 @@ func BenchmarkRandomGet(b *testing.B) {
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
 	require.Equal(b, targetValue, snapshot.Get(targetKey))
-	v, _ := bt2.Get(targetItem)
-	require.Equal(b, targetValue, v.value)
-	v, _ = bt32.Get(targetItem)
-	require.Equal(b, targetValue, v.value)
 
 	b.ResetTimer()
 	b.Run("memiavl", func(b *testing.B) {
@@ -77,13 +59,62 @@ func BenchmarkRandomGet(b *testing.B) {
 		}
 	})
 	b.Run("btree-degree-2", func(b *testing.B) {
+		bt2 := btree.NewBTreeGOptions(lessG, btree.Options{
+			NoLocks: true,
+			Degree:  2,
+		})
+		for _, item := range items {
+			bt2.Set(item)
+		}
+		v, _ := bt2.Get(targetItem)
+		require.Equal(b, targetValue, v.value)
+
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = bt2.Get(targetItem)
 		}
 	})
 	b.Run("btree-degree-32", func(b *testing.B) {
+		bt32 := btree.NewBTreeGOptions(lessG, btree.Options{
+			NoLocks: true,
+			Degree:  32,
+		})
+		for _, item := range items {
+			bt32.Set(item)
+		}
+		v, _ := bt32.Get(targetItem)
+		require.Equal(b, targetValue, v.value)
+
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = bt32.Get(targetItem)
+		}
+	})
+	b.Run("lru-cache", func(b *testing.B) {
+		cache, err := lru.NewARC(amount)
+		require.NoError(b, err)
+		for _, item := range items {
+			cache.Add(string(item.key), item.value)
+		}
+		v, _ := cache.Get(string(targetItem.key))
+		require.Equal(b, targetValue, v.([]byte))
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = cache.Get(string(targetKey))
+		}
+	})
+	b.Run("go-map", func(b *testing.B) {
+		m := make(map[string][]byte, amount)
+		for _, item := range items {
+			m[string(item.key)] = item.value
+		}
+		v := m[string(targetItem.key)]
+		require.Equal(b, targetValue, v)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = m[string(targetKey)]
 		}
 	})
 }
@@ -95,7 +126,7 @@ func BenchmarkRandomSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tree := New()
 			for _, item := range items {
-				tree.Set(item.key, item.value)
+				tree.set(item.key, item.value)
 			}
 		}
 	})

@@ -101,6 +101,7 @@ import (
 	ibc "github.com/cosmos/ibc-go/v5/modules/core"
 	ibcclient "github.com/cosmos/ibc-go/v5/modules/core/02-client"
 	ibcclientclient "github.com/cosmos/ibc-go/v5/modules/core/02-client/client"
+	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	porttypes "github.com/cosmos/ibc-go/v5/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v5/modules/core/keeper"
@@ -124,6 +125,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
+	"github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -149,7 +151,7 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
-	FileStreamerDirectory = "file_streamer"
+	FlagMemIAVL = "memiavl"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -345,6 +347,11 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
+
+	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
+		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger))
+	}
+
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
@@ -513,7 +520,7 @@ func New(
 		AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper)).
-		AddRoute(ibchost.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
+		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper)).
 		AddRoute(cronostypes.RouterKey, cronos.NewTokenMappingChangeProposalHandler(app.CronosKeeper))
 
 	govConfig := govtypes.DefaultConfig()

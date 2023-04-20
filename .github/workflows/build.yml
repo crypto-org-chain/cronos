@@ -66,7 +66,7 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.20.0
+          go-version: '^1.20.0'
       - id: changed-files
         uses: tj-actions/changed-files@v34
         with:
@@ -83,6 +83,9 @@ jobs:
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           export LD_LIBRARY_PATH=$HOME/.nix-profile/lib
+          export GLIBC="$(nix build nixpkgs#stdenv.cc.libc.out --no-link --print-out-paths)"
+          export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,--dynamic-linker=$GLIBC/lib/ld-linux-x86-64.so.2"
+          echo $CGO_LDFLAGS
           cd ./versiondb
           go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt
         if: steps.changed-files.outputs.any_changed == 'true'

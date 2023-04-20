@@ -11,8 +11,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets[:len(ChangeSets)-1] {
-		applyChangeSet(tree, changes)
-		_, _, err := tree.SaveVersion(true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 
@@ -39,8 +38,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 	snapshot, err = OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
 	tree3 := NewFromSnapshot(snapshot)
-	applyChangeSet(tree3, ChangeSets[len(ChangeSets)-1])
-	hash, v, err := tree3.SaveVersion(true)
+	hash, v, err := tree3.ApplyChangeSet(ChangeSets[len(ChangeSets)-1], true)
 	require.NoError(t, err)
 	require.Equal(t, RefHashes[len(ChangeSets)-1], hash)
 	require.Equal(t, len(ChangeSets), int(v))
@@ -61,8 +59,7 @@ func TestSnapshotExport(t *testing.T) {
 	// setup test tree
 	tree := NewEmptyTree(0)
 	for _, changes := range ChangeSets[:3] {
-		applyChangeSet(tree, changes)
-		_, _, err := tree.SaveVersion(true)
+		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
 	}
 
@@ -84,4 +81,48 @@ func TestSnapshotExport(t *testing.T) {
 	}
 
 	require.Equal(t, expNodes, nodes)
+}
+
+func TestSnapshotImportExport(t *testing.T) {
+	// setup test tree
+	tree := NewEmptyTree(0)
+	for _, changes := range ChangeSets {
+		_, _, err := tree.ApplyChangeSet(changes, true)
+		require.NoError(t, err)
+	}
+
+	snapshotDir := t.TempDir()
+	require.NoError(t, tree.WriteSnapshot(snapshotDir, true))
+	snapshot, err := OpenSnapshot(snapshotDir)
+	require.NoError(t, err)
+
+	ch := make(chan *iavl.ExportNode)
+
+	go func() {
+		defer close(ch)
+
+		exporter := snapshot.Export()
+		for {
+			node, err := exporter.Next()
+			if err == iavl.ExportDone {
+				break
+			}
+			require.NoError(t, err)
+			ch <- node
+		}
+	}()
+
+	snapshotDir2 := t.TempDir()
+	err = doImport(snapshotDir2, tree.Version(), ch, true)
+	require.NoError(t, err)
+
+	snapshot2, err := OpenSnapshot(snapshotDir2)
+	require.NoError(t, err)
+	require.Equal(t, snapshot.RootNode().Hash(), snapshot2.RootNode().Hash())
+
+	// verify all the node hashes in snapshot
+	for i := 0; i < snapshot2.nodesLen(); i++ {
+		node := snapshot2.Node(uint32(i))
+		require.Equal(t, node.Hash(), HashNode(node))
+	}
 }

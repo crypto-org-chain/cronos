@@ -20,10 +20,11 @@ type Node interface {
 	Hash() []byte
 
 	// PersistedNode clone a new node, MemNode modify in place
-	Mutate(version uint32) *MemNode
+	Mutate(version, cowVersion uint32) *MemNode
 
 	// Get query the value for a key, it's put into interface because a specialized implementation is more efficient.
-	Get(key []byte) []byte
+	Get(key []byte) ([]byte, uint32)
+	GetByIndex(uint32) ([]byte, []byte)
 }
 
 func isLeaf(node Node) bool {
@@ -33,7 +34,7 @@ func isLeaf(node Node) bool {
 // setRecursive do set operation.
 // it always do modification and return new `MemNode`, even if the value is the same.
 // also returns if it's an update or insertion, if update, the tree height and balance is not changed.
-func setRecursive(node Node, key, value []byte, version uint32) (*MemNode, bool) {
+func setRecursive(node Node, key, value []byte, version, cowVersion uint32) (*MemNode, bool) {
 	if node == nil {
 		return newLeafNode(key, value, version), true
 	}
@@ -60,7 +61,7 @@ func setRecursive(node Node, key, value []byte, version uint32) (*MemNode, bool)
 				right:   newLeafNode(key, value, version),
 			}, false
 		default:
-			newNode := node.Mutate(version)
+			newNode := node.Mutate(version, cowVersion)
 			newNode.value = value
 			return newNode, true
 		}
@@ -70,18 +71,18 @@ func setRecursive(node Node, key, value []byte, version uint32) (*MemNode, bool)
 			updated           bool
 		)
 		if bytes.Compare(key, nodeKey) == -1 {
-			newChild, updated = setRecursive(node.Left(), key, value, version)
-			newNode = node.Mutate(version)
+			newChild, updated = setRecursive(node.Left(), key, value, version, cowVersion)
+			newNode = node.Mutate(version, cowVersion)
 			newNode.left = newChild
 		} else {
-			newChild, updated = setRecursive(node.Right(), key, value, version)
-			newNode = node.Mutate(version)
+			newChild, updated = setRecursive(node.Right(), key, value, version, cowVersion)
+			newNode = node.Mutate(version, cowVersion)
 			newNode.right = newChild
 		}
 
 		if !updated {
 			newNode.updateHeightSize()
-			newNode = newNode.reBalance(version)
+			newNode = newNode.reBalance(version, cowVersion)
 		}
 
 		return newNode, updated
@@ -92,7 +93,7 @@ func setRecursive(node Node, key, value []byte, version uint32) (*MemNode, bool)
 // - (nil, origNode, nil) -> nothing changed in subtree
 // - (value, nil, newKey) -> leaf node is removed
 // - (value, new node, newKey) -> subtree changed
-func removeRecursive(node Node, key []byte, version uint32) ([]byte, Node, []byte) {
+func removeRecursive(node Node, key []byte, version, cowVersion uint32) ([]byte, Node, []byte) {
 	if node == nil {
 		return nil, nil, nil
 	}
@@ -105,20 +106,20 @@ func removeRecursive(node Node, key []byte, version uint32) ([]byte, Node, []byt
 	}
 
 	if bytes.Compare(key, node.Key()) == -1 {
-		value, newLeft, newKey := removeRecursive(node.Left(), key, version)
+		value, newLeft, newKey := removeRecursive(node.Left(), key, version, cowVersion)
 		if value == nil {
 			return nil, node, nil
 		}
 		if newLeft == nil {
 			return value, node.Right(), node.Key()
 		}
-		newNode := node.Mutate(version)
+		newNode := node.Mutate(version, cowVersion)
 		newNode.left = newLeft
 		newNode.updateHeightSize()
-		return value, newNode.reBalance(version), newKey
+		return value, newNode.reBalance(version, cowVersion), newKey
 	}
 
-	value, newRight, newKey := removeRecursive(node.Right(), key, version)
+	value, newRight, newKey := removeRecursive(node.Right(), key, version, cowVersion)
 	if value == nil {
 		return nil, node, nil
 	}
@@ -126,13 +127,13 @@ func removeRecursive(node Node, key []byte, version uint32) ([]byte, Node, []byt
 		return value, node.Left(), nil
 	}
 
-	newNode := node.Mutate(version)
+	newNode := node.Mutate(version, cowVersion)
 	newNode.right = newRight
 	if newKey != nil {
 		newNode.key = newKey
 	}
 	newNode.updateHeightSize()
-	return value, newNode.reBalance(version), nil
+	return value, newNode.reBalance(version, cowVersion), nil
 }
 
 // Writes the node's hash to the given `io.Writer`. This function recursively calls

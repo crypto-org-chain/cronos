@@ -16,14 +16,14 @@ var ChangeSets []iavl.ChangeSet
 
 func init() {
 	ChangeSets = append(ChangeSets,
-		iavl.ChangeSet{Pairs: []iavl.KVPair{
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello"), Value: []byte("world")},
 		}},
-		iavl.ChangeSet{Pairs: []iavl.KVPair{
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello"), Value: []byte("world1")},
 			{Key: []byte("hello1"), Value: []byte("world1")},
 		}},
-		iavl.ChangeSet{Pairs: []iavl.KVPair{
+		iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello2"), Value: []byte("world1")},
 			{Key: []byte("hello3"), Value: []byte("world1")},
 		}},
@@ -31,27 +31,27 @@ func init() {
 
 	var changeSet iavl.ChangeSet
 	for i := 0; i < 1; i++ {
-		changeSet.Pairs = append(changeSet.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
+		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
 	}
 
 	ChangeSets = append(ChangeSets, changeSet)
-	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []iavl.KVPair{
+	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Delete: true},
 		{Key: []byte("hello19"), Delete: true},
 	}})
 
 	changeSet = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changeSet.Pairs = append(changeSet.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
+		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
 	}
 	ChangeSets = append(ChangeSets, changeSet)
 
 	changeSet = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
-		changeSet.Pairs = append(changeSet.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
+		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Delete: true})
 	}
 	for i := 0; i < 19; i++ {
-		changeSet.Pairs = append(changeSet.Pairs, iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
+		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
 	}
 	ChangeSets = append(ChangeSets, changeSet)
 }
@@ -92,27 +92,27 @@ func TestUvarintSize(t *testing.T) {
 func TestKVPairRoundTrip(t *testing.T) {
 	testCases := []struct {
 		name string
-		pair iavl.KVPair
+		pair *iavl.KVPair
 		pass bool
 	}{
 		{
 			"update",
-			iavl.KVPair{Key: []byte("hello"), Value: []byte("world")},
+			&iavl.KVPair{Key: []byte("hello"), Value: []byte("world")},
 			true,
 		},
 		{
 			"delete",
-			iavl.KVPair{Key: []byte("hello"), Delete: true},
+			&iavl.KVPair{Key: []byte("hello"), Delete: true},
 			true,
 		},
 		{
 			"empty value",
-			iavl.KVPair{Key: []byte("hello"), Value: []byte{}},
+			&iavl.KVPair{Key: []byte("hello"), Value: []byte{}},
 			true,
 		},
 		{
 			"uint16 key length don't overflow",
-			iavl.KVPair{Key: make([]byte, math.MaxUint16+1), Value: []byte{}},
+			&iavl.KVPair{Key: make([]byte, math.MaxUint16+1), Value: []byte{}},
 			true,
 		},
 	}
@@ -126,7 +126,7 @@ func TestKVPairRoundTrip(t *testing.T) {
 
 				pair, err := readKVPair(bytes.NewBuffer(buf))
 				require.NoError(t, err)
-				require.Equal(t, tc.pair, *pair)
+				require.Equal(t, tc.pair, pair)
 			} else {
 				require.Error(t, err)
 			}
@@ -145,7 +145,7 @@ func TestChangeSetRoundTrip(t *testing.T) {
 			"normal",
 			1,
 			iavl.ChangeSet{
-				Pairs: []iavl.KVPair{
+				Pairs: []*iavl.KVPair{
 					{Key: []byte("hello"), Value: []byte("world")},
 					{Key: []byte("hello"), Value: []byte{}},
 					{Key: []byte("hello"), Value: []byte{}},
@@ -157,7 +157,7 @@ func TestChangeSetRoundTrip(t *testing.T) {
 			"uint16 key length don't overflow",
 			1,
 			iavl.ChangeSet{
-				Pairs: []iavl.KVPair{
+				Pairs: []*iavl.KVPair{
 					{Key: []byte("hello"), Value: []byte{}},
 					{Key: []byte("hello"), Value: []byte{}},
 					{Key: make([]byte, math.MaxUint16+1), Value: []byte{}},
