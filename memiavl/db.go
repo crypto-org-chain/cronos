@@ -253,7 +253,9 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	db.MultiTree = *mtree
 
 	if len(db.pendingUpgrades) > 0 {
-		db.MultiTree.ApplyUpgrades(db.pendingUpgrades)
+		if err := db.MultiTree.ApplyUpgrades(db.pendingUpgrades); err != nil {
+			return err
+		}
 	}
 
 	return nil
