@@ -170,7 +170,7 @@ func TestInitialVersion(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, uint32(initialVersion), db.initialVersion)
 		require.Equal(t, v, db.Version())
-		require.Equal(t, hex.EncodeToString(hash), hex.EncodeToString(hash))
+		require.Equal(t, hex.EncodeToString(hash), hex.EncodeToString(db.Hash()))
 
 		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
 		_, v, err = db.Commit((mockNameChangeSet(name1, key, value)))
