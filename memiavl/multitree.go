@@ -118,8 +118,12 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 	return mtree, nil
 }
 
+// TreeByName returns the tree by name, returns nil if not found
 func (t *MultiTree) TreeByName(name string) *Tree {
-	return t.trees[t.treesByName[name]].tree
+	if i, ok := t.treesByName[name]; ok {
+		return t.trees[i].tree
+	}
+	return nil
 }
 
 func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
@@ -359,10 +363,11 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileSync(filepath.Join(dir, MetadataFileName), bz)
+	return WriteFileSync(filepath.Join(dir, MetadataFileName), bz)
 }
 
-func writeFileSync(name string, data []byte) error {
+// WriteFileSync calls `f.Sync` after before closing the file
+func WriteFileSync(name string, data []byte) error {
 	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return err
