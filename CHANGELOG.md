@@ -2,7 +2,7 @@
 
 ## UNRELEASED
 
-- [#]() Use go 1.20.
+- [#986](https://github.com/crypto-org-chain/cronos/pull/986) Use go 1.20.
 
 *April 13, 2023*
 
