@@ -3,6 +3,7 @@ package memiavl
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/cosmos/iavl"
@@ -59,6 +60,14 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 
 func (t *Tree) IsEmpty() bool {
 	return t.root == nil
+}
+
+func (t *Tree) SetInitialVersion(initialVersion int64) error {
+	if initialVersion >= math.MaxUint32 {
+		return fmt.Errorf("version overflows uint32: %d", initialVersion)
+	}
+	t.initialVersion = uint32(initialVersion)
+	return nil
 }
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.

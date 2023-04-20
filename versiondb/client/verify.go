@@ -11,7 +11,6 @@ import (
 	"sort"
 	"sync"
 
-	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
 	"github.com/gogo/protobuf/jsonpb"
@@ -85,11 +84,24 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 				{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}},
 			}
 
+			mtree := memiavl.NewEmptyMultiTree(0)
+			if len(loadSnapshot) > 0 {
+				var err error
+				mtree, err = memiavl.LoadMultiTree(loadSnapshot)
+				if err != nil {
+					return err
+				}
+			}
+
 			for _, store := range stores {
 				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := store
+				tree := mtree.TreeByName(store)
+				if tree == nil {
+					tree = memiavl.New()
+				}
 				group.Submit(func() error {
-					storeInfo, err := verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot, targetVersion, buildHashIndex)
+					storeInfo, err := verifyOneStore(tree, store, changeSetDir, saveSnapshot, targetVersion, buildHashIndex)
 					if err != nil {
 						return err
 					}
@@ -108,6 +120,20 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			}
 
 			commitInfo := buildCommitInfo(storeInfos, lastestVersion)
+
+			if len(saveSnapshot) > 0 {
+				// write multitree metadata
+				metadata := memiavl.MultiTreeMetadata{
+					CommitInfo: &commitInfo,
+				}
+				bz, err := metadata.Marshal()
+				if err != nil {
+					return err
+				}
+				if err := writeFileSync(filepath.Join(saveSnapshot, memiavl.MetadataFileName), bz); err != nil {
+					return err
+				}
+			}
 
 			// write out the replay result
 			var buf bytes.Buffer
@@ -160,7 +186,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 }
 
 // verifyOneStore process a single store, can run in parallel with other stores.
-func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targetVersion int64, buildHashIndex bool) (*storetypes.StoreInfo, error) {
+func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string, targetVersion int64, buildHashIndex bool) (*storetypes.StoreInfo, error) {
 	// scan directory to find the change set files
 	storeDir := filepath.Join(changeSetDir, store)
 	entries, err := os.ReadDir(storeDir)
@@ -180,22 +206,10 @@ func verifyOneStore(store, changeSetDir, loadSnapshot, saveSnapshot string, targ
 	if len(filesWithVersion) == 0 {
 		return nil, fmt.Errorf("change set directory is empty")
 	}
-	// the initial version for the store
+	// set the initial version for the store
 	initialVersion := filesWithVersion[0].Version
-
-	var tree *memiavl.Tree
-	if len(loadSnapshot) > 0 {
-		path := filepath.Join(loadSnapshot, store)
-		snapshot, err := memiavl.OpenSnapshot(path)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fail to load snapshot: %s", path)
-		}
-		defer snapshot.Close()
-
-		tree = memiavl.NewFromSnapshot(snapshot)
-		fmt.Printf("snapshot loaded: %d %X\n", tree.Version(), tree.RootHash())
-	} else {
-		tree = memiavl.NewWithInitialVersion(uint32(initialVersion))
+	if err := tree.SetInitialVersion(int64(initialVersion)); err != nil {
+		return nil, err
 	}
 
 	for _, file := range filesWithVersion {
@@ -274,4 +288,19 @@ func buildCommitInfo(storeInfos []storetypes.StoreInfo, version int64) storetype
 		Version:    storeInfos[0].CommitId.Version,
 		StoreInfos: storeInfos,
 	}
+}
+
+func writeFileSync(name string, data []byte) error {
+	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if err1 := f.Close(); err1 != nil && err == nil {
+		err = err1
+	}
+	return err
 }
