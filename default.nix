@@ -24,7 +24,7 @@ in
 buildGoApplication rec {
   inherit pname version buildInputs tags ldflags;
   # specify explicitly to workaround issue: https://github.com/nix-community/gomod2nix/issues/106
-  go = buildPackages.go_1_19;
+  go = buildPackages.go_1_20;
   src = (nix-gitignore.gitignoreSourcePure [
     "/*" # ignore all, then add whitelists
     "!/x/"
