@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#]() Use go 1.20.
+
 *April 13, 2023*
 
 ## v1.0.7

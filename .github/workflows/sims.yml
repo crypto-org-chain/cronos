@@ -108,7 +108,7 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Display go version
         run: go version
       - run: make build
@@ -129,7 +129,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Display go version
         run: go version
       - name: Install runsim
@@ -155,7 +155,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
@@ -210,7 +210,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
@@ -265,7 +265,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
@@ -320,7 +320,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '^1.20.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v3
         if: github.event_name == 'issue_comment'
