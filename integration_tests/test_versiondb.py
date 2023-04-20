@@ -48,7 +48,7 @@ def test_versiondb_migration(cronos: Cronos):
     print(cli1.changeset_dump(changeset_dir))
     snapshot_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print("verify and save to snapshot:", snapshot_dir)
-    _, commit_info = cli0.changeset_verify(changeset_dir, save_snapshot=snapshot_dir)
+    _, commit_info = cli0.changeset_verify(changeset_dir, save_snapshot=snapshot_dir, target_version=1)
     latest_version = commit_info["version"]
 
     # replace existing `application.db`
