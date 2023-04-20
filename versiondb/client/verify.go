@@ -130,7 +130,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if err := writeFileSync(filepath.Join(saveSnapshot, memiavl.MetadataFileName), bz); err != nil {
+				if err := memiavl.WriteFileSync(filepath.Join(saveSnapshot, memiavl.MetadataFileName), bz); err != nil {
 					return err
 				}
 			}
@@ -288,19 +288,4 @@ func buildCommitInfo(storeInfos []storetypes.StoreInfo, version int64) storetype
 		Version:    storeInfos[0].CommitId.Version,
 		StoreInfos: storeInfos,
 	}
-}
-
-func writeFileSync(name string, data []byte) error {
-	f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	_, err = f.Write(data)
-	if err == nil {
-		err = f.Sync()
-	}
-	if err1 := f.Close(); err1 != nil && err == nil {
-		err = err1
-	}
-	return err
 }
