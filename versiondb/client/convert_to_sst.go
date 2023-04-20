@@ -182,6 +182,7 @@ func scanChangeSetFiles(changeSetDir, store string) ([]FileWithVersion, error) {
 	storeDir := filepath.Join(changeSetDir, store)
 	entries, err := os.ReadDir(storeDir)
 	if err != nil {
+		// assume the change set files are taken from older versions, don't include all stores.
 		if os.IsNotExist(err) {
 			return nil, nil
 		}

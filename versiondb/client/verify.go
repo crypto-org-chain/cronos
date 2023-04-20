@@ -192,22 +192,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 // verifyOneStore process a single store, can run in parallel with other stores.
 // if the store don't exist before the `targetVersion`, returns nil without error.
 func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string, targetVersion int64, buildHashIndex bool) (*storetypes.StoreInfo, error) {
-	// scan directory to find the change set files
-	storeDir := filepath.Join(changeSetDir, store)
-	entries, err := os.ReadDir(storeDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// assume the change set files are taken from older versions, don't include all stores.
-			return nil, nil
-		}
-		return nil, err
-	}
-	fileNames := make([]string, len(entries))
-	for i, entry := range entries {
-		fileNames[i] = filepath.Join(storeDir, entry.Name())
-	}
-
-	filesWithVersion, err := SortFilesByFirstVerson(fileNames)
+	filesWithVersion, err := scanChangeSetFiles(changeSetDir, store)
 	if err != nil {
 		return nil, err
 	}
