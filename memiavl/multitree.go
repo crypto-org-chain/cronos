@@ -118,8 +118,12 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 	return mtree, nil
 }
 
+// TreeByName returns the tree by name, returns nil if not found
 func (t *MultiTree) TreeByName(name string) *Tree {
-	return t.trees[t.treesByName[name]].tree
+	if i, ok := t.treesByName[name]; ok {
+		return t.trees[i].tree
+	}
+	return nil
 }
 
 func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
