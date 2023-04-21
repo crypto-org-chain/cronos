@@ -346,11 +346,14 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
-
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger))
+		// cms must be overriden before the other options, because they may use the cms,
+		// FIXME we are assuming the cms won't be overridden by the other options, but we can't be sure.
+		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
+		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}
+
+	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
@@ -999,4 +1002,8 @@ func VerifyAddressFormat(bz []byte) error {
 	}
 
 	return nil
+}
+
+func setCMS(cms storetypes.CommitMultiStore) func(*baseapp.BaseApp) {
+	return func(bapp *baseapp.BaseApp) { bapp.SetCMS(cms) }
 }

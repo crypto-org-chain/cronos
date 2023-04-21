@@ -1,9 +1,12 @@
 package memiavl
 
 import (
+	"io"
 	"testing"
 
 	"github.com/cosmos/iavl"
+	protoio "github.com/gogo/protobuf/io"
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -125,4 +128,77 @@ func TestSnapshotImportExport(t *testing.T) {
 		node := snapshot2.Node(uint32(i))
 		require.Equal(t, node.Hash(), HashNode(node))
 	}
+}
+
+func TestDBSnapshotRestore(t *testing.T) {
+	db, err := Load(t.TempDir(), Options{
+		CreateIfMissing: true,
+		InitialStores:   []string{"test"},
+	})
+	require.NoError(t, err)
+
+	for _, changes := range ChangeSets {
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test",
+				Changeset: changes,
+			},
+		}
+		_, _, err := db.Commit(cs)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, db.RewriteSnapshot())
+	require.NoError(t, db.Reload())
+	require.Equal(t, len(ChangeSets), int(db.metadata.CommitInfo.Version))
+
+	reader, writer := makeProtoIOPair()
+	go func() {
+		defer writer.Close()
+		require.NoError(t, db.Snapshot(uint64(db.Version()), writer))
+	}()
+
+	restoreDir := t.TempDir()
+	_, err = Import(restoreDir, uint64(db.Version()), 0, reader)
+	require.NoError(t, err)
+
+	db2, err := Load(restoreDir, Options{})
+	require.Equal(t, db.LastCommitInfo(), db2.LastCommitInfo())
+	require.Equal(t, db.Hash(), db2.Hash())
+
+	// the imported db function normally
+	_, _, err = db2.Commit(nil)
+	require.NoError(t, err)
+}
+
+type protoReader struct {
+	ch chan proto.Message
+}
+
+func (r *protoReader) ReadMsg(msg proto.Message) error {
+	m, ok := <-r.ch
+	if !ok {
+		return io.EOF
+	}
+	proto.Merge(msg, m)
+	return nil
+}
+
+type protoWriter struct {
+	ch chan proto.Message
+}
+
+func (w *protoWriter) WriteMsg(msg proto.Message) error {
+	w.ch <- msg
+	return nil
+}
+
+func (w *protoWriter) Close() error {
+	close(w.ch)
+	return nil
+}
+
+func makeProtoIOPair() (protoio.Reader, protoio.WriteCloser) {
+	ch := make(chan proto.Message)
+	return &protoReader{ch}, &protoWriter{ch}
 }
