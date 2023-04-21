@@ -12,7 +12,7 @@ const (
 	OffsetKeyNode = OffsetSize + 4
 
 	// leaf node repurpose two uint32 to store the offset in kv file.
-	OffsetKeyOffset = OffsetVersion + 4
+	OffsetKeyOffset = OffsetSize
 
 	OffsetHash          = OffsetKeyNode + 4
 	SizeHash            = sha256.Size
@@ -43,7 +43,7 @@ type PersistedNode struct {
 
 var _ Node = PersistedNode{}
 
-func (node PersistedNode) data() *NodeLayout {
+func (node PersistedNode) data() NodeLayout {
 	return node.snapshot.nodesLayout.Node(node.index)
 }
 
@@ -143,7 +143,6 @@ func getPersistedNode(snapshot *Snapshot, root uint32, key []byte) ([]byte, uint
 			// left child
 			index = keyNode - 1
 		} else {
-
 			size := node.Size()
 			// calculate the leaf size using formula `N=2L-1`.
 			rightSize := (index - keyNode + 1) / 2
