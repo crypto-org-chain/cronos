@@ -1,3 +1,4 @@
+import json
 import subprocess
 
 import pytest
@@ -15,9 +16,32 @@ def ibc(request, tmp_path_factory):
     yield from network
 
 
-def test_ibc_update_client(ibc):
+def test_ibc_update_client(ibc, tmp_path):
     """
-    test update expire subject client with new active client
+    test client via chain header
+    """
+    cli = ibc.cronos.cosmos_cli()
+    cli1 = ibc.chainmain.cosmos_cli()
+    client_id = "07-tendermint-0"
+    state = cli.ibc_query_client_consensus_states(client_id)["consensus_states"]
+    trusted_height = state[-1]["height"]
+    h = int(trusted_height["revision_height"])
+    validators = cli1.ibc_query_client_header(h)["validator_set"]
+    header = cli1.ibc_query_client_header(h + 1)
+    header["trusted_validators"] = validators
+    header["trusted_height"] = trusted_height
+    header_json = header | {
+        "@type": "/ibc.lightclients.tendermint.v1.Header",
+    }
+    header_file = tmp_path / "header.json"
+    header_file.write_text(json.dumps(header_json))
+    rsp = cli.ibc_update_client_with_header(client_id, header_file, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+
+def test_ibc_update_client_via_proposal(ibc):
+    """
+    test update expire subject client with new active client via proposal
     """
     cli = ibc.cronos.cosmos_cli()
     cmd0 = ["hermes", "--config", ibc.hermes.configpath]
