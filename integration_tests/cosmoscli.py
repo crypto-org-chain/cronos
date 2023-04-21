@@ -1319,6 +1319,55 @@ class CosmosCLI:
             )
         )
 
+    def ibc_query_client_consensus_states(self, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "client",
+                "consensus-states",
+                channel_id,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_query_client_header(self, height, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "client",
+                "header",
+                "--height",
+                height,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_update_client_with_header(self, client_id, header, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        return json.loads(
+            self.raw(
+                "tx",
+                "ibc",
+                "client",
+                "update",
+                client_id,
+                header,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
     def query_icactl_params(self, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,
