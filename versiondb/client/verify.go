@@ -198,7 +198,7 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 	}
 
 	if len(filesWithVersion) == 0 {
-		return nil, fmt.Errorf("change set directory is empty")
+		return nil, nil
 	}
 	// set the initial version for the store
 	initialVersion := filesWithVersion[0].Version
