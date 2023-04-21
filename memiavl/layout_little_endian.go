@@ -17,7 +17,7 @@ func NewNodes(data []byte) (Nodes, error) {
 }
 
 func (nodes Nodes) Node(i uint32) *NodeLayout {
-	return &NodeLayout{data: nodes.data[i*SizeNode:]}
+	return &NodeLayout{data: nodes.data[int(i)*SizeNode:]}
 }
 
 // see comment of `PersistedNode`
