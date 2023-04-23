@@ -213,10 +213,17 @@ func (snapshot *Snapshot) Version() uint32 {
 
 // RootNode returns the root node
 func (snapshot *Snapshot) RootNode() PersistedNode {
-	if snapshot.rootIndex == EmptyRootNodeIndex {
+	if snapshot.IsEmpty() {
 		panic("RootNode not supported on an empty snapshot")
 	}
 	return snapshot.Node(snapshot.rootIndex)
+}
+
+func (snapshot *Snapshot) RootHash() []byte {
+	if snapshot.IsEmpty() {
+		return emptyHash
+	}
+	return snapshot.RootNode().Hash()
 }
 
 // nodesLen returns the number of nodes in the snapshot
