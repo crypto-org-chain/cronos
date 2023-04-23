@@ -6,7 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
+	iavlcache "github.com/cosmos/iavl/cache"
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru/simplelru"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/btree"
 )
@@ -104,6 +106,33 @@ func BenchmarkRandomGet(b *testing.B) {
 			_, _ = cache.Get(string(targetKey))
 		}
 	})
+	b.Run("simplelru", func(b *testing.B) {
+		cache, err := simplelru.NewLRU(amount, nil)
+		require.NoError(b, err)
+		for _, item := range items {
+			cache.Add(string(item.key), item.value)
+		}
+		v, _ := cache.Get(string(targetItem.key))
+		require.Equal(b, targetValue, v.([]byte))
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = cache.Get(string(targetKey))
+		}
+	})
+	b.Run("iavl-lru", func(b *testing.B) {
+		cache := iavlcache.New(amount)
+		for _, item := range items {
+			cache.Add(iavlCacheNode{item.key, item.value})
+		}
+		v := cache.Get(targetItem.key).(iavlCacheNode).value
+		require.Equal(b, targetValue, v)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = cache.Get(targetKey).(iavlCacheNode).value
+		}
+	})
 	b.Run("go-map", func(b *testing.B) {
 		m := make(map[string][]byte, amount)
 		for _, item := range items {
@@ -187,4 +216,13 @@ func genRandItems(n int) []itemT {
 		}
 	}
 	return items
+}
+
+type iavlCacheNode struct {
+	key   []byte
+	value []byte
+}
+
+func (n iavlCacheNode) GetKey() []byte {
+	return n.key
 }
