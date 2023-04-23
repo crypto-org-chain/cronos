@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path/filepath"
 
 	"cosmossdk.io/errors"
@@ -12,6 +13,7 @@ import (
 	protoio "github.com/gogo/protobuf/io"
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -82,9 +84,14 @@ loop:
 		}
 	}
 
+	if err := updateMetadataFile(filepath.Join(dir, snapshotDir), int64(height)); err != nil {
+		return snapshottypes.SnapshotItem{}, err
+	}
+
 	if err := updateCurrentSymlink(dir, snapshotDir); err != nil {
 		return snapshottypes.SnapshotItem{}, err
 	}
+
 	return snapshotItem, nil
 }
 
@@ -109,8 +116,12 @@ func (ai *TreeImporter) Add(node *iavl.ExportNode) {
 }
 
 func (ai *TreeImporter) Close() error {
-	close(ai.nodesChan)
-	err := <-ai.quitChan
+	var err error
+	// tolerate double close
+	if ai.nodesChan != nil {
+		close(ai.nodesChan)
+		err = <-ai.quitChan
+	}
 	ai.nodesChan = nil
 	ai.quitChan = nil
 	return err
@@ -199,4 +210,42 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 	i.nodeStack = i.nodeStack[:len(i.nodeStack)-2]
 	i.nodeStack = append(i.nodeStack, node)
 	return nil
+}
+
+func updateMetadataFile(dir string, height int64) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	storeInfos := make([]storetypes.StoreInfo, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		snapshot, err := OpenSnapshot(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+		storeInfos = append(storeInfos, storetypes.StoreInfo{
+			Name: name,
+			CommitId: storetypes.CommitID{
+				Version: height,
+				Hash:    snapshot.RootHash(),
+			},
+		})
+	}
+	metadata := MultiTreeMetadata{
+		CommitInfo: &storetypes.CommitInfo{
+			Version:    height,
+			StoreInfos: storeInfos,
+		},
+		// initial version should correspond to the first wal entry
+		InitialVersion: height + 1,
+	}
+	bz, err := metadata.Marshal()
+	if err != nil {
+		return err
+	}
+	return WriteFileSync(filepath.Join(dir, MetadataFileName), bz)
 }
