@@ -66,7 +66,9 @@ func NewStore(dir string, logger log.Logger) *Store {
 // Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
 	var changeSets []*memiavl.NamedChangeSet
-	for key, store := range rs.stores {
+	for key := range rs.stores {
+		// it'll unwrap the inter-block cache
+		store := rs.GetCommitKVStore(key)
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
 			changeSets = append(changeSets, &memiavl.NamedChangeSet{
 				Name:      key.Name(),
