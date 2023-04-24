@@ -447,7 +447,7 @@ def test_gravity_proxy_contract_source_token(gravity):
         assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
 
 
-def gravity_detect_malicious_supply(gravity):
+def test_gravity_detect_malicious_supply(gravity):
     if not gravity.cronos.enable_auto_deployment:
         geth = gravity.geth
         cli = gravity.cronos.cosmos_cli()
