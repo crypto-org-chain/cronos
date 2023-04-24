@@ -378,7 +378,9 @@ def test_gravity_proxy_contract_source_token(gravity):
         ethereum_receiver = ADDRS["validator"]
         sender = ADDRS["validator"]
         # community_balance_before_send = crc20.caller.balanceOf(community)
-        balance_before_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(ethereum_receiver)
+        balance_before_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+            ethereum_receiver
+        )
 
         print("send to ethereum")
         # First we need to approve the proxy contract to move asset
@@ -387,7 +389,9 @@ def test_gravity_proxy_contract_source_token(gravity):
         )
         txreceipt = send_transaction(w3, tx, key=KEYS["validator"])
         assert txreceipt.status == 1, "should success"
-        assert contract.caller.allowance(ADDRS["validator"], proxycrc20.address) == amount
+        assert (
+            contract.caller.allowance(ADDRS["validator"], proxycrc20.address) == amount
+        )
 
         # Then trigger the send to evm chain
         community_balance_before_send = contract.caller.balanceOf(sender)
@@ -398,20 +402,24 @@ def test_gravity_proxy_contract_source_token(gravity):
         print("receipt : ", txreceipt2)
         assert txreceipt2.status == 1, "should success"
         # Check deduction
-        assert contract.caller.balanceOf(sender) == community_balance_before_send - amount
+        assert (
+            contract.caller.balanceOf(sender) == community_balance_before_send - amount
+        )
 
         balance_after_send_to_ethereum = balance_before_send_to_ethereum
 
         def check_ethereum_balance_change():
             nonlocal balance_after_send_to_ethereum
-            balance_after_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(ethereum_receiver)
+            balance_after_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+                ethereum_receiver
+            )
             return balance_before_send_to_ethereum != balance_after_send_to_ethereum
 
         wait_for_fn(
             "ethereum balance change", check_ethereum_balance_change, timeout=60
         )
         assert (
-                balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
 
         # Send back token to cronos
