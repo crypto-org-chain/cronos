@@ -347,7 +347,7 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		// cms must be overriden before the other options, because they may use the cms,
+		// cms must be overridden before the other options, because they may use the cms,
 		// FIXME we are assuming the cms won't be overridden by the other options, but we can't be sure.
 		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
