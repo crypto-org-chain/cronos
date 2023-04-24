@@ -35,7 +35,7 @@ func (suite *CronosTestSuite) SetupTest() {
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	suite.address = sdk.AccAddress(privKey.PubKey().Address())
-	suite.app = app.Setup(suite.T(), suite.address.String())
+	suite.app = app.Setup(suite.T(), suite.address.String(), true)
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
 	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
 }
