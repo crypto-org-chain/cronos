@@ -32,7 +32,7 @@ jobs:
         uses: tj-actions/changed-files@v35
         with:
           files: |
-            *.go
+            **/*.go
             *.mod
             *.sum
       - uses: cachix/cachix-action@v12
@@ -71,7 +71,7 @@ jobs:
         uses: tj-actions/changed-files@v35
         with:
           files: |
-            *.go
+            **/*.go
             *.mod
             *.sum
       - name: test & coverage report creation
