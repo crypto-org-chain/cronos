@@ -123,7 +123,7 @@ func BenchmarkRandomGet(b *testing.B) {
 	b.Run("iavl-lru", func(b *testing.B) {
 		cache := iavlcache.New(amount)
 		for _, item := range items {
-			cache.Add(iavlCacheNode{item.key, item.value})
+			cache.Add(NewIavlCacheNode(item.key, item.value))
 		}
 		v := cache.Get(targetItem.key).(iavlCacheNode).value
 		require.Equal(b, targetValue, v)
@@ -221,6 +221,10 @@ func genRandItems(n int) []itemT {
 type iavlCacheNode struct {
 	key   []byte
 	value []byte
+}
+
+func NewIavlCacheNode(key, value []byte) iavlCacheNode {
+	return iavlCacheNode{key, value}
 }
 
 func (n iavlCacheNode) GetKey() []byte {

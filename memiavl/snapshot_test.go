@@ -163,6 +163,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 	require.NoError(t, err)
 
 	db2, err := Load(restoreDir, Options{})
+	require.NoError(t, err)
 	require.Equal(t, db.LastCommitInfo(), db2.LastCommitInfo())
 	require.Equal(t, db.Hash(), db2.Hash())
 
