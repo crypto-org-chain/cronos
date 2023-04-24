@@ -357,8 +357,8 @@ func New(
 
 	// experimental memiavl integration
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		// cms must be overriden before the other options, because they may use the cms,
-		// FIXME we have to assume the cms is not overriden by the other options, but we can't tell at here.
+		// cms must be overridden before the other options, because they may use the cms,
+		// FIXME we have to assume the cms is not overridden by the other options, but we can't tell at here.
 		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}
