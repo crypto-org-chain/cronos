@@ -49,6 +49,8 @@ type Store struct {
 	listeners    map[types.StoreKey][]types.WriteListener
 
 	interBlockCache types.MultiStorePersistentCache
+
+	asyncWAL bool
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -268,6 +270,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 		CreateIfMissing: true,
 		InitialStores:   initialStores,
 		TargetVersion:   uint32(version),
+		AsyncWAL:        rs.asyncWAL,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
@@ -379,6 +382,10 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 
 // Implements interface CommitMultiStore
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
+}
+
+func (rs *Store) SetAsyncWAL(async bool) {
+	rs.asyncWAL = async
 }
 
 // Implements interface CommitMultiStore
