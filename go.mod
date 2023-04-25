@@ -9,7 +9,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.12
 	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa
 	github.com/cosmos/ibc-go/v5 v5.2.0
-	github.com/crypto-org-chain/cronos/store v0.0.0-20230423124351-530200e770cd
+	github.com/crypto-org-chain/cronos/store v0.0.0-20230425151210-b262fa8bdacb
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.6.1-0.20221101220534-a8ea4eceb6d9
@@ -226,8 +226,7 @@ replace (
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.12
-	github.com/crypto-org-chain/cronos/memiavl => github.com/yihuang/cronos/memiavl v0.0.0-20230425091648-5f17fcf756a7
-	github.com/crypto-org-chain/cronos/store => github.com/yihuang/cronos/store v0.0.0-20230425091648-5f17fcf756a7
+	github.com/crypto-org-chain/cronos/memiavl => github.com/crypto-org-chain/cronos/memiavl v0.0.0-20230425151210-b262fa8bdacb
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.10-cronos
