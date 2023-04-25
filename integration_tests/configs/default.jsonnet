@@ -27,8 +27,8 @@
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
       'app-config': {
-        memiavl: true,
         store: {
+          memiavl: true,
           streamers: ['versiondb'],
         },
       },
