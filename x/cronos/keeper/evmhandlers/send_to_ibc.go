@@ -78,7 +78,7 @@ func (h SendToIbcHandler) Handle(
 	sender := unpacked[0].(common.Address)
 	recipient := unpacked[1].(string)
 	amount := unpacked[2].(*big.Int)
-	return h.handle(ctx, contract, sender, recipient, amount)
+	return h.handle(ctx, contract, sender, recipient, amount, nil)
 }
 
 func (h SendToIbcHandler) handle(
@@ -87,6 +87,7 @@ func (h SendToIbcHandler) handle(
 	senderAddress common.Address,
 	recipient string,
 	amountInt *big.Int,
+	id *big.Int,
 ) error {
 	denom, found := h.cronosKeeper.GetDenomByContract(ctx, contract)
 	if !found {
@@ -118,8 +119,13 @@ func (h SendToIbcHandler) handle(
 			return err
 		}
 	}
+
+	channelId := ""
+	if id != nil {
+		channelId = "channel-" + id.String()
+	}
 	// Initiate IBC transfer from sender account
-	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {
+	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins, channelId); err != nil {
 		return err
 	}
 	return nil

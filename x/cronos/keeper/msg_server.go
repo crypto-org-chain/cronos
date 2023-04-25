@@ -44,7 +44,9 @@ func (k msgServer) ConvertVouchers(goCtx context.Context, msg *types.MsgConvertV
 
 func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferTokens) (*types.MsgTransferTokensResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	err := k.IbcTransferCoins(ctx, msg.From, msg.To, msg.Coins)
+	// TODO change the msg to be able to specify the channel id
+	// Only sending non source token is supported at the moment
+	err := k.IbcTransferCoins(ctx, msg.From, msg.To, msg.Coins, "")
 	if err != nil {
 		return nil, err
 	}

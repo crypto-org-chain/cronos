@@ -92,10 +92,10 @@ func (h SendToIbcV2Handler) Handle(
 
 	// needs to crope the extra bytes in the topic by using BytesToAddress
 	sender := common.BytesToAddress(topics[1].Bytes())
+	channelId := new(big.Int).SetBytes(topics[2].Bytes())
 	recipient := unpacked[0].(string)
 	amount := unpacked[1].(*big.Int)
-	// channelId := uint256(topics[2].Bytes())
 	// extraData := unpacked[2].([]byte)
 
-	return h.handle(ctx, contract, sender, recipient, amount)
+	return h.handle(ctx, contract, sender, recipient, amount, channelId)
 }

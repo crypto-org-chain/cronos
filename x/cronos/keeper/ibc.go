@@ -3,7 +3,6 @@ package keeper
 import (
 	"errors"
 	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/armon/go-metrics"
@@ -13,6 +12,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -75,7 +75,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 	return nil
 }
 
-func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coins sdk.Coins) error {
+func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coins sdk.Coins, channelId string) error {
 	acc, err := sdk.AccAddressFromBech32(from)
 	if err != nil {
 		return err
@@ -121,7 +121,8 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 				return err
 			}
 
-			err = k.ibcSendTransfer(ctx, acc, destination, ibcCoin)
+			// No need to specify the channelId because it's not a source token
+			err = k.ibcSendTransfer(ctx, acc, destination, ibcCoin, "")
 			if err != nil {
 				return err
 			}
@@ -134,7 +135,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 			if !found {
 				return fmt.Errorf("coin %s is not supported", c.Denom)
 			}
-			err = k.ibcSendTransfer(ctx, acc, destination, c)
+			err = k.ibcSendTransfer(ctx, acc, destination, c, channelId)
 			if err != nil {
 				return err
 			}
@@ -155,22 +156,19 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 	return nil
 }
 
-func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destination string, coin sdk.Coin) error {
-	// We extract the channel id from the coin denom
-	channelDenom := ""
+func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destination string, coin sdk.Coin, channelId string) error {
 	if types.IsSourceCoin(coin.Denom) {
-		// If coin is source, we can only transfer to crypto.org chain
-		// we are using the cro denom to extract the channel id
-		// TODO: support arbitrary channel?
-		channelDenom = k.GetParams(ctx).IbcCroDenom
+		if channelId == "" || !channeltypes.IsValidChannelID(channelId) {
+			return errors.New("invalid channel id for ibc transfer of source token")
+		}
 	} else {
 		// If it is not source, then coin is a voucher so we can extract the channel id from the denom
-		channelDenom = coin.Denom
-	}
-
-	channelID, err := k.GetSourceChannelID(ctx, channelDenom)
-	if err != nil {
-		return err
+		channelDenom := coin.Denom
+		sourceChannelID, err := k.GetSourceChannelID(ctx, channelDenom)
+		if err != nil {
+			return err
+		}
+		channelId = sourceChannelID
 	}
 
 	// Transfer coins to receiver through IBC
@@ -182,7 +180,7 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	return k.transferKeeper.SendTransfer(
 		ctx,
 		ibctransfertypes.PortID,
-		channelID,
+		channelId,
 		coin,
 		sender,
 		destination,
