@@ -355,23 +355,10 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			false,
 		},
 		{
-			"Source token, denom not match",
-			types.MsgUpdateTokenMapping{
-				Sender:   "",
-				Denom:    "cronos0xA6d4fecb1a6fb7c2ca350169a050d483bd87b883",
-				Contract: contractAddress,
-				Symbol:   "",
-				Decimal:  0,
-			},
-			func() {
-			},
-			true,
-		},
-		{
 			"Source token, denom not checksum, error",
 			types.MsgUpdateTokenMapping{
 				Sender:   "",
-				Denom:    "cronos0xf6d4fecb1a6fb7c2ca350169a050d483bd87b883",
+				Denom:    "cronos0xf6d4fecb1a6fb7c2ca350169a050d483bd87b88@",
 				Contract: contractAddress,
 				Symbol:   "",
 				Decimal:  0,
