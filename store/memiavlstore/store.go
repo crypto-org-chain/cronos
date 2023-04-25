@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sync"
 
 	"cosmossdk.io/errors"
 	ics23 "github.com/confio/ics23/go"
 	"github.com/cosmos/cosmos-sdk/store/tracekv"
 	"github.com/cosmos/iavl"
+	"github.com/cosmos/iavl/cache"
 	"github.com/crypto-org-chain/cronos/memiavl"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -28,20 +30,43 @@ var (
 	_ types.Queryable     = (*Store)(nil)
 )
 
+const DefaultCacheSize = 10000
+
 // Store Implements types.KVStore and CommitKVStore.
 type Store struct {
 	tree   *memiavl.Tree
 	logger log.Logger
 
+	// accumulate changes between Write and Commit
 	changeSet iavl.ChangeSet
+
+	// use a builtin cache to replace the inter-block cache, the simple lru cache has better query performance.
+	cache cache.Cache
+
+	// the mutex is mainly to protect the access to the cache
+	mtx sync.Mutex
 }
 
-func New(tree *memiavl.Tree, logger log.Logger) *Store {
-	return &Store{tree: tree, logger: logger}
+func New(tree *memiavl.Tree, logger log.Logger, cacheSize int) *Store {
+	if cacheSize == 0 {
+		cacheSize = DefaultCacheSize
+	}
+	return &Store{tree: tree, logger: logger, cache: cache.New(cacheSize)}
 }
 
+// Commit updates the change set to cache
 func (st *Store) Commit() types.CommitID {
-	panic("memiavl store is not supposed to be committed alone")
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
+	for _, pair := range st.changeSet.Pairs {
+		if pair.Delete {
+			st.cache.Add(cacheNode{key: pair.Key})
+		} else {
+			st.cache.Add(cacheNode{key: pair.Key, value: pair.Value})
+		}
+	}
+	return types.CommitID{}
 }
 
 func (st *Store) LastCommitID() types.CommitID {
@@ -82,6 +107,9 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 //
 // we assume Set is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Set(key, value []byte) {
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
 	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
 		Key: key, Value: value,
 	})
@@ -89,18 +117,41 @@ func (st *Store) Set(key, value []byte) {
 
 // Implements types.KVStore.
 func (st *Store) Get(key []byte) []byte {
-	return bytes.Clone(st.tree.Get(key))
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
+	node := st.cache.Get(key)
+	if node != nil {
+		return node.(cacheNode).value
+	}
+	value := bytes.Clone(st.tree.Get(key))
+	st.cache.Add(cacheNode{key, value})
+	return value
 }
 
 // Implements types.KVStore.
 func (st *Store) Has(key []byte) bool {
-	return st.tree.Has(key)
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
+	node := st.cache.Get(key)
+	if node != nil {
+		return node.(cacheNode).value != nil
+	}
+	has := st.tree.Has(key)
+	if !has {
+		st.cache.Add(cacheNode{key, nil})
+	}
+	return has
 }
 
 // Implements types.KVStore.
 //
 // we assume Delete is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Delete(key []byte) {
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
 	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
 		Key: key, Delete: true,
 	})
@@ -123,6 +174,9 @@ func (st *Store) SetInitialVersion(version int64) {
 
 // PopChangeSet returns the change set and clear it
 func (st *Store) PopChangeSet() iavl.ChangeSet {
+	st.mtx.Lock()
+	defer st.mtx.Unlock()
+
 	cs := st.changeSet
 	st.changeSet = iavl.ChangeSet{}
 	return cs
@@ -200,4 +254,12 @@ func getProofFromTree(tree *memiavl.Tree, key []byte, exists bool) *tmcrypto.Pro
 
 	op := types.NewIavlCommitmentOp(key, commitmentProof)
 	return &tmcrypto.ProofOps{Ops: []tmcrypto.ProofOp{op.ProofOp()}}
+}
+
+type cacheNode struct {
+	key, value []byte
+}
+
+func (n cacheNode) GetKey() []byte {
+	return n.key
 }

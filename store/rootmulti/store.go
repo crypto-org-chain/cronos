@@ -69,13 +69,12 @@ func (rs *Store) Commit() types.CommitID {
 	for key := range rs.stores {
 		// it'll unwrap the inter-block cache
 		store := rs.GetCommitKVStore(key)
+		_ = store.Commit()
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
 			changeSets = append(changeSets, &memiavl.NamedChangeSet{
 				Name:      key.Name(),
 				Changeset: memiavlStore.PopChangeSet(),
 			})
-		} else {
-			_ = store.Commit()
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
@@ -317,7 +316,7 @@ func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, p
 		if tree == nil {
 			return nil, fmt.Errorf("new store is not added in upgrades")
 		}
-		store := types.CommitKVStore(memiavlstore.New(tree, rs.logger))
+		store := types.CommitKVStore(memiavlstore.New(tree, rs.logger, 0))
 
 		if rs.interBlockCache != nil {
 			// Wrap and get a CommitKVStore with inter-block caching. Note, this should
@@ -438,7 +437,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return sdkerrors.QueryResult(err, false)
 	}
 
-	store := types.Queryable(memiavlstore.New(db.TreeByName(storeName), rs.logger))
+	store := types.Queryable(memiavlstore.New(db.TreeByName(storeName), rs.logger, 0))
 
 	// trim the path and make the query
 	req.Path = subpath
