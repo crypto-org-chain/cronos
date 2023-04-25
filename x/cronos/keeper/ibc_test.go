@@ -16,8 +16,10 @@ import (
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
-const CorrectIbcDenom = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-const CorrectCronosDenom = "cronos0xc1b37f2abdb778f540fa5db8e1fd2eadfc9a05ed"
+const (
+	CorrectIbcDenom    = "ibc/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	CorrectCronosDenom = "cronos0xc1b37f2abdb778f540fa5db8e1fd2eadfc9a05ed"
+)
 
 func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 	privKey, err := ethsecp256k1.GenerateKey()
