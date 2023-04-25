@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tidwall/wal"
 )
 
@@ -39,6 +40,8 @@ type DB struct {
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal             *wal.Log
 	pendingUpgrades []*TreeNameUpgrade
+
+	mtx sync.Mutex
 }
 
 type Options struct {
@@ -104,6 +107,9 @@ func Load(dir string, opts Options) (*DB, error) {
 // it do an immediate snapshot rewrite, because we can't use wal log to record this change,
 // because we need it to convert versions to wal index in the first place.
 func (db *DB) SetInitialVersion(initialVersion int64) error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
 		return err
 	}
@@ -112,12 +118,15 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 		return err
 	}
 
-	return db.Reload()
+	return db.reload()
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
 // and include in the WAL entry in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	if err := db.MultiTree.ApplyUpgrades(upgrades); err != nil {
 		return err
 	}
@@ -186,11 +195,14 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 // - manage background snapshot rewriting
 // - write WAL
 func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	if _, err := db.cleanupSnapshotRewrite(); err != nil {
 		return nil, 0, err
 	}
 
-	hash, v, err := db.ApplyChangeSet(changeSets, true)
+	hash, v, err := db.MultiTree.ApplyChangeSet(changeSets, true)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -216,6 +228,13 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 }
 
 func (db *DB) Copy() *DB {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.copy()
+}
+
+func (db *DB) copy() *DB {
 	mtree := db.MultiTree.Copy()
 	return &DB{
 		MultiTree: *mtree,
@@ -225,19 +244,29 @@ func (db *DB) Copy() *DB {
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
 func (db *DB) RewriteSnapshot() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	version := uint32(db.lastCommitInfo.Version)
 	snapshotDir := snapshotName(version)
 	snapshotPath := filepath.Join(db.dir, snapshotDir)
 	if err := os.MkdirAll(snapshotPath, os.ModePerm); err != nil {
 		return err
 	}
-	if err := db.WriteSnapshot(snapshotPath); err != nil {
+	if err := db.MultiTree.WriteSnapshot(snapshotPath); err != nil {
 		return err
 	}
 	return updateCurrentSymlink(db.dir, snapshotDir)
 }
 
 func (db *DB) Reload() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.reload()
+}
+
+func (db *DB) reload() error {
 	mtree, err := LoadMultiTree(currentPath(db.dir))
 	if err != nil {
 		return err
@@ -270,13 +299,17 @@ type snapshotResult struct {
 // RewriteSnapshotBackground rewrite snapshot in a background goroutine,
 // `Commit` will check the complete status, and switch to the new snapshot.
 func (db *DB) RewriteSnapshotBackground() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	if db.snapshotRewriteChan != nil {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
+
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 
-	cloned := db.Copy()
+	cloned := db.copy()
 	wal := db.wal
 	go func() {
 		defer close(ch)
@@ -302,7 +335,66 @@ func (db *DB) RewriteSnapshotBackground() error {
 }
 
 func (db *DB) Close() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	return errors.Join(db.MultiTree.Close(), db.wal.Close())
+}
+
+// TreeByName wraps MultiTree.TreeByName to add a lock.
+func (db *DB) TreeByName(name string) *Tree {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.TreeByName(name)
+}
+
+// Hash wraps MultiTree.Hash to add a lock.
+func (db *DB) Hash() []byte {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.Hash()
+}
+
+// Version wraps MultiTree.Version to add a lock.
+func (db *DB) Version() int64 {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.Version()
+}
+
+// LastCommitInfo returns the last commit info.
+func (db *DB) LastCommitInfo() *storetypes.CommitInfo {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.LastCommitInfo()
+}
+
+// ApplyChangeSet wraps MultiTree.ApplyChangeSet to add a lock.
+func (db *DB) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.ApplyChangeSet(changeSets, updateCommitInfo)
+}
+
+// UpdateCommitInfo wraps MultiTree.UpdateCommitInfo to add a lock.
+func (db *DB) UpdateCommitInfo() []byte {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.UpdateCommitInfo()
+}
+
+// WriteSnapshot wraps MultiTree.WriteSnapshot to add a lock.
+func (db *DB) WriteSnapshot(dir string) error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.WriteSnapshot(dir)
 }
 
 func snapshotName(version uint32) string {
