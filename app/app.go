@@ -355,12 +355,15 @@ func New(
 
 	experimental := cast.ToBool(appOpts.Get(cronos.ExperimentalFlag))
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
-
 	// experimental memiavl integration
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		bApp.SetCMS(rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger))
+		// cms must be overridden before the other options, because they may use the cms,
+		// FIXME we have to assume the cms is not overridden by the other options, but we can't tell at here.
+		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
+		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}
+
+	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
@@ -1005,4 +1008,8 @@ func VerifyAddressFormat(bz []byte) error {
 	}
 
 	return nil
+}
+
+func setCMS(cms storetypes.CommitMultiStore) func(*baseapp.BaseApp) {
+	return func(bapp *baseapp.BaseApp) { bapp.SetCMS(cms) }
 }
