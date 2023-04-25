@@ -104,8 +104,14 @@ func Load(dir string, opts Options) (*DB, error) {
 		walQuit = make(chan error)
 		go func() {
 			defer close(walQuit)
+
 			for entry := range walChan {
-				if err := wal.Write(entry.index, entry.data); err != nil {
+				bz, err := entry.data.Marshal()
+				if err != nil {
+					walQuit <- err
+					return
+				}
+				if err := wal.Write(entry.index, bz); err != nil {
 					walQuit <- err
 					return
 				}
@@ -257,21 +263,19 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 
 	if db.wal != nil {
 		// write write-ahead-log
-		o := WALEntry{
+		entry := walEntry{index: walIndex(v, db.initialVersion), data: &WALEntry{
 			Changesets: changeSets,
 			Upgrades:   db.pendingUpgrades,
-		}
-		bz, err := o.Marshal()
-		if err != nil {
-			return nil, 0, err
-		}
-
-		entry := walEntry{index: walIndex(v, db.initialVersion), data: bz}
+		}}
 		if db.walChan != nil {
 			// async wal writing
 			db.walChan <- &entry
 		} else {
-			if err := db.wal.Write(entry.index, entry.data); err != nil {
+			bz, err := entry.data.Marshal()
+			if err != nil {
+				return nil, 0, err
+			}
+			if err := db.wal.Write(entry.index, bz); err != nil {
 				return nil, 0, err
 			}
 		}
@@ -512,5 +516,5 @@ func updateCurrentSymlink(dir, snapshot string) error {
 
 type walEntry struct {
 	index uint64
-	data  []byte
+	data  *WALEntry
 }
