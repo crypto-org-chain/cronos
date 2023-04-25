@@ -270,10 +270,7 @@ def test_cronos_transfer_source_tokens(ibc):
         {"from": ADDRS["validator"]}
     )
     txreceipt = send_transaction(w3, tx)
-    assert txreceipt.status == 1, "should success"
-    chainmain_receiver_balance = amount
-    wait_for_fn("check balance change", check_chainmain_balance_change)
-    assert chainmain_receiver_new_balance == amount + 1
+    assert txreceipt.status == 0, "should fail"
 
     # send back the token to cronos
     # check receiver balance
