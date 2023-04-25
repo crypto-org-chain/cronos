@@ -41,6 +41,13 @@ type DB struct {
 	wal             *wal.Log
 	pendingUpgrades []*TreeNameUpgrade
 
+	// The assumptions to concurrency:
+	// - The methods on DB are protected by a mutex
+	// - Aach call of LoadVersion loads a separate instance, in query scenarios,
+	//   it should be immutable, the cache stores will handle the temporary writes.
+	// - The DB for the state machine will handle writes through the Commit call,
+	//   this method is the sole entry point for tree modifications, and there's no concurrency internally
+	//   (the background snapshot rewrite is handled separately), so we don't need locks in the Tree.
 	mtx sync.Mutex
 }
 
