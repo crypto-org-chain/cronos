@@ -172,7 +172,7 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 func (db *DB) checkAsyncTasks() error {
 	return errors.Join(
 		db.checkAsyncWAL(),
-		db.cleanupSnapshotRewrite(),
+		db.checkBackgroundSnapshotRewrite(),
 	)
 }
 
@@ -188,8 +188,8 @@ func (db *DB) checkAsyncWAL() error {
 	return nil
 }
 
-// cleanupSnapshotRewrite check the result of background snapshot rewrite, cleans up the old snapshots and switches to a new multitree
-func (db *DB) cleanupSnapshotRewrite() error {
+// checkBackgroundSnapshotRewrite check the result of background snapshot rewrite, cleans up the old snapshots and switches to a new multitree
+func (db *DB) checkBackgroundSnapshotRewrite() error {
 	// check the completeness of background snapshot rewriting
 	select {
 	case result := <-db.snapshotRewriteChan:
