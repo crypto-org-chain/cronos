@@ -355,7 +355,7 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			false,
 		},
 		{
-			"Source token, denom not checksum, error",
+			"Source token, invalid denom, error",
 			types.MsgUpdateTokenMapping{
 				Sender:   "",
 				Denom:    "cronos0xf6d4fecb1a6fb7c2ca350169a050d483bd87b88@",
