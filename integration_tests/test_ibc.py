@@ -15,6 +15,7 @@ from .utils import (
     parse_events,
     parse_events_rpc,
     send_transaction,
+    setup_token_mapping,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -229,28 +230,7 @@ def test_cronos_transfer_source_tokens(ibc):
     assert_ready(ibc)
     # deploy crc21 contract
     w3 = ibc.cronos.w3
-    contract = deploy_contract(w3, CONTRACTS["TestERC21Source"])
-
-    # setup the contract mapping
-    cronos_cli = ibc.cronos.cosmos_cli()
-
-    print("crc21 contract", contract.address)
-    denom = f"cronos{contract.address}"
-
-    print("check the contract mapping not exists yet")
-    with pytest.raises(AssertionError):
-        cronos_cli.query_contract_by_denom(denom)
-
-    rsp = cronos_cli.update_token_mapping(
-        denom, contract.address, "DOG", 6, from_="validator"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cronos_cli, 1)
-
-    print("check the contract mapping exists now")
-    rsp = cronos_cli.query_denom_by_contract(contract.address)
-    assert rsp["denom"] == denom
-
+    contract, _ = setup_token_mapping(ibc.cronos, "TestERC21Source", "DOG")
     # send token to crypto.org
     print("send to crypto.org")
     chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
@@ -330,27 +310,8 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     assert_ready(ibc)
     # deploy crc21 contract
     w3 = ibc.cronos.w3
-    contract = deploy_contract(w3, CONTRACTS["TestCRC20"])
-
-    # setup the contract mapping
-    cronos_cli = ibc.cronos.cosmos_cli()
-
-    print("crc20 contract", contract.address)
-    denom = f"cronos{contract.address}"
-
-    print("check the contract mapping not exists yet")
-    with pytest.raises(AssertionError):
-        cronos_cli.query_contract_by_denom(denom)
-
-    rsp = cronos_cli.update_token_mapping(
-        denom, contract.address, "TEST", 6, from_="validator"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cronos_cli, 1)
-
-    print("check the contract mapping exists now")
-    rsp = cronos_cli.query_denom_by_contract(contract.address)
-    assert rsp["denom"] == denom
+    symbol = "TEST"
+    contract, denom = setup_token_mapping(ibc.cronos, "TestCRC20", symbol)
 
     # deploy crc20 proxy contract
     proxycrc20 = deploy_contract(
@@ -363,9 +324,10 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     assert proxycrc20.caller.is_source()
     assert proxycrc20.caller.crc20() == contract.address
 
+    cronos_cli = ibc.cronos.cosmos_cli()
     # change token mapping
     rsp = cronos_cli.update_token_mapping(
-        denom, proxycrc20.address, "TEST", 6, from_="validator"
+        denom, proxycrc20.address, symbol, 6, from_="validator"
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cronos_cli, 1)
