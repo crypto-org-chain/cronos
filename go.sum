@@ -1041,10 +1041,10 @@ github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6 h1:d4h4Ki1UE/LF6CKwYEm3OZ+HIBCrzSmOokG1vce0O98=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6/go.mod h1:hF5aclS++7WrW8USOA3zPeKI0CuzwUD2TPYug25ANlQ=
-github.com/crypto-org-chain/cronos/memiavl v0.0.0-20230423124351-530200e770cd h1:EqdHPBhJt/U9BzeijqLJ0TAhgqZbHd2WlpITnCimTu8=
-github.com/crypto-org-chain/cronos/memiavl v0.0.0-20230423124351-530200e770cd/go.mod h1:TqqPbQm/CBTDliG9Wf/3fU22W6vJplpxAWuv8MYqi1Q=
-github.com/crypto-org-chain/cronos/store v0.0.0-20230423124351-530200e770cd h1:p8LL0wiGd4H5ZvvpAJHO7Z1iuSRYl0fEIrCPUpIDF3o=
-github.com/crypto-org-chain/cronos/store v0.0.0-20230423124351-530200e770cd/go.mod h1:L/PQCzQbXDxhnlntM+GoNnwgVyEBQ4Gy1QPbvEtm4ds=
+github.com/crypto-org-chain/cronos/memiavl v0.0.0-20230425151210-b262fa8bdacb h1:w8PSFtq0WT4IWGJLD8qv0awahupVFDLtL/K1pi1hY0U=
+github.com/crypto-org-chain/cronos/memiavl v0.0.0-20230425151210-b262fa8bdacb/go.mod h1:Vo6pdZgdPYJ2rVkkNvn99k6f6uiTwBRwlTkQFT2Mh0c=
+github.com/crypto-org-chain/cronos/store v0.0.0-20230425151210-b262fa8bdacb h1:zX2iEEnit4+1vlmWyx3WdOMN8ePMJmhLnWiKPHLSKgA=
+github.com/crypto-org-chain/cronos/store v0.0.0-20230425151210-b262fa8bdacb/go.mod h1:SIjYG/Qr7HJlfKYuC2lje/F4Y3o5toixVrpfwCr0fkw=
 github.com/crypto-org-chain/ethermint v0.20.10-cronos h1:TOQgelSAFKOuda4oWeU9CX18V59WDJxhil0taDKQEiA=
 github.com/crypto-org-chain/ethermint v0.20.10-cronos/go.mod h1:IOoPb0Pev7xanCu3IVp4HU5NoEEt3kI7vRD4ED9yOsQ=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
