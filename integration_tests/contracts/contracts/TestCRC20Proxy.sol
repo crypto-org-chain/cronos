@@ -8,6 +8,7 @@ contract TestCRC20Proxy {
     TestCRC20 crc20Contract;
     bool isSource;
 
+    event __CronosSendToIbc(address indexed sender, uint256 indexed channel_id, string recipient, uint256 amount, bytes extraData);
     event __CronosSendToEvmChain(address indexed sender, address indexed recipient, uint256 indexed chain_id, uint256 amount, uint256 bridge_fee, bytes extraData);
     event __CronosCancelSendToEvmChain(address indexed sender, uint256 id);
 
@@ -51,7 +52,7 @@ contract TestCRC20Proxy {
 
     function transfer_from_cronos_module(address addr, uint amount) public {
         require(msg.sender == module_address);
-        crc20Contract.transferFrom(module_address, addr, amount);
+        crc20Contract.transfer(addr, amount);
     }
 
 
@@ -63,9 +64,9 @@ contract TestCRC20Proxy {
     function send_to_evm_chain(address recipient, uint amount, uint chain_id, uint bridge_fee, bytes calldata extraData) external {
         // transfer back the token to the proxy account
         if (isSource) {
-            crc20Contract.transferFrom(msg.sender, module_address, amount);
+            crc20Contract.transferFrom(msg.sender, address(this), amount + bridge_fee);
         } else {
-            crc20_burn(msg.sender, amount);
+            crc20_burn(msg.sender, amount + bridge_fee);
         }
         emit __CronosSendToEvmChain(msg.sender, recipient, chain_id, amount, bridge_fee, extraData);
     }
@@ -73,6 +74,16 @@ contract TestCRC20Proxy {
     // cancel a send to chain transaction considering if it hasnt been batched yet.
     function cancel_send_to_evm_chain(uint256 id) external {
         emit __CronosCancelSendToEvmChain(msg.sender, id);
+    }
+
+    // send an "amount" of the contract token to recipient through IBC
+    function send_to_ibc(string memory recipient, uint amount, uint channel_id, bytes memory extraData) public {
+        if (isSource) {
+            crc20Contract.transferFrom(msg.sender, address(this), amount);
+        } else {
+            crc20_burn(msg.sender, amount);
+        }
+        emit __CronosSendToIbc(msg.sender, channel_id, recipient, amount, extraData);
     }
 
     /**

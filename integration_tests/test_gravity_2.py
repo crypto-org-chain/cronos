@@ -17,6 +17,7 @@ from .utils import (
     deploy_erc20,
     dump_toml,
     eth_to_bech32,
+    get_contract,
     send_to_cosmos,
     send_transaction,
     supervisorctl,
@@ -302,6 +303,148 @@ def test_gravity_proxy_contract(gravity):
         assert (
             balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
+
+
+def test_gravity_proxy_contract_source_token(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        # deploy crc20 contract
+        w3 = gravity.cronos.w3
+        contract = deploy_contract(w3, CONTRACTS["TestCRC20"])
+
+        # setup the contract mapping
+        cronos_cli = gravity.cronos.cosmos_cli()
+
+        print("crc20 contract", contract.address)
+        denom = f"cronos{contract.address}"
+        balance = contract.caller.balanceOf(ADDRS["validator"])
+        assert balance == 100000000000000000000000000
+
+        print("check the contract mapping not exists yet")
+        with pytest.raises(AssertionError):
+            cronos_cli.query_contract_by_denom(denom)
+
+        rsp = cronos_cli.update_token_mapping(
+            denom, contract.address, "TEST", 6, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(contract.address)
+        assert rsp["denom"] == denom
+
+        # Create cosmos erc20 contract
+        print("Deploy cosmos erc20 contract on ethereum")
+        tx_receipt = deploy_erc20(
+            gravity.contract, gravity.geth, denom, denom, "TEST", 6, KEYS["validator"]
+        )
+        assert tx_receipt.status == 1, "should success"
+
+        # Wait enough for orchestrator to relay the event
+        wait_for_new_blocks(cronos_cli, 30)
+
+        # Check mapping is done on gravity side
+        cosmos_erc20 = cronos_cli.query_gravity_contract_by_denom(denom)
+        print("cosmos_erc20:", cosmos_erc20)
+        assert cosmos_erc20 != ""
+        cosmos_erc20_contract = get_contract(
+            gravity.geth, cosmos_erc20["erc20"], CONTRACTS["TestERC21Source"]
+        )
+
+        # deploy crc20 proxy contract
+        proxycrc20 = deploy_contract(
+            w3,
+            CONTRACTS["TestCRC20Proxy"],
+            (contract.address, True),
+        )
+
+        print("proxycrc20 contract deployed at address: ", proxycrc20.address)
+        assert proxycrc20.caller.is_source()
+        assert proxycrc20.caller.crc20() == contract.address
+
+        # change token mapping
+        rsp = cronos_cli.update_token_mapping(
+            denom, proxycrc20.address, "TEST", 6, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(proxycrc20.address)
+        assert rsp["denom"] == denom
+
+        # Try to send token to ethereum
+        amount = 500
+        ethereum_receiver = ADDRS["validator"]
+        sender = ADDRS["validator"]
+        # community_balance_before_send = crc20.caller.balanceOf(community)
+        balance_before_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+            ethereum_receiver
+        )
+
+        print("send to ethereum")
+        # First we need to approve the proxy contract to move asset
+        tx = contract.functions.approve(proxycrc20.address, amount).build_transaction(
+            {"from": sender}
+        )
+        txreceipt = send_transaction(w3, tx, key=KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+        assert (
+            contract.caller.allowance(ADDRS["validator"], proxycrc20.address) == amount
+        )
+
+        # Then trigger the send to evm chain
+        community_balance_before_send = contract.caller.balanceOf(sender)
+        tx2 = proxycrc20.functions.send_to_evm_chain(
+            ethereum_receiver, amount, 1, 0, b""
+        ).build_transaction({"from": sender})
+        txreceipt2 = send_transaction(w3, tx2, key=KEYS["validator"])
+        print("receipt : ", txreceipt2)
+        assert txreceipt2.status == 1, "should success"
+        # Check deduction
+        assert (
+            contract.caller.balanceOf(sender) == community_balance_before_send - amount
+        )
+
+        balance_after_send_to_ethereum = balance_before_send_to_ethereum
+
+        def check_ethereum_balance_change():
+            nonlocal balance_after_send_to_ethereum
+            balance_after_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+                ethereum_receiver
+            )
+            return balance_before_send_to_ethereum != balance_after_send_to_ethereum
+
+        wait_for_fn(
+            "ethereum balance change", check_ethereum_balance_change, timeout=60
+        )
+        assert (
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+        )
+
+        # Send back token to cronos
+        cronos_receiver = ADDRS["community"]
+        balance_before_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+        amount = 15
+        txreceipt = send_to_cosmos(
+            gravity.contract,
+            cosmos_erc20_contract,
+            gravity.geth,
+            HexBytes(cronos_receiver),
+            amount,
+            KEYS["validator"],
+        )
+        assert txreceipt.status == 1, "should success"
+
+        balance_after_send_to_cosmos = balance_before_send_to_cosmos
+
+        def check_cronos_balance_change():
+            nonlocal balance_after_send_to_cosmos
+            balance_after_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+            return balance_before_send_to_cosmos != balance_after_send_to_cosmos
+
+        wait_for_fn("check cronos balance change", check_cronos_balance_change)
+        assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
 
 
 def test_gravity_detect_malicious_supply(gravity):

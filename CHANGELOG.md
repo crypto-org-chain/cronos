@@ -15,6 +15,7 @@
 - [cronos#834](https://github.com/crypto-org-chain/cronos/pull/834) Remove unsafe experimental flag.
 - [cronos#842](https://github.com/crypto-org-chain/cronos/pull/842) Add upgrade handler for v2.0.0-testnet3.
 - [cronos#795](https://github.com/crypto-org-chain/cronos/pull/795) Support permissions in cronos.
+- [cronos#997](https://github.com/crypto-org-chain/cronos/pull/997) Fix logic to support proxy contract for cronos originated crc20.
 
 ### Bug Fixes
 
