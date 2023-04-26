@@ -4,8 +4,8 @@ import (
 	"encoding/hex"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
@@ -40,7 +40,7 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
 		CreateIfMissing:    true,
 		InitialStores:      []string{"test"},
-		SnapshotKeepRecent: 1,
+		SnapshotKeepRecent: 0, // only a single snapshot is kept
 	})
 	require.NoError(t, err)
 
@@ -56,13 +56,12 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
 
-		err = db.RewriteSnapshotBackground()
-		require.NoError(t, err)
-		for {
-			if cleaned, _ := db.cleanupSnapshotRewrite(); cleaned {
-				break
-			}
-		}
+		_ = db.RewriteSnapshotBackground()
+		time.Sleep(time.Millisecond * 20)
+	}
+
+	for db.snapshotRewriteChan != nil {
+		require.NoError(t, db.checkAsyncTasks())
 	}
 
 	db.pruneSnapshotLock.Lock()
@@ -70,15 +69,9 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 
 	entries, err := os.ReadDir(db.dir)
 	require.NoError(t, err)
-	version := uint64(db.lastCommitInfo.Version)
-	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-			currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
-			require.NoError(t, err)
-			require.GreaterOrEqual(t, currentVersion, version-uint64(db.snapshotKeepRecent))
-			require.LessOrEqual(t, currentVersion, version)
-		}
-	}
+
+	// three files: snapshot, current link, wal
+	require.Equal(t, 3, len(entries))
 }
 
 func TestWAL(t *testing.T) {

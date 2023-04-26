@@ -38,7 +38,11 @@ type DB struct {
 	pruneSnapshotLock   sync.Mutex
 
 	// invariant: the LastIndex always match the current version of MultiTree
-	wal             *wal.Log
+	wal     *wal.Log
+	walChan chan *walEntry
+	walQuit chan error
+
+	// pending store upgrades, will be written into WAL in next Commit call
 	pendingUpgrades []*TreeNameUpgrade
 
 	// The assumptions to concurrency:
@@ -59,6 +63,8 @@ type Options struct {
 	SnapshotKeepRecent uint32
 	// load the target version instead of latest version
 	TargetVersion uint32
+	// Write WAL asynchronously, it's ok in blockchain case because we can always replay the raw blocks.
+	AsyncWAL bool
 }
 
 const (
@@ -89,10 +95,36 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
+	var (
+		walChan chan *walEntry
+		walQuit chan error
+	)
+	if opts.AsyncWAL {
+		walChan = make(chan *walEntry, 100)
+		walQuit = make(chan error)
+		go func() {
+			defer close(walQuit)
+
+			for entry := range walChan {
+				bz, err := entry.data.Marshal()
+				if err != nil {
+					walQuit <- err
+					return
+				}
+				if err := wal.Write(entry.index, bz); err != nil {
+					walQuit <- err
+					return
+				}
+			}
+		}()
+	}
+
 	db := &DB{
 		MultiTree:          *mtree,
 		dir:                dir,
 		wal:                wal,
+		walChan:            walChan,
+		walQuit:            walQuit,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
 	}
 
@@ -142,13 +174,28 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	return nil
 }
 
-// cleanupSnapshotRewrite cleans up the old snapshots and switches to a new multitree
-// if a snapshot rewrite is in progress. It returns true if a snapshot rewrite has completed
-// and false otherwise, along with any error encountered during the cleanup process.
-func (db *DB) cleanupSnapshotRewrite() (bool, error) {
-	if db.snapshotRewriteChan == nil {
-		return false, nil
+// checkAsyncTasks checks the status of background tasks non-blocking-ly and process the result
+func (db *DB) checkAsyncTasks() error {
+	return errors.Join(
+		db.checkAsyncWAL(),
+		db.checkBackgroundSnapshotRewrite(),
+	)
+}
+
+// checkAsyncWAL check the quit signal of async wal writing
+func (db *DB) checkAsyncWAL() error {
+	select {
+	case err := <-db.walQuit:
+		// async wal writing failed, we need to abort the state machine
+		return fmt.Errorf("async wal writing goroutine quit unexpectedly: %w", err)
+	default:
 	}
+
+	return nil
+}
+
+// checkBackgroundSnapshotRewrite check the result of background snapshot rewrite, cleans up the old snapshots and switches to a new multitree
+func (db *DB) checkBackgroundSnapshotRewrite() error {
 	// check the completeness of background snapshot rewriting
 	select {
 	case result := <-db.snapshotRewriteChan:
@@ -156,15 +203,15 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 
 		if result.mtree == nil {
 			// background snapshot rewrite failed
-			return true, fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
 		// snapshot rewrite succeeded, catchup and switch
 		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
-			return true, fmt.Errorf("catchup failed: %w", err)
+			return fmt.Errorf("catchup failed: %w", err)
 		}
 		if err := db.reloadMultiTree(result.mtree); err != nil {
-			return true, fmt.Errorf("switch multitree failed: %w", err)
+			return fmt.Errorf("switch multitree failed: %w", err)
 		}
 		// prune the old snapshots
 		// wait until last prune finish
@@ -176,12 +223,12 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 			if err == nil {
 				for _, entry := range entries {
 					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-						currentVersion, err := strconv.ParseUint(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+						currentVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
 						if err != nil {
 							fmt.Printf("failed when parse current version: %s\n", err)
 							continue
 						}
-						if result.version-uint32(currentVersion) > db.snapshotKeepRecent {
+						if result.mtree.metadata.CommitInfo.Version-currentVersion > int64(db.snapshotKeepRecent) {
 							fullPath := filepath.Join(db.dir, entry.Name())
 							if err := os.RemoveAll(fullPath); err != nil {
 								fmt.Printf("failed when remove old snapshot: %s\n", err)
@@ -191,11 +238,11 @@ func (db *DB) cleanupSnapshotRewrite() (bool, error) {
 				}
 			}
 		}()
-		return true, nil
+		return nil
 
 	default:
 	}
-	return false, nil
+	return nil
 }
 
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
@@ -205,7 +252,7 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	if _, err := db.cleanupSnapshotRewrite(); err != nil {
+	if err := db.checkAsyncTasks(); err != nil {
 		return nil, 0, err
 	}
 
@@ -216,16 +263,21 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 
 	if db.wal != nil {
 		// write write-ahead-log
-		entry := WALEntry{
+		entry := walEntry{index: walIndex(v, db.initialVersion), data: &WALEntry{
 			Changesets: changeSets,
 			Upgrades:   db.pendingUpgrades,
-		}
-		bz, err := entry.Marshal()
-		if err != nil {
-			return nil, 0, err
-		}
-		if err := db.wal.Write(walIndex(v, db.initialVersion), bz); err != nil {
-			return nil, 0, err
+		}}
+		if db.walChan != nil {
+			// async wal writing
+			db.walChan <- &entry
+		} else {
+			bz, err := entry.data.Marshal()
+			if err != nil {
+				return nil, 0, err
+			}
+			if err := db.wal.Write(entry.index, bz); err != nil {
+				return nil, 0, err
+			}
 		}
 	}
 
@@ -345,7 +397,16 @@ func (db *DB) Close() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return errors.Join(db.MultiTree.Close(), db.wal.Close())
+	var walErr error
+	if db.walChan != nil {
+		close(db.walChan)
+		walErr = <-db.walQuit
+
+		db.walChan = nil
+		db.walQuit = nil
+	}
+
+	return errors.Join(db.MultiTree.Close(), db.wal.Close(), walErr)
 }
 
 // TreeByName wraps MultiTree.TreeByName to add a lock.
@@ -451,4 +512,9 @@ func updateCurrentSymlink(dir, snapshot string) error {
 	}
 	// assuming file renaming operation is atomic
 	return os.Rename(tmpPath, currentPath(dir))
+}
+
+type walEntry struct {
+	index uint64
+	data  *WALEntry
 }

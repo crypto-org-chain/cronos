@@ -151,7 +151,8 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
-	FlagMemIAVL = "memiavl"
+	FlagMemIAVL  = "store.memiavl"
+	FlagAsyncWAL = "store.async-wal"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -350,6 +351,7 @@ func New(
 		// cms must be overridden before the other options, because they may use the cms,
 		// FIXME we are assuming the cms won't be overridden by the other options, but we can't be sure.
 		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
+		cms.SetAsyncWAL(cast.ToBool(appOpts.Get(FlagAsyncWAL)))
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}
 
