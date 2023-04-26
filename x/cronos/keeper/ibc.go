@@ -159,7 +159,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 
 func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destination string, coin sdk.Coin, channelId string) error {
 	if types.IsSourceCoin(coin.Denom) {
-		if channelId == "" || !channeltypes.IsValidChannelID(channelId) {
+		if !channeltypes.IsValidChannelID(channelId) {
 			return errors.New("invalid channel id for ibc transfer of source token")
 		}
 	} else {
