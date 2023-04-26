@@ -128,7 +128,10 @@ def setup_geth(path, base_port):
             w3.middleware_onion.inject(geth_poa_middleware, layer=0)
             yield Geth(w3)
         finally:
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             # proc.terminate()
             proc.wait()
 
