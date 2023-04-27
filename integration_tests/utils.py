@@ -51,6 +51,7 @@ TEST_CONTRACTS = {
     "TestCRC20": "TestCRC20.sol",
     "TestCRC20Proxy": "TestCRC20Proxy.sol",
     "TestMaliciousSupply": "TestMaliciousSupply.sol",
+    "CosmosERC20": "CosmosToken.sol",
 }
 
 

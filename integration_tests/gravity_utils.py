@@ -183,6 +183,6 @@ def setup_cosmos_erc20_contract(cluster, denom, symbol):
     print("cosmos_erc20:", cosmos_erc20)
     assert cosmos_erc20 != ""
     cosmos_erc20_contract = get_contract(
-        cluster.geth, cosmos_erc20["erc20"], CONTRACTS["TestERC21Source"]
+        cluster.geth, cosmos_erc20["erc20"], CONTRACTS["CosmosERC20"]
     )
     return cosmos_erc20_contract
