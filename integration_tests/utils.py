@@ -13,6 +13,7 @@ from pathlib import Path
 
 import bech32
 import eth_utils
+import pytest
 import rlp
 import toml
 from dateutil.parser import isoparse
@@ -50,6 +51,7 @@ TEST_CONTRACTS = {
     "TestCRC20": "TestCRC20.sol",
     "TestCRC20Proxy": "TestCRC20Proxy.sol",
     "TestMaliciousSupply": "TestMaliciousSupply.sol",
+    "CosmosERC20": "CosmosToken.sol",
 }
 
 
@@ -566,3 +568,32 @@ def multiple_send_to_cosmos(gcontract, tcontract, w3, recipient, amount, keys):
     # wait for new block
     w3_wait_for_new_blocks(w3, 1)
     return send_raw_transactions(w3, raw_transactions)
+
+
+def setup_token_mapping(cronos, name, symbol):
+    # deploy contract
+    w3 = cronos.w3
+    contract = deploy_contract(w3, CONTRACTS[name])
+
+    # setup the contract mapping
+    cronos_cli = cronos.cosmos_cli()
+
+    print("contract", contract.address)
+    denom = f"cronos{contract.address}"
+    balance = contract.caller.balanceOf(ADDRS["validator"])
+    assert balance == 100000000000000000000000000
+
+    print("check the contract mapping not exists yet")
+    with pytest.raises(AssertionError):
+        cronos_cli.query_contract_by_denom(denom)
+
+    rsp = cronos_cli.update_token_mapping(
+        denom, contract.address, symbol, 6, from_="validator"
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cronos_cli, 1)
+
+    print("check the contract mapping exists now")
+    rsp = cronos_cli.query_denom_by_contract(contract.address)
+    assert rsp["denom"] == denom
+    return contract, denom

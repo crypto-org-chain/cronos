@@ -1,25 +1,19 @@
 import pytest
-import sha3
 from eth_account.account import Account
-from eth_utils import to_checksum_address
 from hexbytes import HexBytes
-from pystarport import ports
 
-from .gorc import GoRc
-from .network import GravityBridge, setup_cronos, setup_geth
-from .test_gravity import gorc_config, update_gravity_contract
+from .gravity_utils import prepare_gravity, setup_cosmos_erc20_contract
+from .network import setup_cronos, setup_geth
 from .utils import (
     ADDRS,
     CONTRACTS,
     KEYS,
-    add_ini_sections,
     deploy_contract,
     deploy_erc20,
-    dump_toml,
     eth_to_bech32,
     send_to_cosmos,
     send_transaction,
-    supervisorctl,
+    setup_token_mapping,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -30,132 +24,18 @@ Account.enable_unaudited_hdwallet_features()
 
 
 @pytest.fixture(scope="module")
-def geth(tmp_path_factory):
-    "start-geth"
-    for network in setup_geth(tmp_path_factory.mktemp("geth"), 8555):
-        yield network.w3
+def custom_geth(tmp_path_factory):
+    yield from setup_geth(tmp_path_factory.mktemp("geth"), 8555)
 
 
 @pytest.fixture(scope="module", params=[True, False])
-def cronos(request, tmp_path_factory):
-    """start-cronos
-    params: enable_auto_deployment
-    """
+def custom_cronos(request, tmp_path_factory):
     yield from setup_cronos(tmp_path_factory.mktemp("cronos"), 26600, request.param)
 
 
 @pytest.fixture(scope="module")
-def gravity(cronos, geth):
-    """
-    - set-delegator-keys
-    - deploy gravity contract
-    - start orchestrator
-    """
-    chain_id = "cronos_777-1"
-
-    # set-delegate-keys
-    for i, val in enumerate(cronos.config["validators"]):
-        # generate gorc config file
-        gorc_config_path = cronos.base_dir / f"node{i}/gorc.toml"
-        grpc_port = ports.grpc_port(val["base_port"])
-        metrics_port = 3000 + i
-        gorc_config_path.write_text(
-            dump_toml(
-                gorc_config(
-                    cronos.base_dir / f"node{i}/orchestrator_keystore",
-                    "",  # to be filled later after the gravity contract deployed
-                    geth.provider.endpoint_uri,
-                    f"http://localhost:{grpc_port}",
-                    f"127.0.0.1:{metrics_port}",
-                )
-            )
-        )
-
-        gorc = GoRc(gorc_config_path)
-
-        # generate new accounts on both chain
-        gorc.add_eth_key("eth")
-        gorc.add_eth_key("cronos")  # cronos and eth key derivation are the same
-
-        # fund the orchestrator accounts
-        eth_addr = to_checksum_address(gorc.show_eth_addr("eth"))
-        print("fund 0.1 eth to address", eth_addr)
-        send_transaction(geth, {"to": eth_addr, "value": 10**17}, KEYS["validator"])
-        acc_addr = gorc.show_cosmos_addr("cronos")
-        print("fund 100cro to address", acc_addr)
-        rsp = cronos.cosmos_cli().transfer(
-            "community", acc_addr, "%dbasetcro" % (100 * (10**18))
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-
-        cli = cronos.cosmos_cli(i)
-        val_addr = cli.address("validator", bech="val")
-        val_acct_addr = cli.address("validator")
-        nonce = int(cli.account(val_acct_addr)["base_account"]["sequence"])
-        signature = gorc.sign_validator("eth", val_addr, nonce)
-        rsp = cli.set_delegate_keys(
-            val_addr, acc_addr, eth_addr, HexBytes(signature).hex(), from_=val_acct_addr
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-    # wait for gravity signer tx get generated
-    wait_for_new_blocks(cli, 2)
-
-    # create admin account and fund it
-    admin, _ = Account.create_with_mnemonic()
-    print("fund 0.1 eth to address", admin.address)
-    send_transaction(geth, {"to": admin.address, "value": 10**17}, KEYS["validator"])
-
-    # deploy gravity contract to geth
-    gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
-    signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
-    powers = [int(signer["power"]) for signer in signer_set]
-    threshold = int(2**32 * 0.66)  # gravity normalize the power to [0, 2**32]
-    eth_addresses = [signer["ethereum_address"] for signer in signer_set]
-    assert sum(powers) >= threshold, "not enough validator on board"
-
-    contract = deploy_contract(
-        geth,
-        CONTRACTS["Gravity"],
-        (gravity_id.encode(), threshold, eth_addresses, powers, admin.address),
-    )
-    print("gravity contract deployed", contract.address)
-
-    # make all the orchestrator "Relayer" roles
-    k_relayer = sha3.keccak_256()
-    k_relayer.update(b"RELAYER")
-    for _, address in enumerate(eth_addresses):
-        set_role_tx = contract.functions.grantRole(
-            k_relayer.hexdigest(), address
-        ).build_transaction({"from": admin.address})
-        set_role_receipt = send_transaction(geth, set_role_tx, admin.key)
-        print("set_role_tx", set_role_receipt)
-
-    # start orchestrator:
-    # a) add process into the supervisord config file
-    # b) reload supervisord
-    programs = {}
-    for i, val in enumerate(cronos.config["validators"]):
-        # update gravity contract in gorc config
-        gorc_config_path = cronos.base_dir / f"node{i}/gorc.toml"
-        update_gravity_contract(gorc_config_path, contract.address)
-
-        programs[f"program:{chain_id}-orchestrator{i}"] = {
-            "command": (
-                f'gorc -c "{gorc_config_path}" orchestrator start '
-                "--cosmos-key cronos --ethereum-key eth --mode AlwaysRelay"
-            ),
-            "environment": "RUST_BACKTRACE=full",
-            "autostart": "true",
-            "autorestart": "true",
-            "startsecs": "3",
-            "redirect_stderr": "true",
-            "stdout_logfile": f"%(here)s/orchestrator{i}.log",
-        }
-
-    add_ini_sections(cronos.base_dir / "tasks.ini", programs)
-    supervisorctl(cronos.base_dir / "../tasks.ini", "update")
-
-    yield GravityBridge(cronos, geth, contract)
+def gravity(custom_cronos, custom_geth):
+    yield from prepare_gravity(custom_cronos, custom_geth)
 
 
 def test_gravity_proxy_contract(gravity):
@@ -302,6 +182,116 @@ def test_gravity_proxy_contract(gravity):
         assert (
             balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
         )
+
+
+def test_gravity_proxy_contract_source_token(gravity):
+    if not gravity.cronos.enable_auto_deployment:
+        # deploy contracts
+        w3 = gravity.cronos.w3
+        symbol = "TEST"
+        contract, denom = setup_token_mapping(gravity.cronos, "TestCRC20", symbol)
+        cosmos_erc20_contract = setup_cosmos_erc20_contract(
+            gravity,
+            denom,
+            symbol,
+        )
+        # setup the contract mapping
+        cronos_cli = gravity.cronos.cosmos_cli()
+
+        # deploy crc20 proxy contract
+        proxycrc20 = deploy_contract(
+            w3,
+            CONTRACTS["TestCRC20Proxy"],
+            (contract.address, True),
+        )
+
+        print("proxycrc20 contract deployed at address: ", proxycrc20.address)
+        assert proxycrc20.caller.is_source()
+        assert proxycrc20.caller.crc20() == contract.address
+
+        # change token mapping
+        rsp = cronos_cli.update_token_mapping(
+            denom, proxycrc20.address, symbol, 6, from_="validator"
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_new_blocks(cronos_cli, 1)
+
+        print("check the contract mapping exists now")
+        rsp = cronos_cli.query_denom_by_contract(proxycrc20.address)
+        assert rsp["denom"] == denom
+
+        # Try to send token to ethereum
+        amount = 500
+        ethereum_receiver = ADDRS["validator"]
+        sender = ADDRS["validator"]
+        # community_balance_before_send = crc20.caller.balanceOf(community)
+        balance_before_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+            ethereum_receiver
+        )
+
+        print("send to ethereum")
+        # First we need to approve the proxy contract to move asset
+        tx = contract.functions.approve(proxycrc20.address, amount).build_transaction(
+            {"from": sender}
+        )
+        txreceipt = send_transaction(w3, tx, key=KEYS["validator"])
+        assert txreceipt.status == 1, "should success"
+        assert (
+            contract.caller.allowance(ADDRS["validator"], proxycrc20.address) == amount
+        )
+
+        # Then trigger the send to evm chain
+        community_balance_before_send = contract.caller.balanceOf(sender)
+        tx2 = proxycrc20.functions.send_to_evm_chain(
+            ethereum_receiver, amount, 1, 0, b""
+        ).build_transaction({"from": sender})
+        txreceipt2 = send_transaction(w3, tx2, key=KEYS["validator"])
+        print("receipt : ", txreceipt2)
+        assert txreceipt2.status == 1, "should success"
+        # Check deduction
+        assert (
+            contract.caller.balanceOf(sender) == community_balance_before_send - amount
+        )
+
+        balance_after_send_to_ethereum = balance_before_send_to_ethereum
+
+        def check_ethereum_balance_change():
+            nonlocal balance_after_send_to_ethereum
+            balance_after_send_to_ethereum = cosmos_erc20_contract.caller.balanceOf(
+                ethereum_receiver
+            )
+            return balance_before_send_to_ethereum != balance_after_send_to_ethereum
+
+        wait_for_fn(
+            "ethereum balance change", check_ethereum_balance_change, timeout=60
+        )
+        assert (
+            balance_after_send_to_ethereum == balance_before_send_to_ethereum + amount
+        )
+
+        # Send back token to cronos
+        cronos_receiver = ADDRS["community"]
+        balance_before_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+        amount = 15
+        txreceipt = send_to_cosmos(
+            gravity.contract,
+            cosmos_erc20_contract,
+            gravity.geth,
+            HexBytes(cronos_receiver),
+            amount,
+            KEYS["validator"],
+        )
+        assert txreceipt.status == 1, "should success"
+
+        balance_after_send_to_cosmos = balance_before_send_to_cosmos
+
+        def check_cronos_balance_change():
+            nonlocal balance_after_send_to_cosmos
+            balance_after_send_to_cosmos = contract.caller.balanceOf(cronos_receiver)
+            return balance_before_send_to_cosmos != balance_after_send_to_cosmos
+
+        wait_for_fn("check cronos balance change", check_cronos_balance_change)
+        assert balance_after_send_to_cosmos == balance_before_send_to_cosmos + amount
 
 
 def test_gravity_detect_malicious_supply(gravity):

@@ -217,16 +217,9 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) authtypes.Accou
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
 func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
 	if types.IsSourceCoin(msg.Denom) {
-		contract, err := types.GetContractAddressFromDenom(msg.Denom)
+		_, err := types.GetContractAddressFromDenom(msg.Denom)
 		if err != nil {
 			return err
-		}
-		// we check that denom use the same contract address in checksum format
-		if contract != common.HexToAddress(msg.Contract).Hex() {
-			return errors.Wrapf(
-				sdkerrors.ErrInvalidRequest,
-				"coin denom %s does not match with contract address %s",
-				msg.Denom, common.HexToAddress(msg.Contract).Hex())
 		}
 
 		// check that the coin is registered, otherwise register it
@@ -263,7 +256,7 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		k.bankKeeper.SetDenomMetaData(ctx, metadata)
 
 		// update the mapping
-		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(contract)); err != nil {
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
 			return err
 		}
 	} else {
