@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/recsplit"
 )
@@ -92,17 +92,14 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 
 	var nodesMap, kvsMap *MmapFile
 	cleanupHandles := func(err error) error {
+		errs := []error{err}
 		if nodesMap != nil {
-			if merr := nodesMap.Close(); merr != nil {
-				err = multierror.Append(merr, err)
-			}
+			errs = append(errs, nodesMap.Close())
 		}
 		if kvsMap != nil {
-			if merr := kvsMap.Close(); merr != nil {
-				err = multierror.Append(merr, err)
-			}
+			errs = append(errs, kvsMap.Close())
 		}
-		return err
+		return errors.Join(errs...)
 	}
 
 	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameNodes)); err != nil {
@@ -168,28 +165,22 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 
 // Close closes the file and mmap handles, clears the buffers.
 func (snapshot *Snapshot) Close() error {
-	var err error
+	var errs []error
 
 	if snapshot.nodesMap != nil {
-		if merr := snapshot.nodesMap.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, snapshot.nodesMap.Close())
 	}
 	if snapshot.kvsMap != nil {
-		if merr := snapshot.kvsMap.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, snapshot.kvsMap.Close())
 	}
 
 	if snapshot.index != nil {
-		if merr := snapshot.index.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, snapshot.index.Close())
 	}
 
 	// reset to an empty tree
 	*snapshot = *NewEmptySnapshot(snapshot.version)
-	return err
+	return errors.Join(errs...)
 }
 
 // IsEmpty returns if the snapshot is an empty tree.

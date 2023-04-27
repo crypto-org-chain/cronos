@@ -9,7 +9,6 @@ require (
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v0.19.6-0.20230410112350-e1e212a3a3aa
 	github.com/gogo/protobuf v1.3.2
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.2
@@ -47,7 +46,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
