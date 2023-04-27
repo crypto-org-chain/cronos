@@ -1,9 +1,8 @@
 package client
 
 import (
+	"errors"
 	"io"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 type wrapReader struct {
@@ -36,16 +35,12 @@ func (r *wrapReader) ReadByte() (byte, error) {
 }
 
 func (r *wrapReader) Close() error {
-	var err error
+	var errs []error
 	if closer, ok := r.reader.(io.Closer); ok {
-		if merr := closer.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, closer.Close())
 	}
 	if r.closer != nil {
-		if merr := r.closer.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, r.closer.Close())
 	}
-	return err
+	return errors.Join(errs...)
 }
