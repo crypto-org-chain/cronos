@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -20,6 +21,9 @@ type Tree struct {
 	snapshot *Snapshot
 
 	initialVersion, cowVersion uint32
+
+	// when true, the get and iterator methods could return a slice pointing to mmaped blob files.
+	zeroCopy bool
 }
 
 // NewEmptyTree creates an empty tree at an arbitrary version.
@@ -28,7 +32,11 @@ func NewEmptyTree(version uint64) *Tree {
 		panic("version overflows uint32")
 	}
 
-	return &Tree{version: uint32(version)}
+	return &Tree{
+		version: uint32(version),
+		// no need to copy if the tree is not backed by snapshot
+		zeroCopy: true,
+	}
 }
 
 // New creates an empty tree at genesis version
@@ -45,10 +53,11 @@ func NewWithInitialVersion(initialVersion uint32) *Tree {
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
-func NewFromSnapshot(snapshot *Snapshot) *Tree {
+func NewFromSnapshot(snapshot *Snapshot, zeroCopy bool) *Tree {
 	tree := &Tree{
 		version:  snapshot.Version(),
 		snapshot: snapshot,
+		zeroCopy: zeroCopy,
 	}
 
 	if !snapshot.IsEmpty() {
@@ -56,6 +65,10 @@ func NewFromSnapshot(snapshot *Snapshot) *Tree {
 	}
 
 	return tree
+}
+
+func (t *Tree) SetZeroCopy(zeroCopy bool) {
+	t.zeroCopy = zeroCopy
 }
 
 func (t *Tree) IsEmpty() bool {
@@ -141,6 +154,9 @@ func (t *Tree) GetWithIndex(key []byte) (int64, []byte) {
 	}
 
 	value, index := t.root.Get(key)
+	if !t.zeroCopy {
+		value = bytes.Clone(value)
+	}
 	return int64(index), value
 }
 
@@ -152,15 +168,16 @@ func (t *Tree) GetByIndex(index int64) ([]byte, []byte) {
 		return nil, nil
 	}
 
-	return t.root.GetByIndex(uint32(index))
+	key, value := t.root.GetByIndex(uint32(index))
+	if !t.zeroCopy {
+		key = bytes.Clone(key)
+		value = bytes.Clone(value)
+	}
+	return key, value
 }
 
 func (t *Tree) Get(key []byte) []byte {
-	if t.root == nil {
-		return nil
-	}
-
-	value, _ := t.root.Get(key)
+	_, value := t.GetWithIndex(key)
 	return value
 }
 
@@ -169,7 +186,7 @@ func (t *Tree) Has(key []byte) bool {
 }
 
 func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
-	return NewIterator(start, end, ascending, t.root)
+	return NewIterator(start, end, ascending, t.root, t.zeroCopy)
 }
 
 func (t *Tree) Close() error {

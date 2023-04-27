@@ -2,7 +2,9 @@ package memiavl
 
 import (
 	"encoding/hex"
+	"errors"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"testing"
 	"time"
@@ -232,4 +234,33 @@ func TestLoadVersion(t *testing.T) {
 		require.Equal(t, RefHashes[v-1], tmp.TreeByName("test").RootHash())
 		require.Equal(t, expItems, collectIter(tmp.TreeByName("test").Iterator(nil, nil, true)))
 	}
+}
+
+func TestZeroCopy(t *testing.T) {
+	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test"}, CreateIfMissing: true, ZeroCopy: true})
+	require.NoError(t, err)
+	db.Commit([]*NamedChangeSet{
+		{Name: "test", Changeset: ChangeSets[0]},
+	})
+	require.NoError(t, errors.Join(
+		db.RewriteSnapshot(),
+		db.Reload(),
+	))
+
+	value := db.TreeByName("test").Get([]byte("hello"))
+	require.Equal(t, []byte("world"), value)
+
+	db.SetZeroCopy(false)
+	valueCloned := db.TreeByName("test").Get([]byte("hello"))
+	require.Equal(t, []byte("world"), valueCloned)
+
+	require.NoError(t, db.Close())
+
+	require.Equal(t, []byte("world"), valueCloned)
+
+	// accessing the zero-copy value after the db is closed triggers segment fault.
+	debug.SetPanicOnFault(true)
+	require.Panics(t, func() {
+		require.Equal(t, []byte("world"), value)
+	})
 }

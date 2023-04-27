@@ -45,6 +45,8 @@ type MultiTree struct {
 	// it always corresponds to the wal entry with index 1.
 	initialVersion uint32
 
+	zeroCopy bool
+
 	trees          []namedTree
 	treesByName    map[string]int // reversed index of the trees
 	lastCommitInfo storetypes.CommitInfo
@@ -57,10 +59,11 @@ func NewEmptyMultiTree(initialVersion uint32) *MultiTree {
 	return &MultiTree{
 		initialVersion: initialVersion,
 		treesByName:    make(map[string]int),
+		zeroCopy:       true,
 	}
 }
 
-func LoadMultiTree(dir string) (*MultiTree, error) {
+func LoadMultiTree(dir string, zeroCopy bool) (*MultiTree, error) {
 	// load commit info
 	bz, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
 	if err != nil {
@@ -94,7 +97,7 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 		if err != nil {
 			return nil, err
 		}
-		treeMap[name] = NewFromSnapshot(snapshot)
+		treeMap[name] = NewFromSnapshot(snapshot, zeroCopy)
 	}
 
 	sort.Strings(treeNames)
@@ -112,6 +115,7 @@ func LoadMultiTree(dir string) (*MultiTree, error) {
 		treesByName:    treesByName,
 		lastCommitInfo: *metadata.CommitInfo,
 		metadata:       metadata,
+		zeroCopy:       zeroCopy,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
@@ -149,6 +153,13 @@ func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	t.initialVersion = uint32(initialVersion)
 	for _, entry := range t.trees {
 		entry.tree.initialVersion = t.initialVersion
+	}
+}
+
+func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
+	t.zeroCopy = zeroCopy
+	for _, entry := range t.trees {
+		entry.tree.SetZeroCopy(zeroCopy)
 	}
 }
 

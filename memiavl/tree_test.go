@@ -252,7 +252,7 @@ func TestGetByIndex(t *testing.T) {
 	require.NoError(t, tree.WriteSnapshot(dir, false))
 	snapshot, err := OpenSnapshot(dir)
 	require.NoError(t, err)
-	ptree := NewFromSnapshot(snapshot)
+	ptree := NewFromSnapshot(snapshot, true)
 	defer ptree.Close()
 
 	for i, pair := range changes.Pairs {

@@ -29,6 +29,7 @@
       'app-config': {
         store: {
           memiavl: true,
+          'memiavl-zero-copy': true,
           streamers: ['versiondb'],
         },
       },
