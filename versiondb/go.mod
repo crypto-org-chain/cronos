@@ -10,7 +10,6 @@ require (
 	github.com/crypto-org-chain/cronos/memiavl v0.0.1
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/linxGnu/grocksdb v1.7.16
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
@@ -82,7 +81,6 @@ require (
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
