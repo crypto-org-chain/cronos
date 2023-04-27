@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/go-multierror"
 )
 
 // Options defines configurable options for `ExtSorter`
@@ -204,16 +203,11 @@ func (s *ExtSorter) Finalize() (*MultiWayMerge, error) {
 
 // Close closes and remove all the temporary chunk files
 func (s *ExtSorter) Close() error {
-	var err error
+	var errs []error
 	for _, chunkFile := range s.chunkFiles {
-		if merr := chunkFile.Close(); merr != nil {
-			err = multierror.Append(err, merr)
-		}
-		if merr := os.Remove(chunkFile.Name()); merr != nil {
-			err = multierror.Append(err, merr)
-		}
+		errs = append(errs, chunkFile.Close(), os.Remove(chunkFile.Name()))
 	}
-	return err
+	return errors.Join(errs...)
 }
 
 type bufWriter interface {

@@ -1,9 +1,9 @@
 package memiavl
 
 import (
+	"errors"
 	"os"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/ledgerwatch/erigon-lib/mmap"
 )
 
@@ -38,17 +38,7 @@ func NewMmap(path string) (*MmapFile, error) {
 
 // Close closes the file and mmap handles
 func (m *MmapFile) Close() error {
-	var err error
-
-	if merr := m.file.Close(); merr != nil {
-		err = multierror.Append(err, merr)
-	}
-
-	if merr := mmap.Munmap(m.data, m.handle); merr != nil {
-		err = multierror.Append(err, merr)
-	}
-
-	return err
+	return errors.Join(m.file.Close(), mmap.Munmap(m.data, m.handle))
 }
 
 // Data returns the mmap-ed buffer
