@@ -259,7 +259,7 @@ func TestZeroCopy(t *testing.T) {
 	require.Equal(t, []byte("world"), valueCloned)
 
 	// accessing the zero-copy value after the db is closed triggers segment fault.
-	debug.SetPanicOnFault(true)
+	defer debug.SetPanicOnFault(debug.SetPanicOnFault(true))
 	require.Panics(t, func() {
 		require.Equal(t, []byte("world"), value)
 	})
