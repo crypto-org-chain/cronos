@@ -11,6 +11,7 @@ let
 in
 import sources.nixpkgs {
   overlays = [
+    (import ./build_overlay.nix)
     (_: pkgs: dapptools) # use released version to hit the binary cache
     (final: pkgs: rec {
       go = pkgs.go_1_20;
@@ -51,9 +52,6 @@ import sources.nixpkgs {
       hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
-    (pkgs: _: {
-      rocksdb = pkgs.callPackage ./rocksdb.nix { };
-    })
     (_: pkgs: {
       cosmovisor = pkgs.buildGo118Module rec {
         name = "cosmovisor";

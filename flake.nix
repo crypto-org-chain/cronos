@@ -27,6 +27,7 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
+              (import ./nix/build_overlay.nix)
               gomod2nix.overlays.default
               self.overlay
             ];
@@ -70,7 +71,6 @@
             | gzip -9 > $out
         '';
         bundle-win-exe = drv: final.callPackage ./nix/bundle-win-exe.nix { cronosd = drv; };
-        rocksdb = final.callPackage ./nix/rocksdb.nix { };
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
