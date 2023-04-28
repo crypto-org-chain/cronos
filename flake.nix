@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -27,6 +27,7 @@
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
+              (import ./nix/build_overlay.nix)
               gomod2nix.overlays.default
               self.overlay
             ];
@@ -70,7 +71,6 @@
             | gzip -9 > $out
         '';
         bundle-win-exe = drv: final.callPackage ./nix/bundle-win-exe.nix { cronosd = drv; };
-        rocksdb = final.callPackage ./nix/rocksdb.nix { };
       } // (with final;
         let
           matrix = lib.cartesianProductOfSets {
