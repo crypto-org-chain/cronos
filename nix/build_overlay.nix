@@ -1,5 +1,9 @@
 # some basic overlays nessesary for the build
 final: super: {
+  # include the fix: https://github.com/NixOS/nixpkgs/pull/211515
+  zstd = final.callPackage ./zstd.nix {
+    cmake = final.buildPackages.cmakeMinimal;
+  };
   rocksdb = final.callPackage ./rocksdb.nix { };
   go_1_20 = super.go_1_20.overrideAttrs (prev: rec {
     version = "1.20.3";
