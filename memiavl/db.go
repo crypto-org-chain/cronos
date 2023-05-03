@@ -65,6 +65,8 @@ type Options struct {
 	TargetVersion uint32
 	// Write WAL asynchronously, it's ok in blockchain case because we can always replay the raw blocks.
 	AsyncWAL bool
+	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
+	ZeroCopy bool
 }
 
 const (
@@ -73,13 +75,13 @@ const (
 
 func Load(dir string, opts Options) (*DB, error) {
 	currentDir := currentPath(dir)
-	mtree, err := LoadMultiTree(currentDir)
+	mtree, err := LoadMultiTree(currentDir, opts.ZeroCopy)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
 			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(currentDir)
+			mtree, err = LoadMultiTree(currentDir, opts.ZeroCopy)
 		}
 		if err != nil {
 			return nil, err
@@ -326,7 +328,7 @@ func (db *DB) Reload() error {
 }
 
 func (db *DB) reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir))
+	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy)
 	if err != nil {
 		return err
 	}
@@ -376,7 +378,7 @@ func (db *DB) RewriteSnapshotBackground() error {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		mtree, err := LoadMultiTree(currentPath(db.dir))
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return

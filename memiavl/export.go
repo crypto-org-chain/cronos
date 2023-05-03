@@ -15,7 +15,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		return fmt.Errorf("height overflows uint32: %d", height)
 	}
 
-	mtree, err := LoadMultiTree(snapshotPath(db.dir, uint32(height)))
+	mtree, err := LoadMultiTree(snapshotPath(db.dir, uint32(height)), true)
 	if err != nil {
 		return errors.Wrapf(err, "invalid snapshot height: %d", height)
 	}

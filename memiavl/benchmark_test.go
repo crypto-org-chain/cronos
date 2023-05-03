@@ -38,7 +38,7 @@ func BenchmarkRandomGet(b *testing.B) {
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(b, err)
 	defer snapshot.Close()
-	diskTree := NewFromSnapshot(snapshot)
+	diskTree := NewFromSnapshot(snapshot, true)
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))

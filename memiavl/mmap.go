@@ -38,10 +38,18 @@ func NewMmap(path string) (*MmapFile, error) {
 
 // Close closes the file and mmap handles
 func (m *MmapFile) Close() error {
-	return errors.Join(m.file.Close(), mmap.Munmap(m.data, m.handle))
+	return errors.Join(mmap.Munmap(m.data, m.handle), m.file.Close())
 }
 
 // Data returns the mmap-ed buffer
 func (m *MmapFile) Data() []byte {
 	return m.data
+}
+
+func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	return mmap.Mmap(f, int(fi.Size()))
 }

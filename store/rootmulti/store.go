@@ -51,6 +51,7 @@ type Store struct {
 	interBlockCache types.MultiStorePersistentCache
 
 	asyncWAL bool
+	zeroCopy bool
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -271,6 +272,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 		InitialStores:   initialStores,
 		TargetVersion:   uint32(version),
 		AsyncWAL:        rs.asyncWAL,
+		ZeroCopy:        rs.zeroCopy,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
@@ -386,6 +388,10 @@ func (rs *Store) SetLazyLoading(lazyLoading bool) {
 
 func (rs *Store) SetAsyncWAL(async bool) {
 	rs.asyncWAL = async
+}
+
+func (rs *Store) SetZeroCopy(zeroCopy bool) {
+	rs.zeroCopy = zeroCopy
 }
 
 // Implements interface CommitMultiStore
