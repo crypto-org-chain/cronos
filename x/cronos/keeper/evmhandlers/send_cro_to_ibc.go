@@ -86,7 +86,7 @@ func (h SendCroToIbcHandler) Handle(
 		return err
 	}
 	// Initiate IBC transfer from sender account
-	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins); err != nil {
+	if err = h.cronosKeeper.IbcTransferCoins(ctx, sender.String(), recipient, coins, ""); err != nil {
 		return err
 	}
 	return nil
