@@ -10,6 +10,7 @@ type Iterator struct {
 	// domain of iteration, end is exclusive
 	start, end []byte
 	ascending  bool
+	zeroCopy   bool
 
 	// cache the next key-value pair
 	key, value []byte
@@ -21,12 +22,13 @@ type Iterator struct {
 
 var _ dbm.Iterator = (*Iterator)(nil)
 
-func NewIterator(start, end []byte, ascending bool, root Node) dbm.Iterator {
+func NewIterator(start, end []byte, ascending bool, root Node, zeroCopy bool) dbm.Iterator {
 	iter := &Iterator{
 		start:     start,
 		end:       end,
 		ascending: ascending,
 		valid:     true,
+		zeroCopy:  zeroCopy,
 	}
 
 	if root != nil {
@@ -54,11 +56,17 @@ func (iter *Iterator) Error() error {
 
 // Key implements dbm.Iterator
 func (iter *Iterator) Key() []byte {
+	if !iter.zeroCopy {
+		return bytes.Clone(iter.key)
+	}
 	return iter.key
 }
 
 // Value implements dbm.Iterator
 func (iter *Iterator) Value() []byte {
+	if !iter.zeroCopy {
+		return bytes.Clone(iter.value)
+	}
 	return iter.value
 }
 

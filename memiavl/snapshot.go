@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 
 	"github.com/ledgerwatch/erigon-lib/etl"
-	"github.com/ledgerwatch/erigon-lib/mmap"
 	"github.com/ledgerwatch/erigon-lib/recsplit"
 )
 
@@ -537,14 +536,6 @@ func buildIndex(input *os.File, idxPath, tmpDir string, count int) error {
 	}
 
 	return nil
-}
-
-func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, nil, err
-	}
-	return mmap.Mmap(f, int(fi.Size()))
 }
 
 func createFile(name string) (*os.File, error) {

@@ -87,7 +87,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			mtree := memiavl.NewEmptyMultiTree(0)
 			if len(loadSnapshot) > 0 {
 				var err error
-				mtree, err = memiavl.LoadMultiTree(loadSnapshot)
+				mtree, err = memiavl.LoadMultiTree(loadSnapshot, true)
 				if err != nil {
 					return err
 				}
