@@ -122,7 +122,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	}
 	if len(leaves)%SizeLeaf != 0 {
 		return nil, cleanupHandles(
-			fmt.Errorf("corrupted snapshot, leaves file size %d is not a multiple of %d", len(nodes), SizeLeaf),
+			fmt.Errorf("corrupted snapshot, leaves file size %d is not a multiple of %d", len(leaves), SizeLeaf),
 		)
 	}
 
