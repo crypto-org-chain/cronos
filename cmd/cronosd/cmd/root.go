@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/pruning"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -124,6 +125,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		debug.Cmd(),
 		config.Cmd(),
 		pruning.PruningCmd(a.newApp),
+		snapshot.Cmd(a.newApp),
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
@@ -150,6 +152,17 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 
 	// add rosetta
 	rootCmd.AddCommand(server.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
+
+	// add extra tendermint command missed by ethermint
+	tendermintCmd := &cobra.Command{
+		Use:   "tendermint2",
+		Short: "More tendermint subcommands",
+	}
+
+	tendermintCmd.AddCommand(
+		server.BootstrapStateCmd(a.newApp),
+	)
+	rootCmd.AddCommand(tendermintCmd)
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {

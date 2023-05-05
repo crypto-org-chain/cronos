@@ -153,7 +153,8 @@ const (
 	FileStreamerDirectory = "file_streamer"
 
 	FlagMemIAVL  = "store.memiavl"
-	FlagAsyncWAL = "store.async-wal"
+	FlagAsyncWAL = "store.memiavl-async-wal"
+	FlagZeroCopy = "store.memiavl-zero-copy"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -362,6 +363,7 @@ func New(
 		// FIXME we have to assume the cms is not overridden by the other options, but we can't tell at here.
 		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
 		cms.SetAsyncWAL(cast.ToBool(appOpts.Get(FlagAsyncWAL)))
+		cms.SetZeroCopy(cast.ToBool(appOpts.Get(FlagZeroCopy)))
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}
 

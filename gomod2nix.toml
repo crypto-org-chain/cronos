@@ -32,8 +32,8 @@ schema = 3
     version = "v1.2.1"
     hash = "sha256-OG3YGMFql9Vd5IzysdmyGjXhd39wQq0qh3YRQi4k7SI="
   [mod."github.com/ChainSafe/go-schnorrkel"]
-    version = "v0.0.0-20200405005733-88cbf1b4c40d"
-    hash = "sha256-i8RXZemJGlSjBT35oPm0SawFiBoIU5Pkq5xp4n/rzCY="
+    version = "v1.0.0"
+    hash = "sha256-atJ2waz124m0DVHjol8v3NfCLKidU3fYu5AgzT9xCBA="
   [mod."github.com/DataDog/zstd"]
     version = "v1.5.0"
     hash = "sha256-i+vPadZcmSHCALA50FaADRmj6oqe1t5SIfqEbCxr9Ao="
@@ -137,9 +137,9 @@ schema = 3
     version = "v1.0.0-beta.1"
     hash = "sha256-oATkuj+fM5eBn+ywO+w/tL0AFSIEkx0J3Yz+VhVe0QA="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.12"
-    hash = "sha256-0ZdWZr3qYfOpwQ5ztsmGOGltI8tmZFwTTzS8v11xfSQ="
-    replaced = "github.com/cosmos/cosmos-sdk"
+    version = "v0.43.0-beta1.0.20230509090140-e27641e399f1"
+    hash = "sha256-WM8cJYdJd1/0TqFvvTW7R/wJJKW7Lq5Iht5Ses7+7Bk="
+    replaced = "github.com/yihuang/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -159,11 +159,13 @@ schema = 3
     version = "v0.3.2"
     hash = "sha256-Y261IO/d9xjV0UScqHvo31broxvnKn4IQQC9Mu6jNkE="
   [mod."github.com/crypto-org-chain/cronos/memiavl"]
-    version = "v0.0.0-20230425151210-b262fa8bdacb"
-    hash = "sha256-j1rd+5ecsuCxv4qRkddJopWo2j0fPtHUXUKc9TdJWdk="
+    version = "v0.0.0-20230508062001-cf9648df63e7"
+    hash = "sha256-3Zi7QatduYFJac21Vlzu1NFkXhpeGOcd8/NeBbgk4NE="
+    replaced = "github.com/crypto-org-chain/cronos/memiavl"
   [mod."github.com/crypto-org-chain/cronos/store"]
-    version = "v0.0.0-20230425151210-b262fa8bdacb"
-    hash = "sha256-gWxjtDbXT6nBVWvjetwfcCAtyPEdsc4zv7hWMSQNjRM="
+    version = "v0.0.0-20230508062001-cf9648df63e7"
+    hash = "sha256-nE5naiQNu2Db6wlISejt2pwMRZzPWCVBHxIQHVh9TTc="
+    replaced = "github.com/crypto-org-chain/cronos/store"
   [mod."github.com/danieljoos/wincred"]
     version = "v1.1.2"
     hash = "sha256-Nnklfg12vmWCOhELGyoRqEF4w4srp0WbPwreaChYLKs="
@@ -521,8 +523,8 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.27"
-    hash = "sha256-BbpfLcLRf6PwB1xmgkhTm9ckZekelrDUlXDX0/FSMU8="
+    version = "v0.34.28"
+    hash = "sha256-JcV8tXlEpNSjQS34mjfB2K2LZ9AjrE6bUoUGogGK/DE="
     replaced = "github.com/cometbft/cometbft"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.8-0.20230412133356-5e16d347f5b9"
@@ -553,8 +555,8 @@ schema = 3
     version = "v0.4.0"
     hash = "sha256-ndE82nOb3agubhEV7aRzEqqTlN4DPbKFHEm2+XZLn8k="
   [mod."github.com/torquem-ch/mdbx-go"]
-    version = "v0.27.5"
-    hash = "sha256-GSDtoGSdX8E4QLnBgLzWVW/9qYMuvcsogoo2LC8T3eU="
+    version = "v0.30.0"
+    hash = "sha256-raYmN2fs0kNLUIC8HhTw2lAHRKGjvOfbGK8sNs/TKjE="
   [mod."github.com/tyler-smith/go-bip39"]
     version = "v1.1.0"
     hash = "sha256-3YhWBtSwRLGwm7vNwqumphZG3uLBW1vwT9QkQ8JuSjU="
