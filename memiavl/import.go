@@ -144,13 +144,13 @@ func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHas
 			}
 		}
 
-		switch len(i.indexStack) {
+		switch len(i.leavesStack) {
 		case 0:
-			return EmptyRootNodeIndex, nil
+			return 0, nil
 		case 1:
-			return i.indexStack[0], nil
+			return i.leafCounter, nil
 		default:
-			return 0, fmt.Errorf("invalid node structure, found stack size %v after imported", len(i.indexStack))
+			return 0, fmt.Errorf("invalid node structure, found stack size %v after imported", len(i.leavesStack))
 		}
 	})
 }
@@ -158,8 +158,10 @@ func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHas
 type importer struct {
 	snapshotWriter
 
-	indexStack []uint32
-	nodeStack  []*MemNode
+	// keep track of how many leaves has been written before the pending nodes
+	leavesStack []uint32
+	// keep track of the pending nodes
+	nodeStack []*MemNode
 }
 
 func (i *importer) Add(n *iavl.ExportNode) error {
@@ -169,24 +171,23 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 
 	if n.Height == 0 {
 		node := &MemNode{
-			height:  uint8(n.Height),
+			height:  0,
 			size:    1,
 			version: uint32(n.Version),
 			key:     n.Key,
 			value:   n.Value,
 		}
 		nodeHash := node.Hash()
-		idx, err := i.writeLeaf(node.version, node.key, node.value, nodeHash)
-		if err != nil {
+		if err := i.writeLeaf(node.version, node.key, node.value, nodeHash); err != nil {
 			return err
 		}
-		i.indexStack = append(i.indexStack, idx)
+		i.leavesStack = append(i.leavesStack, i.leafCounter)
 		i.nodeStack = append(i.nodeStack, node)
 		return nil
 	}
 
 	// branch node
-	leftIndex := i.indexStack[len(i.indexStack)-2]
+	keyLeaf := i.leavesStack[len(i.leavesStack)-2]
 	leftNode := i.nodeStack[len(i.nodeStack)-2]
 	rightNode := i.nodeStack[len(i.nodeStack)-1]
 
@@ -199,13 +200,13 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 		right:   rightNode,
 	}
 	nodeHash := node.Hash()
-	idx, err := i.writeBranch(node.version, uint32(node.size), node.height, leftIndex+1, nodeHash)
-	if err != nil {
+	preTrees := uint8(len(i.nodeStack) - 2)
+	if err := i.writeBranch(node.version, uint32(node.size), node.height, preTrees, keyLeaf, nodeHash); err != nil {
 		return err
 	}
 
-	i.indexStack = i.indexStack[:len(i.indexStack)-2]
-	i.indexStack = append(i.indexStack, idx)
+	i.leavesStack = i.leavesStack[:len(i.leavesStack)-2]
+	i.leavesStack = append(i.leavesStack, i.leafCounter)
 
 	i.nodeStack = i.nodeStack[:len(i.nodeStack)-2]
 	i.nodeStack = append(i.nodeStack, node)

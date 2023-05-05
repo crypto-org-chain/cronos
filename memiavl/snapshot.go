@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 
@@ -22,13 +21,11 @@ const (
 	// the initial snapshot format
 	SnapshotFormat = 0
 
-	// magic: uint32, format: uint32, version: uint32, root node index: uint32
-	SizeMetadata = 16
-
-	// EmptyRootNodeIndex is a special value of root node index to represent empty tree
-	EmptyRootNodeIndex = math.MaxUint32
+	// magic: uint32, format: uint32, version: uint32
+	SizeMetadata = 12
 
 	FileNameNodes    = "nodes"
+	FileNameLeaves   = "leaves"
 	FileNameKVs      = "kvs"
 	FileNameKVIndex  = "kvs.index"
 	FileNameMetadata = "metadata"
@@ -37,28 +34,32 @@ const (
 // Snapshot manage the lifecycle of mmap-ed files for the snapshot,
 // it must out live the objects that derived from it.
 type Snapshot struct {
-	nodesMap *MmapFile
-	kvsMap   *MmapFile
+	nodesMap  *MmapFile
+	leavesMap *MmapFile
+	kvsMap    *MmapFile
 
-	nodes []byte
-	kvs   []byte
+	nodes  []byte
+	leaves []byte
+	kvs    []byte
 
 	// hash index of kvs
 	index       *recsplit.Index
 	indexReader *recsplit.IndexReader // reader for the index
 
 	// parsed from metadata file
-	version   uint32
-	rootIndex uint32
+	version uint32
 
 	// wrapping the raw nodes buffer
-	nodesLayout Nodes
+	nodesLayout  Nodes
+	leavesLayout Leaves
+
+	// nil means empty snapshot
+	root *PersistedNode
 }
 
 func NewEmptySnapshot(version uint32) *Snapshot {
 	return &Snapshot{
-		version:   version,
-		rootIndex: EmptyRootNodeIndex,
+		version: version,
 	}
 }
 
@@ -83,18 +84,15 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		return nil, fmt.Errorf("unknown snapshot format: %d", format)
 	}
 	version := binary.LittleEndian.Uint32(bz[8:])
-	rootIndex := binary.LittleEndian.Uint32(bz[12:])
 
-	if rootIndex == EmptyRootNodeIndex {
-		// we can't mmap empty files, so have to return early
-		return NewEmptySnapshot(version), nil
-	}
-
-	var nodesMap, kvsMap *MmapFile
+	var nodesMap, leavesMap, kvsMap *MmapFile
 	cleanupHandles := func(err error) error {
 		errs := []error{err}
 		if nodesMap != nil {
 			errs = append(errs, nodesMap.Close())
+		}
+		if leavesMap != nil {
+			errs = append(errs, leavesMap.Close())
 		}
 		if kvsMap != nil {
 			errs = append(errs, kvsMap.Close())
@@ -105,22 +103,34 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameNodes)); err != nil {
 		return nil, cleanupHandles(err)
 	}
+	if leavesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameLeaves)); err != nil {
+		return nil, cleanupHandles(err)
+	}
 	if kvsMap, err = NewMmap(filepath.Join(snapshotDir, FileNameKVs)); err != nil {
 		return nil, cleanupHandles(err)
 	}
 
 	nodes := nodesMap.Data()
+	leaves := leavesMap.Data()
 	kvs := kvsMap.Data()
 
-	if len(nodes) == 0 && rootIndex != 0 {
+	// validate nodes length
+	if len(nodes)%SizeNode != 0 {
 		return nil, cleanupHandles(
-			fmt.Errorf("corrupted snapshot, nodes are empty but rootIndex is not zero: %d", rootIndex),
+			fmt.Errorf("corrupted snapshot, nodes file size %d is not a multiple of %d", len(nodes), SizeNode),
+		)
+	}
+	if len(leaves)%SizeLeaf != 0 {
+		return nil, cleanupHandles(
+			fmt.Errorf("corrupted snapshot, leaves file size %d is not a multiple of %d", len(nodes), SizeLeaf),
 		)
 	}
 
-	if len(nodes) > 0 && uint64(len(nodes)) != (uint64(rootIndex)+1)*SizeNode {
+	nodesLen := len(nodes) / SizeNode
+	leavesLen := len(leaves) / SizeLeaf
+	if (leavesLen > 0 && nodesLen+1 != leavesLen) || (leavesLen == 0 && nodesLen != 0) {
 		return nil, cleanupHandles(
-			fmt.Errorf("nodes file size %d don't match root node index %d", len(nodes), rootIndex),
+			fmt.Errorf("corrupted snapshot, branch nodes size %d don't match leaves size %d", nodesLen, leavesLen),
 		)
 	}
 
@@ -145,22 +155,45 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		return nil, err
 	}
 
-	return &Snapshot{
-		nodesMap: nodesMap,
-		kvsMap:   kvsMap,
+	leavesData, err := NewLeaves(leaves)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot := &Snapshot{
+		nodesMap:  nodesMap,
+		leavesMap: leavesMap,
+		kvsMap:    kvsMap,
 
 		// cache the pointers
-		nodes: nodes,
-		kvs:   kvs,
+		nodes:  nodes,
+		leaves: leaves,
+		kvs:    kvs,
 
 		index:       index,
 		indexReader: indexReader,
 
-		version:   version,
-		rootIndex: rootIndex,
+		version: version,
 
-		nodesLayout: nodesData,
-	}, nil
+		nodesLayout:  nodesData,
+		leavesLayout: leavesData,
+	}
+
+	if nodesLen > 0 {
+		snapshot.root = &PersistedNode{
+			snapshot: snapshot,
+			isLeaf:   false,
+			index:    uint32(nodesLen - 1),
+		}
+	} else if leavesLen > 0 {
+		snapshot.root = &PersistedNode{
+			snapshot: snapshot,
+			isLeaf:   true,
+			index:    0,
+		}
+	}
+
+	return snapshot, nil
 }
 
 // Close closes the file and mmap handles, clears the buffers.
@@ -169,6 +202,9 @@ func (snapshot *Snapshot) Close() error {
 
 	if snapshot.nodesMap != nil {
 		errs = append(errs, snapshot.nodesMap.Close())
+	}
+	if snapshot.leavesMap != nil {
+		errs = append(errs, snapshot.leavesMap.Close())
 	}
 	if snapshot.kvsMap != nil {
 		errs = append(errs, snapshot.kvsMap.Close())
@@ -185,14 +221,24 @@ func (snapshot *Snapshot) Close() error {
 
 // IsEmpty returns if the snapshot is an empty tree.
 func (snapshot *Snapshot) IsEmpty() bool {
-	return snapshot.rootIndex == EmptyRootNodeIndex
+	return snapshot.root == nil
 }
 
-// Node returns the node by index
+// Node returns the branch node by index
 func (snapshot *Snapshot) Node(index uint32) PersistedNode {
 	return PersistedNode{
 		snapshot: snapshot,
 		index:    index,
+		isLeaf:   false,
+	}
+}
+
+// Leaf returns the leaf node by index
+func (snapshot *Snapshot) Leaf(index uint32) PersistedNode {
+	return PersistedNode{
+		snapshot: snapshot,
+		index:    index,
+		isLeaf:   true,
 	}
 }
 
@@ -206,7 +252,7 @@ func (snapshot *Snapshot) RootNode() PersistedNode {
 	if snapshot.IsEmpty() {
 		panic("RootNode not supported on an empty snapshot")
 	}
-	return snapshot.Node(snapshot.rootIndex)
+	return *snapshot.root
 }
 
 func (snapshot *Snapshot) RootHash() []byte {
@@ -219,6 +265,11 @@ func (snapshot *Snapshot) RootHash() []byte {
 // nodesLen returns the number of nodes in the snapshot
 func (snapshot *Snapshot) nodesLen() int {
 	return len(snapshot.nodes) / SizeNode
+}
+
+// leavesLen returns the number of nodes in the snapshot
+func (snapshot *Snapshot) leavesLen() int {
+	return len(snapshot.leaves) / SizeLeaf
 }
 
 // ScanNodes iterate over the nodes in the snapshot order (depth-first post-order)
@@ -260,18 +311,38 @@ func (snapshot *Snapshot) KeyValue(offset uint64) ([]byte, []byte) {
 	return key, value
 }
 
+func (snapshot *Snapshot) LeafKey(index uint32) []byte {
+	leaf := snapshot.leavesLayout.Leaf(index)
+	offset := leaf.KeyOffset() + 4
+	return snapshot.kvs[offset : offset+uint64(leaf.KeyLength())]
+}
+
+func (snapshot *Snapshot) LeafKeyValue(index uint32) ([]byte, []byte) {
+	leaf := snapshot.leavesLayout.Leaf(index)
+	offset := leaf.KeyOffset() + 4
+	length := uint64(leaf.KeyLength())
+	key := snapshot.kvs[offset : offset+length]
+	offset += length
+	length = uint64(binary.LittleEndian.Uint32(snapshot.kvs[offset:]))
+	offset += 4
+	return key, snapshot.kvs[offset : offset+length]
+}
+
 // Export exports the nodes in DFS post-order, resemble the API of existing iavl library
 func (snapshot *Snapshot) Export() *Exporter {
-	return &Exporter{snapshot: snapshot, count: snapshot.nodesLen()}
+	return newExporter(snapshot)
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
 func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
 	return writeSnapshot(snapshotDir, t.version, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
 		if t.root == nil {
-			return EmptyRootNodeIndex, nil
+			return 0, nil
 		} else {
-			return w.writeRecursive(t.root)
+			if err := w.writeRecursive(t.root); err != nil {
+				return 0, err
+			}
+			return w.leafCounter, nil
 		}
 	})
 }
@@ -285,6 +356,7 @@ func writeSnapshot(
 	}
 
 	nodesFile := filepath.Join(dir, FileNameNodes)
+	leavesFile := filepath.Join(dir, FileNameLeaves)
 	kvsFile := filepath.Join(dir, FileNameKVs)
 	kvsIndexFile := filepath.Join(dir, FileNameKVIndex)
 
@@ -294,6 +366,16 @@ func writeSnapshot(
 	}
 	defer func() {
 		if err := fpNodes.Close(); returnErr == nil {
+			returnErr = err
+		}
+	}()
+
+	fpLeaves, err := createFile(leavesFile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := fpLeaves.Close(); returnErr == nil {
 			returnErr = err
 		}
 	}()
@@ -309,16 +391,20 @@ func writeSnapshot(
 	}()
 
 	nodesWriter := bufio.NewWriter(fpNodes)
+	leavesWriter := bufio.NewWriter(fpLeaves)
 	kvsWriter := bufio.NewWriter(fpKVs)
 
-	w := newSnapshotWriter(nodesWriter, kvsWriter)
-	rootIndex, err := doWrite(w)
+	w := newSnapshotWriter(nodesWriter, leavesWriter, kvsWriter)
+	leaves, err := doWrite(w)
 	if err != nil {
 		return err
 	}
 
-	if rootIndex != EmptyRootNodeIndex {
+	if leaves > 0 {
 		if err := nodesWriter.Flush(); err != nil {
+			return err
+		}
+		if err := leavesWriter.Flush(); err != nil {
 			return err
 		}
 		if err := kvsWriter.Flush(); err != nil {
@@ -326,6 +412,9 @@ func writeSnapshot(
 		}
 
 		if err := fpKVs.Sync(); err != nil {
+			return err
+		}
+		if err := fpLeaves.Sync(); err != nil {
 			return err
 		}
 		if err := fpNodes.Sync(); err != nil {
@@ -343,8 +432,6 @@ func writeSnapshot(
 					returnErr = err
 				}
 			}()
-			// N = 2L-1
-			leaves := (rootIndex + 2) / 2
 			if err := buildIndex(input, kvsIndexFile, dir, int(leaves)); err != nil {
 				return fmt.Errorf("build MPHF index failed: %w", err)
 			}
@@ -356,7 +443,6 @@ func writeSnapshot(
 	binary.LittleEndian.PutUint32(metadataBuf[:], SnapshotFileMagic)
 	binary.LittleEndian.PutUint32(metadataBuf[4:], SnapshotFormat)
 	binary.LittleEndian.PutUint32(metadataBuf[8:], version)
-	binary.LittleEndian.PutUint32(metadataBuf[12:], rootIndex)
 
 	metadataFile := filepath.Join(dir, FileNameMetadata)
 	fpMetadata, err := createFile(metadataFile)
@@ -377,19 +463,20 @@ func writeSnapshot(
 }
 
 type snapshotWriter struct {
-	nodesWriter, kvWriter io.Writer
+	nodesWriter, leavesWriter, kvWriter io.Writer
 
-	// record the current node index
-	nodeIndex uint32
+	// count how many nodes have been written
+	branchCounter, leafCounter uint32
 
 	// record the current writing offset in kvs file
 	kvsOffset uint64
 }
 
-func newSnapshotWriter(nodesWriter, kvsWriter io.Writer) *snapshotWriter {
+func newSnapshotWriter(nodesWriter, leavesWriter, kvsWriter io.Writer) *snapshotWriter {
 	return &snapshotWriter{
-		nodesWriter: nodesWriter,
-		kvWriter:    kvsWriter,
+		nodesWriter:  nodesWriter,
+		leavesWriter: leavesWriter,
+		kvWriter:     kvsWriter,
 	}
 }
 
@@ -417,56 +504,66 @@ func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
 	return nil
 }
 
-func (w *snapshotWriter) writeNode(node, hash []byte) (uint32, error) {
-	if _, err := w.nodesWriter.Write(node); err != nil {
-		return 0, err
-	}
-	if _, err := w.nodesWriter.Write(hash); err != nil {
-		return 0, err
-	}
+func (w *snapshotWriter) writeLeaf(version uint32, key, value, hash []byte) error {
+	var buf [SizeLeafWithoutHash]byte
+	binary.LittleEndian.PutUint32(buf[OffsetLeafVersion:], version)
+	binary.LittleEndian.PutUint32(buf[OffsetLeafKeyLen:], uint32(len(key)))
+	binary.LittleEndian.PutUint64(buf[OffsetLeafKeyOffset:], w.kvsOffset)
 
-	i := w.nodeIndex
-	w.nodeIndex++
-	return i, nil
-}
-
-func (w *snapshotWriter) writeLeaf(version uint32, key, value, hash []byte) (uint32, error) {
-	var buf [SizeNodeWithoutHash]byte
-	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
-	keyOffset := w.kvsOffset
 	if err := w.writeKeyValue(key, value); err != nil {
-		return 0, err
+		return err
 	}
-	binary.LittleEndian.PutUint64(buf[OffsetKeyOffset:], keyOffset)
 
-	return w.writeNode(buf[:], hash)
+	if _, err := w.leavesWriter.Write(buf[:]); err != nil {
+		return err
+	}
+	if _, err := w.leavesWriter.Write(hash); err != nil {
+		return err
+	}
+
+	w.leafCounter++
+	return nil
 }
 
-func (w *snapshotWriter) writeBranch(version, size uint32, height uint8, keyNode uint32, hash []byte) (uint32, error) {
+func (w *snapshotWriter) writeBranch(version, size uint32, height, preTrees uint8, keyLeaf uint32, hash []byte) error {
 	var buf [SizeNodeWithoutHash]byte
 	buf[OffsetHeight] = height
+	buf[OffsetPreTrees] = preTrees
 	binary.LittleEndian.PutUint32(buf[OffsetVersion:], version)
 	binary.LittleEndian.PutUint32(buf[OffsetSize:], size)
-	binary.LittleEndian.PutUint32(buf[OffsetKeyNode:], keyNode)
+	binary.LittleEndian.PutUint32(buf[OffsetKeyLeaf:], keyLeaf)
 
-	return w.writeNode(buf[:], hash)
+	if _, err := w.nodesWriter.Write(buf[:]); err != nil {
+		return err
+	}
+	if _, err := w.nodesWriter.Write(hash); err != nil {
+		return err
+	}
+
+	w.branchCounter++
+	return nil
 }
 
 // writeRecursive write the node recursively in depth-first post-order,
 // returns `(nodeIndex, err)`.
-func (w *snapshotWriter) writeRecursive(node Node) (uint32, error) {
+func (w *snapshotWriter) writeRecursive(node Node) error {
 	if isLeaf(node) {
 		return w.writeLeaf(node.Version(), node.Key(), node.Value(), node.Hash())
 	}
 
-	leftIndex, err := w.writeRecursive(node.Left())
-	if err != nil {
-		return 0, err
+	// record the number of pending subtrees before the current one,
+	// it's always positive and won't exceed the tree height, so we can use an uint8 to store it.
+	preTrees := uint8(w.leafCounter - w.branchCounter)
+
+	if err := w.writeRecursive(node.Left()); err != nil {
+		return err
 	}
-	if _, err := w.writeRecursive(node.Right()); err != nil {
-		return 0, err
+	keyLeaf := w.leafCounter
+	if err := w.writeRecursive(node.Right()); err != nil {
+		return err
 	}
-	return w.writeBranch(node.Version(), uint32(node.Size()), node.Height(), leftIndex+1, node.Hash())
+
+	return w.writeBranch(node.Version(), uint32(node.Size()), node.Height(), preTrees, keyLeaf, node.Hash())
 }
 
 // buildIndex build MPHF index for the kvs file.
