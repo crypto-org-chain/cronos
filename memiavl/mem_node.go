@@ -34,6 +34,10 @@ func (node *MemNode) Height() uint8 {
 	return node.height
 }
 
+func (node *MemNode) IsLeaf() bool {
+	return node.height == 0
+}
+
 func (node *MemNode) Size() int64 {
 	return node.size
 }

@@ -65,6 +65,10 @@ func (node PersistedNode) Height() uint8 {
 	return node.branchNode().Height()
 }
 
+func (node PersistedNode) IsLeaf() bool {
+	return node.isLeaf
+}
+
 func (node PersistedNode) Version() uint32 {
 	if node.isLeaf {
 		return node.leafNode().Version()
@@ -173,15 +177,18 @@ func (node PersistedNode) Get(key []byte) ([]byte, uint32) {
 		leafKey := node.snapshot.LeafKey(start + uint32(i))
 		return bytes.Compare(leafKey, key) >= 0
 	}))
+
 	leaf := i + start
 	if leaf >= start+count {
 		// return the next index if the key is greater than all keys in the node
 		return nil, i
 	}
+
 	nodeKey, value := node.snapshot.LeafKeyValue(leaf)
 	if !bytes.Equal(nodeKey, key) {
 		return nil, i
 	}
+
 	return value, i
 }
 

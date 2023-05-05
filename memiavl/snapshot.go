@@ -547,7 +547,7 @@ func (w *snapshotWriter) writeBranch(version, size uint32, height, preTrees uint
 // writeRecursive write the node recursively in depth-first post-order,
 // returns `(nodeIndex, err)`.
 func (w *snapshotWriter) writeRecursive(node Node) error {
-	if isLeaf(node) {
+	if node.IsLeaf() {
 		return w.writeLeaf(node.Version(), node.Key(), node.Value(), node.Hash())
 	}
 

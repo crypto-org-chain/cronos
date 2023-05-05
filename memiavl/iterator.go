@@ -82,7 +82,7 @@ func (iter *Iterator) Next() {
 		afterStart := iter.start == nil || startCmp < 0
 		beforeEnd := iter.end == nil || bytes.Compare(key, iter.end) < 0
 
-		if isLeaf(node) {
+		if node.IsLeaf() {
 			startOrAfter := afterStart || startCmp == 0
 			if startOrAfter && beforeEnd {
 				iter.key = key
