@@ -142,7 +142,6 @@ func (e *Exporter) Next() (*iavl.ExportNode, error) {
 		return exportNode, nil
 	}
 	return nil, iavl.ExportDone
-
 }
 
 // Close closes the exporter. It is safe to call multiple times.
