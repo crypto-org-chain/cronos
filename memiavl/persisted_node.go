@@ -31,15 +31,15 @@ const (
 //
 // Branch node:
 // - height    : 1
-// - _padding  : 3
+// - preTrees  : 1
+// - _padding  : 2
 // - version   : 4
 // - size      : 4
 // - key node  : 4  // node index of the smallest leaf in right branch
 // - hash      : 32
 // Leaf node:
-// - height     : 1
-// - _padding   : 3
 // - version    : 4
+// - key len    : 4
 // - key offset : 8
 // - hash       : 32
 type PersistedNode struct {
@@ -107,13 +107,13 @@ func (node PersistedNode) Left() Node {
 	}
 
 	data := node.branchNode()
-	delta := uint32(data.PreTrees())
-	startLeaf := node.index + 2 - data.Size() + delta
+	preTrees := uint32(data.PreTrees())
+	startLeaf := getStartLeaf(node.index, data.Size(), preTrees)
 	keyLeaf := data.KeyLeaf()
 	if startLeaf+1 == keyLeaf {
 		return PersistedNode{snapshot: node.snapshot, index: startLeaf, isLeaf: true}
 	}
-	return PersistedNode{snapshot: node.snapshot, index: keyLeaf - delta - 2}
+	return PersistedNode{snapshot: node.snapshot, index: getLeftBranch(keyLeaf, preTrees)}
 }
 
 // Right result is not defined for leaf nodes.
@@ -124,8 +124,8 @@ func (node PersistedNode) Right() Node {
 
 	data := node.branchNode()
 	keyLeaf := data.KeyLeaf()
-	delta := uint32(data.PreTrees())
-	if node.index+delta+1 == keyLeaf {
+	preTrees := uint32(data.PreTrees())
+	if keyLeaf == getEndLeaf(node.index, preTrees) {
 		return PersistedNode{snapshot: node.snapshot, index: keyLeaf, isLeaf: true}
 	}
 	return PersistedNode{snapshot: node.snapshot, index: node.index - 1}
@@ -167,9 +167,9 @@ func (node PersistedNode) Get(key []byte) ([]byte, uint32) {
 		count = 1
 	} else {
 		data := node.branchNode()
-		delta := uint32(data.PreTrees())
+		preTrees := uint32(data.PreTrees())
 		count = data.Size()
-		start = node.index + 2 - count + delta
+		start = getStartLeaf(node.index, count, preTrees)
 	}
 
 	// binary search in the leaf node array
@@ -200,13 +200,45 @@ func (node PersistedNode) GetByIndex(leafIndex uint32) ([]byte, []byte) {
 		return node.snapshot.LeafKeyValue(node.index)
 	}
 	data := node.branchNode()
-	delta := uint32(data.PreTrees())
-	startLeaf := node.index + 2 - data.Size() + delta
-	endLeaf := node.index + delta + 1
+	preTrees := uint32(data.PreTrees())
+	startLeaf := getStartLeaf(node.index, data.Size(), preTrees)
+	endLeaf := getEndLeaf(node.index, preTrees)
 
 	i := startLeaf + leafIndex
 	if i > endLeaf {
 		return nil, nil
 	}
 	return node.snapshot.LeafKeyValue(i)
+}
+
+// getStartLeaf returns the index of the first leaf in the node.
+//
+// > start leaf = pre leaves
+// >            = pre branches + pre trees
+// >            = total branches - sub branches + pre trees
+// >            = (index + 1) - (size - 1) + preTrees
+// >            = index + 2 - size + preTrees
+func getStartLeaf(index, size, preTrees uint32) uint32 {
+	return index + 2 - size + preTrees
+}
+
+// getEndLeaf returns the index of the last leaf in the node.
+//
+// > end leaf = start leaf + size - 1
+// >          = (index + 2 - size + preTrees) + size - 1
+// >          = index + 1 + preTrees
+func getEndLeaf(index, preTrees uint32) uint32 {
+	return index + preTrees + 1
+}
+
+// getLeftBranch returns the index of the left branch of the node.
+//
+// > left branch = pre branches + left branches - 1
+// >             = (total branches - sub branches) + (left leaves - 1) - 1
+// >             = (total branches - sub branches) + (key leaf - start leaf - 1) - 1
+// >             = (index+1 - (size-1)) + (key leaf - (index + 2 - size + preTrees) - 1) - 1
+// >             = (index - size + 2) + key leaf - index - 2 + size - preTrees - 2
+// >             = key leaf - preTrees - 2
+func getLeftBranch(keyLeaf, preTrees uint32) uint32 {
+	return keyLeaf - preTrees - 2
 }
