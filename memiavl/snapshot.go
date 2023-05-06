@@ -272,8 +272,13 @@ func (snapshot *Snapshot) leavesLen() int {
 	return len(snapshot.leaves) / SizeLeaf
 }
 
-// ScanNodes iterate over the nodes in the snapshot order (depth-first post-order)
+// ScanNodes iterate over the nodes in the snapshot order (depth-first post-order, leaf nodes before branch nodes)
 func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) error {
+	for i := 0; i < snapshot.leavesLen(); i++ {
+		if err := callback(snapshot.Leaf(uint32(i))); err != nil {
+			return err
+		}
+	}
 	for i := 0; i < snapshot.nodesLen(); i++ {
 		if err := callback(snapshot.Node(uint32(i))); err != nil {
 			return err
