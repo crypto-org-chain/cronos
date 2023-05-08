@@ -158,7 +158,7 @@ const (
 
 	// FlagSaveSnapshotDir saves the state snapshot during state-sync restoration,
 	// it's useful is restoration is slow and user can save the snapshot and try local restoration later.
-	FlagSaveSnapshotDir = "store.save-snapshot-dir"
+	FlagSaveSnapshotDir = "state-sync.save-snapshot-dir"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
