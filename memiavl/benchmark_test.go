@@ -153,10 +153,9 @@ func BenchmarkRandomGet(b *testing.B) {
 		sort.Slice(items, func(i, j int) bool {
 			return bytes.Compare(items[i].key, items[j].key) < 0
 		})
-		i := sort.Search(len(items), func(i int) bool { return bytes.Compare(items[i].key, targetKey) != -1 })
-		require.Equal(b, targetValue, items[i].value)
-
 		cmp := func(i int) bool { return bytes.Compare(items[i].key, targetKey) != -1 }
+		i := sort.Search(len(items), cmp)
+		require.Equal(b, targetValue, items[i].value)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
