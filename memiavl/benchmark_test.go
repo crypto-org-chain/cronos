@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math/rand"
+	"sort"
 	"testing"
 
 	iavlcache "github.com/cosmos/iavl/cache"
@@ -144,6 +145,22 @@ func BenchmarkRandomGet(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = m[string(targetKey)]
+		}
+	})
+
+	b.Run("binary-search", func(b *testing.B) {
+		// the last benchmark sort the items in place
+		sort.Slice(items, func(i, j int) bool {
+			return bytes.Compare(items[i].key, items[j].key) < 0
+		})
+		cmp := func(i int) bool { return bytes.Compare(items[i].key, targetKey) != -1 }
+		i := sort.Search(len(items), cmp)
+		require.Equal(b, targetValue, items[i].value)
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			n := sort.Search(len(items), cmp)
+			_ = items[n].value
 		}
 	})
 }

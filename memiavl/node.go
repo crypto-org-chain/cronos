@@ -11,6 +11,7 @@ import (
 // Node interface encapsulate the interface of both PersistedNode and MemNode.
 type Node interface {
 	Height() uint8
+	IsLeaf() bool
 	Size() int64
 	Version() uint32
 	Key() []byte
@@ -27,10 +28,6 @@ type Node interface {
 	GetByIndex(uint32) ([]byte, []byte)
 }
 
-func isLeaf(node Node) bool {
-	return node.Height() == 0
-}
-
 // setRecursive do set operation.
 // it always do modification and return new `MemNode`, even if the value is the same.
 // also returns if it's an update or insertion, if update, the tree height and balance is not changed.
@@ -40,7 +37,7 @@ func setRecursive(node Node, key, value []byte, version, cowVersion uint32) (*Me
 	}
 
 	nodeKey := node.Key()
-	if isLeaf(node) {
+	if node.IsLeaf() {
 		switch bytes.Compare(key, nodeKey) {
 		case -1:
 			return &MemNode{
@@ -98,7 +95,7 @@ func removeRecursive(node Node, key []byte, version, cowVersion uint32) ([]byte,
 		return nil, nil, nil
 	}
 
-	if isLeaf(node) {
+	if node.IsLeaf() {
 		if bytes.Equal(node.Key(), key) {
 			return node.Value(), nil, nil
 		}
@@ -159,7 +156,7 @@ func writeHashBytes(node Node, w io.Writer) error {
 
 	// Key is not written for inner nodes, unlike writeBytes.
 
-	if isLeaf(node) {
+	if node.IsLeaf() {
 		if err := EncodeBytes(w, node.Key()); err != nil {
 			return fmt.Errorf("writing key, %w", err)
 		}
