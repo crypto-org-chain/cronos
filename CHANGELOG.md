@@ -28,12 +28,54 @@
 - [#890](https://github.com/crypto-org-chain/cronos/pull/890) optimize memiavl snapshot format.
 - [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
 - [#924](https://github.com/crypto-org-chain/cronos/pull/924) memiavl support `Export` API.
-- [#934](https://github.com/crypto-org-chain/cronos/pull/934) Add pebbledb backend.
 - [#950](https://github.com/crypto-org-chain/cronos/pull/950) Implement memiavl and integrate with state machine.
 - [#985](https://github.com/crypto-org-chain/cronos/pull/985) Fix versiondb verify command on older versions
 - [#998](https://github.com/crypto-org-chain/cronos/pull/998) Bump grocksdb to v1.7.16 and rocksdb to v7.10.2
 
-*Feb 09, 2022*
+
+*April 13, 2023*
+
+## v1.0.7
+
+### Improvements
+
+- [#936](https://github.com/crypto-org-chain/cronos/pull/936) Reuse recovered sender address to optimize performance ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/cb741e1d819683795aa32e286d31d8155f903cae)).
+- [#949](https://github.com/crypto-org-chain/cronos/pull/949) Release static-linked binaries for linux platform.
+- [#934](https://github.com/crypto-org-chain/cronos/pull/934) Add pebbledb backend.
+
+### Bug Fixes
+
+* [#953](https://github.com/crypto-org-chain/cronos/pull/953) Include third-party bug fixes:
+  - update ethermint to include two bug fixes
+    - https://github.com/crypto-org-chain/ethermint/pull/234
+    - https://github.com/crypto-org-chain/ethermint/pull/233
+  - update cosmos-sdk to include one bug fix
+    - https://github.com/cosmos/cosmos-sdk/pull/15667
+* [#945](https://github.com/crypto-org-chain/cronos/pull/945) Fix no handler exists for proposal type error when update-client due to wrong ibc route.
+
+*Mar 16, 2023*
+
+## v1.0.6
+
+### Bug Fixes
+
+* [#932](https://github.com/crypto-org-chain/cronos/pull/932) Backport multiple json-rpc bug fixes in ethermint ([commits](https://github.com/crypto-org-chain/ethermint/compare/v0.20.8-cronos...v0.20.9-cronos)).
+
+*Mar 6, 2023*
+
+## v1.0.5
+
+### Bug Fixes
+
+- [#908](https://github.com/crypto-org-chain/cronos/pull/908) Forbids negative priority fee.
+
+### Improvements
+
+- [#904](https://github.com/crypto-org-chain/cronos/pull/904) Enable "dynamic-level-bytes" on new `application.db`.
+- [#907](https://github.com/crypto-org-chain/cronos/pull/907) Apply a configurable limit in rpc apis.
+- [#909](https://github.com/crypto-org-chain/cronos/pull/909) Update to cosmos-sdk v0.46.11.
+
+*Feb 15, 2023*
 
 ## v1.0.4
 
