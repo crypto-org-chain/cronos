@@ -26,10 +26,6 @@ func newLeafNode(key, value []byte, version uint32) *MemNode {
 	}
 }
 
-func (node *MemNode) isLeaf() bool {
-	return node.height == 0
-}
-
 func (node *MemNode) Height() uint8 {
 	return node.height
 }
@@ -161,7 +157,7 @@ func (node *MemNode) reBalance(version, cowVersion uint32) *MemNode {
 }
 
 func (node *MemNode) Get(key []byte) ([]byte, uint32) {
-	if node.isLeaf() {
+	if node.IsLeaf() {
 		switch bytes.Compare(node.key, key) {
 		case -1:
 			return nil, 1
@@ -181,7 +177,7 @@ func (node *MemNode) Get(key []byte) ([]byte, uint32) {
 }
 
 func (node *MemNode) GetByIndex(index uint32) ([]byte, []byte) {
-	if node.isLeaf() {
+	if node.IsLeaf() {
 		if index == 0 {
 			return node.key, node.value
 		}
