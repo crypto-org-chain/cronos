@@ -175,7 +175,6 @@ func testSnapshotRoundTrip(t *testing.T, db *DB) {
 	// the imported db function normally
 	_, _, err = db2.Commit(nil)
 	require.NoError(t, err)
-
 }
 
 type protoReader struct {
