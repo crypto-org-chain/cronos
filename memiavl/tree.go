@@ -189,6 +189,55 @@ func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
 	return NewIterator(start, end, ascending, t.root, t.zeroCopy)
 }
 
+// ScanPostOrder scans the tree in post-order, and call the callback function on each node.
+// If the callback function returns false, the scan will be stopped.
+func (t *Tree) ScanPostOrder(callback func(node Node) bool) {
+	if t.root == nil {
+		return
+	}
+
+	stack := []*stackEntry{{node: t.root}}
+
+	for len(stack) > 0 {
+		entry := stack[len(stack)-1]
+
+		if entry.node.IsLeaf() || entry.expanded {
+			callback(entry.node)
+			stack = stack[:len(stack)-1]
+			continue
+		}
+
+		entry.expanded = true
+		stack = append(stack, &stackEntry{node: entry.node.Right()})
+		stack = append(stack, &stackEntry{node: entry.node.Left()})
+	}
+}
+
+type stackEntry struct {
+	node     Node
+	expanded bool
+}
+
+// Export returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
+func (t *Tree) Export() *Exporter {
+	if t.snapshot != nil && t.version == t.snapshot.Version() {
+		// snapshot export algorithm is more efficient
+		return t.snapshot.Export()
+	}
+
+	// do normal post-order traversal export
+	return newExporter(func(callback func(node *iavl.ExportNode) bool) {
+		t.ScanPostOrder(func(node Node) bool {
+			return callback(&iavl.ExportNode{
+				Key:     node.Key(),
+				Value:   node.Value(),
+				Version: int64(node.Version()),
+				Height:  int8(node.Height()),
+			})
+		})
+	})
+}
+
 func (t *Tree) Close() error {
 	var err error
 	if t.snapshot != nil {

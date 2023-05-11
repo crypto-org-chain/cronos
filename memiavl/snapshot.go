@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cosmos/iavl"
 	"github.com/ledgerwatch/erigon-lib/etl"
 	"github.com/ledgerwatch/erigon-lib/recsplit"
 )
@@ -333,9 +334,60 @@ func (snapshot *Snapshot) LeafKeyValue(index uint32) ([]byte, []byte) {
 	return key, snapshot.kvs[offset : offset+length]
 }
 
-// Export exports the nodes in DFS post-order, resemble the API of existing iavl library
+// Export exports the nodes from snapshot file sequentially, more efficient than a post-order traversal.
 func (snapshot *Snapshot) Export() *Exporter {
-	return newExporter(snapshot)
+	return newExporter(snapshot.export)
+}
+
+func (snapshot *Snapshot) export(callback func(*iavl.ExportNode) bool) {
+	if snapshot.leavesLen() == 0 {
+		return
+	}
+
+	if snapshot.leavesLen() == 1 {
+		leaf := snapshot.Leaf(0)
+		callback(&iavl.ExportNode{
+			Height:  0,
+			Version: int64(leaf.Version()),
+			Key:     leaf.Key(),
+			Value:   leaf.Value(),
+		})
+		return
+	}
+
+	var pendingTrees int
+	var i, j uint32
+	for ; i < uint32(snapshot.nodesLen()); i++ {
+		// pending branch node
+		node := snapshot.nodesLayout.Node(i)
+		for pendingTrees < int(node.PreTrees())+2 {
+			// add more leaf nodes
+			leaf := snapshot.leavesLayout.Leaf(j)
+			key, value := snapshot.KeyValue(leaf.KeyOffset())
+			enode := &iavl.ExportNode{
+				Height:  0,
+				Version: int64(leaf.Version()),
+				Key:     key,
+				Value:   value,
+			}
+			j++
+			pendingTrees++
+
+			if callback(enode) {
+				return
+			}
+		}
+		enode := &iavl.ExportNode{
+			Height:  int8(node.Height()),
+			Version: int64(node.Version()),
+			Key:     snapshot.LeafKey(node.KeyLeaf()),
+		}
+		pendingTrees--
+
+		if callback(enode) {
+			return
+		}
+	}
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.

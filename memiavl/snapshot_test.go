@@ -146,12 +146,17 @@ func TestDBSnapshotRestore(t *testing.T) {
 		}
 		_, _, err := db.Commit(cs)
 		require.NoError(t, err)
+
+		testSnapshotRoundTrip(t, db)
 	}
 
 	require.NoError(t, db.RewriteSnapshot())
 	require.NoError(t, db.Reload())
 	require.Equal(t, len(ChangeSets), int(db.metadata.CommitInfo.Version))
+	testSnapshotRoundTrip(t, db)
+}
 
+func testSnapshotRoundTrip(t *testing.T, db *DB) {
 	reader, writer := makeProtoIOPair()
 	go func() {
 		defer writer.Close()
@@ -159,7 +164,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 	}()
 
 	restoreDir := t.TempDir()
-	_, err = Import(restoreDir, uint64(db.Version()), 0, reader)
+	_, err := Import(restoreDir, uint64(db.Version()), 0, reader)
 	require.NoError(t, err)
 
 	db2, err := Load(restoreDir, Options{})
@@ -170,6 +175,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 	// the imported db function normally
 	_, _, err = db2.Commit(nil)
 	require.NoError(t, err)
+
 }
 
 type protoReader struct {

@@ -174,8 +174,6 @@ func (rs *Store) LatestVersion() int64 {
 }
 
 // Implements interface Snapshotter
-//
-// Make sure the height is a valid snapshot height
 func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 	return rs.db.Snapshot(height, protoWriter)
 }
