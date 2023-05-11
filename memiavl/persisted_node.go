@@ -91,10 +91,10 @@ func (node PersistedNode) Key() []byte {
 	return node.snapshot.LeafKey(index)
 }
 
-// Value result is not defined for non-leaf node.
+// Value returns nil for non-leaf node.
 func (node PersistedNode) Value() []byte {
 	if !node.isLeaf {
-		panic("can't call Value on branch node")
+		return nil
 	}
 	_, value := node.snapshot.LeafKeyValue(node.index)
 	return value
