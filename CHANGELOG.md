@@ -32,7 +32,7 @@
 - [#985](https://github.com/crypto-org-chain/cronos/pull/985) Fix versiondb verify command on older versions
 - [#998](https://github.com/crypto-org-chain/cronos/pull/998) Bump grocksdb to v1.7.16 and rocksdb to v7.10.2
 - [#1028](https://github.com/crypto-org-chain/cronos/pull/1028) Add memiavl configs into app.toml
-- [#]() Integrate local state-sync commands.
+- [#1027](https://github.com/crypto-org-chain/cronos/pull/1027) Integrate local state-sync commands.
 
 *April 13, 2023*
 
