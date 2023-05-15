@@ -1,12 +1,11 @@
-{ poetry2nix, python39, lib }:
+{ poetry2nix, python310, lib }:
 poetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
-  python = python39;
+  python = python310;
   overrides = poetry2nix.overrides.withDefaults (lib.composeManyExtensions [
     (self: super:
       let
         buildSystems = {
-          eth-bloom = [ "setuptools" ];
           cprotobuf = [ "setuptools" ];
           durations = [ "setuptools" ];
           multitail2 = [ "setuptools" ];
@@ -23,11 +22,6 @@ poetry2nix.mkPoetryEnv {
         buildSystems
     )
     (self: super: {
-      eth-bloom = super.eth-bloom.overridePythonAttrs {
-        preConfigure = ''
-          substituteInPlace setup.py --replace \'setuptools-markdown\' ""
-        '';
-      };
       pyyaml-include = super.pyyaml-include.overridePythonAttrs {
         preConfigure = ''
           substituteInPlace setup.py --replace "setup()" "setup(version=\"1.3\")"

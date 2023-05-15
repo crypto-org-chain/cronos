@@ -13,22 +13,19 @@ black = "^22.3.0"
 flake8-black = "^0.3.2"
 flake8-isort = "^4.1.1"
 pep8-naming = "^0.11.1"
-protobuf = "^3.13.0"
 grpcio = "^1.33.2"
 PyYAML = "^5.3.1"
 python-dateutil = "^2.8.1"
-web3 = "^5.20.1"
-eth-bloom = "^1.0.4"
+web3 = "^6.4.0"
 python-dotenv = "^0.19.2"
-pystarport = "^0.2.5"
-websockets = "^9.1"
+pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 toml = "^0.10.2"
 pysha3 = "^1.0.2"
 jsonnet = "^0.18.0"
-eth-account = { git = "https://github.com/mmsqe/eth-account.git", branch = "v0.5.8-rc0" }
 cprotobuf = "^0.1.11"
 pathspec = "^0.10.1"
 flaky = "^3.7.0"
+protobuf = "^4.23.1"
 
 [tool.poetry.dev-dependencies]
 
