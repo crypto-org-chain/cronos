@@ -23,7 +23,7 @@ func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOpt
 		// cms must be overridden before the other options, because they may use the cms,
 		// make sure the cms aren't be overridden by the other options later on.
 		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
-		cms.SetAsyncWAL(cast.ToBool(appOpts.Get(FlagAsyncCommit)))
+		cms.SetAsyncCommit(cast.ToBool(appOpts.Get(FlagAsyncCommit)))
 		cms.SetZeroCopy(cast.ToBool(appOpts.Get(FlagZeroCopy)))
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}

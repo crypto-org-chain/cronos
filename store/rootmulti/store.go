@@ -50,8 +50,8 @@ type Store struct {
 
 	interBlockCache types.MultiStorePersistentCache
 
-	asyncWAL bool
-	zeroCopy bool
+	asyncCommit bool
+	zeroCopy    bool
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -269,7 +269,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 		CreateIfMissing: true,
 		InitialStores:   initialStores,
 		TargetVersion:   uint32(version),
-		AsyncWAL:        rs.asyncWAL,
+		AsyncCommit:     rs.asyncCommit,
 		ZeroCopy:        rs.zeroCopy,
 	})
 	if err != nil {
@@ -384,8 +384,8 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
-func (rs *Store) SetAsyncWAL(async bool) {
-	rs.asyncWAL = async
+func (rs *Store) SetAsyncCommit(async bool) {
+	rs.asyncCommit = async
 }
 
 func (rs *Store) SetZeroCopy(zeroCopy bool) {

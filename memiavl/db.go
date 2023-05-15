@@ -64,7 +64,7 @@ type Options struct {
 	// load the target version instead of latest version
 	TargetVersion uint32
 	// Write WAL asynchronously, it's ok in blockchain case because we can always replay the raw blocks.
-	AsyncWAL bool
+	AsyncCommit bool
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
 }
@@ -101,7 +101,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		walChan chan *walEntry
 		walQuit chan error
 	)
-	if opts.AsyncWAL {
+	if opts.AsyncCommit {
 		walChan = make(chan *walEntry, 100)
 		walQuit = make(chan error)
 		go func() {
