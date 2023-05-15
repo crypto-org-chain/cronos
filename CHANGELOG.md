@@ -31,6 +31,7 @@
 - [#950](https://github.com/crypto-org-chain/cronos/pull/950) Implement memiavl and integrate with state machine.
 - [#985](https://github.com/crypto-org-chain/cronos/pull/985) Fix versiondb verify command on older versions
 - [#998](https://github.com/crypto-org-chain/cronos/pull/998) Bump grocksdb to v1.7.16 and rocksdb to v7.10.2
+- [#]() Add memiavl configs into app.toml
 
 
 *April 13, 2023*

@@ -39,6 +39,7 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/v2/app"
+	cronoscfg "github.com/crypto-org-chain/cronos/v2/app/config"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	// this line is used by starport scaffolding # stargate/root/import
@@ -210,7 +211,11 @@ func txCommand() *cobra.Command {
 // initAppConfig helps to override default appConfig template and configs.
 // return "", nil if no custom configuration is required for the application.
 func initAppConfig() (string, interface{}) {
-	return servercfg.AppConfig(ethermint.AttoPhoton)
+	tpl, cfg := servercfg.AppConfig(ethermint.AttoPhoton)
+	return tpl + cronoscfg.DefaultConfigTemplate, cronoscfg.Config{
+		Config:  cfg.(servercfg.Config),
+		MemIAVL: cronoscfg.DefaultMemIAVLConfig(),
+	}
 }
 
 type appCreator struct {
