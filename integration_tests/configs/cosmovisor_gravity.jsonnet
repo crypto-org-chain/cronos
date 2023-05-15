@@ -5,6 +5,7 @@ config {
     'app-config'+: {
       'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '100000000000basetcro',
+      memiavl:: super.memiavl,
       store:: super.store,
       streamers:: super.streamers,
       'iavl-lazy-loading':: super['iavl-lazy-loading'],
