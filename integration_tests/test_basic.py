@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
+import tomlkit
 import web3
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
@@ -263,7 +264,8 @@ def test_local_statesync(cronos):
     cli0 = cronos.cosmos_cli(0)
     wait_for_block(cli0, 6)
 
-    height = cli0.block_height()
+    sync_info = cli0.status()["SyncInfo"]
+    height = int(sync_info["latest_block_height"])
     cronos.supervisorctl("stop", "cronos_777-1-node0")
     # print(cli0.list_snapshot())
     tarball = cli0.data_dir / "snapshot.tar.gz"
@@ -272,8 +274,11 @@ def test_local_statesync(cronos):
     cronos.supervisorctl("start", "cronos_777-1-node0")
 
     with tempfile.TemporaryDirectory() as home:
+        print("home", home)
+
         i = len(cronos.config["validators"])
-        node_rpc = "tcp://127.0.0.1:%d" % ports.rpc_port(26650 + i * 10)
+        base_port = 26650 + i * 10
+        node_rpc = "tcp://127.0.0.1:%d" % ports.rpc_port(base_port)
         cli = CosmosCLI.init(
             "local_statesync",
             Path(home),
@@ -281,12 +286,48 @@ def test_local_statesync(cronos):
             cronos.chain_binary,
             "cronos_777-1",
         )
+
+        # init the configs
+        peers = ",".join(
+            [
+                "tcp://%s@%s:%d"
+                % (
+                    cronos.cosmos_cli(i).node_id(),
+                    val["hostname"],
+                    ports.p2p_port(val["base_port"]),
+                )
+                for i, val in enumerate(cronos.config["validators"])
+            ]
+        )
+        rpc_servers = ",".join(cronos.node_rpc(i) for i in range(2))
+        trust_height = int(sync_info["latest_block_height"])
+        trust_hash = sync_info["latest_block_hash"]
+
+        cluster.edit_tm_cfg(
+            Path(home) / "config/config.toml",
+            base_port,
+            peers,
+            {
+                "statesync": {
+                    "rpc_servers": rpc_servers,
+                    "trust_height": trust_height,
+                    "trust_hash": trust_hash,
+                },
+            },
+        )
+
+        # restore the states
         cli.load_snapshot(tarball)
         print(cli.list_snapshot())
         cli.restore_snapshot(height)
-        cli.bootstrap_state(height)
+        cli.bootstrap_state()
 
-        with subprocess.Popen([cronos.chain_binary, "start", "--home", home]):
+        with subprocess.Popen(
+            [cronos.chain_binary, "start", "--home", home],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ):
+            wait_for_port(ports.rpc_port(base_port))
             # check the node sync normally
             wait_for_new_blocks(cli, 2)
 

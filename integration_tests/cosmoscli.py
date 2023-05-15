@@ -1618,33 +1618,48 @@ class CosmosCLI:
 
     def dump_snapshot(self, height, tarball, format=2):
         return self.raw(
-            "snapshots", "dump",height, format, home=self.data_dir, output=tarball
+            "snapshots", "dump", height, format, home=self.data_dir, output=tarball
         ).decode()
 
     def load_snapshot(self, tarball):
         return self.raw(
-            "snapshots", "load", tarball, home=self.data_dir,
+            "snapshots",
+            "load",
+            tarball,
+            home=self.data_dir,
         ).decode()
 
     def list_snapshot(self):
         return self.raw(
-            "snapshots", "list", home=self.data_dir,
+            "snapshots",
+            "list",
+            home=self.data_dir,
         ).decode()
 
     def export_snapshot(self, height, format=2):
         return self.raw(
-            "snapshots", "export", height=height, home=self.data_dir,
+            "snapshots",
+            "export",
+            height=height,
+            home=self.data_dir,
         ).decode()
 
     def restore_snapshot(self, height, format=2):
         return self.raw(
-            "snapshots", "restore", height, format, home=self.data_dir,
+            "snapshots",
+            "restore",
+            height,
+            format,
+            home=self.data_dir,
         ).decode()
 
-    def bootstrap_state(self, height):
-        '''
+    def bootstrap_state(self, height=None):
+        """
         bootstrap cometbft state for local state sync
-        '''
+        """
         return self.raw(
-            'tendermint', 'bootstrap-state', height, home=self.data_dir,
+            "tendermint",
+            "bootstrap-state",
+            height=height,
+            home=self.data_dir,
         )
