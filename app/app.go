@@ -125,7 +125,6 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
-	"github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -150,11 +149,6 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
-
-	FlagMemIAVL  = "store.memiavl"
-	FlagAsyncWAL = "store.memiavl-async-wal"
-	// don't enable zero-copy together with inter-block cache.
-	FlagZeroCopy = "store.memiavl-zero-copy"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -349,15 +343,7 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		// cms must be overridden before the other options, because they may use the cms,
-		// FIXME we are assuming the cms won't be overridden by the other options, but we can't be sure.
-		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
-		cms.SetAsyncWAL(cast.ToBool(appOpts.Get(FlagAsyncWAL)))
-		cms.SetZeroCopy(cast.ToBool(appOpts.Get(FlagZeroCopy)))
-		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
-	}
-
+	baseAppOptions = SetupMemIAVL(logger, homePath, appOpts, baseAppOptions)
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
