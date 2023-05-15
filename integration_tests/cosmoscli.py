@@ -1636,7 +1636,7 @@ class CosmosCLI:
             home=self.data_dir,
         ).decode()
 
-    def export_snapshot(self, height, format=2):
+    def export_snapshot(self, height):
         return self.raw(
             "snapshots",
             "export",
