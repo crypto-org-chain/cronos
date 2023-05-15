@@ -471,10 +471,6 @@ func snapshotName(version uint32) string {
 	return fmt.Sprintf("%s%d", SnapshotPrefix, version)
 }
 
-func snapshotPath(root string, version uint32) string {
-	return filepath.Join(root, snapshotName(version))
-}
-
 func currentPath(root string) string {
 	return filepath.Join(root, "current")
 }

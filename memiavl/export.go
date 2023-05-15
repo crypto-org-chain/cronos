@@ -21,7 +21,10 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		return fmt.Errorf("height overflows uint32: %d", height)
 	}
 
-	mtree, err := LoadMultiTree(snapshotPath(db.dir, uint32(height)), true)
+	mtree, err := Load(db.dir, Options{
+		TargetVersion: uint32(height),
+		ZeroCopy:      true,
+	})
 	if err != nil {
 		return errors.Wrapf(err, "invalid snapshot height: %d", height)
 	}
@@ -37,7 +40,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 			return err
 		}
 
-		exporter := tree.tree.snapshot.Export()
+		exporter := tree.tree.Export()
 		for {
 			node, err := exporter.Next()
 			if err == iavl.ExportDone {
@@ -63,78 +66,28 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 	return nil
 }
 
+type exportWorker func(callback func(*iavl.ExportNode) bool)
+
 type Exporter struct {
-	snapshot *Snapshot
-	ch       chan *iavl.ExportNode
-	cancel   context.CancelFunc
+	ch     <-chan *iavl.ExportNode
+	cancel context.CancelFunc
 }
 
-func newExporter(snapshot *Snapshot) *Exporter {
+func newExporter(worker exportWorker) *Exporter {
 	ctx, cancel := context.WithCancel(context.Background())
-	exporter := &Exporter{
-		snapshot: snapshot,
-		ch:       make(chan *iavl.ExportNode, exportBufferSize),
-		cancel:   cancel,
-	}
-	go exporter.export(ctx)
-	return exporter
-}
-
-func (e *Exporter) export(ctx context.Context) {
-	defer close(e.ch)
-
-	if e.snapshot.leavesLen() == 0 {
-		return
-	}
-
-	if e.snapshot.leavesLen() == 1 {
-		leaf := e.snapshot.Leaf(0)
-		e.ch <- &iavl.ExportNode{
-			Height:  0,
-			Version: int64(leaf.Version()),
-			Key:     leaf.Key(),
-			Value:   leaf.Value(),
-		}
-		return
-	}
-
-	var pendingTrees int
-	var i, j uint32
-	for ; i < uint32(e.snapshot.nodesLen()); i++ {
-		// pending branch node
-		node := e.snapshot.nodesLayout.Node(i)
-		for pendingTrees < int(node.PreTrees())+2 {
-			// add more leaf nodes
-			leaf := e.snapshot.leavesLayout.Leaf(j)
-			key, value := e.snapshot.KeyValue(leaf.KeyOffset())
-			enode := &iavl.ExportNode{
-				Height:  0,
-				Version: int64(leaf.Version()),
-				Key:     key,
-				Value:   value,
-			}
-			j++
-			pendingTrees++
-
+	ch := make(chan *iavl.ExportNode, exportBufferSize)
+	go func() {
+		defer close(ch)
+		worker(func(enode *iavl.ExportNode) bool {
 			select {
-			case e.ch <- enode:
+			case ch <- enode:
 			case <-ctx.Done():
-				return
+				return true
 			}
-		}
-		enode := &iavl.ExportNode{
-			Height:  int8(node.Height()),
-			Version: int64(node.Version()),
-			Key:     e.snapshot.LeafKey(node.KeyLeaf()),
-		}
-		pendingTrees--
-
-		select {
-		case e.ch <- enode:
-		case <-ctx.Done():
-			return
-		}
-	}
+			return false
+		})
+	}()
+	return &Exporter{ch, cancel}
 }
 
 func (e *Exporter) Next() (*iavl.ExportNode, error) {
@@ -149,5 +102,4 @@ func (e *Exporter) Close() {
 	e.cancel()
 	for range e.ch { // drain channel
 	}
-	e.snapshot = nil
 }
