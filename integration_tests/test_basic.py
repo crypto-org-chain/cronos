@@ -6,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
-import tomlkit
 import web3
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
