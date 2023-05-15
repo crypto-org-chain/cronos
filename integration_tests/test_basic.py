@@ -1,4 +1,7 @@
 import json
+import shutil
+import subprocess
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -10,6 +13,7 @@ from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
 
+from .cosmoscli import CosmosCLI
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -26,6 +30,7 @@ from .utils import (
     send_transaction,
     send_txs,
     wait_for_block,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -242,6 +247,49 @@ def test_statesync(cronos):
     )
 
     print("succesfully syncing")
+    clustercli.supervisor.stopProcess(f"{clustercli.chain_id}-node{i}")
+
+
+def test_local_statesync(cronos):
+    """
+    - init a new node
+    - dump snapshot on node0
+    - load snapshot to the new node
+    - restore the new node state from the snapshot
+    - bootstrap cometbft state
+    - startup the node, should sync
+    - cleanup
+    """
+    # wait for the network to grow a little bit
+    cli0 = cronos.cosmos_cli(0)
+    wait_for_block(cli0, 6)
+
+    height = cli0.block_height()
+    cronos.supervisorctl("stop", "cronos_777-1-node0")
+    # print(cli0.list_snapshot())
+    tarball = cli0.data_dir / "snapshot.tar.gz"
+    cli0.export_snapshot(height)
+    cli0.dump_snapshot(height, tarball)
+    cronos.supervisorctl("start", "cronos_777-1-node0")
+
+    with tempfile.TemporaryDirectory() as home:
+        i = len(cronos.config["validators"])
+        node_rpc = "tcp://127.0.0.1:%d" % ports.rpc_port(26650 + i * 10)
+        cli = CosmosCLI.init(
+            "local_statesync",
+            Path(home),
+            node_rpc,
+            cronos.chain_binary,
+            "cronos_777-1",
+        )
+        cli.load_snapshot(tarball)
+        print(cli.list_snapshot())
+        cli.restore_snapshot(height)
+        cli.bootstrap_state(height)
+
+        with subprocess.Popen([cronos.chain_binary, "start", "--home", home]):
+            # check the node sync normally
+            wait_for_new_blocks(cli, 2)
 
 
 def test_transaction(cronos):

@@ -431,6 +431,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6 h1:d4h4Ki1UE/LF6CKwYEm3OZ+HIBCrzSmOokG1vce0O98=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6/go.mod h1:hF5aclS++7WrW8USOA3zPeKI0CuzwUD2TPYug25ANlQ=
+github.com/crypto-org-chain/ethermint v0.20.10-cronos.0.20230515032938-bad31ab4475d h1:D+Vp0WQRr8m/sX92yP9rlL2wqS5SM7EA9YCwHUVUjKo=
+github.com/crypto-org-chain/ethermint v0.20.10-cronos.0.20230515032938-bad31ab4475d/go.mod h1:pPVvp6XdrEgrA/oMthw9x8l/5OXZK0EuWFyw8qOwgto=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
@@ -1291,8 +1293,6 @@ github.com/xlab/treeprint v0.0.0-20180616005107-d6fb6747feb6/go.mod h1:ce1O1j6Ut
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0/go.mod h1:/LWChgwKmvncFJFHJ7Gvn9wZArjbV5/FppcK2fKk/tI=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
-github.com/yihuang/ethermint v0.20.2-cronos.0.20230515023152-dcaabeaf9bcc h1:YZdY1ieEOU3kZ0B/A1D9kfBg8FiwTt2XeKNjZosWf24=
-github.com/yihuang/ethermint v0.20.2-cronos.0.20230515023152-dcaabeaf9bcc/go.mod h1:pPVvp6XdrEgrA/oMthw9x8l/5OXZK0EuWFyw8qOwgto=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=

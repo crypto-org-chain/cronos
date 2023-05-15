@@ -25,6 +25,8 @@ from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 from web3.datastructures import AttributeDict
 
+from .cosmoscli import CosmosCLI
+
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
 ACCOUNTS = {

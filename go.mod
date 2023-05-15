@@ -228,7 +228,7 @@ replace (
 	github.com/crypto-org-chain/cronos/store => ./store
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
-	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.20.2-cronos.0.20230515023152-dcaabeaf9bcc
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.10-cronos.0.20230515032938-bad31ab4475d
 	// Fix upstream GHSA-h395-qcrw-5vmq vulnerability.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.7.0
