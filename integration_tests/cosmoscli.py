@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+from collections import namedtuple
 
 import bech32
 from dateutil.parser import isoparse
@@ -112,14 +113,16 @@ class CosmosCLI:
     def migrate_keystore(self):
         return self.raw("keys", "migrate", home=self.data_dir)
 
-    def init(self, moniker):
+    @classmethod
+    def init(cls, moniker, data_dir, node_rpc, cmd, chain_id):
         "the node's config is already added"
-        return self.raw(
+        ChainCommand(cmd)(
             "init",
             moniker,
-            chain_id=self.chain_id,
-            home=self.data_dir,
+            chain_id=chain_id,
+            home=data_dir,
         )
+        return cls(data_dir, node_rpc, cmd)
 
     def validate_genesis(self):
         return self.raw("validate-genesis", home=self.data_dir)
@@ -1613,3 +1616,62 @@ class CosmosCLI:
             "--move-files",
             **kwargs,
         ).decode()
+
+    def dump_snapshot(self, height, tarball, format=2):
+        return self.raw(
+            "snapshots", "dump", height, format, home=self.data_dir, output=tarball
+        ).decode()
+
+    def load_snapshot(self, tarball):
+        return self.raw(
+            "snapshots",
+            "load",
+            tarball,
+            home=self.data_dir,
+        ).decode()
+
+    def list_snapshot(self):
+        rsp = self.raw(
+            "snapshots",
+            "list",
+            home=self.data_dir,
+        ).decode()
+
+        SnapshotItem = namedtuple("SnapshotItem", ["height", "format", "chunks"])
+
+        lines = rsp.strip().split("\n")
+        items = []
+        for line in lines:
+            if not line:
+                continue
+            parts = line.split()
+            items.append(SnapshotItem(int(parts[1]), int(parts[3]), int(parts[5])))
+        return items
+
+    def export_snapshot(self, height):
+        return self.raw(
+            "snapshots",
+            "export",
+            height=height,
+            home=self.data_dir,
+        ).decode()
+
+    def restore_snapshot(self, height, format=2):
+        return self.raw(
+            "snapshots",
+            "restore",
+            height,
+            format,
+            home=self.data_dir,
+        ).decode()
+
+    def bootstrap_state(self, height=None):
+        """
+        bootstrap cometbft state for local state sync
+        """
+        return self.raw(
+            "tendermint",
+            "bootstrap-state",
+            height=height,
+            home=self.data_dir,
+        )

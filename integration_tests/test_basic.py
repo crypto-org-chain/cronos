@@ -1,4 +1,6 @@
 import json
+import subprocess
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -10,6 +12,7 @@ from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
 
+from .cosmoscli import CosmosCLI
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -26,6 +29,7 @@ from .utils import (
     send_transaction,
     send_txs,
     wait_for_block,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -242,6 +246,92 @@ def test_statesync(cronos):
     )
 
     print("succesfully syncing")
+    clustercli.supervisor.stopProcess(f"{clustercli.chain_id}-node{i}")
+
+
+def test_local_statesync(cronos):
+    """
+    - init a new node
+    - dump snapshot on node0
+    - load snapshot to the new node
+    - restore the new node state from the snapshot
+    - bootstrap cometbft state
+    - startup the node, should sync
+    - cleanup
+    """
+    # wait for the network to grow a little bit
+    cli0 = cronos.cosmos_cli(0)
+    wait_for_block(cli0, 6)
+
+    sync_info = cli0.status()["SyncInfo"]
+    height = int(sync_info["latest_block_height"])
+    cronos.supervisorctl("stop", "cronos_777-1-node0")
+    tarball = cli0.data_dir / "snapshot.tar.gz"
+
+    if height not in set(item.height for item in cli0.list_snapshot()):
+        cli0.export_snapshot(height)
+
+    cli0.dump_snapshot(height, tarball)
+    cronos.supervisorctl("start", "cronos_777-1-node0")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+
+    with tempfile.TemporaryDirectory() as home:
+        print("home", home)
+
+        i = len(cronos.config["validators"])
+        base_port = 26650 + i * 10
+        node_rpc = "tcp://127.0.0.1:%d" % ports.rpc_port(base_port)
+        cli = CosmosCLI.init(
+            "local_statesync",
+            Path(home),
+            node_rpc,
+            cronos.chain_binary,
+            "cronos_777-1",
+        )
+
+        # init the configs
+        peers = ",".join(
+            [
+                "tcp://%s@%s:%d"
+                % (
+                    cronos.cosmos_cli(i).node_id(),
+                    val["hostname"],
+                    ports.p2p_port(val["base_port"]),
+                )
+                for i, val in enumerate(cronos.config["validators"])
+            ]
+        )
+        rpc_servers = ",".join(cronos.node_rpc(i) for i in range(2))
+        trust_height = int(sync_info["latest_block_height"])
+        trust_hash = sync_info["latest_block_hash"]
+
+        cluster.edit_tm_cfg(
+            Path(home) / "config/config.toml",
+            base_port,
+            peers,
+            {
+                "statesync": {
+                    "rpc_servers": rpc_servers,
+                    "trust_height": trust_height,
+                    "trust_hash": trust_hash,
+                },
+            },
+        )
+
+        # restore the states
+        cli.load_snapshot(tarball)
+        print(cli.list_snapshot())
+        cli.restore_snapshot(height)
+        cli.bootstrap_state()
+
+        with subprocess.Popen(
+            [cronos.chain_binary, "start", "--home", home],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ):
+            wait_for_port(ports.rpc_port(base_port))
+            # check the node sync normally
+            wait_for_new_blocks(cli, 2)
 
 
 def test_transaction(cronos):
