@@ -273,6 +273,7 @@ def test_local_statesync(cronos):
 
     cli0.dump_snapshot(height, tarball)
     cronos.supervisorctl("start", "cronos_777-1-node0")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     with tempfile.TemporaryDirectory() as home:
         print("home", home)
