@@ -1,11 +1,11 @@
 import binascii
-from collections import namedtuple
 import enum
 import hashlib
 import json
 import os
 import subprocess
 import tempfile
+from collections import namedtuple
 
 import bech32
 from dateutil.parser import isoparse
@@ -1639,7 +1639,7 @@ class CosmosCLI:
 
         SnapshotItem = namedtuple("SnapshotItem", ["height", "format", "chunks"])
 
-        lines = rsp.strip().split('\n')
+        lines = rsp.strip().split("\n")
         items = []
         for line in lines:
             if not line:
