@@ -266,9 +266,11 @@ def test_local_statesync(cronos):
     sync_info = cli0.status()["SyncInfo"]
     height = int(sync_info["latest_block_height"])
     cronos.supervisorctl("stop", "cronos_777-1-node0")
-    # print(cli0.list_snapshot())
     tarball = cli0.data_dir / "snapshot.tar.gz"
-    cli0.export_snapshot(height)
+
+    if height not in set(item.height for item in cli0.list_snapshot()):
+        cli0.export_snapshot(height)
+
     cli0.dump_snapshot(height, tarball)
     cronos.supervisorctl("start", "cronos_777-1-node0")
 

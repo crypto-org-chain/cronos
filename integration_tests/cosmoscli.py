@@ -1,4 +1,5 @@
 import binascii
+from collections import namedtuple
 import enum
 import hashlib
 import json
@@ -1630,11 +1631,20 @@ class CosmosCLI:
         ).decode()
 
     def list_snapshot(self):
-        return self.raw(
+        rsp = self.raw(
             "snapshots",
             "list",
             home=self.data_dir,
         ).decode()
+
+        SnapshotItem = namedtuple("SnapshotItem", ["height", "format", "chunks"])
+
+        lines = rsp.split('\n')
+        items = []
+        for line in lines:
+            parts = line.split()
+            items.append(SnapshotItem(int(parts[1]), int(parts[3]), int(parts[5])))
+        return items
 
     def export_snapshot(self, height):
         return self.raw(
