@@ -38,9 +38,10 @@ type DB struct {
 	pruneSnapshotLock   sync.Mutex
 
 	// invariant: the LastIndex always match the current version of MultiTree
-	wal     *wal.Log
-	walChan chan *walEntry
-	walQuit chan error
+	wal         *wal.Log
+	walChanSize int
+	walChan     chan *walEntry
+	walQuit     chan error
 
 	// pending store upgrades, will be written into WAL in next Commit call
 	pendingUpgrades []*TreeNameUpgrade
@@ -63,8 +64,8 @@ type Options struct {
 	SnapshotKeepRecent uint32
 	// load the target version instead of latest version
 	TargetVersion uint32
-	// Write WAL asynchronously, it's ok in blockchain case because we can always replay the raw blocks.
-	AsyncCommit bool
+	// Buffer size for the asynchronous commit queue, -1 means synchronous commit
+	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
 }
@@ -97,36 +98,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
-	var (
-		walChan chan *walEntry
-		walQuit chan error
-	)
-	if opts.AsyncCommit {
-		walChan = make(chan *walEntry, 100)
-		walQuit = make(chan error)
-		go func() {
-			defer close(walQuit)
-
-			for entry := range walChan {
-				bz, err := entry.data.Marshal()
-				if err != nil {
-					walQuit <- err
-					return
-				}
-				if err := wal.Write(entry.index, bz); err != nil {
-					walQuit <- err
-					return
-				}
-			}
-		}()
-	}
-
 	db := &DB{
 		MultiTree:          *mtree,
 		dir:                dir,
 		wal:                wal,
-		walChan:            walChan,
-		walQuit:            walQuit,
+		walChanSize:        opts.AsyncCommitBuffer,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
 	}
 
@@ -179,13 +155,13 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 // checkAsyncTasks checks the status of background tasks non-blocking-ly and process the result
 func (db *DB) checkAsyncTasks() error {
 	return errors.Join(
-		db.checkAsyncWAL(),
+		db.checkAsyncCommit(),
 		db.checkBackgroundSnapshotRewrite(),
 	)
 }
 
-// checkAsyncWAL check the quit signal of async wal writing
-func (db *DB) checkAsyncWAL() error {
+// checkAsyncCommit check the quit signal of async wal writing
+func (db *DB) checkAsyncCommit() error {
 	select {
 	case err := <-db.walQuit:
 		// async wal writing failed, we need to abort the state machine
@@ -269,7 +245,11 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 			Changesets: changeSets,
 			Upgrades:   db.pendingUpgrades,
 		}}
-		if db.walChan != nil {
+		if db.walChanSize >= 0 {
+			if db.walChan == nil {
+				db.initAsyncCommit()
+			}
+
 			// async wal writing
 			db.walChan <- &entry
 		} else {
@@ -286,6 +266,47 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	db.pendingUpgrades = db.pendingUpgrades[:0]
 
 	return hash, v, nil
+}
+
+func (db *DB) initAsyncCommit() {
+	walChan := make(chan *walEntry, db.walChanSize)
+	walQuit := make(chan error)
+
+	go func() {
+		defer close(walQuit)
+
+		for entry := range walChan {
+			bz, err := entry.data.Marshal()
+			if err != nil {
+				walQuit <- err
+				return
+			}
+			if err := db.wal.Write(entry.index, bz); err != nil {
+				walQuit <- err
+				return
+			}
+		}
+	}()
+
+	db.walChan = walChan
+	db.walQuit = walQuit
+}
+
+// WaitAsyncCommit waits for the completion of async commit
+func (db *DB) WaitAsyncCommit() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	if db.walChan == nil {
+		return nil
+	}
+
+	close(db.walChan)
+	err := <-db.walQuit
+
+	db.walChan = nil
+	db.walQuit = nil
+	return err
 }
 
 func (db *DB) Copy() *DB {
