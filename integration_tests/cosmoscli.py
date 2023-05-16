@@ -1639,9 +1639,11 @@ class CosmosCLI:
 
         SnapshotItem = namedtuple("SnapshotItem", ["height", "format", "chunks"])
 
-        lines = rsp.split('\n')
+        lines = rsp.strip().split('\n')
         items = []
         for line in lines:
+            if not line:
+                continue
             parts = line.split()
             items.append(SnapshotItem(int(parts[1]), int(parts[3]), int(parts[5])))
         return items
