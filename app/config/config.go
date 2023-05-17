@@ -14,8 +14,9 @@ type MemIAVLConfig struct {
 	// ZeroCopy defines if the memiavl should return slices pointing to mmap-ed buffers directly (zero-copy),
 	// the zero-copied slices must not be retained beyond current block's execution.
 	ZeroCopy bool `mapstructure:"zero-copy"`
-	// AsyncCommit defines if the memiavl should commit asynchronously, this greatly improve block catching-up performance.
-	AsyncCommit bool `mapstructure:"async-commit"`
+	// AsyncCommitBuffer defines the size of asynchronous commit queue, this greatly improve block catching-up
+	// performance, -1 means synchronous commit.
+	AsyncCommitBuffer int `mapstructure:"async-commit-buffer"`
 }
 
 func DefaultMemIAVLConfig() MemIAVLConfig {

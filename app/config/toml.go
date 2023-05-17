@@ -15,6 +15,7 @@ enable = {{ .MemIAVL.Enable }}
 # the zero-copied slices must not be retained beyond current block's execution.
 zero-copy = {{ .MemIAVL.ZeroCopy }}
 
-# AsyncCommit defines if the memiavl should commit asynchronously, this greatly improve block catching-up performance.
-async-commit = {{ .MemIAVL.AsyncCommit }}
+# AsyncCommitBuffer defines the size of asynchronous commit queue, this greatly improve block catching-up
+# performance, -1 means synchronous commit.
+async-commit-buffer = {{ .MemIAVL.AsyncCommitBuffer }}
 `

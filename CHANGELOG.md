@@ -33,6 +33,7 @@
 - [#998](https://github.com/crypto-org-chain/cronos/pull/998) Bump grocksdb to v1.7.16 and rocksdb to v7.10.2
 - [#1028](https://github.com/crypto-org-chain/cronos/pull/1028) Add memiavl configs into app.toml
 - [#1027](https://github.com/crypto-org-chain/cronos/pull/1027) Integrate local state-sync commands.
+- [#1029](https://github.com/crypto-org-chain/cronos/pull/1029) Change config `async-commit` to `async-commit-buffer`, make the channel size configurable.
 
 *April 13, 2023*
 

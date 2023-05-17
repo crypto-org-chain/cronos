@@ -50,8 +50,8 @@ type Store struct {
 
 	interBlockCache types.MultiStorePersistentCache
 
-	asyncCommit bool
-	zeroCopy    bool
+	asyncCommitBuffer int
+	zeroCopy          bool
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -90,6 +90,10 @@ func (rs *Store) Commit() types.CommitID {
 	}
 	rs.lastCommitInfo = amendCommitInfo(rs.db.LastCommitInfo(), rs.storesParams)
 	return rs.lastCommitInfo.CommitID()
+}
+
+func (rs *Store) WaitAsyncCommit() error {
+	return rs.db.WaitAsyncCommit()
 }
 
 // Implements interface Committer
@@ -266,11 +270,11 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 		}
 	}
 	db, err := memiavl.Load(rs.dir, memiavl.Options{
-		CreateIfMissing: true,
-		InitialStores:   initialStores,
-		TargetVersion:   uint32(version),
-		AsyncCommit:     rs.asyncCommit,
-		ZeroCopy:        rs.zeroCopy,
+		CreateIfMissing:   true,
+		InitialStores:     initialStores,
+		TargetVersion:     uint32(version),
+		AsyncCommitBuffer: rs.asyncCommitBuffer,
+		ZeroCopy:          rs.zeroCopy,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
@@ -384,8 +388,8 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
-func (rs *Store) SetAsyncCommit(async bool) {
-	rs.asyncCommit = async
+func (rs *Store) SetAsyncCommitBuffer(size int) {
+	rs.asyncCommitBuffer = size
 }
 
 func (rs *Store) SetZeroCopy(zeroCopy bool) {
