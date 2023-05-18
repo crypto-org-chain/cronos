@@ -205,7 +205,7 @@ def test_cro_bridge_contract(ibc):
     # case 2: use CroBridge contract
     w3 = ibc.cronos.w3
     contract = deploy_contract(w3, CONTRACTS["CroBridge"])
-    tx = contract.functions.send_cro_to_crypto_org(dst_addr).buildTransaction(
+    tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
         {"from": ADDRS["signer2"], "value": src_amount}
     )
     receipt = send_transaction(w3, tx)
@@ -270,7 +270,7 @@ def test_cronos_transfer_source_tokens(ibc):
     assert chainmain_receiver_balance == 0
 
     # send to ibc
-    tx = contract.functions.send_to_ibc(chainmain_receiver, amount).buildTransaction(
+    tx = contract.functions.send_to_ibc(chainmain_receiver, amount).build_transaction(
         {"from": ADDRS["validator"]}
     )
     txreceipt = send_transaction(w3, tx)

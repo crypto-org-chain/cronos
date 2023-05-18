@@ -281,7 +281,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     acct = Account.from_key(key)
     info = json.loads(jsonfile.read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    tx = contract.constructor(*args).buildTransaction({"from": acct.address})
+    tx = contract.constructor(*args).build_transaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1
     address = txreceipt.contractAddress
@@ -326,7 +326,7 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
         token_contract.web3,
         token_contract.functions.approve(
             gravity_contract.address, amount
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
     assert txreceipt.status == 1, "approve failed"
@@ -335,7 +335,7 @@ def send_to_cosmos(gravity_contract, token_contract, recipient, amount, key=None
         gravity_contract.web3,
         gravity_contract.functions.sendToCronos(
             token_contract.address, HexBytes(recipient), amount
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
 
@@ -347,7 +347,7 @@ def deploy_erc20(gravity_contract, denom, name, symbol, decimal, key=None):
         gravity_contract.web3,
         gravity_contract.functions.deployERC20(
             denom, name, symbol, decimal
-        ).buildTransaction({"from": acct.address}),
+        ).build_transaction({"from": acct.address}),
         key,
     )
 
@@ -382,7 +382,7 @@ class Contract:
         if self.contract is None:
             self.w3 = w3
             contract = self.w3.eth.contract(abi=self.abi, bytecode=self.bytecode)
-            transaction = contract.constructor().buildTransaction(
+            transaction = contract.constructor().build_transaction(
                 {"chainId": self.chain_id, "from": self.address}
             )
             receipt = send_transaction(self.w3, transaction, self.private_key)
@@ -399,7 +399,7 @@ class Greeter(Contract):
 
     def transfer(self, string):
         "Call contract on `w3` and return the receipt."
-        transaction = self.contract.functions.setGreeting(string).buildTransaction(
+        transaction = self.contract.functions.setGreeting(string).build_transaction(
             {
                 "chainId": self.chain_id,
                 "from": self.address,
@@ -415,7 +415,7 @@ class RevertTestContract(Contract):
 
     def transfer(self, value):
         "Call contract on `w3` and return the receipt."
-        transaction = self.contract.functions.transfer(value).buildTransaction(
+        transaction = self.contract.functions.transfer(value).build_transaction(
             {
                 "chainId": self.chain_id,
                 "from": self.address,

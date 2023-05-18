@@ -49,7 +49,7 @@ def test_event_log_filter(cronos):
         fromBlock=current_height
     )
 
-    tx = mycontract.functions.setGreeting("world").buildTransaction()
+    tx = mycontract.functions.setGreeting("world").build_transaction()
     tx_receipt = send_transaction(w3, tx)
     log = mycontract.events.ChangeGreeting().processReceipt(tx_receipt)[0]
     assert log["event"] == "ChangeGreeting"

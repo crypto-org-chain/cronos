@@ -55,11 +55,12 @@ def test_events(cluster, suspend_capture):
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
     )
-    tx = erc20.functions.transfer(ADDRS["community"], 10).buildTransaction(
+    tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
     )
     txreceipt = send_transaction(w3, tx, KEYS["validator"])
     assert len(txreceipt.logs) == 1
+    data = "0x000000000000000000000000000000000000000000000000000000000000000a"
     expect_log = {
         "address": erc20.address,
         "topics": [
@@ -69,7 +70,7 @@ def test_events(cluster, suspend_capture):
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"])),
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["community"])),
         ],
-        "data": "0x000000000000000000000000000000000000000000000000000000000000000a",
+        "data": HexBytes(data),
         "transactionIndex": 0,
         "logIndex": 0,
         "removed": False,
@@ -122,7 +123,7 @@ def test_native_call(cronos):
 
     amount = 100
 
-    tx = contract.functions.test_native_transfer(amount).buildTransaction(
+    tx = contract.functions.test_native_transfer(amount).build_transaction(
         {"from": ADDRS["validator"]}
     )
     receipt = send_transaction(w3, tx)
@@ -416,12 +417,12 @@ def test_exception(cluster):
     )
     with pytest.raises(web3.exceptions.ContractLogicError):
         send_transaction(
-            w3, contract.functions.transfer(5 * (10**18) - 1).buildTransaction()
+            w3, contract.functions.transfer(5 * (10**18) - 1).build_transaction()
         )
     assert 0 == contract.caller.query()
 
     receipt = send_transaction(
-        w3, contract.functions.transfer(5 * (10**18)).buildTransaction()
+        w3, contract.functions.transfer(5 * (10**18)).build_transaction()
     )
     assert receipt.status == 1, "should be succesfully"
     assert 5 * (10**18) == contract.caller.query()
@@ -441,7 +442,7 @@ def test_refund_unused_gas_when_contract_tx_reverted(cluster):
     balance_bef = w3.eth.get_balance(ADDRS["community"])
     receipt = send_transaction(
         w3,
-        contract.functions.transfer(5 * (10**18) - 1).buildTransaction(
+        contract.functions.transfer(5 * (10**18) - 1).build_transaction(
             {"gas": more_than_enough_gas}
         ),
         key=KEYS["community"],
@@ -464,7 +465,7 @@ def test_message_call(cronos):
         key=KEYS["community"],
     )
     iterations = 13000
-    tx = contract.functions.test(iterations).buildTransaction()
+    tx = contract.functions.test(iterations).build_transaction()
 
     begin = time.time()
     tx["gas"] = w3.eth.estimate_gas(tx)
@@ -496,7 +497,7 @@ def test_suicide(cluster):
 
     tx = destroyer.functions.check_codesize_after_suicide(
         destroyee.address
-    ).buildTransaction()
+    ).build_transaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
@@ -512,14 +513,14 @@ def test_batch_tx(cronos):
     nonce = w3.eth.get_transaction_count(sender)
     info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    deploy_tx = contract.constructor().buildTransaction(
+    deploy_tx = contract.constructor().build_transaction(
         {"from": sender, "nonce": nonce}
     )
     contract = w3.eth.contract(address=contract_address(sender, nonce), abi=info["abi"])
-    transfer_tx1 = contract.functions.transfer(recipient, 1000).buildTransaction(
+    transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
         {"from": sender, "nonce": nonce + 1, "gas": 200000}
     )
-    transfer_tx2 = contract.functions.transfer(recipient, 1000).buildTransaction(
+    transfer_tx2 = contract.functions.transfer(recipient, 1000).build_transaction(
         {"from": sender, "nonce": nonce + 2, "gas": 200000}
     )
 
@@ -639,14 +640,13 @@ def test_log0(cluster):
         Path(__file__).parent
         / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
     )
-    tx = contract.functions.test_log0().buildTransaction({"from": ADDRS["validator"]})
+    tx = contract.functions.test_log0().build_transaction({"from": ADDRS["validator"]})
     receipt = send_transaction(w3, tx, KEYS["validator"])
     assert len(receipt.logs) == 1
     log = receipt.logs[0]
     assert log.topics == []
-    assert (
-        log.data == "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
-    )
+    data = "0x68656c6c6f20776f726c64000000000000000000000000000000000000000000"
+    assert log.data == HexBytes(data)
 
 
 def test_contract(cronos):
@@ -656,7 +656,7 @@ def test_contract(cronos):
     assert "Hello" == contract.caller.greet()
 
     # change
-    tx = contract.functions.setGreeting("world").buildTransaction()
+    tx = contract.functions.setGreeting("world").build_transaction()
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
