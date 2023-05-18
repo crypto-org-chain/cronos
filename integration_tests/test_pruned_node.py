@@ -39,7 +39,7 @@ def test_pruned_node(cronos):
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
     )
-    tx = erc20.functions.transfer(ADDRS["community"], 10).buildTransaction(
+    tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
     )
     signed = sign_transaction(w3, tx, KEYS["validator"])
@@ -53,6 +53,7 @@ def test_pruned_node(cronos):
     txreceipt = w3.eth.wait_for_transaction_receipt(txhash)
     assert txreceipt.gasUsed == exp_gas_used
     assert len(txreceipt.logs) == 1
+    data = "0x000000000000000000000000000000000000000000000000000000000000000a"
     expect_log = {
         "address": erc20.address,
         "topics": [
@@ -62,7 +63,7 @@ def test_pruned_node(cronos):
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"])),
             HexBytes(b"\x00" * 12 + HexBytes(ADDRS["community"])),
         ],
-        "data": "0x000000000000000000000000000000000000000000000000000000000000000a",
+        "data": HexBytes(data),
         "transactionIndex": 0,
         "logIndex": 0,
         "removed": False,
@@ -103,9 +104,9 @@ def test_pruned_node(cronos):
             "to": erc20.address,
             "transactionIndex": 0,
             "value": 0,
-            "type": "0x2",
+            "type": 2,
             "accessList": [],
-            "chainId": "0x309",
+            "chainId": 777,
         }
     )
     assert tx1 == tx2
