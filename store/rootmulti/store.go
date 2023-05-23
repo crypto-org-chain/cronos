@@ -50,8 +50,7 @@ type Store struct {
 
 	interBlockCache types.MultiStorePersistentCache
 
-	asyncCommitBuffer int
-	zeroCopy          bool
+	opts memiavl.Options
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -269,13 +268,12 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 			initialStores = append(initialStores, key.Name())
 		}
 	}
-	db, err := memiavl.Load(rs.dir, memiavl.Options{
-		CreateIfMissing:   true,
-		InitialStores:     initialStores,
-		TargetVersion:     uint32(version),
-		AsyncCommitBuffer: rs.asyncCommitBuffer,
-		ZeroCopy:          rs.zeroCopy,
-	})
+
+	opts := rs.opts
+	opts.CreateIfMissing = true
+	opts.InitialStores = initialStores
+	opts.TargetVersion = uint32(version)
+	db, err := memiavl.Load(rs.dir, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
 	}
@@ -388,12 +386,8 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
-func (rs *Store) SetAsyncCommitBuffer(size int) {
-	rs.asyncCommitBuffer = size
-}
-
-func (rs *Store) SetZeroCopy(zeroCopy bool) {
-	rs.zeroCopy = zeroCopy
+func (rs *Store) SetMemIAVLOptions(opts memiavl.Options) {
+	rs.opts = opts
 }
 
 // Implements interface CommitMultiStore

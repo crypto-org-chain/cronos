@@ -34,6 +34,7 @@
 - [#1028](https://github.com/crypto-org-chain/cronos/pull/1028) Add memiavl configs into app.toml
 - [#1027](https://github.com/crypto-org-chain/cronos/pull/1027) Integrate local state-sync commands.
 - [#1029](https://github.com/crypto-org-chain/cronos/pull/1029) Change config `async-commit` to `async-commit-buffer`, make the channel size configurable.
+- [#]() Support memiavl snapshot strategy configuration.
 
 *April 13, 2023*
 

@@ -10,8 +10,11 @@ import (
 	"sync"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tidwall/wal"
 )
+
+const DefaultSnapshotInterval = 1000
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -31,10 +34,12 @@ import (
 // ```
 type DB struct {
 	MultiTree
-	dir string
+	dir    string
+	logger log.Logger
 
 	snapshotRewriteChan chan snapshotResult
 	snapshotKeepRecent  uint32
+	snapshotInterval    uint32
 	pruneSnapshotLock   sync.Mutex
 
 	// invariant: the LastIndex always match the current version of MultiTree
@@ -57,14 +62,17 @@ type DB struct {
 }
 
 type Options struct {
+	Logger          log.Logger
 	CreateIfMissing bool
 	InitialVersion  uint32
 	// the initial stores when initialize the empty instance
 	InitialStores      []string
 	SnapshotKeepRecent uint32
+	SnapshotInterval   uint32
 	// load the target version instead of latest version
 	TargetVersion uint32
-	// Buffer size for the asynchronous commit queue, -1 means synchronous commit
+	// Buffer size for the asynchronous commit queue, -1 means synchronous commit,
+	// default to 0.
 	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
@@ -100,10 +108,20 @@ func Load(dir string, opts Options) (*DB, error) {
 
 	db := &DB{
 		MultiTree:          *mtree,
+		logger:             opts.Logger,
 		dir:                dir,
 		wal:                wal,
 		walChanSize:        opts.AsyncCommitBuffer,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
+		snapshotInterval:   opts.SnapshotInterval,
+	}
+
+	if db.logger == nil {
+		db.logger = log.NewNopLogger()
+	}
+
+	if db.snapshotInterval == 0 {
+		db.snapshotInterval = DefaultSnapshotInterval
 	}
 
 	if db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -193,27 +211,39 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		}
 		// prune the old snapshots
 		// wait until last prune finish
+		newSnapshotVersion := result.mtree.metadata.CommitInfo.Version
 		db.pruneSnapshotLock.Lock()
 		go func() {
 			defer db.pruneSnapshotLock.Unlock()
 
 			entries, err := os.ReadDir(db.dir)
-			if err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-						currentVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
-						if err != nil {
-							fmt.Printf("failed when parse current version: %s\n", err)
-							continue
+			if err != nil {
+				db.logger.Error("failed to read db dir", "err", err)
+				return
+			}
+
+			var prunedVersion int64
+			for _, entry := range entries {
+				if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+					snapshotVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+					if err != nil {
+						db.logger.Error("failed when parse snapshot file name", "err", err)
+						continue
+					}
+					if snapshotVersion < newSnapshotVersion-int64(db.snapshotKeepRecent) {
+						fullPath := filepath.Join(db.dir, entry.Name())
+						if err := os.RemoveAll(fullPath); err != nil {
+							db.logger.Error("failed when remove old snapshot", "err", err)
 						}
-						if result.mtree.metadata.CommitInfo.Version-currentVersion > int64(db.snapshotKeepRecent) {
-							fullPath := filepath.Join(db.dir, entry.Name())
-							if err := os.RemoveAll(fullPath); err != nil {
-								fmt.Printf("failed when remove old snapshot: %s\n", err)
-							}
+						if snapshotVersion > prunedVersion {
+							prunedVersion = snapshotVersion
 						}
 					}
 				}
+			}
+
+			if err := db.wal.TruncateFront(uint64(newSnapshotVersion + 1)); err != nil {
+				db.logger.Error("failed to truncate wal", "err", err, "version", prunedVersion)
 			}
 		}()
 		return nil
@@ -264,6 +294,8 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	}
 
 	db.pendingUpgrades = db.pendingUpgrades[:0]
+
+	db.rewriteIfApplicable(v)
 
 	return hash, v, nil
 }
@@ -370,6 +402,17 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	return nil
+}
+
+// rewriteIfApplicable execute the snapshot rewrite strategy according to current height
+func (db *DB) rewriteIfApplicable(height int64) {
+	if height%int64(db.snapshotInterval) != 0 {
+		return
+	}
+
+	if err := db.RewriteSnapshotBackground(); err != nil {
+		db.logger.Error("failed to rewrite snapshot in background", "err", err)
+	}
 }
 
 type snapshotResult struct {

@@ -30,6 +30,7 @@
         memiavl: {
           enable: true,
           'zero-copy': true,
+          'snapshot-interval': 5,
         },
         store: {
           streamers: ['versiondb'],
