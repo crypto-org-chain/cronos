@@ -151,7 +151,7 @@ func applyChangeSetRef(t *iavl.MutableTree, changes iavl.ChangeSet) error {
 }
 
 func TestRootHashes(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := New(0)
 
 	for i, changes := range ChangeSets {
 		hash, v, err := tree.ApplyChangeSet(changes, true)
@@ -162,7 +162,7 @@ func TestRootHashes(t *testing.T) {
 }
 
 func TestNewKey(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := New(0)
 
 	for i := 0; i < 4; i++ {
 		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
@@ -181,19 +181,19 @@ func TestNewKey(t *testing.T) {
 }
 
 func TestEmptyTree(t *testing.T) {
-	tree := New()
+	tree := New(0)
 	require.Equal(t, emptyHash, tree.RootHash())
 }
 
 func TestTreeCopy(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := New(0)
 
 	_, _, err := tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world")},
 	}}, true)
 	require.NoError(t, err)
 
-	snapshot := tree.Copy()
+	snapshot := tree.Copy(0)
 
 	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world1")},
@@ -233,7 +233,7 @@ func TestGetByIndex(t *testing.T) {
 		changes.Pairs = append(changes.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte(strconv.Itoa(i))})
 	}
 
-	tree := NewEmptyTree(0)
+	tree := New(0)
 	_, _, err := tree.ApplyChangeSet(changes, true)
 	require.NoError(t, err)
 
@@ -252,7 +252,7 @@ func TestGetByIndex(t *testing.T) {
 	require.NoError(t, tree.WriteSnapshot(dir, false))
 	snapshot, err := OpenSnapshot(dir)
 	require.NoError(t, err)
-	ptree := NewFromSnapshot(snapshot, true)
+	ptree := NewFromSnapshot(snapshot, true, 0)
 	defer ptree.Close()
 
 	for i, pair := range changes.Pairs {

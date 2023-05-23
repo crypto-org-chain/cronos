@@ -45,7 +45,8 @@ type MultiTree struct {
 	// it always corresponds to the wal entry with index 1.
 	initialVersion uint32
 
-	zeroCopy bool
+	zeroCopy  bool
+	cacheSize int
 
 	trees          []namedTree
 	treesByName    map[string]int // reversed index of the trees
@@ -55,15 +56,16 @@ type MultiTree struct {
 	metadata MultiTreeMetadata
 }
 
-func NewEmptyMultiTree(initialVersion uint32) *MultiTree {
+func NewEmptyMultiTree(initialVersion uint32, cacheSize int) *MultiTree {
 	return &MultiTree{
 		initialVersion: initialVersion,
 		treesByName:    make(map[string]int),
 		zeroCopy:       true,
+		cacheSize:      cacheSize,
 	}
 }
 
-func LoadMultiTree(dir string, zeroCopy bool) (*MultiTree, error) {
+func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error) {
 	// load commit info
 	bz, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
 	if err != nil {
@@ -97,7 +99,7 @@ func LoadMultiTree(dir string, zeroCopy bool) (*MultiTree, error) {
 		if err != nil {
 			return nil, err
 		}
-		treeMap[name] = NewFromSnapshot(snapshot, zeroCopy)
+		treeMap[name] = NewFromSnapshot(snapshot, zeroCopy, cacheSize)
 	}
 
 	sort.Strings(treeNames)
@@ -116,6 +118,7 @@ func LoadMultiTree(dir string, zeroCopy bool) (*MultiTree, error) {
 		lastCommitInfo: *metadata.CommitInfo,
 		metadata:       metadata,
 		zeroCopy:       zeroCopy,
+		cacheSize:      cacheSize,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
@@ -164,11 +167,11 @@ func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
 }
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
-func (t *MultiTree) Copy() *MultiTree {
+func (t *MultiTree) Copy(cacheSize int) *MultiTree {
 	trees := make([]namedTree, len(t.trees))
 	treesByName := make(map[string]int, len(t.trees))
 	for i, entry := range t.trees {
-		tree := entry.tree.Copy()
+		tree := entry.tree.Copy(cacheSize)
 		trees[i] = namedTree{tree: tree, name: entry.name}
 		treesByName[entry.name] = i
 	}
@@ -226,7 +229,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 			t.trees[i].name = upgrade.Name
 		default:
 			// add tree
-			tree := NewWithInitialVersion(uint32(nextVersion(t.Version(), t.initialVersion)))
+			tree := NewWithInitialVersion(uint32(nextVersion(t.Version(), t.initialVersion)), t.cacheSize)
 			t.trees = append(t.trees, namedTree{tree: tree, name: upgrade.Name})
 		}
 	}

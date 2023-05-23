@@ -8,6 +8,7 @@ import (
 	"math"
 
 	"github.com/cosmos/iavl"
+	"github.com/cosmos/iavl/cache"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -20,44 +21,56 @@ type Tree struct {
 	root     Node
 	snapshot *Snapshot
 
+	// simple lru cache provided by iavl library
+	cache cache.Cache
+
 	initialVersion, cowVersion uint32
 
 	// when true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	zeroCopy bool
 }
 
+type cacheNode struct {
+	key, value []byte
+}
+
+func (n *cacheNode) GetKey() []byte {
+	return n.key
+}
+
 // NewEmptyTree creates an empty tree at an arbitrary version.
-func NewEmptyTree(version uint64) *Tree {
+func NewEmptyTree(version uint64, initialVersion uint32, cacheSize int) *Tree {
 	if version >= math.MaxUint32 {
 		panic("version overflows uint32")
 	}
 
 	return &Tree{
-		version: uint32(version),
+		version:        uint32(version),
+		initialVersion: initialVersion,
 		// no need to copy if the tree is not backed by snapshot
 		zeroCopy: true,
+		cache:    cache.New(cacheSize),
 	}
 }
 
 // New creates an empty tree at genesis version
-func New() *Tree {
-	return NewEmptyTree(0)
+func New(cacheSize int) *Tree {
+	return NewEmptyTree(0, 0, cacheSize)
 }
 
 // New creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
-func NewWithInitialVersion(initialVersion uint32) *Tree {
-	tree := New()
-	tree.initialVersion = initialVersion
-	return tree
+func NewWithInitialVersion(initialVersion uint32, cacheSize int) *Tree {
+	return NewEmptyTree(0, initialVersion, cacheSize)
 }
 
 // NewFromSnapshot mmap the blob files and create the root node.
-func NewFromSnapshot(snapshot *Snapshot, zeroCopy bool) *Tree {
+func NewFromSnapshot(snapshot *Snapshot, zeroCopy bool, cacheSize int) *Tree {
 	tree := &Tree{
 		version:  snapshot.Version(),
 		snapshot: snapshot,
 		zeroCopy: zeroCopy,
+		cache:    cache.New(cacheSize),
 	}
 
 	if !snapshot.IsEmpty() {
@@ -85,12 +98,14 @@ func (t *Tree) SetInitialVersion(initialVersion int64) error {
 
 // Copy returns a snapshot of the tree which won't be modified by further modifications on the main tree,
 // the returned new tree can be accessed concurrently with the main tree.
-func (t *Tree) Copy() *Tree {
+func (t *Tree) Copy(cacheSize int) *Tree {
 	if _, ok := t.root.(*MemNode); ok {
 		// protect the existing `MemNode`s from get modified in-place
 		t.cowVersion = t.version
 	}
 	newTree := *t
+	// cache is not copied along because it's not thread-safe to access
+	newTree.cache = cache.New(cacheSize)
 	return &newTree
 }
 
@@ -109,10 +124,12 @@ func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte
 
 func (t *Tree) set(key, value []byte) {
 	t.root, _ = setRecursive(t.root, key, value, t.version+1, t.cowVersion)
+	t.cache.Add(&cacheNode{key, value})
 }
 
 func (t *Tree) remove(key []byte) {
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1, t.cowVersion)
+	t.cache.Remove(key)
 }
 
 // saveVersion increases the version number and optionally updates the hashes
@@ -178,7 +195,16 @@ func (t *Tree) GetByIndex(index int64) ([]byte, []byte) {
 }
 
 func (t *Tree) Get(key []byte) []byte {
+	if node := t.cache.Get(key); node != nil {
+		return node.(*cacheNode).value
+	}
+
 	_, value := t.GetWithIndex(key)
+	if value == nil {
+		return nil
+	}
+
+	t.cache.Add(&cacheNode{key, value})
 	return value
 }
 

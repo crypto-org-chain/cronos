@@ -24,4 +24,7 @@ snapshot-keep-recent = {{ .MemIAVL.SnapshotKeepRecent }}
 
 # SnapshotInterval defines the block interval the memiavl snapshot is taken, default to 1000.
 snapshot-interval = {{ .MemIAVL.SnapshotInterval }}
+
+# CacheSize defines the size of the cache for each memiavl store, default to 1000.
+cache-size = {{ .MemIAVL.CacheSize }}
 `
