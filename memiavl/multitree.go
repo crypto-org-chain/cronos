@@ -327,7 +327,6 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	endIndex := lastIndex
 	if endVersion != 0 {
 		endIndex = walIndex(endVersion, t.initialVersion)
-
 	}
 
 	if endIndex < firstIndex {
