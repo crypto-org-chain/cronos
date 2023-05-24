@@ -202,14 +202,14 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		// snapshot rewrite succeeded, catchup and switch
+		// catchup the remaining wal and switch
 		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
 			return fmt.Errorf("catchup failed: %w", err)
 		}
 		if err := db.reloadMultiTree(result.mtree); err != nil {
 			return fmt.Errorf("switch multitree failed: %w", err)
 		}
-		db.logger.Info("switched to new snapshot", "version", result.mtree.Version())
+		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
 
 		db.pruneSnapshots()
 
@@ -244,6 +244,8 @@ func (db *DB) pruneSnapshots() {
 					continue
 				}
 				if snapshotVersion < newSnapshotVersion-int64(db.snapshotKeepRecent) {
+					db.logger.Info("prune snapshot", "name", entry.Name())
+
 					fullPath := filepath.Join(db.dir, entry.Name())
 					if err := os.RemoveAll(fullPath); err != nil {
 						db.logger.Error("failed when remove old snapshot", "err", err)
@@ -360,6 +362,7 @@ func (db *DB) copy() *DB {
 	mtree := db.MultiTree.Copy()
 	return &DB{
 		MultiTree: *mtree,
+		logger:    db.logger,
 		dir:       db.dir,
 	}
 }
@@ -424,9 +427,8 @@ func (db *DB) rewriteIfApplicable(height int64) {
 }
 
 type snapshotResult struct {
-	mtree   *MultiTree
-	err     error
-	version uint32
+	mtree *MultiTree
+	err   error
 }
 
 func (db *DB) RewriteSnapshotBackground() error {
@@ -451,13 +453,13 @@ func (db *DB) rewriteSnapshotBackground() error {
 	go func() {
 		defer close(ch)
 
-		cloned.logger.Info("start rewriting memiavl snapshot", "version", cloned.Version())
+		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshot(); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		cloned.logger.Info("finished rewriting memiavl snapshot", "version", cloned.Version())
-		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy)
+		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), db.zeroCopy)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -469,7 +471,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 		}
 		cloned.logger.Info("finished best-effort WAL catchup", "version", cloned.Version(), "latest", mtree.Version())
 
-		ch <- snapshotResult{mtree: mtree, version: uint32(cloned.lastCommitInfo.Version)}
+		ch <- snapshotResult{mtree: mtree}
 	}()
 
 	return nil
