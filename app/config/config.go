@@ -21,8 +21,13 @@ type MemIAVLConfig struct {
 	SnapshotKeepRecent uint32 `mapstructure:"snapshot-keep-recent"`
 	// SnapshotInterval defines the block interval the memiavl snapshot is taken, default to 1000.
 	SnapshotInterval uint32 `mapstructure:"snapshot-interval"`
+	// make sure there are at least some queryable states before switch to new snapshot during snapshot rewrite,
+	// we need a few for ibc relayer to work, default: 3.
+	MinQueryStates int `mapstructure:"min-query-states"`
 }
 
 func DefaultMemIAVLConfig() MemIAVLConfig {
-	return MemIAVLConfig{}
+	return MemIAVLConfig{
+		MinQueryStates: 3,
+	}
 }

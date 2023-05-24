@@ -20,6 +20,7 @@ const (
 	FlagZeroCopy           = "memiavl.zero-copy"
 	FlagSnapshotKeepRecent = "memiavl.snapshot-keep-recent"
 	FlagSnapshotInterval   = "memiavl.snapshot-interval"
+	FlagMinQueryStates     = "memiavl.min-query-states"
 )
 
 func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOptions, baseAppOptions []func(*baseapp.BaseApp)) []func(*baseapp.BaseApp) {
@@ -32,6 +33,7 @@ func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOpt
 			ZeroCopy:           cast.ToBool(appOpts.Get(FlagZeroCopy)),
 			SnapshotKeepRecent: cast.ToUint32(appOpts.Get(FlagSnapshotKeepRecent)),
 			SnapshotInterval:   cast.ToUint32(appOpts.Get(FlagSnapshotInterval)),
+			MinQueryStates:     cast.ToInt(appOpts.Get(FlagMinQueryStates)),
 		})
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}

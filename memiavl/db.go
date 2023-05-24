@@ -14,12 +14,7 @@ import (
 	"github.com/tidwall/wal"
 )
 
-const (
-	DefaultSnapshotInterval = 1000
-	// the minimal in memory states to keep since the latest snapshot, we need to support a few to support ibc relayer,
-	// TODO either support loading from multiple snapshots, or make it configurable.
-	MinRetainStates = 3
-)
+const DefaultSnapshotInterval = 1000
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -47,6 +42,7 @@ type DB struct {
 	snapshotInterval    uint32
 	pruneSnapshotLock   sync.Mutex
 	pendingForSwitch    *MultiTree
+	minQueryStates      int
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -82,6 +78,10 @@ type Options struct {
 	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
+	// make sure there are at least some queryable states before switch to new snapshot during snapshot rewrite,
+	// we need this for ibc relayer to work,
+	// TODO a better solution is to support loading from multiple snapshots.
+	MinQueryStates int
 }
 
 const (
@@ -125,6 +125,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		walChanSize:        opts.AsyncCommitBuffer,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
 		snapshotInterval:   opts.SnapshotInterval,
+		minQueryStates:     opts.MinQueryStates,
 	}
 
 	if db.logger == nil {
@@ -227,8 +228,8 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		return fmt.Errorf("catchup failed: %w", err)
 	}
 
-	// make sure at least `MinRetainStates` queryable states before switch
-	if db.pendingForSwitch.Version() < db.pendingForSwitch.SnapshotVersion()+MinRetainStates {
+	// make sure there are at least a few queryable states after switch
+	if db.pendingForSwitch.Version() < db.pendingForSwitch.SnapshotVersion()+int64(db.minQueryStates) {
 		return nil
 	}
 
