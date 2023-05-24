@@ -208,7 +208,6 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		db.pruneSnapshots(result.mtree.SnapshotVersion())
 		db.pendingForSwitch = result.mtree
 	default:
 	}
@@ -234,6 +233,7 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 	db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
 
 	db.pendingForSwitch = nil
+	db.pruneSnapshots(db.SnapshotVersion())
 	return nil
 }
 
