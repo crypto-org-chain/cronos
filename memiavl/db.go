@@ -421,6 +421,13 @@ type snapshotResult struct {
 	version uint32
 }
 
+func (db *DB) RewriteSnapshotBackground() error {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.rewriteSnapshotBackground()
+}
+
 // rewriteSnapshotBackground rewrite snapshot in a background goroutine,
 // `Commit` will check the complete status, and switch to the new snapshot.
 func (db *DB) rewriteSnapshotBackground() error {
