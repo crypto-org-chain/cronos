@@ -187,6 +187,10 @@ func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
 
+func (t *MultiTree) SnapshotVersion() int64 {
+	return t.metadata.CommitInfo.Version
+}
+
 func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
 	return &t.lastCommitInfo
 }
@@ -417,4 +421,12 @@ func walIndex(v int64, initialVersion uint32) uint64 {
 		return uint64(v) - uint64(initialVersion) + 1
 	}
 	return uint64(v)
+}
+
+// walVersion converts wal index to version, reverse of walIndex
+func walVersion(index uint64, initialVersion uint32) int64 {
+	if initialVersion > 1 {
+		return int64(index) + int64(initialVersion) - 1
+	}
+	return int64(index)
 }

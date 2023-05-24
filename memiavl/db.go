@@ -14,7 +14,12 @@ import (
 	"github.com/tidwall/wal"
 )
 
-const DefaultSnapshotInterval = 1000
+const (
+	DefaultSnapshotInterval = 1000
+	// the minimal in memory states to keep since the latest snapshot, we need to support a few to support ibc relayer,
+	// TODO either support loading from multiple snapshots, or make it configurable.
+	MinRetainStates = 2
+)
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -41,6 +46,7 @@ type DB struct {
 	snapshotKeepRecent  uint32
 	snapshotInterval    uint32
 	pruneSnapshotLock   sync.Mutex
+	pendingForSwitch    *MultiTree
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -53,7 +59,7 @@ type DB struct {
 
 	// The assumptions to concurrency:
 	// - The methods on DB are protected by a mutex
-	// - Each call of LoadVersion loads a separate instance, in query scenarios,
+	// - Each call of Load loads a separate instance, in query scenarios,
 	//   it should be immutable, the cache stores will handle the temporary writes.
 	// - The DB for the state machine will handle writes through the Commit call,
 	//   this method is the sole entry point for tree modifications, and there's no concurrency internally
@@ -97,7 +103,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
-	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true})
+	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
 	}
@@ -202,27 +208,37 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		// catchup the remaining wal and switch
-		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
-			return fmt.Errorf("catchup failed: %w", err)
-		}
-		if err := db.reloadMultiTree(result.mtree); err != nil {
-			return fmt.Errorf("switch multitree failed: %w", err)
-		}
-		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
-
-		db.pruneSnapshots()
-
-		return nil
+		db.pruneSnapshots(result.mtree.SnapshotVersion())
+		db.pendingForSwitch = result.mtree
 	default:
 	}
+
+	if db.pendingForSwitch == nil {
+		return nil
+	}
+
+	// catchup the remaining wal
+	if err := db.pendingForSwitch.CatchupWAL(db.wal, 0); err != nil {
+		return fmt.Errorf("catchup failed: %w", err)
+	}
+
+	// make sure at least `MinRetainStates` queryable states before switch
+	if db.pendingForSwitch.Version() < db.pendingForSwitch.SnapshotVersion()+MinRetainStates {
+		return nil
+	}
+
+	// do the switch
+	if err := db.reloadMultiTree(db.pendingForSwitch); err != nil {
+		return fmt.Errorf("switch multitree failed: %w", err)
+	}
+	db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
+
+	db.pendingForSwitch = nil
 	return nil
 }
 
 // pruneSnapshot prune the old snapshots
-func (db *DB) pruneSnapshots() {
-	newSnapshotVersion := db.metadata.CommitInfo.Version
-
+func (db *DB) pruneSnapshots(newSnapshotVersion int64) {
 	// wait until last prune finish
 	db.pruneSnapshotLock.Lock()
 
@@ -235,7 +251,6 @@ func (db *DB) pruneSnapshots() {
 			return
 		}
 
-		var prunedVersion int64
 		for _, entry := range entries {
 			if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
 				snapshotVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
@@ -250,15 +265,12 @@ func (db *DB) pruneSnapshots() {
 					if err := os.RemoveAll(fullPath); err != nil {
 						db.logger.Error("failed when remove old snapshot", "err", err)
 					}
-					if snapshotVersion > prunedVersion {
-						prunedVersion = snapshotVersion
-					}
 				}
 			}
 		}
 
 		if err := db.wal.TruncateFront(uint64(newSnapshotVersion + 1)); err != nil {
-			db.logger.Error("failed to truncate wal", "err", err, "version", prunedVersion)
+			db.logger.Error("failed to truncate wal", "err", err, "version", newSnapshotVersion+1)
 		}
 	}()
 }
@@ -464,11 +476,13 @@ func (db *DB) rewriteSnapshotBackground() error {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		// do a best effort catch-up first, will try catch-up again in main thread.
+
+		// do a best effort catch-up, will do another final catch-up in main thread.
 		if err := mtree.CatchupWAL(wal, 0); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
+
 		cloned.logger.Info("finished best-effort WAL catchup", "version", cloned.Version(), "latest", mtree.Version())
 
 		ch <- snapshotResult{mtree: mtree}
