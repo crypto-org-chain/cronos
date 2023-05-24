@@ -209,48 +209,56 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		if err := db.reloadMultiTree(result.mtree); err != nil {
 			return fmt.Errorf("switch multitree failed: %w", err)
 		}
-		// prune the old snapshots
-		// wait until last prune finish
-		newSnapshotVersion := result.mtree.metadata.CommitInfo.Version
-		db.pruneSnapshotLock.Lock()
-		go func() {
-			defer db.pruneSnapshotLock.Unlock()
+		db.logger.Info("switched to new snapshot", "version", result.mtree.Version())
 
-			entries, err := os.ReadDir(db.dir)
-			if err != nil {
-				db.logger.Error("failed to read db dir", "err", err)
-				return
-			}
+		db.pruneSnapshots()
 
-			var prunedVersion int64
-			for _, entry := range entries {
-				if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-					snapshotVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
-					if err != nil {
-						db.logger.Error("failed when parse snapshot file name", "err", err)
-						continue
-					}
-					if snapshotVersion < newSnapshotVersion-int64(db.snapshotKeepRecent) {
-						fullPath := filepath.Join(db.dir, entry.Name())
-						if err := os.RemoveAll(fullPath); err != nil {
-							db.logger.Error("failed when remove old snapshot", "err", err)
-						}
-						if snapshotVersion > prunedVersion {
-							prunedVersion = snapshotVersion
-						}
-					}
-				}
-			}
-
-			if err := db.wal.TruncateFront(uint64(newSnapshotVersion + 1)); err != nil {
-				db.logger.Error("failed to truncate wal", "err", err, "version", prunedVersion)
-			}
-		}()
 		return nil
-
 	default:
 	}
 	return nil
+}
+
+// pruneSnapshot prune the old snapshots
+func (db *DB) pruneSnapshots() {
+	newSnapshotVersion := db.metadata.CommitInfo.Version
+
+	// wait until last prune finish
+	db.pruneSnapshotLock.Lock()
+
+	go func() {
+		defer db.pruneSnapshotLock.Unlock()
+
+		entries, err := os.ReadDir(db.dir)
+		if err != nil {
+			db.logger.Error("failed to read db dir", "err", err)
+			return
+		}
+
+		var prunedVersion int64
+		for _, entry := range entries {
+			if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+				snapshotVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+				if err != nil {
+					db.logger.Error("failed when parse snapshot file name", "err", err)
+					continue
+				}
+				if snapshotVersion < newSnapshotVersion-int64(db.snapshotKeepRecent) {
+					fullPath := filepath.Join(db.dir, entry.Name())
+					if err := os.RemoveAll(fullPath); err != nil {
+						db.logger.Error("failed when remove old snapshot", "err", err)
+					}
+					if snapshotVersion > prunedVersion {
+						prunedVersion = snapshotVersion
+					}
+				}
+			}
+		}
+
+		if err := db.wal.TruncateFront(uint64(newSnapshotVersion + 1)); err != nil {
+			db.logger.Error("failed to truncate wal", "err", err, "version", prunedVersion)
+		}
+	}()
 }
 
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
@@ -442,10 +450,13 @@ func (db *DB) rewriteSnapshotBackground() error {
 	wal := db.wal
 	go func() {
 		defer close(ch)
+
+		cloned.logger.Info("start rewriting memiavl snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshot(); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
+		cloned.logger.Info("finished rewriting memiavl snapshot", "version", cloned.Version())
 		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy)
 		if err != nil {
 			ch <- snapshotResult{err: err}
@@ -456,6 +467,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 			ch <- snapshotResult{err: err}
 			return
 		}
+		cloned.logger.Info("finished best-effort WAL catchup", "version", cloned.Version(), "latest", mtree.Version())
 
 		ch <- snapshotResult{mtree: mtree, version: uint32(cloned.lastCommitInfo.Version)}
 	}()
