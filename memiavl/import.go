@@ -200,6 +200,11 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 		right:   rightNode,
 	}
 	nodeHash := node.Hash()
+
+	// remove unnesserary reference to avoid memory leak
+	node.left = nil
+	node.right = nil
+
 	preTrees := uint8(len(i.nodeStack) - 2)
 	if err := i.writeBranch(node.version, uint32(node.size), node.height, preTrees, keyLeaf, nodeHash); err != nil {
 		return err
