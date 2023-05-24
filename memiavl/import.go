@@ -201,7 +201,7 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 	}
 	nodeHash := node.Hash()
 
-	// remove unnesserary reference to avoid memory leak
+	// remove unnecessary reference to avoid memory leak
 	node.left = nil
 	node.right = nil
 
