@@ -410,7 +410,7 @@ func (db *DB) rewriteIfApplicable(height int64) {
 		return
 	}
 
-	if err := db.RewriteSnapshotBackground(); err != nil {
+	if err := db.rewriteSnapshotBackground(); err != nil {
 		db.logger.Error("failed to rewrite snapshot in background", "err", err)
 	}
 }
@@ -421,12 +421,9 @@ type snapshotResult struct {
 	version uint32
 }
 
-// RewriteSnapshotBackground rewrite snapshot in a background goroutine,
+// rewriteSnapshotBackground rewrite snapshot in a background goroutine,
 // `Commit` will check the complete status, and switch to the new snapshot.
-func (db *DB) RewriteSnapshotBackground() error {
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
-
+func (db *DB) rewriteSnapshotBackground() error {
 	if db.snapshotRewriteChan != nil {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
