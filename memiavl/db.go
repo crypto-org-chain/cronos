@@ -18,7 +18,7 @@ const (
 	DefaultSnapshotInterval = 1000
 	// the minimal in memory states to keep since the latest snapshot, we need to support a few to support ibc relayer,
 	// TODO either support loading from multiple snapshots, or make it configurable.
-	MinRetainStates = 2
+	MinRetainStates = 3
 )
 
 // DB implements DB-like functionalities on top of MultiTree:
@@ -103,12 +103,17 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
+	if opts.TargetVersion > 0 && int64(opts.TargetVersion) < mtree.Version() {
+		return nil, fmt.Errorf("target version %d is pruned", opts.TargetVersion)
+	}
+
 	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
 	}
 
 	if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
+		_ = wal.Close()
 		return nil, err
 	}
 
@@ -137,6 +142,7 @@ func Load(dir string, opts Options) (*DB, error) {
 			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
 		}
 		if err := db.ApplyUpgrades(upgrades); err != nil {
+			_ = db.Close()
 			return nil, err
 		}
 	}

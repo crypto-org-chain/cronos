@@ -327,9 +327,16 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	endIndex := lastIndex
 	if endVersion != 0 {
 		endIndex = walIndex(endVersion, t.initialVersion)
-		if endIndex > lastIndex || endIndex < firstIndex {
-			return fmt.Errorf("endIndex %d not in valid range: [%d, %d]", endIndex, firstIndex, lastIndex)
-		}
+
+	}
+
+	if endIndex < firstIndex {
+		// nothing to replay
+		return nil
+	}
+
+	if endIndex > lastIndex {
+		return fmt.Errorf("target index %d is in the future, latest index: %d", endIndex, lastIndex)
 	}
 
 	for i := firstIndex; i <= endIndex; i++ {
