@@ -27,9 +27,11 @@
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
       'app-config': {
+        'inter-block-cache': false,
         memiavl: {
           enable: true,
           'zero-copy': true,
+          'snapshot-interval': 5,
         },
         store: {
           streamers: ['versiondb'],

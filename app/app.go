@@ -125,6 +125,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
+	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -995,6 +996,11 @@ func VerifyAddressFormat(bz []byte) error {
 	return nil
 }
 
-func setCMS(cms storetypes.CommitMultiStore) func(*baseapp.BaseApp) {
-	return func(bapp *baseapp.BaseApp) { bapp.SetCMS(cms) }
+// Close will be called in graceful shutdown in start cmd
+func (app *App) Close() error {
+	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
+		return cms.WaitAsyncCommit()
+	}
+
+	return nil
 }

@@ -1,7 +1,6 @@
 package memiavlstore
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 
@@ -89,7 +88,7 @@ func (st *Store) Set(key, value []byte) {
 
 // Implements types.KVStore.
 func (st *Store) Get(key []byte) []byte {
-	return bytes.Clone(st.tree.Get(key))
+	return st.tree.Get(key)
 }
 
 // Implements types.KVStore.

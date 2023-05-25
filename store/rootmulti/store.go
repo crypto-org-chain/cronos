@@ -50,8 +50,7 @@ type Store struct {
 
 	interBlockCache types.MultiStorePersistentCache
 
-	asyncCommitBuffer int
-	zeroCopy          bool
+	opts memiavl.Options
 }
 
 func NewStore(dir string, logger log.Logger) *Store {
@@ -88,6 +87,18 @@ func (rs *Store) Commit() types.CommitID {
 	if err != nil {
 		panic(err)
 	}
+
+	// the underlying memiavl tree might be reloaded, reload the store as well.
+	for key := range rs.stores {
+		store := rs.stores[key]
+		if store.GetStoreType() == types.StoreTypeIAVL {
+			rs.stores[key], err = rs.loadCommitStoreFromParams(rs.db, key, rs.storesParams[key])
+			if err != nil {
+				panic(fmt.Errorf("inconsistent store map, store %s not found", key.Name()))
+			}
+		}
+	}
+
 	rs.lastCommitInfo = amendCommitInfo(rs.db.LastCommitInfo(), rs.storesParams)
 	return rs.lastCommitInfo.CommitID()
 }
@@ -269,13 +280,13 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 			initialStores = append(initialStores, key.Name())
 		}
 	}
-	db, err := memiavl.Load(rs.dir, memiavl.Options{
-		CreateIfMissing:   true,
-		InitialStores:     initialStores,
-		TargetVersion:     uint32(version),
-		AsyncCommitBuffer: rs.asyncCommitBuffer,
-		ZeroCopy:          rs.zeroCopy,
-	})
+
+	opts := rs.opts
+	opts.Logger = rs.logger.With("module", "memiavl")
+	opts.CreateIfMissing = true
+	opts.InitialStores = initialStores
+	opts.TargetVersion = uint32(version)
+	db, err := memiavl.Load(rs.dir, opts)
 	if err != nil {
 		return errors.Wrapf(err, "fail to load memiavl at %s", rs.dir)
 	}
@@ -322,7 +333,7 @@ func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, p
 	case types.StoreTypeIAVL:
 		tree := db.TreeByName(key.Name())
 		if tree == nil {
-			return nil, fmt.Errorf("new store is not added in upgrades")
+			return nil, fmt.Errorf("new store is not added in upgrades: %s", key.Name())
 		}
 		store := types.CommitKVStore(memiavlstore.New(tree, rs.logger))
 
@@ -388,12 +399,8 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
-func (rs *Store) SetAsyncCommitBuffer(size int) {
-	rs.asyncCommitBuffer = size
-}
-
-func (rs *Store) SetZeroCopy(zeroCopy bool) {
-	rs.zeroCopy = zeroCopy
+func (rs *Store) SetMemIAVLOptions(opts memiavl.Options) {
+	rs.opts = opts
 }
 
 // Implements interface CommitMultiStore
