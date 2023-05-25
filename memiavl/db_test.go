@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,41 +40,60 @@ func TestRewriteSnapshot(t *testing.T) {
 }
 
 func TestRewriteSnapshotBackground(t *testing.T) {
-	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing:    true,
-		InitialStores:      []string{"test"},
-		SnapshotKeepRecent: 0, // only a single snapshot is kept
-	})
-	require.NoError(t, err)
-
-	for i, changes := range ChangeSets {
-		cs := []*NamedChangeSet{
-			{
-				Name:      "test",
-				Changeset: changes,
-			},
-		}
-		_, v, err := db.Commit(cs)
-		require.NoError(t, err)
-		require.Equal(t, i+1, int(v))
-		require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
-
-		_ = db.RewriteSnapshotBackground()
-		time.Sleep(time.Millisecond * 20)
-	}
-
-	for db.snapshotRewriteChan != nil {
-		require.NoError(t, db.checkAsyncTasks())
-	}
-
-	db.pruneSnapshotLock.Lock()
-	defer db.pruneSnapshotLock.Unlock()
-
-	entries, err := os.ReadDir(db.dir)
-	require.NoError(t, err)
-
+	total := len(ChangeSets)
 	// three files: snapshot, current link, wal
-	require.Equal(t, 3, len(entries))
+	min := 3
+	var wg sync.WaitGroup
+	type testConfig struct {
+		keepRecent    uint32
+		expectedFiles int
+	}
+	testCases := []testConfig{
+		{0, min + total}, // all snapshots are kept
+		{1, min + 1},
+		{2, min + 2},
+	}
+	for _, tc := range testCases {
+		wg.Add(1)
+		go func(tc testConfig) {
+			defer wg.Done()
+			db, err := Load(t.TempDir(), Options{
+				CreateIfMissing:    true,
+				InitialStores:      []string{"test"},
+				SnapshotKeepRecent: tc.keepRecent,
+			})
+			require.NoError(t, err)
+
+			for i, changes := range ChangeSets {
+				cs := []*NamedChangeSet{
+					{
+						Name:      "test",
+						Changeset: changes,
+					},
+				}
+				_, v, err := db.Commit(cs)
+				require.NoError(t, err)
+				require.Equal(t, i+1, int(v))
+				require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
+
+				err = db.RewriteSnapshotBackground()
+				require.NoError(t, err)
+				time.Sleep(time.Second * 1)
+			}
+
+			for db.snapshotRewriteChan != nil {
+				require.NoError(t, db.checkAsyncTasks())
+			}
+
+			db.pruneSnapshotLock.Lock()
+			defer db.pruneSnapshotLock.Unlock()
+
+			entries, err := os.ReadDir(db.dir)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedFiles, len(entries))
+		}(tc)
+	}
+	wg.Wait()
 }
 
 func TestWAL(t *testing.T) {

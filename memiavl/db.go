@@ -284,6 +284,9 @@ func (db *DB) pruneSnapshots() {
 		}
 
 		counter := db.snapshotKeepRecent
+		if counter == 0 {
+			return
+		}
 		for i := len(entries) - 1; i >= 0; i-- {
 			name := entries[i].Name()
 			if !strings.HasPrefix(name, SnapshotPrefix) {
