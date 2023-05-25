@@ -19,7 +19,7 @@ zero-copy = {{ .MemIAVL.ZeroCopy }}
 # performance, -1 means synchronous commit.
 async-commit-buffer = {{ .MemIAVL.AsyncCommitBuffer }}
 
-# SnapshotKeepRecent defines what old snapshots to keep after new snapshots are taken.
+# SnapshotKeepRecent defines what many old snapshots (excluding the latest one) to keep after new snapshots are taken.
 snapshot-keep-recent = {{ .MemIAVL.SnapshotKeepRecent }}
 
 # SnapshotInterval defines the block interval the memiavl snapshot is taken, default to 1000.

@@ -37,12 +37,17 @@ type DB struct {
 	dir    string
 	logger log.Logger
 
+	// result channel of snapshot rewrite goroutine
 	snapshotRewriteChan chan snapshotResult
-	snapshotKeepRecent  uint32
-	snapshotInterval    uint32
-	pruneSnapshotLock   sync.Mutex
-	pendingForSwitch    *MultiTree
-	minQueryStates      int
+	// the number of old snapshots to keep (excluding the latest one)
+	snapshotKeepRecent uint32
+	// block interval to take a new snapshot
+	snapshotInterval uint32
+	// make sure only one snapshot rewrite is running
+	pruneSnapshotLock sync.Mutex
+	// might need to wait for a few blocks before actual snapshot switching.
+	minQueryStates   int
+	pendingForSwitch *MultiTree
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -78,9 +83,7 @@ type Options struct {
 	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
-	// make sure there are at least some queryable states before switch to new snapshot during snapshot rewrite,
-	// we need this for ibc relayer to work,
-	// TODO a better solution is to support loading from multiple snapshots.
+	// for ibc relayer to work, we need to make sure at least a few queryable states exists even with pruning="nothing" setting.
 	MinQueryStates int
 }
 
@@ -262,17 +265,23 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 	db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
 
 	db.pendingForSwitch = nil
-	db.pruneSnapshots(db.SnapshotVersion())
+	db.pruneSnapshots()
 	return nil
 }
 
 // pruneSnapshot prune the old snapshots
-func (db *DB) pruneSnapshots(newSnapshotVersion int64) {
+func (db *DB) pruneSnapshots() {
 	// wait until last prune finish
 	db.pruneSnapshotLock.Lock()
 
 	go func() {
 		defer db.pruneSnapshotLock.Unlock()
+
+		currentName, err := os.Readlink(currentPath(db.dir))
+		if err != nil {
+			db.logger.Error("failed to read current snapshot name", "err", err)
+			return
+		}
 
 		entries, err := os.ReadDir(db.dir)
 		if err != nil {
@@ -280,21 +289,26 @@ func (db *DB) pruneSnapshots(newSnapshotVersion int64) {
 			return
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				snapshotVersion, err := parseVersion(entry.Name())
-				if err != nil {
-					db.logger.Error("failed when parse snapshot file name", "err", err)
-					continue
-				}
-				if snapshotVersion < newSnapshotVersion-int64(db.snapshotKeepRecent) {
-					db.logger.Info("prune snapshot", "name", entry.Name())
+		counter := db.snapshotKeepRecent
+		for i := len(entries) - 1; i >= 0; i-- {
+			name := entries[i].Name()
+			if !strings.HasPrefix(name, SnapshotPrefix) {
+				continue
+			}
 
-					fullPath := filepath.Join(db.dir, entry.Name())
-					if err := os.RemoveAll(fullPath); err != nil {
-						db.logger.Error("failed when remove old snapshot", "err", err)
-					}
-				}
+			if name >= currentName {
+				// ignore any newer snapshot directories, there could be ongoning snapshot rewrite.
+				continue
+			}
+
+			if counter > 0 {
+				counter--
+				continue
+			}
+
+			db.logger.Info("prune snapshot", "name", name)
+			if err := os.RemoveAll(filepath.Join(db.dir, name)); err != nil {
+				db.logger.Error("failed to prune snapshot", "err", err)
 			}
 		}
 
