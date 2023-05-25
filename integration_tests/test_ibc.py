@@ -1,3 +1,5 @@
+import hashlib
+
 import pytest
 
 from .ibc_utils import (
@@ -230,11 +232,11 @@ def test_cronos_transfer_source_tokens(ibc):
     assert_ready(ibc)
     # deploy crc21 contract
     w3 = ibc.cronos.w3
-    contract, _ = setup_token_mapping(ibc.cronos, "TestERC21Source", "DOG")
+    contract, denom = setup_token_mapping(ibc.cronos, "TestERC21Source", "DOG")
     # send token to crypto.org
     print("send to crypto.org")
     chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = "ibc/C096BF05DB995A975931166766E0E2585A4C3818290C7E737ACE82A39DD6ECDE"
+    dest_denom = ibc_denom("channel-0", denom)
     amount = 1000
 
     # check and record receiver balance
@@ -336,7 +338,7 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     # send token to crypto.org
     print("send to crypto.org")
     chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = "ibc/67AC4BFF3CECEE5779A56B79301E0AECEACF21C531FF2979982970F6DFA25925"
+    dest_denom = ibc_denom("channel-0", denom)
     amount = 1000
     sender = ADDRS["validator"]
 
@@ -403,3 +405,8 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
 
     wait_for_fn("check contract balance change", check_contract_balance_change)
     assert cronos_balance_after_send == amount
+
+
+def ibc_denom(channel, denom):
+    h = hashlib.sha256(f"transfer/{channel}/{denom}".encode()).hexdigest().upper()
+    return f"ibc/{h}"
