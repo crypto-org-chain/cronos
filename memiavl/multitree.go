@@ -330,8 +330,7 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	}
 
 	if endIndex < firstIndex {
-		// nothing to replay
-		return nil
+		return fmt.Errorf("target index %d is pruned", endIndex)
 	}
 
 	if endIndex > lastIndex {

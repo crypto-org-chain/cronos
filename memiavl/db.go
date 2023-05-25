@@ -89,14 +89,34 @@ const (
 )
 
 func Load(dir string, opts Options) (*DB, error) {
-	currentDir := currentPath(dir)
-	mtree, err := LoadMultiTree(currentDir, opts.ZeroCopy)
+	snapshotName := "current"
+	if opts.TargetVersion > 0 {
+		version, err := currentVersion(dir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load current version: %w", err)
+		}
+
+		if int64(opts.TargetVersion) < version {
+			// try to load historical snapshots
+			snapshotName, err = seekSnapshot(dir, opts.TargetVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find snapshot: %w", err)
+			}
+
+			if snapshotName == "" {
+				return nil, fmt.Errorf("target version is pruned: %d", opts.TargetVersion)
+			}
+		}
+	}
+
+	path := filepath.Join(dir, snapshotName)
+	mtree, err := LoadMultiTree(path, opts.ZeroCopy)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
 			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(currentDir, opts.ZeroCopy)
+			mtree, err = LoadMultiTree(path, opts.ZeroCopy)
 		}
 		if err != nil {
 			return nil, err
@@ -112,9 +132,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
-	if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
-		_ = wal.Close()
-		return nil, err
+	if opts.TargetVersion == 0 || int64(opts.TargetVersion) > mtree.Version() {
+		if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
+			_ = wal.Close()
+			return nil, err
+		}
 	}
 
 	db := &DB{
@@ -259,8 +281,8 @@ func (db *DB) pruneSnapshots(newSnapshotVersion int64) {
 		}
 
 		for _, entry := range entries {
-			if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-				snapshotVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
+			if entry.IsDir() {
+				snapshotVersion, err := parseVersion(entry.Name())
 				if err != nil {
 					db.logger.Error("failed when parse snapshot file name", "err", err)
 					continue
@@ -276,8 +298,10 @@ func (db *DB) pruneSnapshots(newSnapshotVersion int64) {
 			}
 		}
 
-		if err := db.wal.TruncateFront(uint64(newSnapshotVersion + 1)); err != nil {
-			db.logger.Error("failed to truncate wal", "err", err, "version", newSnapshotVersion+1)
+		// truncate WAL until the earliest remaining snapshot
+		earliestVersion, err := firstSnapshotVersion(db.dir)
+		if err := db.wal.TruncateFront(uint64(earliestVersion + 1)); err != nil {
+			db.logger.Error("failed to truncate wal", "err", err, "version", earliestVersion+1)
 		}
 	}()
 }
@@ -571,7 +595,7 @@ func (db *DB) WriteSnapshot(dir string) error {
 }
 
 func snapshotName(version uint32) string {
-	return fmt.Sprintf("%s%d", SnapshotPrefix, version)
+	return fmt.Sprintf("%s%020d", SnapshotPrefix, version)
 }
 
 func currentPath(root string) string {
@@ -580,6 +604,74 @@ func currentPath(root string) string {
 
 func currentTmpPath(root string) string {
 	return filepath.Join(root, "current-tmp")
+}
+
+func currentVersion(root string) (int64, error) {
+	name, err := os.Readlink(currentPath(root))
+	if err != nil {
+		return 0, err
+	}
+
+	version, err := parseVersion(name)
+	if err != nil {
+		return 0, err
+	}
+
+	return version, nil
+}
+
+func parseVersion(name string) (int64, error) {
+	if !strings.HasPrefix(name, SnapshotPrefix) {
+		return 0, fmt.Errorf("invalid snapshot name %s", name)
+	}
+
+	return strconv.ParseInt(name[len(SnapshotPrefix):], 10, 64)
+}
+
+// seekSnapshot find the biggest snapshot that's smaller than or equal to target version,
+// returns the directory name, if not found, returns empty string.
+func seekSnapshot(root string, version uint32) (string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+
+	targetName := snapshotName(version)
+	for i := len(entries) - 1; i >= 0; i-- {
+		name := entries[i].Name()
+		if !strings.HasPrefix(name, SnapshotPrefix) {
+			continue
+		}
+
+		if name <= targetName {
+			return name, nil
+		}
+	}
+
+	return "", nil
+}
+
+// firstSnapshotVersion returns the earliest snapshot name in the db
+func firstSnapshotVersion(root string) (int64, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+			continue
+		}
+
+		version, err := parseVersion(entry.Name())
+		if err != nil {
+			return 0, err
+		}
+
+		return version, nil
+	}
+
+	return 0, errors.New("empty memiavl db")
 }
 
 func walPath(root string) string {
