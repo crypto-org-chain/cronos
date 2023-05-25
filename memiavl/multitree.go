@@ -187,6 +187,10 @@ func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
 
+func (t *MultiTree) SnapshotVersion() int64 {
+	return t.metadata.CommitInfo.Version
+}
+
 func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
 	return &t.lastCommitInfo
 }
@@ -323,9 +327,14 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	endIndex := lastIndex
 	if endVersion != 0 {
 		endIndex = walIndex(endVersion, t.initialVersion)
-		if endIndex > lastIndex || endIndex < firstIndex {
-			return fmt.Errorf("endIndex %d not in valid range: [%d, %d]", endIndex, firstIndex, lastIndex)
-		}
+	}
+
+	if endIndex < firstIndex {
+		return fmt.Errorf("target index %d is pruned", endIndex)
+	}
+
+	if endIndex > lastIndex {
+		return fmt.Errorf("target index %d is in the future, latest index: %d", endIndex, lastIndex)
 	}
 
 	for i := firstIndex; i <= endIndex; i++ {
@@ -417,4 +426,12 @@ func walIndex(v int64, initialVersion uint32) uint64 {
 		return uint64(v) - uint64(initialVersion) + 1
 	}
 	return uint64(v)
+}
+
+// walVersion converts wal index to version, reverse of walIndex
+func walVersion(index uint64, initialVersion uint32) int64 {
+	if initialVersion > 1 {
+		return int64(index) + int64(initialVersion) - 1
+	}
+	return int64(index)
 }

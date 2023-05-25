@@ -17,6 +17,10 @@ type MemIAVLConfig struct {
 	// AsyncCommitBuffer defines the size of asynchronous commit queue, this greatly improve block catching-up
 	// performance, -1 means synchronous commit.
 	AsyncCommitBuffer int `mapstructure:"async-commit-buffer"`
+	// SnapshotKeepRecent defines what many old snapshots (excluding the latest one) to keep after new snapshots are taken.
+	SnapshotKeepRecent uint32 `mapstructure:"snapshot-keep-recent"`
+	// SnapshotInterval defines the block interval the memiavl snapshot is taken, default to 1000.
+	SnapshotInterval uint32 `mapstructure:"snapshot-interval"`
 }
 
 func DefaultMemIAVLConfig() MemIAVLConfig {

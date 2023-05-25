@@ -83,7 +83,8 @@ func (t *Tree) SetInitialVersion(initialVersion int64) error {
 	return nil
 }
 
-// Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
+// Copy returns a snapshot of the tree which won't be modified by further modifications on the main tree,
+// the returned new tree can be accessed concurrently with the main tree.
 func (t *Tree) Copy() *Tree {
 	if _, ok := t.root.(*MemNode); ok {
 		// protect the existing `MemNode`s from get modified in-place

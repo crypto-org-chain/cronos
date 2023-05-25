@@ -265,3 +265,20 @@ func TestZeroCopy(t *testing.T) {
 		require.Equal(t, []byte("world"), value)
 	})
 }
+
+func TestWalIndexConversion(t *testing.T) {
+	testCases := []struct {
+		index          uint64
+		version        int64
+		initialVersion uint32
+	}{
+		{1, 1, 0},
+		{1, 1, 1},
+		{1, 10, 10},
+		{2, 11, 10},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.index, walIndex(tc.version, tc.initialVersion))
+		require.Equal(t, tc.version, walVersion(tc.index, tc.initialVersion))
+	}
+}

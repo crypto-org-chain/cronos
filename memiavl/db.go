@@ -10,8 +10,11 @@ import (
 	"sync"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tidwall/wal"
 )
+
+const DefaultSnapshotInterval = 1000
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -31,11 +34,20 @@ import (
 // ```
 type DB struct {
 	MultiTree
-	dir string
+	dir    string
+	logger log.Logger
 
+	// result channel of snapshot rewrite goroutine
 	snapshotRewriteChan chan snapshotResult
-	snapshotKeepRecent  uint32
-	pruneSnapshotLock   sync.Mutex
+	// the number of old snapshots to keep (excluding the latest one)
+	snapshotKeepRecent uint32
+	// block interval to take a new snapshot
+	snapshotInterval uint32
+	// make sure only one snapshot rewrite is running
+	pruneSnapshotLock sync.Mutex
+	// might need to wait for a few blocks before actual snapshot switching.
+	minQueryStates   int
+	pendingForSwitch *MultiTree
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -48,7 +60,7 @@ type DB struct {
 
 	// The assumptions to concurrency:
 	// - The methods on DB are protected by a mutex
-	// - Each call of LoadVersion loads a separate instance, in query scenarios,
+	// - Each call of Load loads a separate instance, in query scenarios,
 	//   it should be immutable, the cache stores will handle the temporary writes.
 	// - The DB for the state machine will handle writes through the Commit call,
 	//   this method is the sole entry point for tree modifications, and there's no concurrency internally
@@ -57,17 +69,22 @@ type DB struct {
 }
 
 type Options struct {
+	Logger          log.Logger
 	CreateIfMissing bool
 	InitialVersion  uint32
 	// the initial stores when initialize the empty instance
 	InitialStores      []string
 	SnapshotKeepRecent uint32
+	SnapshotInterval   uint32
 	// load the target version instead of latest version
 	TargetVersion uint32
-	// Buffer size for the asynchronous commit queue, -1 means synchronous commit
+	// Buffer size for the asynchronous commit queue, -1 means synchronous commit,
+	// default to 0.
 	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
+	// for ibc relayer to work, we need to make sure at least a few queryable states exists even with pruning="nothing" setting.
+	MinQueryStates int
 }
 
 const (
@@ -75,35 +92,68 @@ const (
 )
 
 func Load(dir string, opts Options) (*DB, error) {
-	currentDir := currentPath(dir)
-	mtree, err := LoadMultiTree(currentDir, opts.ZeroCopy)
+	snapshotName := "current"
+	if opts.TargetVersion > 0 {
+		version, err := currentVersion(dir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load current version: %w", err)
+		}
+
+		if int64(opts.TargetVersion) < version {
+			// try to load historical snapshots
+			snapshotName, err = seekSnapshot(dir, opts.TargetVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find snapshot: %w", err)
+			}
+
+			if snapshotName == "" {
+				return nil, fmt.Errorf("target version is pruned: %d", opts.TargetVersion)
+			}
+		}
+	}
+
+	path := filepath.Join(dir, snapshotName)
+	mtree, err := LoadMultiTree(path, opts.ZeroCopy)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
 			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(currentDir, opts.ZeroCopy)
+			mtree, err = LoadMultiTree(path, opts.ZeroCopy)
 		}
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true})
+	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
 	}
 
-	if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
-		return nil, err
+	if opts.TargetVersion == 0 || int64(opts.TargetVersion) > mtree.Version() {
+		if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
+			return nil, errors.Join(err, wal.Close())
+		}
 	}
 
 	db := &DB{
 		MultiTree:          *mtree,
+		logger:             opts.Logger,
 		dir:                dir,
 		wal:                wal,
 		walChanSize:        opts.AsyncCommitBuffer,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
+		snapshotInterval:   opts.SnapshotInterval,
+		minQueryStates:     opts.MinQueryStates,
+	}
+
+	if db.logger == nil {
+		db.logger = log.NewNopLogger()
+	}
+
+	if db.snapshotInterval == 0 {
+		db.snapshotInterval = DefaultSnapshotInterval
 	}
 
 	if db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -113,7 +163,7 @@ func Load(dir string, opts Options) (*DB, error) {
 			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
 		}
 		if err := db.ApplyUpgrades(upgrades); err != nil {
-			return nil, err
+			return nil, errors.Join(err, db.Close())
 		}
 	}
 
@@ -184,43 +234,88 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		// snapshot rewrite succeeded, catchup and switch
-		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
-			return fmt.Errorf("catchup failed: %w", err)
-		}
-		if err := db.reloadMultiTree(result.mtree); err != nil {
-			return fmt.Errorf("switch multitree failed: %w", err)
-		}
-		// prune the old snapshots
-		// wait until last prune finish
-		db.pruneSnapshotLock.Lock()
-		go func() {
-			defer db.pruneSnapshotLock.Unlock()
-
-			entries, err := os.ReadDir(db.dir)
-			if err == nil {
-				for _, entry := range entries {
-					if entry.IsDir() && strings.HasPrefix(entry.Name(), SnapshotPrefix) {
-						currentVersion, err := strconv.ParseInt(strings.TrimPrefix(entry.Name(), SnapshotPrefix), 10, 32)
-						if err != nil {
-							fmt.Printf("failed when parse current version: %s\n", err)
-							continue
-						}
-						if result.mtree.metadata.CommitInfo.Version-currentVersion > int64(db.snapshotKeepRecent) {
-							fullPath := filepath.Join(db.dir, entry.Name())
-							if err := os.RemoveAll(fullPath); err != nil {
-								fmt.Printf("failed when remove old snapshot: %s\n", err)
-							}
-						}
-					}
-				}
-			}
-		}()
-		return nil
-
+		db.pendingForSwitch = result.mtree
 	default:
 	}
+
+	if db.pendingForSwitch == nil {
+		return nil
+	}
+
+	// catchup the remaining wal
+	if err := db.pendingForSwitch.CatchupWAL(db.wal, 0); err != nil {
+		return fmt.Errorf("catchup failed: %w", err)
+	}
+
+	// make sure there are at least a few queryable states after switch
+	if db.pendingForSwitch.Version() < db.pendingForSwitch.SnapshotVersion()+int64(db.minQueryStates) {
+		return nil
+	}
+
+	// do the switch
+	if err := db.reloadMultiTree(db.pendingForSwitch); err != nil {
+		return fmt.Errorf("switch multitree failed: %w", err)
+	}
+	db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
+
+	db.pendingForSwitch = nil
+	db.pruneSnapshots()
 	return nil
+}
+
+// pruneSnapshot prune the old snapshots
+func (db *DB) pruneSnapshots() {
+	// wait until last prune finish
+	db.pruneSnapshotLock.Lock()
+
+	go func() {
+		defer db.pruneSnapshotLock.Unlock()
+
+		currentName, err := os.Readlink(currentPath(db.dir))
+		if err != nil {
+			db.logger.Error("failed to read current snapshot name", "err", err)
+			return
+		}
+
+		entries, err := os.ReadDir(db.dir)
+		if err != nil {
+			db.logger.Error("failed to read db dir", "err", err)
+			return
+		}
+
+		counter := db.snapshotKeepRecent
+		for i := len(entries) - 1; i >= 0; i-- {
+			name := entries[i].Name()
+			if !strings.HasPrefix(name, SnapshotPrefix) {
+				continue
+			}
+
+			if name >= currentName {
+				// ignore any newer snapshot directories, there could be ongoning snapshot rewrite.
+				continue
+			}
+
+			if counter > 0 {
+				counter--
+				continue
+			}
+
+			db.logger.Info("prune snapshot", "name", name)
+			if err := os.RemoveAll(filepath.Join(db.dir, name)); err != nil {
+				db.logger.Error("failed to prune snapshot", "err", err)
+			}
+		}
+
+		// truncate WAL until the earliest remaining snapshot
+		earliestVersion, err := firstSnapshotVersion(db.dir)
+		if err != nil {
+			db.logger.Error("failed to find first snapshot", "err", err)
+		}
+
+		if err := db.wal.TruncateFront(uint64(earliestVersion + 1)); err != nil {
+			db.logger.Error("failed to truncate wal", "err", err, "version", earliestVersion+1)
+		}
+	}()
 }
 
 // Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
@@ -264,6 +359,8 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	}
 
 	db.pendingUpgrades = db.pendingUpgrades[:0]
+
+	db.rewriteIfApplicable(v)
 
 	return hash, v, nil
 }
@@ -320,6 +417,7 @@ func (db *DB) copy() *DB {
 	mtree := db.MultiTree.Copy()
 	return &DB{
 		MultiTree: *mtree,
+		logger:    db.logger,
 		dir:       db.dir,
 	}
 }
@@ -372,10 +470,20 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	return nil
 }
 
+// rewriteIfApplicable execute the snapshot rewrite strategy according to current height
+func (db *DB) rewriteIfApplicable(height int64) {
+	if height%int64(db.snapshotInterval) != 0 {
+		return
+	}
+
+	if err := db.rewriteSnapshotBackground(); err != nil {
+		db.logger.Error("failed to rewrite snapshot in background", "err", err)
+	}
+}
+
 type snapshotResult struct {
-	mtree   *MultiTree
-	err     error
-	version uint32
+	mtree *MultiTree
+	err   error
 }
 
 // RewriteSnapshotBackground rewrite snapshot in a background goroutine,
@@ -384,6 +492,10 @@ func (db *DB) RewriteSnapshotBackground() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	return db.rewriteSnapshotBackground()
+}
+
+func (db *DB) rewriteSnapshotBackground() error {
 	if db.snapshotRewriteChan != nil {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
@@ -395,22 +507,28 @@ func (db *DB) RewriteSnapshotBackground() error {
 	wal := db.wal
 	go func() {
 		defer close(ch)
+
+		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshot(); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy)
+		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), db.zeroCopy)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
-		// do a best effort catch-up first, will try catch-up again in main thread.
+
+		// do a best effort catch-up, will do another final catch-up in main thread.
 		if err := mtree.CatchupWAL(wal, 0); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
 
-		ch <- snapshotResult{mtree: mtree, version: uint32(cloned.lastCommitInfo.Version)}
+		cloned.logger.Info("finished best-effort WAL catchup", "version", cloned.Version(), "latest", mtree.Version())
+
+		ch <- snapshotResult{mtree: mtree}
 	}()
 
 	return nil
@@ -489,7 +607,7 @@ func (db *DB) WriteSnapshot(dir string) error {
 }
 
 func snapshotName(version uint32) string {
-	return fmt.Sprintf("%s%d", SnapshotPrefix, version)
+	return fmt.Sprintf("%s%020d", SnapshotPrefix, version)
 }
 
 func currentPath(root string) string {
@@ -498,6 +616,74 @@ func currentPath(root string) string {
 
 func currentTmpPath(root string) string {
 	return filepath.Join(root, "current-tmp")
+}
+
+func currentVersion(root string) (int64, error) {
+	name, err := os.Readlink(currentPath(root))
+	if err != nil {
+		return 0, err
+	}
+
+	version, err := parseVersion(name)
+	if err != nil {
+		return 0, err
+	}
+
+	return version, nil
+}
+
+func parseVersion(name string) (int64, error) {
+	if !strings.HasPrefix(name, SnapshotPrefix) {
+		return 0, fmt.Errorf("invalid snapshot name %s", name)
+	}
+
+	return strconv.ParseInt(name[len(SnapshotPrefix):], 10, 64)
+}
+
+// seekSnapshot find the biggest snapshot that's smaller than or equal to target version,
+// returns the directory name, if not found, returns empty string.
+func seekSnapshot(root string, version uint32) (string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+
+	targetName := snapshotName(version)
+	for i := len(entries) - 1; i >= 0; i-- {
+		name := entries[i].Name()
+		if !strings.HasPrefix(name, SnapshotPrefix) {
+			continue
+		}
+
+		if name <= targetName {
+			return name, nil
+		}
+	}
+
+	return "", nil
+}
+
+// firstSnapshotVersion returns the earliest snapshot name in the db
+func firstSnapshotVersion(root string) (int64, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+			continue
+		}
+
+		version, err := parseVersion(entry.Name())
+		if err != nil {
+			return 0, err
+		}
+
+		return version, nil
+	}
+
+	return 0, errors.New("empty memiavl db")
 }
 
 func walPath(root string) string {
