@@ -126,10 +126,6 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
-	if opts.TargetVersion > 0 && int64(opts.TargetVersion) < mtree.Version() {
-		return nil, fmt.Errorf("target version %d is pruned", opts.TargetVersion)
-	}
-
 	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
@@ -137,8 +133,7 @@ func Load(dir string, opts Options) (*DB, error) {
 
 	if opts.TargetVersion == 0 || int64(opts.TargetVersion) > mtree.Version() {
 		if err := mtree.CatchupWAL(wal, int64(opts.TargetVersion)); err != nil {
-			_ = wal.Close()
-			return nil, err
+			return nil, errors.Join(err, wal.Close())
 		}
 	}
 
@@ -168,8 +163,7 @@ func Load(dir string, opts Options) (*DB, error) {
 			upgrades = append(upgrades, &TreeNameUpgrade{Name: name})
 		}
 		if err := db.ApplyUpgrades(upgrades); err != nil {
-			_ = db.Close()
-			return nil, err
+			return nil, errors.Join(err, db.Close())
 		}
 	}
 
@@ -314,6 +308,10 @@ func (db *DB) pruneSnapshots() {
 
 		// truncate WAL until the earliest remaining snapshot
 		earliestVersion, err := firstSnapshotVersion(db.dir)
+		if err != nil {
+			db.logger.Error("failed to find first snapshot", "err", err)
+		}
+
 		if err := db.wal.TruncateFront(uint64(earliestVersion + 1)); err != nil {
 			db.logger.Error("failed to truncate wal", "err", err, "version", earliestVersion+1)
 		}
@@ -488,6 +486,8 @@ type snapshotResult struct {
 	err   error
 }
 
+// RewriteSnapshotBackground rewrite snapshot in a background goroutine,
+// `Commit` will check the complete status, and switch to the new snapshot.
 func (db *DB) RewriteSnapshotBackground() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
@@ -495,8 +495,6 @@ func (db *DB) RewriteSnapshotBackground() error {
 	return db.rewriteSnapshotBackground()
 }
 
-// rewriteSnapshotBackground rewrite snapshot in a background goroutine,
-// `Commit` will check the complete status, and switch to the new snapshot.
 func (db *DB) rewriteSnapshotBackground() error {
 	if db.snapshotRewriteChan != nil {
 		return errors.New("there's another ongoing snapshot rewriting process")
