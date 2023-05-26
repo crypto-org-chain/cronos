@@ -1,6 +1,9 @@
 package config
 
-import "github.com/evmos/ethermint/server/config"
+import (
+	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/evmos/ethermint/server/config"
+)
 
 const DefaultCacheSize = 1000
 
@@ -29,6 +32,7 @@ type MemIAVLConfig struct {
 
 func DefaultMemIAVLConfig() MemIAVLConfig {
 	return MemIAVLConfig{
-		CacheSize: DefaultCacheSize,
+		CacheSize:        DefaultCacheSize,
+		SnapshotInterval: memiavl.DefaultSnapshotInterval,
 	}
 }
