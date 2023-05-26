@@ -224,8 +224,6 @@ func TestLoadVersion(t *testing.T) {
 	}
 	require.NoError(t, db.WaitAsyncCommit())
 
-	require.NoError(t, db.WaitAsyncCommit())
-
 	for v, expItems := range ExpectItems {
 		if v == 0 {
 			continue
