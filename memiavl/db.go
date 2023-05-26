@@ -305,7 +305,7 @@ func (db *DB) pruneSnapshots() {
 			db.logger.Info("prune snapshot", "name", name)
 			tmpPath := filepath.Join(db.dir, name+"-tmp")
 			if err := os.Rename(filepath.Join(db.dir, name), tmpPath); err != nil {
-				db.logger.Error("failed to prune snapshot", "err", err)
+				db.logger.Error("failed to move the snapshot to tmp file", "err", err)
 				continue
 			}
 
