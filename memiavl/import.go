@@ -25,6 +25,7 @@ func Import(
 		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
 	}
 	snapshotDir := snapshotName(uint32(height))
+	tmpDir := snapshotDir + "-tmp"
 
 	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
 	// a SnapshotStoreItem, telling us which store to import into. The following items will contain
@@ -48,7 +49,7 @@ loop:
 					return snapshottypes.SnapshotItem{}, err
 				}
 			}
-			importer = NewTreeImporter(filepath.Join(dir, snapshotDir, item.Store.Name), int64(height))
+			importer = NewTreeImporter(filepath.Join(dir, tmpDir, item.Store.Name), int64(height))
 			defer importer.Close()
 		case *snapshottypes.SnapshotItem_IAVL:
 			if importer == nil {
@@ -84,7 +85,11 @@ loop:
 		}
 	}
 
-	if err := updateMetadataFile(filepath.Join(dir, snapshotDir), int64(height)); err != nil {
+	if err := updateMetadataFile(filepath.Join(dir, tmpDir), int64(height)); err != nil {
+		return snapshottypes.SnapshotItem{}, err
+	}
+
+	if err := os.Rename(filepath.Join(dir, tmpDir), filepath.Join(dir, snapshotDir)); err != nil {
 		return snapshottypes.SnapshotItem{}, err
 	}
 

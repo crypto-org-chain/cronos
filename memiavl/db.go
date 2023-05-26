@@ -301,7 +301,13 @@ func (db *DB) pruneSnapshots() {
 			}
 
 			db.logger.Info("prune snapshot", "name", name)
-			if err := os.RemoveAll(filepath.Join(db.dir, name)); err != nil {
+			tmpPath := filepath.Join(db.dir, name+"-tmp")
+			if err := os.Rename(filepath.Join(db.dir, name), tmpPath); err != nil {
+				db.logger.Error("failed to prune snapshot", "err", err)
+				continue
+			}
+
+			if err := os.RemoveAll(tmpPath); err != nil {
 				db.logger.Error("failed to prune snapshot", "err", err)
 			}
 		}
@@ -429,11 +435,15 @@ func (db *DB) RewriteSnapshot() error {
 
 	version := uint32(db.lastCommitInfo.Version)
 	snapshotDir := snapshotName(version)
-	snapshotPath := filepath.Join(db.dir, snapshotDir)
-	if err := os.MkdirAll(snapshotPath, os.ModePerm); err != nil {
+	tmpDir := snapshotDir + "-tmp"
+	path := filepath.Join(db.dir, tmpDir)
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
 		return err
 	}
-	if err := db.MultiTree.WriteSnapshot(snapshotPath); err != nil {
+	if err := db.MultiTree.WriteSnapshot(path); err != nil {
+		return err
+	}
+	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
 		return err
 	}
 	return updateCurrentSymlink(db.dir, snapshotDir)
