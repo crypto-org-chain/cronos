@@ -1,6 +1,11 @@
 package config
 
-import "github.com/evmos/ethermint/server/config"
+import (
+	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/evmos/ethermint/server/config"
+)
+
+const DefaultCacheSize = 1000
 
 type Config struct {
 	config.Config
@@ -21,8 +26,14 @@ type MemIAVLConfig struct {
 	SnapshotKeepRecent uint32 `mapstructure:"snapshot-keep-recent"`
 	// SnapshotInterval defines the block interval the memiavl snapshot is taken, default to 1000.
 	SnapshotInterval uint32 `mapstructure:"snapshot-interval"`
+	// CacheSize defines the size of the cache for each memiavl store.
+	CacheSize int `mapstructure:"cache-size"`
 }
 
 func DefaultMemIAVLConfig() MemIAVLConfig {
-	return MemIAVLConfig{}
+	return MemIAVLConfig{
+		CacheSize:        DefaultCacheSize,
+		SnapshotInterval: memiavl.DefaultSnapshotInterval,
+		ZeroCopy:         true,
+	}
 }

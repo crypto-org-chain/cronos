@@ -8,7 +8,7 @@ import (
 )
 
 func TestIterator(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := New(0)
 	require.Equal(t, ExpectItems[0], collectIter(tree.Iterator(nil, nil, true)))
 
 	for _, changes := range ChangeSets {
@@ -20,7 +20,7 @@ func TestIterator(t *testing.T) {
 }
 
 func TestIteratorRange(t *testing.T) {
-	tree := NewEmptyTree(0)
+	tree := New(0)
 	for _, changes := range ChangeSets[:6] {
 		_, _, err := tree.ApplyChangeSet(changes, true)
 		require.NoError(t, err)
