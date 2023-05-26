@@ -222,6 +222,7 @@ func TestLoadVersion(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+	require.NoError(t, db.WaitAsyncCommit())
 
 	require.NoError(t, db.WaitAsyncCommit())
 

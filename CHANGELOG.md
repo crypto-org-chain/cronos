@@ -37,6 +37,7 @@
 - [#1027](https://github.com/crypto-org-chain/cronos/pull/1027) Integrate local state-sync commands.
 - [#1029](https://github.com/crypto-org-chain/cronos/pull/1029) Change config `async-commit` to `async-commit-buffer`, make the channel size configurable.
 - [#1034](https://github.com/crypto-org-chain/cronos/pull/1034) Support memiavl snapshot strategy configuration.
+- [#1035](https://github.com/crypto-org-chain/cronos/pull/1035) Support caching in memiavl directly, ignore inter-block cache silently.
 
 *April 13, 2023*
 

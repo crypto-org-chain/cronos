@@ -20,6 +20,7 @@ const (
 	FlagZeroCopy           = "memiavl.zero-copy"
 	FlagSnapshotKeepRecent = "memiavl.snapshot-keep-recent"
 	FlagSnapshotInterval   = "memiavl.snapshot-interval"
+	FlagCacheSize          = "memiavl.cache-size"
 )
 
 func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOptions, baseAppOptions []func(*baseapp.BaseApp)) []func(*baseapp.BaseApp) {
@@ -34,6 +35,7 @@ func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOpt
 			SnapshotInterval:   cast.ToUint32(appOpts.Get(FlagSnapshotInterval)),
 			// make sure a few queryable states even with pruning="nothing", needed for ibc relayer to work.
 			MinQueryStates: 3,
+			CacheSize:      cast.ToInt(appOpts.Get(FlagCacheSize)),
 		})
 		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
 	}

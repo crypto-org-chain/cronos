@@ -85,6 +85,8 @@ type Options struct {
 	ZeroCopy bool
 	// for ibc relayer to work, we need to make sure at least a few queryable states exists even with pruning="nothing" setting.
 	MinQueryStates int
+	// CacheSize defines the cache's max entry size for each memiavl store.
+	CacheSize int
 }
 
 const (
@@ -113,13 +115,13 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	path := filepath.Join(dir, snapshotName)
-	mtree, err := LoadMultiTree(path, opts.ZeroCopy)
+	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
 			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
 				return nil, err
 			}
-			mtree, err = LoadMultiTree(path, opts.ZeroCopy)
+			mtree, err = LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 		}
 		if err != nil {
 			return nil, err
@@ -416,11 +418,11 @@ func (db *DB) Copy() *DB {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return db.copy()
+	return db.copy(db.cacheSize)
 }
 
-func (db *DB) copy() *DB {
-	mtree := db.MultiTree.Copy()
+func (db *DB) copy(cacheSize int) *DB {
+	mtree := db.MultiTree.Copy(cacheSize)
 	return &DB{
 		MultiTree: *mtree,
 		logger:    db.logger,
@@ -457,7 +459,7 @@ func (db *DB) Reload() error {
 }
 
 func (db *DB) reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy)
+	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize)
 	if err != nil {
 		return err
 	}
@@ -513,7 +515,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 
-	cloned := db.copy()
+	cloned := db.copy(0)
 	wal := db.wal
 	go func() {
 		defer close(ch)
@@ -524,7 +526,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
-		mtree, err := LoadMultiTree(currentPath(cloned.dir), db.zeroCopy)
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -710,7 +712,7 @@ func walPath(root string) string {
 // current -> snapshot-0
 // ```
 func initEmptyDB(dir string, initialVersion uint32) error {
-	tmp := NewEmptyMultiTree(initialVersion)
+	tmp := NewEmptyMultiTree(initialVersion, 0)
 	snapshotDir := snapshotName(0)
 	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
 		return err
