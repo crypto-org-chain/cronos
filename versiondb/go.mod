@@ -7,7 +7,7 @@ require (
 	github.com/alitto/pond v1.8.2
 	github.com/cosmos/cosmos-sdk v0.46.13-rc.0
 	github.com/cosmos/iavl v0.19.6
-	github.com/crypto-org-chain/cronos/memiavl v0.0.1
+	github.com/crypto-org-chain/cronos/memiavl v0.0.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
 	github.com/linxGnu/grocksdb v1.7.16
