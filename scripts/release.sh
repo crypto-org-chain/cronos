@@ -28,7 +28,7 @@ build() {
         fi
     fi
     echo "building $FLAKE"
-    nix build -L "$FLAKE"
+    nix build --show-trace -L "$FLAKE"
     cp result "cronos_${ref_name_clean:1}${network}_${name}.tar.gz"
 }
 
