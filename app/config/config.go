@@ -34,5 +34,6 @@ func DefaultMemIAVLConfig() MemIAVLConfig {
 	return MemIAVLConfig{
 		CacheSize:        DefaultCacheSize,
 		SnapshotInterval: memiavl.DefaultSnapshotInterval,
+		ZeroCopy:         true,
 	}
 }
