@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -124,7 +125,7 @@ import (
 
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
-	"github.com/crypto-org-chain/cronos/store/rootmulti"
+	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -149,11 +150,6 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
-
-	FileStreamerDirectory = "file_streamer"
-
-	FlagMemIAVL  = "store.memiavl"
-	FlagAsyncWAL = "store.async-wal"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -356,15 +352,7 @@ func New(
 
 	experimental := cast.ToBool(appOpts.Get(cronos.ExperimentalFlag))
 
-	// experimental memiavl integration
-	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
-		// cms must be overridden before the other options, because they may use the cms,
-		// FIXME we have to assume the cms is not overridden by the other options, but we can't tell at here.
-		cms := rootmulti.NewStore(filepath.Join(homePath, "data", "memiavl.db"), logger)
-		cms.SetAsyncWAL(cast.ToBool(appOpts.Get(FlagAsyncWAL)))
-		baseAppOptions = append([]func(*baseapp.BaseApp){setCMS(cms)}, baseAppOptions...)
-	}
-
+	baseAppOptions = SetupMemIAVL(logger, homePath, appOpts, baseAppOptions)
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -1012,6 +1000,13 @@ func VerifyAddressFormat(bz []byte) error {
 	return nil
 }
 
-func setCMS(cms storetypes.CommitMultiStore) func(*baseapp.BaseApp) {
-	return func(bapp *baseapp.BaseApp) { bapp.SetCMS(cms) }
+// Close will be called in graceful shutdown in start cmd
+func (app *App) Close() error {
+	err := app.BaseApp.Close()
+
+	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
+		return errors.Join(err, cms.WaitAsyncCommit())
+	}
+
+	return err
 }

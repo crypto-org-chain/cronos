@@ -8,6 +8,7 @@
 - [#984](https://github.com/crypto-org-chain/cronos/pull/984) experimental integration of memiavl.
 - [#985](https://github.com/crypto-org-chain/cronos/pull/985) Fix versiondb verify command on older versions
 - [#1038](https://github.com/crypto-org-chain/cronos/pull/1038) Update ibc-go to `v5.2.1`.
+- [#1043](https://github.com/crypto-org-chain/cronos/pull/1043) Integrate latest memiavl and local state-sync commands in cosmos-sdk
 
 *April 13, 2023*
 
