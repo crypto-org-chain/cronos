@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/pruning"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	"github.com/cosmos/cosmos-sdk/client/snapshot"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -39,6 +40,7 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
+	cronoscfg "github.com/crypto-org-chain/cronos/app/config"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/experimental"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/x/cronos"
@@ -124,6 +126,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
 		debug.Cmd(),
 		config.Cmd(),
 		pruning.PruningCmd(a.newApp),
+		snapshot.Cmd(a.newApp),
 		// this line is used by starport scaffolding # stargate/root/commands
 	)
 
@@ -212,7 +215,11 @@ func txCommand() *cobra.Command {
 // initAppConfig helps to override default appConfig template and configs.
 // return "", nil if no custom configuration is required for the application.
 func initAppConfig() (string, interface{}) {
-	return servercfg.AppConfig(ethermint.AttoPhoton)
+	tpl, cfg := servercfg.AppConfig(ethermint.AttoPhoton)
+	return tpl + cronoscfg.DefaultConfigTemplate, cronoscfg.Config{
+		Config:  cfg.(servercfg.Config),
+		MemIAVL: cronoscfg.DefaultMemIAVLConfig(),
+	}
 }
 
 type appCreator struct {
