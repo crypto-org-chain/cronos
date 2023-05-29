@@ -8,6 +8,15 @@ import (
 	"unsafe"
 )
 
+func init() {
+	buf := [2]byte{}
+	*(*uint16)(unsafe.Pointer(&buf[0])) = uint16(0xABCD)
+
+	if buf != [2]byte{0xCD, 0xAB} {
+		panic("native byte order is not little endian, please build without nativebyteorder")
+	}
+}
+
 type NodeLayout = *nodeLayout
 
 // Nodes is a continuously stored IAVL nodes
