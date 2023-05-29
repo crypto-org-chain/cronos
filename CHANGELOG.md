@@ -24,6 +24,11 @@
 - [#945](https://github.com/crypto-org-chain/cronos/pull/945) Fix no handler exists for proposal type error when update-client due to wrong ibc route.
 - [#1036](https://github.com/crypto-org-chain/cronos/pull/1036) Fix memiavl import memory leak.
 - [#1038](https://github.com/crypto-org-chain/cronos/pull/1038) Update ibc-go to `v5.2.1`.
+- [#1042](https://github.com/crypto-org-chain/cronos/pull/1042) Avoid channel get changed when concurrent subscribe happens ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/72bbe0a80dfd3c586868e2f0b4fbed72593c45bf)).
+
+### Features
+
+- [#1042](https://github.com/crypto-org-chain/cronos/pull/1042) call Close method on app to cleanup resource on graceful shutdown ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/0ea7b86532a1144f229961f94b4524d5889e874d)).
 
 ### Improvements
 
