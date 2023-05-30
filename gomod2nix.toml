@@ -143,7 +143,6 @@ schema = 3
   [mod."github.com/cosmos/ibc-go/v5"]
     version = "v5.2.1"
     hash = "sha256-zBw4oJQxhdviybdaL9n8PTFRTUpIIUbCGitVj6FD1/k="
-    replaced = "github.com/cosmos/ibc-go/v5"
   [mod."github.com/cosmos/ledger-cosmos-go"]
     version = "v0.12.2"
     hash = "sha256-fLkveUWxn0nZzvgsY0KTU/T1TUUQ8Ap6XTYSnJs6XXo="
