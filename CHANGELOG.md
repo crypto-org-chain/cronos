@@ -1,5 +1,12 @@
 # Changelog
 
+*May 30, 2023*
+
+## v1.0.8
+
+- [#1038](https://github.com/crypto-org-chain/cronos/pull/1038) Update ibc-go to `v5.2.1`.
+- [#1052](https://github.com/crypto-org-chain/cronos/pull/1052) Revert accidental breaking change in `v1.0.7`.
+
 *April 13, 2023*
 
 ## v1.0.7
