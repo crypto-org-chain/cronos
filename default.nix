@@ -9,7 +9,7 @@
 , static ? stdenv.hostPlatform.isStatic
 }:
 let
-  version = "v1.0.7";
+  version = "v1.0.8";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_no_link" ];
   ldflags = lib.concatStringsSep "\n" ([
