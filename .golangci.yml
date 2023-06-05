@@ -79,9 +79,15 @@ linters-settings:
           - github.com/cosmos/ibc-go
           - github.com/ethereum/go-ethereum
           - github.com/evmos/ethermint
+          - github.com/gorilla/mux
+          - github.com/grpc-ecosystem/grpc-gateway/runtime
+          - github.com/linxGnu/grocksdb
           - github.com/peggyjv/gravity-bridge/module
+          - github.com/rakyll/statik/fs
+          - github.com/spf13
           - github.com/stretchr/testify/require
           - github.com/tendermint/tendermint
+          - github.com/tendermint/tm-db
       test:
         files:
           - "$test"
@@ -98,3 +104,5 @@ linters-settings:
           - github.com/peggyjv/gravity-bridge/module
           - github.com/stretchr/testify/require
           - github.com/tendermint/tendermint
+          - github.com/tendermint/tm-db
+          - github.com/stretchr/testify
