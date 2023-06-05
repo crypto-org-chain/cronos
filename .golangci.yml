@@ -63,3 +63,38 @@ linters-settings:
     allow-leading-space: true
     require-explanation: false
     require-specific: false
+  depguard:
+    rules:
+      main:
+        files:
+          - $all
+          - "!$test"
+        allow:
+          - $gostd
+          - github.com/crypto-org-chain/cronos
+          - cosmossdk.io/errors
+          - cosmossdk.io/math
+          - github.com/armon/go-metrics
+          - github.com/cosmos/cosmos-sdk
+          - github.com/cosmos/ibc-go
+          - github.com/ethereum/go-ethereum
+          - github.com/evmos/ethermint
+          - github.com/peggyjv/gravity-bridge/module
+          - github.com/stretchr/testify/require
+          - github.com/tendermint/tendermint
+      test:
+        files:
+          - "$test"
+        allow:
+          - $gostd
+          - github.com/crypto-org-chain/cronos
+          - cosmossdk.io/errors
+          - cosmossdk.io/math
+          - github.com/armon/go-metrics
+          - github.com/cosmos/cosmos-sdk
+          - github.com/cosmos/ibc-go
+          - github.com/ethereum/go-ethereum
+          - github.com/evmos/ethermint
+          - github.com/peggyjv/gravity-bridge/module
+          - github.com/stretchr/testify/require
+          - github.com/tendermint/tendermint
