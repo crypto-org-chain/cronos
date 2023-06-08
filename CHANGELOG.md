@@ -1,4 +1,9 @@
 # Changelog
+*Jun 9, 2023*
+
+## v1.0.9
+
+- [#1059](https://github.com/crypto-org-chain/cronos/pull/1059) Patch barberry.
 
 *May 30, 2023*
 
