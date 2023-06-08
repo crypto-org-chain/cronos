@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-rc.0
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.13-rc.0
+	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/ibc-go/v5 v5.2.1
 	github.com/crypto-org-chain/cronos/memiavl v0.0.2
 	github.com/crypto-org-chain/cronos/store v0.0.2
@@ -226,8 +226,7 @@ replace (
 	// the version used by cockroach v22.2.7 release
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230206180212-744ea7cc8f90
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
-	// https://github.com/cosmos/cosmos-sdk/pull/16331
-	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.13-0.20230530102818-5b4c59385bc6
+	github.com/cosmos/cosmos-sdk => github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134

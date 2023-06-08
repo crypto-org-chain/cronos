@@ -1,6 +1,6 @@
 # Changelog
 
-*Jun 1, 2023*
+*Jun 10, 2023*
 
 ## v1.0.9
 
@@ -11,6 +11,7 @@
 - [#1043](https://github.com/crypto-org-chain/cronos/pull/1043) Update ethermint dependency
   - Avoid channel get changed when concurrent subscribe happens ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/72bbe0a80dfd3c586868e2f0b4fbed72593c45bf)).
   - call Close method on app to cleanup resource on graceful shutdown ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/0ea7b86532a1144f229961f94b4524d5889e874d)).
+- [#1054](https://github.com/crypto-org-chain/cronos/pull/1054) patch barberry.
 
 *May 30, 2023*
 
