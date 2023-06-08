@@ -209,7 +209,8 @@ replace (
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	// Ref: https://forum.cosmos.network/t/ibc-security-advisory-dragonberry/7702
 	github.com/confio/ics23/go => github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.3-0.20230530021201-0a93ffb1f9d4
+	// https://github.com/crypto-org-chain/cosmos-sdk/tree/release/v0.46.12-hotfix
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.3-0.20230608170216-c8ad6f2b4074
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
 	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.10-cronos
