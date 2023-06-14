@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#1058](https://github.com/crypto-org-chain/cronos/pull/1058) Fix decode log for multi topics in websocket subscribe ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/2136ad029860c819942ad1836dd3f42585002233)).
+
 *May 29, 2023*
 
 ## v1.0.8
