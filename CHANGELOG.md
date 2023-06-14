@@ -25,6 +25,7 @@
 - [#1036](https://github.com/crypto-org-chain/cronos/pull/1036) Fix memiavl import memory leak.
 - [#1038](https://github.com/crypto-org-chain/cronos/pull/1038) Update ibc-go to `v5.2.1`.
 - [#1042](https://github.com/crypto-org-chain/cronos/pull/1042) Avoid channel get changed when concurrent subscribe happens ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/72bbe0a80dfd3c586868e2f0b4fbed72593c45bf)).
+- [#1058](https://github.com/crypto-org-chain/cronos/pull/1058) Fix decode log for multi topics in websocket subscribe ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/2136ad029860c819942ad1836dd3f42585002233)).
 
 ### Features
 
