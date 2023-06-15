@@ -12,7 +12,6 @@ import (
 	"cosmossdk.io/errors"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
@@ -253,47 +252,28 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
 	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 
-	var (
-		infos   []storetypes.StoreInfo
-		csIndex int
-	)
-	for _, entry := range t.trees {
-		var changeSet iavl.ChangeSet
+	for _, cs := range changeSets {
+		tree := t.trees[t.treesByName[cs.Name]].tree
 
-		if csIndex < len(changeSets) && entry.name == changeSets[csIndex].Name {
-			changeSet = changeSets[csIndex].Changeset
-			csIndex++
-		}
-		hash, v, err := entry.tree.ApplyChangeSet(changeSet, updateCommitInfo)
+		_, v, err := tree.ApplyChangeSet(cs.Changeset, updateCommitInfo)
 		if err != nil {
 			return nil, 0, err
 		}
 		if v != version {
 			return nil, 0, fmt.Errorf("multi tree version don't match(%d != %d)", v, version)
 		}
-		if updateCommitInfo {
-			infos = append(infos, storetypes.StoreInfo{
-				Name: entry.name,
-				CommitId: storetypes.CommitID{
-					Version: v,
-					Hash:    hash,
-				},
-			})
-		}
-	}
-
-	if csIndex != len(changeSets) {
-		return nil, 0, fmt.Errorf("non-exhaustive change sets")
 	}
 
 	t.lastCommitInfo.Version = version
-	t.lastCommitInfo.StoreInfos = infos
 
 	var hash []byte
 	if updateCommitInfo {
-		hash = t.lastCommitInfo.Hash()
+		hash = t.UpdateCommitInfo()
+	} else {
+		t.lastCommitInfo.StoreInfos = []storetypes.StoreInfo{}
 	}
-	return hash, t.lastCommitInfo.Version, nil
+
+	return hash, version, nil
 }
 
 // UpdateCommitInfo update lastCommitInfo based on current status of trees.

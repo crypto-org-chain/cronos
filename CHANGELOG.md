@@ -46,6 +46,7 @@
 - [#1034](https://github.com/crypto-org-chain/cronos/pull/1034) Support memiavl snapshot strategy configuration.
 - [#1035](https://github.com/crypto-org-chain/cronos/pull/1035) Support caching in memiavl directly, ignore inter-block cache silently.
 - [#1050](https://github.com/crypto-org-chain/cronos/pull/1050) nativebyteorder mode will check endianness on startup, binaries are built with nativebyteorder by default.
+- [#1064](https://github.com/crypto-org-chain/cronos/pull/1064) Simplify memiavl snapshot switching.
 
 *April 13, 2023*
 

@@ -45,9 +45,6 @@ type DB struct {
 	snapshotInterval uint32
 	// make sure only one snapshot rewrite is running
 	pruneSnapshotLock sync.Mutex
-	// might need to wait for a few blocks before actual snapshot switching.
-	minQueryStates   int
-	pendingForSwitch *MultiTree
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -83,8 +80,6 @@ type Options struct {
 	AsyncCommitBuffer int
 	// ZeroCopy if true, the get and iterator methods could return a slice pointing to mmaped blob files.
 	ZeroCopy bool
-	// for ibc relayer to work, we need to make sure at least a few queryable states exists even with pruning="nothing" setting.
-	MinQueryStates int
 	// CacheSize defines the cache's max entry size for each memiavl store.
 	CacheSize int
 }
@@ -147,7 +142,6 @@ func Load(dir string, opts Options) (*DB, error) {
 		walChanSize:        opts.AsyncCommitBuffer,
 		snapshotKeepRecent: opts.SnapshotKeepRecent,
 		snapshotInterval:   opts.SnapshotInterval,
-		minQueryStates:     opts.MinQueryStates,
 	}
 
 	if db.logger == nil {
@@ -236,32 +230,21 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		db.pendingForSwitch = result.mtree
+		// catchup the remaining wal
+		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
+			return fmt.Errorf("catchup failed: %w", err)
+		}
+
+		// do the switch
+		if err := db.reloadMultiTree(result.mtree); err != nil {
+			return fmt.Errorf("switch multitree failed: %w", err)
+		}
+		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
+
+		db.pruneSnapshots()
 	default:
 	}
 
-	if db.pendingForSwitch == nil {
-		return nil
-	}
-
-	// catchup the remaining wal
-	if err := db.pendingForSwitch.CatchupWAL(db.wal, 0); err != nil {
-		return fmt.Errorf("catchup failed: %w", err)
-	}
-
-	// make sure there are at least a few queryable states after switch
-	if db.pendingForSwitch.Version() < db.pendingForSwitch.SnapshotVersion()+int64(db.minQueryStates) {
-		return nil
-	}
-
-	// do the switch
-	if err := db.reloadMultiTree(db.pendingForSwitch); err != nil {
-		return fmt.Errorf("switch multitree failed: %w", err)
-	}
-	db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
-
-	db.pendingForSwitch = nil
-	db.pruneSnapshots()
 	return nil
 }
 
