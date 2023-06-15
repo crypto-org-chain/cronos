@@ -269,7 +269,6 @@ func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInf
 	var hash []byte
 	if updateCommitInfo {
 		hash = t.UpdateCommitInfo()
-		hash = t.lastCommitInfo.Hash()
 	}
 
 	return hash, version, nil
