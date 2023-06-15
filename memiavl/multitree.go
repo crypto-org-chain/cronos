@@ -269,6 +269,8 @@ func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInf
 	var hash []byte
 	if updateCommitInfo {
 		hash = t.UpdateCommitInfo()
+	} else {
+		t.lastCommitInfo.StoreInfos = []storetypes.StoreInfo{}
 	}
 
 	return hash, version, nil
