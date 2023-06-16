@@ -22,10 +22,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 	}
 	version := uint32(height)
 
-	var (
-		mtree *MultiTree
-		err   error
-	)
+	var mtree *MultiTree
 	if db.supportExportNonSnapshotVersion {
 		db, err := Load(db.dir, Options{
 			TargetVersion: version,
@@ -37,9 +34,16 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 
 		mtree = &db.MultiTree
 	} else {
+		curVersion, err := currentVersion(db.dir)
+		if err != nil {
+			return fmt.Errorf("failed to load current version: %w", err)
+		}
+		if int64(version) > curVersion {
+			return fmt.Errorf("invalid snapshot height: %d", version)
+		}
 		mtree, err = LoadMultiTree(snapshotPath(db.dir, version), true, 0)
 		if err != nil {
-			return errors.Wrapf(err, "invalid snapshot height: %d", height)
+			return errors.Wrapf(err, "invalid snapshot height: %d", version)
 		}
 	}
 

@@ -264,9 +264,9 @@ def test_local_statesync(cronos):
     wait_for_block(cli0, 6)
 
     sync_info = cli0.status()["SyncInfo"]
-    height = int(sync_info["latest_block_height"])
     cronos.supervisorctl("stop", "cronos_777-1-node0")
     tarball = cli0.data_dir / "snapshot.tar.gz"
+    height = 5  # must be multples of memiavl.snapshot-interval
 
     if height not in set(item.height for item in cli0.list_snapshot()):
         cli0.export_snapshot(height)
