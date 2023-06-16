@@ -20,13 +20,27 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 	if height > math.MaxUint32 {
 		return fmt.Errorf("height overflows uint32: %d", height)
 	}
+	version := uint32(height)
 
-	mtree, err := Load(db.dir, Options{
-		TargetVersion: uint32(height),
-		ZeroCopy:      true,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "invalid snapshot height: %d", height)
+	var (
+		mtree *MultiTree
+		err   error
+	)
+	if db.supportExportNonSnapshotVersion {
+		db, err := Load(db.dir, Options{
+			TargetVersion: version,
+			ZeroCopy:      true,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "invalid height: %d", height)
+		}
+
+		mtree = &db.MultiTree
+	} else {
+		mtree, err = LoadMultiTree(snapshotPath(db.dir, version), true, 0)
+		if err != nil {
+			return errors.Wrapf(err, "invalid snapshot height: %d", height)
+		}
 	}
 
 	for _, tree := range mtree.trees {

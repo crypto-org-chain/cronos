@@ -45,6 +45,9 @@ type DB struct {
 	snapshotInterval uint32
 	// make sure only one snapshot rewrite is running
 	pruneSnapshotLock sync.Mutex
+	// it's more efficient to export snapshot versions, so we only support that by default
+	supportExportNonSnapshotVersion bool
+	triggerStateSyncExport          func(height int64)
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -73,6 +76,9 @@ type Options struct {
 	InitialStores      []string
 	SnapshotKeepRecent uint32
 	SnapshotInterval   uint32
+	// it's more efficient to export snapshot versions, we can filter out the non-snapshot versions
+	SupportExportNonSnapshotVersion bool
+	TriggerStateSyncExport          func(height int64)
 	// load the target version instead of latest version
 	TargetVersion uint32
 	// Buffer size for the asynchronous commit queue, -1 means synchronous commit,
@@ -135,13 +141,15 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	db := &DB{
-		MultiTree:          *mtree,
-		logger:             opts.Logger,
-		dir:                dir,
-		wal:                wal,
-		walChanSize:        opts.AsyncCommitBuffer,
-		snapshotKeepRecent: opts.SnapshotKeepRecent,
-		snapshotInterval:   opts.SnapshotInterval,
+		MultiTree:                       *mtree,
+		logger:                          opts.Logger,
+		dir:                             dir,
+		wal:                             wal,
+		walChanSize:                     opts.AsyncCommitBuffer,
+		snapshotKeepRecent:              opts.SnapshotKeepRecent,
+		snapshotInterval:                opts.SnapshotInterval,
+		supportExportNonSnapshotVersion: opts.SupportExportNonSnapshotVersion,
+		triggerStateSyncExport:          opts.TriggerStateSyncExport,
 	}
 
 	if db.logger == nil {
@@ -242,6 +250,11 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		db.logger.Info("switched to new snapshot", "version", db.MultiTree.Version())
 
 		db.pruneSnapshots()
+
+		// trigger state-sync snapshot export
+		if db.triggerStateSyncExport != nil {
+			db.triggerStateSyncExport(db.SnapshotVersion())
+		}
 	default:
 	}
 
@@ -607,6 +620,10 @@ func snapshotName(version uint32) string {
 
 func currentPath(root string) string {
 	return filepath.Join(root, "current")
+}
+
+func snapshotPath(root string, version uint32) string {
+	return filepath.Join(root, snapshotName(version))
 }
 
 func currentTmpPath(root string) string {
