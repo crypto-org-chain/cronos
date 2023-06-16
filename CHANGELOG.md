@@ -47,7 +47,7 @@
 - [#1035](https://github.com/crypto-org-chain/cronos/pull/1035) Support caching in memiavl directly, ignore inter-block cache silently.
 - [#1050](https://github.com/crypto-org-chain/cronos/pull/1050) nativebyteorder mode will check endianness on startup, binaries are built with nativebyteorder by default.
 - [#1064](https://github.com/crypto-org-chain/cronos/pull/1064) Simplify memiavl snapshot switching.
-- [#]() memiavl: only export state-sync snapshots on an exist snapshot
+- [#1067](https://github.com/crypto-org-chain/cronos/pull/1067) memiavl: only export state-sync snapshots on an exist snapshot
 
 *April 13, 2023*
 
