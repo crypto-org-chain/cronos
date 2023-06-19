@@ -39,11 +39,11 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 			return fmt.Errorf("failed to load current version: %w", err)
 		}
 		if int64(version) > curVersion {
-			return fmt.Errorf("invalid snapshot height: %d", version)
+			return fmt.Errorf("snapshot is not created yet: height: %d", version)
 		}
 		mtree, err = LoadMultiTree(snapshotPath(db.dir, version), true, 0)
 		if err != nil {
-			return errors.Wrapf(err, "invalid snapshot height: %d", version)
+			return errors.Wrapf(err, "snapshot don't exists: height: %d", version)
 		}
 	}
 
