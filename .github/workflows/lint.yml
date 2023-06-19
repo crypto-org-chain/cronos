@@ -23,7 +23,7 @@ jobs:
         with:
           go-version: '^1.20.0'
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
@@ -70,7 +70,7 @@ jobs:
             **/poetry.lock
             **/pyproject.toml
             **/*.py
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
@@ -99,7 +99,7 @@ jobs:
           files: |
             *.nix
             **/*.nix
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
