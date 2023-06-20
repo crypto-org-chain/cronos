@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"io/fs"
+
 	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	"golang.org/x/exp/slices"
@@ -14,7 +16,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/gorilla/mux"
-	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -132,8 +133,7 @@ import (
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
-	// unnamed import of statik for swagger UI support
-	_ "github.com/crypto-org-chain/cronos/v2/client/docs/statik"
+	"github.com/crypto-org-chain/cronos/v2/client/docs"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -938,12 +938,12 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 
 // RegisterSwaggerAPI registers swagger route with API Server
 func RegisterSwaggerAPI(ctx client.Context, rtr *mux.Router) {
-	statikFS, err := fs.NewWithNamespace("cronos")
+	root, err := fs.Sub(docs.SwaggerUI, "swagger-ui")
 	if err != nil {
 		panic(err)
 	}
 
-	staticServer := http.FileServer(statikFS)
+	staticServer := http.FileServer(http.FS(root))
 	rtr.PathPrefix("/swagger/").Handler(http.StripPrefix("/swagger/", staticServer))
 }
 

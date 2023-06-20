@@ -39,12 +39,3 @@ swagger-combine ./client/docs/config.json -o ./client/docs/swagger-ui/swagger.ya
 
 # clean swagger files
 rm -rf ./tmp-swagger-gen
-
-echo "Update statik data"
-install_statik() {
-  go install github.com/rakyll/statik@v0.1.7
-}
-install_statik
-
-# generate binary for static server
-statik -src=./client/docs/swagger-ui -dest=./client/docs -f -ns cronos
