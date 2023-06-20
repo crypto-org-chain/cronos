@@ -8,7 +8,7 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518
 	github.com/cosmos/gogoproto v1.4.7
-	github.com/cosmos/ibc-go/v5 v5.2.1
+	github.com/cosmos/ibc-go/v6 v6.1.0
 	github.com/crypto-org-chain/cronos/memiavl v0.0.2
 	github.com/crypto-org-chain/cronos/store v0.0.2
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
@@ -78,7 +78,6 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/iavl v0.19.6 // indirect
-	github.com/cosmos/ibc-go/v6 v6.1.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
