@@ -1015,8 +1015,8 @@ github.com/cosmos/cosmos-proto v1.0.0-alpha7/go.mod h1:dosO4pSAbJF8zWCzCoTWP7nNs
 github.com/cosmos/cosmos-proto v1.0.0-beta.1 h1:iDL5qh++NoXxG8hSy93FdYJut4XfgbShIocllGaXx/0=
 github.com/cosmos/cosmos-proto v1.0.0-beta.1/go.mod h1:8k2GNZghi5sDRFw/scPL8gMSowT1vDA+5ouxL8GjaUE=
 github.com/cosmos/cosmos-sdk v0.46.0/go.mod h1:u6Ci6+V+srijJhzctEEPYBygUz3O2YXP5ZijPnV6mt0=
-github.com/cosmos/cosmos-sdk v0.46.13 h1:LhL6WDBadczqBuCW0t5BHUzGQR3vbujdOYOfU0ORt+o=
-github.com/cosmos/cosmos-sdk v0.46.13/go.mod h1:EfY521ATNEla8eJ6oJuZBdgP5+p360s7InnRqX+TWdM=
+github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518 h1:IBJ1EaG3dyJpJ9FYUlpslCP+Rfcz0feRMBr384cIicg=
+github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518/go.mod h1:ABDNny0muxj03rmJcyR0mG7O9QPGktl5e30EVsHvORM=
 github.com/cosmos/cosmos-sdk/db v1.0.0-beta.1/go.mod h1:JUMM2MxF9wuwzRWZJjb8BjXsn1BmPmdBd3a75pIct4I=
 github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXyBmiFeKpvmq4dzayMdCjCnu8uqmCysIGBT2Y=
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
@@ -1049,10 +1049,10 @@ github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6 h1:d4h4Ki1UE/LF6CKwYEm3OZ+HIBCrzSmOokG1vce0O98=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6/go.mod h1:hF5aclS++7WrW8USOA3zPeKI0CuzwUD2TPYug25ANlQ=
-github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230615113127-926000fa6493 h1:5P0qarea/g/3CwEct5OGTUcS4gx2EOSPVrTl3pVTxLo=
-github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230615113127-926000fa6493/go.mod h1:CQjV+A6D3OA/8zjgFZgKymKaWJcS9pATjrEaYNl0iZ8=
-github.com/crypto-org-chain/cronos/store v0.0.3-0.20230615113127-926000fa6493 h1:cTNQTL1RwXw/Rp++p+C+cHDfvujfe4btchGQBj8Tp/U=
-github.com/crypto-org-chain/cronos/store v0.0.3-0.20230615113127-926000fa6493/go.mod h1:NBMo3NxuIslHFDCskFYqOTjk81tW3tR+ecfFDickQF4=
+github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3 h1:Mh6H5PUiRoXg/481lGdsHL6GXKhI07W5JaQO50NP/oQ=
+github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3/go.mod h1:cGIAa6KfrvtjPc9ETOcvG/lKa97kU3GWFYVN37UFQ0w=
+github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3 h1:9JjVtjIhEUdE4a/cnTJYn6WvoxB3rpTxfNQoaXssQFI=
+github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3/go.mod h1:6O69W4LrmEuBM8oAKqiXIp/mrxYiGyZO+ekQiiKxdR8=
 github.com/crypto-org-chain/ethermint v0.0.0-20230605085654-2136ad029860 h1:sQcs/YWFEY/jJz2Ad+YKw3aOsN8YaQHNCNJ5hZtp/vM=
 github.com/crypto-org-chain/ethermint v0.0.0-20230605085654-2136ad029860/go.mod h1:Jc6oSpN/6DNLjUC/S75XJv4A3EYzqf+tD9LZBtQyg68=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=

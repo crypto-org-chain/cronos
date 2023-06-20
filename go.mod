@@ -6,10 +6,10 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-rc.0
 	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-sdk v0.46.13
+	github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518
 	github.com/cosmos/ibc-go/v5 v5.2.1
-	github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230615113127-926000fa6493
-	github.com/crypto-org-chain/cronos/store v0.0.3-0.20230615113127-926000fa6493
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3
+	github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
