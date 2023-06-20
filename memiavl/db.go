@@ -129,7 +129,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
-	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
+	wal, err := wal.Open(walPath(dir), &wal.Options{NoCopy: true, NoSync: true, RecoverCorruptedTail: true})
 	if err != nil {
 		return nil, err
 	}
