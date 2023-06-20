@@ -17,6 +17,7 @@
 - [cronos#795](https://github.com/crypto-org-chain/cronos/pull/795) Support permissions in cronos.
 - [cronos#997](https://github.com/crypto-org-chain/cronos/pull/997) Fix logic to support proxy contract for cronos originated crc20.
 - [cronos#1005](https://github.com/crypto-org-chain/cronos/pull/1005) Support specify channel id for send-to-ibc event in case of source token.
+- [cronos#1069](https://github.com/crypto-org-chain/cronos/pull/1069) Update ethermint to develop and ibc-go to `v6.1.0`.
 
 ### Bug Fixes
 
