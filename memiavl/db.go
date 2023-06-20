@@ -316,7 +316,7 @@ func (db *DB) pruneSnapshots() {
 			db.logger.Error("failed to find first snapshot", "err", err)
 		}
 
-		if err := db.wal.TruncateFront(uint64(earliestVersion + 1)); err != nil {
+		if err := db.wal.TruncateFront(walIndex(earliestVersion+1, db.initialVersion)); err != nil {
 			db.logger.Error("failed to truncate wal", "err", err, "version", earliestVersion+1)
 		}
 	}()
