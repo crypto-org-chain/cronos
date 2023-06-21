@@ -981,7 +981,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	return paramsKeeper
 }
 
-// VerifyAddressFormat verifis the address is compatible with ethereum
+// VerifyAddressFormat verifies whether the address is compatible with Ethereum
 func VerifyAddressFormat(bz []byte) error {
 	if len(bz) == 0 {
 		return errors.Wrap(sdkerrors.ErrUnknownAddress, "invalid address; cannot be empty")
