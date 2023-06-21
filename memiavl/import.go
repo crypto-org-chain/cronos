@@ -223,7 +223,7 @@ func (i *importer) Add(n *iavl.ExportNode) error {
 	return nil
 }
 
-func updateMetadataFile(dir string, height int64) error {
+func updateMetadataFile(dir string, height int64) (returnErr error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -238,6 +238,11 @@ func updateMetadataFile(dir string, height int64) error {
 		if err != nil {
 			return err
 		}
+		defer func() {
+			if err := snapshot.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 		storeInfos = append(storeInfos, storetypes.StoreInfo{
 			Name: name,
 			CommitId: storetypes.CommitID{
