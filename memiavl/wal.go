@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"unsafe"
@@ -47,7 +46,7 @@ func OpenWAL(dir string, opts *wal.Options) (*wal.Log, error) {
 }
 
 func truncateCorruptedTail(path string, format wal.LogFormat) error {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
