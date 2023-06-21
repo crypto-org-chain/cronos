@@ -143,14 +143,14 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
   [mod."github.com/cosmos/gogoproto"]
-    version = "v1.4.7"
-    hash = "sha256-JGSKV4CMgBGQYR7kZt6QQsVjgLEyAjNzKrtLalJqqVo="
+    version = "v1.4.8"
+    hash = "sha256-/mNDNtDcZPmd+6R03/CAp//gJwBIkcBLALoSbOoMRaw="
   [mod."github.com/cosmos/iavl"]
     version = "v0.19.6"
     hash = "sha256-0Om7nXftrgVkCpRTGNTGnc2lUJsFQ9aihwgtkUkwleg="
   [mod."github.com/cosmos/ibc-go/v6"]
-    version = "v6.1.0"
-    hash = "sha256-mHYCqLedcveDjfm1EiO2EMMNJqLm9u4WHwQTy1muOoc="
+    version = "v6.2.0"
+    hash = "sha256-CANWVZdH24NwdakAFVurJBUlB98QkzJxxE1JQPjL6XY="
   [mod."github.com/cosmos/ledger-cosmos-go"]
     version = "v0.12.2"
     hash = "sha256-fLkveUWxn0nZzvgsY0KTU/T1TUUQ8Ap6XTYSnJs6XXo="

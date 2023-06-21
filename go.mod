@@ -7,8 +7,8 @@ require (
 	cosmossdk.io/math v1.0.0-rc.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518
-	github.com/cosmos/gogoproto v1.4.7
-	github.com/cosmos/ibc-go/v6 v6.1.0
+	github.com/cosmos/gogoproto v1.4.8
+	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/crypto-org-chain/cronos/memiavl v0.0.2
 	github.com/crypto-org-chain/cronos/store v0.0.2
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
