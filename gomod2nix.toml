@@ -531,9 +531,8 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-yjhttcm2IcJn6Rf9KicGqxm3LAOD3oheJel3QTi9znE="
   [mod."github.com/tidwall/wal"]
-    version = "v1.1.8-0.20230620041632-0865755fe1a0"
-    hash = "sha256-0wVe+ka0pxLLRhPeyK5GDABs8kFeUZY47/Ok6l9xvew="
-    replaced = "github.com/yihuang/wal"
+    version = "v1.1.7"
+    hash = "sha256-HLLFUEw8hWSSSSPSWZHt2KjoZftbje3Xxd9gROM2I+U="
   [mod."github.com/tklauser/go-sysconf"]
     version = "v0.3.10"
     hash = "sha256-Zf2NsgM9+HeM949vCce4HQtSbfUiFpeiQ716yKcFyx4="
