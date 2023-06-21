@@ -16,7 +16,7 @@ import (
 // especially since callers may export several IAVL stores in parallel (e.g. the Cosmos SDK).
 const exportBufferSize = 32
 
-func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
+func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr error) {
 	if height > math.MaxUint32 {
 		return fmt.Errorf("height overflows uint32: %d", height)
 	}
@@ -31,6 +31,11 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		if err != nil {
 			return errors.Wrapf(err, "invalid height: %d", height)
 		}
+		defer func() {
+			if err := db.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 
 		mtree = &db.MultiTree
 	} else {
@@ -45,6 +50,11 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) error {
 		if err != nil {
 			return errors.Wrapf(err, "snapshot don't exists: height: %d", version)
 		}
+		defer func() {
+			if err := mtree.Close(); returnErr == nil {
+				returnErr = err
+			}
+		}()
 	}
 
 	for _, tree := range mtree.trees {
