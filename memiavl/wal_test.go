@@ -29,7 +29,7 @@ func TestCorruptedTail(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			os.WriteFile(filepath.Join(dir, "00000000000000000001"), tc.logs, 0o666)
+			os.WriteFile(filepath.Join(dir, "00000000000000000001"), tc.logs, 0o600)
 
 			_, err := wal.Open(dir, opts)
 			require.Equal(t, wal.ErrCorrupt, err)
