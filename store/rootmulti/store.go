@@ -427,6 +427,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		if err != nil {
 			return sdkerrors.QueryResult(err, false)
 		}
+		defer db.Close()
 	}
 
 	path := req.Path
