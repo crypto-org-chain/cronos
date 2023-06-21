@@ -466,18 +466,18 @@ func New(
 	tracer := cast.ToString(appOpts.Get(srvflags.EVMTracer))
 
 	// Create Ethermint keepers
-	feeMarketSs := app.GetSubspace(feemarkettypes.ModuleName)
+	feeMarketS := app.GetSubspace(feemarkettypes.ModuleName)
 	app.FeeMarketKeeper = feemarketkeeper.NewKeeper(
 		appCodec, authtypes.NewModuleAddress(govtypes.ModuleName),
-		keys[feemarkettypes.StoreKey], tkeys[feemarkettypes.TransientKey], feeMarketSs,
+		keys[feemarkettypes.StoreKey], tkeys[feemarkettypes.TransientKey], feeMarketS,
 	)
 	// Set authority to x/gov module account to only expect the module account to update params
-	evmSs := app.GetSubspace(evmtypes.ModuleName)
+	evmS := app.GetSubspace(evmtypes.ModuleName)
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, stakingKeeper,
 		&app.FeeMarketKeeper,
-		nil, geth.NewEVM, tracer, evmSs,
+		nil, geth.NewEVM, tracer, evmS,
 	)
 
 	var gravityKeeper gravitykeeper.Keeper
@@ -605,8 +605,8 @@ func New(
 		ibc.NewAppModule(app.IBCKeeper),
 		transferModule,
 		feeModule,
-		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmSs),
-		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketSs),
+		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmS),
+		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),
 		cronosModule,
 	}
 
