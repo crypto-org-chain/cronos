@@ -25,6 +25,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -336,6 +337,10 @@ type App struct {
 
 	// if enable experimental gravity-bridge feature module
 	experimental bool
+
+	// duplicate it because it's private in sdk
+	haltHeight uint64
+	haltTime   uint64
 }
 
 // New returns a reference to an initialized chain.
@@ -388,6 +393,8 @@ func New(
 		tkeys:             tkeys,
 		memKeys:           memKeys,
 		experimental:      experimental,
+		haltHeight:        cast.ToUint64(appOpts.Get(server.FlagHaltHeight)),
+		haltTime:          cast.ToUint64(appOpts.Get(server.FlagHaltTime)),
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey], experimental)
@@ -819,6 +826,24 @@ func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+	// backport: https://github.com/cosmos/cosmos-sdk/pull/16639
+	var halt bool
+	switch {
+	case app.haltHeight > 0 && uint64(req.Header.Height) > app.haltHeight:
+		halt = true
+
+	case app.haltTime > 0 && req.Header.Time.Unix() > int64(app.haltTime):
+		halt = true
+	}
+
+	if halt {
+		app.Logger().Info("halting node per configuration", "height", app.haltHeight, "time", app.haltTime)
+		if err := app.Close(); err != nil {
+			app.Logger().Info("close application failed", "error", err)
+		}
+		panic("halt application")
+	}
+
 	return app.mm.BeginBlock(ctx, req)
 }
 

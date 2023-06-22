@@ -159,11 +159,11 @@ schema = 3
     version = "v0.3.2"
     hash = "sha256-Y261IO/d9xjV0UScqHvo31broxvnKn4IQQC9Mu6jNkE="
   [mod."github.com/crypto-org-chain/cronos/memiavl"]
-    version = "v0.0.3-0.20230619115542-36424a3af9c3"
-    hash = "sha256-sJqBqwteA76Ou71TcVr+q615uw57HA2tKoawKfxnykE="
+    version = "v0.0.3-0.20230621152914-f83c74b904cd"
+    hash = "sha256-cKUm7IniQ682rFL1mXI2wr/Q15MSb3nMyUxx+6aAMz8="
   [mod."github.com/crypto-org-chain/cronos/store"]
-    version = "v0.0.3-0.20230619115542-36424a3af9c3"
-    hash = "sha256-qdL4rGiqwxwbIWXkb0z6cC/KcMWPCe44ybPM/Au6Rng="
+    version = "v0.0.3-0.20230621152914-f83c74b904cd"
+    hash = "sha256-wZG6K7CmWzKPD0MQ/3ThXD50Miy+aysa9wCDWc3ONCc="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.1.2"
     hash = "sha256-Nnklfg12vmWCOhELGyoRqEF4w4srp0WbPwreaChYLKs="
@@ -208,9 +208,9 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20230605085654-2136ad029860"
-    hash = "sha256-wHwS7Qg5sVnfFvZ+/Ap+bCcbBvOtmSeFYTtB9KS+Sqs="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.20.2-cronos.0.20230622135557-af25015b7b30"
+    hash = "sha256-RbF/+f8ndf4SAb4OTSPpR+juYArI4R4QOrS+d/+MVBw="
+    replaced = "github.com/yihuang/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
     hash = "sha256-hj6FZQ1fDAV+1wGIViAt8XaAkWZ1I5vJzgjIJa7XRBA="
@@ -521,8 +521,8 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tendermint/tendermint"]
-    version = "v0.34.29"
-    hash = "sha256-ybOpS3Hy4aIzB5rFNp9OH7LYgBjSALp5hC4CZzRG9ro="
+    version = "v0.34.30-0.20230622094628-60e431e4eef0"
+    hash = "sha256-iJUYE0kXAq6/b8JuUYAkhz6zuVDJNoHL+nJuVz2xz58="
     replaced = "github.com/cometbft/cometbft"
   [mod."github.com/tendermint/tm-db"]
     version = "v0.6.8-0.20230424032152-87c7e7f4fb61"

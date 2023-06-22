@@ -862,8 +862,8 @@ github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0/go.mod h1:4Zcju
 github.com/coinbase/kryptology v1.8.0/go.mod h1:RYXOAPdzOGUe3qlSFkMGn58i3xUA8hmxYHksuq+8ciI=
 github.com/coinbase/rosetta-sdk-go v0.7.9 h1:lqllBjMnazTjIqYrOGv8h8jxjg9+hJazIGZr9ZvoCcA=
 github.com/coinbase/rosetta-sdk-go v0.7.9/go.mod h1:0/knutI7XGVqXmmH4OQD8OckFrbQ8yMsUZTG7FXCR2M=
-github.com/cometbft/cometbft v0.34.29 h1:Q4FqMevP9du2pOgryZJHpDV2eA6jg/kMYxBj9ZTY6VQ=
-github.com/cometbft/cometbft v0.34.29/go.mod h1:L9shMfbkZ8B+7JlwANEr+NZbBcn+hBpwdbeYvA5rLCw=
+github.com/cometbft/cometbft v0.34.30-0.20230622094628-60e431e4eef0 h1:AA1aC/2OGCqbnLCj/GOMRhLAcVjBLwduxrDH3k+Ulyk=
+github.com/cometbft/cometbft v0.34.30-0.20230622094628-60e431e4eef0/go.mod h1:L9shMfbkZ8B+7JlwANEr+NZbBcn+hBpwdbeYvA5rLCw=
 github.com/confio/ics23/go v0.7.0/go.mod h1:E45NqnlpxGnpfTWL/xauN7MRwEE28T4Dd4uraToOaKg=
 github.com/confio/ics23/go v0.9.0 h1:cWs+wdbS2KRPZezoaaj+qBleXgUk5WOQFMP3CQFGTr4=
 github.com/confio/ics23/go v0.9.0/go.mod h1:4LPZ2NYqnYIVRklaozjNR1FScgDJ2s5Xrp+e/mYVRak=
@@ -1049,12 +1049,10 @@ github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ
 github.com/cristalhq/acmd v0.8.1/go.mod h1:LG5oa43pE/BbxtfMoImHCQN++0Su7dzipdgBjMCBVDQ=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6 h1:d4h4Ki1UE/LF6CKwYEm3OZ+HIBCrzSmOokG1vce0O98=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6/go.mod h1:hF5aclS++7WrW8USOA3zPeKI0CuzwUD2TPYug25ANlQ=
-github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3 h1:Mh6H5PUiRoXg/481lGdsHL6GXKhI07W5JaQO50NP/oQ=
-github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3/go.mod h1:cGIAa6KfrvtjPc9ETOcvG/lKa97kU3GWFYVN37UFQ0w=
-github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3 h1:9JjVtjIhEUdE4a/cnTJYn6WvoxB3rpTxfNQoaXssQFI=
-github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3/go.mod h1:6O69W4LrmEuBM8oAKqiXIp/mrxYiGyZO+ekQiiKxdR8=
-github.com/crypto-org-chain/ethermint v0.0.0-20230605085654-2136ad029860 h1:sQcs/YWFEY/jJz2Ad+YKw3aOsN8YaQHNCNJ5hZtp/vM=
-github.com/crypto-org-chain/ethermint v0.0.0-20230605085654-2136ad029860/go.mod h1:Jc6oSpN/6DNLjUC/S75XJv4A3EYzqf+tD9LZBtQyg68=
+github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230621152914-f83c74b904cd h1:ONnKixvnZU/tgQwcFXdMVpDyADUBXnjKaAFTk4yY/Jw=
+github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230621152914-f83c74b904cd/go.mod h1:cGIAa6KfrvtjPc9ETOcvG/lKa97kU3GWFYVN37UFQ0w=
+github.com/crypto-org-chain/cronos/store v0.0.3-0.20230621152914-f83c74b904cd h1:03L84ozFAcO8K6cJk1Oy00yruiFE8AIs7AFK+z7YAsc=
+github.com/crypto-org-chain/cronos/store v0.0.3-0.20230621152914-f83c74b904cd/go.mod h1:6O69W4LrmEuBM8oAKqiXIp/mrxYiGyZO+ekQiiKxdR8=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=
@@ -2756,6 +2754,8 @@ github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsT
 github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0/go.mod h1:/LWChgwKmvncFJFHJ7Gvn9wZArjbV5/FppcK2fKk/tI=
 github.com/ybbus/jsonrpc v2.1.2+incompatible/go.mod h1:XJrh1eMSzdIYFbM08flv0wp5G35eRniyeGut1z+LSiE=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
+github.com/yihuang/ethermint v0.20.2-cronos.0.20230622135557-af25015b7b30 h1:DCBdLuNkBJe2Mh6aawmOmGoOeX9Z8yrRQpKi7d89acE=
+github.com/yihuang/ethermint v0.20.2-cronos.0.20230622135557-af25015b7b30/go.mod h1:EDjmywAw/EMpMufJA2Q+E9pNHAB00Dt5siQanMOZC88=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=

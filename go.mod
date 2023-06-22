@@ -8,8 +8,8 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.14-0.20230619012023-673ee3a54518
 	github.com/cosmos/ibc-go/v5 v5.2.1
-	github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230619115542-36424a3af9c3
-	github.com/crypto-org-chain/cronos/store v0.0.3-0.20230619115542-36424a3af9c3
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3-0.20230621152914-f83c74b904cd
+	github.com/crypto-org-chain/cronos/store v0.0.3-0.20230621152914-f83c74b904cd
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
@@ -231,7 +231,7 @@ replace (
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0.0-20230605085654-2136ad029860
+	github.com/evmos/ethermint => github.com/yihuang/ethermint v0.20.2-cronos.0.20230622135557-af25015b7b30
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
@@ -245,7 +245,7 @@ replace (
 	// Downgraded to avoid bugs in following commits
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// use cometbft
-	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.29
+	github.com/tendermint/tendermint => github.com/cometbft/cometbft v0.34.30-0.20230622094628-60e431e4eef0
 	// https://github.com/crypto-org-chain/tm-db/tree/release/v0.6.x
 	github.com/tendermint/tm-db => github.com/crypto-org-chain/tm-db v0.6.8-0.20230424032152-87c7e7f4fb61
 )
