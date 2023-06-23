@@ -11,7 +11,7 @@
 let
   version = "v1.0.10";
   pname = "cronosd";
-  tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_no_link" ];
+  tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_no_link" "nativebyteorder" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
