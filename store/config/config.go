@@ -1,17 +1,8 @@
 package config
 
-import (
-	"github.com/crypto-org-chain/cronos/memiavl"
-	"github.com/evmos/ethermint/server/config"
-)
+import "github.com/crypto-org-chain/cronos/memiavl"
 
 const DefaultCacheSize = 1000
-
-type Config struct {
-	config.Config
-
-	MemIAVL MemIAVLConfig `mapstructure:"memiavl"`
-}
 
 type MemIAVLConfig struct {
 	// Enable defines if the memiavl should be enabled.

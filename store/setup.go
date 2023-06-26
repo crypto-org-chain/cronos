@@ -1,4 +1,4 @@
-package app
+package store
 
 import (
 	"path/filepath"
@@ -22,6 +22,8 @@ const (
 	FlagCacheSize          = "memiavl.cache-size"
 )
 
+// SetupMemIAVL insert the memiavl setter in front of baseapp options, so that
+// the default rootmulti store is replaced by memiavl store,
 func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOptions, baseAppOptions []func(*baseapp.BaseApp)) []func(*baseapp.BaseApp) {
 	if cast.ToBool(appOpts.Get(FlagMemIAVL)) {
 		opts := memiavl.Options{
