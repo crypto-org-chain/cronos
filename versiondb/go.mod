@@ -5,9 +5,9 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/alitto/pond v1.8.2
-	github.com/cosmos/cosmos-sdk v0.46.13-rc.0
+	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/iavl v0.19.6
-	github.com/crypto-org-chain/cronos/memiavl v0.0.2
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/snappy v0.0.4
 	github.com/linxGnu/grocksdb v1.7.16

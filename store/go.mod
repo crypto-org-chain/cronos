@@ -5,9 +5,9 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk v0.46.13-rc.0
+	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/iavl v0.19.6
-	github.com/crypto-org-chain/cronos/memiavl v0.0.2
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/spf13/cast v1.5.0
 	github.com/tendermint/tendermint v0.34.28
