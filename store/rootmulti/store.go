@@ -49,12 +49,16 @@ type Store struct {
 	listeners    map[types.StoreKey][]types.WriteListener
 
 	opts memiavl.Options
+
+	// sdk46Compact defines if the root hash is compatible with cosmos-sdk 0.46 and before.
+	sdk46Compact bool
 }
 
-func NewStore(dir string, logger log.Logger) *Store {
+func NewStore(dir string, logger log.Logger, sdk46Compact bool) *Store {
 	return &Store{
-		dir:    dir,
-		logger: logger,
+		dir:          dir,
+		logger:       logger,
+		sdk46Compact: sdk46Compact,
 
 		storesParams: make(map[types.StoreKey]storeParams),
 		keysByName:   make(map[string]types.StoreKey),
@@ -97,7 +101,10 @@ func (rs *Store) Commit() types.CommitID {
 		}
 	}
 
-	rs.lastCommitInfo = amendCommitInfo(rs.db.LastCommitInfo(), rs.storesParams)
+	rs.lastCommitInfo = rs.db.LastCommitInfo()
+	if rs.sdk46Compact {
+		rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
+	}
 	return rs.lastCommitInfo.CommitID()
 }
 
@@ -308,7 +315,10 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	rs.stores = newStores
 	// to keep the root hash compatible with cosmos-sdk 0.46
 	if db.Version() != 0 {
-		rs.lastCommitInfo = amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
+		rs.lastCommitInfo = db.LastCommitInfo()
+		if rs.sdk46Compact {
+			amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
+		}
 	} else {
 		rs.lastCommitInfo = &types.CommitInfo{}
 	}
@@ -420,6 +430,9 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		version = rs.db.Version()
 	}
 
+	// If the request's height is the latest height we've committed, then utilize
+	// the store's lastCommitInfo as this commit info may not be flushed to disk.
+	// Otherwise, we query for the commit info from disk.
 	db := rs.db
 	if version != rs.lastCommitInfo.Version {
 		var err error
@@ -450,10 +463,10 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
 	}
 
-	// If the request's height is the latest height we've committed, then utilize
-	// the store's lastCommitInfo as this commit info may not be flushed to disk.
-	// Otherwise, we query for the commit info from disk.
-	commitInfo := amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
+	commitInfo := db.LastCommitInfo()
+	if rs.sdk46Compact {
+		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
+	}
 
 	// Restore origin path and append proof op.
 	res.ProofOps.Ops = append(res.ProofOps.Ops, commitInfo.ProofOp(storeName))
