@@ -5,7 +5,7 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk v0.46.13-rc.0
+	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v0.19.6
 	github.com/gogo/protobuf v1.3.2

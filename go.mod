@@ -78,7 +78,7 @@ require (
 	github.com/cosmos/iavl v0.19.6 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
-	github.com/crypto-org-chain/cronos/memiavl v0.0.2 // indirect
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
