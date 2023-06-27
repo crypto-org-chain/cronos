@@ -40,9 +40,9 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 
 	"github.com/crypto-org-chain/cronos/app"
-	cronoscfg "github.com/crypto-org-chain/cronos/app/config"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/experimental"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
+	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	// this line is used by starport scaffolding # stargate/root/import
 )
@@ -215,11 +215,20 @@ func txCommand() *cobra.Command {
 // initAppConfig helps to override default appConfig template and configs.
 // return "", nil if no custom configuration is required for the application.
 func initAppConfig() (string, interface{}) {
-	tpl, cfg := servercfg.AppConfig(ethermint.AttoPhoton)
-	return tpl + cronoscfg.DefaultConfigTemplate, cronoscfg.Config{
-		Config:  cfg.(servercfg.Config),
-		MemIAVL: cronoscfg.DefaultMemIAVLConfig(),
+	type CustomAppConfig struct {
+		servercfg.Config
+
+		MemIAVL memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 	}
+
+	tpl, cfg := servercfg.AppConfig(ethermint.AttoPhoton)
+
+	customAppConfig := CustomAppConfig{
+		Config:  cfg.(servercfg.Config),
+		MemIAVL: memiavlcfg.DefaultMemIAVLConfig(),
+	}
+
+	return tpl + memiavlcfg.DefaultConfigTemplate, customAppConfig
 }
 
 type appCreator struct {
