@@ -3,9 +3,9 @@ package keeper_test
 import (
 	"context"
 
+	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	"github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 )
 
 type IbcKeeperMock struct{}

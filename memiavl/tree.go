@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"math"
 
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/iavl"
 	"github.com/cosmos/iavl/cache"
-	dbm "github.com/tendermint/tm-db"
 )
 
 var emptyHash = sha256.New().Sum(nil)

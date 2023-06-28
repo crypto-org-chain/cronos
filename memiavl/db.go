@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cometbft/cometbft/libs/log"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tidwall/wal"
 )
 

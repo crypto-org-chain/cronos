@@ -6,8 +6,8 @@ package opendb
 import (
 	"path/filepath"
 
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/cosmos-sdk/server/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {

@@ -4,11 +4,11 @@
 # This module represents the "proto" root found in
 # the previous configuration.
 version: v1
-name: buf.build/crypto-org-chain/third_party
+name: buf.build/crypto-org-chain/cronos
 deps:
-  - buf.build/cosmos/cosmos-sdk:8cb30a2c4de74dc9bd8d260b1e75e176
-  - buf.build/cosmos/cosmos-proto:1935555c206d4afb9e94615dfd0fad31
-  - buf.build/cosmos/gogo-proto:34d970b699f84aa382f3c29773a60836
+  - buf.build/cosmos/cosmos-sdk:954f7b05f38440fc8250134b15adec47
+  - buf.build/cosmos/cosmos-proto
+  - buf.build/cosmos/gogo-proto
   - buf.build/googleapis/googleapis
 breaking:
   use:

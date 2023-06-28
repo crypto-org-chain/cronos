@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/linxGnu/grocksdb"
-	dbm "github.com/tendermint/tm-db"
 )
 
 const BlockCacheSize = 1 << 30

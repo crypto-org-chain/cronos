@@ -7,6 +7,7 @@ import "gogoproto/gogo.proto";
 import "iavl/changeset.proto";
 import "cosmos/base/store/v1beta1/commit_info.proto";
 
+
 // NamedChangeSet combine a tree name with the changeset
 message NamedChangeSet {
   iavl.ChangeSet changeset = 1 [(gogoproto.nullable) = false];

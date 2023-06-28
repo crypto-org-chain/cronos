@@ -4,9 +4,9 @@ import (
 	"io"
 	"testing"
 
+	protoio "github.com/cosmos/gogoproto/io"
+	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/iavl"
-	protoio "github.com/gogo/protobuf/io"
-	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 )
 

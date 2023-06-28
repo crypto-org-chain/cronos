@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -20,10 +21,10 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 
+	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // GetTxCmd returns the transaction commands for this module
@@ -317,6 +318,74 @@ func CmdUpdatePermissions() *cobra.Command {
 	return cmd
 }
 
+// NewResponseFormatBroadcastTxCommit returns a TxResponse given a
+// ResultBroadcastTxCommit from tendermint.
+func NewResponseFormatBroadcastTxCommit(res *coretypes.ResultBroadcastTxCommit) *sdk.TxResponse {
+	if res == nil {
+		return nil
+	}
+
+	if !res.CheckTx.IsOK() {
+		return newTxResponseCheckTx(res)
+	}
+
+	return newTxResponseDeliverTx(res)
+}
+
+func newTxResponseCheckTx(res *coretypes.ResultBroadcastTxCommit) *sdk.TxResponse {
+	if res == nil {
+		return nil
+	}
+
+	var txHash string
+	if res.Hash != nil {
+		txHash = res.Hash.String()
+	}
+
+	parsedLogs, _ := sdk.ParseABCILogs(res.CheckTx.Log)
+
+	return &sdk.TxResponse{
+		Height:    res.Height,
+		TxHash:    txHash,
+		Codespace: res.CheckTx.Codespace,
+		Code:      res.CheckTx.Code,
+		Data:      strings.ToUpper(hex.EncodeToString(res.CheckTx.Data)),
+		RawLog:    res.CheckTx.Log,
+		Logs:      parsedLogs,
+		Info:      res.CheckTx.Info,
+		GasWanted: res.CheckTx.GasWanted,
+		GasUsed:   res.CheckTx.GasUsed,
+		Events:    res.CheckTx.Events,
+	}
+}
+
+func newTxResponseDeliverTx(res *coretypes.ResultBroadcastTxCommit) *sdk.TxResponse {
+	if res == nil {
+		return nil
+	}
+
+	var txHash string
+	if res.Hash != nil {
+		txHash = res.Hash.String()
+	}
+
+	parsedLogs, _ := sdk.ParseABCILogs(res.DeliverTx.Log)
+
+	return &sdk.TxResponse{
+		Height:    res.Height,
+		TxHash:    txHash,
+		Codespace: res.DeliverTx.Codespace,
+		Code:      res.DeliverTx.Code,
+		Data:      strings.ToUpper(hex.EncodeToString(res.DeliverTx.Data)),
+		RawLog:    res.DeliverTx.Log,
+		Logs:      parsedLogs,
+		Info:      res.DeliverTx.Info,
+		GasWanted: res.DeliverTx.GasWanted,
+		GasUsed:   res.DeliverTx.GasUsed,
+		Events:    res.DeliverTx.Events,
+	}
+}
+
 // EventQueryTxFor returns a CLI command that subscribes to a WebSocket connection and waits for a transaction event with the given hash.
 func EventQueryTxFor() *cobra.Command {
 	cmd := &cobra.Command{
@@ -357,7 +426,7 @@ func EventQueryTxFor() *cobra.Command {
 						Hash:      tmtypes.Tx(txe.Tx).Hash(),
 						Height:    txe.Height,
 					}
-					return clientCtx.PrintProto(sdk.NewResponseFormatBroadcastTxCommit(res))
+					return clientCtx.PrintProto(NewResponseFormatBroadcastTxCommit(res))
 				}
 			case <-ctx.Done():
 				return errors.New("timed out waiting for event")

@@ -13,8 +13,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
-	"github.com/cosmos/iavl"
-	gogotypes "github.com/gogo/protobuf/types"
+	gogotypes "github.com/cosmos/gogoproto/types"
+	"github.com/cosmos/iavl/keyformat"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
@@ -41,8 +41,8 @@ const (
 )
 
 var (
-	nodeKeyFormat = iavl.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
-	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
+	nodeKeyFormat = keyformat.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
+	rootKeyFormat = keyformat.NewKeyFormat('r', int64Size)        // r<version>
 )
 
 func RestoreAppDBCmd(opts Options) *cobra.Command {

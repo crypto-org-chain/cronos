@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/alitto/pond"
+	"github.com/cosmos/gogoproto/jsonpb"
 	"github.com/cosmos/iavl"
-	"github.com/gogo/protobuf/jsonpb"
 	"github.com/spf13/cobra"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
