@@ -67,7 +67,7 @@ func NewEmptyMultiTree(initialVersion uint32, cacheSize int) *MultiTree {
 func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error) {
 	metadata, err := readMetadata(dir)
 	if err != nil {
-		return nil, fmt.Errorf("fail to read metadata: %w", err)
+		return nil, err
 	}
 
 	entries, err := os.ReadDir(dir)
