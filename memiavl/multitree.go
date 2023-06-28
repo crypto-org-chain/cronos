@@ -65,20 +65,9 @@ func NewEmptyMultiTree(initialVersion uint32, cacheSize int) *MultiTree {
 }
 
 func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error) {
-	// load commit info
-	bz, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
+	metadata, err := readMetadata(dir)
 	if err != nil {
-		return nil, err
-	}
-	var metadata MultiTreeMetadata
-	if err := metadata.Unmarshal(bz); err != nil {
-		return nil, err
-	}
-	if metadata.CommitInfo.Version > math.MaxUint32 {
-		return nil, fmt.Errorf("commit info version overflows uint32: %d", metadata.CommitInfo.Version)
-	}
-	if metadata.InitialVersion > math.MaxUint32 {
-		return nil, fmt.Errorf("initial version overflows uint32: %d", metadata.InitialVersion)
+		return nil, fmt.Errorf("fail to read metadata: %w", err)
 	}
 
 	entries, err := os.ReadDir(dir)
@@ -115,7 +104,7 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 		trees:          trees,
 		treesByName:    treesByName,
 		lastCommitInfo: *metadata.CommitInfo,
-		metadata:       metadata,
+		metadata:       *metadata,
 		zeroCopy:       zeroCopy,
 		cacheSize:      cacheSize,
 	}
@@ -417,4 +406,24 @@ func walVersion(index uint64, initialVersion uint32) int64 {
 		return int64(index) + int64(initialVersion) - 1
 	}
 	return int64(index)
+}
+
+func readMetadata(dir string) (*MultiTreeMetadata, error) {
+	// load commit info
+	bz, err := os.ReadFile(filepath.Join(dir, MetadataFileName))
+	if err != nil {
+		return nil, err
+	}
+	var metadata MultiTreeMetadata
+	if err := metadata.Unmarshal(bz); err != nil {
+		return nil, err
+	}
+	if metadata.CommitInfo.Version > math.MaxUint32 {
+		return nil, fmt.Errorf("commit info version overflows uint32: %d", metadata.CommitInfo.Version)
+	}
+	if metadata.InitialVersion > math.MaxUint32 {
+		return nil, fmt.Errorf("initial version overflows uint32: %d", metadata.InitialVersion)
+	}
+
+	return &metadata, nil
 }
