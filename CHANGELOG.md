@@ -51,6 +51,7 @@
 - [#1050](https://github.com/crypto-org-chain/cronos/pull/1050) nativebyteorder mode will check endianness on startup, binaries are built with nativebyteorder by default.
 - [#1064](https://github.com/crypto-org-chain/cronos/pull/1064) Simplify memiavl snapshot switching.
 - [#1067](https://github.com/crypto-org-chain/cronos/pull/1067) memiavl: only export state-sync snapshots on an exist snapshot
+- [#1082](https://github.com/crypto-org-chain/cronos/pull/1082) Make memiavl setup code reusable.
 
 *April 13, 2023*
 

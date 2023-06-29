@@ -9,7 +9,6 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.14-0.20230628193009-a7631357d81a
 	github.com/cosmos/gogoproto v1.4.8
 	github.com/cosmos/ibc-go/v6 v6.2.0
-	github.com/crypto-org-chain/cronos/memiavl v0.0.2
 	github.com/crypto-org-chain/cronos/store v0.0.2
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.10.26
@@ -77,8 +76,10 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/iavl v0.19.6 // indirect
+	github.com/cosmos/ibc-go/v5 v5.2.1 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
+	github.com/crypto-org-chain/cronos/memiavl v0.0.3 // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
