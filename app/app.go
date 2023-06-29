@@ -344,7 +344,7 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, baseAppOptions)
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, true, baseAppOptions)
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
