@@ -96,6 +96,7 @@ func TestFullAppSimulation(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -137,6 +138,7 @@ func TestAppImportExport(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -258,6 +260,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -346,6 +349,7 @@ func TestAppStateDeterminism(t *testing.T) {
 	config.OnOperation = false
 	config.AllInvariants = false
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	numSeeds := 3
 	numTimesToRunPerSeed := 5

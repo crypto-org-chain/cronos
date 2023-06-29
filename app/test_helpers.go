@@ -41,6 +41,7 @@ import (
 
 const (
 	SimAppChainID  = "simulation_777-1"
+	SimBlockMaxGas = 81500000
 	TestAppChainID = "cronos_777-1"
 )
 
