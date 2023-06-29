@@ -325,7 +325,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	if db.Version() != 0 {
 		rs.lastCommitInfo = db.LastCommitInfo()
 		if rs.sdk46Compact {
-			amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
+			rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
 		}
 	} else {
 		rs.lastCommitInfo = &types.CommitInfo{}
