@@ -29,6 +29,7 @@
 - [#1062](https://github.com/crypto-org-chain/cronos/pull/1062) Update cometbft `v0.34.29` with several minor bug fixes and low-severity security-fixes.
 - [#1075](https://github.com/crypto-org-chain/cronos/pull/1075) Add missing close in memiavl to avoid resource leaks.
 - [#1073](https://github.com/crypto-org-chain/cronos/pull/1073) memiavl automatically truncate corrupted wal tail.
+- [#1087](https://github.com/crypto-org-chain/cronos/pull/1087) memiavl fix LastCommitID when memiavl db not loaded.
 
 ### Features
 
