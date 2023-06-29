@@ -114,6 +114,14 @@ func (rs *Store) WaitAsyncCommit() error {
 
 // Implements interface Committer
 func (rs *Store) LastCommitID() types.CommitID {
+	if rs.lastCommitInfo == nil {
+		v, err := memiavl.GetLatestVersion(rs.dir)
+		if err != nil {
+			panic(fmt.Errorf("failed to get latest version: %w", err))
+		}
+		return types.CommitID{Version: v}
+	}
+
 	return rs.lastCommitInfo.CommitID()
 }
 

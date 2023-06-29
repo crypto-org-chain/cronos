@@ -92,6 +92,7 @@ type Options struct {
 
 const (
 	SnapshotPrefix = "snapshot-"
+	SnapshotDirLen = len(SnapshotPrefix) + 20
 )
 
 func Load(dir string, opts Options) (*DB, error) {
@@ -284,7 +285,7 @@ func (db *DB) pruneSnapshots() {
 		counter := db.snapshotKeepRecent
 		for i := len(entries) - 1; i >= 0; i-- {
 			name := entries[i].Name()
-			if !strings.HasPrefix(name, SnapshotPrefix) {
+			if !entries[i].IsDir() || !isSnapshotName(name) {
 				continue
 			}
 
@@ -645,7 +646,7 @@ func currentVersion(root string) (int64, error) {
 }
 
 func parseVersion(name string) (int64, error) {
-	if !strings.HasPrefix(name, SnapshotPrefix) {
+	if !isSnapshotName(name) {
 		return 0, fmt.Errorf("invalid snapshot name %s", name)
 	}
 
@@ -663,7 +664,7 @@ func seekSnapshot(root string, version uint32) (string, error) {
 	targetName := snapshotName(version)
 	for i := len(entries) - 1; i >= 0; i-- {
 		name := entries[i].Name()
-		if !strings.HasPrefix(name, SnapshotPrefix) {
+		if !entries[i].IsDir() || !isSnapshotName(name) {
 			continue
 		}
 
@@ -683,7 +684,7 @@ func firstSnapshotVersion(root string) (int64, error) {
 	}
 
 	for _, entry := range entries {
-		if !strings.HasPrefix(entry.Name(), SnapshotPrefix) {
+		if !entry.IsDir() || !isSnapshotName(entry.Name()) {
 			continue
 		}
 
@@ -734,4 +735,31 @@ func updateCurrentSymlink(dir, snapshot string) error {
 type walEntry struct {
 	index uint64
 	data  *WALEntry
+}
+
+func isSnapshotName(name string) bool {
+	return strings.HasPrefix(name, SnapshotPrefix) && len(name) == SnapshotDirLen
+}
+
+// GetLatestVersion finds the latest version number without loading the whole db,
+// it's needed for upgrade module to check store upgrades,
+// it returns 0 if db don't exists or is empty.
+func GetLatestVersion(dir string) (int64, error) {
+	metadata, err := readMetadata(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	wal, err := OpenWAL(walPath(dir), &wal.Options{NoCopy: true})
+	if err != nil {
+		return 0, err
+	}
+	lastIndex, err := wal.LastIndex()
+	if err != nil {
+		return 0, err
+	}
+	return walVersion(lastIndex, uint32(metadata.InitialVersion)), nil
 }
