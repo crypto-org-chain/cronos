@@ -108,8 +108,8 @@ func (rs *Store) Commit() types.CommitID {
 	return rs.lastCommitInfo.CommitID()
 }
 
-func (rs *Store) WaitAsyncCommit() error {
-	return rs.db.WaitAsyncCommit()
+func (rs *Store) Close() error {
+	return rs.db.Close()
 }
 
 // Implements interface Committer

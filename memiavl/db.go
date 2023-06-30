@@ -399,6 +399,10 @@ func (db *DB) WaitAsyncCommit() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	return db.waitAsyncCommit()
+}
+
+func (db *DB) waitAsyncCommit() error {
 	if db.walChan == nil {
 		return nil
 	}
@@ -547,16 +551,7 @@ func (db *DB) Close() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	var walErr error
-	if db.walChan != nil {
-		close(db.walChan)
-		walErr = <-db.walQuit
-
-		db.walChan = nil
-		db.walQuit = nil
-	}
-
-	return errors.Join(db.MultiTree.Close(), db.wal.Close(), walErr)
+	return errors.Join(db.waitAsyncCommit(), db.MultiTree.Close(), db.wal.Close())
 }
 
 // TreeByName wraps MultiTree.TreeByName to add a lock.
