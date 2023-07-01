@@ -30,6 +30,7 @@
 - [#1075](https://github.com/crypto-org-chain/cronos/pull/1075) Add missing close in memiavl to avoid resource leaks.
 - [#1073](https://github.com/crypto-org-chain/cronos/pull/1073) memiavl automatically truncate corrupted wal tail.
 - [#1087](https://github.com/crypto-org-chain/cronos/pull/1087) memiavl fix LastCommitID when memiavl db not loaded.
+- [#1088](https://github.com/crypto-org-chain/cronos/pull/1088) memiavl fix empty value in write-ahead-log replaying.
 
 ### Features
 
