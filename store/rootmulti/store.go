@@ -221,7 +221,7 @@ func (rs *Store) PruneSnapshotHeight(height int64) {
 }
 
 // Implements interface Snapshotter
-// not needed, memiavl manage it's own snapshot/pruning strategy
+// not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
 }
 
