@@ -385,7 +385,7 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 
 	db.pendingUpgrades = db.pendingUpgrades[:0]
 
-	db.rewriteIfApplicable(uint32(v))
+	db.rewriteIfApplicable(v)
 
 	return hash, v, nil
 }
@@ -503,8 +503,8 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 }
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height
-func (db *DB) rewriteIfApplicable(height uint32) {
-	if height%db.snapshotInterval != 0 {
+func (db *DB) rewriteIfApplicable(height int64) {
+	if height%int64(db.snapshotInterval) != 0 {
 		return
 	}
 
