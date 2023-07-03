@@ -216,7 +216,7 @@ func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reade
 }
 
 // Implements interface Snapshotter
-// not needed, memiavl manage it's own snapshot/pruning strategy
+// not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) PruneSnapshotHeight(height int64) {
 }
 
