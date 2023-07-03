@@ -143,7 +143,7 @@ func Load(dir string, opts Options) (*DB, error) {
 
 		if snapshot != currentSnapshot {
 			// downgrade `"current"` link first
-			opts.Logger.Info("downgrade current link to %d", snapshot)
+			opts.Logger.Info("downgrade current link to %s", snapshot)
 			if err := updateCurrentSymlink(dir, snapshot); err != nil {
 				return nil, fmt.Errorf("fail to update current snapshot link: %w", err)
 			}
