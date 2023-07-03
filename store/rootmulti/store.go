@@ -216,13 +216,13 @@ func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reade
 }
 
 // Implements interface Snapshotter
+// not needed, memiavl manage it's own snapshot/pruning strategy
 func (rs *Store) PruneSnapshotHeight(height int64) {
-	// TODO
 }
 
 // Implements interface Snapshotter
+// not needed, memiavl manage it's own snapshot/pruning strategy
 func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
-	// TODO
 }
 
 // Implements interface CommitMultiStore
