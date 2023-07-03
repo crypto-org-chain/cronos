@@ -24,7 +24,7 @@ func Import(
 	if height > math.MaxUint32 {
 		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
 	}
-	snapshotDir := snapshotName(uint32(height))
+	snapshotDir := snapshotName(int64(height))
 	tmpDir := snapshotDir + "-tmp"
 
 	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
