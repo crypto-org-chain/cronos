@@ -105,16 +105,16 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, fmt.Errorf("fail to read current version: %w", err)
 	}
 
-	version := currentVersion
+	snapshotVersion := currentVersion
 	if opts.TargetVersion > 0 {
 		// find the biggest snapshot version that's less than or equal to the target version
-		version, err = seekSnapshot(dir, opts.TargetVersion)
+		snapshotVersion, err = seekSnapshot(dir, opts.TargetVersion)
 		if err != nil {
 			return nil, fmt.Errorf("fail to seek snapshot: %w", err)
 		}
 	}
 
-	path := filepath.Join(dir, snapshotName(version))
+	path := filepath.Join(dir, snapshotName(snapshotVersion))
 	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 	if err != nil {
 		if opts.CreateIfMissing && os.IsNotExist(err) {
@@ -140,10 +140,10 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	if opts.LoadForOverwriting && opts.TargetVersion > 0 {
-		if version != currentVersion {
+		if snapshotVersion != currentVersion {
 			// downgrade `"current"` link first
-			opts.Logger.Info("downgrade current link, version: %d", version)
-			if err := updateCurrentSymlink(dir, snapshotName(version)); err != nil {
+			opts.Logger.Info("downgrade current link, version: %d", snapshotVersion)
+			if err := updateCurrentSymlink(dir, snapshotName(snapshotVersion)); err != nil {
 				return nil, fmt.Errorf("fail to update current snapshot link: %w", err)
 			}
 		}
