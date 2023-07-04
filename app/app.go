@@ -999,7 +999,7 @@ func VerifyAddressFormat(bz []byte) error {
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
 	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
-		return cms.WaitAsyncCommit()
+		return cms.Close()
 	}
 
 	return nil

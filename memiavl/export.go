@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"path/filepath"
 
 	"cosmossdk.io/errors"
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
@@ -46,7 +47,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr err
 		if int64(version) > curVersion {
 			return fmt.Errorf("snapshot is not created yet: height: %d", version)
 		}
-		mtree, err = LoadMultiTree(snapshotPath(db.dir, version), true, 0)
+		mtree, err = LoadMultiTree(filepath.Join(db.dir, snapshotName(int64(version))), true, 0)
 		if err != nil {
 			return errors.Wrapf(err, "snapshot don't exists: height: %d", version)
 		}
