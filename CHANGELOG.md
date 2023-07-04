@@ -55,7 +55,7 @@
 - [#1064](https://github.com/crypto-org-chain/cronos/pull/1064) Simplify memiavl snapshot switching.
 - [#1067](https://github.com/crypto-org-chain/cronos/pull/1067) memiavl: only export state-sync snapshots on an exist snapshot
 - [#1082](https://github.com/crypto-org-chain/cronos/pull/1082) Make memiavl setup code reusable.
-- [#]() memiavl disable zero-copy by default.
+- [#1092](https://github.com/crypto-org-chain/cronos/pull/1092) memiavl disable zero-copy by default.
 
 *April 13, 2023*
 
