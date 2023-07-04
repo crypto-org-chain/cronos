@@ -123,6 +123,10 @@ func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte
 }
 
 func (t *Tree) set(key, value []byte) {
+	if value == nil {
+		// the value could be nil when replaying changes from write-ahead-log because of protobuf decoding
+		value = []byte{}
+	}
 	t.root, _ = setRecursive(t.root, key, value, t.version+1, t.cowVersion)
 	t.cache.Add(&cacheNode{key, value})
 }

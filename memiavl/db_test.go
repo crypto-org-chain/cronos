@@ -283,3 +283,33 @@ func TestWalIndexConversion(t *testing.T) {
 		require.Equal(t, tc.version, walVersion(tc.index, tc.initialVersion))
 	}
 }
+
+func TestEmptyValue(t *testing.T) {
+	dir := t.TempDir()
+	db, err := Load(dir, Options{InitialStores: []string{"test"}, CreateIfMissing: true, ZeroCopy: true})
+	require.NoError(t, err)
+
+	_, _, err = db.Commit([]*NamedChangeSet{
+		{Name: "test", Changeset: iavl.ChangeSet{
+			Pairs: []*iavl.KVPair{
+				{Key: []byte("hello1"), Value: []byte("")},
+				{Key: []byte("hello2"), Value: []byte("")},
+				{Key: []byte("hello3"), Value: []byte("")},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	hash, version, err := db.Commit([]*NamedChangeSet{
+		{Name: "test", Changeset: iavl.ChangeSet{
+			Pairs: []*iavl.KVPair{{Key: []byte("hello1"), Delete: true}},
+		}},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, db.Close())
+
+	db, err = Load(dir, Options{ZeroCopy: true})
+	require.NoError(t, err)
+	require.Equal(t, version, db.Version())
+	require.Equal(t, hash, db.LastCommitInfo().CommitID().Hash)
+}

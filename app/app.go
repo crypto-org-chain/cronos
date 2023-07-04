@@ -344,7 +344,7 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, baseAppOptions)
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, true, baseAppOptions)
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -1002,7 +1002,7 @@ func VerifyAddressFormat(bz []byte) error {
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
 	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
-		return cms.WaitAsyncCommit()
+		return cms.Close()
 	}
 
 	return nil

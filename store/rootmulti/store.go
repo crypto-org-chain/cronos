@@ -1,7 +1,6 @@
 package rootmulti
 
 import (
-	stderrors "errors"
 	"fmt"
 	"io"
 	"math"
@@ -49,12 +48,16 @@ type Store struct {
 	listeners    map[types.StoreKey][]types.WriteListener
 
 	opts memiavl.Options
+
+	// sdk46Compact defines if the root hash is compatible with cosmos-sdk 0.46 and before.
+	sdk46Compact bool
 }
 
-func NewStore(dir string, logger log.Logger) *Store {
+func NewStore(dir string, logger log.Logger, sdk46Compact bool) *Store {
 	return &Store{
-		dir:    dir,
-		logger: logger,
+		dir:          dir,
+		logger:       logger,
+		sdk46Compact: sdk46Compact,
 
 		storesParams: make(map[types.StoreKey]storeParams),
 		keysByName:   make(map[string]types.StoreKey),
@@ -97,16 +100,27 @@ func (rs *Store) Commit() types.CommitID {
 		}
 	}
 
-	rs.lastCommitInfo = amendCommitInfo(rs.db.LastCommitInfo(), rs.storesParams)
+	rs.lastCommitInfo = rs.db.LastCommitInfo()
+	if rs.sdk46Compact {
+		rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
+	}
 	return rs.lastCommitInfo.CommitID()
 }
 
-func (rs *Store) WaitAsyncCommit() error {
-	return rs.db.WaitAsyncCommit()
+func (rs *Store) Close() error {
+	return rs.db.Close()
 }
 
 // Implements interface Committer
 func (rs *Store) LastCommitID() types.CommitID {
+	if rs.lastCommitInfo == nil {
+		v, err := memiavl.GetLatestVersion(rs.dir)
+		if err != nil {
+			panic(fmt.Errorf("failed to get latest version: %w", err))
+		}
+		return types.CommitID{Version: v}
+	}
+
 	return rs.lastCommitInfo.CommitID()
 }
 
@@ -202,13 +216,13 @@ func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reade
 }
 
 // Implements interface Snapshotter
+// not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) PruneSnapshotHeight(height int64) {
-	// TODO
 }
 
 // Implements interface Snapshotter
+// not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
-	// TODO
 }
 
 // Implements interface CommitMultiStore
@@ -271,7 +285,6 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	}
 
 	opts := rs.opts
-	opts.Logger = rs.logger.With("module", "memiavl")
 	opts.CreateIfMissing = true
 	opts.InitialStores = initialStores
 	opts.TargetVersion = uint32(version)
@@ -308,7 +321,10 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	rs.stores = newStores
 	// to keep the root hash compatible with cosmos-sdk 0.46
 	if db.Version() != 0 {
-		rs.lastCommitInfo = amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
+		rs.lastCommitInfo = db.LastCommitInfo()
+		if rs.sdk46Compact {
+			rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
+		}
 	} else {
 		rs.lastCommitInfo = &types.CommitInfo{}
 	}
@@ -375,12 +391,37 @@ func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
 func (rs *Store) SetMemIAVLOptions(opts memiavl.Options) {
+	if opts.Logger == nil {
+		opts.Logger = rs.logger.With("module", "memiavl")
+	}
 	rs.opts = opts
 }
 
-// Implements interface CommitMultiStore
-func (rs *Store) RollbackToVersion(version int64) error {
-	return stderrors.New("rootmulti store don't support rollback")
+// RollbackToVersion delete the versions after `target` and update the latest version.
+// it should only be called in standalone cli commands.
+func (rs *Store) RollbackToVersion(target int64) error {
+	if target <= 0 {
+		return fmt.Errorf("invalid rollback height target: %d", target)
+	}
+
+	if target > math.MaxUint32 {
+		return fmt.Errorf("rollback height target %d exceeds max uint32", target)
+	}
+
+	if rs.db != nil {
+		if err := rs.db.Close(); err != nil {
+			return err
+		}
+	}
+
+	opts := rs.opts
+	opts.TargetVersion = uint32(target)
+	opts.LoadForOverwriting = true
+
+	var err error
+	rs.db, err = memiavl.Load(rs.dir, opts)
+
+	return err
 }
 
 // Implements interface CommitMultiStore
@@ -420,6 +461,9 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		version = rs.db.Version()
 	}
 
+	// If the request's height is the latest height we've committed, then utilize
+	// the store's lastCommitInfo as this commit info may not be flushed to disk.
+	// Otherwise, we query for the commit info from disk.
 	db := rs.db
 	if version != rs.lastCommitInfo.Version {
 		var err error
@@ -450,10 +494,10 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
 	}
 
-	// If the request's height is the latest height we've committed, then utilize
-	// the store's lastCommitInfo as this commit info may not be flushed to disk.
-	// Otherwise, we query for the commit info from disk.
-	commitInfo := amendCommitInfo(db.LastCommitInfo(), rs.storesParams)
+	commitInfo := db.LastCommitInfo()
+	if rs.sdk46Compact {
+		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
+	}
 
 	// Restore origin path and append proof op.
 	res.ProofOps.Ops = append(res.ProofOps.Ops, commitInfo.ProofOp(storeName))

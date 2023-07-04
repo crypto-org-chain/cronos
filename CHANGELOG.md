@@ -30,10 +30,14 @@
 - [#1062](https://github.com/crypto-org-chain/cronos/pull/1062) Update cometbft `v0.34.29` with several minor bug fixes and low-severity security-fixes.
 - [#1075](https://github.com/crypto-org-chain/cronos/pull/1075) Add missing close in memiavl to avoid resource leaks.
 - [#1073](https://github.com/crypto-org-chain/cronos/pull/1073) memiavl automatically truncate corrupted wal tail.
+- [#1087](https://github.com/crypto-org-chain/cronos/pull/1087) memiavl fix LastCommitID when memiavl db not loaded.
+- [#1088](https://github.com/crypto-org-chain/cronos/pull/1088) memiavl fix empty value in write-ahead-log replaying.
 
 ### Features
 
 - [#1042](https://github.com/crypto-org-chain/cronos/pull/1042) call Close method on app to cleanup resource on graceful shutdown ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/0ea7b86532a1144f229961f94b4524d5889e874d)).
+- [#1083](https://github.com/crypto-org-chain/cronos/pull/1083) memiavl support both sdk 46 and 47 root hash rules.
+- [#1091](https://github.com/crypto-org-chain/cronos/pull/1091) memiavl support rollback.
 
 ### Improvements
 
