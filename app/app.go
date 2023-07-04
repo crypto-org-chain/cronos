@@ -133,7 +133,6 @@ import (
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/crypto-org-chain/cronos/client/docs/statik"
@@ -359,7 +358,7 @@ func New(
 
 	experimental := cast.ToBool(appOpts.Get(cronos.ExperimentalFlag))
 
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, baseAppOptions)
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, true, baseAppOptions)
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -1031,8 +1030,8 @@ func VerifyAddressFormat(bz []byte) error {
 func (app *App) Close() error {
 	err := app.BaseApp.Close()
 
-	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
-		return errors.Join(err, cms.WaitAsyncCommit())
+	if cms, ok := app.CommitMultiStore().(io.Closer); ok {
+		return errors.Join(err, cms.Close())
 	}
 
 	return err
