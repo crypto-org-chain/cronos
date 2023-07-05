@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	ethermintapp "github.com/evmos/ethermint/app"
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
@@ -36,6 +35,7 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -96,6 +96,7 @@ func TestFullAppSimulation(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -112,7 +113,7 @@ func TestFullAppSimulation(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -137,6 +138,7 @@ func TestAppImportExport(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -153,7 +155,7 @@ func TestAppImportExport(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -258,6 +260,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 	require.NoError(t, err, "simulation setup failed")
 
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	defer func() {
 		require.NoError(t, db.Close())
@@ -274,7 +277,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		os.Stdout,
 		app.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(app, app.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -324,7 +327,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		os.Stdout,
 		newApp.BaseApp,
 		StateFn(app.AppCodec(), app.SimulationManager()),
-		ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 		simapp.SimulationOperations(newApp, newApp.AppCodec(), config),
 		app.ModuleAccountAddrs(),
 		config,
@@ -346,6 +349,7 @@ func TestAppStateDeterminism(t *testing.T) {
 	config.OnOperation = false
 	config.AllInvariants = false
 	config.ChainID = SimAppChainID
+	config.BlockMaxGas = SimBlockMaxGas
 
 	numSeeds := 3
 	numTimesToRunPerSeed := 5
@@ -376,7 +380,7 @@ func TestAppStateDeterminism(t *testing.T) {
 				os.Stdout,
 				app.BaseApp,
 				StateFn(app.AppCodec(), app.SimulationManager()),
-				ethermintapp.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
+				simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
 				simapp.SimulationOperations(app, app.AppCodec(), config),
 				app.ModuleAccountAddrs(),
 				config,

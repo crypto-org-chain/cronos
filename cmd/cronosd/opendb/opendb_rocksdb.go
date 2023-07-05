@@ -8,13 +8,14 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/linxGnu/grocksdb"
 	dbm "github.com/tendermint/tm-db"
 )
 
 const BlockCacheSize = 1 << 30
 
-func OpenDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
+func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
 		return openRocksdb(filepath.Join(dataDir, "application.db"), false)
