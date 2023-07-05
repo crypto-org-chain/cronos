@@ -29,6 +29,7 @@
       'app-config': {
         memiavl: {
           enable: true,
+          'zero-copy': true,
           'snapshot-interval': 5,
         },
         store: {
