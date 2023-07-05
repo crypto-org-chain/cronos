@@ -8,6 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/crypto-org-chain/cronos/store/rootmulti"
@@ -33,6 +34,12 @@ func SetupMemIAVL(logger log.Logger, homePath string, appOpts servertypes.AppOpt
 			SnapshotInterval:   cast.ToUint32(appOpts.Get(FlagSnapshotInterval)),
 			CacheSize:          cast.ToInt(appOpts.Get(FlagCacheSize)),
 		}
+
+		if opts.ZeroCopy {
+			// it's unsafe to cache zero-copied byte slices without copying them
+			sdk.SetAddrCacheEnabled(false)
+		}
+
 		// cms must be overridden before the other options, because they may use the cms,
 		// make sure the cms aren't be overridden by the other options later on.
 		baseAppOptions = append([]func(*baseapp.BaseApp){setMemIAVL(homePath, logger, opts, sdk46Compact)}, baseAppOptions...)
