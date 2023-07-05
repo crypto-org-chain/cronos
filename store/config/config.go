@@ -9,7 +9,7 @@ type MemIAVLConfig struct {
 	Enable bool `mapstructure:"enable"`
 	// ZeroCopy defines if the memiavl should return slices pointing to mmap-ed buffers directly (zero-copy),
 	// the zero-copied slices must not be retained beyond current block's execution.
-	// zero-copy is unsafe to use with current sdk's address cache.
+	// the sdk address cache will be disabled if zero-copy is enabled.
 	ZeroCopy bool `mapstructure:"zero-copy"`
 	// AsyncCommitBuffer defines the size of asynchronous commit queue, this greatly improve block catching-up
 	// performance, -1 means synchronous commit.
