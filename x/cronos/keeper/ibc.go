@@ -11,9 +11,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	errorsmod "cosmossdk.io/errors"
-	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
+	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -178,13 +178,17 @@ func (k Keeper) ibcSendTransfer(ctx sdk.Context, sender sdk.AccAddress, destinat
 	params := k.GetParams(ctx)
 	timeoutTimestamp := uint64(ctx.BlockTime().UnixNano()) + params.IbcTimeout
 	timeoutHeight := ibcclienttypes.ZeroHeight()
-	return k.transferKeeper.SendTransfer(
-		ctx,
-		ibctransfertypes.PortID,
-		channelId,
-		coin,
-		sender,
-		destination,
-		timeoutHeight,
-		timeoutTimestamp)
+	msg := ibctransfertypes.MsgTransfer{
+		SourcePort:       ibctransfertypes.PortID,
+		SourceChannel:    channelId,
+		Token:            coin,
+		Sender:           sender.String(),
+		Receiver:         destination,
+		TimeoutHeight:    timeoutHeight,
+		TimeoutTimestamp: timeoutTimestamp,
+	}
+	if _, err := k.transferKeeper.Transfer(ctx, &msg); err != nil {
+		return err
+	}
+	return nil
 }

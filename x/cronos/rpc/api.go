@@ -211,6 +211,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				// sender and receiver (contract or EOA) addreses
 				"from": from,
 				"to":   txData.GetTo(),
+				"type": hexutil.Uint(ethMsg.AsTransaction().Type()),
 			}
 
 			// If the to is empty, assume it is a contract creation
