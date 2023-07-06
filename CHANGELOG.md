@@ -1,4 +1,11 @@
 # Changelog
+
+*Jul 6, 2023*
+
+## v1.0.10
+
+- [#]() Disable vesting messages in check-tx mode.
+
 *Jun 9, 2023*
 
 ## v1.0.9
