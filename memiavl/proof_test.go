@@ -40,7 +40,7 @@ func TestProofs(t *testing.T) {
 			require.True(t, tree.VerifyNonMembership(proof, tc.nonExistKey))
 
 			// test persisted tree
-			require.NoError(t, tree.WriteSnapshot(tmpDir, false))
+			require.NoError(t, tree.WriteSnapshot(tmpDir))
 			snapshot, err := OpenSnapshot(tmpDir)
 			require.NoError(t, err)
 			ptree := NewFromSnapshot(snapshot, true, 0)

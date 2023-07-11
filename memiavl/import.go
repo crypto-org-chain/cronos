@@ -111,7 +111,7 @@ func NewTreeImporter(dir string, version int64) *TreeImporter {
 	quitChan := make(chan error)
 	go func() {
 		defer close(quitChan)
-		quitChan <- doImport(dir, version, nodesChan, false)
+		quitChan <- doImport(dir, version, nodesChan)
 	}()
 	return &TreeImporter{nodesChan, quitChan}
 }
@@ -133,12 +133,12 @@ func (ai *TreeImporter) Close() error {
 }
 
 // doImport a stream of `iavl.ExportNode`s into a new snapshot.
-func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode, writeHashIndex bool) (returnErr error) {
+func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode) (returnErr error) {
 	if version > int64(math.MaxUint32) {
 		return stderrors.New("version overflows uint32")
 	}
 
-	return writeSnapshot(dir, uint32(version), writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+	return writeSnapshot(dir, uint32(version), func(w *snapshotWriter) (uint32, error) {
 		i := &importer{
 			snapshotWriter: *w,
 		}
