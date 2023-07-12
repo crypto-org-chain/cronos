@@ -203,14 +203,54 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
-	snapshotDir := snapshotName(db.lastCommitInfo.Version)
-	tmpDir := snapshotDir + "-tmp"
-	path = filepath.Join(db.dir, tmpDir)
-	if err := os.Remove(path); err != nil {
+	if err := removeAllTmpDirs(db.dir); err != nil {
 		db.logger.Error("failed to remove tmp directories", "err", err)
 	}
 
 	return db, nil
+}
+
+func removeAllTmpDirs(rootDir string) error {
+	const maxRemovals = 1000
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errors []error
+	sem := make(chan struct{}, maxRemovals)
+
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && strings.HasSuffix(path, "-tmp") {
+			sem <- struct{}{}
+			wg.Add(1)
+			go func() {
+				defer func() {
+					<-sem
+					wg.Done()
+				}()
+				if err := os.RemoveAll(path); err != nil {
+					mu.Lock()
+					errors = append(errors, err)
+					mu.Unlock()
+				}
+			}()
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	wg.Wait()
+	if len(errors) > 0 {
+		var errMsgs []string
+		for _, e := range errors {
+			errMsgs = append(errMsgs, e.Error())
+		}
+		return fmt.Errorf("failed to remove some tmp directories: %s", strings.Join(errMsgs, "; "))
+	}
+	return nil
 }
 
 // SetInitialVersion wraps `MultiTree.SetInitialVersion`.
@@ -471,7 +511,7 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
-		if err := os.Remove(path); err != nil {
+		if err := os.RemoveAll(path); err != nil {
 			db.logger.Error("failed to remove tmp directories", "err", err)
 		}
 		return err
