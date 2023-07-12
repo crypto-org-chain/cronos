@@ -469,6 +469,7 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
+		os.Remove(path)
 		return err
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
