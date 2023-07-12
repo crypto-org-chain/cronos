@@ -34,7 +34,7 @@ func BenchmarkRandomGet(b *testing.B) {
 	}
 
 	snapshotDir := b.TempDir()
-	err := tree.WriteSnapshot(snapshotDir, true)
+	err := tree.WriteSnapshot(snapshotDir)
 	require.NoError(b, err)
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(b, err)
@@ -43,7 +43,6 @@ func BenchmarkRandomGet(b *testing.B) {
 
 	require.Equal(b, targetValue, tree.Get(targetKey))
 	require.Equal(b, targetValue, diskTree.Get(targetKey))
-	require.Equal(b, targetValue, snapshot.Get(targetKey))
 
 	b.ResetTimer()
 	b.Run("memiavl", func(b *testing.B) {
@@ -54,11 +53,6 @@ func BenchmarkRandomGet(b *testing.B) {
 	b.Run("memiavl-disk", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = diskTree.Get(targetKey)
-		}
-	})
-	b.Run("snapshot-get", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = snapshot.Get(targetKey)
 		}
 	})
 	b.Run("btree-degree-2", func(b *testing.B) {

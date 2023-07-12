@@ -2,7 +2,6 @@ package memiavl
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,8 +10,6 @@ import (
 	"path/filepath"
 
 	"github.com/cosmos/iavl"
-	"github.com/ledgerwatch/erigon-lib/etl"
-	"github.com/ledgerwatch/erigon-lib/recsplit"
 )
 
 const (
@@ -28,7 +25,6 @@ const (
 	FileNameNodes    = "nodes"
 	FileNameLeaves   = "leaves"
 	FileNameKVs      = "kvs"
-	FileNameKVIndex  = "kvs.index"
 	FileNameMetadata = "metadata"
 )
 
@@ -42,10 +38,6 @@ type Snapshot struct {
 	nodes  []byte
 	leaves []byte
 	kvs    []byte
-
-	// hash index of kvs
-	index       *recsplit.Index
-	indexReader *recsplit.IndexReader // reader for the index
 
 	// parsed from metadata file
 	version uint32
@@ -135,22 +127,6 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		)
 	}
 
-	var (
-		index       *recsplit.Index
-		indexReader *recsplit.IndexReader
-	)
-	indexFile := filepath.Join(snapshotDir, FileNameKVIndex)
-	_, err = os.Stat(indexFile)
-	if err == nil {
-		index, err = recsplit.OpenIndex(indexFile)
-		if err != nil {
-			return nil, cleanupHandles(err)
-		}
-		indexReader = recsplit.NewIndexReader(index)
-	} else if !os.IsNotExist(err) {
-		return nil, cleanupHandles(err)
-	}
-
 	nodesData, err := NewNodes(nodes)
 	if err != nil {
 		return nil, err
@@ -170,9 +146,6 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		nodes:  nodes,
 		leaves: leaves,
 		kvs:    kvs,
-
-		index:       index,
-		indexReader: indexReader,
 
 		version: version,
 
@@ -209,10 +182,6 @@ func (snapshot *Snapshot) Close() error {
 	}
 	if snapshot.kvsMap != nil {
 		errs = append(errs, snapshot.kvsMap.Close())
-	}
-
-	if snapshot.index != nil {
-		errs = append(errs, snapshot.index.Close())
 	}
 
 	// reset to an empty tree
@@ -284,16 +253,6 @@ func (snapshot *Snapshot) ScanNodes(callback func(node PersistedNode) error) err
 		if err := callback(snapshot.Node(uint32(i))); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// Get lookup the value for the key through the hash index
-func (snapshot *Snapshot) Get(key []byte) []byte {
-	offset := snapshot.indexReader.Lookup(key)
-	candidate, value := snapshot.KeyValue(offset)
-	if bytes.Equal(key, candidate) {
-		return value
 	}
 	return nil
 }
@@ -391,8 +350,8 @@ func (snapshot *Snapshot) export(callback func(*iavl.ExportNode) bool) {
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
-	return writeSnapshot(snapshotDir, t.version, writeHashIndex, func(w *snapshotWriter) (uint32, error) {
+func (t *Tree) WriteSnapshot(snapshotDir string) error {
+	return writeSnapshot(snapshotDir, t.version, func(w *snapshotWriter) (uint32, error) {
 		if t.root == nil {
 			return 0, nil
 		} else {
@@ -405,7 +364,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string, writeHashIndex bool) error {
 }
 
 func writeSnapshot(
-	dir string, version uint32, writeHashIndex bool,
+	dir string, version uint32,
 	doWrite func(*snapshotWriter) (uint32, error),
 ) (returnErr error) {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -415,7 +374,6 @@ func writeSnapshot(
 	nodesFile := filepath.Join(dir, FileNameNodes)
 	leavesFile := filepath.Join(dir, FileNameLeaves)
 	kvsFile := filepath.Join(dir, FileNameKVs)
-	kvsIndexFile := filepath.Join(dir, FileNameKVIndex)
 
 	fpNodes, err := createFile(nodesFile)
 	if err != nil {
@@ -476,22 +434,6 @@ func writeSnapshot(
 		}
 		if err := fpNodes.Sync(); err != nil {
 			return err
-		}
-
-		if writeHashIndex {
-			// re-open kvs file for reading
-			input, err := os.Open(kvsFile)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := input.Close(); returnErr == nil {
-					returnErr = err
-				}
-			}()
-			if err := buildIndex(input, kvsIndexFile, dir, int(leaves)); err != nil {
-				return fmt.Errorf("build MPHF index failed: %w", err)
-			}
 		}
 	}
 
@@ -621,75 +563,6 @@ func (w *snapshotWriter) writeRecursive(node Node) error {
 	}
 
 	return w.writeBranch(node.Version(), uint32(node.Size()), node.Height(), preTrees, keyLeaf, node.Hash())
-}
-
-// buildIndex build MPHF index for the kvs file.
-func buildIndex(input *os.File, idxPath, tmpDir string, count int) error {
-	var numBuf [4]byte
-
-	rs, err := recsplit.NewRecSplit(recsplit.RecSplitArgs{
-		KeyCount:    count,
-		Enums:       false,
-		BucketSize:  2000,
-		LeafSize:    8,
-		TmpDir:      tmpDir,
-		IndexFile:   idxPath,
-		EtlBufLimit: etl.BufferOptimalSize / 2,
-	})
-	if err != nil {
-		return err
-	}
-
-	defer rs.Close()
-
-	for {
-		if _, err := input.Seek(0, 0); err != nil {
-			return err
-		}
-		reader := bufio.NewReader(input)
-
-		var pos uint64
-		for {
-			if _, err := io.ReadFull(reader, numBuf[:]); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
-			}
-			len1 := uint64(binary.LittleEndian.Uint32(numBuf[:]))
-			key := make([]byte, len1)
-			if _, err := io.ReadFull(reader, key); err != nil {
-				return err
-			}
-
-			// skip the value part
-			if _, err := io.ReadFull(reader, numBuf[:]); err != nil {
-				return err
-			}
-			len2 := uint64(binary.LittleEndian.Uint32(numBuf[:]))
-			if _, err := io.CopyN(io.Discard, reader, int64(len2)); err != nil {
-				return err
-			}
-
-			if err := rs.AddKey(key, pos); err != nil {
-				return err
-			}
-			pos += 8 + len1 + len2
-		}
-
-		if err := rs.Build(); err != nil {
-			if rs.Collision() {
-				rs.ResetNextSalt()
-				continue
-			}
-
-			return err
-		}
-
-		break
-	}
-
-	return nil
 }
 
 func createFile(name string) (*os.File, error) {
