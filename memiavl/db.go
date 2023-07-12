@@ -212,8 +212,6 @@ func Load(dir string, opts Options) (*DB, error) {
 
 func removeAllTmpDirs(rootDir string) error {
 	const maxRemovals = 1000
-	var wg sync.WaitGroup
-	var mu sync.Mutex
 	var errors []error
 	var i int
 
@@ -232,18 +230,11 @@ func removeAllTmpDirs(rootDir string) error {
 		}
 		i++
 
-		wg.Add(1)
-		go func(dirEntry os.DirEntry) {
-			defer wg.Done()
-			if err := os.RemoveAll(filepath.Join(rootDir, dirEntry.Name())); err != nil {
-				mu.Lock()
-				errors = append(errors, err)
-				mu.Unlock()
-			}
-		}(dirEntry)
+		if err := os.RemoveAll(filepath.Join(rootDir, dirEntry.Name())); err != nil {
+			errors = append(errors, err)
+		}
 	}
 
-	wg.Wait()
 	if len(errors) > 0 {
 		var errMsgs []string
 		for _, e := range errors {
