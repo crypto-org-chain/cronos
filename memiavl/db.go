@@ -203,6 +203,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
+	snapshotDir := snapshotName(db.lastCommitInfo.Version)
+	tmpDir := snapshotDir + "-tmp"
+	path = filepath.Join(db.dir, tmpDir)
+	os.Remove(path)
+
 	return db, nil
 }
 
