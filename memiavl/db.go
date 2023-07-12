@@ -215,31 +215,32 @@ func removeAllTmpDirs(rootDir string) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errors []error
-	sem := make(chan struct{}, maxRemovals)
+	var i int
 
-	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() && strings.HasSuffix(path, "-tmp") {
-			sem <- struct{}{}
-			wg.Add(1)
-			go func() {
-				defer func() {
-					<-sem
-					wg.Done()
-				}()
-				if err := os.RemoveAll(path); err != nil {
-					mu.Lock()
-					errors = append(errors, err)
-					mu.Unlock()
-				}
-			}()
-		}
-		return nil
-	})
+	dirEntries, err := os.ReadDir(rootDir)
 	if err != nil {
 		return err
+	}
+
+	for _, dirEntry := range dirEntries {
+		if !dirEntry.IsDir() || !strings.HasSuffix(dirEntry.Name(), "-tmp") {
+			continue
+		}
+
+		if i >= maxRemovals {
+			break
+		}
+		i++
+
+		wg.Add(1)
+		go func(dirEntry os.DirEntry) {
+			defer wg.Done()
+			if err := os.RemoveAll(filepath.Join(rootDir, dirEntry.Name())); err != nil {
+				mu.Lock()
+				errors = append(errors, err)
+				mu.Unlock()
+			}
+		}(dirEntry)
 	}
 
 	wg.Wait()
