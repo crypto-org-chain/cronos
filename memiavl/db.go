@@ -124,6 +124,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
+	// cleanup any temporary directories left by interrupted snapshot rewrite
+	if err := removeTmpDirs(dir); err != nil {
+		return nil, fmt.Errorf("fail to cleanup tmp directories: %w", err)
+	}
+
 	wal, err := OpenWAL(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
@@ -203,45 +208,25 @@ func Load(dir string, opts Options) (*DB, error) {
 		}
 	}
 
-	if err := removeAllTmpDirs(db.dir); err != nil {
-		db.logger.Error("failed to remove tmp directories", "err", err)
-	}
-
 	return db, nil
 }
 
-func removeAllTmpDirs(rootDir string) error {
-	const maxRemovals = 1000
-	var errors []error
-	var i int
-
-	dirEntries, err := os.ReadDir(rootDir)
+func removeTmpDirs(rootDir string) error {
+	entries, err := os.ReadDir(rootDir)
 	if err != nil {
 		return err
 	}
 
-	for _, dirEntry := range dirEntries {
-		if !dirEntry.IsDir() || !strings.HasSuffix(dirEntry.Name(), "-tmp") {
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), "-tmp") {
 			continue
 		}
 
-		if i >= maxRemovals {
-			break
-		}
-		i++
-
-		if err := os.RemoveAll(filepath.Join(rootDir, dirEntry.Name())); err != nil {
-			errors = append(errors, err)
+		if err := os.RemoveAll(filepath.Join(rootDir, entry.Name())); err != nil {
+			return err
 		}
 	}
 
-	if len(errors) > 0 {
-		var errMsgs []string
-		for _, e := range errors {
-			errMsgs = append(errMsgs, e.Error())
-		}
-		return fmt.Errorf("failed to remove some tmp directories: %s", strings.Join(errMsgs, "; "))
-	}
 	return nil
 }
 
