@@ -488,10 +488,7 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
-		if err := os.RemoveAll(path); err != nil {
-			db.logger.Error("failed to remove tmp directories", "err", err)
-		}
-		return err
+		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
 		return err
