@@ -206,7 +206,9 @@ func Load(dir string, opts Options) (*DB, error) {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + "-tmp"
 	path = filepath.Join(db.dir, tmpDir)
-	os.Remove(path)
+	if err := os.Remove(path); err != nil {
+		db.logger.Error("failed to remove tmp directories", "err", err)
+	}
 
 	return db, nil
 }
@@ -469,7 +471,9 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
-		os.Remove(path)
+		if err := os.Remove(path); err != nil {
+			db.logger.Error("failed to remove tmp directories", "err", err)
+		}
 		return err
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
