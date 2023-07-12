@@ -116,8 +116,6 @@ IAVL snapshot is composed by four files:
   *repeat*
   ```
 
-- `kvs.index`, optional MPHF(Minimal-Perfect-Hash-Function) hash index build from `kvs`, support query key-values as a hash map.
-
 #### Compression
 
 The items in snapshot reference with each other by file offsets, we can apply some block compression techniques to compress keys and values files while maintain random accessbility by uncompressed file offset, for example zstd's experimental seekable format[^1].
