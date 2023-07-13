@@ -72,8 +72,8 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	entries, err := os.ReadDir(db.dir)
 	require.NoError(t, err)
 
-	// three files: snapshot, current link, wal
-	require.Equal(t, 3, len(entries))
+	// three files: snapshot, current link, wal, LOCK
+	require.Equal(t, 4, len(entries))
 }
 
 func TestWAL(t *testing.T) {
@@ -230,6 +230,7 @@ func TestLoadVersion(t *testing.T) {
 		}
 		tmp, err := Load(dir, Options{
 			TargetVersion: uint32(v),
+			ReadOnly:      true,
 		})
 		require.NoError(t, err)
 		require.Equal(t, RefHashes[v-1], tmp.TreeByName("test").RootHash())
@@ -312,4 +313,42 @@ func TestEmptyValue(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, version, db.Version())
 	require.Equal(t, hash, db.LastCommitInfo().CommitID().Hash)
+}
+
+func TestInvalidOptions(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := Load(dir, Options{ReadOnly: true})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true, CreateIfMissing: true})
+	require.Error(t, err)
+
+	db, err := Load(dir, Options{CreateIfMissing: true})
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	_, err = Load(dir, Options{LoadForOverwriting: true, ReadOnly: true})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true})
+	require.NoError(t, err)
+}
+
+func TestExclusiveLock(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := Load(dir, Options{CreateIfMissing: true})
+	require.NoError(t, err)
+
+	_, err = Load(dir, Options{})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true})
+	require.NoError(t, err)
+
+	require.NoError(t, db.Close())
+
+	_, err = Load(dir, Options{})
+	require.NoError(t, err)
 }
