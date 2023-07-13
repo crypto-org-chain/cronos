@@ -41,7 +41,7 @@ type DB struct {
 	MultiTree
 	dir      string
 	logger   log.Logger
-	fileLock *FileLock
+	fileLock FileLock
 	readOnly bool
 
 	// result channel of snapshot rewrite goroutine
@@ -143,7 +143,7 @@ func Load(dir string, opts Options) (*DB, error) {
 
 	var (
 		err      error
-		fileLock *FileLock
+		fileLock FileLock
 	)
 	if !opts.ReadOnly {
 		fileLock, err = LockFile(filepath.Join(dir, LockFileName))

@@ -17,6 +17,7 @@ require (
 	github.com/tidwall/btree v1.5.0
 	github.com/tidwall/gjson v1.10.2
 	github.com/tidwall/wal v1.1.7
+	github.com/zbiljic/go-filelock v0.0.0-20170914061330-1dbf7103ab7d
 	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.7.0
