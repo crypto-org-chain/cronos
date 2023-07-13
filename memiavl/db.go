@@ -14,7 +14,12 @@ import (
 	"github.com/tidwall/wal"
 )
 
-const DefaultSnapshotInterval = 1000
+const (
+	DefaultSnapshotInterval = 1000
+	LockFileName            = "LOCK"
+)
+
+var errReadOnly = errors.New("db is read-only")
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -34,8 +39,10 @@ const DefaultSnapshotInterval = 1000
 // ```
 type DB struct {
 	MultiTree
-	dir    string
-	logger log.Logger
+	dir      string
+	logger   log.Logger
+	fileLock FileLock
+	readOnly bool
 
 	// result channel of snapshot rewrite goroutine
 	snapshotRewriteChan chan snapshotResult
@@ -72,6 +79,7 @@ type Options struct {
 	Logger          log.Logger
 	CreateIfMissing bool
 	InitialVersion  uint32
+	ReadOnly        bool
 	// the initial stores when initialize the empty instance
 	InitialStores      []string
 	SnapshotKeepRecent uint32
@@ -94,12 +102,56 @@ type Options struct {
 	LoadForOverwriting bool
 }
 
+func (opts Options) Validate() error {
+	if opts.ReadOnly && opts.CreateIfMissing {
+		return errors.New("can't create db in read-only mode")
+	}
+
+	if opts.ReadOnly && opts.LoadForOverwriting {
+		return errors.New("can't rollback db in read-only mode")
+	}
+
+	return nil
+}
+
+func (opts *Options) FillDefaults() {
+	if opts.Logger == nil {
+		opts.Logger = log.NewNopLogger()
+	}
+
+	if opts.SnapshotInterval == 0 {
+		opts.SnapshotInterval = DefaultSnapshotInterval
+	}
+}
+
 const (
 	SnapshotPrefix = "snapshot-"
 	SnapshotDirLen = len(SnapshotPrefix) + 20
 )
 
 func Load(dir string, opts Options) (*DB, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid options: %w", err)
+	}
+	opts.FillDefaults()
+
+	if opts.CreateIfMissing {
+		if err := createDBIfNotExist(dir, opts.InitialVersion); err != nil {
+			return nil, fmt.Errorf("fail to load db: %w", err)
+		}
+	}
+
+	var (
+		err      error
+		fileLock FileLock
+	)
+	if !opts.ReadOnly {
+		fileLock, err = LockFile(filepath.Join(dir, LockFileName))
+		if err != nil {
+			return nil, fmt.Errorf("fail to lock db: %w", err)
+		}
+	}
+
 	snapshot := "current"
 	if opts.TargetVersion > 0 {
 		// find the biggest snapshot version that's less than or equal to the target version
@@ -113,15 +165,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	path := filepath.Join(dir, snapshot)
 	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 	if err != nil {
-		if opts.CreateIfMissing && os.IsNotExist(err) {
-			if err := initEmptyDB(dir, opts.InitialVersion); err != nil {
-				return nil, err
-			}
-			mtree, err = LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
-		}
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	// cleanup any temporary directories left by interrupted snapshot rewrite
@@ -181,6 +225,8 @@ func Load(dir string, opts Options) (*DB, error) {
 		MultiTree:                       *mtree,
 		logger:                          opts.Logger,
 		dir:                             dir,
+		fileLock:                        fileLock,
+		readOnly:                        opts.ReadOnly,
 		wal:                             wal,
 		walChanSize:                     opts.AsyncCommitBuffer,
 		snapshotKeepRecent:              opts.SnapshotKeepRecent,
@@ -189,15 +235,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		triggerStateSyncExport:          opts.TriggerStateSyncExport,
 	}
 
-	if db.logger == nil {
-		db.logger = log.NewNopLogger()
-	}
-
-	if db.snapshotInterval == 0 {
-		db.snapshotInterval = DefaultSnapshotInterval
-	}
-
-	if db.Version() == 0 && len(opts.InitialStores) > 0 {
+	if !db.readOnly && db.Version() == 0 && len(opts.InitialStores) > 0 {
 		// do the initial upgrade with the `opts.InitialStores`
 		var upgrades []*TreeNameUpgrade
 		for _, name := range opts.InitialStores {
@@ -230,6 +268,11 @@ func removeTmpDirs(rootDir string) error {
 	return nil
 }
 
+// ReadOnly returns whether the DB is opened in read-only mode.
+func (db *DB) ReadOnly() bool {
+	return db.readOnly
+}
+
 // SetInitialVersion wraps `MultiTree.SetInitialVersion`.
 // it do an immediate snapshot rewrite, because we can't use wal log to record this change,
 // because we need it to convert versions to wal index in the first place.
@@ -253,6 +296,10 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
+
+	if db.readOnly {
+		return errReadOnly
+	}
 
 	if err := db.MultiTree.ApplyUpgrades(upgrades); err != nil {
 		return err
@@ -375,6 +422,10 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	if db.readOnly {
+		return nil, 0, errReadOnly
+	}
+
 	if err := db.checkAsyncTasks(); err != nil {
 		return nil, 0, err
 	}
@@ -481,6 +532,10 @@ func (db *DB) RewriteSnapshot() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	if db.readOnly {
+		return errReadOnly
+	}
+
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + "-tmp"
 	path := filepath.Join(db.dir, tmpDir)
@@ -549,6 +604,10 @@ func (db *DB) RewriteSnapshotBackground() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	if db.readOnly {
+		return errReadOnly
+	}
+
 	return db.rewriteSnapshotBackground()
 }
 
@@ -595,7 +654,17 @@ func (db *DB) Close() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return errors.Join(db.waitAsyncCommit(), db.MultiTree.Close(), db.wal.Close())
+	errs := []error{
+		db.waitAsyncCommit(), db.MultiTree.Close(), db.wal.Close(),
+	}
+	db.wal = nil
+
+	if db.fileLock != nil {
+		errs = append(errs, db.fileLock.Unlock())
+		db.fileLock = nil
+	}
+
+	return errors.Join(errs...)
 }
 
 // TreeByName wraps MultiTree.TreeByName to add a lock.
@@ -634,6 +703,10 @@ func (db *DB) LastCommitInfo() *storetypes.CommitInfo {
 func (db *DB) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
+
+	if db.readOnly {
+		return nil, 0, errReadOnly
+	}
 
 	return db.MultiTree.ApplyChangeSet(changeSets, updateCommitInfo)
 }
@@ -815,6 +888,15 @@ func atomicRemoveDir(path string) error {
 	}
 
 	return os.RemoveAll(tmpPath)
+}
+
+// createDBIfNotExist detects if db does not exist and try to initialize an empty one.
+func createDBIfNotExist(dir string, initialVersion uint32) error {
+	_, err := os.Stat(filepath.Join(dir, "current", MetadataFileName))
+	if err != nil && os.IsNotExist(err) {
+		return initEmptyDB(dir, initialVersion)
+	}
+	return nil
 }
 
 type walEntry struct {
