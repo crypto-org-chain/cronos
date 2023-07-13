@@ -111,12 +111,7 @@ func (opts Options) Validate() error {
 	return nil
 }
 
-const (
-	SnapshotPrefix = "snapshot-"
-	SnapshotDirLen = len(SnapshotPrefix) + 20
-)
-
-func Load(dir string, opts Options) (*DB, error) {
+func (opts *Options) FillDefaults() {
 	if opts.Logger == nil {
 		opts.Logger = log.NewNopLogger()
 	}
@@ -124,16 +119,21 @@ func Load(dir string, opts Options) (*DB, error) {
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = DefaultSnapshotInterval
 	}
+}
 
+const (
+	SnapshotPrefix = "snapshot-"
+	SnapshotDirLen = len(SnapshotPrefix) + 20
+)
+
+func Load(dir string, opts Options) (*DB, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid options: %w", err)
 	}
+	opts.FillDefaults()
 
-	if err := tryReadMetadata(dir); err != nil {
-		if opts.CreateIfMissing && os.IsNotExist(err) {
-			err = initEmptyDB(dir, opts.InitialVersion)
-		}
-		if err != nil {
+	if opts.CreateIfMissing {
+		if err := createDBIfNotExist(dir, opts.InitialVersion); err != nil {
 			return nil, fmt.Errorf("fail to load db: %w", err)
 		}
 	}
@@ -143,12 +143,8 @@ func Load(dir string, opts Options) (*DB, error) {
 		lockFile *os.File
 	)
 	if !opts.ReadOnly {
-		// grab exclusive lock
-		lockFile, err = os.OpenFile(lockFilePath(dir), os.O_RDWR|os.O_CREATE, 0644)
+		lockFile, err = lockDB(dir)
 		if err != nil {
-			return nil, fmt.Errorf("fail to open lock file: %w", err)
-		}
-		if err := LockOrUnlock(lockFile, true); err != nil {
 			return nil, fmt.Errorf("fail to lock db: %w", err)
 		}
 	}
@@ -863,10 +859,25 @@ func atomicRemoveDir(path string) error {
 	return os.RemoveAll(tmpPath)
 }
 
-// tryReadMetadata try to read the metadata of current snapshot to checks if the db exists
-func tryReadMetadata(dir string) error {
+// createDBIfNotExist detects if db does not exist and try to initialize an empty one.
+func createDBIfNotExist(dir string, initialVersion uint32) error {
 	_, err := os.ReadFile(filepath.Join(dir, "current", MetadataFileName))
-	return err
+	if err != nil && os.IsNotExist(err) {
+		return initEmptyDB(dir, initialVersion)
+	}
+	return nil
+}
+
+// lockDB grab exclusive lock on the db directory
+func lockDB(dir string) (*os.File, error) {
+	lockFile, err := os.OpenFile(lockFilePath(dir), os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, err
+	}
+	if err := LockOrUnlock(lockFile, true); err != nil {
+		return nil, err
+	}
+	return lockFile, nil
 }
 
 func lockFilePath(dir string) string {
