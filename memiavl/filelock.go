@@ -1,13 +1,21 @@
 package memiavl
 
-import "github.com/zbiljic/go-filelock"
+import (
+	"path/filepath"
+
+	"github.com/zbiljic/go-filelock"
+)
 
 type FileLock interface {
 	Unlock() error
 }
 
 func LockFile(fname string) (FileLock, error) {
-	fl, err := filelock.New(fname)
+	path, err := filepath.Abs(fname)
+	if err != nil {
+		return nil, err
+	}
+	fl, err := filelock.New(path)
 	if err != nil {
 		return nil, err
 	}
