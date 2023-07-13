@@ -14,7 +14,10 @@ import (
 	"github.com/tidwall/wal"
 )
 
-const DefaultSnapshotInterval = 1000
+const (
+	DefaultSnapshotInterval = 1000
+	LockFileName            = "LOCK"
+)
 
 var errReadOnly = errors.New("db is read-only")
 
@@ -38,7 +41,7 @@ type DB struct {
 	MultiTree
 	dir      string
 	logger   log.Logger
-	lockFile *os.File
+	fileLock *FileLock
 	readOnly bool
 
 	// result channel of snapshot rewrite goroutine
@@ -140,10 +143,10 @@ func Load(dir string, opts Options) (*DB, error) {
 
 	var (
 		err      error
-		lockFile *os.File
+		fileLock *FileLock
 	)
 	if !opts.ReadOnly {
-		lockFile, err = lockDB(dir)
+		fileLock, err = LockFile(filepath.Join(dir, LockFileName))
 		if err != nil {
 			return nil, fmt.Errorf("fail to lock db: %w", err)
 		}
@@ -217,7 +220,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		MultiTree:                       *mtree,
 		logger:                          opts.Logger,
 		dir:                             dir,
-		lockFile:                        lockFile,
+		fileLock:                        fileLock,
 		readOnly:                        opts.ReadOnly,
 		wal:                             wal,
 		walChanSize:                     opts.AsyncCommitBuffer,
@@ -630,9 +633,13 @@ func (db *DB) Close() error {
 	errs := []error{
 		db.waitAsyncCommit(), db.MultiTree.Close(), db.wal.Close(),
 	}
-	if db.lockFile != nil {
-		errs = append(errs, LockOrUnlock(db.lockFile, false), db.lockFile.Close())
+	db.wal = nil
+
+	if db.fileLock != nil {
+		errs = append(errs, db.fileLock.Unlock())
+		db.fileLock = nil
 	}
+
 	return errors.Join(errs...)
 }
 
@@ -866,22 +873,6 @@ func createDBIfNotExist(dir string, initialVersion uint32) error {
 		return initEmptyDB(dir, initialVersion)
 	}
 	return nil
-}
-
-// lockDB grab exclusive lock on the db directory
-func lockDB(dir string) (*os.File, error) {
-	lockFile, err := os.OpenFile(lockFilePath(dir), os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
-	}
-	if err := LockOrUnlock(lockFile, true); err != nil {
-		return nil, err
-	}
-	return lockFile, nil
-}
-
-func lockFilePath(dir string) string {
-	return filepath.Join(dir, "LOCK")
 }
 
 type walEntry struct {
