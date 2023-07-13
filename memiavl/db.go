@@ -868,7 +868,7 @@ func atomicRemoveDir(path string) error {
 
 // createDBIfNotExist detects if db does not exist and try to initialize an empty one.
 func createDBIfNotExist(dir string, initialVersion uint32) error {
-	_, err := os.ReadFile(filepath.Join(dir, "current", MetadataFileName))
+	_, err := os.Stat(filepath.Join(dir, "current", MetadataFileName))
 	if err != nil && os.IsNotExist(err) {
 		return initEmptyDB(dir, initialVersion)
 	}
