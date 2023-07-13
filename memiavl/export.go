@@ -28,6 +28,7 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr err
 		db, err := Load(db.dir, Options{
 			TargetVersion: version,
 			ZeroCopy:      true,
+			ReadOnly:      true,
 		})
 		if err != nil {
 			return errors.Wrapf(err, "invalid height: %d", height)

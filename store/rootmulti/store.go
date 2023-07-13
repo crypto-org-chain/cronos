@@ -467,7 +467,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 	db := rs.db
 	if version != rs.lastCommitInfo.Version {
 		var err error
-		db, err = memiavl.Load(rs.dir, memiavl.Options{TargetVersion: uint32(version)})
+		db, err = memiavl.Load(rs.dir, memiavl.Options{TargetVersion: uint32(version), ReadOnly: true})
 		if err != nil {
 			return sdkerrors.QueryResult(err, false)
 		}
