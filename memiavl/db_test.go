@@ -230,6 +230,7 @@ func TestLoadVersion(t *testing.T) {
 		}
 		tmp, err := Load(dir, Options{
 			TargetVersion: uint32(v),
+			ReadOnly:      true,
 		})
 		require.NoError(t, err)
 		require.Equal(t, RefHashes[v-1], tmp.TreeByName("test").RootHash())
