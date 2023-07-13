@@ -58,6 +58,7 @@
 - [#1067](https://github.com/crypto-org-chain/cronos/pull/1067) memiavl: only export state-sync snapshots on an exist snapshot
 - [#1082](https://github.com/crypto-org-chain/cronos/pull/1082) Make memiavl setup code reusable.
 - [#1092](https://github.com/crypto-org-chain/cronos/pull/1092) memiavl disable sdk address cache if zero-copy enabled, and disable zero-copy by default.
+- [#1099](https://github.com/crypto-org-chain/cronos/pull/1099) clean up memiavl tmp directories left behind.
 
 *April 13, 2023*
 

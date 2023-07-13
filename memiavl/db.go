@@ -168,6 +168,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		return nil, err
 	}
 
+	// cleanup any temporary directories left by interrupted snapshot rewrite
+	if err := removeTmpDirs(dir); err != nil {
+		return nil, fmt.Errorf("fail to cleanup tmp directories: %w", err)
+	}
+
 	wal, err := OpenWAL(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
 	if err != nil {
 		return nil, err
@@ -242,6 +247,25 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	return db, nil
+}
+
+func removeTmpDirs(rootDir string) error {
+	entries, err := os.ReadDir(rootDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), "-tmp") {
+			continue
+		}
+
+		if err := os.RemoveAll(filepath.Join(rootDir, entry.Name())); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ReadOnly returns whether the DB is opened in read-only mode.
@@ -519,7 +543,7 @@ func (db *DB) RewriteSnapshot() error {
 		return err
 	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
-		return err
+		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
 		return err

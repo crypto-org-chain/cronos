@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"testing"
@@ -35,6 +36,27 @@ func TestRewriteSnapshot(t *testing.T) {
 			require.NoError(t, db.RewriteSnapshot())
 			require.NoError(t, db.Reload())
 		})
+	}
+}
+
+func TestRemoveSnapshotDir(t *testing.T) {
+	dbDir := t.TempDir()
+	defer os.RemoveAll(dbDir)
+
+	snapshotDir := filepath.Join(dbDir, snapshotName(0))
+	tmpDir := snapshotDir + "-tmp"
+	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+		t.Fatalf("Failed to create dummy snapshot directory: %v", err)
+	}
+	_, err := Load(dbDir, Options{
+		CreateIfMissing:    true,
+		InitialStores:      []string{"test"},
+		SnapshotKeepRecent: 0,
+	})
+	require.NoError(t, err)
+
+	if _, err := os.Stat(tmpDir); !os.IsNotExist(err) {
+		t.Errorf("Expected temporary snapshot directory to be deleted, but it still exists")
 	}
 }
 
