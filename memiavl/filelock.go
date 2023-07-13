@@ -41,7 +41,7 @@ func LockFile(fname string) (*FileLock, error) {
 		return nil, errors.New("lock is already hold by current process")
 	}
 
-	lockFile, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE, 0644)
+	lockFile, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open lock file: %w", err)
 	}
