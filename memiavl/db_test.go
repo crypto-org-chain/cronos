@@ -70,10 +70,10 @@ func TestRemoveSnapshotDir(t *testing.T) {
 	_, err = os.Stat(tmpDir)
 	require.False(t, os.IsNotExist(err))
 
-	_, err = Load(dbDir, Options{})
+	db, err = Load(dbDir, Options{})
 	require.NoError(t, err)
 
-	db, err = os.Stat(tmpDir)
+	_, err = os.Stat(tmpDir)
 	require.True(t, os.IsNotExist(err))
 
 	require.NoError(t, db.Close())
