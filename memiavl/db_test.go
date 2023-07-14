@@ -48,16 +48,33 @@ func TestRemoveSnapshotDir(t *testing.T) {
 	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		t.Fatalf("Failed to create dummy snapshot directory: %v", err)
 	}
-	_, err := Load(dbDir, Options{
+	db, err := Load(dbDir, Options{
 		CreateIfMissing:    true,
 		InitialStores:      []string{"test"},
 		SnapshotKeepRecent: 0,
 	})
 	require.NoError(t, err)
+	require.NoError(t, db.Close())
 
-	if _, err := os.Stat(tmpDir); !os.IsNotExist(err) {
-		t.Errorf("Expected temporary snapshot directory to be deleted, but it still exists")
-	}
+	_, err = os.Stat(tmpDir)
+	require.True(t, os.IsNotExist(err), "Expected temporary snapshot directory to be deleted, but it still exists")
+
+	err = os.MkdirAll(tmpDir, os.ModePerm)
+	require.NoError(t, err)
+
+	db, err = Load(dbDir, Options{
+		ReadOnly: true,
+	})
+	require.NoError(t, err)
+
+	_, err = os.Stat(tmpDir)
+	require.False(t, os.IsNotExist(err))
+
+	db, err = Load(dbDir, Options{})
+	require.NoError(t, err)
+
+	_, err = os.Stat(tmpDir)
+	require.True(t, os.IsNotExist(err))
 }
 
 func TestRewriteSnapshotBackground(t *testing.T) {

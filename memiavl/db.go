@@ -150,6 +150,11 @@ func Load(dir string, opts Options) (*DB, error) {
 		if err != nil {
 			return nil, fmt.Errorf("fail to lock db: %w", err)
 		}
+
+		// cleanup any temporary directories left by interrupted snapshot rewrite
+		if err := removeTmpDirs(dir); err != nil {
+			return nil, fmt.Errorf("fail to cleanup tmp directories: %w", err)
+		}
 	}
 
 	snapshot := "current"
@@ -166,11 +171,6 @@ func Load(dir string, opts Options) (*DB, error) {
 	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 	if err != nil {
 		return nil, err
-	}
-
-	// cleanup any temporary directories left by interrupted snapshot rewrite
-	if err := removeTmpDirs(dir); err != nil {
-		return nil, fmt.Errorf("fail to cleanup tmp directories: %w", err)
 	}
 
 	wal, err := OpenWAL(walPath(dir), &wal.Options{NoCopy: true, NoSync: true})
