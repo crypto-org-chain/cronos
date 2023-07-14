@@ -62,7 +62,7 @@ func TestRemoveSnapshotDir(t *testing.T) {
 	err = os.MkdirAll(tmpDir, os.ModePerm)
 	require.NoError(t, err)
 
-	db, err = Load(dbDir, Options{
+	_, err = Load(dbDir, Options{
 		ReadOnly: true,
 	})
 	require.NoError(t, err)
@@ -70,11 +70,13 @@ func TestRemoveSnapshotDir(t *testing.T) {
 	_, err = os.Stat(tmpDir)
 	require.False(t, os.IsNotExist(err))
 
-	db, err = Load(dbDir, Options{})
+	_, err = Load(dbDir, Options{})
 	require.NoError(t, err)
 
-	_, err = os.Stat(tmpDir)
+	db, err = os.Stat(tmpDir)
 	require.True(t, os.IsNotExist(err))
+
+	require.NoError(t, db.Close())
 }
 
 func TestRewriteSnapshotBackground(t *testing.T) {
