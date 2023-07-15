@@ -1,9 +1,11 @@
 import json
 
 import pytest
+import requests
 from eth_account.account import Account
 from eth_utils import abi
 from hexbytes import HexBytes
+from pystarport import ports
 from web3.exceptions import BadFunctionCallOutput
 
 from .gravity_utils import prepare_gravity, setup_cosmos_erc20_contract
@@ -294,6 +296,17 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
         return balance == 10
 
     wait_for_fn("check balance on cronos", check)
+
+    # check duplicate end_block_events
+    height = cli.block_height()
+    port = ports.rpc_port(gravity.cronos.base_port(0))
+    url = f"http://127.0.0.1:{port}/block_results?height={height}"
+    res = requests.get(url).json().get("result")
+    if res:
+        events = res["end_block_events"]
+        target = "ethereum_send_to_cosmos_handled"
+        count = sum(1 for evt in events if evt["type"] == target)
+        assert count <= 2, f"duplicate {target}"
 
 
 def test_direct_token_mapping(gravity):
