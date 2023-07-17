@@ -53,7 +53,7 @@ jobs:
 
   unittest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
@@ -79,7 +79,7 @@ jobs:
           make test
 
           # run versiondb tests
-          nix profile install nixpkgs#rocksdb
+          nix profile install -f ./nix rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           export LD_LIBRARY_PATH=$HOME/.nix-profile/lib

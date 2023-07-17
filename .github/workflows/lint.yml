@@ -18,7 +18,7 @@ jobs:
   golangci:
     name: Run golangci-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -41,7 +41,7 @@ jobs:
             *.sum
       - name: run golangci-lint
         run: |
-          nix profile install nixpkgs#rocksdb nixpkgs#golangci-lint
+          nix profile install -f ./nix rocksdb golangci-lint
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           golangci-lint version
