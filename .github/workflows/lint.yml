@@ -40,6 +40,7 @@ jobs:
             *.sum
       - name: run golangci-lint
         run: |
+          nix registry add nixpkgs github:NixOS/nixpkgs/23.05
           nix profile install nixpkgs#rocksdb nixpkgs#golangci-lint
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
