@@ -26,6 +26,9 @@
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
+      client_config: {
+        'broadcast-mode': 'block',
+      },
       'app-config': {
         memiavl: {
           enable: true,
@@ -40,6 +43,9 @@
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR2_MNEMONIC}',
+      client_config: {
+        'broadcast-mode': 'block',
+      },
     }],
     accounts: [{
       name: 'community',
