@@ -44,7 +44,6 @@ func (k Keeper) AfterSendToCosmosEvent(ctx sdk.Context, event gravitytypes.SendT
 	err := k.doAfterSendToCosmosEvent(cacheCtx, event)
 	if err == nil {
 		commit()
-		ctx.EventManager().EmitEvents(cacheCtx.EventManager().Events())
 	} else {
 		k.Logger(ctx).Error("AfterSendToCosmosEvent hook failed", "error", err)
 	}
