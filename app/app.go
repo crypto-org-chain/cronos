@@ -150,6 +150,8 @@ const (
 	AddrLen = 20
 
 	FileStreamerDirectory = "file_streamer"
+
+	FlagBlockedAddresses = "blocked-addresses"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -743,7 +745,13 @@ func New(
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	app.setAnteHandler(encodingConfig.TxConfig, cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)))
+
+	app.setAnteHandler(
+		encodingConfig.TxConfig,
+		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
+		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
+	)
+
 	// In v0.46, the SDK introduces _postHandlers_. PostHandlers are like
 	// antehandlers, but are run _after_ the `runMsgs` execution. They are also
 	// defined as a chain, and have the same signature as antehandlers.
@@ -781,7 +789,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
+func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) {
 	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -794,6 +802,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		MaxTxGasWanted:         maxGasWanted,
 		ExtensionOptionChecker: ethermint.HasDynamicFeeExtensionOption,
 		TxFeeChecker:           evmante.NewDynamicFeeChecker(app.EvmKeeper),
+		Blacklist:              blacklist,
 	})
 	if err != nil {
 		panic(err)

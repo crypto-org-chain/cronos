@@ -7,5 +7,8 @@ default {
         timeout_commit: '15s',
       },
     },
+    'app-config': {
+      'blocked-addresses': ['crc16z0herz998946wr659lr84c8c556da55dc34hh'],
+    },
   },
 }
