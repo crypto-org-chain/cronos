@@ -74,10 +74,8 @@ config {
           },
         },
         gov: {
-          voting_params: {
+          params: {
             voting_period: '1814400s',
-          },
-          deposit_params: {
             max_deposit_period: '1814400s',
             min_deposit: [
               {

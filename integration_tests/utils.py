@@ -127,7 +127,11 @@ def approve_proposal(n, rsp, event_query_tx=False):
     if event_query_tx:
         rsp = cli.event_query_tx_for(rsp["txhash"])
     # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
+
+    def cb(attrs):
+        return "proposal_id" in attrs
+
+    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
         rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
@@ -204,6 +208,15 @@ def parse_events(logs):
         ev["type"]: {attr["key"]: attr["value"] for attr in ev["attributes"]}
         for ev in logs[0]["events"]
     }
+
+
+def find_log_event_attrs(logs, ev_type, cond = None):
+    for ev in logs[0]["events"]:
+        if ev["type"] == ev_type:
+            attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
+            if cond is None or cond(attrs):
+                return attrs
+    return None
 
 
 def parse_events_rpc(events):
