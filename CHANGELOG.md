@@ -59,6 +59,7 @@
 - [#1082](https://github.com/crypto-org-chain/cronos/pull/1082) Make memiavl setup code reusable.
 - [#1092](https://github.com/crypto-org-chain/cronos/pull/1092) memiavl disable sdk address cache if zero-copy enabled, and disable zero-copy by default.
 - [#1099](https://github.com/crypto-org-chain/cronos/pull/1099) clean up memiavl tmp directories left behind.
+- [#940](https://github.com/crypto-org-chain/cronos/pull/940) Update rocksdb dependency to 8.1.1.
 
 *April 13, 2023*
 
