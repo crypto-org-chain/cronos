@@ -79,12 +79,11 @@ jobs:
           make test
 
           # run versiondb tests
-          nix registry add nixpkgs github:NixOS/nixpkgs/nixos-22.11
-          nix profile install nixpkgs#rocksdb
+          nix profile install -f ./nix rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           export LD_LIBRARY_PATH=$HOME/.nix-profile/lib
-          export GLIBC="$(nix build nixpkgs#stdenv.cc.libc.out --no-link --print-out-paths)"
+          export GLIBC="$(nix build -f ./nix stdenv.cc.libc.out --no-link --print-out-paths)"
           export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,--dynamic-linker=$GLIBC/lib/ld-linux-x86-64.so.2"
           echo $CGO_LDFLAGS
           cd ./versiondb
