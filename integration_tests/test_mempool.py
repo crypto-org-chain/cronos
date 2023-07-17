@@ -76,6 +76,6 @@ def test_mempool(cronos_mempool):
 
 def test_blocked_address(cronos_mempool):
     cli = cronos_mempool.cosmos_cli(0)
-    rsp = cli.transfer("signer1", "validator", "1basecro")
+    rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
     assert rsp["code"] != 0
     assert "signer is blocked" in rsp["raw_log"]
