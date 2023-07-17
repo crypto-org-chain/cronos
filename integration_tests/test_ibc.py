@@ -37,6 +37,21 @@ def get_balances(chain, addr):
     return chain.cosmos_cli().balances(addr)
 
 
+def find_duplicate(attributes):
+    res = set()
+    key = attributes[0]["key"]
+    for attribute in attributes:
+        if attribute["key"] == key:
+            value0 = attribute["value"]
+        elif attribute["key"] == "amount":
+            amount = attribute["value"]
+            value_pair = f"{value0}:{amount}"
+            if value_pair in res:
+                return value_pair
+            res.add(value_pair)
+    return None
+
+
 def test_ibc_transfer_with_hermes(ibc):
     """
     test ibc transfer tokens with hermes cli
@@ -67,6 +82,14 @@ def test_ibc_transfer_with_hermes(ibc):
     # the effective fee is decided by the max_priority_fee (base fee is zero)
     # rather than the normal gas price
     assert fee == gas * 1000000
+
+    # check duplicate OnRecvPacket events
+    criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = tx["logs"][1]["events"]
+    for event in events:
+        dup = find_duplicate(event["attributes"])
+        assert not dup, f"duplicate {dup} in {event['type']}"
 
 
 def test_ibc_incentivized_transfer(ibc):
