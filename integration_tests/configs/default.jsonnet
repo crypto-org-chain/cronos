@@ -27,7 +27,7 @@
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
       client_config: {
-        'broadcast-mode': 'block',
+        'broadcast-mode': 'sync',
       },
       'app-config': {
         memiavl: {
@@ -44,7 +44,7 @@
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR2_MNEMONIC}',
       client_config: {
-        'broadcast-mode': 'block',
+        'broadcast-mode': 'sync',
       },
     }],
     accounts: [{

@@ -622,6 +622,8 @@ def submit_any_proposal(cronos, tmp_path, event_query_tx=False):
             }
         ],
         "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
     }
     proposal_file = tmp_path / "proposal.json"
     proposal_file.write_text(json.dumps(proposal_json))
