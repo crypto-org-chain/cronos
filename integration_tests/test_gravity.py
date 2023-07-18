@@ -1,6 +1,7 @@
 import json
 
 import pytest
+import requests
 import sha3
 import toml
 from dateutil.parser import isoparse
@@ -381,6 +382,17 @@ def test_gov_token_mapping(gravity):
         return balance == 10
 
     wait_for_fn("check balance on cronos", check)
+
+    # check duplicate end_block_events
+    height = cli.block_height()
+    port = ports.rpc_port(gravity.cronos.base_port(0))
+    url = f"http://127.0.0.1:{port}/block_results?height={height}"
+    res = requests.get(url).json().get("result")
+    if res:
+        events = res["end_block_events"]
+        target = "ethereum_send_to_cosmos_handled"
+        count = sum(1 for evt in events if evt["type"] == target)
+        assert count <= 2, f"duplicate {target}"
 
 
 @pytest.mark.skip(reason="gravity-bridge not supported in v1.0.x")
