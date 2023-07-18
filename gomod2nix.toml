@@ -193,8 +193,8 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.20.10-cronos.0.20230706022232-abe3d64d2dc7"
-    hash = "sha256-TsP9klrsSa2PD4pMoE2133ZnVionp/B4n+YVfVn7jBI="
+    version = "v0.20.11-cronos-hotfix.0.20230718004314-5d8381103c18"
+    hash = "sha256-+aLwqBvfu77z9cIwAtIMwKU1AVpPzB15MfOrEFr4F7o="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"

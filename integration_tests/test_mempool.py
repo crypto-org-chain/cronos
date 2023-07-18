@@ -53,7 +53,9 @@ def test_mempool(cronos_mempool):
 
     to = ADDRS["community"]
     params = {"gasPrice": w3.eth.gas_price}
-    block_num_0, sended_hash_set = send_txs(w3, cli, to, KEYS.values(), params)
+    block_num_0, sended_hash_set = send_txs(
+        w3, cli, to, [v for k, v in KEYS.items() if k != "signer1"], params
+    )
     print(f"all send tx hash: {sended_hash_set} at {block_num_0}")
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
@@ -72,3 +74,10 @@ def test_mempool(cronos_mempool):
             break
         wait_for_new_blocks(cli, 1, sleep=0.1)
     assert len(sended_hash_set) == 0
+
+
+def test_blocked_address(cronos_mempool):
+    cli = cronos_mempool.cosmos_cli(0)
+    rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
+    assert rsp["code"] != 0
+    assert "signer is blocked" in rsp["raw_log"]

@@ -1,5 +1,11 @@
 # Changelog
 
+*Jul 18, 2023*
+
+## v1.0.11
+
+- [#]() Support blocking address in mempool
+
 *Jul 6, 2023*
 
 ## v1.0.10

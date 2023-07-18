@@ -23,7 +23,7 @@ jobs:
         with:
           go-version: 1.19
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
@@ -40,6 +40,7 @@ jobs:
             *.sum
       - name: run golangci-lint
         run: |
+          nix registry add nixpkgs github:NixOS/nixpkgs/23.05
           nix profile install nixpkgs#rocksdb nixpkgs#golangci-lint
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
@@ -70,7 +71,7 @@ jobs:
             **/poetry.lock
             **/pyproject.toml
             **/*.py
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
@@ -99,7 +100,7 @@ jobs:
           files: |
             *.nix
             **/*.nix
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v22
         with:
           # pin to nix-2.13 to workaround compability issue of 2.14,
           # see: https://github.com/cachix/install-nix-action/issues/161
