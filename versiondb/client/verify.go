@@ -40,10 +40,6 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			buildHashIndex, err := cmd.Flags().GetBool(flagBuildHashIndex)
-			if err != nil {
-				return err
-			}
 			loadSnapshot, err := cmd.Flags().GetString(flagLoadSnapshot)
 			if err != nil {
 				return err
@@ -101,7 +97,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 					tree = memiavl.New(0)
 				}
 				group.Submit(func() error {
-					storeInfo, err := verifyOneStore(tree, store, changeSetDir, saveSnapshot, targetVersion, buildHashIndex)
+					storeInfo, err := verifyOneStore(tree, store, changeSetDir, saveSnapshot, targetVersion)
 					if err != nil {
 						return err
 					}
@@ -180,7 +176,6 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 	cmd.Flags().Int64(flagTargetVersion, 0, "specify the target version, otherwise it'll exhaust the plain files")
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().String(flagSaveSnapshot, "", "save the snapshot of the target iavl tree to directory")
-	cmd.Flags().Bool(flagBuildHashIndex, false, "build hash index when saving snapshot")
 	cmd.Flags().String(flagLoadSnapshot, "", "load the snapshot before doing verification from directory")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
 	cmd.Flags().Bool(flagCheck, false, "Check the replayed hash with the one stored in change set directory")
@@ -191,7 +186,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 
 // verifyOneStore process a single store, can run in parallel with other stores.
 // if the store don't exist before the `targetVersion`, returns nil without error.
-func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string, targetVersion int64, buildHashIndex bool) (*storetypes.StoreInfo, error) {
+func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string, targetVersion int64) (*storetypes.StoreInfo, error) {
 	filesWithVersion, err := scanChangeSetFiles(changeSetDir, store)
 	if err != nil {
 		return nil, err
@@ -254,7 +249,7 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 		if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
 			return nil, err
 		}
-		if err := tree.WriteSnapshot(snapshotDir, buildHashIndex); err != nil {
+		if err := tree.WriteSnapshot(snapshotDir); err != nil {
 			return nil, err
 		}
 	}

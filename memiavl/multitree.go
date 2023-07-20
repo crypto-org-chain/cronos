@@ -339,7 +339,7 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 	for _, entry := range t.trees {
 		tree, name := entry.tree, entry.name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		g.Go(func() error {
-			return tree.WriteSnapshot(filepath.Join(dir, name), false)
+			return tree.WriteSnapshot(filepath.Join(dir, name))
 		})
 	}
 	if err := g.Wait(); err != nil {
