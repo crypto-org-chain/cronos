@@ -32,12 +32,14 @@
 - [#1073](https://github.com/crypto-org-chain/cronos/pull/1073) memiavl automatically truncate corrupted wal tail.
 - [#1087](https://github.com/crypto-org-chain/cronos/pull/1087) memiavl fix LastCommitID when memiavl db not loaded.
 - [#1088](https://github.com/crypto-org-chain/cronos/pull/1088) memiavl fix empty value in write-ahead-log replaying.
+- [#1102](https://github.com/crypto-org-chain/cronos/pull/1102) avoid duplicate cache events emitted from ibc and gravity hook.
 
 ### Features
 
 - [#1042](https://github.com/crypto-org-chain/cronos/pull/1042) call Close method on app to cleanup resource on graceful shutdown ([ethermint commit](https://github.com/crypto-org-chain/ethermint/commit/0ea7b86532a1144f229961f94b4524d5889e874d)).
 - [#1083](https://github.com/crypto-org-chain/cronos/pull/1083) memiavl support both sdk 46 and 47 root hash rules.
 - [#1091](https://github.com/crypto-org-chain/cronos/pull/1091) memiavl support rollback.
+- [#1100](https://github.com/crypto-org-chain/cronos/pull/1100) memiavl support read-only mode, and grab exclusive lock for write mode.
 
 ### Improvements
 
@@ -57,6 +59,7 @@
 - [#1067](https://github.com/crypto-org-chain/cronos/pull/1067) memiavl: only export state-sync snapshots on an exist snapshot
 - [#1082](https://github.com/crypto-org-chain/cronos/pull/1082) Make memiavl setup code reusable.
 - [#1092](https://github.com/crypto-org-chain/cronos/pull/1092) memiavl disable sdk address cache if zero-copy enabled, and disable zero-copy by default.
+- [#1099](https://github.com/crypto-org-chain/cronos/pull/1099) clean up memiavl tmp directories left behind.
 
 *April 13, 2023*
 

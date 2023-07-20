@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"testing"
@@ -36,6 +37,46 @@ func TestRewriteSnapshot(t *testing.T) {
 			require.NoError(t, db.Reload())
 		})
 	}
+}
+
+func TestRemoveSnapshotDir(t *testing.T) {
+	dbDir := t.TempDir()
+	defer os.RemoveAll(dbDir)
+
+	snapshotDir := filepath.Join(dbDir, snapshotName(0))
+	tmpDir := snapshotDir + "-tmp"
+	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+		t.Fatalf("Failed to create dummy snapshot directory: %v", err)
+	}
+	db, err := Load(dbDir, Options{
+		CreateIfMissing:    true,
+		InitialStores:      []string{"test"},
+		SnapshotKeepRecent: 0,
+	})
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	_, err = os.Stat(tmpDir)
+	require.True(t, os.IsNotExist(err), "Expected temporary snapshot directory to be deleted, but it still exists")
+
+	err = os.MkdirAll(tmpDir, os.ModePerm)
+	require.NoError(t, err)
+
+	_, err = Load(dbDir, Options{
+		ReadOnly: true,
+	})
+	require.NoError(t, err)
+
+	_, err = os.Stat(tmpDir)
+	require.False(t, os.IsNotExist(err))
+
+	db, err = Load(dbDir, Options{})
+	require.NoError(t, err)
+
+	_, err = os.Stat(tmpDir)
+	require.True(t, os.IsNotExist(err))
+
+	require.NoError(t, db.Close())
 }
 
 func TestRewriteSnapshotBackground(t *testing.T) {
@@ -72,8 +113,8 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 	entries, err := os.ReadDir(db.dir)
 	require.NoError(t, err)
 
-	// three files: snapshot, current link, wal
-	require.Equal(t, 3, len(entries))
+	// three files: snapshot, current link, wal, LOCK
+	require.Equal(t, 4, len(entries))
 }
 
 func TestWAL(t *testing.T) {
@@ -230,6 +271,7 @@ func TestLoadVersion(t *testing.T) {
 		}
 		tmp, err := Load(dir, Options{
 			TargetVersion: uint32(v),
+			ReadOnly:      true,
 		})
 		require.NoError(t, err)
 		require.Equal(t, RefHashes[v-1], tmp.TreeByName("test").RootHash())
@@ -312,4 +354,42 @@ func TestEmptyValue(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, version, db.Version())
 	require.Equal(t, hash, db.LastCommitInfo().CommitID().Hash)
+}
+
+func TestInvalidOptions(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := Load(dir, Options{ReadOnly: true})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true, CreateIfMissing: true})
+	require.Error(t, err)
+
+	db, err := Load(dir, Options{CreateIfMissing: true})
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	_, err = Load(dir, Options{LoadForOverwriting: true, ReadOnly: true})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true})
+	require.NoError(t, err)
+}
+
+func TestExclusiveLock(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := Load(dir, Options{CreateIfMissing: true})
+	require.NoError(t, err)
+
+	_, err = Load(dir, Options{})
+	require.Error(t, err)
+
+	_, err = Load(dir, Options{ReadOnly: true})
+	require.NoError(t, err)
+
+	require.NoError(t, db.Close())
+
+	_, err = Load(dir, Options{})
+	require.NoError(t, err)
 }
