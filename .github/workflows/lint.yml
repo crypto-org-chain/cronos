@@ -41,7 +41,8 @@ jobs:
             *.sum
       - name: run golangci-lint
         run: |
-          nix profile install -f ./nix rocksdb golangci-lint
+          nix profile install golangci-lint
+          nix profile install -f ./nix rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           golangci-lint version
