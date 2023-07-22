@@ -18,7 +18,7 @@ jobs:
   golangci:
     name: Run golangci-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/setup-go@v3
         with:
