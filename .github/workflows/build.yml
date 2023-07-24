@@ -52,7 +52,7 @@ jobs:
 
   unittest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v22
@@ -78,16 +78,8 @@ jobs:
           make test
 
           # run versiondb tests
-          nix registry add nixpkgs github:NixOS/nixpkgs/23.05
-          nix profile install nixpkgs#rocksdb
-          export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
-          export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
-          export LD_LIBRARY_PATH=$HOME/.nix-profile/lib
-          export GLIBC="$(nix build nixpkgs#stdenv.cc.libc.out --no-link --print-out-paths)"
-          export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,--dynamic-linker=$GLIBC/lib/ld-linux-x86-64.so.2"
-          echo $CGO_LDFLAGS
           cd ./versiondb
-          go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt
+          nix-shell -I nixpkgs=../nix -p rocksdb go_1_20 --run "go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt"
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
