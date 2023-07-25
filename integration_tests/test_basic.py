@@ -196,8 +196,8 @@ def test_statesync(cronos):
         clustercli.base_port(i),
         {
             "json-rpc": {
-                "address": "0.0.0.0:{EVMRPC_PORT}",
-                "ws-address": "0.0.0.0:{EVMRPC_PORT_WS}",
+                "address": "127.0.0.1:{EVMRPC_PORT}",
+                "ws-address": "127.0.0.1:{EVMRPC_PORT_WS}",
             }
         },
     )

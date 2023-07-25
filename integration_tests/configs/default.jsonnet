@@ -14,8 +14,8 @@
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'iavl-lazy-loading': true,
       'json-rpc': {
-        address: '0.0.0.0:{EVMRPC_PORT}',
-        'ws-address': '0.0.0.0:{EVMRPC_PORT_WS}',
+        address: '127.0.0.1:{EVMRPC_PORT}',
+        'ws-address': '127.0.0.1:{EVMRPC_PORT_WS}',
         api: 'eth,net,web3,debug,cronos',
         'feehistory-cap': 100,
         'block-range-cap': 10000,
@@ -26,6 +26,9 @@
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
+      client_config: {
+        'broadcast-mode': 'block',
+      },
       'app-config': {
         memiavl: {
           enable: true,
@@ -40,6 +43,9 @@
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR2_MNEMONIC}',
+      client_config: {
+        'broadcast-mode': 'block',
+      },
     }],
     accounts: [{
       name: 'community',
