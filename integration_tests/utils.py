@@ -122,8 +122,10 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp):
+def approve_proposal(n, rsp, event_query_tx=False):
     cli = n.cosmos_cli()
+    if event_query_tx:
+        rsp = cli.event_query_tx_for(rsp["txhash"])
     # get proposal_id
     ev = parse_events(rsp["logs"])["submit_proposal"]
     proposal_id = ev["proposal_id"]
@@ -597,3 +599,37 @@ def setup_token_mapping(cronos, name, symbol):
     rsp = cronos_cli.query_denom_by_contract(contract.address)
     assert rsp["denom"] == denom
     return contract, denom
+
+
+def submit_any_proposal(cronos, tmp_path, event_query_tx=False):
+    # governance module account as granter
+    cli = cronos.cosmos_cli()
+    granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    grantee_addr = cli.address("signer1")
+
+    # this json can be obtained with `--generate-only` flag for respective cli calls
+    proposal_json = {
+        "messages": [
+            {
+                "@type": "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+                "granter": granter_addr,
+                "grantee": grantee_addr,
+                "allowance": {
+                    "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
+                    "spend_limit": [],
+                    "expiration": None,
+                },
+            }
+        ],
+        "deposit": "1basetcro",
+    }
+    proposal_file = tmp_path / "proposal.json"
+    proposal_file.write_text(json.dumps(proposal_json))
+    rsp = cli.submit_gov_proposal(proposal_file, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    approve_proposal(cronos, rsp, event_query_tx)
+
+    grant_detail = cli.query_grant(granter_addr, grantee_addr)
+    assert grant_detail["granter"] == granter_addr
+    assert grant_detail["grantee"] == grantee_addr

@@ -40,6 +40,7 @@
 - [#1083](https://github.com/crypto-org-chain/cronos/pull/1083) memiavl support both sdk 46 and 47 root hash rules.
 - [#1091](https://github.com/crypto-org-chain/cronos/pull/1091) memiavl support rollback.
 - [#1100](https://github.com/crypto-org-chain/cronos/pull/1100) memiavl support read-only mode, and grab exclusive lock for write mode.
+- [#1103](https://github.com/crypto-org-chain/cronos/pull/1103) Add EventQueryTxFor cmd to subscribe and wait for transaction.
 - [#1108](https://github.com/crypto-org-chain/cronos/pull/1108) versiondb support restore from local snapshot.
 
 ### Improvements
