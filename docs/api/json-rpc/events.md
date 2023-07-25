@@ -112,10 +112,10 @@ PubSubAPI](https://geth.ethereum.org/docs/interacting-with-geth/rpc/pubsub), Cro
 responses retrieved into the Ethereum types.
 
 You can start a connection with the Ethereum websocket using the `--json-rpc.ws-address` flag when starting
-the node (default `"0.0.0.0:8546"`):
+the node (default `"127.0.0.1:8546"`):
 
 ```bash
-cronosd start  --json-rpc.address"0.0.0.0:8545" --json-rpc.ws-address="0.0.0.0:8546" --evm.rpc.api="eth,web3,net,txpool,debug" --json-rpc.enable
+cronosd start  --json-rpc.address"127.0.0.1:8545" --json-rpc.ws-address="127.0.0.1:8546" --evm.rpc.api="eth,web3,net,txpool,debug" --json-rpc.enable
 ```
 
 Then, start a websocket subscription with [`ws`](https://github.com/hashrocket/ws)
