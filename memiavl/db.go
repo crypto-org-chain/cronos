@@ -539,9 +539,6 @@ func (db *DB) RewriteSnapshot() error {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + "-tmp"
 	path := filepath.Join(db.dir, tmpDir)
-	if err := os.MkdirAll(path, os.ModePerm); err != nil {
-		return err
-	}
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
 	}
