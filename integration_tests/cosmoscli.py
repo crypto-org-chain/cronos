@@ -219,7 +219,7 @@ class CosmosCLI:
         )["commission"][0]
         return float(coin["amount"])
 
-    def distribution_community(self):
+    def distribution_community(self, **kwargs):
         coin = json.loads(
             self.raw(
                 "query",
@@ -227,11 +227,12 @@ class CosmosCLI:
                 "community-pool",
                 output="json",
                 node=self.node_rpc,
+                **kwargs,
             )
         )["pool"][0]
         return float(coin["amount"])
 
-    def distribution_reward(self, delegator_addr):
+    def distribution_reward(self, delegator_addr, **kwargs):
         coin = json.loads(
             self.raw(
                 "query",
@@ -240,6 +241,7 @@ class CosmosCLI:
                 delegator_addr,
                 output="json",
                 node=self.node_rpc,
+                **kwargs,
             )
         )["total"][0]
         return float(coin["amount"])
@@ -1616,6 +1618,11 @@ class CosmosCLI:
             "--move-files",
             **kwargs,
         ).decode()
+
+    def restore_versiondb(self, height, format=2):
+        return self.raw(
+            "changeset", "restore-versiondb", height, format, home=self.data_dir
+        )
 
     def dump_snapshot(self, height, tarball, format=2):
         return self.raw(
