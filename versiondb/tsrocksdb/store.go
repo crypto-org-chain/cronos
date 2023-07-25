@@ -17,6 +17,8 @@ const (
 
 	StorePrefixTpl   = "s/k:%s/"
 	latestVersionKey = "s/latest"
+
+	ImportCommitBatchSize = 10000
 )
 
 var (
@@ -165,6 +167,37 @@ func (s Store) FeedChangeSet(version int64, store string, changeSet *iavl.Change
 	}
 
 	return s.db.Write(defaultWriteOpts, batch)
+}
+
+// Import loads the initial version of the state
+func (s Store) Import(version int64, ch <-chan versiondb.ImportEntry) error {
+	batch := grocksdb.NewWriteBatch()
+	defer batch.Destroy()
+
+	var ts [TimestampSize]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(version))
+
+	var counter int
+	for entry := range ch {
+		key := cloneAppend(storePrefix(entry.StoreKey), entry.Key)
+		batch.PutCFWithTS(s.cfHandle, key, ts[:], entry.Value)
+
+		counter++
+		if counter%ImportCommitBatchSize == 0 {
+			if err := s.db.Write(defaultWriteOpts, batch); err != nil {
+				return err
+			}
+			batch.Clear()
+		}
+	}
+
+	if batch.Count() > 0 {
+		if err := s.db.Write(defaultWriteOpts, batch); err != nil {
+			return err
+		}
+	}
+
+	return s.SetLatestVersion(version)
 }
 
 func newTSReadOptions(version *int64) *grocksdb.ReadOptions {
