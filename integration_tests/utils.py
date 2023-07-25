@@ -210,7 +210,7 @@ def parse_events(logs):
     }
 
 
-def find_log_event_attrs(logs, ev_type, cond = None):
+def find_log_event_attrs(logs, ev_type, cond=None):
     for ev in logs[0]["events"]:
         if ev["type"] == ev_type:
             attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
@@ -219,15 +219,22 @@ def find_log_event_attrs(logs, ev_type, cond = None):
     return None
 
 
+def decode_base64(raw):
+    try:
+        return base64.b64decode(raw.encode()).decode()
+    except Exception:
+        return raw
+
+
 def parse_events_rpc(events):
     result = defaultdict(dict)
     for ev in events:
         for attr in ev["attributes"]:
             if attr["key"] is None:
                 continue
-            key = base64.b64decode(attr["key"].encode()).decode()
+            key = decode_base64(attr["key"])
             if attr["value"] is not None:
-                value = base64.b64decode(attr["value"].encode()).decode()
+                value = decode_base64(attr["value"])
             else:
                 value = None
             result[ev["type"]][key] = value
