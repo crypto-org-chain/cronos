@@ -18,4 +18,13 @@ type VersionStore interface {
 	// the `changeSet` should be ordered by (storeKey, key),
 	// the version should be latest version plus one.
 	PutAtVersion(version int64, changeSet []types.StoreKVPair) error
+
+	// Import the initial state of the store
+	Import(version int64, ch <-chan ImportEntry) error
+}
+
+type ImportEntry struct {
+	StoreKey string
+	Key      []byte
+	Value    []byte
 }
