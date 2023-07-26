@@ -1675,3 +1675,16 @@ class CosmosCLI:
             height=height,
             home=self.data_dir,
         )
+
+    def event_query_tx_for(self, hash):
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "event-query-tx-for",
+                hash,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+            )
+        )

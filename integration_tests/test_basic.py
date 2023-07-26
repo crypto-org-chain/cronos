@@ -19,7 +19,6 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
-    approve_proposal,
     build_batch_tx,
     contract_address,
     contract_path,
@@ -28,6 +27,7 @@ from .utils import (
     modify_command_in_supervisor_config,
     send_transaction,
     send_txs,
+    submit_any_proposal,
     wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
@@ -196,8 +196,8 @@ def test_statesync(cronos):
         clustercli.base_port(i),
         {
             "json-rpc": {
-                "address": "0.0.0.0:{EVMRPC_PORT}",
-                "ws-address": "0.0.0.0:{EVMRPC_PORT_WS}",
+                "address": "127.0.0.1:{EVMRPC_PORT}",
+                "ws-address": "127.0.0.1:{EVMRPC_PORT_WS}",
             }
         },
     )
@@ -828,34 +828,4 @@ def test_replay_protection(cronos):
 
 
 def test_submit_any_proposal(cronos, tmp_path):
-    # governance module account as granter
-    cli = cronos.cosmos_cli()
-    granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
-    grantee_addr = cli.address("signer1")
-
-    # this json can be obtained with `--generate-only` flag for respective cli calls
-    proposal_json = {
-        "messages": [
-            {
-                "@type": "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
-                "granter": granter_addr,
-                "grantee": grantee_addr,
-                "allowance": {
-                    "@type": "/cosmos.feegrant.v1beta1.BasicAllowance",
-                    "spend_limit": [],
-                    "expiration": None,
-                },
-            }
-        ],
-        "deposit": "1basetcro",
-    }
-    proposal_file = tmp_path / "proposal.json"
-    proposal_file.write_text(json.dumps(proposal_json))
-    rsp = cli.submit_gov_proposal(proposal_file, from_="community")
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-    approve_proposal(cronos, rsp)
-
-    grant_detail = cli.query_grant(granter_addr, grantee_addr)
-    assert grant_detail["granter"] == granter_addr
-    assert grant_detail["grantee"] == grantee_addr
+    submit_any_proposal(cronos, tmp_path)

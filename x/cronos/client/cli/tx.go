@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -16,8 +19,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	// "github.com/cosmos/cosmos-sdk/client/flags"
+
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // GetTxCmd returns the transaction commands for this module
@@ -37,6 +43,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdUpdateTokenMapping())
 	cmd.AddCommand(CmdTurnBridge())
 	cmd.AddCommand(CmdUpdatePermissions())
+	cmd.AddCommand(EventQueryTxFor())
 
 	return cmd
 }
@@ -307,5 +314,59 @@ func CmdUpdatePermissions() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// EventQueryTxFor returns a CLI command that subscribes to a WebSocket connection and waits for a transaction event with the given hash.
+func EventQueryTxFor() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "event-query-tx-for [hash]",
+		Short: "event-query-tx-for [hash]",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := rpchttp.New(clientCtx.NodeURI, "/websocket")
+			if err != nil {
+				return err
+			}
+			if err := c.Start(); err != nil {
+				return err
+			}
+			defer c.Stop()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+			defer cancel()
+
+			hash := args[0]
+			query := fmt.Sprintf("%s='%s' AND %s='%s'", tmtypes.EventTypeKey, tmtypes.EventTx, tmtypes.TxHashKey, hash)
+			const subscriber = "subscriber"
+			eventCh, err := c.Subscribe(ctx, subscriber, query)
+			if err != nil {
+				return fmt.Errorf("failed to subscribe to tx: %w", err)
+			}
+			defer c.UnsubscribeAll(context.Background(), subscriber)
+
+			select {
+			case evt := <-eventCh:
+				if txe, ok := evt.Data.(tmtypes.EventDataTx); ok {
+					res := &coretypes.ResultBroadcastTxCommit{
+						DeliverTx: txe.Result,
+						Hash:      tmtypes.Tx(txe.Tx).Hash(),
+						Height:    txe.Height,
+					}
+					return clientCtx.PrintProto(sdk.NewResponseFormatBroadcastTxCommit(res))
+				}
+			case <-ctx.Done():
+				return errors.New("timed out waiting for event")
+			}
+			return nil
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+
 	return cmd
 }
