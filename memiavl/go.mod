@@ -5,14 +5,14 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/confio/ics23/go v0.9.0
-	github.com/cosmos/cosmos-sdk v0.46.13
+	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v0.19.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.3
-	github.com/tendermint/tendermint v0.34.28
+	github.com/tendermint/tendermint v0.34.29
 	github.com/tendermint/tm-db v0.6.7
 	github.com/tidwall/btree v1.5.0
 	github.com/tidwall/gjson v1.10.2
