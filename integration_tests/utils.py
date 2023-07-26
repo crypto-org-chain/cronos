@@ -122,7 +122,7 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp, event_query_tx=False):
+def approve_proposal(n, rsp, event_query_tx=True):
     cli = n.cosmos_cli()
     if event_query_tx:
         rsp = cli.event_query_tx_for(rsp["txhash"])
@@ -621,7 +621,7 @@ def setup_token_mapping(cronos, name, symbol):
     return contract, denom
 
 
-def submit_any_proposal(cronos, tmp_path, event_query_tx=False):
+def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
     # governance module account as granter
     cli = cronos.cosmos_cli()
     granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
