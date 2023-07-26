@@ -1619,12 +1619,12 @@ class CosmosCLI:
             **kwargs,
         ).decode()
 
-    def restore_versiondb(self, height, format=2):
+    def restore_versiondb(self, height, format=3):
         return self.raw(
             "changeset", "restore-versiondb", height, format, home=self.data_dir
         )
 
-    def dump_snapshot(self, height, tarball, format=2):
+    def dump_snapshot(self, height, tarball, format=3):
         return self.raw(
             "snapshots", "dump", height, format, home=self.data_dir, output=tarball
         ).decode()
@@ -1663,7 +1663,7 @@ class CosmosCLI:
             home=self.data_dir,
         ).decode()
 
-    def restore_snapshot(self, height, format=2):
+    def restore_snapshot(self, height, format=3):
         return self.raw(
             "snapshots",
             "restore",
