@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"cosmossdk.io/errors"
-	protoio "github.com/gogo/protobuf/io"
+	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/server"
