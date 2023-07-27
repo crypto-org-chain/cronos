@@ -312,6 +312,7 @@ func (a appCreator) appExport(
 			a.encCfg,
 			// this line is used by starport scaffolding # stargate/root/exportArgument
 			appOpts,
+			baseapp.SetChainID(app.TestAppChainID),
 		)
 
 		if err := anApp.LoadHeight(height); err != nil {
@@ -330,6 +331,7 @@ func (a appCreator) appExport(
 			a.encCfg,
 			// this line is used by starport scaffolding # stargate/root/noHeightExportArgument
 			appOpts,
+			baseapp.SetChainID(app.TestAppChainID),
 		)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -43,7 +44,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	gasPrice := big.NewInt(100000000000)
 
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{})
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{}, baseapp.SetChainID(TestAppChainID))
 
 	priv, err := ethsecp256k1.GenerateKey()
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())

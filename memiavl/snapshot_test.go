@@ -76,7 +76,7 @@ func TestSnapshotExport(t *testing.T) {
 	exporter := snapshot.Export()
 	for {
 		node, err := exporter.Next()
-		if err == iavl.ExportDone {
+		if err == iavl.ErrorExportDone {
 			break
 		}
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestSnapshotImportExport(t *testing.T) {
 		exporter := snapshot.Export()
 		for {
 			node, err := exporter.Next()
-			if err == iavl.ExportDone {
+			if err == iavl.ErrorExportDone {
 				break
 			}
 			require.NoError(t, err)

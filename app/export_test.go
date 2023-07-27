@@ -29,7 +29,7 @@ func TestExportAppStateAndValidators(t *testing.T) {
 			address := sdk.AccAddress(privKey.PubKey().Address())
 			app := Setup(t, address.String(), true)
 			app.Commit()
-			_, err = app.ExportAppStateAndValidators(tc.forZeroHeight, []string{})
+			_, err = app.ExportAppStateAndValidators(tc.forZeroHeight, []string{}, []string{})
 			require.NoError(t, err, "ExportAppStateAndValidators should not have an error")
 		})
 	}
