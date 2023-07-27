@@ -84,5 +84,5 @@ replace (
 	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	github.com/cosmos/cosmos-sdk => github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20230726065139-713089f44416
-	github.com/cosmos/iavl => github.com/cosmos/iavl v0.21.0-alpha.1.0.20230718131353-633397c0305a
+	github.com/cosmos/iavl => github.com/mmsqe/iavl v0.19.2-0.20230727131102-bc49be7c243c
 )
