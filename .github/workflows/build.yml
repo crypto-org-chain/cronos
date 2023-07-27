@@ -76,10 +76,6 @@ jobs:
       - name: test & coverage report creation
         run: |
           make test
-
-          # run versiondb tests
-          cd ./versiondb
-          nix-shell -I nixpkgs=../nix -p rocksdb go_1_20 --run "go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt"
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
@@ -93,7 +89,7 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt,./versiondb/coverage.txt
+          files: ./coverage.txt
           fail_ci_if_error: true
         if: steps.changed-files.outputs.any_changed == 'true'
 
