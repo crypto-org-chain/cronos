@@ -31,7 +31,6 @@ buildGoApplication rec {
     "!/app/"
     "!/cmd/"
     "!/client/"
-    "!/versiondb/"
     "!go.mod"
     "!go.sum"
     "!gomod2nix.toml"
