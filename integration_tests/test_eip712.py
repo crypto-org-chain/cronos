@@ -66,7 +66,7 @@ def test_native_tx(cronos):
     tx_bytes = base64.b64encode(signed_tx["message"].SerializeToString())
     body = {
         "tx_bytes": tx_bytes.decode("utf-8"),
-        "mode": "BROADCAST_MODE_BLOCK",
+        "mode": "BROADCAST_MODE_SYNC",
     }
     p = ports.api_port(cronos.base_port(0))
     url = f"http://127.0.0.1:{p}/cosmos/tx/v1beta1/txs"
@@ -76,9 +76,7 @@ def test_native_tx(cronos):
             f"response code: {response.status_code}, "
             f"{response.reason}, {response.json()}"
         )
-    result = response.json()
-    if result.get("code"):
-        raise Exception(result["raw_log"])
-    res = result["tx_response"]
-    assert res["code"] == 0, res["raw_log"]
-    assert res["gas_wanted"] == str(gas)
+    rsp = response.json()["tx_response"]
+    assert rsp["code"] == 0, rsp["raw_log"]
+    rsp = cli.event_query_tx_for(rsp["txhash"])
+    assert rsp["gas_wanted"] == str(gas)

@@ -101,7 +101,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v2.0.0-testnet3"
+    plan_name = "sdk47-upgrade"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
@@ -114,7 +114,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(custom_cronos, rsp)
+    approve_proposal(custom_cronos, rsp, False)
 
     # update cli chain binary
     custom_cronos.chain_binary = (

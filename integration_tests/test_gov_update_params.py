@@ -24,6 +24,8 @@ def test_gov_update_params(cronos, tmp_path):
             }
         ],
         "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
     }
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")

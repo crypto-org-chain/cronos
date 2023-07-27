@@ -704,6 +704,7 @@ class CosmosCLI:
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
+        kwargs.setdefault("broadcast_mode", "block")
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(
@@ -1428,7 +1429,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "vesting",
@@ -1440,6 +1441,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def register_counterparty_payee(
         self, port_id, channel_id, relayer, counterparty_payee, **kwargs
@@ -1575,7 +1579,7 @@ class CosmosCLI:
     def update_permissions(self, address, permissions, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1587,6 +1591,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
