@@ -113,7 +113,7 @@ def test_ibc_incentivized_transfer(ibc):
         "100000000basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
+    rsp = src_chain.event_query_tx_for(rsp["txhash"])
     evt = parse_events(rsp["logs"])["send_packet"]
     print("packet event", evt)
     packet_seq = int(evt["packet_sequence"])
@@ -128,7 +128,7 @@ def test_ibc_incentivized_transfer(ibc):
         from_=sender,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
+    rsp = src_chain.event_query_tx_for(rsp["txhash"])
     # fee is locked
     assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 30
 

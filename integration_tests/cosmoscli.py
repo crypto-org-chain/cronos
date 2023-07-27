@@ -1058,7 +1058,7 @@ class CosmosCLI:
 
     def send_to_ethereum(self, receiver, coins, fee, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gravity",
@@ -1071,6 +1071,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_contract_by_denom(self, denom: str):
         "query contract by denom"
@@ -1168,7 +1171,7 @@ class CosmosCLI:
 
     def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1184,6 +1187,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def build_evm_tx(self, raw_tx: str, **kwargs):
         return json.loads(
