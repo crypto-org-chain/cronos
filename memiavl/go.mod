@@ -3,7 +3,7 @@ module github.com/crypto-org-chain/cronos/memiavl
 go 1.20
 
 require (
-	cosmossdk.io/errors v1.0.0-beta.7
+	cosmossdk.io/errors v1.0.0
 	github.com/cometbft/cometbft v0.37.2
 	github.com/cometbft/cometbft-db v0.7.0
 	github.com/confio/ics23/go v0.9.0
@@ -12,7 +12,7 @@ require (
 	github.com/cosmos/iavl v0.20.0
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/btree v1.6.0
 	github.com/tidwall/gjson v1.10.2
 	github.com/tidwall/wal v1.1.7
@@ -67,12 +67,13 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tidwall/tinylru v1.1.0 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
-	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
-	google.golang.org/grpc v1.55.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/grpc v1.56.2 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
@@ -83,5 +84,5 @@ replace (
 	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	github.com/cosmos/cosmos-sdk => github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20230726065139-713089f44416
-	github.com/cosmos/iavl => github.com/mmsqe/iavl v0.19.2-0.20230629030159-de567266d55b
+	github.com/cosmos/iavl => github.com/cosmos/iavl v0.21.0-alpha.1.0.20230718131353-633397c0305a
 )
