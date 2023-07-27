@@ -63,7 +63,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdk.NewInt(123))),
 			func() {},
-			errors.New("0ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865 is smaller than 123ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865: insufficient funds"),
+			errors.New("spendable balance  is smaller than 123ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865: insufficient funds"),
 			func() {},
 		},
 		{
@@ -94,7 +94,7 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdk.NewInt(1))),
 			func() {},
-			fmt.Errorf("0%s is smaller than 1%s: insufficient funds", CorrectIbcDenom, CorrectIbcDenom),
+			fmt.Errorf("spendable balance  is smaller than 1%s: insufficient funds", CorrectIbcDenom),
 			func() {},
 		},
 		{
@@ -210,7 +210,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			sdk.NewCoins(sdk.NewCoin(suite.evmParam.EvmDenom, sdk.NewInt(1230000000000))),
 			"channel-0",
 			func() {},
-			errors.New("0aphoton is smaller than 1230000000000aphoton: insufficient funds"),
+			errors.New("spendable balance  is smaller than 1230000000000aphoton: insufficient funds"),
 			func() {},
 		},
 		{
