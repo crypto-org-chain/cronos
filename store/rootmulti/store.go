@@ -150,7 +150,6 @@ func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 
 // Implements interface MultiStore
 func (rs *Store) CacheMultiStore() types.CacheMultiStore {
-	// TODO custom cache store
 	stores := make(map[types.StoreKey]types.CacheWrapper)
 	for k, v := range rs.stores {
 		store := types.KVStore(v)
@@ -167,7 +166,32 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 // Implements interface MultiStore
 // used to createQueryContext, abci_query or grpc query service.
 func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStore, error) {
-	panic("rootmulti Store don't support historical query service")
+	if version == 0 || (rs.lastCommitInfo != nil && version == rs.lastCommitInfo.Version) {
+		return rs.CacheMultiStore(), nil
+	}
+	opts := rs.opts
+	opts.TargetVersion = uint32(version)
+	opts.ReadOnly = true
+	db, err := memiavl.Load(rs.dir, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	stores := make(map[types.StoreKey]types.CacheWrapper)
+
+	// add the transient/mem stores registered in current app.
+	for k, store := range rs.stores {
+		if store.GetStoreType() != types.StoreTypeIAVL {
+			stores[k] = store
+		}
+	}
+
+	// add all the iavl stores at the target version.
+	for _, tree := range db.Trees() {
+		stores[rs.keysByName[tree.Name]] = memiavlstore.New(tree.Tree, rs.logger)
+	}
+
+	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil), nil
 }
 
 // Implements interface MultiStore
