@@ -70,6 +70,10 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			noSdk46Compact, err := cmd.Flags().GetBool(flagNoSdk46Compact)
+			if err != nil {
+				return err
+			}
 			outDir := args[0]
 			if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 				return err
@@ -86,8 +90,13 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				endVersion = latestVersion + 1
-				fmt.Println("end version not specified, default to latest version + 1,", endVersion)
+				if noSdk46Compact {
+					endVersion = latestVersion
+					fmt.Println("end version not specified, default to latest version,", endVersion)
+				} else {
+					endVersion = latestVersion + 1
+					fmt.Println("end version not specified, default to latest version + 1,", endVersion)
+				}
 			}
 
 			// create fixed size task pool with big enough buffer.
@@ -168,6 +177,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 	cmd.Flags().Int(flagChunkSize, DefaultChunkSize, "size of the block chunk")
 	cmd.Flags().Int(flagZlibLevel, 6, "level of zlib compression, 0: plain data, 1: fast, 9: best, default: 6, if not 0 the output file name will have .zz extension")
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
+	cmd.Flags().Bool(flagNoSdk46Compact, false, "compatible with cosmos-sdk 0.46 and before")
 	return cmd
 }
 
