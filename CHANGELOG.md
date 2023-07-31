@@ -42,6 +42,7 @@
 - [#1100](https://github.com/crypto-org-chain/cronos/pull/1100) memiavl support read-only mode, and grab exclusive lock for write mode.
 - [#1103](https://github.com/crypto-org-chain/cronos/pull/1103) Add EventQueryTxFor cmd to subscribe and wait for transaction.
 - [#1108](https://github.com/crypto-org-chain/cronos/pull/1108) versiondb support restore from local snapshot.
+- [#1116](https://github.com/crypto-org-chain/cronos/pull/1116) versiondb commands support sdk47 app hash calculation.
 
 ### Improvements
 
