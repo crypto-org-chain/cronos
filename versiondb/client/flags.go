@@ -20,4 +20,5 @@ const (
 	flagLoadSnapshot     = "load-snapshot"
 	flagSorterChunkSize  = "sorter-chunk-size"
 	flagInitialVersion   = "initial-version"
+	flagSDK64Compact     = "sdk64-compact"
 )
