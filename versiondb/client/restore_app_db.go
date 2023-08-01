@@ -172,7 +172,7 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().Uint64(flagSorterChunkSize, DefaultSorterChunkSizeIAVL, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
-	cmd.Flags().Bool(flagSDK64Compact, true, "Should the app hash calculation be compatible with cosmos-sdk v0.46 and earlier")
+	cmd.Flags().Bool(flagSDK64Compact, false, "Should the app hash calculation be compatible with cosmos-sdk v0.46 and earlier")
 
 	return cmd
 }
