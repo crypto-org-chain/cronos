@@ -341,6 +341,11 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
+		// wait for pending wal writings to finish, to make sure catching up to latest state
+		if err := db.WaitAsyncCommit(); err != nil {
+			return fmt.Errorf("wait async commit failed: %w", err)
+		}
+
 		// catchup the remaining wal
 		if err := result.mtree.CatchupWAL(db.wal, 0); err != nil {
 			return fmt.Errorf("catchup failed: %w", err)
