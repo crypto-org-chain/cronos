@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -329,6 +330,15 @@ func (db *DB) checkAsyncCommit() error {
 	return nil
 }
 
+// CommittedVersion returns the latest version written in wal
+func (db *DB) CommittedVersion() (int64, error) {
+	lastIndex, err := db.wal.LastIndex()
+	if err != nil {
+		return 0, err
+	}
+	return walVersion(lastIndex, db.initialVersion), nil
+}
+
 // checkBackgroundSnapshotRewrite check the result of background snapshot rewrite, cleans up the old snapshots and switches to a new multitree
 func (db *DB) checkBackgroundSnapshotRewrite() error {
 	// check the completeness of background snapshot rewriting
@@ -341,9 +351,17 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 		}
 
-		// wait for pending wal writings to finish, to make sure catching up to latest state
-		if err := db.WaitAsyncCommit(); err != nil {
-			return fmt.Errorf("wait async commit failed: %w", err)
+		// wait for potential pending wal writings to finish, to make sure we catch up to latest state.
+		// in real world, block execution should be slower than wal writing, so this should not block for long.
+		for {
+			committedVersion, err := db.CommittedVersion()
+			if err != nil {
+				return fmt.Errorf("get wal version failed: %w", err)
+			}
+			if db.lastCommitInfo.Version == committedVersion {
+				break
+			}
+			time.Sleep(time.Nanosecond)
 		}
 
 		// catchup the remaining wal
