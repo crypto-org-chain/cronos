@@ -330,11 +330,14 @@ func (db *DB) checkAsyncCommit() error {
 	return nil
 }
 
-// CommittedVersion returns the latest version written in wal
+// CommittedVersion returns the latest version written in wal, or snapshot version if wal is empty.
 func (db *DB) CommittedVersion() (int64, error) {
 	lastIndex, err := db.wal.LastIndex()
 	if err != nil {
 		return 0, err
+	}
+	if lastIndex == 0 {
+		return db.SnapshotVersion(), nil
 	}
 	return walVersion(lastIndex, db.initialVersion), nil
 }
