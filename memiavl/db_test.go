@@ -406,7 +406,7 @@ func TestFastCommit(t *testing.T) {
 		},
 	}
 
-	// the bug reproduce when the wal segment is full and create a new one,
+	// the bug reproduce when the wal writing is slower than commit, that happens when wal segment is full and create a new one, the wal writing will slow down a little bit,
 	// segment size is 20m, each change set is 1m, so we need a bit more than 20 commits to reproduce.
 	for i := 0; i < 30; i++ {
 		_, _, err := db.Commit([]*NamedChangeSet{{Name: "test", Changeset: cs}})
