@@ -393,3 +393,26 @@ func TestExclusiveLock(t *testing.T) {
 	_, err = Load(dir, Options{})
 	require.NoError(t, err)
 }
+
+func TestFastCommit(t *testing.T) {
+	dir := t.TempDir()
+
+	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}, SnapshotInterval: 3, AsyncCommitBuffer: 10})
+	require.NoError(t, err)
+
+	cs := iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello1"), Value: make([]byte, 1024*1024)},
+		},
+	}
+
+	// the bug reproduce when the wal writing is slower than commit, that happens when wal segment is full and create a new one, the wal writing will slow down a little bit,
+	// segment size is 20m, each change set is 1m, so we need a bit more than 20 commits to reproduce.
+	for i := 0; i < 30; i++ {
+		_, _, err := db.Commit([]*NamedChangeSet{{Name: "test", Changeset: cs}})
+		require.NoError(t, err)
+	}
+
+	<-db.snapshotRewriteChan
+	require.NoError(t, db.Close())
+}
