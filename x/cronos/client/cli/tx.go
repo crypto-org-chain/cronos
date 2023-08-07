@@ -26,6 +26,7 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
+	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
@@ -402,6 +403,10 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) genutiltype
 	// Add feeibc with default genesis.
 	if appState[ibcfeetypes.ModuleName] == nil {
 		appState[ibcfeetypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(ibcfeetypes.DefaultGenesisState())
+	}
+	// Add gravity with default genesis.
+	if appState[gravitytypes.ModuleName] == nil {
+		appState[gravitytypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(gravitytypes.DefaultGenesisState())
 	}
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)
