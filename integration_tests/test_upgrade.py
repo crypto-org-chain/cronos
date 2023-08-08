@@ -80,13 +80,24 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-def test_cosmovisor_upgrade(custom_cronos: Cronos):
+def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     """
     - propose an upgrade and pass it
     - wait for it to happen
     - it should work transparently
     """
     cli = custom_cronos.cosmos_cli()
+    # export genesis from cronos v0.8.x
+    custom_cronos.supervisorctl("stop", "all")
+    migrate = tmp_path_factory.mktemp("migrate")
+    file_path0 = Path(migrate / "v0.8.json")
+    with open(file_path0, "w") as fp:
+        json.dump(json.loads(cli.export()), fp)
+        fp.flush()
+
+    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
@@ -178,3 +189,18 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
             "observe_ethereum_height_period": "50",
         }
     }
+
+    # migrate to sdk v0.46
+    custom_cronos.supervisorctl("stop", "all")
+    sdk_version = "v0.46"
+    file_path1 = Path(migrate / f"{sdk_version}.json")
+    with open(file_path1, "w") as fp:
+        json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
+        fp.flush()
+    # migrate to cronos v1.0.x
+    cronos_version = "v1.0"
+    file_path2 = Path(migrate / f"{cronos_version}.json")
+    with open(file_path2, "w") as fp:
+        json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
+        fp.flush()
+    print(cli.validate_genesis(str(file_path2)))
