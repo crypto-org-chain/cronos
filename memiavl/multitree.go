@@ -19,9 +19,9 @@ import (
 
 const MetadataFileName = "__metadata"
 
-type namedTree struct {
-	tree *Tree
-	name string
+type NamedTree struct {
+	*Tree
+	Name string
 }
 
 // MultiTree manages multiple memiavl tree together,
@@ -47,8 +47,8 @@ type MultiTree struct {
 	zeroCopy  bool
 	cacheSize int
 
-	trees          []namedTree
-	treesByName    map[string]int // reversed index of the trees
+	trees          []NamedTree    // always ordered by tree name
+	treesByName    map[string]int // index of the trees by name
 	lastCommitInfo storetypes.CommitInfo
 
 	// the initial metadata loaded from disk snapshot
@@ -92,11 +92,11 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 
 	sort.Strings(treeNames)
 
-	trees := make([]namedTree, len(treeNames))
+	trees := make([]NamedTree, len(treeNames))
 	treesByName := make(map[string]int, len(trees))
 	for i, name := range treeNames {
 		tree := treeMap[name]
-		trees[i] = namedTree{tree: tree, name: name}
+		trees[i] = NamedTree{Tree: tree, Name: name}
 		treesByName[name] = i
 	}
 
@@ -116,9 +116,14 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 // TreeByName returns the tree by name, returns nil if not found
 func (t *MultiTree) TreeByName(name string) *Tree {
 	if i, ok := t.treesByName[name]; ok {
-		return t.trees[i].tree
+		return t.trees[i].Tree
 	}
 	return nil
+}
+
+// Trees returns all the trees together with the name, ordered by name.
+func (t *MultiTree) Trees() []NamedTree {
+	return t.trees
 }
 
 func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
@@ -131,8 +136,8 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 	}
 
 	for _, entry := range t.trees {
-		if !entry.tree.IsEmpty() {
-			return fmt.Errorf("tree is not empty: %s", entry.name)
+		if !entry.Tree.IsEmpty() {
+			return fmt.Errorf("tree is not empty: %s", entry.Name)
 		}
 	}
 
@@ -143,25 +148,25 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	t.initialVersion = uint32(initialVersion)
 	for _, entry := range t.trees {
-		entry.tree.initialVersion = t.initialVersion
+		entry.Tree.initialVersion = t.initialVersion
 	}
 }
 
 func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
 	t.zeroCopy = zeroCopy
 	for _, entry := range t.trees {
-		entry.tree.SetZeroCopy(zeroCopy)
+		entry.Tree.SetZeroCopy(zeroCopy)
 	}
 }
 
 // Copy returns a snapshot of the tree which won't be corrupted by further modifications on the main tree.
 func (t *MultiTree) Copy(cacheSize int) *MultiTree {
-	trees := make([]namedTree, len(t.trees))
+	trees := make([]NamedTree, len(t.trees))
 	treesByName := make(map[string]int, len(t.trees))
 	for i, entry := range t.trees {
-		tree := entry.tree.Copy(cacheSize)
-		trees[i] = namedTree{tree: tree, name: entry.name}
-		treesByName[entry.name] = i
+		tree := entry.Tree.Copy(cacheSize)
+		trees[i] = NamedTree{Tree: tree, Name: entry.Name}
+		treesByName[entry.Name] = i
 	}
 
 	clone := *t
@@ -197,8 +202,8 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	for _, upgrade := range upgrades {
 		switch {
 		case upgrade.Delete:
-			i := slices.IndexFunc(t.trees, func(entry namedTree) bool {
-				return entry.name == upgrade.Name
+			i := slices.IndexFunc(t.trees, func(entry NamedTree) bool {
+				return entry.Name == upgrade.Name
 			})
 			if i < 0 {
 				return fmt.Errorf("unknown tree name %s", upgrade.Name)
@@ -208,29 +213,29 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 			t.trees = t.trees[:len(t.trees)-1]
 		case upgrade.RenameFrom != "":
 			// rename tree
-			i := slices.IndexFunc(t.trees, func(entry namedTree) bool {
-				return entry.name == upgrade.RenameFrom
+			i := slices.IndexFunc(t.trees, func(entry NamedTree) bool {
+				return entry.Name == upgrade.RenameFrom
 			})
 			if i < 0 {
 				return fmt.Errorf("unknown tree name %s", upgrade.RenameFrom)
 			}
-			t.trees[i].name = upgrade.Name
+			t.trees[i].Name = upgrade.Name
 		default:
 			// add tree
 			tree := NewWithInitialVersion(uint32(nextVersion(t.Version(), t.initialVersion)), t.cacheSize)
-			t.trees = append(t.trees, namedTree{tree: tree, name: upgrade.Name})
+			t.trees = append(t.trees, NamedTree{Tree: tree, Name: upgrade.Name})
 		}
 	}
 
 	sort.SliceStable(t.trees, func(i, j int) bool {
-		return t.trees[i].name < t.trees[j].name
+		return t.trees[i].Name < t.trees[j].Name
 	})
 	t.treesByName = make(map[string]int, len(t.trees))
 	for i, tree := range t.trees {
-		if _, ok := t.treesByName[tree.name]; ok {
-			return fmt.Errorf("memiavl tree name conflicts: %s", tree.name)
+		if _, ok := t.treesByName[tree.Name]; ok {
+			return fmt.Errorf("memiavl tree name conflicts: %s", tree.Name)
 		}
-		t.treesByName[tree.name] = i
+		t.treesByName[tree.Name] = i
 	}
 
 	return nil
@@ -242,7 +247,7 @@ func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInf
 	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 
 	for _, cs := range changeSets {
-		tree := t.trees[t.treesByName[cs.Name]].tree
+		tree := t.trees[t.treesByName[cs.Name]].Tree
 
 		_, v, err := tree.ApplyChangeSet(cs.Changeset, updateCommitInfo)
 		if err != nil {
@@ -271,10 +276,10 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 	var infos []storetypes.StoreInfo
 	for _, entry := range t.trees {
 		infos = append(infos, storetypes.StoreInfo{
-			Name: entry.name,
+			Name: entry.Name,
 			CommitId: storetypes.CommitID{
-				Version: entry.tree.Version(),
-				Hash:    entry.tree.RootHash(),
+				Version: entry.Tree.Version(),
+				Hash:    entry.Tree.RootHash(),
 			},
 		})
 	}
@@ -337,7 +342,7 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 	// write the snapshots in parallel
 	g, _ := errgroup.WithContext(context.Background())
 	for _, entry := range t.trees {
-		tree, name := entry.tree, entry.name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		g.Go(func() error {
 			return tree.WriteSnapshot(filepath.Join(dir, name))
 		})
@@ -377,7 +382,7 @@ func WriteFileSync(name string, data []byte) error {
 func (t *MultiTree) Close() error {
 	errs := make([]error, 0, len(t.trees))
 	for _, entry := range t.trees {
-		errs = append(errs, entry.tree.Close())
+		errs = append(errs, entry.Tree.Close())
 	}
 	t.trees = nil
 	t.treesByName = nil
