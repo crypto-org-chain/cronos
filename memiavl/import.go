@@ -27,6 +27,12 @@ func Import(
 	snapshotDir := snapshotName(int64(height))
 	tmpDir := snapshotDir + "-tmp"
 
+	fileLock, err := LockFile(filepath.Join(dir, LockFileName))
+	if err != nil {
+		return snapshottypes.SnapshotItem{}, fmt.Errorf("fail to lock db: %w", err)
+	}
+	defer fileLock.Unlock()
+
 	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
 	// a SnapshotStoreItem, telling us which store to import into. The following items will contain
 	// SnapshotNodeItem (i.e. ExportNode) until we reach the next SnapshotStoreItem or EOF.
