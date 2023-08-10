@@ -120,8 +120,22 @@ class CosmosCLI:
             home=self.data_dir,
         )
 
-    def validate_genesis(self):
-        return self.raw("validate-genesis", home=self.data_dir)
+    def migrate_sdk_genesis(self, version, path):
+        return json.loads(self.raw("migrate", version, path))
+
+    def migrate_cronos_genesis(self, version, path):
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "migrate",
+                version,
+                path,
+            )
+        )
+
+    def validate_genesis(self, path):
+        return self.raw("validate-genesis", path)
 
     def add_genesis_account(self, addr, coins, **kwargs):
         return self.raw(
