@@ -8,8 +8,8 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.46.15-0.20230807104542-537257060180
 	github.com/cosmos/ibc-go/v5 v5.2.1
-	github.com/crypto-org-chain/cronos/store v0.0.4-0.20230726092142-d7d9101ad0e8
-	github.com/crypto-org-chain/cronos/versiondb v0.0.0-20230726092142-d7d9101ad0e8
+	github.com/crypto-org-chain/cronos/store v0.0.4-0.20230809065519-af389f66015a
+	github.com/crypto-org-chain/cronos/versiondb v0.0.0-20230809065519-af389f66015a
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/gogo/protobuf v1.3.3
@@ -77,7 +77,7 @@ require (
 	github.com/cosmos/iavl v0.19.6 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.12.2 // indirect
 	github.com/creachadair/taskgroup v0.3.2 // indirect
-	github.com/crypto-org-chain/cronos/memiavl v0.0.4-0.20230726092142-d7d9101ad0e8 // indirect
+	github.com/crypto-org-chain/cronos/memiavl v0.0.4-0.20230809065519-af389f66015a // indirect
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
@@ -221,7 +221,7 @@ replace (
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20230623034002-4774460b6dd7
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20230809091211-3fdb18b1c2d9
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

@@ -1,8 +1,8 @@
 # Changelog
 
-*Jul 4, 2023*
+*Aug 10, 2023*
 
-## v1.0.10
+## v1.0.12
 
 - [#986](https://github.com/crypto-org-chain/cronos/pull/986) Use go 1.20.
 - [#984](https://github.com/crypto-org-chain/cronos/pull/984) experimental integration of memiavl.

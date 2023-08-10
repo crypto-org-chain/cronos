@@ -152,14 +152,14 @@ schema = 3
     version = "v0.3.2"
     hash = "sha256-Y261IO/d9xjV0UScqHvo31broxvnKn4IQQC9Mu6jNkE="
   [mod."github.com/crypto-org-chain/cronos/memiavl"]
-    version = "v0.0.4-0.20230726092142-d7d9101ad0e8"
-    hash = "sha256-qzlwxs0N/CYtLCfBLmbe8H3Q9ZxZyXXFmNIKKwhnnpk="
+    version = "v0.0.4-0.20230809065519-af389f66015a"
+    hash = "sha256-f+naUXVdUXP4PmJi5R5pHTDpuhXE8zwmxQrjW7LkNF8="
   [mod."github.com/crypto-org-chain/cronos/store"]
-    version = "v0.0.4-0.20230726092142-d7d9101ad0e8"
-    hash = "sha256-mKtxQvCNjF9kn2X6i7yV2AbVtSvB50zIxBq3pZo/NVM="
+    version = "v0.0.4-0.20230809065519-af389f66015a"
+    hash = "sha256-lg6FsKzeew4f3EYfSZZd/AcmvzbBQNrkvxt+bid/hK0="
   [mod."github.com/crypto-org-chain/cronos/versiondb"]
-    version = "v0.0.0-20230726092142-d7d9101ad0e8"
-    hash = "sha256-97vd4jYtV/ZTsA3hF0bznmYjRXwQILxLjPn7EMUgg5g="
+    version = "v0.0.0-20230809065519-af389f66015a"
+    hash = "sha256-GFaIoluOc2TFZlLOwwYy7oKHX1dWk0QhvvP7iXsl2aw="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.1.2"
     hash = "sha256-Nnklfg12vmWCOhELGyoRqEF4w4srp0WbPwreaChYLKs="
@@ -204,8 +204,8 @@ schema = 3
     hash = "sha256-QKuYnEXXrnHPPHk/Xc9ocez2Jheo/0IOOa1IQaMH61c="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.20.11-cronos.0.20230623034002-4774460b6dd7"
-    hash = "sha256-85nCdNbzvWBi/HdE1PQ5Fu7PfozOAVOfjCKJbFkR1ow="
+    version = "v0.20.11-cronos.0.20230809091211-3fdb18b1c2d9"
+    hash = "sha256-cm3AZsL45+jnOH5+XCUSVzhAN0cuav0gn+dm+1nxJow="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
