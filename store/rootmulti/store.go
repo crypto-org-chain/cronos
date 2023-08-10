@@ -231,6 +231,13 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
 
 // Implements interface Snapshotter
 func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reader) (snapshottypes.SnapshotItem, error) {
+	if rs.db != nil {
+		if err := rs.db.Close(); err != nil {
+			return snapshottypes.SnapshotItem{}, fmt.Errorf("failed to close db: %w", err)
+		}
+		rs.db = nil
+	}
+
 	item, err := memiavl.Import(rs.dir, height, format, protoReader)
 	if err != nil {
 		return item, err

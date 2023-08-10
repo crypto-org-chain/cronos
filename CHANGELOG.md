@@ -35,6 +35,7 @@
 - [#1102](https://github.com/crypto-org-chain/cronos/pull/1102) avoid duplicate cache events emitted from ibc and gravity hook.
 - [#1123](https://github.com/crypto-org-chain/cronos/pull/1123) Fix memiavl snapshot switching
 - [#1125](https://github.com/crypto-org-chain/cronos/pull/1125) Fix genesis migrate for feeibc, evm, feemarket and gravity.
+- [#1130](https://github.com/crypto-org-chain/cronos/pull/1130) Fix lock issues when state-sync with memiavl.
 
 ### Features
 
