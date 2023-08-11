@@ -16,6 +16,7 @@ from .utils import (
     deploy_contract,
     send_transaction,
     wait_for_block,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -97,6 +98,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
 
     custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
     wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    wait_for_new_blocks(cli, 1)
 
     height = cli.block_height()
     target_height = height + 15
