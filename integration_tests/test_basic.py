@@ -197,7 +197,12 @@ def test_statesync(cronos):
             "json-rpc": {
                 "address": "127.0.0.1:{EVMRPC_PORT}",
                 "ws-address": "127.0.0.1:{EVMRPC_PORT_WS}",
-            }
+            },
+            "memiavl": {
+                "enable": True,
+                "zero-copy": True,
+                "snapshot-interval": 5,
+            },
         },
     )
     clustercli.supervisor.startProcess(f"{clustercli.chain_id}-node{i}")

@@ -63,14 +63,14 @@ func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr err
 		if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
 			Item: &snapshottypes.SnapshotItem_Store{
 				Store: &snapshottypes.SnapshotStoreItem{
-					Name: tree.name,
+					Name: tree.Name,
 				},
 			},
 		}); err != nil {
 			return err
 		}
 
-		exporter := tree.tree.Export()
+		exporter := tree.Tree.Export()
 		for {
 			node, err := exporter.Next()
 			if err == iavl.ExportDone {
