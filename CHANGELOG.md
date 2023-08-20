@@ -6,6 +6,7 @@
 
 - [#1215](https://github.com/crypto-org-chain/cronos/pull/1215) Update ethermint to fix of concurrent write in fee history.
 - [#1217](https://github.com/crypto-org-chain/cronos/pull/1217) Use the default chain-id behavour in sdk.
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Fill default value for staking gensis to avoid panic in pruned node.
 
 *October 17, 2023*
 
