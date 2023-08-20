@@ -18,6 +18,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -303,6 +304,20 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) genutiltype
 		panic(err)
 	}
 	appState[feemarkettypes.ModuleName] = data
+
+	var stakingState stakingtypes.GenesisState
+	err = json.Unmarshal(appState[stakingtypes.ModuleName], &stakingState)
+	if err != nil {
+		panic(err)
+	}
+	if stakingState.Params.MinCommissionRate.IsNil() {
+		stakingState.Params.MinCommissionRate = sdk.ZeroDec()
+	}
+	data, err = json.Marshal(stakingState)
+	if err != nil {
+		panic(err)
+	}
+	appState[stakingtypes.ModuleName] = data
 	return appState
 }
 
@@ -321,7 +336,7 @@ func MigrateGenesisCmd() *cobra.Command {
 		Long: fmt.Sprintf(`Migrate the source genesis into the target version and print to STDOUT.
 
 Example:
-$ %s migrate v1.0 /path/to/genesis.json --chain-id=cronos_777-1 --genesis-time=2019-04-22T17:00:00Z
+$ %s tx cronos migrate v1.0 /path/to/genesis.json --chain-id=cronos_777-1 --genesis-time=2019-04-22T17:00:00Z
 `, version.AppName),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
