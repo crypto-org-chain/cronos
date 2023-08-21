@@ -7,10 +7,12 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -36,14 +38,26 @@ func BenchmarkERC20Transfer(b *testing.B) {
 		require.NoError(b, err)
 		benchmarkERC20Transfer(b, db)
 	})
+	b.Run("memiavl", func(b *testing.B) {
+		benchmarkERC20Transfer(b, nil)
+	})
 }
 
+// pass `nil` to db to use memiavl
 func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	txsPerBlock := 1000
 	gasPrice := big.NewInt(100000000000)
 
+	var appOpts servertypes.AppOptions = EmptyAppOptions{}
+	if db == nil {
+		appOpts = AppOptionsMap(map[string]interface{}{
+			memiavlstore.FlagMemIAVL: true,
+		})
+	}
+
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{})
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, b.TempDir(), 0, encodingConfig, appOpts)
+	defer app.Close()
 
 	priv, err := ethsecp256k1.GenerateKey()
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
