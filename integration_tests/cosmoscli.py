@@ -876,7 +876,7 @@ class CosmosCLI:
         return self.raw("export", home=self.data_dir)
 
     def unsaferesetall(self):
-        return self.raw("unsafe-reset-all")
+        return self.raw("tendermint", "unsafe-reset-all")
 
     def create_nft(self, from_addr, denomid, denomname, schema, fees):
         return json.loads(
