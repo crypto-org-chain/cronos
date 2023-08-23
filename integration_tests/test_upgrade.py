@@ -1,5 +1,6 @@
 import json
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -197,3 +198,17 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
         fp.flush()
     print(cli.validate_genesis(str(file_path2)))
+
+    # update the genesis time = current time + 5 secs
+    newtime = datetime.utcnow() + timedelta(seconds=5)
+    newtime = newtime.replace(tzinfo=None).isoformat("T") + "Z"
+    config = custom_cronos.config
+    config["genesis-time"] = newtime
+    for i, _ in enumerate(config["validators"]):
+        genesis = json.load(open(file_path2))
+        genesis["genesis_time"] = config.get("genesis-time")
+        file = custom_cronos.cosmos_cli(i).data_dir / "config/genesis.json"
+        file.write_text(json.dumps(genesis))
+    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_new_blocks(custom_cronos.cosmos_cli(), 1)
+    custom_cronos.supervisorctl("stop", "all")
