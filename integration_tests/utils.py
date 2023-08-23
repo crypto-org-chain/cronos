@@ -268,6 +268,20 @@ def add_ini_sections(inipath, sections):
         ini.write(fp)
 
 
+def edit_ini_sections(chain_id, ini_path, callback):
+    ini = configparser.RawConfigParser()
+    ini.read(ini_path)
+    reg = re.compile(rf"^program:{chain_id}-node(\d+)")
+    for section in ini.sections():
+        m = reg.match(section)
+        if m:
+            i = m.group(1)
+            old = ini[section]
+            ini[section].update(callback(i, old))
+    with ini_path.open("w") as fp:
+        ini.write(fp)
+
+
 def supervisorctl(inipath, *args):
     return subprocess.check_output(
         (sys.executable, "-msupervisor.supervisorctl", "-c", inipath, *args),
