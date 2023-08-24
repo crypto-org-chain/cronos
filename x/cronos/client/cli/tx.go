@@ -357,11 +357,33 @@ type ExportStakingValidator struct {
 	UnbondingHeight int64  `json:"unbonding_height,string"`
 }
 
+type ExportUnbondingDelegationEntry struct {
+	stakingtypes.UnbondingDelegationEntry
+	CreationHeight int64 `json:"creation_height,string"`
+}
+
+type ExportUnbondingDelegation struct {
+	stakingtypes.UnbondingDelegation
+	Entries []ExportUnbondingDelegationEntry `json:"entries"`
+}
+
+type ExportRedelegationEntry struct {
+	stakingtypes.RedelegationEntry
+	CreationHeight int64 `json:"creation_height,string"`
+}
+
+type ExportRedelegation struct {
+	stakingtypes.Redelegation
+	Entries []ExportRedelegationEntry `json:"entries"`
+}
+
 type ExportStakingGenesisState struct {
 	stakingtypes.GenesisState
-	Params              ExportStakingParams        `json:"params"`
-	LastValidatorPowers []ExportLastValidatorPower `json:"last_validator_powers"`
-	Validators          []ExportStakingValidator   `json:"validators"`
+	Params               ExportStakingParams         `json:"params"`
+	LastValidatorPowers  []ExportLastValidatorPower  `json:"last_validator_powers"`
+	Validators           []ExportStakingValidator    `json:"validators"`
+	UnbondingDelegations []ExportUnbondingDelegation `json:"unbonding_delegations"`
+	Redelegations        []ExportRedelegation        `json:"redelegations"`
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) genutiltypes.AppMap {
