@@ -1393,8 +1393,8 @@ tomlkit = "^0.7.0"
 [package.source]
 type = "git"
 url = "https://github.com/crypto-com/pystarport.git"
-reference = "b91b1a5a4e1a3d823542cd5291c4b679b45848c4"
-resolved_reference = "b91b1a5a4e1a3d823542cd5291c4b679b45848c4"
+reference = "main"
+resolved_reference = "a8f7f5fb38eb5eccad379896486c0d418027d6ce"
 
 [[package]]
 name = "pytest"
