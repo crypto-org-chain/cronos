@@ -493,8 +493,7 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 }
 
 func (db *DB) initAsyncCommit() {
-	bufSize := db.walChanSize
-	walChan := make(chan *walEntry, bufSize)
+	walChan := make(chan *walEntry, db.walChanSize)
 	walQuit := make(chan error)
 
 	go func() {
