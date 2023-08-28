@@ -499,16 +499,28 @@ func (db *DB) initAsyncCommit() {
 	go func() {
 		defer close(walQuit)
 
-		for entry := range walChan {
-			bz, err := entry.data.Marshal()
-			if err != nil {
+		batch := wal.Batch{}
+		for {
+			entries := channelBatchRecv(walChan)
+			if len(entries) == 0 {
+				// channel is closed
+				break
+			}
+
+			for _, entry := range entries {
+				bz, err := entry.data.Marshal()
+				if err != nil {
+					walQuit <- err
+					return
+				}
+				batch.Write(entry.index, bz)
+			}
+
+			if err := db.wal.WriteBatch(&batch); err != nil {
 				walQuit <- err
 				return
 			}
-			if err := db.wal.Write(entry.index, bz); err != nil {
-				walQuit <- err
-				return
-			}
+			batch.Clear()
 		}
 	}()
 
@@ -952,4 +964,22 @@ func GetLatestVersion(dir string) (int64, error) {
 		return 0, err
 	}
 	return walVersion(lastIndex, uint32(metadata.InitialVersion)), nil
+}
+
+func channelBatchRecv[T any](ch <-chan *T) []*T {
+	// block if channel is empty
+	item := <-ch
+	if item == nil {
+		// channel is closed
+		return nil
+	}
+
+	remaining := len(ch)
+	result := make([]*T, 0, remaining+1)
+	result = append(result, item)
+	for i := 0; i < remaining; i++ {
+		result = append(result, <-ch)
+	}
+
+	return result
 }
