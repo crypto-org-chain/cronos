@@ -967,7 +967,7 @@ func GetLatestVersion(dir string) (int64, error) {
 	return walVersion(lastIndex, uint32(metadata.InitialVersion)), nil
 }
 
-func channelBatchRecv[T any](ch chan *T) []*T {
+func channelBatchRecv[T any](ch <-chan *T) []*T {
 	// block if channel is empty
 	item := <-ch
 	if item == nil {
