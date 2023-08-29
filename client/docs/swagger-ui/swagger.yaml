@@ -662,7 +662,9 @@ paths:
                 type: boolean
             description: >-
               QueryPermissionsResponse is the response type for the
-              Query/Permissions RPC method.
+              Query/Permissions RPC
+
+              method.
         default:
           description: An unexpected error response.
           schema:
@@ -41229,7 +41231,9 @@ definitions:
         type: boolean
     description: >-
       QueryPermissionsResponse is the response type for the Query/Permissions
-      RPC method.
+      RPC
+
+      method.
   cronos.ReplayBlockResponse:
     type: object
     properties:

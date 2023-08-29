@@ -378,7 +378,8 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
-// QueryPermissionsRequest is the request type for the Query/Permissions RPC method.
+// QueryPermissionsRequest is the request type for the Query/Permissions RPC
+// method.
 type QueryPermissionsRequest struct {
 	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 }
@@ -423,7 +424,8 @@ func (m *QueryPermissionsRequest) GetAddress() string {
 	return ""
 }
 
-// QueryPermissionsResponse is the response type for the Query/Permissions RPC method.
+// QueryPermissionsResponse is the response type for the Query/Permissions RPC
+// method.
 type QueryPermissionsResponse struct {
 	CanChangeTokenMapping bool `protobuf:"varint,1,opt,name=can_change_token_mapping,json=canChangeTokenMapping,proto3" json:"can_change_token_mapping,omitempty"`
 	CanTurnBridge         bool `protobuf:"varint,2,opt,name=can_turn_bridge,json=canTurnBridge,proto3" json:"can_turn_bridge,omitempty"`
@@ -560,7 +562,8 @@ type QueryClient interface {
 	ContractByDenom(ctx context.Context, in *ContractByDenomRequest, opts ...grpc.CallOption) (*ContractByDenomResponse, error)
 	// DenomByContract queries native denom by contract address
 	DenomByContract(ctx context.Context, in *DenomByContractRequest, opts ...grpc.CallOption) (*DenomByContractResponse, error)
-	// ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+	// ReplayBlock replay the eth messages in the block to recover the results of
+	// false-failed txs.
 	ReplayBlock(ctx context.Context, in *ReplayBlockRequest, opts ...grpc.CallOption) (*ReplayBlockResponse, error)
 	// Params queries all parameters.
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
@@ -627,7 +630,8 @@ type QueryServer interface {
 	ContractByDenom(context.Context, *ContractByDenomRequest) (*ContractByDenomResponse, error)
 	// DenomByContract queries native denom by contract address
 	DenomByContract(context.Context, *DenomByContractRequest) (*DenomByContractResponse, error)
-	// ReplayBlock replay the eth messages in the block to recover the results of false-failed txs.
+	// ReplayBlock replay the eth messages in the block to recover the results of
+	// false-failed txs.
 	ReplayBlock(context.Context, *ReplayBlockRequest) (*ReplayBlockResponse, error)
 	// Params queries all parameters.
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)

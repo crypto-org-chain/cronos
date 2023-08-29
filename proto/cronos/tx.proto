@@ -32,7 +32,8 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 
   // UpdatePermissions defines a method to update cronos admins permissions
-  rpc UpdatePermissions(MsgUpdatePermissions) returns (MsgUpdatePermissionsResponse);
+  rpc UpdatePermissions(MsgUpdatePermissions)
+      returns (MsgUpdatePermissionsResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to
@@ -86,17 +87,18 @@ message MsgTurnBridgeResponse {}
 
 // MsgUpdateParams defines the request type for updating cronos params.
 message MsgUpdateParams {
-    // authority is the address of the governance account.
-    string authority = 1;
+  // authority is the address of the governance account.
+  string authority = 1;
 
-    // NOTE: All parameters must be supplied.
-    Params params = 2 [(gogoproto.nullable) = false];
+  // NOTE: All parameters must be supplied.
+  Params params = 2 [ (gogoproto.nullable) = false ];
 }
 
 // MsgUpdateParamsResponse defines the response type.
 message MsgUpdateParamsResponse {}
 
-// MsgUpdatePermissions defines the request type for updating cronos permissions.
+// MsgUpdatePermissions defines the request type for updating cronos
+// permissions.
 message MsgUpdatePermissions {
   string from = 1;
   string address = 2;
