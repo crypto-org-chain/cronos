@@ -416,8 +416,7 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) genutiltype
 	if appState[icatypes.ModuleName] == nil {
 		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
 	}
-
-	// Add icaauthtypes with default genesis.
+	// Add icaauth with default genesis.
 	if appState[icaauthtypes.ModuleName] == nil {
 		appState[icaauthtypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icaauthtypes.DefaultGenesis())
 	}
