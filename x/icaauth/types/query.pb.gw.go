@@ -62,15 +62,15 @@ func request_Query_InterchainAccountAddress_0(ctx context.Context, marshaler run
 		_   = err
 	)
 
-	val, ok = pathParams["connectionId"]
+	val, ok = pathParams["connection_id"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "connectionId")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "connection_id")
 	}
 
 	protoReq.ConnectionId, err = runtime.String(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "connectionId", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "connection_id", err)
 	}
 
 	val, ok = pathParams["owner"]
@@ -100,15 +100,15 @@ func local_request_Query_InterchainAccountAddress_0(ctx context.Context, marshal
 		_   = err
 	)
 
-	val, ok = pathParams["connectionId"]
+	val, ok = pathParams["connection_id"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "connectionId")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "connection_id")
 	}
 
 	protoReq.ConnectionId, err = runtime.String(val)
 
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "connectionId", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "connection_id", err)
 	}
 
 	val, ok = pathParams["owner"]
@@ -266,7 +266,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 var (
 	pattern_Query_Params_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"cronos", "icaauth", "v1", "params"}, "", runtime.AssumeColonVerbOpt(false)))
 
-	pattern_Query_InterchainAccountAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"cronos", "icaauth", "v1", "interchain_account_address", "connectionId", "owner"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_InterchainAccountAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"cronos", "icaauth", "v1", "interchain_account_address", "connection_id", "owner"}, "", runtime.AssumeColonVerbOpt(false)))
 )
 
 var (

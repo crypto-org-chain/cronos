@@ -25,9 +25,15 @@ func CmdRegisterAccount() *cobra.Command {
 				return err
 			}
 
+			version, err := cmd.Flags().GetString(FlagVersion)
+			if err != nil {
+				return err
+			}
+
 			msg := types.NewMsgRegisterAccount(
 				clientCtx.GetFromAddress().String(),
 				argConnectionID,
+				version,
 			)
 			if err := msg.ValidateBasic(); err != nil {
 				return err

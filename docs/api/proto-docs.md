@@ -408,7 +408,7 @@ Params defines the parameters for the module.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `minTimeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | minTimeoutDuration defines the minimum value of packet timeout when submitting transactions to host chain on behalf of interchain account |
+| `min_timeout_duration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | min_timeout_duration defines the minimum value of packet timeout when submitting transactions to host chain on behalf of interchain account |
 
 
 
@@ -470,7 +470,7 @@ QueryInterchainAccountAddressRequest defines the request for the InterchainAccou
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `connectionId` | [string](#string) |  |  |
+| `connection_id` | [string](#string) |  |  |
 | `owner` | [string](#string) |  |  |
 
 
@@ -486,7 +486,7 @@ QueryInterchainAccountAddressResponse defines the response for the InterchainAcc
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `interchainAccountAddress` | [string](#string) |  |  |
+| `interchain_account_address` | [string](#string) |  |  |
 
 
 
@@ -532,7 +532,7 @@ Query defines the gRPC querier service.
 | Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
 | `Params` | [QueryParamsRequest](#cronos.icaauth.v1.QueryParamsRequest) | [QueryParamsResponse](#cronos.icaauth.v1.QueryParamsResponse) | Parameters queries the parameters of the module. | GET|/cronos/icaauth/v1/params|
-| `InterchainAccountAddress` | [QueryInterchainAccountAddressRequest](#cronos.icaauth.v1.QueryInterchainAccountAddressRequest) | [QueryInterchainAccountAddressResponse](#cronos.icaauth.v1.QueryInterchainAccountAddressResponse) | InterchainAccountAddress queries the interchain account address for given `connectionId` and `owner` | GET|/cronos/icaauth/v1/interchain_account_address/{connectionId}/{owner}|
+| `InterchainAccountAddress` | [QueryInterchainAccountAddressRequest](#cronos.icaauth.v1.QueryInterchainAccountAddressRequest) | [QueryInterchainAccountAddressResponse](#cronos.icaauth.v1.QueryInterchainAccountAddressResponse) | InterchainAccountAddress queries the interchain account address for given `connection_id` and `owner` | GET|/cronos/icaauth/v1/interchain_account_address/{connection_id}/{owner}|
 
  <!-- end services -->
 
@@ -554,7 +554,8 @@ MsgRegisterAccount defines the request message for MsgRegisterAccount
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `owner` | [string](#string) |  | owner represents the owner of the interchain account |
-| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+| `connection_id` | [string](#string) |  | connection_id represents the IBC `connection_id` of the host chain |
+| `version` | [string](#string) |  | version represents controller chain channel version |
 
 
 
@@ -580,9 +581,9 @@ MsgSubmitTx defines the request message for MsgSubmitTx
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `owner` | [string](#string) |  | owner represents the owner of the interchain account |
-| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+| `connection_id` | [string](#string) |  | connection_id represents the IBC `connection_id` of the host chain |
 | `msgs` | [google.protobuf.Any](#google.protobuf.Any) | repeated | msgs represents the transactions to be submitted to the host chain |
-| `timeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | timeoutDuration represents the timeout duration for the IBC packet from last block |
+| `timeout_duration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | timeout_duration represents the timeout duration for the IBC packet from last block |
 
 
 
@@ -612,7 +613,7 @@ Msg defines the Msg service.
 
 | Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
-| `RegisterAccount` | [MsgRegisterAccount](#cronos.icaauth.v1.MsgRegisterAccount) | [MsgRegisterAccountResponse](#cronos.icaauth.v1.MsgRegisterAccountResponse) | RegisterAccount registers an interchain account on host chain with given `connectionId` | |
+| `RegisterAccount` | [MsgRegisterAccount](#cronos.icaauth.v1.MsgRegisterAccount) | [MsgRegisterAccountResponse](#cronos.icaauth.v1.MsgRegisterAccountResponse) | RegisterAccount registers an interchain account on host chain with given `connection_id` | |
 | `SubmitTx` | [MsgSubmitTx](#cronos.icaauth.v1.MsgSubmitTx) | [MsgSubmitTxResponse](#cronos.icaauth.v1.MsgSubmitTxResponse) | SubmitTx submits a transaction to the host chain on behalf of interchain account | |
 
  <!-- end services -->

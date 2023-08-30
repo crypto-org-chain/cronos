@@ -476,7 +476,7 @@ def test_ica(ibc, tmp_path):
     print("query ica account")
     ica_address = cli_controller.ica_query_account(
         connid, cli_controller.address("signer2")
-    )["interchainAccountAddress"]
+    )["interchain_account_address"]
     print("ica address", ica_address)
 
     # initial balance of interchain account should be zero

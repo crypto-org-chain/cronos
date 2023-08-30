@@ -15,11 +15,11 @@ service Query {
   }
 
   // InterchainAccountAddress queries the interchain account address for given
-  // `connectionId` and `owner`
+  // `connection_id` and `owner`
   rpc InterchainAccountAddress(QueryInterchainAccountAddressRequest)
       returns (QueryInterchainAccountAddressResponse) {
     option (google.api.http).get =
-        "/cronos/icaauth/v1/interchain_account_address/{connectionId}/{owner}";
+        "/cronos/icaauth/v1/interchain_account_address/{connection_id}/{owner}";
   }
 }
 
@@ -35,12 +35,12 @@ message QueryParamsResponse {
 // QueryInterchainAccountAddressRequest defines the request for the
 // InterchainAccountAddress query.
 message QueryInterchainAccountAddressRequest {
-  string connectionId = 1 [ (gogoproto.moretags) = "yaml:\"connection_id\"" ];
+  string connection_id = 1 [ (gogoproto.moretags) = "yaml:\"connection_id\"" ];
   string owner = 2;
 }
 
 // QueryInterchainAccountAddressResponse defines the response for the
 // InterchainAccountAddress query.
 message QueryInterchainAccountAddressResponse {
-  string interchainAccountAddress = 1;
+  string interchain_account_address = 1;
 }

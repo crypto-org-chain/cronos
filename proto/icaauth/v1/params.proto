@@ -10,9 +10,9 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/icaauth/types";
 message Params {
   option (gogoproto.goproto_stringer) = false;
 
-  // minTimeoutDuration defines the minimum value of packet timeout when
+  // min_timeout_duration defines the minimum value of packet timeout when
   // submitting transactions to host chain on behalf of interchain account
-  google.protobuf.Duration minTimeoutDuration = 1 [
+  google.protobuf.Duration min_timeout_duration = 1 [
     (gogoproto.moretags) = "yaml:\"min_timeout_duration\"",
     (gogoproto.stdduration) = true,
     (gogoproto.nullable) = false
