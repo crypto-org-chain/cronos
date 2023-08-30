@@ -3,14 +3,12 @@ package app
 import (
 	"fmt"
 
-	errorsmod "cosmossdk.io/errors"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
 	icacontrollertypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/controller/types"
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
 	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
@@ -26,22 +24,11 @@ func (app *App) RegisterUpgradeHandlers() {
 
 			// create ICS27 Controller submodule params
 			controllerParams := icacontrollertypes.Params{
-				ControllerEnabled: false,
+				ControllerEnabled: true,
 			}
 
 			// initialize ICS27 module
 			icaModule.InitModule(ctx, controllerParams, icahosttypes.Params{})
-
-			// create ICS27 Controller submodule params, with the controller module NOT enabled
-			gs := &icagenesistypes.GenesisState{
-				ControllerGenesisState: icagenesistypes.ControllerGenesisState{},
-			}
-
-			bz, err := icatypes.ModuleCdc.MarshalJSON(gs)
-			if err != nil {
-				return nil, errorsmod.Wrapf(err, "failed to marshal %s genesis state", icatypes.ModuleName)
-			}
-			icaModule.InitGenesis(ctx, icatypes.ModuleCdc, bz)
 		}
 
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
