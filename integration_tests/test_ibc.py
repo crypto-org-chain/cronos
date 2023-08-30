@@ -330,7 +330,7 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     test sending crc20 tokens originated from cronos to crypto-org-chain
     """
     assert_ready(ibc)
-    # deploy crc21 contract
+    # deploy crc20 contract
     w3 = ibc.cronos.w3
     symbol = "TEST"
     contract, denom = setup_token_mapping(ibc.cronos, "TestCRC20", symbol)
