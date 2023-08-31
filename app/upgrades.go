@@ -7,11 +7,30 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	ica "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts"
+	icacontrollertypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/controller/types"
+	icahosttypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 )
 
 func (app *App) RegisterUpgradeHandlers() {
 	upgradeHandlerV2 := func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		if icaModule, ok := app.mm.Modules[icatypes.ModuleName].(ica.AppModule); ok {
+			// set the ICS27 consensus version so InitGenesis is not run
+			version := icaModule.ConsensusVersion()
+			fromVM[icatypes.ModuleName] = version
+
+			// create ICS27 Controller submodule params
+			controllerParams := icacontrollertypes.Params{
+				ControllerEnabled: true,
+			}
+
+			// initialize ICS27 module
+			icaModule.InitModule(ctx, controllerParams, icahosttypes.Params{})
+		}
+
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
@@ -36,7 +55,7 @@ func (app *App) RegisterUpgradeHandlers() {
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		if upgradeInfo.Name == planName {
 			storeUpgrades := storetypes.StoreUpgrades{
-				Added: []string{gravitytypes.StoreKey},
+				Added: []string{gravitytypes.StoreKey, icacontrollertypes.StoreKey, icaauthtypes.StoreKey},
 			}
 
 			// configure store loader that checks if version == upgradeHeight and applies store upgrades

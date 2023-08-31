@@ -1244,8 +1244,9 @@ class CosmosCLI:
         return json.loads(
             self.raw(
                 "tx",
-                "icactl",
-                "register-account",
+                "ica",
+                "controller",
+                "register",
                 connid,
                 "-y",
                 **(default_kwargs | kwargs),
@@ -1262,8 +1263,9 @@ class CosmosCLI:
         return json.loads(
             self.raw(
                 "tx",
-                "icactl",
-                "submit-tx",
+                "ica",
+                "controller",
+                "send-tx",
                 connid,
                 tx,
                 "-y",
@@ -1279,11 +1281,25 @@ class CosmosCLI:
         return json.loads(
             self.raw(
                 "q",
-                "icactl",
+                "icaauth",
                 "interchain-account-address",
                 connid,
                 owner,
                 **(default_kwargs | kwargs),
+            )
+        )
+
+    def ica_generate_packet_data(self, tx, memo=None, **kwargs):
+        return json.loads(
+            self.raw(
+                "tx",
+                "interchain-accounts",
+                "host",
+                "generate-packet-data",
+                tx,
+                "--memo" if memo else None,
+                home=self.data_dir,
+                **kwargs,
             )
         )
 
@@ -1387,7 +1403,7 @@ class CosmosCLI:
             )
         )
 
-    def query_icactl_params(self, **kwargs):
+    def query_icaauth_params(self, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,
             "output": "json",
@@ -1395,7 +1411,7 @@ class CosmosCLI:
         return json.loads(
             self.raw(
                 "q",
-                "icactl",
+                "icaauth",
                 "params",
                 **(default_kwargs | kwargs),
             )
