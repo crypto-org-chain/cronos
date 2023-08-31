@@ -29,7 +29,8 @@ func TestRewriteSnapshot(t *testing.T) {
 			},
 		}
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			_, v, err := db.Commit(cs)
+			require.NoError(t, db.ApplyChangeSets(cs))
+			_, v, err := db.Commit()
 			require.NoError(t, err)
 			require.Equal(t, i+1, int(v))
 			require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
@@ -94,7 +95,8 @@ func TestRewriteSnapshotBackground(t *testing.T) {
 				Changeset: changes,
 			},
 		}
-		_, v, err := db.Commit(cs)
+		require.NoError(t, db.ApplyChangeSets(cs))
+		_, v, err := db.Commit()
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], db.lastCommitInfo.StoreInfos[0].CommitId.Hash)
@@ -129,7 +131,8 @@ func TestWAL(t *testing.T) {
 				Changeset: changes,
 			},
 		}
-		_, _, err := db.Commit(cs)
+		require.NoError(t, db.ApplyChangeSets(cs))
+		_, _, err := db.Commit()
 		require.NoError(t, err)
 	}
 
@@ -145,7 +148,7 @@ func TestWAL(t *testing.T) {
 			Delete: true,
 		},
 	}))
-	_, _, err = db.Commit(nil)
+	_, _, err = db.Commit()
 	require.NoError(t, err)
 
 	require.NoError(t, db.Close())
@@ -183,7 +186,8 @@ func TestInitialVersion(t *testing.T) {
 		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}})
 		require.NoError(t, err)
 		db.SetInitialVersion(initialVersion)
-		hash, v, err := db.Commit(mockNameChangeSet(name, key, value))
+		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, value)))
+		hash, v, err := db.Commit()
 		require.NoError(t, err)
 		if initialVersion <= 1 {
 			require.Equal(t, int64(1), v)
@@ -191,7 +195,8 @@ func TestInitialVersion(t *testing.T) {
 			require.Equal(t, initialVersion, v)
 		}
 		require.Equal(t, "2b650e7f3495c352dbf575759fee86850e4fc63291a5889847890ebf12e3f585", hex.EncodeToString(hash))
-		hash, v, err = db.Commit(mockNameChangeSet(name, key, "world1"))
+		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, "world1")))
+		hash, v, err = db.Commit()
 		require.NoError(t, err)
 		if initialVersion <= 1 {
 			require.Equal(t, int64(2), v)
@@ -209,7 +214,8 @@ func TestInitialVersion(t *testing.T) {
 		require.Equal(t, hex.EncodeToString(hash), hex.EncodeToString(db.Hash()))
 
 		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
-		_, v, err = db.Commit((mockNameChangeSet(name1, key, value)))
+		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name1, key, value)))
+		_, v, err = db.Commit()
 		require.NoError(t, err)
 		if initialVersion <= 1 {
 			require.Equal(t, int64(3), v)
@@ -228,7 +234,8 @@ func TestInitialVersion(t *testing.T) {
 		require.NoError(t, db.Reload())
 
 		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name2}})
-		_, v, err = db.Commit((mockNameChangeSet(name2, key, value)))
+		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name2, key, value)))
+		_, v, err = db.Commit()
 		require.NoError(t, err)
 		if initialVersion <= 1 {
 			require.Equal(t, int64(4), v)
@@ -259,11 +266,12 @@ func TestLoadVersion(t *testing.T) {
 			},
 		}
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			_, _, err := db.Commit(cs)
+			require.NoError(t, db.ApplyChangeSets(cs))
+			_, _, err := db.Commit()
 			require.NoError(t, err)
 		})
 	}
-	require.NoError(t, db.WaitAsyncCommit())
+	require.NoError(t, db.Close())
 
 	for v, expItems := range ExpectItems {
 		if v == 0 {
@@ -282,9 +290,11 @@ func TestLoadVersion(t *testing.T) {
 func TestZeroCopy(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test"}, CreateIfMissing: true, ZeroCopy: true})
 	require.NoError(t, err)
-	db.Commit([]*NamedChangeSet{
+	require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
 		{Name: "test", Changeset: ChangeSets[0]},
-	})
+	}))
+	_, _, err = db.Commit()
+	require.NoError(t, err)
 	require.NoError(t, errors.Join(
 		db.RewriteSnapshot(),
 		db.Reload(),
@@ -331,7 +341,7 @@ func TestEmptyValue(t *testing.T) {
 	db, err := Load(dir, Options{InitialStores: []string{"test"}, CreateIfMissing: true, ZeroCopy: true})
 	require.NoError(t, err)
 
-	_, _, err = db.Commit([]*NamedChangeSet{
+	require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
 		{Name: "test", Changeset: iavl.ChangeSet{
 			Pairs: []*iavl.KVPair{
 				{Key: []byte("hello1"), Value: []byte("")},
@@ -339,13 +349,16 @@ func TestEmptyValue(t *testing.T) {
 				{Key: []byte("hello3"), Value: []byte("")},
 			},
 		}},
-	})
+	}))
+	_, _, err = db.Commit()
 	require.NoError(t, err)
-	hash, version, err := db.Commit([]*NamedChangeSet{
+
+	require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
 		{Name: "test", Changeset: iavl.ChangeSet{
 			Pairs: []*iavl.KVPair{{Key: []byte("hello1"), Delete: true}},
 		}},
-	})
+	}))
+	hash, version, err := db.Commit()
 	require.NoError(t, err)
 
 	require.NoError(t, db.Close())
@@ -409,10 +422,68 @@ func TestFastCommit(t *testing.T) {
 	// the bug reproduce when the wal writing is slower than commit, that happens when wal segment is full and create a new one, the wal writing will slow down a little bit,
 	// segment size is 20m, each change set is 1m, so we need a bit more than 20 commits to reproduce.
 	for i := 0; i < 30; i++ {
-		_, _, err := db.Commit([]*NamedChangeSet{{Name: "test", Changeset: cs}})
+		require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{{Name: "test", Changeset: cs}}))
+		_, _, err := db.Commit()
 		require.NoError(t, err)
 	}
 
 	<-db.snapshotRewriteChan
 	require.NoError(t, db.Close())
+}
+
+func TestRepeatedApplyChangeSet(t *testing.T) {
+	db, err := Load(t.TempDir(), Options{CreateIfMissing: true, InitialStores: []string{"test1", "test2"}, SnapshotInterval: 3, AsyncCommitBuffer: 10})
+	require.NoError(t, err)
+
+	err = db.ApplyChangeSets([]*NamedChangeSet{
+		{Name: "test1", Changeset: iavl.ChangeSet{
+			Pairs: []*iavl.KVPair{
+				{Key: []byte("hello1"), Value: []byte("world1")},
+			},
+		}},
+		{Name: "test2", Changeset: iavl.ChangeSet{
+			Pairs: []*iavl.KVPair{
+				{Key: []byte("hello2"), Value: []byte("world2")},
+			},
+		}},
+	})
+	require.NoError(t, err)
+
+	err = db.ApplyChangeSets([]*NamedChangeSet{{Name: "test1"}})
+	require.Error(t, err)
+	err = db.ApplyChangeSet("test1", iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello2"), Value: []byte("world2")},
+		},
+	})
+	require.Error(t, err)
+
+	_, _, err = db.Commit()
+	require.NoError(t, err)
+
+	err = db.ApplyChangeSet("test1", iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello2"), Value: []byte("world2")},
+		},
+	})
+	require.NoError(t, err)
+	err = db.ApplyChangeSet("test2", iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello2"), Value: []byte("world2")},
+		},
+	})
+	require.NoError(t, err)
+
+	err = db.ApplyChangeSet("test1", iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello2"), Value: []byte("world2")},
+		},
+	})
+	require.Error(t, err)
+	err = db.ApplyChangeSet("test2", iavl.ChangeSet{
+		Pairs: []*iavl.KVPair{
+			{Key: []byte("hello2"), Value: []byte("world2")},
+		},
+	})
+	require.Error(t, err)
 }

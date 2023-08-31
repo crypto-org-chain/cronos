@@ -66,25 +66,53 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool) *Store {
 	}
 }
 
-// Implements interface Committer
-func (rs *Store) Commit() types.CommitID {
+// flush writes all the pending change sets to memiavl tree.
+func (rs *Store) flush() error {
 	var changeSets []*memiavl.NamedChangeSet
 	for key := range rs.stores {
 		// it'll unwrap the inter-block cache
 		store := rs.GetCommitKVStore(key)
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
-			changeSets = append(changeSets, &memiavl.NamedChangeSet{
-				Name:      key.Name(),
-				Changeset: memiavlStore.PopChangeSet(),
-			})
-		} else {
-			_ = store.Commit()
+			cs := memiavlStore.PopChangeSet()
+			if len(cs.Pairs) > 0 {
+				changeSets = append(changeSets, &memiavl.NamedChangeSet{
+					Name:      key.Name(),
+					Changeset: cs,
+				})
+			}
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
 		return changeSets[i].Name < changeSets[j].Name
 	})
-	_, _, err := rs.db.Commit(changeSets)
+
+	return rs.db.ApplyChangeSets(changeSets)
+}
+
+// WorkingHash returns the app hash of the working tree,
+// it's only compatible with sdk 0.47 and later.
+func (rs *Store) WorkingHash() []byte {
+	if err := rs.flush(); err != nil {
+		panic(err)
+	}
+	return rs.db.WorkingHash()
+}
+
+// Implements interface Committer
+func (rs *Store) Commit() types.CommitID {
+	if err := rs.flush(); err != nil {
+		panic(err)
+	}
+
+	for key := range rs.stores {
+		// it'll unwrap the inter-block cache
+		store := rs.GetCommitKVStore(key)
+		if store.GetStoreType() != types.StoreTypeIAVL {
+			_ = store.Commit()
+		}
+	}
+
+	_, _, err := rs.db.Commit()
 	if err != nil {
 		panic(err)
 	}

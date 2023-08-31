@@ -12,6 +12,7 @@ import (
 	"cosmossdk.io/errors"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
@@ -191,6 +192,13 @@ func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
 	return &t.lastCommitInfo
 }
 
+func (t *MultiTree) applyWALEntry(entry WALEntry) error {
+	if err := t.ApplyUpgrades(entry.Upgrades); err != nil {
+		return err
+	}
+	return t.ApplyChangeSets(entry.Changesets)
+}
+
 // ApplyUpgrades store name upgrades
 func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	if len(upgrades) == 0 {
@@ -241,38 +249,52 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	return nil
 }
 
-// ApplyChangeSet applies change sets for all trees.
-// if `updateCommitInfo` is `false`, the `lastCommitInfo.StoreInfos` is dirty.
-func (t *MultiTree) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
-	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
+// ApplyChangeSet applies change set for a single tree.
+func (t *MultiTree) ApplyChangeSet(name string, changeSet iavl.ChangeSet) error {
+	i, found := t.treesByName[name]
+	if !found {
+		return fmt.Errorf("unknown tree name %s", name)
+	}
+	t.trees[i].Tree.ApplyChangeSet(changeSet)
+	return nil
+}
 
+// ApplyChangeSets applies change sets for multiple trees.
+func (t *MultiTree) ApplyChangeSets(changeSets []*NamedChangeSet) error {
 	for _, cs := range changeSets {
-		tree := t.trees[t.treesByName[cs.Name]].Tree
-
-		_, v, err := tree.ApplyChangeSet(cs.Changeset, updateCommitInfo)
-		if err != nil {
-			return nil, 0, err
-		}
-		if v != version {
-			return nil, 0, fmt.Errorf("multi tree version don't match(%d != %d)", v, version)
+		if err := t.ApplyChangeSet(cs.Name, cs.Changeset); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	t.lastCommitInfo.Version = version
+func (t *MultiTree) WorkingHash() []byte {
+	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
+	return t.buildCommitInfo(version).Hash()
+}
+
+// SaveVersion bumps the versions of all the stores and optionally returns the new app hash
+func (t *MultiTree) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
+	t.lastCommitInfo.Version = nextVersion(t.lastCommitInfo.Version, t.initialVersion)
+	for _, entry := range t.trees {
+		if _, _, err := entry.Tree.SaveVersion(updateCommitInfo); err != nil {
+			return nil, 0, err
+		}
+	}
 
 	var hash []byte
 	if updateCommitInfo {
 		hash = t.UpdateCommitInfo()
 	} else {
+		// clear the dirty informaton
 		t.lastCommitInfo.StoreInfos = []storetypes.StoreInfo{}
 	}
 
-	return hash, version, nil
+	return hash, t.lastCommitInfo.Version, nil
 }
 
-// UpdateCommitInfo update lastCommitInfo based on current status of trees.
-// it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
-func (t *MultiTree) UpdateCommitInfo() []byte {
+func (t *MultiTree) buildCommitInfo(version int64) storetypes.CommitInfo {
 	var infos []storetypes.StoreInfo
 	for _, entry := range t.trees {
 		infos = append(infos, storetypes.StoreInfo{
@@ -284,7 +306,16 @@ func (t *MultiTree) UpdateCommitInfo() []byte {
 		})
 	}
 
-	t.lastCommitInfo.StoreInfos = infos
+	return storetypes.CommitInfo{
+		Version:    version,
+		StoreInfos: infos,
+	}
+}
+
+// UpdateCommitInfo update lastCommitInfo based on current status of trees.
+// it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
+func (t *MultiTree) UpdateCommitInfo() []byte {
+	t.lastCommitInfo = t.buildCommitInfo(t.lastCommitInfo.Version)
 	return t.lastCommitInfo.Hash()
 }
 
@@ -323,10 +354,10 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 		if err := entry.Unmarshal(bz); err != nil {
 			return errors.Wrap(err, "unmarshal wal log failed")
 		}
-		if err := t.ApplyUpgrades(entry.Upgrades); err != nil {
-			return errors.Wrap(err, "replay store upgrades failed")
+		if err := t.applyWALEntry(entry); err != nil {
+			return errors.Wrap(err, "replay wal entry failed")
 		}
-		if _, _, err := t.ApplyChangeSet(entry.Changesets, false); err != nil {
+		if _, _, err := t.SaveVersion(false); err != nil {
 			return errors.Wrap(err, "replay change set failed")
 		}
 	}
