@@ -91,6 +91,8 @@ func (rs *Store) flush() error {
 
 // WorkingHash returns the app hash of the working tree,
 // it's only compatible with sdk 0.47 and later.
+//
+// Implements interface Committer.
 func (rs *Store) WorkingHash() []byte {
 	if err := rs.flush(); err != nil {
 		panic(err)
@@ -104,9 +106,7 @@ func (rs *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	for key := range rs.stores {
-		// it'll unwrap the inter-block cache
-		store := rs.GetCommitKVStore(key)
+	for _, store := range rs.stores {
 		if store.GetStoreType() != types.StoreTypeIAVL {
 			_ = store.Commit()
 		}
