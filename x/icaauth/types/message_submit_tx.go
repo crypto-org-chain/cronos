@@ -39,7 +39,7 @@ func NewMsgSubmitTx(owner string, connectionID string, msgs []sdk.Msg, timeoutDu
 func (msg MsgSubmitTx) GetMessages() ([]proto.Message, error) {
 	msgs := make([]proto.Message, len(msg.Msgs))
 	for i, msgAny := range msg.Msgs {
-		msg, ok := msgAny.GetCachedValue().(sdk.Msg)
+		msg, ok := msgAny.GetCachedValue().(proto.Message)
 		if !ok {
 			return nil, errors.Wrapf(sdkerrors.ErrInvalidRequest, "messages contains %T which is not a sdk.Msg", msgAny)
 		}

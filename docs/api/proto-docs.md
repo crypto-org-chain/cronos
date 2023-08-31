@@ -555,7 +555,7 @@ MsgRegisterAccount defines the request message for MsgRegisterAccount
 | ----- | ---- | ----- | ----------- |
 | `owner` | [string](#string) |  | owner represents the owner of the interchain account |
 | `connection_id` | [string](#string) |  | connection_id represents the IBC `connection_id` of the host chain |
-| `version` | [string](#string) |  | version represents controller chain channel version |
+| `version` | [string](#string) |  | version represents the version of the ICA channel |
 
 
 

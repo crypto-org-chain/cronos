@@ -40,7 +40,7 @@ type MsgRegisterAccount struct {
 	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
 	// connection_id represents the IBC `connection_id` of the host chain
 	ConnectionId string `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty" yaml:"connection_id"`
-	// version represents controller chain channel version
+	// version represents the version of the ICA channel
 	Version string `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
 }
 
