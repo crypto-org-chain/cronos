@@ -154,12 +154,13 @@ func (t *Tree) Version() int64 {
 	return int64(t.version)
 }
 
-// RootHash updates the hashes and return the current root hash
+// RootHash updates the hashes and return the current root hash,
+// it clones the persisted node's bytes, so the returned bytes is safe to retain.
 func (t *Tree) RootHash() []byte {
 	if t.root == nil {
 		return emptyHash
 	}
-	return t.root.Hash()
+	return t.root.SafeHash()
 }
 
 func (t *Tree) GetWithIndex(key []byte) (int64, []byte) {
