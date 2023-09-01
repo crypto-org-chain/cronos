@@ -32,27 +32,27 @@
   
     - [Msg](#cronos.Msg)
   
-- [icactl/v1/params.proto](#icactl/v1/params.proto)
-    - [Params](#cronos.icactl.v1.Params)
+- [icaauth/v1/params.proto](#icaauth/v1/params.proto)
+    - [Params](#cronos.icaauth.v1.Params)
   
-- [icactl/v1/genesis.proto](#icactl/v1/genesis.proto)
-    - [GenesisState](#cronos.icactl.v1.GenesisState)
+- [icaauth/v1/genesis.proto](#icaauth/v1/genesis.proto)
+    - [GenesisState](#cronos.icaauth.v1.GenesisState)
   
-- [icactl/v1/query.proto](#icactl/v1/query.proto)
-    - [QueryInterchainAccountAddressRequest](#cronos.icactl.v1.QueryInterchainAccountAddressRequest)
-    - [QueryInterchainAccountAddressResponse](#cronos.icactl.v1.QueryInterchainAccountAddressResponse)
-    - [QueryParamsRequest](#cronos.icactl.v1.QueryParamsRequest)
-    - [QueryParamsResponse](#cronos.icactl.v1.QueryParamsResponse)
+- [icaauth/v1/query.proto](#icaauth/v1/query.proto)
+    - [QueryInterchainAccountAddressRequest](#cronos.icaauth.v1.QueryInterchainAccountAddressRequest)
+    - [QueryInterchainAccountAddressResponse](#cronos.icaauth.v1.QueryInterchainAccountAddressResponse)
+    - [QueryParamsRequest](#cronos.icaauth.v1.QueryParamsRequest)
+    - [QueryParamsResponse](#cronos.icaauth.v1.QueryParamsResponse)
   
-    - [Query](#cronos.icactl.v1.Query)
+    - [Query](#cronos.icaauth.v1.Query)
   
-- [icactl/v1/tx.proto](#icactl/v1/tx.proto)
-    - [MsgRegisterAccount](#cronos.icactl.v1.MsgRegisterAccount)
-    - [MsgRegisterAccountResponse](#cronos.icactl.v1.MsgRegisterAccountResponse)
-    - [MsgSubmitTx](#cronos.icactl.v1.MsgSubmitTx)
-    - [MsgSubmitTxResponse](#cronos.icactl.v1.MsgSubmitTxResponse)
+- [icaauth/v1/tx.proto](#icaauth/v1/tx.proto)
+    - [MsgRegisterAccount](#cronos.icaauth.v1.MsgRegisterAccount)
+    - [MsgRegisterAccountResponse](#cronos.icaauth.v1.MsgRegisterAccountResponse)
+    - [MsgSubmitTx](#cronos.icaauth.v1.MsgSubmitTx)
+    - [MsgSubmitTxResponse](#cronos.icaauth.v1.MsgSubmitTxResponse)
   
-    - [Msg](#cronos.icactl.v1.Msg)
+    - [Msg](#cronos.icaauth.v1.Msg)
   
 - [Scalar Value Types](#scalar-value-types)
 
@@ -393,14 +393,14 @@ Msg defines the Cronos Msg service
 
 
 
-<a name="icactl/v1/params.proto"></a>
+<a name="icaauth/v1/params.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## icactl/v1/params.proto
+## icaauth/v1/params.proto
 
 
 
-<a name="cronos.icactl.v1.Params"></a>
+<a name="cronos.icaauth.v1.Params"></a>
 
 ### Params
 Params defines the parameters for the module.
@@ -408,7 +408,7 @@ Params defines the parameters for the module.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `minTimeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | minTimeoutDuration defines the minimum value of packet timeout when submitting transactions to host chain on behalf of interchain account |
+| `min_timeout_duration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | min_timeout_duration defines the minimum value of packet timeout when submitting transactions to host chain on behalf of interchain account |
 
 
 
@@ -424,22 +424,22 @@ Params defines the parameters for the module.
 
 
 
-<a name="icactl/v1/genesis.proto"></a>
+<a name="icaauth/v1/genesis.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## icactl/v1/genesis.proto
+## icaauth/v1/genesis.proto
 
 
 
-<a name="cronos.icactl.v1.GenesisState"></a>
+<a name="cronos.icaauth.v1.GenesisState"></a>
 
 ### GenesisState
-GenesisState defines the icactl module's genesis state.
+GenesisState defines the icaauth module's genesis state.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `params` | [Params](#cronos.icactl.v1.Params) |  | params defines the genesis parameters |
+| `params` | [Params](#cronos.icaauth.v1.Params) |  | params defines the genesis parameters |
 
 
 
@@ -455,14 +455,14 @@ GenesisState defines the icactl module's genesis state.
 
 
 
-<a name="icactl/v1/query.proto"></a>
+<a name="icaauth/v1/query.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## icactl/v1/query.proto
+## icaauth/v1/query.proto
 
 
 
-<a name="cronos.icactl.v1.QueryInterchainAccountAddressRequest"></a>
+<a name="cronos.icaauth.v1.QueryInterchainAccountAddressRequest"></a>
 
 ### QueryInterchainAccountAddressRequest
 QueryInterchainAccountAddressRequest defines the request for the InterchainAccountAddress query.
@@ -470,7 +470,7 @@ QueryInterchainAccountAddressRequest defines the request for the InterchainAccou
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `connectionId` | [string](#string) |  |  |
+| `connection_id` | [string](#string) |  |  |
 | `owner` | [string](#string) |  |  |
 
 
@@ -478,7 +478,7 @@ QueryInterchainAccountAddressRequest defines the request for the InterchainAccou
 
 
 
-<a name="cronos.icactl.v1.QueryInterchainAccountAddressResponse"></a>
+<a name="cronos.icaauth.v1.QueryInterchainAccountAddressResponse"></a>
 
 ### QueryInterchainAccountAddressResponse
 QueryInterchainAccountAddressResponse defines the response for the InterchainAccountAddress query.
@@ -486,14 +486,14 @@ QueryInterchainAccountAddressResponse defines the response for the InterchainAcc
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `interchainAccountAddress` | [string](#string) |  |  |
+| `interchain_account_address` | [string](#string) |  |  |
 
 
 
 
 
 
-<a name="cronos.icactl.v1.QueryParamsRequest"></a>
+<a name="cronos.icaauth.v1.QueryParamsRequest"></a>
 
 ### QueryParamsRequest
 QueryParamsRequest is request type for the Query/Params RPC method.
@@ -503,7 +503,7 @@ QueryParamsRequest is request type for the Query/Params RPC method.
 
 
 
-<a name="cronos.icactl.v1.QueryParamsResponse"></a>
+<a name="cronos.icaauth.v1.QueryParamsResponse"></a>
 
 ### QueryParamsResponse
 QueryParamsResponse is response type for the Query/Params RPC method.
@@ -511,7 +511,7 @@ QueryParamsResponse is response type for the Query/Params RPC method.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| `params` | [Params](#cronos.icactl.v1.Params) |  | params holds all the parameters of this module. |
+| `params` | [Params](#cronos.icaauth.v1.Params) |  | params holds all the parameters of this module. |
 
 
 
@@ -524,28 +524,28 @@ QueryParamsResponse is response type for the Query/Params RPC method.
  <!-- end HasExtensions -->
 
 
-<a name="cronos.icactl.v1.Query"></a>
+<a name="cronos.icaauth.v1.Query"></a>
 
 ### Query
 Query defines the gRPC querier service.
 
 | Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
-| `Params` | [QueryParamsRequest](#cronos.icactl.v1.QueryParamsRequest) | [QueryParamsResponse](#cronos.icactl.v1.QueryParamsResponse) | Parameters queries the parameters of the module. | GET|/cronos/icactl/v1/params|
-| `InterchainAccountAddress` | [QueryInterchainAccountAddressRequest](#cronos.icactl.v1.QueryInterchainAccountAddressRequest) | [QueryInterchainAccountAddressResponse](#cronos.icactl.v1.QueryInterchainAccountAddressResponse) | InterchainAccountAddress queries the interchain account address for given `connectionId` and `owner` | GET|/cronos/icactl/v1/interchain_account_address/{connectionId}/{owner}|
+| `Params` | [QueryParamsRequest](#cronos.icaauth.v1.QueryParamsRequest) | [QueryParamsResponse](#cronos.icaauth.v1.QueryParamsResponse) | Parameters queries the parameters of the module. | GET|/cronos/icaauth/v1/params|
+| `InterchainAccountAddress` | [QueryInterchainAccountAddressRequest](#cronos.icaauth.v1.QueryInterchainAccountAddressRequest) | [QueryInterchainAccountAddressResponse](#cronos.icaauth.v1.QueryInterchainAccountAddressResponse) | InterchainAccountAddress queries the interchain account address for given `connection_id` and `owner` | GET|/cronos/icaauth/v1/interchain_account_address/{connection_id}/{owner}|
 
  <!-- end services -->
 
 
 
-<a name="icactl/v1/tx.proto"></a>
+<a name="icaauth/v1/tx.proto"></a>
 <p align="right"><a href="#top">Top</a></p>
 
-## icactl/v1/tx.proto
+## icaauth/v1/tx.proto
 
 
 
-<a name="cronos.icactl.v1.MsgRegisterAccount"></a>
+<a name="cronos.icaauth.v1.MsgRegisterAccount"></a>
 
 ### MsgRegisterAccount
 MsgRegisterAccount defines the request message for MsgRegisterAccount
@@ -554,14 +554,15 @@ MsgRegisterAccount defines the request message for MsgRegisterAccount
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `owner` | [string](#string) |  | owner represents the owner of the interchain account |
-| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+| `connection_id` | [string](#string) |  | connection_id represents the IBC `connection_id` of the host chain |
+| `version` | [string](#string) |  | version represents the version of the ICA channel |
 
 
 
 
 
 
-<a name="cronos.icactl.v1.MsgRegisterAccountResponse"></a>
+<a name="cronos.icaauth.v1.MsgRegisterAccountResponse"></a>
 
 ### MsgRegisterAccountResponse
 MsgRegisterAccountResponse defines the response message for MsgRegisterAccount
@@ -571,7 +572,7 @@ MsgRegisterAccountResponse defines the response message for MsgRegisterAccount
 
 
 
-<a name="cronos.icactl.v1.MsgSubmitTx"></a>
+<a name="cronos.icaauth.v1.MsgSubmitTx"></a>
 
 ### MsgSubmitTx
 MsgSubmitTx defines the request message for MsgSubmitTx
@@ -580,16 +581,16 @@ MsgSubmitTx defines the request message for MsgSubmitTx
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | `owner` | [string](#string) |  | owner represents the owner of the interchain account |
-| `connectionId` | [string](#string) |  | connectionId represents the IBC `connectionId` of the host chain |
+| `connection_id` | [string](#string) |  | connection_id represents the IBC `connection_id` of the host chain |
 | `msgs` | [google.protobuf.Any](#google.protobuf.Any) | repeated | msgs represents the transactions to be submitted to the host chain |
-| `timeoutDuration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | timeoutDuration represents the timeout duration for the IBC packet from last block |
+| `timeout_duration` | [google.protobuf.Duration](#google.protobuf.Duration) |  | timeout_duration represents the timeout duration for the IBC packet from last block |
 
 
 
 
 
 
-<a name="cronos.icactl.v1.MsgSubmitTxResponse"></a>
+<a name="cronos.icaauth.v1.MsgSubmitTxResponse"></a>
 
 ### MsgSubmitTxResponse
 MsgSubmitTxResponse defines the response message for MsgSubmitTx
@@ -605,15 +606,15 @@ MsgSubmitTxResponse defines the response message for MsgSubmitTx
  <!-- end HasExtensions -->
 
 
-<a name="cronos.icactl.v1.Msg"></a>
+<a name="cronos.icaauth.v1.Msg"></a>
 
 ### Msg
 Msg defines the Msg service.
 
 | Method Name | Request Type | Response Type | Description | HTTP Verb | Endpoint |
 | ----------- | ------------ | ------------- | ------------| ------- | -------- |
-| `RegisterAccount` | [MsgRegisterAccount](#cronos.icactl.v1.MsgRegisterAccount) | [MsgRegisterAccountResponse](#cronos.icactl.v1.MsgRegisterAccountResponse) | RegisterAccount registers an interchain account on host chain with given `connectionId` | |
-| `SubmitTx` | [MsgSubmitTx](#cronos.icactl.v1.MsgSubmitTx) | [MsgSubmitTxResponse](#cronos.icactl.v1.MsgSubmitTxResponse) | SubmitTx submits a transaction to the host chain on behalf of interchain account | |
+| `RegisterAccount` | [MsgRegisterAccount](#cronos.icaauth.v1.MsgRegisterAccount) | [MsgRegisterAccountResponse](#cronos.icaauth.v1.MsgRegisterAccountResponse) | RegisterAccount registers an interchain account on host chain with given `connection_id` | |
+| `SubmitTx` | [MsgSubmitTx](#cronos.icaauth.v1.MsgSubmitTx) | [MsgSubmitTxResponse](#cronos.icaauth.v1.MsgSubmitTxResponse) | SubmitTx submits a transaction to the host chain on behalf of interchain account | |
 
  <!-- end services -->
 
