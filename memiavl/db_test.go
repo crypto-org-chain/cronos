@@ -307,7 +307,7 @@ func TestZeroCopy(t *testing.T) {
 	))
 
 	// the test tree's root hash will reference the zero-copy value
-  require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
+	require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
 		{Name: "test2", Changeset: ChangeSets[0]},
 	}))
 	_, _, err = db.Commit()
