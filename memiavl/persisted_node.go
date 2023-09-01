@@ -131,6 +131,10 @@ func (node PersistedNode) Right() Node {
 	return PersistedNode{snapshot: node.snapshot, index: node.index - 1}
 }
 
+func (node PersistedNode) SafeHash() []byte {
+	return bytes.Clone(node.Hash())
+}
+
 func (node PersistedNode) Hash() []byte {
 	if node.isLeaf {
 		return node.leafNode().Hash()

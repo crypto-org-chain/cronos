@@ -20,6 +20,9 @@ type Node interface {
 	Right() Node
 	Hash() []byte
 
+	// SafeHash returns byte slice that's safe to retain
+	SafeHash() []byte
+
 	// PersistedNode clone a new node, MemNode modify in place
 	Mutate(version, cowVersion uint32) *MemNode
 
