@@ -110,7 +110,7 @@ func (t *Tree) Copy(cacheSize int) *Tree {
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
-func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte, int64, error) {
+func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet) {
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)
@@ -118,8 +118,6 @@ func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet, updateHash bool) ([]byte
 			t.set(pair.Key, pair.Value)
 		}
 	}
-
-	return t.saveVersion(updateHash)
 }
 
 func (t *Tree) set(key, value []byte) {
@@ -136,24 +134,18 @@ func (t *Tree) remove(key []byte) {
 	t.cache.Remove(key)
 }
 
-// saveVersion increases the version number and optionally updates the hashes
-func (t *Tree) saveVersion(updateHash bool) ([]byte, int64, error) {
+// SaveVersion increases the version number and optionally updates the hashes
+func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
+	if t.version >= uint32(math.MaxUint32) {
+		return nil, 0, errors.New("version overflows uint32")
+	}
+
 	var hash []byte
 	if updateHash {
 		hash = t.RootHash()
 	}
 
-	if t.version >= uint32(math.MaxUint32) {
-		return nil, 0, errors.New("version overflows uint32")
-	}
-	t.version++
-
-	// to be compatible with existing golang iavl implementation.
-	// see: https://github.com/cosmos/iavl/pull/660
-	if t.version == 1 && t.initialVersion > 0 {
-		t.version = t.initialVersion
-	}
-
+	t.version = nextVersionU32(t.version, t.initialVersion)
 	return hash, int64(t.version), nil
 }
 
@@ -278,4 +270,13 @@ func (t *Tree) Close() error {
 	}
 	t.root = nil
 	return err
+}
+
+// nextVersionU32 is compatible with existing golang iavl implementation.
+// see: https://github.com/cosmos/iavl/pull/660
+func nextVersionU32(v uint32, initialVersion uint32) uint32 {
+	if v == 0 && initialVersion > 1 {
+		return initialVersion
+	}
+	return v + 1
 }

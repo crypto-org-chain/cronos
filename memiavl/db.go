@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cosmos/iavl"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tidwall/wal"
 )
@@ -63,8 +65,8 @@ type DB struct {
 	walChan     chan *walEntry
 	walQuit     chan error
 
-	// pending store upgrades, will be written into WAL in next Commit call
-	pendingUpgrades []*TreeNameUpgrade
+	// pending changes, will be written into WAL in next Commit call
+	pendingLog WALEntry
 
 	// The assumptions to concurrency:
 	// - The methods on DB are protected by a mutex
@@ -281,19 +283,23 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	if db.readOnly {
+		return errReadOnly
+	}
+
+	if db.lastCommitInfo.Version > 0 {
+		return errors.New("initial version can only be set before any commit")
+	}
+
 	if err := db.MultiTree.SetInitialVersion(initialVersion); err != nil {
 		return err
 	}
 
-	if err := initEmptyDB(db.dir, db.initialVersion); err != nil {
-		return err
-	}
-
-	return db.reload()
+	return initEmptyDB(db.dir, db.initialVersion)
 }
 
-// ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a temporary field,
-// and include in the WAL entry in next Commit call.
+// ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a pending log,
+// which will be persisted to the WAL in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
@@ -306,8 +312,61 @@ func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 		return err
 	}
 
-	db.pendingUpgrades = append(db.pendingUpgrades, upgrades...)
+	db.pendingLog.Upgrades = append(db.pendingLog.Upgrades, upgrades...)
 	return nil
+}
+
+// ApplyChangeSets wraps MultiTree.ApplyChangeSets, it also append the changesets in the pending log,
+// which will be persisted to the WAL in next Commit call.
+func (db *DB) ApplyChangeSets(changeSets []*NamedChangeSet) error {
+	if len(changeSets) == 0 {
+		return nil
+	}
+
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	if db.readOnly {
+		return errReadOnly
+	}
+
+	if len(db.pendingLog.Changesets) > 0 {
+		return errors.New("don't support multiple ApplyChangeSets calls in the same version")
+	}
+	db.pendingLog.Changesets = changeSets
+
+	return db.MultiTree.ApplyChangeSets(changeSets)
+}
+
+// ApplyChangeSet wraps MultiTree.ApplyChangeSet, it also append the changesets in the pending log,
+// which will be persisted to the WAL in next Commit call.
+func (db *DB) ApplyChangeSet(name string, changeSet iavl.ChangeSet) error {
+	if len(changeSet.Pairs) == 0 {
+		return nil
+	}
+
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	if db.readOnly {
+		return errReadOnly
+	}
+
+	for _, cs := range db.pendingLog.Changesets {
+		if cs.Name == name {
+			return errors.New("don't support multiple ApplyChangeSet calls with the same name in the same version")
+		}
+	}
+
+	db.pendingLog.Changesets = append(db.pendingLog.Changesets, &NamedChangeSet{
+		Name:      name,
+		Changeset: changeSet,
+	})
+	sort.SliceStable(db.pendingLog.Changesets, func(i, j int) bool {
+		return db.pendingLog.Changesets[i].Name < db.pendingLog.Changesets[j].Name
+	})
+
+	return db.MultiTree.ApplyChangeSet(name, changeSet)
 }
 
 // checkAsyncTasks checks the status of background tasks non-blocking-ly and process the result
@@ -441,10 +500,8 @@ func (db *DB) pruneSnapshots() {
 	}()
 }
 
-// Commit wraps `MultiTree.ApplyChangeSet` to add some db level operations:
-// - manage background snapshot rewriting
-// - write WAL
-func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
+// Commit wraps SaveVersion to bump the version and writes the pending changes into log files to persist on disk
+func (db *DB) Commit() ([]byte, int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -452,21 +509,14 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 		return nil, 0, errReadOnly
 	}
 
-	if err := db.checkAsyncTasks(); err != nil {
-		return nil, 0, err
-	}
-
-	hash, v, err := db.MultiTree.ApplyChangeSet(changeSets, true)
+	hash, v, err := db.MultiTree.SaveVersion(true)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	// write logs if enabled
 	if db.wal != nil {
-		// write write-ahead-log
-		entry := walEntry{index: walIndex(v, db.initialVersion), data: &WALEntry{
-			Changesets: changeSets,
-			Upgrades:   db.pendingUpgrades,
-		}}
+		entry := walEntry{index: walIndex(v, db.initialVersion), data: db.pendingLog}
 		if db.walChanSize >= 0 {
 			if db.walChan == nil {
 				db.initAsyncCommit()
@@ -485,8 +535,11 @@ func (db *DB) Commit(changeSets []*NamedChangeSet) ([]byte, int64, error) {
 		}
 	}
 
-	db.pendingUpgrades = db.pendingUpgrades[:0]
+	db.pendingLog = WALEntry{}
 
+	if err := db.checkAsyncTasks(); err != nil {
+		return nil, 0, err
+	}
 	db.rewriteIfApplicable(v)
 
 	return hash, v, nil
@@ -607,14 +660,8 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 	}
 
 	db.MultiTree = *mtree
-
-	if len(db.pendingUpgrades) > 0 {
-		if err := db.MultiTree.ApplyUpgrades(db.pendingUpgrades); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// catch-up the pending changes
+	return db.MultiTree.applyWALEntry(db.pendingLog)
 }
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height
@@ -734,8 +781,7 @@ func (db *DB) LastCommitInfo() *storetypes.CommitInfo {
 	return db.MultiTree.LastCommitInfo()
 }
 
-// ApplyChangeSet wraps MultiTree.ApplyChangeSet to add a lock.
-func (db *DB) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool) ([]byte, int64, error) {
+func (db *DB) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -743,13 +789,31 @@ func (db *DB) ApplyChangeSet(changeSets []*NamedChangeSet, updateCommitInfo bool
 		return nil, 0, errReadOnly
 	}
 
-	return db.MultiTree.ApplyChangeSet(changeSets, updateCommitInfo)
+	return db.MultiTree.SaveVersion(updateCommitInfo)
+}
+
+func (db *DB) WorkingCommitInfo() *storetypes.CommitInfo {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.WorkingCommitInfo()
+}
+
+func (db *DB) WorkingHash() []byte {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.WorkingHash()
 }
 
 // UpdateCommitInfo wraps MultiTree.UpdateCommitInfo to add a lock.
 func (db *DB) UpdateCommitInfo() []byte {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
+
+	if db.readOnly {
+		panic("can't update commit info in read-only mode")
+	}
 
 	return db.MultiTree.UpdateCommitInfo()
 }
@@ -936,7 +1000,7 @@ func createDBIfNotExist(dir string, initialVersion uint32) error {
 
 type walEntry struct {
 	index uint64
-	data  *WALEntry
+	data  WALEntry
 }
 
 func isSnapshotName(name string) bool {
