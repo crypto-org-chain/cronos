@@ -280,15 +280,26 @@ func TestLoadVersion(t *testing.T) {
 }
 
 func TestZeroCopy(t *testing.T) {
-	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test"}, CreateIfMissing: true, ZeroCopy: true})
+	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test", "test2"}, CreateIfMissing: true, ZeroCopy: true})
 	require.NoError(t, err)
-	db.Commit([]*NamedChangeSet{
+	_, _, err = db.Commit([]*NamedChangeSet{
 		{Name: "test", Changeset: ChangeSets[0]},
+		{Name: "test2"},
 	})
+	require.NoError(t, err)
 	require.NoError(t, errors.Join(
 		db.RewriteSnapshot(),
 		db.Reload(),
 	))
+
+	// the test tree's root hash will reference the zero-copy value
+	_, _, err = db.Commit([]*NamedChangeSet{
+		{Name: "test"},
+		{Name: "test2", Changeset: ChangeSets[0]},
+	})
+	require.NoError(t, err)
+
+	commitInfo := *db.LastCommitInfo()
 
 	value := db.TreeByName("test").Get([]byte("hello"))
 	require.Equal(t, []byte("world"), value)
@@ -296,6 +307,8 @@ func TestZeroCopy(t *testing.T) {
 	db.SetZeroCopy(false)
 	valueCloned := db.TreeByName("test").Get([]byte("hello"))
 	require.Equal(t, []byte("world"), valueCloned)
+
+	_ = commitInfo.CommitID()
 
 	require.NoError(t, db.Close())
 
@@ -307,6 +320,9 @@ func TestZeroCopy(t *testing.T) {
 	require.Panics(t, func() {
 		require.Equal(t, []byte("world"), value)
 	})
+
+	// it's ok to access after db closed
+	_ = commitInfo.CommitID()
 }
 
 func TestWalIndexConversion(t *testing.T) {
