@@ -267,8 +267,14 @@ func TestLoadVersion(t *testing.T) {
 		}
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			require.NoError(t, db.ApplyChangeSets(cs))
-			_, _, err := db.Commit()
+
+			// check the working hash
+			workingHash := db.WorkingHash()
+			require.Equal(t, RefHashes[db.Version()], db.WorkingCommitInfo().StoreInfos[0].CommitId.Hash)
+
+			h, _, err := db.Commit()
 			require.NoError(t, err)
+			require.Equal(t, workingHash, h)
 		})
 	}
 	require.NoError(t, db.Close())
