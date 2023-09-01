@@ -269,9 +269,14 @@ func (t *MultiTree) ApplyChangeSets(changeSets []*NamedChangeSet) error {
 	return nil
 }
 
-func (t *MultiTree) WorkingHash() []byte {
+// WorkingCommitInfo returns the commit info for the working tree
+func (t *MultiTree) WorkingCommitInfo() *storetypes.CommitInfo {
 	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
-	return t.buildCommitInfo(version).Hash()
+	return t.buildCommitInfo(version)
+}
+
+func (t *MultiTree) WorkingHash() []byte {
+	return t.WorkingCommitInfo().Hash()
 }
 
 // SaveVersion bumps the versions of all the stores and optionally returns the new app hash
@@ -294,7 +299,7 @@ func (t *MultiTree) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
 	return hash, t.lastCommitInfo.Version, nil
 }
 
-func (t *MultiTree) buildCommitInfo(version int64) storetypes.CommitInfo {
+func (t *MultiTree) buildCommitInfo(version int64) *storetypes.CommitInfo {
 	var infos []storetypes.StoreInfo
 	for _, entry := range t.trees {
 		infos = append(infos, storetypes.StoreInfo{
@@ -306,7 +311,7 @@ func (t *MultiTree) buildCommitInfo(version int64) storetypes.CommitInfo {
 		})
 	}
 
-	return storetypes.CommitInfo{
+	return &storetypes.CommitInfo{
 		Version:    version,
 		StoreInfos: infos,
 	}
@@ -315,7 +320,7 @@ func (t *MultiTree) buildCommitInfo(version int64) storetypes.CommitInfo {
 // UpdateCommitInfo update lastCommitInfo based on current status of trees.
 // it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
 func (t *MultiTree) UpdateCommitInfo() []byte {
-	t.lastCommitInfo = t.buildCommitInfo(t.lastCommitInfo.Version)
+	t.lastCommitInfo = *t.buildCommitInfo(t.lastCommitInfo.Version)
 	return t.lastCommitInfo.Hash()
 }
 

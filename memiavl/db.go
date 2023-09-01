@@ -792,6 +792,13 @@ func (db *DB) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
 	return db.MultiTree.SaveVersion(updateCommitInfo)
 }
 
+func (db *DB) WorkingCommitInfo() *storetypes.CommitInfo {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
+	return db.MultiTree.WorkingCommitInfo()
+}
+
 func (db *DB) WorkingHash() []byte {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()

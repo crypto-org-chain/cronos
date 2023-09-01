@@ -90,14 +90,17 @@ func (rs *Store) flush() error {
 }
 
 // WorkingHash returns the app hash of the working tree,
-// it's only compatible with sdk 0.47 and later.
 //
 // Implements interface Committer.
 func (rs *Store) WorkingHash() []byte {
 	if err := rs.flush(); err != nil {
 		panic(err)
 	}
-	return rs.db.WorkingHash()
+	commitInfo := rs.db.WorkingCommitInfo()
+	if rs.sdk46Compact {
+		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
+	}
+	return commitInfo.Hash()
 }
 
 // Implements interface Committer
