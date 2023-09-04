@@ -71,6 +71,7 @@
 - [#1099](https://github.com/crypto-org-chain/cronos/pull/1099) clean up memiavl tmp directories left behind.
 - [#940](https://github.com/crypto-org-chain/cronos/pull/940) Update rocksdb dependency to 8.1.1.
 - [#1149](https://github.com/crypto-org-chain/cronos/pull/1149) memiavl support `WorkingHash` api required by `FinalizeBlock`.
+- [#1151](https://github.com/crypto-org-chain/cronos/pull/1151) memiavl `CacheMultiStoreWithVersion` supports `io.Closer`.
 
 *April 13, 2023*
 
