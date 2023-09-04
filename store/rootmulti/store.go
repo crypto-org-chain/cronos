@@ -15,7 +15,6 @@ import (
 
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/mem"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
@@ -24,6 +23,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/crypto-org-chain/cronos/store/cachemulti"
 	"github.com/crypto-org-chain/cronos/store/memiavlstore"
 )
 
@@ -191,7 +191,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 		}
 		stores[k] = store
 	}
-	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil)
+	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil, nil)
 }
 
 // Implements interface MultiStore
@@ -222,7 +222,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 		stores[rs.keysByName[tree.Name]] = memiavlstore.New(tree.Tree, rs.logger)
 	}
 
-	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil), nil
+	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil, db), nil
 }
 
 // Implements interface MultiStore
