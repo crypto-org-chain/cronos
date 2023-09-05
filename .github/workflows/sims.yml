@@ -23,6 +23,7 @@ jobs:
   member:
     name: Check whether it is triggered by team members with issue_comment or push or pull_request
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     permissions:
       pull-requests: write
     if: >-

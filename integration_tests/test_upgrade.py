@@ -1,7 +1,6 @@
-import configparser
 import json
-import re
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -14,8 +13,10 @@ from .utils import (
     CONTRACTS,
     approve_proposal,
     deploy_contract,
+    edit_ini_sections,
     send_transaction,
     wait_for_block,
+    wait_for_new_blocks,
     wait_for_port,
 )
 
@@ -35,28 +36,20 @@ def post_init(path, base_port, config):
     prepare cosmovisor for each node
     """
     chain_id = "cronos_777-1"
-    cfg = json.loads((path / chain_id / "config.json").read_text())
+    data = path / chain_id
+    cfg = json.loads((data / "config.json").read_text())
     for i, _ in enumerate(cfg["validators"]):
-        home = path / chain_id / f"node{i}"
+        home = data / f"node{i}"
         init_cosmovisor(home)
 
-    # patch supervisord ini config
-    ini_path = path / chain_id / SUPERVISOR_CONFIG_FILE
-    ini = configparser.RawConfigParser()
-    ini.read(ini_path)
-    reg = re.compile(rf"^program:{chain_id}-node(\d+)")
-    for section in ini.sections():
-        m = reg.match(section)
-        if m:
-            i = m.group(1)
-            ini[section].update(
-                {
-                    "command": f"cosmovisor start --home %(here)s/node{i}",
-                    "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
-                }
-            )
-    with ini_path.open("w") as fp:
-        ini.write(fp)
+    edit_ini_sections(
+        chain_id,
+        data / SUPERVISOR_CONFIG_FILE,
+        lambda i, _: {
+            "command": f"cosmovisor start --home %(here)s/node{i}",
+            "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
+        },
+    )
 
 
 @pytest.fixture(scope="module")
@@ -80,13 +73,25 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-def test_cosmovisor_upgrade(custom_cronos: Cronos):
+def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     """
     - propose an upgrade and pass it
     - wait for it to happen
     - it should work transparently
     """
     cli = custom_cronos.cosmos_cli()
+    # export genesis from cronos v0.8.x
+    custom_cronos.supervisorctl("stop", "all")
+    migrate = tmp_path_factory.mktemp("migrate")
+    file_path0 = Path(migrate / "v0.8.json")
+    with open(file_path0, "w") as fp:
+        json.dump(json.loads(cli.export()), fp)
+        fp.flush()
+
+    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    wait_for_new_blocks(cli, 1)
+
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
@@ -178,3 +183,32 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos):
             "observe_ethereum_height_period": "50",
         }
     }
+
+    # migrate to sdk v0.46
+    custom_cronos.supervisorctl("stop", "all")
+    sdk_version = "v0.46"
+    file_path1 = Path(migrate / f"{sdk_version}.json")
+    with open(file_path1, "w") as fp:
+        json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
+        fp.flush()
+    # migrate to cronos v1.0.x
+    cronos_version = "v1.0"
+    file_path2 = Path(migrate / f"{cronos_version}.json")
+    with open(file_path2, "w") as fp:
+        json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
+        fp.flush()
+    print(cli.validate_genesis(str(file_path2)))
+
+    # update the genesis time = current time + 5 secs
+    newtime = datetime.utcnow() + timedelta(seconds=5)
+    newtime = newtime.replace(tzinfo=None).isoformat("T") + "Z"
+    config = custom_cronos.config
+    config["genesis-time"] = newtime
+    for i, _ in enumerate(config["validators"]):
+        genesis = json.load(open(file_path2))
+        genesis["genesis_time"] = config.get("genesis-time")
+        file = custom_cronos.cosmos_cli(i).data_dir / "config/genesis.json"
+        file.write_text(json.dumps(genesis))
+    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_new_blocks(custom_cronos.cosmos_cli(), 1)
+    custom_cronos.supervisorctl("stop", "all")

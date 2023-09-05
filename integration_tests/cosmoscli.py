@@ -124,8 +124,22 @@ class CosmosCLI:
         )
         return cls(data_dir, node_rpc, cmd)
 
-    def validate_genesis(self):
-        return self.raw("validate-genesis", home=self.data_dir)
+    def migrate_sdk_genesis(self, version, path):
+        return json.loads(self.raw("migrate", version, path))
+
+    def migrate_cronos_genesis(self, version, path):
+        return json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "migrate",
+                version,
+                path,
+            )
+        )
+
+    def validate_genesis(self, path):
+        return self.raw("validate-genesis", path)
 
     def add_genesis_account(self, addr, coins, **kwargs):
         return self.raw(
@@ -875,7 +889,7 @@ class CosmosCLI:
         return self.raw("export", home=self.data_dir)
 
     def unsaferesetall(self):
-        return self.raw("unsafe-reset-all")
+        return self.raw("tendermint", "unsafe-reset-all")
 
     def create_nft(self, from_addr, denomid, denomname, schema, fees):
         return json.loads(

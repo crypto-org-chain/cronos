@@ -33,6 +33,9 @@
 - [#1087](https://github.com/crypto-org-chain/cronos/pull/1087) memiavl fix LastCommitID when memiavl db not loaded.
 - [#1088](https://github.com/crypto-org-chain/cronos/pull/1088) memiavl fix empty value in write-ahead-log replaying.
 - [#1102](https://github.com/crypto-org-chain/cronos/pull/1102) avoid duplicate cache events emitted from ibc and gravity hook.
+- [#1123](https://github.com/crypto-org-chain/cronos/pull/1123) Fix memiavl snapshot switching
+- [#1125](https://github.com/crypto-org-chain/cronos/pull/1125) Fix genesis migrate for feeibc, evm, feemarket and gravity.
+- [#1130](https://github.com/crypto-org-chain/cronos/pull/1130) Fix lock issues when state-sync with memiavl.
 
 ### Features
 
@@ -42,6 +45,7 @@
 - [#1100](https://github.com/crypto-org-chain/cronos/pull/1100) memiavl support read-only mode, and grab exclusive lock for write mode.
 - [#1103](https://github.com/crypto-org-chain/cronos/pull/1103) Add EventQueryTxFor cmd to subscribe and wait for transaction.
 - [#1108](https://github.com/crypto-org-chain/cronos/pull/1108) versiondb support restore from local snapshot.
+- [#1114](https://github.com/crypto-org-chain/cronos/pull/1114) memiavl support `CacheMultiStoreWithVersion`.
 - [#1116](https://github.com/crypto-org-chain/cronos/pull/1116) versiondb commands support sdk47 app hash calculation.
 
 ### Improvements

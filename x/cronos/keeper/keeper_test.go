@@ -63,6 +63,8 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 	consAddress := sdk.ConsAddress(priv.PubKey().Address())
 
 	suite.app = app.Setup(t, sdk.AccAddress(suite.address.Bytes()).String(), false)
+	blockIDHash := tmhash.Sum([]byte("block_id"))
+	hash := tmhash.Sum([]byte("partset_header"))
 	suite.ctx = suite.app.NewContext(false, tmproto.Header{
 		Height:          1,
 		ChainID:         app.TestAppChainID,
@@ -72,10 +74,10 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 			Block: version.BlockProtocol,
 		},
 		LastBlockId: tmproto.BlockID{
-			Hash: tmhash.Sum([]byte("block_id")),
+			Hash: blockIDHash,
 			PartSetHeader: tmproto.PartSetHeader{
 				Total: 11,
-				Hash:  tmhash.Sum([]byte("partset_header")),
+				Hash:  hash,
 			},
 		},
 		AppHash:            tmhash.Sum([]byte("app")),
@@ -396,6 +398,7 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		suite.Run(tc.name, func() {
 			suite.SetupTest() // reset
 			// Create Cronos Keeper with mock transfer keeper

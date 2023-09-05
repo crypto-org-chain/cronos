@@ -20,12 +20,21 @@ import (
 // Import restore memiavl db from state-sync snapshot stream
 func Import(
 	dir string, height uint64, format uint32, protoReader protoio.Reader,
-) (snapshottypes.SnapshotItem, error) {
+) (item snapshottypes.SnapshotItem, err error) {
 	if height > math.MaxUint32 {
 		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
 	}
 	snapshotDir := snapshotName(int64(height))
 	tmpDir := snapshotDir + "-tmp"
+
+	var fileLock FileLock
+	fileLock, err = LockFile(filepath.Join(dir, LockFileName))
+	if err != nil {
+		return snapshottypes.SnapshotItem{}, fmt.Errorf("fail to lock db: %w", err)
+	}
+	defer func() {
+		err = stderrors.Join(err, fileLock.Unlock())
+	}()
 
 	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
 	// a SnapshotStoreItem, telling us which store to import into. The following items will contain
