@@ -741,7 +741,10 @@ func New(
 		initGenesisOrder = append(initGenesisOrder, gravitytypes.ModuleName)
 	}
 
-	app.mm = module.NewManager(modules...).WithConsensusParamsGetter(app)
+	app.mm = module.NewManager(modules...)
+	app.mm.SetOrderPreBlockers(
+		upgradetypes.ModuleName,
+	)
 	app.mm.SetOrderBeginBlockers(beginBlockersOrder...)
 	app.mm.SetOrderEndBlockers(endBlockersOrder...)
 	app.mm.SetOrderInitGenesis(initGenesisOrder...)
@@ -787,6 +790,7 @@ func New(
 
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
+	app.SetPreBlocker(app.PreBlocker)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
 	app.setAnteHandler(encodingConfig.TxConfig, cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)))
@@ -870,6 +874,11 @@ func (app *App) setPostHandler() {
 
 // Name returns the name of the App
 func (app *App) Name() string { return app.BaseApp.Name() }
+
+// PreBlocker updates every pre begin block
+func (app *App) PreBlocker(ctx sdk.Context, req abci.RequestBeginBlock) (sdk.ResponsePreBlock, error) {
+	return app.mm.PreBlock(ctx, req)
+}
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {

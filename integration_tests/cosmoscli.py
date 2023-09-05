@@ -1699,8 +1699,7 @@ class CosmosCLI:
     def event_query_tx_for(self, hash):
         return json.loads(
             self.raw(
-                "tx",
-                "cronos",
+                "query",
                 "event-query-tx-for",
                 hash,
                 "-y",
