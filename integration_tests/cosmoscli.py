@@ -1248,7 +1248,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ica",
@@ -1259,6 +1259,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def ica_submit_tx(self, connid, tx, **kwargs):
         default_kwargs = {
@@ -1267,7 +1270,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ica",
@@ -1279,6 +1282,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def ica_query_account(self, connid, owner, **kwargs):
         default_kwargs = {

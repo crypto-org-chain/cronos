@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 
@@ -449,8 +448,8 @@ def test_ica(ibc, tmp_path):
     assert rsp["code"] == 0, rsp["raw_log"]
     port_id, channel_id = next(
         (
-            base64.b64decode(evt["attributes"][0]["value"].encode()).decode(),
-            base64.b64decode(evt["attributes"][1]["value"].encode()).decode(),
+            evt["attributes"][0]["value"],
+            evt["attributes"][1]["value"],
         )
         for evt in rsp["events"]
         if evt["type"] == "channel_open_init"
@@ -513,7 +512,7 @@ def test_ica(ibc, tmp_path):
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     packet_seq = next(
-        int(base64.b64decode(evt["attributes"][4]["value"].encode()))
+        int(evt["attributes"][4]["value"])
         for evt in rsp["events"]
         if evt["type"] == "send_packet"
     )
