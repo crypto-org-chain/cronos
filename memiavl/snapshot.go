@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/cosmos/iavl"
 )
 
 const (
@@ -298,14 +296,14 @@ func (snapshot *Snapshot) Export() *Exporter {
 	return newExporter(snapshot.export)
 }
 
-func (snapshot *Snapshot) export(callback func(*iavl.ExportNode) bool) {
+func (snapshot *Snapshot) export(callback func(*ExportNode) bool) {
 	if snapshot.leavesLen() == 0 {
 		return
 	}
 
 	if snapshot.leavesLen() == 1 {
 		leaf := snapshot.Leaf(0)
-		callback(&iavl.ExportNode{
+		callback(&ExportNode{
 			Height:  0,
 			Version: int64(leaf.Version()),
 			Key:     leaf.Key(),
@@ -323,7 +321,7 @@ func (snapshot *Snapshot) export(callback func(*iavl.ExportNode) bool) {
 			// add more leaf nodes
 			leaf := snapshot.leavesLayout.Leaf(j)
 			key, value := snapshot.KeyValue(leaf.KeyOffset())
-			enode := &iavl.ExportNode{
+			enode := &ExportNode{
 				Height:  0,
 				Version: int64(leaf.Version()),
 				Key:     key,
@@ -336,7 +334,7 @@ func (snapshot *Snapshot) export(callback func(*iavl.ExportNode) bool) {
 				return
 			}
 		}
-		enode := &iavl.ExportNode{
+		enode := &ExportNode{
 			Height:  int8(node.Height()),
 			Version: int64(node.Version()),
 			Key:     snapshot.LeafKey(node.KeyLeaf()),

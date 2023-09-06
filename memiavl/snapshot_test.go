@@ -3,7 +3,6 @@ package memiavl
 import (
 	"testing"
 
-	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,7 +47,7 @@ func TestSnapshotEncodingRoundTrip(t *testing.T) {
 }
 
 func TestSnapshotExport(t *testing.T) {
-	expNodes := []*iavl.ExportNode{
+	expNodes := []*ExportNode{
 		{Key: []byte("hello"), Value: []byte("world1"), Version: 2, Height: 0},
 		{Key: []byte("hello1"), Value: []byte("world1"), Version: 2, Height: 0},
 		{Key: []byte("hello1"), Value: nil, Version: 3, Height: 1},
@@ -72,7 +71,7 @@ func TestSnapshotExport(t *testing.T) {
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
 
-	var nodes []*iavl.ExportNode
+	var nodes []*ExportNode
 	exporter := snapshot.Export()
 	for {
 		node, err := exporter.Next()
@@ -100,7 +99,7 @@ func TestSnapshotImportExport(t *testing.T) {
 	snapshot, err := OpenSnapshot(snapshotDir)
 	require.NoError(t, err)
 
-	ch := make(chan *iavl.ExportNode)
+	ch := make(chan *ExportNode)
 
 	go func() {
 		defer close(ch)

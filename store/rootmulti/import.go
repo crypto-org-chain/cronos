@@ -9,7 +9,6 @@ import (
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	protoio "github.com/cosmos/gogoproto/io"
-	"github.com/cosmos/iavl"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 )
@@ -52,7 +51,7 @@ loop:
 				return snapshottypes.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
 					item.IAVL.Height, math.MaxInt8)
 			}
-			node := &iavl.ExportNode{
+			node := &memiavl.ExportNode{
 				Key:     item.IAVL.Key,
 				Value:   item.IAVL.Value,
 				Height:  int8(item.IAVL.Height),

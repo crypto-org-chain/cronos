@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-
-	"github.com/cosmos/iavl"
 )
 
 // ErrorExportDone is returned by Exporter.Next() when all items have been exported.
@@ -103,19 +101,19 @@ func (mte *MultiTreeExporter) Close() error {
 	return nil
 }
 
-type exportWorker func(callback func(*iavl.ExportNode) bool)
+type exportWorker func(callback func(*ExportNode) bool)
 
 type Exporter struct {
-	ch     <-chan *iavl.ExportNode
+	ch     <-chan *ExportNode
 	cancel context.CancelFunc
 }
 
 func newExporter(worker exportWorker) *Exporter {
 	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan *iavl.ExportNode, exportBufferSize)
+	ch := make(chan *ExportNode, exportBufferSize)
 	go func() {
 		defer close(ch)
-		worker(func(enode *iavl.ExportNode) bool {
+		worker(func(enode *ExportNode) bool {
 			select {
 			case ch <- enode:
 			case <-ctx.Done():
@@ -127,7 +125,7 @@ func newExporter(worker exportWorker) *Exporter {
 	return &Exporter{ch, cancel}
 }
 
-func (e *Exporter) Next() (*iavl.ExportNode, error) {
+func (e *Exporter) Next() (*ExportNode, error) {
 	if exportNode, ok := <-e.ch; ok {
 		return exportNode, nil
 	}

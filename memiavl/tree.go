@@ -249,9 +249,9 @@ func (t *Tree) Export() *Exporter {
 	}
 
 	// do normal post-order traversal export
-	return newExporter(func(callback func(node *iavl.ExportNode) bool) {
+	return newExporter(func(callback func(node *ExportNode) bool) {
 		t.ScanPostOrder(func(node Node) bool {
-			return callback(&iavl.ExportNode{
+			return callback(&ExportNode{
 				Key:     node.Key(),
 				Value:   node.Value(),
 				Version: int64(node.Version()),

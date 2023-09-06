@@ -6,8 +6,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-
-	"github.com/cosmos/iavl"
 )
 
 type MultiTreeImporter struct {
@@ -43,7 +41,7 @@ func (mti *MultiTreeImporter) tmpDir() string {
 
 func (mti *MultiTreeImporter) Add(item interface{}) error {
 	switch item := item.(type) {
-	case *iavl.ExportNode:
+	case *ExportNode:
 		mti.AddNode(item)
 		return nil
 	case string:
@@ -63,7 +61,7 @@ func (mti *MultiTreeImporter) AddTree(name string) error {
 	return nil
 }
 
-func (mti *MultiTreeImporter) AddNode(node *iavl.ExportNode) {
+func (mti *MultiTreeImporter) AddNode(node *ExportNode) {
 	mti.importer.Add(node)
 }
 
@@ -97,12 +95,12 @@ func (mti *MultiTreeImporter) Close() error {
 
 // TreeImporter import a single memiavl tree from state-sync snapshot
 type TreeImporter struct {
-	nodesChan chan *iavl.ExportNode
+	nodesChan chan *ExportNode
 	quitChan  chan error
 }
 
 func NewTreeImporter(dir string, version int64) *TreeImporter {
-	nodesChan := make(chan *iavl.ExportNode)
+	nodesChan := make(chan *ExportNode)
 	quitChan := make(chan error)
 	go func() {
 		defer close(quitChan)
@@ -111,7 +109,7 @@ func NewTreeImporter(dir string, version int64) *TreeImporter {
 	return &TreeImporter{nodesChan, quitChan}
 }
 
-func (ai *TreeImporter) Add(node *iavl.ExportNode) {
+func (ai *TreeImporter) Add(node *ExportNode) {
 	ai.nodesChan <- node
 }
 
@@ -127,8 +125,8 @@ func (ai *TreeImporter) Close() error {
 	return err
 }
 
-// doImport a stream of `iavl.ExportNode`s into a new snapshot.
-func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode) (returnErr error) {
+// doImport a stream of `ExportNode`s into a new snapshot.
+func doImport(dir string, version int64, nodes <-chan *ExportNode) (returnErr error) {
 	if version > int64(math.MaxUint32) {
 		return errors.New("version overflows uint32")
 	}
@@ -164,7 +162,7 @@ type importer struct {
 	nodeStack []*MemNode
 }
 
-func (i *importer) Add(n *iavl.ExportNode) error {
+func (i *importer) Add(n *ExportNode) error {
 	if n.Version > int64(math.MaxUint32) {
 		return errors.New("version overflows uint32")
 	}
