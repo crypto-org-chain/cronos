@@ -750,16 +750,6 @@ func (db *DB) TreeByName(name string) *Tree {
 	return db.MultiTree.TreeByName(name)
 }
 
-/*
-// Hash wraps MultiTree.Hash to add a lock.
-func (db *DB) Hash() []byte {
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
-
-	return db.MultiTree.Hash()
-}
-*/
-
 // Version wraps MultiTree.Version to add a lock.
 func (db *DB) Version() int64 {
 	db.mtx.Lock()

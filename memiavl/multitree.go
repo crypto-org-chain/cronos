@@ -173,12 +173,6 @@ func (t *MultiTree) Copy(cacheSize int) *MultiTree {
 	return &clone
 }
 
-/*
-func (t *MultiTree) Hash() []byte {
-	return t.lastCommitInfo.Hash()
-}
-*/
-
 func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
 }
