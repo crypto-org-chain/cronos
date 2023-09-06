@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
-	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tidwall/wal"
 )
 

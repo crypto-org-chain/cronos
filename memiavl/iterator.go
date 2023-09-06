@@ -3,7 +3,7 @@ package memiavl
 import (
 	"bytes"
 
-	dbm "github.com/tendermint/tm-db"
+	dbm "github.com/cometbft/cometbft-db"
 )
 
 type Iterator struct {

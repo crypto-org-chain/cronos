@@ -43,9 +43,8 @@ cronos_777-1:
           enable_auto_deployment: true
           ibc_cro_denom: ${IBC_CRO_DENOM}
       gov:
-        voting_params:
+        params:
           voting_period: "10s"
-        deposit_params:
           max_deposit_period: "10s"
           min_deposit:
             - denom: "basetcro"

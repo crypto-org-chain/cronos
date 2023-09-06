@@ -527,7 +527,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				data = input
 			},
 			func() {},
-			errors.New("0aphoton is smaller than 10000000000000aphoton: insufficient funds"),
+			errors.New("spendable balance  is smaller than 10000000000000aphoton: insufficient funds"),
 		},
 		{
 			"success send cro to ibc",

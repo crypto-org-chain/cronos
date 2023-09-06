@@ -1,13 +1,10 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
@@ -22,18 +19,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-
-	icagenesistypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/genesis/types"
-	icatypes "github.com/cosmos/ibc-go/v6/modules/apps/27-interchain-accounts/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v6/modules/apps/29-fee/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/genesis/types"
+	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // GetTxCmd returns the transaction commands for this module
@@ -53,9 +46,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdUpdateTokenMapping())
 	cmd.AddCommand(CmdTurnBridge())
 	cmd.AddCommand(CmdUpdatePermissions())
-	cmd.AddCommand(EventQueryTxFor())
 	cmd.AddCommand(MigrateGenesisCmd())
-
 	return cmd
 }
 
@@ -157,7 +148,7 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 				return err
 			}
 
-			title, err := cmd.Flags().GetString(govcli.FlagTitle) //nolint:staticcheck
+			title, err := cmd.Flags().GetString(govcli.FlagTitle)
 			if err != nil {
 				return err
 			}
@@ -216,7 +207,7 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
-	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")             //nolint:staticcheck
+	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")
 	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description") //nolint:staticcheck
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
@@ -325,60 +316,6 @@ func CmdUpdatePermissions() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	return cmd
-}
-
-// EventQueryTxFor returns a CLI command that subscribes to a WebSocket connection and waits for a transaction event with the given hash.
-func EventQueryTxFor() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "event-query-tx-for [hash]",
-		Short: "event-query-tx-for [hash]",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-			c, err := rpchttp.New(clientCtx.NodeURI, "/websocket")
-			if err != nil {
-				return err
-			}
-			if err := c.Start(); err != nil {
-				return err
-			}
-			defer c.Stop()
-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
-			defer cancel()
-
-			hash := args[0]
-			query := fmt.Sprintf("%s='%s' AND %s='%s'", tmtypes.EventTypeKey, tmtypes.EventTx, tmtypes.TxHashKey, hash)
-			const subscriber = "subscriber"
-			eventCh, err := c.Subscribe(ctx, subscriber, query)
-			if err != nil {
-				return fmt.Errorf("failed to subscribe to tx: %w", err)
-			}
-			defer c.UnsubscribeAll(context.Background(), subscriber)
-
-			select {
-			case evt := <-eventCh:
-				if txe, ok := evt.Data.(tmtypes.EventDataTx); ok {
-					res := &coretypes.ResultBroadcastTxCommit{
-						DeliverTx: txe.Result,
-						Hash:      tmtypes.Tx(txe.Tx).Hash(),
-						Height:    txe.Height,
-					}
-					return clientCtx.PrintProto(sdk.NewResponseFormatBroadcastTxCommit(res))
-				}
-			case <-ctx.Done():
-				return errors.New("timed out waiting for event")
-			}
-			return nil
-		},
-	}
-
-	flags.AddTxFlagsToCmd(cmd)
-
 	return cmd
 }
 

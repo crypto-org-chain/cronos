@@ -12,5 +12,5 @@ let
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v2.0.0-testnet3"; path = current; }
+  { name = "sdk47-upgrade"; path = current; }
 ]

@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/alitto/pond"
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/iavl"
 	"github.com/golang/snappy"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"

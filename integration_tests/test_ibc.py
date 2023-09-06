@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import json
 
@@ -115,7 +114,7 @@ def test_ibc_incentivized_transfer(ibc):
         "100000000basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
+    rsp = src_chain.event_query_tx_for(rsp["txhash"])
     evt = parse_events(rsp["logs"])["send_packet"]
     print("packet event", evt)
     packet_seq = int(evt["packet_sequence"])
@@ -130,7 +129,7 @@ def test_ibc_incentivized_transfer(ibc):
         from_=sender,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
+    rsp = src_chain.event_query_tx_for(rsp["txhash"])
     # fee is locked
     assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 30
 
@@ -449,8 +448,8 @@ def test_ica(ibc, tmp_path):
     assert rsp["code"] == 0, rsp["raw_log"]
     port_id, channel_id = next(
         (
-            base64.b64decode(evt["attributes"][0]["value"].encode()).decode(),
-            base64.b64decode(evt["attributes"][1]["value"].encode()).decode(),
+            evt["attributes"][0]["value"],
+            evt["attributes"][1]["value"],
         )
         for evt in rsp["events"]
         if evt["type"] == "channel_open_init"
@@ -513,7 +512,7 @@ def test_ica(ibc, tmp_path):
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     packet_seq = next(
-        int(base64.b64decode(evt["attributes"][4]["value"].encode()))
+        int(evt["attributes"][4]["value"])
         for evt in rsp["events"]
         if evt["type"] == "send_packet"
     )

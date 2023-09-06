@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"cosmossdk.io/errors"
+	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/cosmos/iavl"
-	protoio "github.com/gogo/protobuf/io"
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"

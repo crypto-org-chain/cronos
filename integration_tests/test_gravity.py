@@ -239,6 +239,8 @@ def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
             }
         ],
         "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
     }
     proposal.write_text(json.dumps(proposal_src))
     return cli.submit_gov_proposal(proposal, from_="community")

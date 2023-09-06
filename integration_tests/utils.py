@@ -122,12 +122,16 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp, event_query_tx=False):
+def approve_proposal(n, rsp, event_query_tx=True):
     cli = n.cosmos_cli()
     if event_query_tx:
         rsp = cli.event_query_tx_for(rsp["txhash"])
     # get proposal_id
-    ev = parse_events(rsp["logs"])["submit_proposal"]
+
+    def cb(attrs):
+        return "proposal_id" in attrs
+
+    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
         rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
@@ -206,15 +210,31 @@ def parse_events(logs):
     }
 
 
+def find_log_event_attrs(logs, ev_type, cond=None):
+    for ev in logs[0]["events"]:
+        if ev["type"] == ev_type:
+            attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
+            if cond is None or cond(attrs):
+                return attrs
+    return None
+
+
+def decode_base64(raw):
+    try:
+        return base64.b64decode(raw.encode()).decode()
+    except Exception:
+        return raw
+
+
 def parse_events_rpc(events):
     result = defaultdict(dict)
     for ev in events:
         for attr in ev["attributes"]:
             if attr["key"] is None:
                 continue
-            key = base64.b64decode(attr["key"].encode()).decode()
+            key = decode_base64(attr["key"])
             if attr["value"] is not None:
-                value = base64.b64decode(attr["value"].encode()).decode()
+                value = decode_base64(attr["value"])
             else:
                 value = None
             result[ev["type"]][key] = value
@@ -615,7 +635,7 @@ def setup_token_mapping(cronos, name, symbol):
     return contract, denom
 
 
-def submit_any_proposal(cronos, tmp_path, event_query_tx=False):
+def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
     # governance module account as granter
     cli = cronos.cosmos_cli()
     granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
@@ -636,6 +656,8 @@ def submit_any_proposal(cronos, tmp_path, event_query_tx=False):
             }
         ],
         "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
     }
     proposal_file = tmp_path / "proposal.json"
     proposal_file.write_text(json.dumps(proposal_json))

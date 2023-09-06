@@ -106,7 +106,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v2.0.0-testnet3"
+    plan_name = "sdk47-upgrade"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
@@ -119,7 +119,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(custom_cronos, rsp)
+    approve_proposal(custom_cronos, rsp, False)
 
     # update cli chain binary
     custom_cronos.chain_binary = (
@@ -184,9 +184,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         }
     }
 
-    # migrate to sdk v0.46
+    # migrate to sdk v0.47
     custom_cronos.supervisorctl("stop", "all")
-    sdk_version = "v0.46"
+    sdk_version = "v0.47"
     file_path1 = Path(migrate / f"{sdk_version}.json")
     with open(file_path1, "w") as fp:
         json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)

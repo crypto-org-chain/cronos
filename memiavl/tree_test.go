@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"testing"
 
+	db "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
-	db "github.com/tendermint/tm-db"
 )
 
 var (

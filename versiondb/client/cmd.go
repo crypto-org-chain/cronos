@@ -1,9 +1,9 @@
 package client
 
 import (
+	dbm "github.com/cometbft/cometbft-db"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // Options defines the customizable settings of ChangeSetGroupCmd

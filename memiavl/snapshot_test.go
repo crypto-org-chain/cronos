@@ -4,9 +4,9 @@ import (
 	"io"
 	"testing"
 
+	protoio "github.com/cosmos/gogoproto/io"
+	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/iavl"
-	protoio "github.com/gogo/protobuf/io"
-	proto "github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,7 +79,7 @@ func TestSnapshotExport(t *testing.T) {
 	exporter := snapshot.Export()
 	for {
 		node, err := exporter.Next()
-		if err == iavl.ExportDone {
+		if err == iavl.ErrorExportDone {
 			break
 		}
 		require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestSnapshotImportExport(t *testing.T) {
 		exporter := snapshot.Export()
 		for {
 			node, err := exporter.Next()
-			if err == iavl.ExportDone {
+			if err == iavl.ErrorExportDone {
 				break
 			}
 			require.NoError(t, err)

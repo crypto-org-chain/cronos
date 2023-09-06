@@ -6,6 +6,9 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/cometbft/cometbft/libs/log"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	rpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -19,9 +22,6 @@ import (
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
-	"github.com/tendermint/tendermint/libs/log"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 )
 
 const (

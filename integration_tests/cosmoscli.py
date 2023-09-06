@@ -537,7 +537,7 @@ class CosmosCLI:
         return r.decode("utf-8")
 
     def broadcast_tx(self, tx_file, **kwargs):
-        kwargs.setdefault("broadcast_mode", "block")
+        kwargs.setdefault("broadcast_mode", "sync")
         kwargs.setdefault("output", "json")
         return json.loads(
             self.raw("tx", "broadcast", tx_file, node=self.node_rpc, **kwargs)
@@ -718,6 +718,7 @@ class CosmosCLI:
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
+        kwargs.setdefault("broadcast_mode", "block")
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(
@@ -1072,7 +1073,7 @@ class CosmosCLI:
 
     def send_to_ethereum(self, receiver, coins, fee, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gravity",
@@ -1085,6 +1086,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_contract_by_denom(self, denom: str):
         "query contract by denom"
@@ -1182,7 +1186,7 @@ class CosmosCLI:
 
     def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1198,6 +1202,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def build_evm_tx(self, raw_tx: str, **kwargs):
         return json.loads(
@@ -1241,7 +1248,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ica",
@@ -1252,6 +1259,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def ica_submit_tx(self, connid, tx, **kwargs):
         default_kwargs = {
@@ -1260,7 +1270,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ica",
@@ -1272,6 +1282,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def ica_query_account(self, connid, owner, **kwargs):
         default_kwargs = {
@@ -1452,7 +1465,7 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "vesting",
@@ -1464,6 +1477,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def register_counterparty_payee(
         self, port_id, channel_id, relayer, counterparty_payee, **kwargs
@@ -1599,7 +1615,7 @@ class CosmosCLI:
     def update_permissions(self, address, permissions, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1611,6 +1627,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
@@ -1649,12 +1668,12 @@ class CosmosCLI:
             **kwargs,
         ).decode()
 
-    def restore_versiondb(self, height, format=2):
+    def restore_versiondb(self, height, format=3):
         return self.raw(
             "changeset", "restore-versiondb", height, format, home=self.data_dir
         )
 
-    def dump_snapshot(self, height, tarball, format=2):
+    def dump_snapshot(self, height, tarball, format=3):
         return self.raw(
             "snapshots", "dump", height, format, home=self.data_dir, output=tarball
         ).decode()
@@ -1693,7 +1712,7 @@ class CosmosCLI:
             home=self.data_dir,
         ).decode()
 
-    def restore_snapshot(self, height, format=2):
+    def restore_snapshot(self, height, format=3):
         return self.raw(
             "snapshots",
             "restore",
@@ -1716,8 +1735,7 @@ class CosmosCLI:
     def event_query_tx_for(self, hash):
         return json.loads(
             self.raw(
-                "tx",
-                "cronos",
+                "query",
                 "event-query-tx-for",
                 hash,
                 "-y",

@@ -32,6 +32,20 @@ config {
             base_fee:: super.base_fee,
           },
         },
+        gov: {
+          voting_params: {
+            voting_period: '10s',
+          },
+          deposit_params: {
+            max_deposit_period: '10s',
+            min_deposit: [
+              {
+                denom: 'basetcro',
+                amount: '1',
+              },
+            ],
+          },
+        },
       },
     },
   },

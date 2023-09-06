@@ -7,12 +7,16 @@ import (
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	dbm "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/libs/log"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	tmtypes "github.com/cometbft/cometbft/types"
+	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -20,11 +24,6 @@ import (
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions
@@ -47,16 +46,8 @@ func BenchmarkERC20Transfer(b *testing.B) {
 func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	txsPerBlock := 1000
 	gasPrice := big.NewInt(100000000000)
-
-	var appOpts servertypes.AppOptions = EmptyAppOptions{}
-	if db == nil {
-		appOpts = AppOptionsMap(map[string]interface{}{
-			memiavlstore.FlagMemIAVL: true,
-		})
-	}
-
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, b.TempDir(), 0, encodingConfig, appOpts)
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{}, baseapp.SetChainID(TestAppChainID))
 	defer app.Close()
 
 	priv, err := ethsecp256k1.GenerateKey()

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/simapp"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -12,12 +12,9 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
-// StateFn returns the initial application state using a genesis or the simulation parameters.
-// It panics if the user provides files for both of them.
-// If a file is not given for the genesis or the sim params, it creates a randomized one.
 func StateFn(cdc codec.JSONCodec, simManager *module.SimulationManager) simtypes.AppStateFn {
 	var bondDenom string
-	return simapp.AppStateFnWithExtendedCbs(
+	return simtestutil.AppStateFnWithExtendedCbs(
 		cdc,
 		simManager,
 		NewDefaultGenesisState(cdc),

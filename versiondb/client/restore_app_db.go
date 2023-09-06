@@ -13,8 +13,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
-	"github.com/cosmos/iavl"
-	gogotypes "github.com/gogo/protobuf/types"
+	gogotypes "github.com/cosmos/gogoproto/types"
+	"github.com/cosmos/iavl/keyformat"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
@@ -41,8 +41,8 @@ const (
 )
 
 var (
-	nodeKeyFormat = iavl.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
-	rootKeyFormat = iavl.NewKeyFormat('r', int64Size)        // r<version>
+	nodeKeyFormat = keyformat.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
+	rootKeyFormat = keyformat.NewKeyFormat('r', int64Size)        // r<version>
 )
 
 func RestoreAppDBCmd(opts Options) *cobra.Command {
@@ -172,7 +172,7 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	cmd.Flags().Uint64(flagSorterChunkSize, DefaultSorterChunkSizeIAVL, "uncompressed chunk size for external sorter, it decides the peak ram usage, on disk it'll be snappy compressed")
 	cmd.Flags().Int(flagConcurrency, runtime.NumCPU(), "Number concurrent goroutines to parallelize the work")
-	cmd.Flags().Bool(flagSDK64Compact, true, "Should the app hash calculation be compatible with cosmos-sdk v0.46 and earlier")
+	cmd.Flags().Bool(flagSDK64Compact, false, "Should the app hash calculation be compatible with cosmos-sdk v0.46 and earlier")
 
 	return cmd
 }
