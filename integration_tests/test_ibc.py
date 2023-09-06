@@ -1,4 +1,6 @@
+import base64
 import hashlib
+import json
 
 import pytest
 
@@ -433,3 +435,95 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
 def ibc_denom(channel, denom):
     h = hashlib.sha256(f"transfer/{channel}/{denom}".encode()).hexdigest().upper()
     return f"ibc/{h}"
+
+
+def test_ica(ibc, tmp_path):
+    connid = "connection-0"
+    cli_host = ibc.chainmain.cosmos_cli()
+    cli_controller = ibc.cronos.cosmos_cli()
+
+    print("register ica account")
+    rsp = cli_controller.ica_register_account(
+        connid, from_="signer2", gas="400000", fees="100000000basetcro"
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    port_id, channel_id = next(
+        (
+            base64.b64decode(evt["attributes"][0]["value"].encode()).decode(),
+            base64.b64decode(evt["attributes"][1]["value"].encode()).decode(),
+        )
+        for evt in rsp["events"]
+        if evt["type"] == "channel_open_init"
+    )
+    print("port-id", port_id, "channel-id", channel_id)
+
+    print("wait for ica channel ready")
+
+    def check_channel_ready():
+        channels = cli_controller.ibc_query_channels(connid)["channels"]
+        try:
+            state = next(
+                channel["state"]
+                for channel in channels
+                if channel["channel_id"] == channel_id
+            )
+        except StopIteration:
+            return False
+        return state == "STATE_OPEN"
+
+    wait_for_fn("channel ready", check_channel_ready)
+
+    print("query ica account")
+    ica_address = cli_controller.ica_query_account(
+        connid, cli_controller.address("signer2")
+    )["interchain_account_address"]
+    print("ica address", ica_address)
+
+    # initial balance of interchain account should be zero
+    assert cli_host.balance(ica_address) == 0
+
+    # send some funds to interchain account
+    rsp = cli_host.transfer("signer2", ica_address, "1cro", gas_prices="1000000basecro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli_host, 1)
+
+    # check if the funds are received in interchain account
+    assert cli_host.balance(ica_address, denom="basecro") == 100000000
+
+    # generate a transaction to send to host chain
+    generated_tx = tmp_path / "generated_tx.txt"
+    generated_tx_msg = {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": ica_address,
+        "to_address": cli_host.address("signer2"),
+        "amount": [{"denom": "basecro", "amount": "50000000"}],
+    }
+    str = json.dumps(generated_tx_msg)
+    generated_packet = cli_controller.ica_generate_packet_data(str)
+    print(generated_packet)
+    generated_tx.write_text(json.dumps(generated_packet))
+
+    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+
+    # submit transaction on host chain on behalf of interchain account
+    rsp = cli_controller.ica_submit_tx(
+        connid,
+        generated_tx,
+        from_="signer2",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    packet_seq = next(
+        int(base64.b64decode(evt["attributes"][4]["value"].encode()))
+        for evt in rsp["events"]
+        if evt["type"] == "send_packet"
+    )
+    print("packet sequence", packet_seq)
+
+    def check_ica_tx():
+        return len(cli_host.query_all_txs(ica_address)["txs"]) > num_txs
+
+    print("wait for ica tx arrive")
+    wait_for_fn("ica transfer tx", check_ica_tx)
+
+    # check if the funds are reduced in interchain account
+    assert cli_host.balance(ica_address, denom="basecro") == 50000000

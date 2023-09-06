@@ -20,11 +20,16 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	ica "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts"
+	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
+	icahosttypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	clientkeeper "github.com/cosmos/ibc-go/v7/modules/core/02-client/keeper"
 	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	ibctmmigrations "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint/migrations"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
@@ -54,6 +59,10 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			keyTable = crisistypes.ParamKeyTable() //nolint:staticcheck
 		case ibctransfertypes.ModuleName:
 			keyTable = ibctransfertypes.ParamKeyTable()
+		case icacontrollertypes.SubModuleName:
+			keyTable = icacontrollertypes.ParamKeyTable()
+		case icaauthtypes.ModuleName:
+			keyTable = icaauthtypes.ParamKeyTable()
 		case evmtypes.ModuleName:
 			keyTable = evmtypes.ParamKeyTable() //nolint:staticcheck
 		case feemarkettypes.ModuleName:
@@ -83,8 +92,20 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 
 		// Migrate Tendermint consensus parameters from x/params module to a dedicated x/consensus module.
 		baseapp.MigrateParams(ctx, baseAppLegacySS, &app.ConsensusParamsKeeper)
-		c := app.GetConsensusParams(ctx)
-		ctx = ctx.WithConsensusParams(c)
+		if icaModule, ok := app.mm.Modules[icatypes.ModuleName].(ica.AppModule); ok {
+			// set the ICS27 consensus version so InitGenesis is not run
+			version := icaModule.ConsensusVersion()
+			fromVM[icatypes.ModuleName] = version
+
+			// create ICS27 Controller submodule params
+			controllerParams := icacontrollertypes.Params{
+				ControllerEnabled: true,
+			}
+
+			// initialize ICS27 module
+			icaModule.InitModule(ctx, controllerParams, icahosttypes.Params{})
+		}
+
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
@@ -108,6 +129,8 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 					consensusparamtypes.StoreKey,
 					crisistypes.StoreKey,
 					gravitytypes.StoreKey,
+					icacontrollertypes.StoreKey,
+					icaauthtypes.StoreKey,
 				},
 			}
 			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))

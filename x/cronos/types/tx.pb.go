@@ -517,7 +517,8 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
-// MsgUpdatePermissions defines the request type for updating cronos permissions.
+// MsgUpdatePermissions defines the request type for updating cronos
+// permissions.
 type MsgUpdatePermissions struct {
 	From        string `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
 	Address     string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`

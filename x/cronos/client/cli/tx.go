@@ -19,8 +19,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/genesis/types"
+	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
@@ -345,6 +348,14 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) genutiltype
 	// Add gravity with default genesis.
 	if appState[gravitytypes.ModuleName] == nil {
 		appState[gravitytypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(gravitytypes.DefaultGenesisState())
+	}
+	// Add interchainaccounts with default genesis.
+	if appState[icatypes.ModuleName] == nil {
+		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
+	}
+	// Add icaauth with default genesis.
+	if appState[icaauthtypes.ModuleName] == nil {
+		appState[icaauthtypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icaauthtypes.DefaultGenesis())
 	}
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)
