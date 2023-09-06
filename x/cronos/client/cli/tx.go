@@ -148,7 +148,7 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 				return err
 			}
 
-			title, err := cmd.Flags().GetString(govcli.FlagTitle) //nolint:staticcheck
+			title, err := cmd.Flags().GetString(govcli.FlagTitle)
 			if err != nil {
 				return err
 			}
@@ -207,7 +207,7 @@ $ %s tx gov submit-legacy-proposal token-mapping-change gravity0x0000...0000 0x0
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
-	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")             //nolint:staticcheck
+	cmd.Flags().String(govcli.FlagTitle, "", "The proposal title")
 	cmd.Flags().String(govcli.FlagDescription, "", "The proposal description") //nolint:staticcheck
 	cmd.Flags().String(govcli.FlagDeposit, "", "The proposal deposit")
 	cmd.Flags().String(FlagSymbol, "", "The coin symbol")
