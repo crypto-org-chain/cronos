@@ -1,5 +1,7 @@
 package memiavl
 
+import fmt "fmt"
+
 // Logger is what any CometBFT library should take.
 type Logger interface {
 	Debug(msg string, keyvals ...interface{})
@@ -25,4 +27,8 @@ type ExportNode struct {
 	Value   []byte
 	Version int64
 	Height  int8
+}
+
+func (cid CommitID) String() string {
+	return fmt.Sprintf("CommitID{%v:%X}", cid.Hash, cid.Version)
 }
