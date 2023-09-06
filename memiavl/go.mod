@@ -7,7 +7,6 @@ require (
 	github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
-	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.4
@@ -27,6 +26,7 @@ require (
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
