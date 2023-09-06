@@ -1,6 +1,7 @@
 package app
 
 import (
+	stderrors "errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -143,6 +144,7 @@ import (
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
+	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -1132,4 +1134,15 @@ func VerifyAddressFormat(bz []byte) error {
 	}
 
 	return nil
+}
+
+// Close will be called in graceful shutdown in start cmd
+func (app *App) Close() error {
+	err := app.BaseApp.Close()
+
+	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
+		return stderrors.Join(err, cms.Close())
+	}
+
+	return err
 }
