@@ -9,7 +9,7 @@ require (
 	github.com/cometbft/cometbft-db v0.7.0
 	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/cosmos/gogoproto v1.4.10
-	github.com/cosmos/iavl v0.20.0
+	github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
 	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/golang/snappy v0.0.4
 	github.com/linxGnu/grocksdb v1.8.0
