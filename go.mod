@@ -225,11 +225,10 @@ require (
 replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-	github.com/ChainSafe/go-schnorrkel => github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d
 	// the version used by cockroach v22.2.7 release
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230206180212-744ea7cc8f90
 	// use cometbft
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2
+	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2-0.20230905115601-790d57e1748f
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b
 	github.com/cosmos/iavl => github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
@@ -239,7 +238,7 @@ replace (
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20230905050427-52b23109e7a8
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20230906013646-05e6989e1891
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

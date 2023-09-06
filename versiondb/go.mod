@@ -28,7 +28,7 @@ require (
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
-	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
+	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -157,7 +157,7 @@ require (
 
 replace (
 	// use cometbft
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2
+	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2-0.20230905115601-790d57e1748f
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b
 	github.com/cosmos/iavl => github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
