@@ -184,9 +184,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         }
     }
 
-    # migrate to sdk v0.46
+    # migrate to sdk v0.47
     custom_cronos.supervisorctl("stop", "all")
-    sdk_version = "v0.46"
+    sdk_version = "v0.47"
     file_path1 = Path(migrate / f"{sdk_version}.json")
     with open(file_path1, "w") as fp:
         json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
