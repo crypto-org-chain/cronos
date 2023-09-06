@@ -39309,7 +39309,13 @@ paths:
                       type: string
                     description: >-
                       allowed_clients defines the list of allowed client state
-                      types.
+                      types which can be created
+
+                      and interacted with. If a client type is removed from the
+                      allowed clients list, usage
+
+                      of this client will be disabled until it is added again to
+                      the list.
             description: >-
               QueryClientParamsResponse is the response type for the
               Query/ClientParams RPC
@@ -43309,6 +43315,65 @@ paths:
           description: >-
             hash (in hex format) or denom (full denom with ibc prefix) of the
             denomination trace information.
+          in: path
+          required: true
+          type: string
+      tags:
+        - Query
+  /ibc/apps/transfer/v1/denoms/{denom}/total_escrow:
+    get:
+      summary: >-
+        TotalEscrowForDenom returns the total amount of tokens in escrow based
+        on the denom.
+      operationId: TotalEscrowForDenom
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              amount:
+                type: object
+                properties:
+                  denom:
+                    type: string
+                  amount:
+                    type: string
+                description: >-
+                  Coin defines a token with a denomination and an amount.
+
+
+                  NOTE: The amount field is an Int which implements the custom
+                  method
+
+                  signatures required by gogoproto.
+            description: >-
+              QueryTotalEscrowForDenomResponse is the response type for
+              TotalEscrowForDenom RPC method.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      parameters:
+        - name: denom
           in: path
           required: true
           type: string
@@ -68314,7 +68379,14 @@ definitions:
         type: array
         items:
           type: string
-        description: allowed_clients defines the list of allowed client state types.
+        description: >-
+          allowed_clients defines the list of allowed client state types which
+          can be created
+
+          and interacted with. If a client type is removed from the allowed
+          clients list, usage
+
+          of this client will be disabled until it is added again to the list.
     description: Params defines the set of IBC light client parameters.
   ibc.core.client.v1.QueryClientParamsResponse:
     type: object
@@ -68327,7 +68399,15 @@ definitions:
             type: array
             items:
               type: string
-            description: allowed_clients defines the list of allowed client state types.
+            description: >-
+              allowed_clients defines the list of allowed client state types
+              which can be created
+
+              and interacted with. If a client type is removed from the allowed
+              clients list, usage
+
+              of this client will be disabled until it is added again to the
+              list.
     description: >-
       QueryClientParamsResponse is the response type for the Query/ClientParams
       RPC
@@ -70464,3 +70544,21 @@ definitions:
 
               chain.
     description: QueryParamsResponse is the response type for the Query/Params RPC method.
+  ibc.applications.transfer.v1.QueryTotalEscrowForDenomResponse:
+    type: object
+    properties:
+      amount:
+        type: object
+        properties:
+          denom:
+            type: string
+          amount:
+            type: string
+        description: |-
+          Coin defines a token with a denomination and an amount.
+
+          NOTE: The amount field is an Int which implements the custom method
+          signatures required by gogoproto.
+    description: >-
+      QueryTotalEscrowForDenomResponse is the response type for
+      TotalEscrowForDenom RPC method.
