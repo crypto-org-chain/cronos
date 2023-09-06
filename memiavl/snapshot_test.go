@@ -1,11 +1,8 @@
 package memiavl
 
 import (
-	"io"
 	"testing"
 
-	protoio "github.com/cosmos/gogoproto/io"
-	proto "github.com/cosmos/gogoproto/proto"
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +76,7 @@ func TestSnapshotExport(t *testing.T) {
 	exporter := snapshot.Export()
 	for {
 		node, err := exporter.Next()
-		if err == iavl.ErrorExportDone {
+		if err == ErrorExportDone {
 			break
 		}
 		require.NoError(t, err)
@@ -111,7 +108,7 @@ func TestSnapshotImportExport(t *testing.T) {
 		exporter := snapshot.Export()
 		for {
 			node, err := exporter.Next()
-			if err == iavl.ErrorExportDone {
+			if err == ErrorExportDone {
 				break
 			}
 			require.NoError(t, err)
@@ -136,10 +133,9 @@ func TestSnapshotImportExport(t *testing.T) {
 
 func TestDBSnapshotRestore(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing:                 true,
-		InitialStores:                   []string{"test"},
-		AsyncCommitBuffer:               -1,
-		SupportExportNonSnapshotVersion: true,
+		CreateIfMissing:   true,
+		InitialStores:     []string{"test"},
+		AsyncCommitBuffer: -1,
 	})
 	require.NoError(t, err)
 
@@ -151,7 +147,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 			},
 		}
 		require.NoError(t, db.ApplyChangeSets(cs))
-		_, _, err := db.Commit()
+		_, err := db.Commit()
 		require.NoError(t, err)
 
 		testSnapshotRoundTrip(t, db)
@@ -164,54 +160,31 @@ func TestDBSnapshotRestore(t *testing.T) {
 }
 
 func testSnapshotRoundTrip(t *testing.T, db *DB) {
-	reader, writer := makeProtoIOPair()
-	go func() {
-		defer writer.Close()
-		require.NoError(t, db.Snapshot(uint64(db.Version()), writer))
-	}()
+	exporter, err := NewMultiTreeExporter(db.dir, uint32(db.Version()), true)
+	require.NoError(t, err)
 
 	restoreDir := t.TempDir()
-	_, err := Import(restoreDir, uint64(db.Version()), 0, reader)
+	importer, err := NewMultiTreeImporter(restoreDir, uint64(db.Version()))
 	require.NoError(t, err)
+
+	for {
+		item, err := exporter.Next()
+		if err == ErrorExportDone {
+			break
+		}
+		require.NoError(t, err)
+		require.NoError(t, importer.Add(item))
+	}
+
+	require.NoError(t, exporter.Close())
+	require.NoError(t, importer.Finalize())
+	require.NoError(t, importer.Close())
 
 	db2, err := Load(restoreDir, Options{})
 	require.NoError(t, err)
 	require.Equal(t, db.LastCommitInfo(), db2.LastCommitInfo())
-	require.Equal(t, db.Hash(), db2.Hash())
 
 	// the imported db function normally
-	_, _, err = db2.Commit()
+	_, err = db2.Commit()
 	require.NoError(t, err)
-}
-
-type protoReader struct {
-	ch chan proto.Message
-}
-
-func (r *protoReader) ReadMsg(msg proto.Message) error {
-	m, ok := <-r.ch
-	if !ok {
-		return io.EOF
-	}
-	proto.Merge(msg, m)
-	return nil
-}
-
-type protoWriter struct {
-	ch chan proto.Message
-}
-
-func (w *protoWriter) WriteMsg(msg proto.Message) error {
-	w.ch <- msg
-	return nil
-}
-
-func (w *protoWriter) Close() error {
-	close(w.ch)
-	return nil
-}
-
-func makeProtoIOPair() (protoio.Reader, protoio.WriteCloser) {
-	ch := make(chan proto.Message)
-	return &protoReader{ch}, &protoWriter{ch}
 }

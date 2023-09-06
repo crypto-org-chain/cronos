@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 
-	dbm "github.com/cometbft/cometbft-db"
 	"github.com/cosmos/iavl"
 	"github.com/cosmos/iavl/cache"
 )
@@ -209,7 +208,7 @@ func (t *Tree) Has(key []byte) bool {
 	return t.Get(key) != nil
 }
 
-func (t *Tree) Iterator(start, end []byte, ascending bool) dbm.Iterator {
+func (t *Tree) Iterator(start, end []byte, ascending bool) *Iterator {
 	return NewIterator(start, end, ascending, t.root, t.zeroCopy)
 }
 

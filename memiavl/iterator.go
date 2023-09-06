@@ -1,10 +1,6 @@
 package memiavl
 
-import (
-	"bytes"
-
-	dbm "github.com/cometbft/cometbft-db"
-)
+import "bytes"
 
 type Iterator struct {
 	// domain of iteration, end is exclusive
@@ -20,9 +16,7 @@ type Iterator struct {
 	stack []Node
 }
 
-var _ dbm.Iterator = (*Iterator)(nil)
-
-func NewIterator(start, end []byte, ascending bool, root Node, zeroCopy bool) dbm.Iterator {
+func NewIterator(start, end []byte, ascending bool, root Node, zeroCopy bool) *Iterator {
 	iter := &Iterator{
 		start:     start,
 		end:       end,

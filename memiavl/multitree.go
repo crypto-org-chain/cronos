@@ -2,16 +2,13 @@ package memiavl
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"sort"
 
-	"cosmossdk.io/errors"
-
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
@@ -50,7 +47,7 @@ type MultiTree struct {
 
 	trees          []NamedTree    // always ordered by tree name
 	treesByName    map[string]int // index of the trees by name
-	lastCommitInfo storetypes.CommitInfo
+	lastCommitInfo CommitInfo
 
 	// the initial metadata loaded from disk snapshot
 	metadata MultiTreeMetadata
@@ -176,9 +173,11 @@ func (t *MultiTree) Copy(cacheSize int) *MultiTree {
 	return &clone
 }
 
+/*
 func (t *MultiTree) Hash() []byte {
 	return t.lastCommitInfo.Hash()
 }
+*/
 
 func (t *MultiTree) Version() int64 {
 	return t.lastCommitInfo.Version
@@ -188,7 +187,7 @@ func (t *MultiTree) SnapshotVersion() int64 {
 	return t.metadata.CommitInfo.Version
 }
 
-func (t *MultiTree) LastCommitInfo() *storetypes.CommitInfo {
+func (t *MultiTree) LastCommitInfo() *CommitInfo {
 	return &t.lastCommitInfo
 }
 
@@ -270,48 +269,43 @@ func (t *MultiTree) ApplyChangeSets(changeSets []*NamedChangeSet) error {
 }
 
 // WorkingCommitInfo returns the commit info for the working tree
-func (t *MultiTree) WorkingCommitInfo() *storetypes.CommitInfo {
+func (t *MultiTree) WorkingCommitInfo() *CommitInfo {
 	version := nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 	return t.buildCommitInfo(version)
 }
 
-func (t *MultiTree) WorkingHash() []byte {
-	return t.WorkingCommitInfo().Hash()
-}
-
 // SaveVersion bumps the versions of all the stores and optionally returns the new app hash
-func (t *MultiTree) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
+func (t *MultiTree) SaveVersion(updateCommitInfo bool) (int64, error) {
 	t.lastCommitInfo.Version = nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 	for _, entry := range t.trees {
 		if _, _, err := entry.Tree.SaveVersion(updateCommitInfo); err != nil {
-			return nil, 0, err
+			return 0, err
 		}
 	}
 
-	var hash []byte
 	if updateCommitInfo {
-		hash = t.UpdateCommitInfo()
+		t.UpdateCommitInfo()
 	} else {
 		// clear the dirty informaton
-		t.lastCommitInfo.StoreInfos = []storetypes.StoreInfo{}
+		t.lastCommitInfo.StoreInfos = []StoreInfo{}
 	}
 
-	return hash, t.lastCommitInfo.Version, nil
+	return t.lastCommitInfo.Version, nil
 }
 
-func (t *MultiTree) buildCommitInfo(version int64) *storetypes.CommitInfo {
-	var infos []storetypes.StoreInfo
+func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
+	var infos []StoreInfo
 	for _, entry := range t.trees {
-		infos = append(infos, storetypes.StoreInfo{
+		infos = append(infos, StoreInfo{
 			Name: entry.Name,
-			CommitId: storetypes.CommitID{
+			CommitId: CommitID{
 				Version: entry.Tree.Version(),
 				Hash:    entry.Tree.RootHash(),
 			},
 		})
 	}
 
-	return &storetypes.CommitInfo{
+	return &CommitInfo{
 		Version:    version,
 		StoreInfos: infos,
 	}
@@ -319,16 +313,15 @@ func (t *MultiTree) buildCommitInfo(version int64) *storetypes.CommitInfo {
 
 // UpdateCommitInfo update lastCommitInfo based on current status of trees.
 // it's needed if `updateCommitInfo` is set to `false` in `ApplyChangeSet`.
-func (t *MultiTree) UpdateCommitInfo() []byte {
+func (t *MultiTree) UpdateCommitInfo() {
 	t.lastCommitInfo = *t.buildCommitInfo(t.lastCommitInfo.Version)
-	return t.lastCommitInfo.Hash()
 }
 
 // CatchupWAL replay the new entries in the WAL on the tree to catch-up to the target or latest version.
 func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	lastIndex, err := wal.LastIndex()
 	if err != nil {
-		return errors.Wrap(err, "read wal last index failed")
+		return fmt.Errorf("read wal last index failed, %w", err)
 	}
 
 	firstIndex := walIndex(nextVersion(t.Version(), t.initialVersion), t.initialVersion)
@@ -353,17 +346,17 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	for i := firstIndex; i <= endIndex; i++ {
 		bz, err := wal.Read(i)
 		if err != nil {
-			return errors.Wrap(err, "read wal log failed")
+			return fmt.Errorf("read wal log failed, %w", err)
 		}
 		var entry WALEntry
 		if err := entry.Unmarshal(bz); err != nil {
-			return errors.Wrap(err, "unmarshal wal log failed")
+			return fmt.Errorf("unmarshal wal log failed, %w", err)
 		}
 		if err := t.applyWALEntry(entry); err != nil {
-			return errors.Wrap(err, "replay wal entry failed")
+			return fmt.Errorf("replay wal entry failed, %w", err)
 		}
-		if _, _, err := t.SaveVersion(false); err != nil {
-			return errors.Wrap(err, "replay change set failed")
+		if _, err := t.SaveVersion(false); err != nil {
+			return fmt.Errorf("replay change set failed, %w", err)
 		}
 	}
 	t.UpdateCommitInfo()
@@ -422,8 +415,8 @@ func (t *MultiTree) Close() error {
 	}
 	t.trees = nil
 	t.treesByName = nil
-	t.lastCommitInfo = storetypes.CommitInfo{}
-	return stderrors.Join(errs...)
+	t.lastCommitInfo = CommitInfo{}
+	return errors.Join(errs...)
 }
 
 func nextVersion(v int64, initialVersion uint32) int64 {

@@ -2,95 +2,102 @@ package memiavl
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"math"
 	"path/filepath"
 
-	"cosmossdk.io/errors"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/cosmos/iavl"
 )
+
+// ErrorExportDone is returned by Exporter.Next() when all items have been exported.
+var ErrorExportDone = errors.New("export is complete")
 
 // exportBufferSize is the number of nodes to buffer in the exporter. It improves throughput by
 // processing multiple nodes per context switch, but take care to avoid excessive memory usage,
 // especially since callers may export several IAVL stores in parallel (e.g. the Cosmos SDK).
 const exportBufferSize = 32
 
-func (db *DB) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr error) {
-	if height > math.MaxUint32 {
-		return fmt.Errorf("height overflows uint32: %d", height)
-	}
-	version := uint32(height)
+type MultiTreeExporter struct {
+	// only one of them is non-nil
+	db    *DB
+	mtree *MultiTree
 
-	var mtree *MultiTree
-	if db.supportExportNonSnapshotVersion {
-		db, err := Load(db.dir, Options{
+	iTree    int
+	exporter *Exporter
+}
+
+func NewMultiTreeExporter(dir string, version uint32, supportExportNonSnapshotVersion bool) (exporter *MultiTreeExporter, err error) {
+	var (
+		db    *DB
+		mtree *MultiTree
+	)
+	if supportExportNonSnapshotVersion {
+		db, err = Load(dir, Options{
 			TargetVersion: version,
 			ZeroCopy:      true,
 			ReadOnly:      true,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "invalid height: %d", height)
+			return nil, fmt.Errorf("invalid height: %d, %w", version, err)
 		}
-		defer func() {
-			if err := db.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
-
-		mtree = &db.MultiTree
 	} else {
-		curVersion, err := currentVersion(db.dir)
+		curVersion, err := currentVersion(dir)
 		if err != nil {
-			return fmt.Errorf("failed to load current version: %w", err)
+			return nil, fmt.Errorf("failed to load current version: %w", err)
 		}
 		if int64(version) > curVersion {
-			return fmt.Errorf("snapshot is not created yet: height: %d", version)
+			return nil, fmt.Errorf("snapshot is not created yet: height: %d", version)
 		}
-		mtree, err = LoadMultiTree(filepath.Join(db.dir, snapshotName(int64(version))), true, 0)
+		mtree, err = LoadMultiTree(filepath.Join(dir, snapshotName(int64(version))), true, 0)
 		if err != nil {
-			return errors.Wrapf(err, "snapshot don't exists: height: %d", version)
+			return nil, fmt.Errorf("snapshot don't exists: height: %d, %w", version, err)
 		}
-		defer func() {
-			if err := mtree.Close(); returnErr == nil {
-				returnErr = err
-			}
-		}()
 	}
 
-	for _, tree := range mtree.trees {
-		if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
-			Item: &snapshottypes.SnapshotItem_Store{
-				Store: &snapshottypes.SnapshotStoreItem{
-					Name: tree.Name,
-				},
-			},
-		}); err != nil {
-			return err
-		}
+	return &MultiTreeExporter{
+		db:    db,
+		mtree: mtree,
+	}, nil
+}
 
-		exporter := tree.Tree.Export()
-		for {
-			node, err := exporter.Next()
-			if err == iavl.ErrorExportDone {
-				break
-			} else if err != nil {
-				return err
-			}
-			if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
-				Item: &snapshottypes.SnapshotItem_IAVL{
-					IAVL: &snapshottypes.SnapshotIAVLItem{
-						Key:     node.Key,
-						Value:   node.Value,
-						Height:  int32(node.Height),
-						Version: node.Version,
-					},
-				},
-			}); err != nil {
-				return err
-			}
+func (mte *MultiTreeExporter) trees() []NamedTree {
+	if mte.db != nil {
+		return mte.db.trees
+	}
+	return mte.mtree.trees
+}
+
+func (mte *MultiTreeExporter) Next() (interface{}, error) {
+	if mte.exporter != nil {
+		node, err := mte.exporter.Next()
+		if err != nil {
+			return nil, err
 		}
+		return node, nil
+	}
+
+	trees := mte.trees()
+	if mte.iTree >= len(trees) {
+		return nil, ErrorExportDone
+	}
+
+	tree := trees[mte.iTree]
+	mte.exporter = tree.Export()
+	mte.iTree++
+	return tree.Name, nil
+}
+
+func (mte *MultiTreeExporter) Close() error {
+	if mte.exporter != nil {
+		mte.exporter.Close()
+		mte.exporter = nil
+	}
+
+	if mte.db != nil {
+		return mte.db.Close()
+	}
+	if mte.mtree != nil {
+		return mte.mtree.Close()
 	}
 
 	return nil
@@ -124,7 +131,7 @@ func (e *Exporter) Next() (*iavl.ExportNode, error) {
 	if exportNode, ok := <-e.ch; ok {
 		return exportNode, nil
 	}
-	return nil, iavl.ErrorExportDone
+	return nil, ErrorExportDone
 }
 
 // Close closes the exporter. It is safe to call multiple times.

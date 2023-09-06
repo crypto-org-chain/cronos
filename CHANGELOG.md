@@ -73,6 +73,7 @@
 - [#940](https://github.com/crypto-org-chain/cronos/pull/940) Update rocksdb dependency to 8.1.1.
 - [#1149](https://github.com/crypto-org-chain/cronos/pull/1149) memiavl support `WorkingHash` api required by `FinalizeBlock`.
 - [#1151](https://github.com/crypto-org-chain/cronos/pull/1151) memiavl `CacheMultiStoreWithVersion` supports `io.Closer`.
+- [#]() Remove dependency on cosmos-sdk.
 
 *April 13, 2023*
 

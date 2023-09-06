@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cometbft/cometbft/libs/log"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 )
@@ -43,7 +41,7 @@ var errReadOnly = errors.New("db is read-only")
 type DB struct {
 	MultiTree
 	dir      string
-	logger   log.Logger
+	logger   Logger
 	fileLock FileLock
 	readOnly bool
 
@@ -54,10 +52,8 @@ type DB struct {
 	// block interval to take a new snapshot
 	snapshotInterval uint32
 	// make sure only one snapshot rewrite is running
-	pruneSnapshotLock sync.Mutex
-	// it's more efficient to export snapshot versions, so we only support that by default
-	supportExportNonSnapshotVersion bool
-	triggerStateSyncExport          func(height int64)
+	pruneSnapshotLock      sync.Mutex
+	triggerStateSyncExport func(height int64)
 
 	// invariant: the LastIndex always match the current version of MultiTree
 	wal         *wal.Log
@@ -79,17 +75,15 @@ type DB struct {
 }
 
 type Options struct {
-	Logger          log.Logger
+	Logger          Logger
 	CreateIfMissing bool
 	InitialVersion  uint32
 	ReadOnly        bool
 	// the initial stores when initialize the empty instance
-	InitialStores      []string
-	SnapshotKeepRecent uint32
-	SnapshotInterval   uint32
-	// it's more efficient to export snapshot versions, we can filter out the non-snapshot versions
-	SupportExportNonSnapshotVersion bool
-	TriggerStateSyncExport          func(height int64)
+	InitialStores          []string
+	SnapshotKeepRecent     uint32
+	SnapshotInterval       uint32
+	TriggerStateSyncExport func(height int64)
 	// load the target version instead of latest version
 	TargetVersion uint32
 	// Buffer size for the asynchronous commit queue, -1 means synchronous commit,
@@ -119,7 +113,7 @@ func (opts Options) Validate() error {
 
 func (opts *Options) FillDefaults() {
 	if opts.Logger == nil {
-		opts.Logger = log.NewNopLogger()
+		opts.Logger = NewNopLogger()
 	}
 
 	if opts.SnapshotInterval == 0 {
@@ -225,17 +219,16 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	db := &DB{
-		MultiTree:                       *mtree,
-		logger:                          opts.Logger,
-		dir:                             dir,
-		fileLock:                        fileLock,
-		readOnly:                        opts.ReadOnly,
-		wal:                             wal,
-		walChanSize:                     opts.AsyncCommitBuffer,
-		snapshotKeepRecent:              opts.SnapshotKeepRecent,
-		snapshotInterval:                opts.SnapshotInterval,
-		supportExportNonSnapshotVersion: opts.SupportExportNonSnapshotVersion,
-		triggerStateSyncExport:          opts.TriggerStateSyncExport,
+		MultiTree:              *mtree,
+		logger:                 opts.Logger,
+		dir:                    dir,
+		fileLock:               fileLock,
+		readOnly:               opts.ReadOnly,
+		wal:                    wal,
+		walChanSize:            opts.AsyncCommitBuffer,
+		snapshotKeepRecent:     opts.SnapshotKeepRecent,
+		snapshotInterval:       opts.SnapshotInterval,
+		triggerStateSyncExport: opts.TriggerStateSyncExport,
 	}
 
 	if !db.readOnly && db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -501,17 +494,17 @@ func (db *DB) pruneSnapshots() {
 }
 
 // Commit wraps SaveVersion to bump the version and writes the pending changes into log files to persist on disk
-func (db *DB) Commit() ([]byte, int64, error) {
+func (db *DB) Commit() (int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	if db.readOnly {
-		return nil, 0, errReadOnly
+		return 0, errReadOnly
 	}
 
-	hash, v, err := db.MultiTree.SaveVersion(true)
+	v, err := db.MultiTree.SaveVersion(true)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	// write logs if enabled
@@ -527,10 +520,10 @@ func (db *DB) Commit() ([]byte, int64, error) {
 		} else {
 			bz, err := entry.data.Marshal()
 			if err != nil {
-				return nil, 0, err
+				return 0, err
 			}
 			if err := db.wal.Write(entry.index, bz); err != nil {
-				return nil, 0, err
+				return 0, err
 			}
 		}
 	}
@@ -538,11 +531,11 @@ func (db *DB) Commit() ([]byte, int64, error) {
 	db.pendingLog = WALEntry{}
 
 	if err := db.checkAsyncTasks(); err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	db.rewriteIfApplicable(v)
 
-	return hash, v, nil
+	return v, nil
 }
 
 func (db *DB) initAsyncCommit() {
@@ -757,6 +750,7 @@ func (db *DB) TreeByName(name string) *Tree {
 	return db.MultiTree.TreeByName(name)
 }
 
+/*
 // Hash wraps MultiTree.Hash to add a lock.
 func (db *DB) Hash() []byte {
 	db.mtx.Lock()
@@ -764,6 +758,7 @@ func (db *DB) Hash() []byte {
 
 	return db.MultiTree.Hash()
 }
+*/
 
 // Version wraps MultiTree.Version to add a lock.
 func (db *DB) Version() int64 {
@@ -774,40 +769,33 @@ func (db *DB) Version() int64 {
 }
 
 // LastCommitInfo returns the last commit info.
-func (db *DB) LastCommitInfo() *storetypes.CommitInfo {
+func (db *DB) LastCommitInfo() *CommitInfo {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	return db.MultiTree.LastCommitInfo()
 }
 
-func (db *DB) SaveVersion(updateCommitInfo bool) ([]byte, int64, error) {
+func (db *DB) SaveVersion(updateCommitInfo bool) (int64, error) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	if db.readOnly {
-		return nil, 0, errReadOnly
+		return 0, errReadOnly
 	}
 
 	return db.MultiTree.SaveVersion(updateCommitInfo)
 }
 
-func (db *DB) WorkingCommitInfo() *storetypes.CommitInfo {
+func (db *DB) WorkingCommitInfo() *CommitInfo {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
 	return db.MultiTree.WorkingCommitInfo()
 }
 
-func (db *DB) WorkingHash() []byte {
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
-
-	return db.MultiTree.WorkingHash()
-}
-
 // UpdateCommitInfo wraps MultiTree.UpdateCommitInfo to add a lock.
-func (db *DB) UpdateCommitInfo() []byte {
+func (db *DB) UpdateCommitInfo() {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -815,7 +803,7 @@ func (db *DB) UpdateCommitInfo() []byte {
 		panic("can't update commit info in read-only mode")
 	}
 
-	return db.MultiTree.UpdateCommitInfo()
+	db.MultiTree.UpdateCommitInfo()
 }
 
 // WriteSnapshot wraps MultiTree.WriteSnapshot to add a lock.
