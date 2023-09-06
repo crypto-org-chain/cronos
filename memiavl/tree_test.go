@@ -154,7 +154,8 @@ func TestRootHashes(t *testing.T) {
 	tree := New(0)
 
 	for i, changes := range ChangeSets {
-		hash, v, err := tree.ApplyChangeSet(changes, true)
+		tree.ApplyChangeSet(changes)
+		hash, v, err := tree.SaveVersion(true)
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
@@ -167,7 +168,7 @@ func TestNewKey(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		tree.set([]byte(fmt.Sprintf("key-%d", i)), []byte{1})
 	}
-	_, _, err := tree.saveVersion(true)
+	_, _, err := tree.SaveVersion(true)
 	require.NoError(t, err)
 
 	// the smallest key in the right half of the tree
@@ -188,16 +189,18 @@ func TestEmptyTree(t *testing.T) {
 func TestTreeCopy(t *testing.T) {
 	tree := New(0)
 
-	_, _, err := tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
+	tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world")},
-	}}, true)
+	}})
+	_, _, err := tree.SaveVersion(true)
 	require.NoError(t, err)
 
 	snapshot := tree.Copy(0)
 
-	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
+	tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world1")},
-	}}, true)
+	}})
+	_, _, err = tree.SaveVersion(true)
 	require.NoError(t, err)
 
 	require.Equal(t, []byte("world1"), tree.Get([]byte("hello")))
@@ -206,9 +209,10 @@ func TestTreeCopy(t *testing.T) {
 	// check that normal copy don't work
 	fakeSnapshot := *tree
 
-	_, _, err = tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
+	tree.ApplyChangeSet(iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Value: []byte("world2")},
-	}}, true)
+	}})
+	_, _, err = tree.SaveVersion(true)
 	require.NoError(t, err)
 
 	// get modified in-place
@@ -234,7 +238,8 @@ func TestGetByIndex(t *testing.T) {
 	}
 
 	tree := New(0)
-	_, _, err := tree.ApplyChangeSet(changes, true)
+	tree.ApplyChangeSet(changes)
+	_, _, err := tree.SaveVersion(true)
 	require.NoError(t, err)
 
 	for i, pair := range changes.Pairs {

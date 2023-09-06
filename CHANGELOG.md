@@ -37,6 +37,7 @@
 - [#1123](https://github.com/crypto-org-chain/cronos/pull/1123) Fix memiavl snapshot switching
 - [#1125](https://github.com/crypto-org-chain/cronos/pull/1125) Fix genesis migrate for feeibc, evm, feemarket and gravity.
 - [#1130](https://github.com/crypto-org-chain/cronos/pull/1130) Fix lock issues when state-sync with memiavl.
+- [#1150](https://github.com/crypto-org-chain/cronos/pull/1150) Fix memiavl's unsafe retain of the root hashes.
 
 ### Features
 
@@ -69,6 +70,8 @@
 - [#1092](https://github.com/crypto-org-chain/cronos/pull/1092) memiavl disable sdk address cache if zero-copy enabled, and disable zero-copy by default.
 - [#1099](https://github.com/crypto-org-chain/cronos/pull/1099) clean up memiavl tmp directories left behind.
 - [#940](https://github.com/crypto-org-chain/cronos/pull/940) Update rocksdb dependency to 8.1.1.
+- [#1149](https://github.com/crypto-org-chain/cronos/pull/1149) memiavl support `WorkingHash` api required by `FinalizeBlock`.
+- [#1151](https://github.com/crypto-org-chain/cronos/pull/1151) memiavl `CacheMultiStoreWithVersion` supports `io.Closer`.
 
 *April 13, 2023*
 

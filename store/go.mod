@@ -10,7 +10,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/iavl v0.20.0
-	github.com/crypto-org-chain/cronos/memiavl v0.0.3
+	github.com/crypto-org-chain/cronos/memiavl v0.0.4
 	github.com/spf13/cast v1.5.0
 	github.com/stretchr/testify v1.8.4
 )

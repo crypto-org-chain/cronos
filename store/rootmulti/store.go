@@ -14,7 +14,6 @@ import (
 	protoio "github.com/cosmos/gogoproto/io"
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/mem"
 	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
@@ -24,6 +23,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/crypto-org-chain/cronos/store/cachemulti"
 	"github.com/crypto-org-chain/cronos/store/memiavlstore"
 )
 
@@ -66,25 +66,56 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool) *Store {
 	}
 }
 
-// Implements interface Committer
-func (rs *Store) Commit() types.CommitID {
+// flush writes all the pending change sets to memiavl tree.
+func (rs *Store) flush() error {
 	var changeSets []*memiavl.NamedChangeSet
 	for key := range rs.stores {
 		// it'll unwrap the inter-block cache
 		store := rs.GetCommitKVStore(key)
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
-			changeSets = append(changeSets, &memiavl.NamedChangeSet{
-				Name:      key.Name(),
-				Changeset: memiavlStore.PopChangeSet(),
-			})
-		} else {
-			_ = store.Commit()
+			cs := memiavlStore.PopChangeSet()
+			if len(cs.Pairs) > 0 {
+				changeSets = append(changeSets, &memiavl.NamedChangeSet{
+					Name:      key.Name(),
+					Changeset: cs,
+				})
+			}
 		}
 	}
 	sort.SliceStable(changeSets, func(i, j int) bool {
 		return changeSets[i].Name < changeSets[j].Name
 	})
-	_, _, err := rs.db.Commit(changeSets)
+
+	return rs.db.ApplyChangeSets(changeSets)
+}
+
+// WorkingHash returns the app hash of the working tree,
+//
+// Implements interface Committer.
+func (rs *Store) WorkingHash() []byte {
+	if err := rs.flush(); err != nil {
+		panic(err)
+	}
+	commitInfo := rs.db.WorkingCommitInfo()
+	if rs.sdk46Compact {
+		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
+	}
+	return commitInfo.Hash()
+}
+
+// Implements interface Committer
+func (rs *Store) Commit() types.CommitID {
+	if err := rs.flush(); err != nil {
+		panic(err)
+	}
+
+	for _, store := range rs.stores {
+		if store.GetStoreType() != types.StoreTypeIAVL {
+			_ = store.Commit()
+		}
+	}
+
+	_, _, err := rs.db.Commit()
 	if err != nil {
 		panic(err)
 	}
@@ -160,7 +191,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 		}
 		stores[k] = store
 	}
-	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil)
+	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil, nil)
 }
 
 // Implements interface MultiStore
@@ -191,7 +222,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 		stores[rs.keysByName[tree.Name]] = memiavlstore.New(tree.Tree, rs.logger)
 	}
 
-	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil), nil
+	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil, db), nil
 }
 
 // Implements interface MultiStore

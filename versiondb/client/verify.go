@@ -218,7 +218,8 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 				}
 
 				// no need to update hashes for intermediate versions.
-				_, v, err := tree.ApplyChangeSet(*changeSet, false)
+				tree.ApplyChangeSet(*changeSet)
+				_, v, err := tree.SaveVersion(false)
 				if err != nil {
 					return false, err
 				}

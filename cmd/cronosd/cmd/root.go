@@ -15,7 +15,6 @@ import (
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	"github.com/cometbft/cometbft/libs/log"
-	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -284,7 +283,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 
 // appExport creates a new simapp (optionally at a given height)
 func (a appCreator) appExport(
-	logger tmlog.Logger,
+	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
 	height int64,

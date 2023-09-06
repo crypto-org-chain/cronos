@@ -70,6 +70,10 @@ func (node *MemNode) Mutate(version, cowVersion uint32) *MemNode {
 	return n
 }
 
+func (node *MemNode) SafeHash() []byte {
+	return node.Hash()
+}
+
 // Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *MemNode) Hash() []byte {
