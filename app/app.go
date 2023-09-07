@@ -218,8 +218,6 @@ var (
 	allowedReceivingModAcc = map[string]bool{}
 )
 
-var _ servertypes.Application = (*App)(nil)
-
 func init() {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
