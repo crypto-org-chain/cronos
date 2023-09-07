@@ -74,7 +74,7 @@ func (mti *MultiTreeImporter) Finalize() error {
 	}
 
 	tmpDir := mti.tmpDir()
-	if err := updateMetadataFile(tmpDir, int64(mti.height)); err != nil {
+	if err := updateMetadataFile(tmpDir, mti.height); err != nil {
 		return err
 	}
 
