@@ -23,7 +23,6 @@ jobs:
   member:
     name: Check whether it is triggered by team members with issue_comment or push or pull_request
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     permissions:
       pull-requests: write
     if: >-
@@ -154,6 +153,7 @@ jobs:
 
   test-sim-nondeterminism:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
       - uses: actions/setup-go@v3
@@ -209,6 +209,7 @@ jobs:
 
   test-sim-import-export:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
       - uses: actions/setup-go@v3
@@ -264,6 +265,7 @@ jobs:
 
   test-sim-after-import:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
       - uses: actions/setup-go@v3
@@ -319,6 +321,7 @@ jobs:
 
   test-sim-multi-seed-short:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
       - uses: actions/setup-go@v3
