@@ -218,8 +218,8 @@ schema = 3
     version = "v1.10.26"
     hash = "sha256-gkMEwJ4rOgn12amD4QpZ4th/10uyTTeoFmpseuKDQPs="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20230906013646-05e6989e1891"
-    hash = "sha256-a4TC0H+0VwmyZa+gcI7osc3De12DhPIey5u2RPPUavk="
+    version = "v0.6.1-0.20230907031841-3eb35238cb95"
+    hash = "sha256-Y98oAuDhU2OcfL8ZdsSrZO4NynZXWajdTjDlX1zkHfs="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"

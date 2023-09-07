@@ -3,7 +3,7 @@ import time
 
 def test_create_account(cronos):
     """
-    test create vesting account tx works:
+    test create vesting account is disabled:
     """
     cli = cronos.cosmos_cli()
     src = "vesting"
@@ -17,6 +17,4 @@ def test_create_account(cronos):
     end_time = int(time.time()) + 3000
     fees = f"{fee}{denom}"
     res = cli.create_vesting_account(addr, amt, end_time, from_="validator", fees=fees)
-    assert res["code"] == 0, res["raw_log"]
-    balance = cli.balance(addr, denom)
-    assert balance == amount
+    assert res["code"] == 18, res["raw_log"]
