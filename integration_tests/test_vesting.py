@@ -3,7 +3,7 @@ import time
 
 def test_create_account(cronos):
     """
-    test create vesting account tx works:
+    test create vesting account is disabled:
     """
     cli = cronos.cosmos_cli()
     src = "vesting"
