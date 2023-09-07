@@ -7,7 +7,6 @@ import (
 
 	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	protoio "github.com/cosmos/gogoproto/io"
-	"github.com/cosmos/iavl"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 )
@@ -39,7 +38,7 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr 
 		}
 
 		switch item := item.(type) {
-		case *iavl.ExportNode:
+		case *memiavl.ExportNode:
 			if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
 				Item: &snapshottypes.SnapshotItem_IAVL{
 					IAVL: &snapshottypes.SnapshotIAVLItem{
