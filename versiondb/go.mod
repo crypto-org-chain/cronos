@@ -6,7 +6,7 @@ require (
 	cosmossdk.io/errors v1.0.0
 	github.com/alitto/pond v1.8.2
 	github.com/cometbft/cometbft v0.37.2
-	github.com/cometbft/cometbft-db v0.7.0
+	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
