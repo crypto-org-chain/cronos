@@ -24,6 +24,17 @@ func (rs *Store) Restore(
 		rs.db = nil
 	}
 
+	item, err := rs.restore(height, format, protoReader)
+	if err != nil {
+		return snapshottypes.SnapshotItem{}, err
+	}
+
+	return item, rs.LoadLatestVersion()
+}
+
+func (rs *Store) restore(
+	height uint64, format uint32, protoReader protoio.Reader,
+) (snapshottypes.SnapshotItem, error) {
 	importer, err := memiavl.NewMultiTreeImporter(rs.dir, height)
 	if err != nil {
 		return snapshottypes.SnapshotItem{}, err
@@ -76,5 +87,5 @@ loop:
 		return snapshottypes.SnapshotItem{}, err
 	}
 
-	return snapshotItem, rs.LoadLatestVersion()
+	return snapshotItem, nil
 }
