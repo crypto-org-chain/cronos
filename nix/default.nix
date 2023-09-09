@@ -61,6 +61,19 @@ import sources.nixpkgs {
         doCheck = false;
       };
     })
+    (_: pkgs: {
+      rly = pkgs.buildGo120Module rec {
+        name = "rly";
+        src = sources.relayer;
+        subPackages = [ "." ];
+        vendorSha256 = "sha256-7K4FlHaQqKybMeAsG8aWOj0qSFYjVxmDZw7FSgR25LY=";
+        doCheck = false;
+        GOWORK = "off";
+        postInstall = ''
+          mv $out/bin/relayer $out/bin/rly
+        '';
+      };
+    })
   ];
   config = { };
   inherit system;

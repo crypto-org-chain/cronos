@@ -20,6 +20,7 @@
 - [cronos#1069](https://github.com/crypto-org-chain/cronos/pull/1069) Update ethermint to develop, go-ethereum to `v1.10.26` and ibc-go to `v6.2.0`.
 - [cronos#1147](https://github.com/crypto-org-chain/cronos/pull/1147) integrate ica module.
 - (deps) [#1121](https://github.com/crypto-org-chain/cronos/pull/1121) Bump Cosmos-SDK to v0.47.5 and ibc-go to v7.2.0.
+- [cronos#1014](https://github.com/crypto-org-chain/cronos/pull/1014) Support stateful precompiled contract for relayer.
 
 ### Bug Fixes
 

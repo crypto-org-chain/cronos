@@ -6,7 +6,7 @@ from pathlib import Path
 
 import tomlkit
 import web3
-from pystarport import ports
+from pystarport import cluster, ports
 from web3.middleware import geth_poa_middleware
 
 from .cosmoscli import CosmosCLI
@@ -149,7 +149,13 @@ class GravityBridge:
 
 
 def setup_custom_cronos(
-    path, base_port, config, post_init=None, chain_binary=None, wait_port=True
+    path,
+    base_port,
+    config,
+    post_init=None,
+    chain_binary=None,
+    wait_port=True,
+    relayer=cluster.Relayer.HERMES.value,
 ):
     cmd = [
         "pystarport",
@@ -162,6 +168,8 @@ def setup_custom_cronos(
         str(base_port),
         "--no_remove",
     ]
+    if relayer == cluster.Relayer.RLY.value:
+        cmd = cmd + ["--relayer", str(relayer)]
     if chain_binary is not None:
         cmd = cmd[:1] + ["--cmd", chain_binary] + cmd[1:]
     print(*cmd)
