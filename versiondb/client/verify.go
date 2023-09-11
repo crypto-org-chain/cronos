@@ -124,7 +124,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			if len(saveSnapshot) > 0 {
 				// write multitree metadata
 				metadata := memiavl.MultiTreeMetadata{
-					CommitInfo: &commitInfo,
+					CommitInfo: convertCommitInfo(&commitInfo),
 				}
 				bz, err := metadata.Marshal()
 				if err != nil {
@@ -280,6 +280,23 @@ func buildCommitInfo(storeInfos []storetypes.StoreInfo, version int64) storetype
 
 	return storetypes.CommitInfo{
 		Version:    storeInfos[0].CommitId.Version,
+		StoreInfos: storeInfos,
+	}
+}
+
+func convertCommitInfo(commitInfo *storetypes.CommitInfo) *memiavl.CommitInfo {
+	storeInfos := make([]memiavl.StoreInfo, len(commitInfo.StoreInfos))
+	for i, storeInfo := range commitInfo.StoreInfos {
+		storeInfos[i] = memiavl.StoreInfo{
+			Name: storeInfo.Name,
+			CommitId: memiavl.CommitID{
+				Version: storeInfo.CommitId.Version,
+				Hash:    storeInfo.CommitId.Hash,
+			},
+		}
+	}
+	return &memiavl.CommitInfo{
+		Version:    commitInfo.Version,
 		StoreInfos: storeInfos,
 	}
 }

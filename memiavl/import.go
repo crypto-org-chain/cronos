@@ -1,122 +1,106 @@
 package memiavl
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
-
-	"cosmossdk.io/errors"
-	protoio "github.com/cosmos/gogoproto/io"
-	"github.com/cosmos/iavl"
-
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Import restore memiavl db from state-sync snapshot stream
-func Import(
-	dir string, height uint64, format uint32, protoReader protoio.Reader,
-) (item snapshottypes.SnapshotItem, err error) {
+type MultiTreeImporter struct {
+	dir         string
+	snapshotDir string
+	height      int64
+	importer    *TreeImporter
+	fileLock    FileLock
+}
+
+func NewMultiTreeImporter(dir string, height uint64) (*MultiTreeImporter, error) {
 	if height > math.MaxUint32 {
-		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
+		return nil, fmt.Errorf("version overflows uint32: %d", height)
 	}
-	snapshotDir := snapshotName(int64(height))
-	tmpDir := snapshotDir + "-tmp"
 
 	var fileLock FileLock
-	fileLock, err = LockFile(filepath.Join(dir, LockFileName))
+	fileLock, err := LockFile(filepath.Join(dir, LockFileName))
 	if err != nil {
-		return snapshottypes.SnapshotItem{}, fmt.Errorf("fail to lock db: %w", err)
+		return nil, fmt.Errorf("fail to lock db: %w", err)
 	}
-	defer func() {
-		err = stderrors.Join(err, fileLock.Unlock())
-	}()
 
-	// Import nodes into stores. The first item is expected to be a SnapshotItem containing
-	// a SnapshotStoreItem, telling us which store to import into. The following items will contain
-	// SnapshotNodeItem (i.e. ExportNode) until we reach the next SnapshotStoreItem or EOF.
-	var importer *TreeImporter
-	var snapshotItem snapshottypes.SnapshotItem
-loop:
-	for {
-		snapshotItem = snapshottypes.SnapshotItem{}
-		err := protoReader.ReadMsg(&snapshotItem)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return snapshottypes.SnapshotItem{}, errors.Wrap(err, "invalid protobuf message")
-		}
+	return &MultiTreeImporter{
+		dir:         dir,
+		height:      int64(height),
+		snapshotDir: snapshotName(int64(height)),
+		fileLock:    fileLock,
+	}, nil
+}
 
-		switch item := snapshotItem.Item.(type) {
-		case *snapshottypes.SnapshotItem_Store:
-			if importer != nil {
-				if err := importer.Close(); err != nil {
-					return snapshottypes.SnapshotItem{}, err
-				}
-			}
-			importer = NewTreeImporter(filepath.Join(dir, tmpDir, item.Store.Name), int64(height))
-			defer importer.Close()
-		case *snapshottypes.SnapshotItem_IAVL:
-			if importer == nil {
-				return snapshottypes.SnapshotItem{}, errors.Wrap(sdkerrors.ErrLogic, "received IAVL node item before store item")
-			}
-			if item.IAVL.Height > math.MaxInt8 {
-				return snapshottypes.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
-					item.IAVL.Height, math.MaxInt8)
-			}
-			node := &iavl.ExportNode{
-				Key:     item.IAVL.Key,
-				Value:   item.IAVL.Value,
-				Height:  int8(item.IAVL.Height),
-				Version: item.IAVL.Version,
-			}
-			// Protobuf does not differentiate between []byte{} as nil, but fortunately IAVL does
-			// not allow nil keys nor nil values for leaf nodes, so we can always set them to empty.
-			if node.Key == nil {
-				node.Key = []byte{}
-			}
-			if node.Height == 0 && node.Value == nil {
-				node.Value = []byte{}
-			}
-			importer.Add(node)
-		default:
-			break loop
+func (mti *MultiTreeImporter) tmpDir() string {
+	return filepath.Join(mti.dir, mti.snapshotDir+"-tmp")
+}
+
+func (mti *MultiTreeImporter) Add(item interface{}) error {
+	switch item := item.(type) {
+	case *ExportNode:
+		mti.AddNode(item)
+		return nil
+	case string:
+		return mti.AddTree(item)
+	default:
+		return fmt.Errorf("unknown item type: %T", item)
+	}
+}
+
+func (mti *MultiTreeImporter) AddTree(name string) error {
+	if mti.importer != nil {
+		if err := mti.importer.Close(); err != nil {
+			return err
 		}
 	}
+	mti.importer = NewTreeImporter(filepath.Join(mti.tmpDir(), name), mti.height)
+	return nil
+}
 
-	if importer != nil {
-		if err := importer.Close(); err != nil {
-			return snapshottypes.SnapshotItem{}, err
+func (mti *MultiTreeImporter) AddNode(node *ExportNode) {
+	mti.importer.Add(node)
+}
+
+func (mti *MultiTreeImporter) Finalize() error {
+	if mti.importer != nil {
+		if err := mti.importer.Close(); err != nil {
+			return err
 		}
+		mti.importer = nil
 	}
 
-	if err := updateMetadataFile(filepath.Join(dir, tmpDir), int64(height)); err != nil {
-		return snapshottypes.SnapshotItem{}, err
+	tmpDir := mti.tmpDir()
+	if err := updateMetadataFile(tmpDir, mti.height); err != nil {
+		return err
 	}
 
-	if err := os.Rename(filepath.Join(dir, tmpDir), filepath.Join(dir, snapshotDir)); err != nil {
-		return snapshottypes.SnapshotItem{}, err
+	if err := os.Rename(tmpDir, filepath.Join(mti.dir, mti.snapshotDir)); err != nil {
+		return err
 	}
 
-	if err := updateCurrentSymlink(dir, snapshotDir); err != nil {
-		return snapshottypes.SnapshotItem{}, err
-	}
+	return updateCurrentSymlink(mti.dir, mti.snapshotDir)
+}
 
-	return snapshotItem, nil
+func (mti *MultiTreeImporter) Close() error {
+	var err error
+	if mti.importer != nil {
+		err = mti.importer.Close()
+	}
+	return errors.Join(err, mti.fileLock.Unlock())
 }
 
 // TreeImporter import a single memiavl tree from state-sync snapshot
 type TreeImporter struct {
-	nodesChan chan *iavl.ExportNode
+	nodesChan chan *ExportNode
 	quitChan  chan error
 }
 
 func NewTreeImporter(dir string, version int64) *TreeImporter {
-	nodesChan := make(chan *iavl.ExportNode)
+	nodesChan := make(chan *ExportNode)
 	quitChan := make(chan error)
 	go func() {
 		defer close(quitChan)
@@ -125,7 +109,7 @@ func NewTreeImporter(dir string, version int64) *TreeImporter {
 	return &TreeImporter{nodesChan, quitChan}
 }
 
-func (ai *TreeImporter) Add(node *iavl.ExportNode) {
+func (ai *TreeImporter) Add(node *ExportNode) {
 	ai.nodesChan <- node
 }
 
@@ -141,10 +125,10 @@ func (ai *TreeImporter) Close() error {
 	return err
 }
 
-// doImport a stream of `iavl.ExportNode`s into a new snapshot.
-func doImport(dir string, version int64, nodes <-chan *iavl.ExportNode) (returnErr error) {
+// doImport a stream of `ExportNode`s into a new snapshot.
+func doImport(dir string, version int64, nodes <-chan *ExportNode) (returnErr error) {
 	if version > int64(math.MaxUint32) {
-		return stderrors.New("version overflows uint32")
+		return errors.New("version overflows uint32")
 	}
 
 	return writeSnapshot(dir, uint32(version), func(w *snapshotWriter) (uint32, error) {
@@ -178,9 +162,9 @@ type importer struct {
 	nodeStack []*MemNode
 }
 
-func (i *importer) Add(n *iavl.ExportNode) error {
+func (i *importer) Add(n *ExportNode) error {
 	if n.Version > int64(math.MaxUint32) {
-		return stderrors.New("version overflows uint32")
+		return errors.New("version overflows uint32")
 	}
 
 	if n.Height == 0 {
@@ -237,7 +221,7 @@ func updateMetadataFile(dir string, height int64) (returnErr error) {
 	if err != nil {
 		return err
 	}
-	storeInfos := make([]storetypes.StoreInfo, 0, len(entries))
+	storeInfos := make([]StoreInfo, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -252,16 +236,16 @@ func updateMetadataFile(dir string, height int64) (returnErr error) {
 				returnErr = err
 			}
 		}()
-		storeInfos = append(storeInfos, storetypes.StoreInfo{
+		storeInfos = append(storeInfos, StoreInfo{
 			Name: name,
-			CommitId: storetypes.CommitID{
+			CommitId: CommitID{
 				Version: height,
 				Hash:    snapshot.RootHash(),
 			},
 		})
 	}
 	metadata := MultiTreeMetadata{
-		CommitInfo: &storetypes.CommitInfo{
+		CommitInfo: &CommitInfo{
 			Version:    height,
 			StoreInfos: storeInfos,
 		},

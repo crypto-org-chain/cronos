@@ -11,9 +11,6 @@ import (
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/libs/log"
-	protoio "github.com/cosmos/gogoproto/io"
-
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/store/listenkv"
 	"github.com/cosmos/cosmos-sdk/store/mem"
 	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
@@ -51,13 +48,16 @@ type Store struct {
 
 	// sdk46Compact defines if the root hash is compatible with cosmos-sdk 0.46 and before.
 	sdk46Compact bool
+	// it's more efficient to export snapshot versions, we can filter out the non-snapshot versions
+	supportExportNonSnapshotVersion bool
 }
 
-func NewStore(dir string, logger log.Logger, sdk46Compact bool) *Store {
+func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNonSnapshotVersion bool) *Store {
 	return &Store{
-		dir:          dir,
-		logger:       logger,
-		sdk46Compact: sdk46Compact,
+		dir:                             dir,
+		logger:                          logger,
+		sdk46Compact:                    sdk46Compact,
+		supportExportNonSnapshotVersion: supportExportNonSnapshotVersion,
 
 		storesParams: make(map[types.StoreKey]storeParams),
 		keysByName:   make(map[string]types.StoreKey),
@@ -96,7 +96,7 @@ func (rs *Store) WorkingHash() []byte {
 	if err := rs.flush(); err != nil {
 		panic(err)
 	}
-	commitInfo := rs.db.WorkingCommitInfo()
+	commitInfo := convertCommitInfo(rs.db.WorkingCommitInfo())
 	if rs.sdk46Compact {
 		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
 	}
@@ -115,7 +115,7 @@ func (rs *Store) Commit() types.CommitID {
 		}
 	}
 
-	_, _, err := rs.db.Commit()
+	_, err := rs.db.Commit()
 	if err != nil {
 		panic(err)
 	}
@@ -131,7 +131,7 @@ func (rs *Store) Commit() types.CommitID {
 		}
 	}
 
-	rs.lastCommitInfo = rs.db.LastCommitInfo()
+	rs.lastCommitInfo = convertCommitInfo(rs.db.LastCommitInfo())
 	if rs.sdk46Compact {
 		rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
 	}
@@ -256,28 +256,6 @@ func (rs *Store) LatestVersion() int64 {
 }
 
 // Implements interface Snapshotter
-func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) error {
-	return rs.db.Snapshot(height, protoWriter)
-}
-
-// Implements interface Snapshotter
-func (rs *Store) Restore(height uint64, format uint32, protoReader protoio.Reader) (snapshottypes.SnapshotItem, error) {
-	if rs.db != nil {
-		if err := rs.db.Close(); err != nil {
-			return snapshottypes.SnapshotItem{}, fmt.Errorf("failed to close db: %w", err)
-		}
-		rs.db = nil
-	}
-
-	item, err := memiavl.Import(rs.dir, height, format, protoReader)
-	if err != nil {
-		return item, err
-	}
-
-	return item, rs.LoadLatestVersion()
-}
-
-// Implements interface Snapshotter
 // not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) PruneSnapshotHeight(height int64) {
 }
@@ -383,7 +361,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	rs.stores = newStores
 	// to keep the root hash compatible with cosmos-sdk 0.46
 	if db.Version() != 0 {
-		rs.lastCommitInfo = db.LastCommitInfo()
+		rs.lastCommitInfo = convertCommitInfo(db.LastCommitInfo())
 		if rs.sdk46Compact {
 			rs.lastCommitInfo = amendCommitInfo(rs.lastCommitInfo, rs.storesParams)
 		}
@@ -454,7 +432,7 @@ func (rs *Store) SetLazyLoading(lazyLoading bool) {
 
 func (rs *Store) SetMemIAVLOptions(opts memiavl.Options) {
 	if opts.Logger == nil {
-		opts.Logger = rs.logger.With("module", "memiavl")
+		opts.Logger = memiavl.Logger(rs.logger.With("module", "memiavl"))
 	}
 	rs.opts = opts
 }
@@ -556,7 +534,7 @@ func (rs *Store) Query(req abci.RequestQuery) abci.ResponseQuery {
 		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidRequest, "proof is unexpectedly empty; ensure height has not been pruned"), false)
 	}
 
-	commitInfo := db.LastCommitInfo()
+	commitInfo := convertCommitInfo(db.LastCommitInfo())
 	if rs.sdk46Compact {
 		commitInfo = amendCommitInfo(commitInfo, rs.storesParams)
 	}
@@ -623,4 +601,21 @@ func amendCommitInfo(commitInfo *types.CommitInfo, storeParams map[types.StoreKe
 		}
 	}
 	return mergeStoreInfos(commitInfo, extraStoreInfos)
+}
+
+func convertCommitInfo(commitInfo *memiavl.CommitInfo) *types.CommitInfo {
+	storeInfos := make([]types.StoreInfo, len(commitInfo.StoreInfos))
+	for i, storeInfo := range commitInfo.StoreInfos {
+		storeInfos[i] = types.StoreInfo{
+			Name: storeInfo.Name,
+			CommitId: types.CommitID{
+				Version: storeInfo.CommitId.Version,
+				Hash:    storeInfo.CommitId.Hash,
+			},
+		}
+	}
+	return &types.CommitInfo{
+		Version:    commitInfo.Version,
+		StoreInfos: storeInfos,
+	}
 }

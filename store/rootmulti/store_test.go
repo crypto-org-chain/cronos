@@ -9,6 +9,6 @@ import (
 )
 
 func TestLastCommitID(t *testing.T) {
-	store := NewStore(t.TempDir(), log.NewNopLogger(), false)
+	store := NewStore(t.TempDir(), log.NewNopLogger(), false, false)
 	require.Equal(t, types.CommitID{}, store.LastCommitID())
 }

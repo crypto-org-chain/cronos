@@ -5,7 +5,7 @@ option go_package = "github.com/crypto-org-chain/cronos/memiavl";
 
 import "gogoproto/gogo.proto";
 import "iavl/changeset.proto";
-import "cosmos/base/store/v1beta1/commit_info.proto";
+import "memiavl/commit_info.proto";
 
 
 // NamedChangeSet combine a tree name with the changeset
@@ -32,6 +32,6 @@ message WALEntry {
 
 // MultiTreeMetadata stores the metadata for MultiTree
 message MultiTreeMetadata {
-  cosmos.base.store.v1beta1.CommitInfo commit_info = 1;
+  CommitInfo commit_info = 1;
   int64 initial_version = 2;
 }
