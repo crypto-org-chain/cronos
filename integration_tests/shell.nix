@@ -13,6 +13,7 @@ pkgs.mkShell {
     pkgs.nodejs
     pkgs.git
     pkgs.dapp
+    pkgs.solc
     pkgs.solc-versions.solc_0_6_8
     pkgs.test-env
     pkgs.nixpkgs-fmt

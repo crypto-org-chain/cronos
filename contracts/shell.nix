@@ -4,6 +4,7 @@ pkgs.mkShell {
     pkgs.which
     pkgs.jq
     pkgs.dapp
+    pkgs.solc
     pkgs.solc-versions.solc_0_6_8
   ];
 }
