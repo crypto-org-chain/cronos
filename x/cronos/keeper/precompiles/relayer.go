@@ -19,7 +19,7 @@ import (
 )
 
 // TODO adjust the gas cost
-const RelayerContractRequiredGas = 1000000
+const RelayerContractRequiredGas = 10000
 
 var RelayerContractAddress = common.BytesToAddress([]byte{101})
 
