@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
-	"github.com/gogo/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
@@ -18,6 +17,11 @@ import (
 	chantypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 )
+
+// TODO adjust the gas cost
+const RelayerContractRequiredGas = 1000000
+
+var RelayerContractAddress = common.BytesToAddress([]byte{101})
 
 type RelayerContract struct {
 	BaseContract
@@ -28,22 +32,19 @@ type RelayerContract struct {
 
 func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) precompiles.StatefulPrecompiledContract {
 	return &RelayerContract{
-		BaseContract: NewBaseContract(
-			common.BytesToAddress([]byte{101}),
-		),
-		ibcKeeper: ibcKeeper,
-		cdc:       cdc,
+		BaseContract: NewBaseContract(RelayerContractAddress),
+		ibcKeeper:    ibcKeeper,
+		cdc:          cdc,
 	}
 }
 
 func (bc *RelayerContract) Address() common.Address {
-	return common.BytesToAddress([]byte{101})
+	return RelayerContractAddress
 }
 
 // RequiredGas calculates the contract gas use
 func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
-	// TODO estimate required gas
-	return 0
+	return RelayerContractRequiredGas
 }
 
 func (bc *RelayerContract) IsStateful() bool {
@@ -76,25 +77,19 @@ const (
 	prefixTimeoutOnClose
 )
 
-type MsgType interface {
-	proto.Message
-	*clienttypes.MsgCreateClient | *clienttypes.MsgUpdateClient | *clienttypes.MsgUpgradeClient | *clienttypes.MsgSubmitMisbehaviour |
-		*conntypes.MsgConnectionOpenInit | *conntypes.MsgConnectionOpenTry | *conntypes.MsgConnectionOpenAck | *conntypes.MsgConnectionOpenConfirm |
-		*chantypes.MsgChannelOpenInit | *chantypes.MsgChannelOpenTry | *chantypes.MsgChannelOpenAck | *chantypes.MsgChannelOpenConfirm | *chantypes.MsgRecvPacket | *chantypes.MsgAcknowledgement | *chantypes.MsgTimeout | *chantypes.MsgTimeoutOnClose
-}
-
-func unmarshalAndExec[T codec.ProtoMarshaler, U any](
+// exec is a generic funciton that executes the given action in statedb, and marshal/unmarshal the input/output
+func exec[Req codec.ProtoMarshaler, Resp codec.ProtoMarshaler](
 	bc *RelayerContract,
 	stateDB precompiles.ExtStateDB,
 	input []byte,
-	msg T,
-	action func(context.Context, T) (*U, error),
-) (*U, error) {
+	msg Req,
+	action func(context.Context, Req) (Resp, error),
+) ([]byte, error) {
 	if err := bc.cdc.Unmarshal(input, msg); err != nil {
 		return nil, fmt.Errorf("fail to Unmarshal %T", msg)
 	}
 
-	var res *U
+	var res Resp
 	if err := stateDB.ExecuteNativeAction(func(ctx sdk.Context) error {
 		var err error
 		res, err = action(ctx, msg)
@@ -103,7 +98,7 @@ func unmarshalAndExec[T codec.ProtoMarshaler, U any](
 		return nil, err
 	}
 
-	return res, nil
+	return bc.cdc.Marshal(res)
 }
 
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
@@ -117,46 +112,46 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	prefix := int(binary.LittleEndian.Uint32(contract.Input[:prefixSize4Bytes]))
 	input := contract.Input[prefixSize4Bytes:]
 	stateDB := evm.StateDB.(precompiles.ExtStateDB)
-	var err error
-	var res codec.ProtoMarshaler
+
+	var (
+		err error
+		res []byte
+	)
 	switch prefix {
 	case prefixCreateClient:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(clienttypes.MsgCreateClient), bc.ibcKeeper.CreateClient)
+		res, err = exec(bc, stateDB, input, new(clienttypes.MsgCreateClient), bc.ibcKeeper.CreateClient)
 	case prefixUpdateClient:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(clienttypes.MsgUpdateClient), bc.ibcKeeper.UpdateClient)
+		res, err = exec(bc, stateDB, input, new(clienttypes.MsgUpdateClient), bc.ibcKeeper.UpdateClient)
 	case prefixUpgradeClient:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(clienttypes.MsgUpgradeClient), bc.ibcKeeper.UpgradeClient)
+		res, err = exec(bc, stateDB, input, new(clienttypes.MsgUpgradeClient), bc.ibcKeeper.UpgradeClient)
 	case prefixSubmitMisbehaviour:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(clienttypes.MsgSubmitMisbehaviour), bc.ibcKeeper.SubmitMisbehaviour)
+		res, err = exec(bc, stateDB, input, new(clienttypes.MsgSubmitMisbehaviour), bc.ibcKeeper.SubmitMisbehaviour)
 	case prefixConnectionOpenInit:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(conntypes.MsgConnectionOpenInit), bc.ibcKeeper.ConnectionOpenInit)
+		res, err = exec(bc, stateDB, input, new(conntypes.MsgConnectionOpenInit), bc.ibcKeeper.ConnectionOpenInit)
 	case prefixConnectionOpenTry:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(conntypes.MsgConnectionOpenTry), bc.ibcKeeper.ConnectionOpenTry)
+		res, err = exec(bc, stateDB, input, new(conntypes.MsgConnectionOpenTry), bc.ibcKeeper.ConnectionOpenTry)
 	case prefixConnectionOpenAck:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(conntypes.MsgConnectionOpenAck), bc.ibcKeeper.ConnectionOpenAck)
+		res, err = exec(bc, stateDB, input, new(conntypes.MsgConnectionOpenAck), bc.ibcKeeper.ConnectionOpenAck)
 	case prefixConnectionOpenConfirm:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(conntypes.MsgConnectionOpenConfirm), bc.ibcKeeper.ConnectionOpenConfirm)
+		res, err = exec(bc, stateDB, input, new(conntypes.MsgConnectionOpenConfirm), bc.ibcKeeper.ConnectionOpenConfirm)
 	case prefixChannelOpenInit:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgChannelOpenInit), bc.ibcKeeper.ChannelOpenInit)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgChannelOpenInit), bc.ibcKeeper.ChannelOpenInit)
 	case prefixChannelOpenTry:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgChannelOpenTry), bc.ibcKeeper.ChannelOpenTry)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgChannelOpenTry), bc.ibcKeeper.ChannelOpenTry)
 	case prefixChannelOpenAck:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgChannelOpenAck), bc.ibcKeeper.ChannelOpenAck)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgChannelOpenAck), bc.ibcKeeper.ChannelOpenAck)
 	case prefixChannelOpenConfirm:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgChannelOpenConfirm), bc.ibcKeeper.ChannelOpenConfirm)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgChannelOpenConfirm), bc.ibcKeeper.ChannelOpenConfirm)
 	case prefixRecvPacket:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgRecvPacket), bc.ibcKeeper.RecvPacket)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgRecvPacket), bc.ibcKeeper.RecvPacket)
 	case prefixAcknowledgement:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgAcknowledgement), bc.ibcKeeper.Acknowledgement)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgAcknowledgement), bc.ibcKeeper.Acknowledgement)
 	case prefixTimeout:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgTimeout), bc.ibcKeeper.Timeout)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgTimeout), bc.ibcKeeper.Timeout)
 	case prefixTimeoutOnClose:
-		res, err = unmarshalAndExec(bc, stateDB, input, new(chantypes.MsgTimeoutOnClose), bc.ibcKeeper.TimeoutOnClose)
+		res, err = exec(bc, stateDB, input, new(chantypes.MsgTimeoutOnClose), bc.ibcKeeper.TimeoutOnClose)
 	default:
 		return nil, errors.New("unknown method")
 	}
-	if err != nil {
-		return nil, err
-	}
-	return bc.cdc.Marshal(res)
+	return res, err
 }
