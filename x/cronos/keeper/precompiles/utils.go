@@ -17,14 +17,17 @@ type NativeMessage interface {
 }
 
 // exec is a generic function that executes the given action in statedb, and marshal/unmarshal the input/output
-func exec[Req NativeMessage, Resp codec.ProtoMarshaler](
+func exec[Req any, PReq interface {
+	*Req
+	NativeMessage
+}, Resp codec.ProtoMarshaler](
 	cdc codec.Codec,
 	stateDB precompiles.ExtStateDB,
 	caller common.Address,
 	input []byte,
-	action func(context.Context, Req) (Resp, error),
+	action func(context.Context, PReq) (Resp, error),
 ) ([]byte, error) {
-	var msg Req
+	msg := PReq(new(Req))
 	if err := cdc.Unmarshal(input, msg); err != nil {
 		return nil, fmt.Errorf("fail to Unmarshal %T %w", msg, err)
 	}
