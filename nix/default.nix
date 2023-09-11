@@ -1,7 +1,7 @@
 { sources ? import ./sources.nix, system ? builtins.currentSystem, ... }:
 
 let
-  dapptools = {
+  dapptools-release = {
     x86_64-linux =
       (import (sources.dapptools + "/release.nix") { }).dapphub.linux.stable;
     x86_64-darwin =
@@ -12,7 +12,12 @@ in
 import sources.nixpkgs {
   overlays = [
     (import ./build_overlay.nix)
-    (_: pkgs: dapptools) # use released version to hit the binary cache
+    (self: super: {
+      # use released version to hit the binary cache
+      inherit (dapptools-release) dapp solc-versions;
+      # use the patched version to access solc-static-versions
+      inherit (import (sources.dapptools-patched + "/overlay.nix") self super) solc-static-versions;
+    })
     (_: pkgs: {
       go = pkgs.go_1_20;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
