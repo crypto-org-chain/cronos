@@ -84,6 +84,18 @@
         "url": "https://github.com/informalsystems/ibc-rs/archive/daad02843a091bbdb3dd608e5f4ce790895c8845.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "relayer": {
+        "branch": "master",
+        "description": "An IBC relayer for ibc-go",
+        "homepage": "https://github.com/crypto-org-chain/relayer",
+        "owner": "crypto-org-chain",
+        "repo": "relayer",
+        "rev": "6be13d112138244fc9dd4f80facd81baa2dac629",
+        "sha256": "sha256:02pbp0jksh3fvk6g4fqyqp56l15giajf2477898vjcaliqpvzrnr",
+        "type": "tarball",
+        "url": "https://github.com/crypto-org-chain/relayer/archive/6be13d112138244fc9dd4f80facd81baa2dac629.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",

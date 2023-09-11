@@ -215,11 +215,12 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-LFcJue98awAFkSPRc93tVvon3kWS7AvumrluxxRzt4c="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.26"
-    hash = "sha256-gkMEwJ4rOgn12amD4QpZ4th/10uyTTeoFmpseuKDQPs="
+    version = "v1.10.26-evmos-rc1"
+    hash = "sha256-GgcReGsIIuBE2TabDYqDO9sBGogdVr9RSh4arQzdPnE="
+    replaced = "github.com/evmos/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20230907031841-3eb35238cb95"
-    hash = "sha256-Y98oAuDhU2OcfL8ZdsSrZO4NynZXWajdTjDlX1zkHfs="
+    version = "v0.6.1-0.20230909034938-7f03e19e2b3a"
+    hash = "sha256-OHmpXopLE+tbuB6C51c9+BpeDQ6bdriGCvRpyopvdrk="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
@@ -527,8 +528,8 @@ schema = 3
     version = "v0.35.9"
     hash = "sha256-zaBXzkOd+KVMmb1iG4gg1JPeDXlGm8lvRDjN6ojt5ag="
   [mod."github.com/tidwall/btree"]
-    version = "v1.6.0"
-    hash = "sha256-H4S46Yk3tVfOtrEhVWUrF4S1yWYmzU43W80HlzS9rcY="
+    version = "v1.7.0"
+    hash = "sha256-bnr6c7a0nqo2HyGqxHk0kEZCEsjLYkPbAVY9WzaZ30o="
   [mod."github.com/tidwall/gjson"]
     version = "v1.14.4"
     hash = "sha256-3DS2YNL95wG0qSajgRtIABD32J+oblaKVk8LIw+KSOc="

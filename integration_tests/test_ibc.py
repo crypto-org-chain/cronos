@@ -1,4 +1,3 @@
-import hashlib
 import json
 
 import pytest
@@ -6,8 +5,11 @@ import pytest
 from .ibc_utils import (
     RATIO,
     assert_ready,
+    cronos_transfer_source_tokens,
+    cronos_transfer_source_tokens_with_proxy,
     get_balance,
     hermes_transfer,
+    ibc_incentivized_transfer,
     prepare_network,
 )
 from .utils import (
@@ -15,10 +17,8 @@ from .utils import (
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
-    parse_events,
     parse_events_rpc,
     send_transaction,
-    setup_token_mapping,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -97,55 +97,7 @@ def test_ibc_incentivized_transfer(ibc):
     if not ibc.incentivized:
         # this test case only works for incentivized channel.
         return
-    src_chain = ibc.cronos.cosmos_cli()
-    dst_chain = ibc.chainmain.cosmos_cli()
-    receiver = dst_chain.address("signer2")
-    sender = src_chain.address("signer2")
-    relayer = src_chain.address("signer1")
-    original_amount = src_chain.balance(relayer, denom="ibcfee")
-    original_amount_sender = src_chain.balance(sender, denom="ibcfee")
-
-    rsp = src_chain.ibc_transfer(
-        sender,
-        receiver,
-        "1000basetcro",
-        "channel-0",
-        1,
-        "100000000basecro",
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    rsp = src_chain.event_query_tx_for(rsp["txhash"])
-    evt = parse_events(rsp["logs"])["send_packet"]
-    print("packet event", evt)
-    packet_seq = int(evt["packet_sequence"])
-
-    rsp = src_chain.pay_packet_fee(
-        "transfer",
-        "channel-0",
-        packet_seq,
-        recv_fee="10ibcfee",
-        ack_fee="10ibcfee",
-        timeout_fee="10ibcfee",
-        from_=sender,
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    rsp = src_chain.event_query_tx_for(rsp["txhash"])
-    # fee is locked
-    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 30
-
-    # wait for relayer receive the fee
-    def check_fee():
-        amount = src_chain.balance(relayer, denom="ibcfee")
-        if amount > original_amount:
-            assert amount == original_amount + 20
-            return True
-        else:
-            return False
-
-    wait_for_fn("wait for relayer to receive the fee", check_fee)
-
-    # timeout fee is refunded
-    assert src_chain.balance(sender, denom="ibcfee") == original_amount_sender - 20
+    ibc_incentivized_transfer(ibc)
 
 
 def test_cronos_transfer_tokens(ibc):
@@ -254,76 +206,7 @@ def test_cronos_transfer_source_tokens(ibc):
     test sending crc20 tokens originated from cronos to crypto-org-chain
     """
     assert_ready(ibc)
-    # deploy crc21 contract
-    w3 = ibc.cronos.w3
-    contract, denom = setup_token_mapping(ibc.cronos, "TestERC21Source", "DOG")
-    # send token to crypto.org
-    print("send to crypto.org")
-    chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = ibc_denom("channel-0", denom)
-    amount = 1000
-
-    # check and record receiver balance
-    chainmain_receiver_balance = get_balance(
-        ibc.chainmain, chainmain_receiver, dest_denom
-    )
-    assert chainmain_receiver_balance == 0
-
-    # send to ibc
-    tx = contract.functions.send_to_ibc_v2(
-        chainmain_receiver, amount, 0, b""
-    ).build_transaction({"from": ADDRS["validator"]})
-    txreceipt = send_transaction(w3, tx)
-    assert txreceipt.status == 1, "should success"
-
-    # check balance
-    chainmain_receiver_new_balance = 0
-
-    def check_chainmain_balance_change():
-        nonlocal chainmain_receiver_new_balance
-        chainmain_receiver_new_balance = get_balance(
-            ibc.chainmain, chainmain_receiver, dest_denom
-        )
-        chainmain_receiver_all_balance = get_balances(ibc.chainmain, chainmain_receiver)
-        print("receiver all balance:", chainmain_receiver_all_balance)
-        return chainmain_receiver_balance != chainmain_receiver_new_balance
-
-    wait_for_fn("check balance change", check_chainmain_balance_change)
-    assert chainmain_receiver_new_balance == amount
-
-    # check legacy send to ibc
-    tx = contract.functions.send_to_ibc(chainmain_receiver, 1).build_transaction(
-        {"from": ADDRS["validator"]}
-    )
-    txreceipt = send_transaction(w3, tx)
-    assert txreceipt.status == 0, "should fail"
-
-    # send back the token to cronos
-    # check receiver balance
-    cronos_balance_before_send = contract.caller.balanceOf(ADDRS["signer2"])
-    assert cronos_balance_before_send == 0
-
-    # send back token through ibc
-    print("Send back token through ibc")
-    chainmain_cli = ibc.chainmain.cosmos_cli()
-    cronos_receiver = eth_to_bech32(ADDRS["signer2"])
-
-    coin = "1000" + dest_denom
-    rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-    # check contract balance
-    cronos_balance_after_send = 0
-
-    def check_contract_balance_change():
-        nonlocal cronos_balance_after_send
-        cronos_balance_after_send = contract.caller.balanceOf(ADDRS["signer2"])
-        return cronos_balance_after_send != cronos_balance_before_send
-
-    wait_for_fn("check contract balance change", check_contract_balance_change)
-    assert cronos_balance_after_send == amount
+    cronos_transfer_source_tokens(ibc)
 
 
 def test_cronos_transfer_source_tokens_with_proxy(ibc):
@@ -331,109 +214,7 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     test sending crc20 tokens originated from cronos to crypto-org-chain
     """
     assert_ready(ibc)
-    # deploy crc20 contract
-    w3 = ibc.cronos.w3
-    symbol = "TEST"
-    contract, denom = setup_token_mapping(ibc.cronos, "TestCRC20", symbol)
-
-    # deploy crc20 proxy contract
-    proxycrc20 = deploy_contract(
-        w3,
-        CONTRACTS["TestCRC20Proxy"],
-        (contract.address, True),
-    )
-
-    print("proxycrc20 contract deployed at address: ", proxycrc20.address)
-    assert proxycrc20.caller.is_source()
-    assert proxycrc20.caller.crc20() == contract.address
-
-    cronos_cli = ibc.cronos.cosmos_cli()
-    # change token mapping
-    rsp = cronos_cli.update_token_mapping(
-        denom, proxycrc20.address, symbol, 6, from_="validator"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    wait_for_new_blocks(cronos_cli, 1)
-
-    print("check the contract mapping exists now")
-    rsp = cronos_cli.query_denom_by_contract(proxycrc20.address)
-    assert rsp["denom"] == denom
-
-    # send token to crypto.org
-    print("send to crypto.org")
-    chainmain_receiver = ibc.chainmain.cosmos_cli().address("signer2")
-    dest_denom = ibc_denom("channel-0", denom)
-    amount = 1000
-    sender = ADDRS["validator"]
-
-    # First we need to approve the proxy contract to move asset
-    tx = contract.functions.approve(proxycrc20.address, amount).build_transaction(
-        {"from": sender}
-    )
-    txreceipt = send_transaction(w3, tx)
-    assert txreceipt.status == 1, "should success"
-    assert contract.caller.allowance(ADDRS["validator"], proxycrc20.address) == amount
-
-    # check and record receiver balance
-    chainmain_receiver_balance = get_balance(
-        ibc.chainmain, chainmain_receiver, dest_denom
-    )
-    assert chainmain_receiver_balance == 0
-
-    # send to ibc
-    tx = proxycrc20.functions.send_to_ibc(
-        chainmain_receiver, amount, 0, b""
-    ).build_transaction({"from": sender})
-    txreceipt = send_transaction(w3, tx)
-    print(txreceipt)
-    assert txreceipt.status == 1, "should success"
-
-    # check balance
-    chainmain_receiver_new_balance = 0
-
-    def check_chainmain_balance_change():
-        nonlocal chainmain_receiver_new_balance
-        chainmain_receiver_new_balance = get_balance(
-            ibc.chainmain, chainmain_receiver, dest_denom
-        )
-        chainmain_receiver_all_balance = get_balances(ibc.chainmain, chainmain_receiver)
-        print("receiver all balance:", chainmain_receiver_all_balance)
-        return chainmain_receiver_balance != chainmain_receiver_new_balance
-
-    wait_for_fn("check balance change", check_chainmain_balance_change)
-    assert chainmain_receiver_new_balance == amount
-
-    # send back the token to cronos
-    # check receiver balance
-    cronos_balance_before_send = contract.caller.balanceOf(ADDRS["signer2"])
-    assert cronos_balance_before_send == 0
-
-    # send back token through ibc
-    print("Send back token through ibc")
-    chainmain_cli = ibc.chainmain.cosmos_cli()
-    cronos_receiver = eth_to_bech32(ADDRS["signer2"])
-
-    coin = "1000" + dest_denom
-    rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-    # check contract balance
-    cronos_balance_after_send = 0
-
-    def check_contract_balance_change():
-        nonlocal cronos_balance_after_send
-        cronos_balance_after_send = contract.caller.balanceOf(ADDRS["signer2"])
-        return cronos_balance_after_send != cronos_balance_before_send
-
-    wait_for_fn("check contract balance change", check_contract_balance_change)
-    assert cronos_balance_after_send == amount
-
-
-def ibc_denom(channel, denom):
-    h = hashlib.sha256(f"transfer/{channel}/{denom}".encode()).hexdigest().upper()
-    return f"ibc/{h}"
+    cronos_transfer_source_tokens_with_proxy(ibc)
 
 
 def test_ica(ibc, tmp_path):
