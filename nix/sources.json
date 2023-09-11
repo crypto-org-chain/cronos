@@ -36,6 +36,18 @@
         "url_template": "https://github.com/dapphub/dapptools/archive/refs/tags/hevm/0.49.0.tar.gz",
         "version": "hevm/0.49.0"
     },
+    "dapptools-master": {
+        "branch": "master",
+        "description": "Dapp, Seth, Hevm, and more",
+        "homepage": "https://dapp.tools",
+        "owner": "dapphub",
+        "repo": "dapptools",
+        "rev": "ba9fbcf95c01d247a30b26d7e064e8abdfba79db",
+        "sha256": "0kj726lmsdaljjm7wz3gpfs90h03h006z3w4fwcyan4bi5myi1k2",
+        "type": "tarball",
+        "url": "https://github.com/dapphub/dapptools/archive/ba9fbcf95c01d247a30b26d7e064e8abdfba79db.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "flake-compat": {
         "branch": "master",
         "description": null,

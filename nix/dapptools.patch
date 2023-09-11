@@ -1,0 +1,25 @@
+From 455cfd7356c0a10d276e614304ed2b93b880257d Mon Sep 17 00:00:00 2001
+From: HuangYi <huang@crypto.com>
+Date: Mon, 11 Sep 2023 14:50:08 +0800
+Subject: [PATCH] fix solc-static on macos
+
+---
+ nix/solc-static.nix | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nix/solc-static.nix b/nix/solc-static.nix
+index 8ea194ea..e6945828 100644
+--- a/nix/solc-static.nix
++++ b/nix/solc-static.nix
+@@ -40,7 +40,7 @@ stdenv.mkDerivation rec {
+     sha256 = "${sha256}";
+   };
+ 
+-  nativeBuildInputs = [ autoPatchelfHook makeWrapper ];
++  nativeBuildInputs = [ makeWrapper ] ++ lib.optional stdenv.isLinux autoPatchelfHook;
+ 
+   postFixup = if (platform == "linux-amd64") then ''
+       wrapProgram $out/bin/solc-${version} \
+-- 
+2.39.2
+
