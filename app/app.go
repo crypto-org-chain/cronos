@@ -129,8 +129,8 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
+	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
-	"github.com/evmos/ethermint/x/evm/vm/geth"
 	"github.com/evmos/ethermint/x/feemarket"
 	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
@@ -149,6 +149,7 @@ import (
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
@@ -529,11 +530,26 @@ func New(
 	)
 	// Set authority to x/gov module account to only expect the module account to update params
 	evmS := app.GetSubspace(evmtypes.ModuleName)
+	allKeys := make(map[string]storetypes.StoreKey, len(keys)+len(tkeys)+len(memKeys))
+	for k, v := range keys {
+		allKeys[k] = v
+	}
+	for k, v := range tkeys {
+		allKeys[k] = v
+	}
+	for k, v := range memKeys {
+		allKeys[k] = v
+	}
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.StakingKeeper,
 		app.FeeMarketKeeper,
-		nil, geth.NewEVM, tracer, evmS,
+		tracer,
+		evmS,
+		[]precompiles.StatefulPrecompiledContract{
+			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
+		},
+		allKeys,
 	)
 
 	var gravityKeeper gravitykeeper.Keeper

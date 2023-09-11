@@ -23,6 +23,7 @@ pkgs.mkShell {
     pkgs.rocksdb
     pkgs.chain-maind
     pkgs.hermes
+    pkgs.rly
   ];
   shellHook = ''
     mkdir ./coverage
