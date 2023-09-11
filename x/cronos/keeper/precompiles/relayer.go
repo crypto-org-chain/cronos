@@ -77,7 +77,7 @@ const (
 	prefixTimeoutOnClose
 )
 
-// exec is a generic funciton that executes the given action in statedb, and marshal/unmarshal the input/output
+// exec is a generic function that executes the given action in statedb, and marshal/unmarshal the input/output
 func exec[Req codec.ProtoMarshaler, Resp codec.ProtoMarshaler](
 	bc *RelayerContract,
 	stateDB precompiles.ExtStateDB,
