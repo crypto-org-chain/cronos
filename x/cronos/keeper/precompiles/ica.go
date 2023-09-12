@@ -3,21 +3,26 @@ package precompiles
 import (
 	"bytes"
 	"errors"
+	"math/big"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
 	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
+	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	ibcchannelkeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 )
+
+// TODO adjust the gas cost
+const ICAContractRequiredGas = 10000
 
 var (
 	RegisterAccountMethod abi.Method
 	QueryAccountMethod    abi.Method
+	SubmitMsgsMethod      abi.Method
 	IcaContractAddress    = common.BytesToAddress([]byte{102})
 )
 
@@ -25,6 +30,7 @@ func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	stringType, _ := abi.NewType("string", "", nil)
 	bytesType, _ := abi.NewType("bytes", "", nil)
+	uint256Type, _ := abi.NewType("uint256", "", nil)
 	RegisterAccountMethod = abi.NewMethod(
 		"registerAccount", "registerAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
 			Name: "connectionID",
@@ -32,6 +38,9 @@ func init() {
 		}, abi.Argument{
 			Name: "owner",
 			Type: addressType,
+		}, abi.Argument{
+			Name: "version",
+			Type: stringType,
 		}},
 		nil,
 	)
@@ -48,6 +57,22 @@ func init() {
 			Type: bytesType,
 		}},
 	)
+	SubmitMsgsMethod = abi.NewMethod(
+		"submitMsgs", "submitMsgs", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+			Name: "connectionID",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "owner",
+			Type: addressType,
+		}, abi.Argument{
+			Name: "data",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "timeout",
+			Type: uint256Type,
+		}},
+		nil,
+	)
 }
 
 type IcaContract struct {
@@ -60,7 +85,7 @@ func NewIcaContract(
 	cdc codec.Codec,
 	channelKeeper *ibcchannelkeeper.Keeper,
 	icaControllerKeeper *icacontrollerkeeper.Keeper,
-) precompiles.StatefulPrecompiledContract {
+) vm.PrecompiledContract {
 	return &IcaContract{
 		cdc,
 		channelKeeper,
@@ -74,7 +99,7 @@ func (ic *IcaContract) Address() common.Address {
 
 // RequiredGas calculates the contract gas use
 func (ic *IcaContract) RequiredGas(input []byte) uint64 {
-	return RelayerContractRequiredGas
+	return ICAContractRequiredGas
 }
 
 func (ic *IcaContract) IsStateful() bool {
@@ -84,7 +109,8 @@ func (ic *IcaContract) IsStateful() bool {
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
 	methodID := contract.Input[:4]
-	stateDB := evm.StateDB.(precompiles.ExtStateDB)
+	stateDB := evm.StateDB.(ExtStateDB)
+	precompileAddr := ic.Address()
 	var err error
 	var res codec.ProtoMarshaler
 	switch string(methodID) {
@@ -98,15 +124,16 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		account := args[1].(common.Address)
+		version := args[2].(string)
 		txSender := evm.Origin
 		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
 			return nil, errors.New("unauthorized account registration")
 		}
-		// FIXME: pass version
-		err = stateDB.ExecuteNativeAction(func(ctx sdk.Context) error {
+		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
 			res, err = ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
 				Owner:        sdk.AccAddress(account.Bytes()).String(),
 				ConnectionId: connectionID,
+				Version:      version,
 			})
 			return err
 		})
@@ -117,10 +144,41 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		account := args[1].(common.Address)
-		err = stateDB.ExecuteNativeAction(func(ctx sdk.Context) error {
+		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
 			res, err = ic.icaControllerKeeper.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
 				Owner:        sdk.AccAddress(account.Bytes()).String(),
 				ConnectionId: connectionID,
+			})
+			return err
+		})
+	case string(SubmitMsgsMethod.ID):
+		if readonly {
+			return nil, errors.New("the method is not readonly")
+		}
+		args, err := SubmitMsgsMethod.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		connectionID := args[0].(string)
+		account := args[1].(common.Address)
+		data := args[2].(string)
+		timeout := args[3].(*big.Int)
+		txSender := evm.Origin
+		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
+			return nil, errors.New("unauthorized send tx")
+		}
+
+		var icaMsgData icatypes.InterchainAccountPacketData
+		err = ic.cdc.UnmarshalJSON([]byte(data), &icaMsgData)
+		if err != nil {
+			panic(err)
+		}
+		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
+			res, err = ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
+				Owner:           sdk.AccAddress(account.Bytes()).String(),
+				ConnectionId:    connectionID,
+				PacketData:      icaMsgData,
+				RelativeTimeout: timeout.Uint64(),
 			})
 			return err
 		})

@@ -49,11 +49,6 @@ func NewKeeper(
 
 // DoSubmitTx submits a transaction to the host chain on behalf of interchain account
 func (k *Keeper) DoSubmitTx(ctx sdk.Context, connectionID, owner string, msgs []proto.Message, timeoutDuration time.Duration) error {
-	portID, err := icatypes.NewControllerPortID(owner)
-	if err != nil {
-		return err
-	}
-
 	data, err := icatypes.SerializeCosmosTx(k.cdc, msgs)
 	if err != nil {
 		return err
@@ -66,8 +61,12 @@ func (k *Keeper) DoSubmitTx(ctx sdk.Context, connectionID, owner string, msgs []
 
 	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
 	timeoutTimestamp := ctx.BlockTime().Add(timeoutDuration).UnixNano()
-
-	_, err = k.icaControllerKeeper.SendTx(ctx, nil, connectionID, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
+	_, err = k.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
+		Owner:           owner,
+		ConnectionId:    connectionID,
+		PacketData:      packetData,
+		RelativeTimeout: uint64(timeoutTimestamp),
+	})
 	if err != nil {
 		return err
 	}
