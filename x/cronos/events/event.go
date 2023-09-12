@@ -108,9 +108,8 @@ func toUnderScore(input string) string {
 func getArguments(args abi.Arguments, indexed bool) []string {
 	var result []string
 	for _, arg := range args {
-		if arg.Indexed && indexed {
+		if arg.Indexed == indexed {
 			result = append(result, toUnderScore(arg.Name))
-		} else {
 		}
 	}
 
