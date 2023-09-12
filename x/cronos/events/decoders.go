@@ -9,7 +9,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -115,13 +114,4 @@ func convertAddress(addrString string) (*common.Address, error) {
 	}
 	to := common.BytesToAddress(addr)
 	return &to, nil
-}
-
-var BankCosmosValueDecoders = ValueDecoders{
-	banktypes.AttributeKeyRecipient: ConvertAccAddressFromBech32,
-	banktypes.AttributeKeySpender:   ConvertAccAddressFromBech32,
-	banktypes.AttributeKeyReceiver:  ConvertAccAddressFromBech32,
-	banktypes.AttributeKeySender:    ConvertAccAddressFromBech32,
-	banktypes.AttributeKeyMinter:    ConvertAccAddressFromBech32,
-	banktypes.AttributeKeyBurner:    ConvertAccAddressFromBech32,
 }

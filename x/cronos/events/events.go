@@ -2,6 +2,7 @@ package events
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	ibctypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	generated "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
@@ -14,6 +15,12 @@ var (
 	IBCValueDecoders = ValueDecoders{
 		ibctypes.AttributeKeyData:        ConvertPacketData,
 		transfertypes.AttributeKeyAmount: ConvertAmount,
+		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySpender:    ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyReceiver:   ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySender:     ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyMinter:     ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyBurner:     ConvertAccAddressFromBech32,
 	}
 )
 
