@@ -47,8 +47,6 @@ type (
 
 type Registrable interface {
 	RegistryKey() common.Address
-	ABIMethods() map[string]abi.Method
-	PrecompileMethods() Methods
 	ABIEvents() map[string]abi.Event
 	CustomValueDecoders() ValueDecoders
 }

@@ -33,18 +33,10 @@ func (c *baseContract) RegistryKey() common.Address {
 	return c.address
 }
 
-func (c *baseContract) ABIMethods() map[string]abi.Method {
-	return c.abi.Methods
-}
-
 func (c *baseContract) ABIEvents() map[string]abi.Event {
 	return c.abi.Events
 }
 
 func (c *baseContract) CustomValueDecoders() ValueDecoders {
 	return nil
-}
-
-func (c *baseContract) PrecompileMethods() Methods {
-	return Methods{}
 }
