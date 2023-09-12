@@ -497,8 +497,6 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6 h1:d4
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6/go.mod h1:hF5aclS++7WrW8USOA3zPeKI0CuzwUD2TPYug25ANlQ=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b h1:d2GOFR3i3BjDlPsmJkp8Gsrt9LK2nq2IVEnE/rMv1Fo=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b/go.mod h1:EHwCeN9IXonsjKcjpS12MqeStdZvIdxt3VYXhus3G3c=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230909034938-7f03e19e2b3a h1:K3ALTHFQ1YpU3cv3tydQK+cNY4IolzPQLJo7bXtEzNs=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230909034938-7f03e19e2b3a/go.mod h1:xT6yzwilauRVhkvhjj7lDzazfgG4ZeUNSoQsuKImitY=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e/go.mod h1:HBaDqlFjlaXJwVQtA7jHejyaA7xwjXI2o6pU/ccP3tE=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=

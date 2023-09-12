@@ -237,7 +237,7 @@ gen-cronos-contracts:
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
 gen-bindings-contracts:
-	@nix-shell ./bindings/shell.nix --pure --run ./scripts/gen-bindings-contracts
+	@nix-shell ./nix/gen-binding-shell.nix --pure --run ./scripts/gen-bindings-contracts
 
 .PHONY: gen-cronos-contracts gen-bindings-contracts test-cronos-contracts
 

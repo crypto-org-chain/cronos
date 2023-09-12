@@ -5,11 +5,6 @@ cd "$(dirname "$0")"
 # explicitly set a short TMPDIR to prevent path too long issue on macosx
 export TMPDIR=/tmp
 
-cd ..
-solc08 --abi --bin bindings/src/CosmosTypes.sol -o build --overwrite
-solc08 --abi --bin bindings/src/Relayer.sol -o build --overwrite
-cd scripts
-
 echo "build test contracts"
 cd ../integration_tests/contracts
 HUSKY_SKIP_INSTALL=1 npm install

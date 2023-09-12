@@ -34,7 +34,6 @@ buildGoApplication rec {
     "!/versiondb/"
     "!/memiavl/"
     "!/store/"
-    "!/bindings/"
     "!go.mod"
     "!go.sum"
     "!gomod2nix.toml"
