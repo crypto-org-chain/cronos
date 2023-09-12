@@ -40,7 +40,7 @@ func (desc *EventDescriptor) ConvertEvent(
 ) (*ethtypes.Log, error) {
 	attrs := make(map[string]string, len(event))
 	for _, attr := range event {
-		attrs[attr.Key] = attr.Value
+		attrs[toMixedCase(attr.Key)] = attr.Value
 	}
 
 	filterQuery := make([]any, 0, len(desc.indexed)+1)
@@ -103,6 +103,16 @@ func toUnderScore(input string) string {
 		output += string(s)
 	}
 	return strings.ToLower(output)
+}
+
+func toMixedCase(input string) string {
+	parts := strings.Split(input, "_")
+	for i, s := range parts {
+		if i > 0 && len(s) > 0 {
+			parts[i] = strings.ToUpper(s[:1]) + s[1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
 
 func getArguments(args abi.Arguments, indexed bool) []string {
