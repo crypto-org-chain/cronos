@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"strings"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -47,45 +48,45 @@ func (desc *EventDescriptor) ConvertEvent(
 	for _, name := range desc.indexed {
 		value, ok := attrs[name]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("attribute %s not found", name)
 		}
 		decode, ok := valueDecoders[name]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("value decoder for %s not found", name)
 		}
 		values, err := decode(value, true)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to decode %s: %w", name, err)
 		}
 		filterQuery = append(filterQuery, values...)
 	}
 
 	topics, err := abi.MakeTopics(filterQuery)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to make topics: %w", err)
 	}
 
 	attrVals := make([]any, 0, len(desc.nonIndexed))
 	for _, name := range desc.nonIndexed {
 		value, ok := attrs[name]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("attribute %s not found", name)
 		}
 
 		decode, ok := valueDecoders[name]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("value decoder for %s not found", name)
 		}
 
 		values, err := decode(value, false)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to decode %s: %w", name, err)
 		}
 		attrVals = append(attrVals, values...)
 	}
 	data, err := desc.packValues(attrVals)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to pack values: %w", err)
 	}
 	return &ethtypes.Log{
 		Topics: topics[0],
