@@ -77,7 +77,7 @@ func ConvertPacketData(attributeValue string, indexed bool) ([]any, error) {
 		return nil, err
 	}
 	var tokenPacketData transfertypes.FungibleTokenPacketData
-	err := json.Unmarshal(bz, &tokenPacketData)
+	err = json.Unmarshal(bz, &tokenPacketData)
 	if err != nil {
 		return nil, err
 	}
