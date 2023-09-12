@@ -23,6 +23,7 @@ func exec[Req any, PReq interface {
 }, Resp codec.ProtoMarshaler](
 	cdc codec.Codec,
 	stateDB precompiles.ExtStateDB,
+	contract common.Address,
 	caller common.Address,
 	input []byte,
 	action func(context.Context, PReq) (Resp, error),
@@ -41,7 +42,7 @@ func exec[Req any, PReq interface {
 	}
 
 	var res Resp
-	if err := stateDB.ExecuteNativeAction(func(ctx sdk.Context) error {
+	if err := stateDB.ExecuteNativeAction(contract, func(ctx sdk.Context) error {
 		var err error
 		res, err = action(ctx, msg)
 		return err
