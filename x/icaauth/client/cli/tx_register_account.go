@@ -42,6 +42,7 @@ func CmdRegisterAccount() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String(FlagVersion, "", "version of the ICA channel")
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
