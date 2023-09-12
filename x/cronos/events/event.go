@@ -34,18 +34,13 @@ func NewEventDescriptors(a abi.ABI) map[string]*EventDescriptor {
 	return descriptors
 }
 
-func (desc *EventDescriptor) ConvertEvent(
-	event []abci.EventAttribute,
+func makeFilter(
 	valueDecoders ValueDecoders,
-) (*ethtypes.Log, error) {
-	attrs := make(map[string]string, len(event))
-	for _, attr := range event {
-		attrs[toMixedCase(attr.Key)] = attr.Value
-	}
-
-	filterQuery := make([]any, 0, len(desc.indexed)+1)
-	filterQuery = append(filterQuery, desc.id)
-	for _, name := range desc.indexed {
+	attrs map[string]string,
+	attrNames []string) ([]any, error,
+) {
+	results := make([]any, 0, len(attrNames))
+	for _, name := range attrNames {
 		value, ok := attrs[name]
 		if !ok {
 			return nil, fmt.Errorf("attribute %s not found", name)
@@ -58,32 +53,39 @@ func (desc *EventDescriptor) ConvertEvent(
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode %s: %w", name, err)
 		}
-		filterQuery = append(filterQuery, values...)
+		results = append(results, values...)
 	}
+	return results, nil
+}
+
+func (desc *EventDescriptor) ConvertEvent(
+	event []abci.EventAttribute,
+	valueDecoders ValueDecoders,
+) (*ethtypes.Log, error) {
+	attrs := make(map[string]string, len(event))
+	for _, attr := range event {
+		attrs[toMixedCase(attr.Key)] = attr.Value
+	}
+
+	filterQuery, err := makeFilter(valueDecoders, attrs, desc.indexed)
+	if err != nil {
+		return nil, err
+	}
+	filterQuery = append(
+		[]any{desc.id},
+		filterQuery...,
+	)
 
 	topics, err := abi.MakeTopics(filterQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make topics: %w", err)
 	}
 
-	attrVals := make([]any, 0, len(desc.nonIndexed))
-	for _, name := range desc.nonIndexed {
-		value, ok := attrs[name]
-		if !ok {
-			return nil, fmt.Errorf("attribute %s not found", name)
-		}
-
-		decode, ok := valueDecoders[name]
-		if !ok {
-			return nil, fmt.Errorf("value decoder for %s not found", name)
-		}
-
-		values, err := decode(value, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode %s: %w", name, err)
-		}
-		attrVals = append(attrVals, values...)
+	attrVals, err := makeFilter(valueDecoders, attrs, desc.nonIndexed)
+	if err != nil {
+		return nil, err
 	}
+
 	data, err := desc.packValues(attrVals)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack values: %w", err)
