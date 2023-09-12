@@ -34,11 +34,16 @@ func NewEventDescriptors(a abi.ABI) map[string]*EventDescriptor {
 	return descriptors
 }
 
+func returnStringAsIs(attributeValue string, _ bool) ([]any, error) {
+	return []any{attributeValue}, nil
+}
+
 func makeFilter(
 	valueDecoders ValueDecoders,
 	attrs map[string]string,
-	attrNames []string) ([]any, error,
-) {
+	attrNames []string,
+	indexed bool,
+) ([]any, error) {
 	results := make([]any, 0, len(attrNames))
 	for _, name := range attrNames {
 		value, ok := attrs[name]
@@ -47,9 +52,9 @@ func makeFilter(
 		}
 		decode, ok := valueDecoders[name]
 		if !ok {
-			return nil, fmt.Errorf("value decoder for %s not found", name)
+			decode = returnStringAsIs
 		}
-		values, err := decode(value, true)
+		values, err := decode(value, indexed)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode %s: %w", name, err)
 		}
@@ -67,7 +72,7 @@ func (desc *EventDescriptor) ConvertEvent(
 		attrs[toUnderScore(attr.Key)] = attr.Value
 	}
 
-	filterQuery, err := makeFilter(valueDecoders, attrs, desc.indexed)
+	filterQuery, err := makeFilter(valueDecoders, attrs, desc.indexed, true)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +86,7 @@ func (desc *EventDescriptor) ConvertEvent(
 		return nil, fmt.Errorf("failed to make topics: %w", err)
 	}
 
-	attrVals, err := makeFilter(valueDecoders, attrs, desc.nonIndexed)
+	attrVals, err := makeFilter(valueDecoders, attrs, desc.nonIndexed, false)
 	if err != nil {
 		return nil, err
 	}
