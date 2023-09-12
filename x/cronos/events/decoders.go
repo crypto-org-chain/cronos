@@ -16,6 +16,11 @@ import (
 	generated "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 )
 
+type (
+	ValueDecoder  func(attributeValue string, indexed bool) (ethPrimitives []any, err error)
+	ValueDecoders map[string]ValueDecoder
+)
+
 const intBase = 10
 
 func AccAddressFromBech32(address string) (addr sdk.AccAddress, err error) {
