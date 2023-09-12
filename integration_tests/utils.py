@@ -54,7 +54,6 @@ TEST_CONTRACTS = {
     "TestCRC20Proxy": "TestCRC20Proxy.sol",
     "TestMaliciousSupply": "TestMaliciousSupply.sol",
     "CosmosERC20": "CosmosToken.sol",
-    "IRelayerModule": "Relayer.sol",
 }
 
 
@@ -77,6 +76,10 @@ CONTRACTS = {
     **{
         name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
     },
+}
+
+CONTRACT_ABIS = {
+    "IRelayerModule": Path(__file__).parent.parent / "build/IRelayerModule.abi",
 }
 
 

@@ -236,7 +236,10 @@ gen-cronos-contracts:
 	@git submodule update --init --recursive
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
-.PHONY: gen-cronos-contracts test-cronos-contracts
+gen-bindings-contracts:
+	@nix-shell ./bindings/shell.nix --pure --run ./scripts/gen-bindings-contracts
+
+.PHONY: gen-cronos-contracts gen-bindings-contracts test-cronos-contracts
 
 check-network:
 ifeq ($(NETWORK),mainnet)

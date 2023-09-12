@@ -21,7 +21,7 @@ from .ibc_utils import (
 )
 from .utils import (
     ADDRS,
-    CONTRACTS,
+    CONTRACT_ABIS,
     bech32_to_eth,
     eth_to_bech32,
     module_address,
@@ -86,7 +86,7 @@ def rly_transfer(ibc):
 def get_method_map():
     global contract_info
     if contract_info is None:
-        contract_info = json.loads(CONTRACTS["IRelayerModule"].read_text())["abi"]
+        contract_info = json.loads(CONTRACT_ABIS["IRelayerModule"].read_text())
     global method_map
     if method_map is None:
         method_map = {}
