@@ -33,6 +33,9 @@ func init() {
 }
 
 func ConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+	if event.Type == sdk.EventTypeMessage {
+		return nil, nil
+	}
 	desc, ok := IBCEvents[event.Type]
 	if !ok {
 		return nil, nil
