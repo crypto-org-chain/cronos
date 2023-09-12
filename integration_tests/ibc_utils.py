@@ -600,3 +600,16 @@ def funds_ica(cli, adr):
 
     # check if the funds are received in interchain account
     assert cli.balance(adr, denom="basecro") == 100000000
+
+
+def generate_ica_packet(cli, ica_address, to):
+    # generate a transaction to send to host chain
+    generated_tx_msg = {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": ica_address,
+        "to_address": to,
+        "amount": [{"denom": "basecro", "amount": "50000000"}],
+    }
+    str = json.dumps(generated_tx_msg)
+    generated_packet = cli.ica_generate_packet_data(str)
+    return json.dumps(generated_packet)
