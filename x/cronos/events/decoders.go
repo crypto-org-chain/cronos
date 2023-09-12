@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,9 +70,14 @@ func sdkCoinsToEvmCoins(sdkCoins sdk.Coins) []lib.CosmosCoin {
 	}
 	return evmCoins
 }
+
 func ConvertPacketData(attributeValue string, indexed bool) ([]any, error) {
+	bz, err := hex.DecodeString(attributeValue)
+	if err != nil {
+		return nil, err
+	}
 	var tokenPacketData transfertypes.FungibleTokenPacketData
-	err := json.Unmarshal([]byte(attributeValue), &tokenPacketData)
+	err := json.Unmarshal(bz, &tokenPacketData)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,7 @@ import (
 var (
 	IBCEvents        map[string]*EventDescriptor
 	IBCValueDecoders = ValueDecoders{
-		ibctypes.AttributeKeyData:        ConvertPacketData,
+		ibctypes.AttributeKeyDataHex:     ConvertPacketData,
 		transfertypes.AttributeKeyAmount: ConvertAmount,
 		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
 		banktypes.AttributeKeySpender:    ConvertAccAddressFromBech32,
