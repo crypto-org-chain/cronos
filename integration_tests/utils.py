@@ -20,9 +20,10 @@ import toml
 from dateutil.parser import isoparse
 from dotenv import load_dotenv
 from eth_account import Account
-from eth_utils import to_checksum_address
+from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ledger
+from web3._utils.contracts import abi_to_signature, find_matching_event_abi
 from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 from web3.datastructures import AttributeDict
@@ -681,3 +682,15 @@ def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr
+
+
+def get_method_map(contract_info):
+    method_map = {}
+    for item in contract_info:
+        if item["type"] != "event":
+            continue
+        event_abi = find_matching_event_abi(contract_info, item["name"])
+        signature = abi_to_signature(event_abi)
+        key = f"0x{abi.event_signature_to_log_topic(signature).hex()}"
+        method_map[key] = signature
+    return method_map

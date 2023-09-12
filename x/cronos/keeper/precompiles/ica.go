@@ -42,7 +42,10 @@ func init() {
 			Name: "version",
 			Type: stringType,
 		}},
-		nil,
+		abi.Arguments{abi.Argument{
+			Name: "res",
+			Type: bytesType,
+		}},
 	)
 	QueryAccountMethod = abi.NewMethod(
 		"queryAccount", "queryAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
@@ -71,7 +74,10 @@ func init() {
 			Name: "timeout",
 			Type: uint256Type,
 		}},
-		nil,
+		abi.Arguments{abi.Argument{
+			Name: "res",
+			Type: bytesType,
+		}},
 	)
 }
 

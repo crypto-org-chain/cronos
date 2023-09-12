@@ -4,9 +4,9 @@ import signal
 import subprocess
 
 import pytest
-from eth_utils import abi, keccak, to_checksum_address
+from eth_utils import keccak, to_checksum_address
 from pystarport import cluster
-from web3._utils.contracts import abi_to_signature, find_matching_event_abi
+from web3._utils.contracts import find_matching_event_abi
 from web3._utils.events import get_event_data
 from web3.datastructures import AttributeDict
 
@@ -24,14 +24,15 @@ from .utils import (
     CONTRACT_ABIS,
     bech32_to_eth,
     eth_to_bech32,
+    get_method_map,
     module_address,
     wait_for_fn,
     wait_for_new_blocks,
 )
 
 CONTRACT = "0x0000000000000000000000000000000000000065"
-method_map = None
-contract_info = None
+contract_info = json.loads(CONTRACT_ABIS["IRelayerModule"].read_text())
+method_map = get_method_map(contract_info)
 cronos_signer2 = ADDRS["signer2"]
 src_amount = 10
 src_denom = "basecro"
@@ -81,26 +82,10 @@ def rly_transfer(ibc):
     subprocess.run(cmd, check=True, shell=True)
 
 
-def get_method_map():
-    global contract_info
-    if contract_info is None:
-        contract_info = json.loads(CONTRACT_ABIS["IRelayerModule"].read_text())
-    global method_map
-    if method_map is None:
-        method_map = {}
-        for item in contract_info:
-            event_abi = find_matching_event_abi(contract_info, item["name"])
-            signature = abi_to_signature(event_abi)
-            key = f"0x{abi.event_signature_to_log_topic(signature).hex()}"
-            method_map[key] = signature
-    return method_map, contract_info
-
-
 def get_topic_data(w3, log):
-    method_map, info = get_method_map()
     method = method_map[log.topics[0].hex()]
     name = method.split("(")[0]
-    event_abi = find_matching_event_abi(info, name)
+    event_abi = find_matching_event_abi(contract_info, name)
     event_data = get_event_data(w3.codec, event_abi, log)
     return name, event_data.args
 
