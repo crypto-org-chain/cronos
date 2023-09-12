@@ -23,8 +23,8 @@ func exec[Req any, PReq interface {
 }, Resp codec.ProtoMarshaler](
 	cdc codec.Codec,
 	stateDB precompiles.ExtStateDB,
-	contract common.Address,
 	caller common.Address,
+	contract common.Address,
 	input []byte,
 	action func(context.Context, PReq) (Resp, error),
 ) ([]byte, error) {
