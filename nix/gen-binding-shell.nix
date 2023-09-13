@@ -1,6 +1,6 @@
-{ system ? builtins.currentSystem, pkgs ? import ../nix { inherit system; } }:
+{ system ? builtins.currentSystem, pkgs ? import ./. { inherit system; } }:
 let
-  renameExe = pkgs.callPackage ../nix/rename-exe.nix { };
+  renameExe = pkgs.callPackage ./rename-exe.nix { };
 in
 pkgs.mkShell {
   buildInputs = [
