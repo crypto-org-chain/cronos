@@ -220,6 +220,7 @@ test-sim-profile:
 ###############################################################################
 
 run-integration-tests:
+	@make gen-bindings-contracts
 	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
 
 .PHONY: run-integration-tests
