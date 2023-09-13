@@ -127,7 +127,6 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/evmos/ethermint/x/feemarket"
 	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
@@ -146,12 +145,12 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
-	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
 
@@ -547,11 +546,10 @@ func New(
 		app.FeeMarketKeeper,
 		tracer,
 		evmS,
-		[]precompiles.StatefulPrecompiledContract{
+		[]vm.PrecompiledContract{
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
 		},
 		allKeys,
-		cronosevents.ConvertEvent,
 	)
 
 	var gravityKeeper gravitykeeper.Keeper
