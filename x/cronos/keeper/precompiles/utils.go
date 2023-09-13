@@ -7,8 +7,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 )
 
 type NativeMessage interface {
@@ -22,7 +22,7 @@ func exec[Req any, PReq interface {
 	NativeMessage
 }, Resp codec.ProtoMarshaler](
 	cdc codec.Codec,
-	stateDB precompiles.ExtStateDB,
+	stateDB ExtStateDB,
 	caller common.Address,
 	contract common.Address,
 	input []byte,
@@ -42,7 +42,7 @@ func exec[Req any, PReq interface {
 	}
 
 	var res Resp
-	if err := stateDB.ExecuteNativeAction(contract, func(ctx sdk.Context) error {
+	if err := stateDB.ExecuteNativeAction(contract, cronosevents.ConvertEvent, func(ctx sdk.Context) error {
 		var err error
 		res, err = action(ctx, msg)
 		return err

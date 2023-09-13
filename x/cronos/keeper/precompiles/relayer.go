@@ -7,7 +7,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 )
@@ -24,7 +23,7 @@ type RelayerContract struct {
 	ibcKeeper *ibckeeper.Keeper
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) precompiles.StatefulPrecompiledContract {
+func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(RelayerContractAddress),
 		ibcKeeper:    ibcKeeper,
@@ -81,7 +80,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	}
 	prefix := int(binary.LittleEndian.Uint32(contract.Input[:prefixSize4Bytes]))
 	input := contract.Input[prefixSize4Bytes:]
-	stateDB := evm.StateDB.(precompiles.ExtStateDB)
+	stateDB := evm.StateDB.(ExtStateDB)
 
 	var (
 		err error
