@@ -3,6 +3,7 @@ import enum
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 from collections import namedtuple
@@ -884,6 +885,18 @@ class CosmosCLI:
                 packet_timeout_timestamp=0,
             )
         )
+
+    def ibc_escrow_address(self, port, channel):
+        res = self.raw(
+            "query",
+            "ibc-transfer",
+            "escrow-address",
+            port,
+            channel,
+            home=self.data_dir,
+            node=self.node_rpc,
+        ).decode("utf-8")
+        return re.sub(r"\n", "", res)
 
     def export(self):
         return self.raw("export", home=self.data_dir)

@@ -13,8 +13,6 @@ import (
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	appparams "cosmossdk.io/simapp/params"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
-	"github.com/crypto-org-chain/cronos/v2/app/ante"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	"golang.org/x/exp/slices"
 
 	dbm "github.com/cometbft/cometbft-db"
@@ -145,11 +143,14 @@ import (
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
+	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
+	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
@@ -550,6 +551,7 @@ func New(
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
 		},
 		allKeys,
+		cronosevents.ConvertEvent,
 	)
 
 	var gravityKeeper gravitykeeper.Keeper

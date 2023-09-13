@@ -1,5 +1,6 @@
 import base64
 import configparser
+import hashlib
 import json
 import os
 import re
@@ -19,6 +20,7 @@ import toml
 from dateutil.parser import isoparse
 from dotenv import load_dotenv
 from eth_account import Account
+from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ledger
 from web3._utils.method_formatters import receipt_formatter
@@ -74,6 +76,10 @@ CONTRACTS = {
     **{
         name: contract_path(name, filename) for name, filename in TEST_CONTRACTS.items()
     },
+}
+
+CONTRACT_ABIS = {
+    "IRelayerModule": Path(__file__).parent.parent / "build/IRelayerModule.abi",
 }
 
 
@@ -633,6 +639,11 @@ def setup_token_mapping(cronos, name, symbol):
     rsp = cronos_cli.query_denom_by_contract(contract.address)
     assert rsp["denom"] == denom
     return contract, denom
+
+
+def module_address(name):
+    data = hashlib.sha256(name.encode()).digest()[:20]
+    return to_checksum_address(decode_bech32(eth_to_bech32(data)).hex())
 
 
 def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
