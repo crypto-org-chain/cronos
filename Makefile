@@ -220,6 +220,7 @@ test-sim-profile:
 ###############################################################################
 
 run-integration-tests:
+	@make gen-bindings-contracts
 	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
 
 .PHONY: run-integration-tests
@@ -236,7 +237,10 @@ gen-cronos-contracts:
 	@git submodule update --init --recursive
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
-.PHONY: gen-cronos-contracts test-cronos-contracts
+gen-bindings-contracts:
+	@nix-shell ./nix/gen-binding-shell.nix --pure --run ./scripts/gen-bindings-contracts
+
+.PHONY: gen-cronos-contracts gen-bindings-contracts test-cronos-contracts
 
 check-network:
 ifeq ($(NETWORK),mainnet)
