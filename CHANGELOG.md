@@ -18,7 +18,7 @@
 - [cronos#997](https://github.com/crypto-org-chain/cronos/pull/997) Fix logic to support proxy contract for cronos originated crc20.
 - [cronos#1005](https://github.com/crypto-org-chain/cronos/pull/1005) Support specify channel id for send-to-ibc event in case of source token.
 - [cronos#1069](https://github.com/crypto-org-chain/cronos/pull/1069) Update ethermint to develop, go-ethereum to `v1.10.26` and ibc-go to `v6.2.0`.
-- [cronos#1147](https://github.com/crypto-org-chain/cronos/pull/1147) integrate ica module.
+- [cronos#1147](https://github.com/crypto-org-chain/cronos/pull/1147), [cronos#1165](https://github.com/crypto-org-chain/cronos/pull/1165) Integrate ica module.
 - (deps) [#1121](https://github.com/crypto-org-chain/cronos/pull/1121) Bump Cosmos-SDK to v0.47.5 and ibc-go to v7.2.0.
 - [cronos#1014](https://github.com/crypto-org-chain/cronos/pull/1014) Support stateful precompiled contract for relayer.
 
