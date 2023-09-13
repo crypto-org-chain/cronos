@@ -96,10 +96,10 @@ interface IRelayerModule {
         string sender;
         Cosmos.Coin[] amount;
     }
-    event RecvPacket(PacketData packetData);
+    event RecvPacket(PacketData packetDataHex);
     event WriteAcknowledgement(
         string packetConnection,
-        PacketData packetData
+        PacketData packetDataHex
     );
     event AcknowledgePacket(
         string indexed packetSrcPort,

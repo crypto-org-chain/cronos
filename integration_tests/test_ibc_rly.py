@@ -179,7 +179,7 @@ def update_client():
 
 def recv_packet(src, dst, amt, denom):
     return {
-        "packetData": (dst, src, [(amt, denom)]),
+        "packetDataHex": (dst, src, [(amt, denom)]),
     }
 
 
@@ -203,7 +203,7 @@ def denom_trace(denom):
 def write_ack(src, dst, amt, denom):
     return {
         "packetConnection": "connection-0",
-        "packetData": (dst, src, [(amt, denom)]),
+        "packetDataHex": (dst, src, [(amt, denom)]),
     }
 
 
