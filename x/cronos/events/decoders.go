@@ -104,6 +104,10 @@ func ConvertPacketData(attributeValue string, indexed bool) ([]any, error) {
 	}, nil
 }
 
+func ReturnStringAsIs(attributeValue string, _ bool) ([]any, error) {
+	return []any{attributeValue}, nil
+}
+
 func convertAddress(addrString string) (*common.Address, error) {
 	cfg := sdk.GetConfig()
 	var addr []byte

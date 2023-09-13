@@ -34,10 +34,6 @@ func NewEventDescriptors(a abi.ABI) map[string]*EventDescriptor {
 	return descriptors
 }
 
-func returnStringAsIs(attributeValue string, _ bool) ([]any, error) {
-	return []any{attributeValue}, nil
-}
-
 func makeFilter(
 	valueDecoders ValueDecoders,
 	attrs map[string]string,
@@ -52,7 +48,7 @@ func makeFilter(
 		}
 		decode, ok := valueDecoders[name]
 		if !ok {
-			decode = returnStringAsIs
+			decode = ReturnStringAsIs
 		}
 		values, err := decode(value, indexed)
 		if err != nil {
