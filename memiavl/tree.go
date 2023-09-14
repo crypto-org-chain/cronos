@@ -13,6 +13,13 @@ import (
 
 var emptyHash = sha256.New().Sum(nil)
 
+func NewCache(cacheSize int) cache.Cache {
+	if cacheSize == 0 {
+		return nil
+	}
+	return cache.New(cacheSize)
+}
+
 // verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
 	version uint32
@@ -48,7 +55,7 @@ func NewEmptyTree(version uint64, initialVersion uint32, cacheSize int) *Tree {
 		initialVersion: initialVersion,
 		// no need to copy if the tree is not backed by snapshot
 		zeroCopy: true,
-		cache:    cache.New(cacheSize),
+		cache:    NewCache(cacheSize),
 	}
 }
 
@@ -69,7 +76,7 @@ func NewFromSnapshot(snapshot *Snapshot, zeroCopy bool, cacheSize int) *Tree {
 		version:  snapshot.Version(),
 		snapshot: snapshot,
 		zeroCopy: zeroCopy,
-		cache:    cache.New(cacheSize),
+		cache:    NewCache(cacheSize),
 	}
 
 	if !snapshot.IsEmpty() {
@@ -104,7 +111,7 @@ func (t *Tree) Copy(cacheSize int) *Tree {
 	}
 	newTree := *t
 	// cache is not copied along because it's not thread-safe to access
-	newTree.cache = cache.New(cacheSize)
+	newTree.cache = NewCache(cacheSize)
 	return &newTree
 }
 
@@ -125,12 +132,16 @@ func (t *Tree) set(key, value []byte) {
 		value = []byte{}
 	}
 	t.root, _ = setRecursive(t.root, key, value, t.version+1, t.cowVersion)
-	t.cache.Add(&cacheNode{key, value})
+	if t.cache != nil {
+		t.cache.Add(&cacheNode{key, value})
+	}
 }
 
 func (t *Tree) remove(key []byte) {
 	_, t.root, _ = removeRecursive(t.root, key, t.version+1, t.cowVersion)
-	t.cache.Remove(key)
+	if t.cache != nil {
+		t.cache.Remove(key)
+	}
 }
 
 // SaveVersion increases the version number and optionally updates the hashes
@@ -191,8 +202,10 @@ func (t *Tree) GetByIndex(index int64) ([]byte, []byte) {
 }
 
 func (t *Tree) Get(key []byte) []byte {
-	if node := t.cache.Get(key); node != nil {
-		return node.(*cacheNode).value
+	if t.cache != nil {
+		if node := t.cache.Get(key); node != nil {
+			return node.(*cacheNode).value
+		}
 	}
 
 	_, value := t.GetWithIndex(key)
@@ -200,7 +213,9 @@ func (t *Tree) Get(key []byte) []byte {
 		return nil
 	}
 
-	t.cache.Add(&cacheNode{key, value})
+	if t.cache != nil {
+		t.cache.Add(&cacheNode{key, value})
+	}
 	return value
 }
 
