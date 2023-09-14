@@ -583,7 +583,9 @@ def test_message_call(cronos):
 
     begin = time.time()
     tx["gas"] = w3.eth.estimate_gas(tx)
-    assert time.time() - begin < 5  # should finish in reasonable time
+    elapsed = time.time() - begin
+    print("elapsed:", elapsed)
+    assert elapsed < 5  # should finish in reasonable time
 
     receipt = send_transaction(w3, tx, KEYS["community"])
     assert 23828976 == receipt.cumulativeGasUsed
