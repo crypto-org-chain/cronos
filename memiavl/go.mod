@@ -7,7 +7,6 @@ require (
 	github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/gogoproto v1.4.10
 	github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
-	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/btree v1.6.0
