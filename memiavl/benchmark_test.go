@@ -7,7 +7,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/cosmos/iavl/cache"
 	iavlcache "github.com/cosmos/iavl/cache"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/btree"
@@ -68,7 +67,7 @@ func BenchmarkRandomGet(b *testing.B) {
 	b.Run("memiavl-disk-cache-miss", func(b *testing.B) {
 		diskTree := NewFromSnapshot(snapshot, true, 0)
 		// enforce an empty cache to emulate cache miss
-		diskTree.cache = cache.New(0)
+		diskTree.cache = iavlcache.New(0)
 		require.Equal(b, targetValue, diskTree.Get(targetKey))
 
 		b.ResetTimer()
