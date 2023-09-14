@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
@@ -13,10 +15,12 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -46,8 +50,15 @@ func BenchmarkERC20Transfer(b *testing.B) {
 func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	txsPerBlock := 1000
 	gasPrice := big.NewInt(100000000000)
+	var appOpts servertypes.AppOptions = EmptyAppOptions{}
+	if db == nil {
+		appOpts = AppOptionsMap(map[string]interface{}{
+			memiavlstore.FlagMemIAVL: true,
+		})
+		require.NoError(b, os.RemoveAll(filepath.Join(DefaultNodeHome, "data/memiavl.db")))
+	}
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, EmptyAppOptions{}, baseapp.SetChainID(TestAppChainID))
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, appOpts, baseapp.SetChainID(TestAppChainID))
 	defer app.Close()
 
 	priv, err := ethsecp256k1.GenerateKey()
@@ -86,14 +97,14 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	appState, err := json.MarshalIndent(genesisState, "", "  ")
 	require.NoError(b, err)
 	app.InitChain(abci.RequestInitChain{
-		ChainId:         SimAppChainID,
+		ChainId:         TestAppChainID,
 		AppStateBytes:   appState,
 		ConsensusParams: DefaultConsensusParams,
 	})
 	app.BeginBlock(abci.RequestBeginBlock{
 		Header: tmproto.Header{
 			Height:          1,
-			ChainID:         SimAppChainID,
+			ChainID:         TestAppChainID,
 			ProposerAddress: consAddress,
 		},
 	})
@@ -135,7 +146,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 		app.BeginBlock(abci.RequestBeginBlock{
 			Header: tmproto.Header{
 				Height:          int64(i) + 2,
-				ChainID:         SimAppChainID,
+				ChainID:         TestAppChainID,
 				ProposerAddress: consAddress,
 			},
 		})
