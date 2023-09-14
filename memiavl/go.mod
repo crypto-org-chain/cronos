@@ -9,7 +9,6 @@ require (
 	github.com/cosmos/gogoproto v1.4.7
 	github.com/cosmos/iavl v0.19.6
 	github.com/gogo/protobuf v1.3.2
-	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.3
 	github.com/tendermint/tendermint v0.34.29
