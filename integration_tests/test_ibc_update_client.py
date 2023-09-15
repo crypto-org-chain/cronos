@@ -12,7 +12,7 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name, True, False)
+    network = prepare_network(path, name, is_relay=False)
     yield from network
 
 

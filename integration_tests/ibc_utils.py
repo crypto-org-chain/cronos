@@ -14,6 +14,7 @@ from .utils import (
     deploy_contract,
     eth_to_bech32,
     parse_events,
+    parse_events_rpc,
     send_transaction,
     setup_token_mapping,
     wait_for_fn,
@@ -32,40 +33,27 @@ class IBCNetwork(NamedTuple):
     proc: subprocess.Popen[bytes] | None
 
 
-def prepare_network(
-    tmp_path,
-    file,
-    incentivized=True,
-    is_relay=True,
-    relayer=cluster.Relayer.HERMES.value,
+def call_hermes_cmd(
+    hermes,
+    connection_only,
+    incentivized,
+    version,
 ):
-    is_hermes = relayer == cluster.Relayer.HERMES.value
-    hermes = None
-    file = f"configs/{file}.jsonnet"
-    gen = setup_custom_cronos(
-        tmp_path,
-        26700,
-        Path(__file__).parent / file,
-        relayer=relayer,
-    )
-    cronos = next(gen)
-    chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
-    # wait for grpc ready
-    wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
-    wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
-
-    version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-    incentivized_args = (
-        [
-            "--channel-version",
-            json.dumps(version),
-        ]
-        if incentivized
-        else []
-    )
-    path = cronos.base_dir.parent / "relayer"
-    if is_hermes:
-        hermes = Hermes(cronos.base_dir.parent / "relayer.toml")
+    if connection_only:
+        subprocess.check_call(
+            [
+                "hermes",
+                "--config",
+                hermes.configpath,
+                "create",
+                "connection",
+                "--a-chain",
+                "cronos_777-1",
+                "--b-chain",
+                "chainmain-1",
+            ]
+        )
+    else:
         subprocess.check_call(
             [
                 "hermes",
@@ -84,37 +72,88 @@ def prepare_network(
                 "--new-client-connection",
                 "--yes",
             ]
-            + incentivized_args
+            + (
+                [
+                    "--channel-version",
+                    json.dumps(version),
+                ]
+                if incentivized
+                else []
+            )
+        )
+
+
+def call_rly_cmd(path, version):
+    cmd = [
+        "rly",
+        "pth",
+        "new",
+        "chainmain-1",
+        "cronos_777-1",
+        "chainmain-cronos",
+        "--home",
+        str(path),
+    ]
+    subprocess.check_call(cmd)
+    cmd = [
+        "rly",
+        "tx",
+        "connect",
+        "chainmain-cronos",
+        "--src-port",
+        "transfer",
+        "--dst-port",
+        "transfer",
+        "--order",
+        "unordered",
+        "--version",
+        json.dumps(version),
+        "--home",
+        str(path),
+    ]
+    subprocess.check_call(cmd)
+
+
+def prepare_network(
+    tmp_path,
+    file,
+    incentivized=True,
+    is_relay=True,
+    connection_only=False,
+    relayer=cluster.Relayer.HERMES.value,
+):
+    print("incentivized", incentivized)
+    print("is_relay", is_relay)
+    print("connection_only", connection_only)
+    print("relayer", relayer)
+    is_hermes = relayer == cluster.Relayer.HERMES.value
+    hermes = None
+    file = f"configs/{file}.jsonnet"
+    gen = setup_custom_cronos(
+        tmp_path,
+        26700,
+        Path(__file__).parent / file,
+        relayer=relayer,
+    )
+    cronos = next(gen)
+    chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
+    # wait for grpc ready
+    wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
+    wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
+
+    version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+    path = cronos.base_dir.parent / "relayer"
+    if is_hermes:
+        hermes = Hermes(path.with_suffix(".toml"))
+        call_hermes_cmd(
+            hermes,
+            connection_only,
+            incentivized,
+            version,
         )
     else:
-        cmd = [
-            "rly",
-            "pth",
-            "new",
-            "chainmain-1",
-            "cronos_777-1",
-            "chainmain-cronos",
-            "--home",
-            str(path),
-        ]
-        subprocess.check_call(cmd)
-        cmd = [
-            "rly",
-            "tx",
-            "connect",
-            "chainmain-cronos",
-            "--src-port",
-            "transfer",
-            "--dst-port",
-            "transfer",
-            "--order",
-            "unordered",
-            "--version",
-            json.dumps(version),
-            "--home",
-            str(path),
-        ]
-        subprocess.check_call(cmd)
+        call_rly_cmd(path, version)
+
     proc = None
     if incentivized:
         # register fee payee
@@ -179,6 +218,58 @@ def hermes_transfer(ibc):
     )
     subprocess.run(cmd, check=True, shell=True)
     return src_amount
+
+
+def find_duplicate(attributes):
+    res = set()
+    key = attributes[0]["key"]
+    for attribute in attributes:
+        if attribute["key"] == key:
+            value0 = attribute["value"]
+        elif attribute["key"] == "amount":
+            amount = attribute["value"]
+            value_pair = f"{value0}:{amount}"
+            if value_pair in res:
+                return value_pair
+            res.add(value_pair)
+    return None
+
+
+def ibc_transfer_with_hermes(ibc):
+    src_amount = hermes_transfer(ibc)
+    dst_amount = src_amount * RATIO  # the decimal places difference
+    dst_denom = "basetcro"
+    dst_addr = eth_to_bech32(ADDRS["signer2"])
+    old_dst_balance = get_balance(ibc.cronos, dst_addr, dst_denom)
+
+    new_dst_balance = 0
+
+    def check_balance_change():
+        nonlocal new_dst_balance
+        new_dst_balance = get_balance(ibc.cronos, dst_addr, dst_denom)
+        return new_dst_balance != old_dst_balance
+
+    wait_for_fn("balance change", check_balance_change)
+    assert old_dst_balance + dst_amount == new_dst_balance
+
+    # assert that the relayer transactions do enables the dynamic fee extension option.
+    cli = ibc.cronos.cosmos_cli()
+    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = parse_events_rpc(tx["events"])
+    fee = int(events["tx"]["fee"].removesuffix(dst_denom))
+    gas = int(tx["gas_wanted"])
+    # the effective fee is decided by the max_priority_fee (base fee is zero)
+    # rather than the normal gas price
+    assert fee == gas * 1000000
+
+    # check duplicate OnRecvPacket events
+    criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = tx["logs"][1]["events"]
+    for event in events:
+        dup = find_duplicate(event["attributes"])
+        assert not dup, f"duplicate {dup} in {event['type']}"
 
 
 def get_balance(chain, addr, denom):
@@ -467,3 +558,45 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
     wait_for_fn("check contract balance change", check_contract_balance_change)
     assert cronos_balance_after_send == amount
     return amount, contract.address
+
+
+def wait_for_check_channel_ready(cli, connid, channel_id):
+    print("wait for channel ready")
+
+    def check_channel_ready():
+        channels = cli.ibc_query_channels(connid)["channels"]
+        try:
+            state = next(
+                channel["state"]
+                for channel in channels
+                if channel["channel_id"] == channel_id
+            )
+        except StopIteration:
+            return False
+        return state == "STATE_OPEN"
+
+    wait_for_fn("channel ready", check_channel_ready)
+
+
+def wait_for_check_tx(cli, adr, num_txs):
+    print("wait for tx arrive")
+
+    def check_tx():
+        current = len(cli.query_all_txs(adr)["txs"])
+        print("current", current)
+        return current > num_txs
+
+    wait_for_fn("transfer tx", check_tx)
+
+
+def funds_ica(cli, adr):
+    # initial balance of interchain account should be zero
+    assert cli.balance(adr) == 0
+
+    # send some funds to interchain account
+    rsp = cli.transfer("signer2", adr, "1cro", gas_prices="1000000basecro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 1)
+
+    # check if the funds are received in interchain account
+    assert cli.balance(adr, denom="basecro") == 100000000
