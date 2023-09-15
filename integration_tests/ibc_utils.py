@@ -33,6 +33,87 @@ class IBCNetwork(NamedTuple):
     proc: subprocess.Popen[bytes] | None
 
 
+def call_hermes_cmd(
+    hermes,
+    connection_only,
+    incentivized,
+    version,
+):
+    if connection_only:
+        subprocess.check_call(
+            [
+                "hermes",
+                "--config",
+                hermes.configpath,
+                "create",
+                "connection",
+                "--a-chain",
+                "cronos_777-1",
+                "--b-chain",
+                "chainmain-1",
+            ]
+        )
+    else:
+        subprocess.check_call(
+            [
+                "hermes",
+                "--config",
+                hermes.configpath,
+                "create",
+                "channel",
+                "--a-port",
+                "transfer",
+                "--b-port",
+                "transfer",
+                "--a-chain",
+                "cronos_777-1",
+                "--b-chain",
+                "chainmain-1",
+                "--new-client-connection",
+                "--yes",
+            ]
+            + (
+                [
+                    "--channel-version",
+                    json.dumps(version),
+                ]
+                if incentivized
+                else []
+            )
+        )
+
+
+def call_rly_cmd(path, version):
+    cmd = [
+        "rly",
+        "pth",
+        "new",
+        "chainmain-1",
+        "cronos_777-1",
+        "chainmain-cronos",
+        "--home",
+        str(path),
+    ]
+    subprocess.check_call(cmd)
+    cmd = [
+        "rly",
+        "tx",
+        "connect",
+        "chainmain-cronos",
+        "--src-port",
+        "transfer",
+        "--dst-port",
+        "transfer",
+        "--order",
+        "unordered",
+        "--version",
+        json.dumps(version),
+        "--home",
+        str(path),
+    ]
+    subprocess.check_call(cmd)
+
+
 def prepare_network(
     tmp_path,
     file,
@@ -41,6 +122,10 @@ def prepare_network(
     connection_only=False,
     relayer=cluster.Relayer.HERMES.value,
 ):
+    print("incentivized", incentivized)
+    print("is_relay", is_relay)
+    print("connection_only", connection_only)
+    print("relayer", relayer)
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
     file = f"configs/{file}.jsonnet"
@@ -57,81 +142,18 @@ def prepare_network(
     wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
 
     version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-    incentivized_args = (
-        [
-            "--channel-version",
-            json.dumps(version),
-        ]
-        if incentivized
-        else []
-    )
     path = cronos.base_dir.parent / "relayer"
     if is_hermes:
-        hermes = Hermes(cronos.base_dir.parent / "relayer.toml")
-        if connection_only:
-            subprocess.check_call(
-                [
-                    "hermes",
-                    "--config",
-                    hermes.configpath,
-                    "create",
-                    "connection",
-                    "--a-chain",
-                    "cronos_777-1",
-                    "--b-chain",
-                    "chainmain-1",
-                ]
-            )
-        else:
-            subprocess.check_call(
-                [
-                    "hermes",
-                    "--config",
-                    hermes.configpath,
-                    "create",
-                    "channel",
-                    "--a-port",
-                    "transfer",
-                    "--b-port",
-                    "transfer",
-                    "--a-chain",
-                    "cronos_777-1",
-                    "--b-chain",
-                    "chainmain-1",
-                    "--new-client-connection",
-                    "--yes",
-                ]
-                + incentivized_args
-            )
+        hermes = Hermes(path.with_suffix(".toml"))
+        call_hermes_cmd(
+            hermes,
+            connection_only,
+            incentivized,
+            version,
+        )
     else:
-        cmd = [
-            "rly",
-            "pth",
-            "new",
-            "chainmain-1",
-            "cronos_777-1",
-            "chainmain-cronos",
-            "--home",
-            str(path),
-        ]
-        subprocess.check_call(cmd)
-        cmd = [
-            "rly",
-            "tx",
-            "connect",
-            "chainmain-cronos",
-            "--src-port",
-            "transfer",
-            "--dst-port",
-            "transfer",
-            "--order",
-            "unordered",
-            "--version",
-            json.dumps(version),
-            "--home",
-            str(path),
-        ]
-        subprocess.check_call(cmd)
+        call_rly_cmd(path, version)
+
     proc = None
     if incentivized:
         # register fee payee
