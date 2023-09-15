@@ -51,18 +51,21 @@ type MultiTree struct {
 
 	// the initial metadata loaded from disk snapshot
 	metadata MultiTreeMetadata
+
+	snapshotWriterLimit int
 }
 
-func NewEmptyMultiTree(initialVersion uint32, cacheSize int) *MultiTree {
+func NewEmptyMultiTree(initialVersion uint32, cacheSize int, snapshotWriterLimit int) *MultiTree {
 	return &MultiTree{
-		initialVersion: initialVersion,
-		treesByName:    make(map[string]int),
-		zeroCopy:       true,
-		cacheSize:      cacheSize,
+		initialVersion:      initialVersion,
+		treesByName:         make(map[string]int),
+		zeroCopy:            true,
+		cacheSize:           cacheSize,
+		snapshotWriterLimit: snapshotWriterLimit,
 	}
 }
 
-func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error) {
+func LoadMultiTree(dir string, zeroCopy bool, cacheSize int, snapshotWriterLimit int) (*MultiTree, error) {
 	metadata, err := readMetadata(dir)
 	if err != nil {
 		return nil, err
@@ -88,7 +91,7 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 		treeMap[name] = NewFromSnapshot(snapshot, zeroCopy, cacheSize)
 	}
 
-	sort.Strings(treeNames)
+	slices.Sort(treeNames)
 
 	trees := make([]NamedTree, len(treeNames))
 	treesByName := make(map[string]int, len(trees))
@@ -99,12 +102,13 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 	}
 
 	mtree := &MultiTree{
-		trees:          trees,
-		treesByName:    treesByName,
-		lastCommitInfo: *metadata.CommitInfo,
-		metadata:       *metadata,
-		zeroCopy:       zeroCopy,
-		cacheSize:      cacheSize,
+		trees:               trees,
+		treesByName:         treesByName,
+		lastCommitInfo:      *metadata.CommitInfo,
+		metadata:            *metadata,
+		zeroCopy:            zeroCopy,
+		cacheSize:           cacheSize,
+		snapshotWriterLimit: snapshotWriterLimit,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
@@ -148,6 +152,10 @@ func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	for _, entry := range t.trees {
 		entry.Tree.initialVersion = t.initialVersion
 	}
+}
+
+func (t *MultiTree) SetWriterLimit(writerLimit int) {
+	t.snapshotWriterLimit = writerLimit
 }
 
 func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
@@ -364,6 +372,8 @@ func (t *MultiTree) WriteSnapshot(dir string) error {
 
 	// write the snapshots in parallel
 	g, _ := errgroup.WithContext(context.Background())
+	g.SetLimit(t.snapshotWriterLimit)
+
 	for _, entry := range t.trees {
 		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		g.Go(func() error {

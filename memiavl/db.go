@@ -45,6 +45,7 @@ type DB struct {
 	fileLock FileLock
 	readOnly bool
 
+	snapshotWriterLimit int
 	// result channel of snapshot rewrite goroutine
 	snapshotRewriteChan chan snapshotResult
 	// the number of old snapshots to keep (excluding the latest one)
@@ -97,6 +98,8 @@ type Options struct {
 	// truncate the versions after the `TargetVersion`, the `TargetVersion` becomes the latest version.
 	// it do nothing if the target version is `0`.
 	LoadForOverwriting bool
+
+	SnapshotWriterLimit int
 }
 
 func (opts Options) Validate() error {
@@ -133,7 +136,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	opts.FillDefaults()
 
 	if opts.CreateIfMissing {
-		if err := createDBIfNotExist(dir, opts.InitialVersion); err != nil {
+		if err := createDBIfNotExist(dir, opts.InitialVersion, opts.SnapshotWriterLimit); err != nil {
 			return nil, fmt.Errorf("fail to load db: %w", err)
 		}
 	}
@@ -165,7 +168,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	path := filepath.Join(dir, snapshot)
-	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
+	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize, opts.SnapshotWriterLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -229,6 +232,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		snapshotKeepRecent:     opts.SnapshotKeepRecent,
 		snapshotInterval:       opts.SnapshotInterval,
 		triggerStateSyncExport: opts.TriggerStateSyncExport,
+		snapshotWriterLimit:    opts.SnapshotWriterLimit,
 	}
 
 	if !db.readOnly && db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -288,7 +292,7 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 		return err
 	}
 
-	return initEmptyDB(db.dir, db.initialVersion)
+	return initEmptyDB(db.dir, db.initialVersion, db.snapshotWriterLimit)
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a pending log,
@@ -640,7 +644,7 @@ func (db *DB) Reload() error {
 }
 
 func (db *DB) reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize)
+	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize, db.snapshotWriterLimit)
 	if err != nil {
 		return err
 	}
@@ -705,7 +709,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
-		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0)
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0, db.snapshotWriterLimit)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -898,8 +902,8 @@ func walPath(root string) string {
 //
 // current -> snapshot-0
 // ```
-func initEmptyDB(dir string, initialVersion uint32) error {
-	tmp := NewEmptyMultiTree(initialVersion, 0)
+func initEmptyDB(dir string, initialVersion uint32, snapshotWriterLimit int) error {
+	tmp := NewEmptyMultiTree(initialVersion, 0, snapshotWriterLimit)
 	snapshotDir := snapshotName(0)
 	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
 		return err
@@ -968,10 +972,10 @@ func atomicRemoveDir(path string) error {
 }
 
 // createDBIfNotExist detects if db does not exist and try to initialize an empty one.
-func createDBIfNotExist(dir string, initialVersion uint32) error {
+func createDBIfNotExist(dir string, initialVersion uint32, snapshotWorkerNum int) error {
 	_, err := os.Stat(filepath.Join(dir, "current", MetadataFileName))
 	if err != nil && os.IsNotExist(err) {
-		return initEmptyDB(dir, initialVersion)
+		return initEmptyDB(dir, initialVersion, snapshotWorkerNum)
 	}
 	return nil
 }
