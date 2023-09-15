@@ -1253,7 +1253,7 @@ class CosmosCLI:
             )
         )
 
-    def ica_register_account(self, connid, **kwargs):
+    def icaauth_register_account(self, connid, **kwargs):
         "execute on host chain to attach an account to the connection"
         default_kwargs = {
             "home": self.data_dir,
@@ -1264,9 +1264,8 @@ class CosmosCLI:
         rsp = json.loads(
             self.raw(
                 "tx",
-                "ica",
-                "controller",
-                "register",
+                "icaauth",
+                "register-account",
                 connid,
                 "-y",
                 **(default_kwargs | kwargs),
@@ -1276,7 +1275,7 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def ica_submit_tx(self, connid, tx, **kwargs):
+    def icaauth_submit_tx(self, connid, tx, **kwargs):
         default_kwargs = {
             "home": self.data_dir,
             "node": self.node_rpc,
@@ -1286,9 +1285,8 @@ class CosmosCLI:
         rsp = json.loads(
             self.raw(
                 "tx",
-                "ica",
-                "controller",
-                "send-tx",
+                "icaauth",
+                "submit-tx",
                 connid,
                 tx,
                 "-y",
