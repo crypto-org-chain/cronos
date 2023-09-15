@@ -49,9 +49,7 @@ def ibc(request, tmp_path_factory):
         for network in prepare_network(
             path,
             "ibc",
-            True,
-            True,
-            cluster.Relayer.RLY.value,
+            relayer=cluster.Relayer.RLY.value,
         ):
             if network.proc:
                 procs.append(network.proc)
