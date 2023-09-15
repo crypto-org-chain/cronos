@@ -88,7 +88,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res []byte
 	)
 	precompileAddr := bc.Address()
-	converter := cronosevents.ConvertEvent
+	converter := cronosevents.RelayerConvertEvent
 	switch prefix {
 	case prefixCreateClient:
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.CreateClient, converter)

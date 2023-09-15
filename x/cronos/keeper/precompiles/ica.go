@@ -11,6 +11,7 @@ import (
 	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	ibcchannelkeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
+	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -117,6 +118,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	methodID := contract.Input[:4]
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
+	converter := cronosevents.IcaConvertEvent
 	var err error
 	var res codec.ProtoMarshaler
 	switch string(methodID) {
@@ -135,7 +137,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
 			return nil, errors.New("unauthorized account registration")
 		}
-		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
+		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			res, err = ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
 				Owner:        sdk.AccAddress(account.Bytes()).String(),
 				ConnectionId: connectionID,
@@ -179,7 +181,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if err != nil {
 			panic(err)
 		}
-		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
+		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			res, err = ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
 				Owner:           sdk.AccAddress(account.Bytes()).String(),
 				ConnectionId:    connectionID,

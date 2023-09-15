@@ -5,14 +5,16 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	ibctypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	generated "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
+	ica "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
+	relayer "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 var (
-	IBCEvents        map[string]*EventDescriptor
-	IBCValueDecoders = ValueDecoders{
+	RelayerEvents        map[string]*EventDescriptor
+	IcaEvents            map[string]*EventDescriptor
+	RelayerValueDecoders = ValueDecoders{
 		ibctypes.AttributeKeyDataHex:     ConvertPacketData,
 		transfertypes.AttributeKeyAmount: ConvertAmount,
 		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
@@ -25,20 +27,37 @@ var (
 )
 
 func init() {
-	var ibcABI abi.ABI
-	if err := ibcABI.UnmarshalJSON([]byte(generated.RelayerModuleMetaData.ABI)); err != nil {
+	var relayerABI abi.ABI
+	if err := relayerABI.UnmarshalJSON([]byte(relayer.RelayerModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
-	IBCEvents = NewEventDescriptors(ibcABI)
+	RelayerEvents = NewEventDescriptors(relayerABI)
+
+	var icaABI abi.ABI
+	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
+		panic(err)
+	}
+	IcaEvents = NewEventDescriptors(relayerABI)
 }
 
-func ConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+func RelayerConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
 	if event.Type == sdk.EventTypeMessage {
 		return nil, nil
 	}
-	desc, ok := IBCEvents[event.Type]
+	desc, ok := RelayerEvents[event.Type]
 	if !ok {
 		return nil, nil
 	}
-	return desc.ConvertEvent(event.Attributes, IBCValueDecoders)
+	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders)
+}
+
+func IcaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+	if event.Type == sdk.EventTypeMessage {
+		return nil, nil
+	}
+	desc, ok := IcaEvents[event.Type]
+	if !ok {
+		return nil, nil
+	}
+	return desc.ConvertEvent(event.Attributes, ValueDecoders{})
 }
