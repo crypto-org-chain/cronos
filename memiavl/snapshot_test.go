@@ -135,7 +135,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 		CreateIfMissing:     true,
 		InitialStores:       []string{"test", "test2"},
 		AsyncCommitBuffer:   -1,
-		SnapshotWriterLimit: 16,
+		SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 	})
 	require.NoError(t, err)
 
