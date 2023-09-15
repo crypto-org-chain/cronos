@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
-	"golang.org/x/sync/errgroup"
 )
 
 const MetadataFileName = "__metadata"
@@ -357,22 +357,20 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	return nil
 }
 
-func (t *MultiTree) WriteSnapshot(dir string, writerLimit int) error {
+func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
-
+	group, _ := wp.GroupContext(context.Background())
 	// write the snapshots in parallel
-	g, _ := errgroup.WithContext(context.Background())
-	g.SetLimit(writerLimit)
-
 	for _, entry := range t.trees {
 		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-		g.Go(func() error {
+		group.Submit(func() error {
 			return tree.WriteSnapshot(filepath.Join(dir, name))
 		})
 	}
-	if err := g.Wait(); err != nil {
+
+	if err := group.Wait(); err != nil {
 		return err
 	}
 
