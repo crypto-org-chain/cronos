@@ -7,7 +7,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 )
@@ -24,7 +23,7 @@ type RelayerContract struct {
 	ibcKeeper *ibckeeper.Keeper
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) precompiles.StatefulPrecompiledContract {
+func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(RelayerContractAddress),
 		ibcKeeper:    ibcKeeper,
@@ -81,45 +80,46 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	}
 	prefix := int(binary.LittleEndian.Uint32(contract.Input[:prefixSize4Bytes]))
 	input := contract.Input[prefixSize4Bytes:]
-	stateDB := evm.StateDB.(precompiles.ExtStateDB)
+	stateDB := evm.StateDB.(ExtStateDB)
 
 	var (
 		err error
 		res []byte
 	)
+	precompileAddr := bc.Address()
 	switch prefix {
 	case prefixCreateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.CreateClient)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.CreateClient)
 	case prefixUpdateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.UpdateClient)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpdateClient)
 	case prefixUpgradeClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.UpgradeClient)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpgradeClient)
 	case prefixSubmitMisbehaviour:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.SubmitMisbehaviour)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.SubmitMisbehaviour)
 	case prefixConnectionOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ConnectionOpenInit)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenInit)
 	case prefixConnectionOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ConnectionOpenTry)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenTry)
 	case prefixConnectionOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ConnectionOpenAck)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenAck)
 	case prefixConnectionOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ConnectionOpenConfirm)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenConfirm)
 	case prefixChannelOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ChannelOpenInit)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenInit)
 	case prefixChannelOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ChannelOpenTry)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenTry)
 	case prefixChannelOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ChannelOpenAck)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenAck)
 	case prefixChannelOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.ChannelOpenConfirm)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenConfirm)
 	case prefixRecvPacket:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.RecvPacket)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.RecvPacket)
 	case prefixAcknowledgement:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.Acknowledgement)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Acknowledgement)
 	case prefixTimeout:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.Timeout)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Timeout)
 	case prefixTimeoutOnClose:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, input, bc.ibcKeeper.TimeoutOnClose)
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.TimeoutOnClose)
 	default:
 		return nil, errors.New("unknown method")
 	}

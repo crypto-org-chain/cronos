@@ -159,7 +159,6 @@ schema = 3
   [mod."github.com/cosmos/iavl"]
     version = "v0.21.0-alpha.1.0.20230904092046-df3db2d96583"
     hash = "sha256-3Va8Ljq63IXty0oHlRpqfsC6WsMut6TWZ2R+/nYtfTU="
-    replaced = "github.com/cosmos/iavl"
   [mod."github.com/cosmos/ibc-go/v7"]
     version = "v7.2.0"
     hash = "sha256-fg+0AykvEMzqRGI5CmqwjQtSIwTyT6RuSDpp12wzReM="
@@ -219,8 +218,8 @@ schema = 3
     hash = "sha256-GgcReGsIIuBE2TabDYqDO9sBGogdVr9RSh4arQzdPnE="
     replaced = "github.com/evmos/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20230909034938-7f03e19e2b3a"
-    hash = "sha256-OHmpXopLE+tbuB6C51c9+BpeDQ6bdriGCvRpyopvdrk="
+    version = "v0.6.1-0.20230914072023-bdeaf36d31ea"
+    hash = "sha256-Kx/4tTotsbKR17tVukNcd3XcRPwIrso+eTImXISuuPA="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"

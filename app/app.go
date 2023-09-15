@@ -13,8 +13,6 @@ import (
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	appparams "cosmossdk.io/simapp/params"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
-	"github.com/crypto-org-chain/cronos/v2/app/ante"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	"golang.org/x/exp/slices"
 
 	dbm "github.com/cometbft/cometbft-db"
@@ -129,7 +127,6 @@ import (
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
 	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
-	"github.com/evmos/ethermint/x/evm/keeper/precompiles"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/evmos/ethermint/x/feemarket"
 	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
@@ -145,12 +142,15 @@ import (
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
+	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
 
@@ -546,7 +546,7 @@ func New(
 		app.FeeMarketKeeper,
 		tracer,
 		evmS,
-		[]precompiles.StatefulPrecompiledContract{
+		[]vm.PrecompiledContract{
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
 		},
 		allKeys,
