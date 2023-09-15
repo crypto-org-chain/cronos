@@ -18,7 +18,7 @@ import (
 const (
 	DefaultSnapshotInterval    = 1000
 	LockFileName               = "LOCK"
-	DefaultSnapshotWriterLimit = 1
+	DefaultSnapshotWriterLimit = 32
 )
 
 var errReadOnly = errors.New("db is read-only")
@@ -123,6 +123,10 @@ func (opts *Options) FillDefaults() {
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = DefaultSnapshotInterval
 	}
+
+	if opts.SnapshotWriterLimit <= 0 {
+		opts.SnapshotWriterLimit = DefaultSnapshotWriterLimit
+	}
 }
 
 const (
@@ -137,7 +141,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	opts.FillDefaults()
 
 	if opts.CreateIfMissing {
-		if err := createDBIfNotExist(dir, opts.InitialVersion, opts.SnapshotWriterLimit); err != nil {
+		if err := createDBIfNotExist(dir, opts.InitialVersion); err != nil {
 			return nil, fmt.Errorf("fail to load db: %w", err)
 		}
 	}
@@ -974,7 +978,7 @@ func atomicRemoveDir(path string) error {
 }
 
 // createDBIfNotExist detects if db does not exist and try to initialize an empty one.
-func createDBIfNotExist(dir string, initialVersion uint32, snapshotWorkerNum int) error {
+func createDBIfNotExist(dir string, initialVersion uint32) error {
 	_, err := os.Stat(filepath.Join(dir, "current", MetadataFileName))
 	if err != nil && os.IsNotExist(err) {
 		return initEmptyDB(dir, initialVersion)
