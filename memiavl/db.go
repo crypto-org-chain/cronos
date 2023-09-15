@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	DefaultSnapshotInterval = 1000
-	LockFileName            = "LOCK"
+	DefaultSnapshotInterval    = 1000
+	LockFileName               = "LOCK"
+	DefaultSnapshotWriterLimit = 1
 )
 
 var errReadOnly = errors.New("db is read-only")
@@ -168,7 +169,7 @@ func Load(dir string, opts Options) (*DB, error) {
 	}
 
 	path := filepath.Join(dir, snapshot)
-	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize, opts.SnapshotWriterLimit)
+	mtree, err := LoadMultiTree(path, opts.ZeroCopy, opts.CacheSize)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +293,7 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 		return err
 	}
 
-	return initEmptyDB(db.dir, db.initialVersion, db.snapshotWriterLimit)
+	return initEmptyDB(db.dir, db.initialVersion)
 }
 
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a pending log,
@@ -609,9 +610,10 @@ func (db *DB) Copy() *DB {
 func (db *DB) copy(cacheSize int) *DB {
 	mtree := db.MultiTree.Copy(cacheSize)
 	return &DB{
-		MultiTree: *mtree,
-		logger:    db.logger,
-		dir:       db.dir,
+		MultiTree:           *mtree,
+		logger:              db.logger,
+		dir:                 db.dir,
+		snapshotWriterLimit: db.snapshotWriterLimit,
 	}
 }
 
@@ -627,7 +629,7 @@ func (db *DB) RewriteSnapshot() error {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + "-tmp"
 	path := filepath.Join(db.dir, tmpDir)
-	if err := db.MultiTree.WriteSnapshot(path); err != nil {
+	if err := db.MultiTree.WriteSnapshot(path, db.snapshotWriterLimit); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
@@ -644,7 +646,7 @@ func (db *DB) Reload() error {
 }
 
 func (db *DB) reload() error {
-	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize, db.snapshotWriterLimit)
+	mtree, err := LoadMultiTree(currentPath(db.dir), db.zeroCopy, db.cacheSize)
 	if err != nil {
 		return err
 	}
@@ -709,7 +711,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
-		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0, db.snapshotWriterLimit)
+		mtree, err := LoadMultiTree(currentPath(cloned.dir), cloned.zeroCopy, 0)
 		if err != nil {
 			ch <- snapshotResult{err: err}
 			return
@@ -805,7 +807,7 @@ func (db *DB) WriteSnapshot(dir string) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return db.MultiTree.WriteSnapshot(dir)
+	return db.MultiTree.WriteSnapshot(dir, db.snapshotWriterLimit)
 }
 
 func snapshotName(version int64) string {
@@ -902,10 +904,10 @@ func walPath(root string) string {
 //
 // current -> snapshot-0
 // ```
-func initEmptyDB(dir string, initialVersion uint32, snapshotWriterLimit int) error {
-	tmp := NewEmptyMultiTree(initialVersion, 0, snapshotWriterLimit)
+func initEmptyDB(dir string, initialVersion uint32) error {
+	tmp := NewEmptyMultiTree(initialVersion, 0)
 	snapshotDir := snapshotName(0)
-	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
+	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir), DefaultSnapshotWriterLimit); err != nil {
 		return err
 	}
 	return updateCurrentSymlink(dir, snapshotDir)
@@ -975,7 +977,7 @@ func atomicRemoveDir(path string) error {
 func createDBIfNotExist(dir string, initialVersion uint32, snapshotWorkerNum int) error {
 	_, err := os.Stat(filepath.Join(dir, "current", MetadataFileName))
 	if err != nil && os.IsNotExist(err) {
-		return initEmptyDB(dir, initialVersion, snapshotWorkerNum)
+		return initEmptyDB(dir, initialVersion)
 	}
 	return nil
 }

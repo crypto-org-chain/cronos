@@ -51,21 +51,18 @@ type MultiTree struct {
 
 	// the initial metadata loaded from disk snapshot
 	metadata MultiTreeMetadata
-
-	snapshotWriterLimit int
 }
 
-func NewEmptyMultiTree(initialVersion uint32, cacheSize int, snapshotWriterLimit int) *MultiTree {
+func NewEmptyMultiTree(initialVersion uint32, cacheSize int) *MultiTree {
 	return &MultiTree{
-		initialVersion:      initialVersion,
-		treesByName:         make(map[string]int),
-		zeroCopy:            true,
-		cacheSize:           cacheSize,
-		snapshotWriterLimit: snapshotWriterLimit,
+		initialVersion: initialVersion,
+		treesByName:    make(map[string]int),
+		zeroCopy:       true,
+		cacheSize:      cacheSize,
 	}
 }
 
-func LoadMultiTree(dir string, zeroCopy bool, cacheSize int, snapshotWriterLimit int) (*MultiTree, error) {
+func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error) {
 	metadata, err := readMetadata(dir)
 	if err != nil {
 		return nil, err
@@ -102,13 +99,12 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int, snapshotWriterLimit
 	}
 
 	mtree := &MultiTree{
-		trees:               trees,
-		treesByName:         treesByName,
-		lastCommitInfo:      *metadata.CommitInfo,
-		metadata:            *metadata,
-		zeroCopy:            zeroCopy,
-		cacheSize:           cacheSize,
-		snapshotWriterLimit: snapshotWriterLimit,
+		trees:          trees,
+		treesByName:    treesByName,
+		lastCommitInfo: *metadata.CommitInfo,
+		metadata:       *metadata,
+		zeroCopy:       zeroCopy,
+		cacheSize:      cacheSize,
 	}
 	// initial version is nesserary for wal index conversion
 	mtree.setInitialVersion(metadata.InitialVersion)
@@ -152,10 +148,6 @@ func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	for _, entry := range t.trees {
 		entry.Tree.initialVersion = t.initialVersion
 	}
-}
-
-func (t *MultiTree) SetWriterLimit(writerLimit int) {
-	t.snapshotWriterLimit = writerLimit
 }
 
 func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
@@ -365,14 +357,14 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	return nil
 }
 
-func (t *MultiTree) WriteSnapshot(dir string) error {
+func (t *MultiTree) WriteSnapshot(dir string, writerLimit int) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
 
 	// write the snapshots in parallel
 	g, _ := errgroup.WithContext(context.Background())
-	g.SetLimit(t.snapshotWriterLimit)
+	g.SetLimit(writerLimit)
 
 	for _, entry := range t.trees {
 		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
