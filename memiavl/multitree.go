@@ -366,7 +366,7 @@ func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
 	group, _ := wp.GroupContext(context.Background())
 
 	for _, entry := range t.trees {
-		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		tree, name := entry.Tree, entry.Name
 		group.Submit(func() error {
 			return tree.WriteSnapshot(filepath.Join(dir, name))
 		})
