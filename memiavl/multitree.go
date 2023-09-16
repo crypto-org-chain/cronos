@@ -362,7 +362,7 @@ func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
 		return err
 	}
 
-	// write the snapshots in parallel
+	// write the snapshots in parallel and wait all jobs done
 	group, _ := wp.GroupContext(context.Background())
 
 	for _, entry := range t.trees {
