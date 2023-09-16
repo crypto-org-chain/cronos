@@ -66,8 +66,8 @@ schema = 3
     version = "v1.6.0"
     hash = "sha256-u1dkRJ2Y5+hnYlkyMPm14HxKkAv999bjN622nZDjaBo="
   [mod."github.com/alitto/pond"]
-    version = "v1.8.2"
-    hash = "sha256-GbTih6gDKGuCP0V0iEo1DfEePAjm6lBxiUpqmL8hD1I="
+    version = "v1.8.3"
+    hash = "sha256-Iaiw4a8Up0tB2iu8xdmXKHwXBGWBBGnqMGfZYWNc1ng="
   [mod."github.com/armon/go-metrics"]
     version = "v0.4.1"
     hash = "sha256-usxTUHA0QQMdM6sHi2z51nmnEKMbA0qUilxJFpWHlYE="
