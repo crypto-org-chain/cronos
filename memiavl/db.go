@@ -227,7 +227,7 @@ func Load(dir string, opts Options) (*DB, error) {
 			return nil, fmt.Errorf("fail to prune snapshots: %w", err)
 		}
 	}
-
+	// create worker pool. recv tasks to write snapshot
 	workerPool := pond.New(opts.SnapshotWriterLimit, opts.SnapshotWriterLimit*10)
 
 	db := &DB{
