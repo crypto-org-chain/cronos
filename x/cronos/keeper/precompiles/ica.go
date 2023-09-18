@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
-// TODO adjust the gas cost
+// TODO: Replace this const with adjusted gas cost corresponding to input when executing precompile contract.
 const ICAContractRequiredGas = 10000
 
 var (

@@ -12,7 +12,7 @@ import (
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 )
 
-// TODO adjust the gas cost
+// TODO: Replace this const with adjusted gas cost corresponding to input when executing precompile contract.
 const RelayerContractRequiredGas = 10000
 
 var RelayerContractAddress = common.BytesToAddress([]byte{101})
