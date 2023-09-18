@@ -30,7 +30,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"controllerChannelId\",\"type\":\"string\"}],\"name\":\"Ics27Packet\",\"type\":\"event\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"channelId\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"portId\",\"type\":\"string\"}],\"name\":\"RegisterAccountResult\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"seq\",\"type\":\"string\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -179,9 +179,9 @@ func (_ICAModule *ICAModuleTransactorRaw) Transact(opts *bind.TransactOpts, meth
 	return _ICAModule.Contract.contract.Transact(opts, method, params...)
 }
 
-// ICAModuleIcs27PacketIterator is returned from FilterIcs27Packet and is used to iterate over the raw logs and unpacked data for Ics27Packet events raised by the ICAModule contract.
-type ICAModuleIcs27PacketIterator struct {
-	Event *ICAModuleIcs27Packet // Event containing the contract specifics and raw log
+// ICAModuleRegisterAccountResultIterator is returned from FilterRegisterAccountResult and is used to iterate over the raw logs and unpacked data for RegisterAccountResult events raised by the ICAModule contract.
+type ICAModuleRegisterAccountResultIterator struct {
+	Event *ICAModuleRegisterAccountResult // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -195,7 +195,7 @@ type ICAModuleIcs27PacketIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *ICAModuleIcs27PacketIterator) Next() bool {
+func (it *ICAModuleRegisterAccountResultIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -204,7 +204,7 @@ func (it *ICAModuleIcs27PacketIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(ICAModuleIcs27Packet)
+			it.Event = new(ICAModuleRegisterAccountResult)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -219,7 +219,7 @@ func (it *ICAModuleIcs27PacketIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(ICAModuleIcs27Packet)
+		it.Event = new(ICAModuleRegisterAccountResult)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -235,51 +235,42 @@ func (it *ICAModuleIcs27PacketIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *ICAModuleIcs27PacketIterator) Error() error {
+func (it *ICAModuleRegisterAccountResultIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *ICAModuleIcs27PacketIterator) Close() error {
+func (it *ICAModuleRegisterAccountResultIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// ICAModuleIcs27Packet represents a Ics27Packet event raised by the ICAModule contract.
-type ICAModuleIcs27Packet struct {
-	ControllerChannelId common.Hash
-	Raw                 types.Log // Blockchain specific contextual infos
+// ICAModuleRegisterAccountResult represents a RegisterAccountResult event raised by the ICAModule contract.
+type ICAModuleRegisterAccountResult struct {
+	ChannelId string
+	PortId    string
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterIcs27Packet is a free log retrieval operation binding the contract event 0x43ea9083e980b3f6c315fe255d8179445962f23846010c7e83557d1aff161a28.
+// FilterRegisterAccountResult is a free log retrieval operation binding the contract event 0x376fa4e62b5134e1fee2de3178039dea978d2aba39c3141ccb06dd32fcc30cb0.
 //
-// Solidity: event Ics27Packet(string indexed controllerChannelId)
-func (_ICAModule *ICAModuleFilterer) FilterIcs27Packet(opts *bind.FilterOpts, controllerChannelId []string) (*ICAModuleIcs27PacketIterator, error) {
+// Solidity: event RegisterAccountResult(string channelId, string portId)
+func (_ICAModule *ICAModuleFilterer) FilterRegisterAccountResult(opts *bind.FilterOpts) (*ICAModuleRegisterAccountResultIterator, error) {
 
-	var controllerChannelIdRule []interface{}
-	for _, controllerChannelIdItem := range controllerChannelId {
-		controllerChannelIdRule = append(controllerChannelIdRule, controllerChannelIdItem)
-	}
-
-	logs, sub, err := _ICAModule.contract.FilterLogs(opts, "Ics27Packet", controllerChannelIdRule)
+	logs, sub, err := _ICAModule.contract.FilterLogs(opts, "RegisterAccountResult")
 	if err != nil {
 		return nil, err
 	}
-	return &ICAModuleIcs27PacketIterator{contract: _ICAModule.contract, event: "Ics27Packet", logs: logs, sub: sub}, nil
+	return &ICAModuleRegisterAccountResultIterator{contract: _ICAModule.contract, event: "RegisterAccountResult", logs: logs, sub: sub}, nil
 }
 
-// WatchIcs27Packet is a free log subscription operation binding the contract event 0x43ea9083e980b3f6c315fe255d8179445962f23846010c7e83557d1aff161a28.
+// WatchRegisterAccountResult is a free log subscription operation binding the contract event 0x376fa4e62b5134e1fee2de3178039dea978d2aba39c3141ccb06dd32fcc30cb0.
 //
-// Solidity: event Ics27Packet(string indexed controllerChannelId)
-func (_ICAModule *ICAModuleFilterer) WatchIcs27Packet(opts *bind.WatchOpts, sink chan<- *ICAModuleIcs27Packet, controllerChannelId []string) (event.Subscription, error) {
+// Solidity: event RegisterAccountResult(string channelId, string portId)
+func (_ICAModule *ICAModuleFilterer) WatchRegisterAccountResult(opts *bind.WatchOpts, sink chan<- *ICAModuleRegisterAccountResult) (event.Subscription, error) {
 
-	var controllerChannelIdRule []interface{}
-	for _, controllerChannelIdItem := range controllerChannelId {
-		controllerChannelIdRule = append(controllerChannelIdRule, controllerChannelIdItem)
-	}
-
-	logs, sub, err := _ICAModule.contract.WatchLogs(opts, "Ics27Packet", controllerChannelIdRule)
+	logs, sub, err := _ICAModule.contract.WatchLogs(opts, "RegisterAccountResult")
 	if err != nil {
 		return nil, err
 	}
@@ -289,8 +280,8 @@ func (_ICAModule *ICAModuleFilterer) WatchIcs27Packet(opts *bind.WatchOpts, sink
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(ICAModuleIcs27Packet)
-				if err := _ICAModule.contract.UnpackLog(event, "Ics27Packet", log); err != nil {
+				event := new(ICAModuleRegisterAccountResult)
+				if err := _ICAModule.contract.UnpackLog(event, "RegisterAccountResult", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -311,12 +302,146 @@ func (_ICAModule *ICAModuleFilterer) WatchIcs27Packet(opts *bind.WatchOpts, sink
 	}), nil
 }
 
-// ParseIcs27Packet is a log parse operation binding the contract event 0x43ea9083e980b3f6c315fe255d8179445962f23846010c7e83557d1aff161a28.
+// ParseRegisterAccountResult is a log parse operation binding the contract event 0x376fa4e62b5134e1fee2de3178039dea978d2aba39c3141ccb06dd32fcc30cb0.
 //
-// Solidity: event Ics27Packet(string indexed controllerChannelId)
-func (_ICAModule *ICAModuleFilterer) ParseIcs27Packet(log types.Log) (*ICAModuleIcs27Packet, error) {
-	event := new(ICAModuleIcs27Packet)
-	if err := _ICAModule.contract.UnpackLog(event, "Ics27Packet", log); err != nil {
+// Solidity: event RegisterAccountResult(string channelId, string portId)
+func (_ICAModule *ICAModuleFilterer) ParseRegisterAccountResult(log types.Log) (*ICAModuleRegisterAccountResult, error) {
+	event := new(ICAModuleRegisterAccountResult)
+	if err := _ICAModule.contract.UnpackLog(event, "RegisterAccountResult", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// ICAModuleSubmitMsgsResultIterator is returned from FilterSubmitMsgsResult and is used to iterate over the raw logs and unpacked data for SubmitMsgsResult events raised by the ICAModule contract.
+type ICAModuleSubmitMsgsResultIterator struct {
+	Event *ICAModuleSubmitMsgsResult // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ICAModuleSubmitMsgsResultIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ICAModuleSubmitMsgsResult)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ICAModuleSubmitMsgsResult)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ICAModuleSubmitMsgsResultIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ICAModuleSubmitMsgsResultIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ICAModuleSubmitMsgsResult represents a SubmitMsgsResult event raised by the ICAModule contract.
+type ICAModuleSubmitMsgsResult struct {
+	Seq string
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterSubmitMsgsResult is a free log retrieval operation binding the contract event 0xa3e95b27e18d059901cec72b253b0fb29054cf697ac76ea3cd4bb1eee64845dd.
+//
+// Solidity: event SubmitMsgsResult(string seq)
+func (_ICAModule *ICAModuleFilterer) FilterSubmitMsgsResult(opts *bind.FilterOpts) (*ICAModuleSubmitMsgsResultIterator, error) {
+
+	logs, sub, err := _ICAModule.contract.FilterLogs(opts, "SubmitMsgsResult")
+	if err != nil {
+		return nil, err
+	}
+	return &ICAModuleSubmitMsgsResultIterator{contract: _ICAModule.contract, event: "SubmitMsgsResult", logs: logs, sub: sub}, nil
+}
+
+// WatchSubmitMsgsResult is a free log subscription operation binding the contract event 0xa3e95b27e18d059901cec72b253b0fb29054cf697ac76ea3cd4bb1eee64845dd.
+//
+// Solidity: event SubmitMsgsResult(string seq)
+func (_ICAModule *ICAModuleFilterer) WatchSubmitMsgsResult(opts *bind.WatchOpts, sink chan<- *ICAModuleSubmitMsgsResult) (event.Subscription, error) {
+
+	logs, sub, err := _ICAModule.contract.WatchLogs(opts, "SubmitMsgsResult")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ICAModuleSubmitMsgsResult)
+				if err := _ICAModule.contract.UnpackLog(event, "SubmitMsgsResult", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSubmitMsgsResult is a log parse operation binding the contract event 0xa3e95b27e18d059901cec72b253b0fb29054cf697ac76ea3cd4bb1eee64845dd.
+//
+// Solidity: event SubmitMsgsResult(string seq)
+func (_ICAModule *ICAModuleFilterer) ParseSubmitMsgsResult(log types.Log) (*ICAModuleSubmitMsgsResult, error) {
+	event := new(ICAModuleSubmitMsgsResult)
+	if err := _ICAModule.contract.UnpackLog(event, "SubmitMsgsResult", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

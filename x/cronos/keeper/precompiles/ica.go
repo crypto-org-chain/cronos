@@ -3,6 +3,7 @@ package precompiles
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -11,7 +12,9 @@ import (
 	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	ibcchannelkeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
+	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -137,12 +140,23 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
 			return nil, errors.New("unauthorized account registration")
 		}
+		owner := sdk.AccAddress(account.Bytes()).String()
 		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			res, err = ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
-				Owner:        sdk.AccAddress(account.Bytes()).String(),
+			response, err := ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
+				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
 			})
+			res = response
+			if err == nil && response != nil {
+				ctx.EventManager().EmitEvents(sdk.Events{
+					sdk.NewEvent(
+						cronoseventstypes.EventTypeRegisterAccountResult,
+						sdk.NewAttribute(channeltypes.AttributeKeyChannelID, response.ChannelId),
+						sdk.NewAttribute(channeltypes.AttributeKeyPortID, response.PortId),
+					),
+				})
+			}
 			return err
 		})
 	case string(QueryAccountMethod.ID):
@@ -175,19 +189,28 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
 			return nil, errors.New("unauthorized send tx")
 		}
-
 		var icaMsgData icatypes.InterchainAccountPacketData
 		err = ic.cdc.UnmarshalJSON([]byte(data), &icaMsgData)
 		if err != nil {
 			panic(err)
 		}
+		owner := sdk.AccAddress(account.Bytes()).String()
 		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			res, err = ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
-				Owner:           sdk.AccAddress(account.Bytes()).String(),
+			response, err := ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
+				Owner:           owner,
 				ConnectionId:    connectionID,
 				PacketData:      icaMsgData,
 				RelativeTimeout: timeout.Uint64(),
 			})
+			res = response
+			if err == nil && response != nil {
+				ctx.EventManager().EmitEvents(sdk.Events{
+					sdk.NewEvent(
+						cronoseventstypes.EventTypeSubmitMsgsResult,
+						sdk.NewAttribute(cronoseventstypes.AttributeKeySeq, fmt.Sprintf("%d", response.Sequence)),
+					),
+				})
+			}
 			return err
 		})
 	default:

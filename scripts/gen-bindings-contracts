@@ -2,7 +2,7 @@
 
 solc08 --abi --bin x/cronos/events/bindings/src/CosmosTypes.sol -o build --overwrite
 solc08 --abi --bin x/cronos/events/bindings/src/Relayer.sol -o build --overwrite
-solc08 --abi --bin x/cronos/events/bindings/src/ICA.sol -o build --overwrite
+solc06 --abi --bin x/cronos/events/bindings/src/ICA.sol -o build --overwrite
 
 
 abigen --pkg lib --abi build/CosmosTypes.abi --bin build/CosmosTypes.bin --out x/cronos/events/bindings/cosmos/lib/cosmos_types.abigen.go --type CosmosTypes
