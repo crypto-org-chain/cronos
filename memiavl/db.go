@@ -19,7 +19,7 @@ import (
 const (
 	DefaultSnapshotInterval    = 1000
 	LockFileName               = "LOCK"
-	DefaultSnapshotWriterLimit = 32
+	DefaultSnapshotWriterLimit = 4
 )
 
 var errReadOnly = errors.New("db is read-only")

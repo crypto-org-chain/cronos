@@ -15,8 +15,6 @@ var ErrorExportDone = errors.New("export is complete")
 // especially since callers may export several IAVL stores in parallel (e.g. the Cosmos SDK).
 const exportBufferSize = 32
 
-const exportSnapshotWorkerNum = 32
-
 type MultiTreeExporter struct {
 	// only one of them is non-nil
 	db    *DB
@@ -36,7 +34,7 @@ func NewMultiTreeExporter(dir string, version uint32, supportExportNonSnapshotVe
 			TargetVersion:       version,
 			ZeroCopy:            true,
 			ReadOnly:            true,
-			SnapshotWriterLimit: exportSnapshotWorkerNum,
+			SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("invalid height: %d, %w", version, err)
