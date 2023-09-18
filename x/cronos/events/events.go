@@ -37,7 +37,7 @@ func init() {
 	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
-	IcaEvents = NewEventDescriptors(relayerABI)
+	IcaEvents = NewEventDescriptors(icaABI)
 }
 
 func RelayerConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
@@ -48,7 +48,7 @@ func RelayerConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
 	if !ok {
 		return nil, nil
 	}
-	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders)
+	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders.WithDefaultDecoder(ReturnStringAsIs))
 }
 
 func IcaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {

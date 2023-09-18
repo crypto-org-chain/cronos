@@ -22,6 +22,19 @@ type (
 	ValueDecoders map[string]ValueDecoder
 )
 
+func (d ValueDecoders) WithDefaultDecoder(decoder ValueDecoder) ValueDecoders {
+	d[""] = decoder
+	return d
+}
+
+func (d ValueDecoders) GetDecoder(name string) (ValueDecoder, bool) {
+	decoder, ok := d[name]
+	if !ok {
+		decoder, ok = d[""]
+	}
+	return decoder, ok
+}
+
 const intBase = 10
 
 func AccAddressFromBech32(address string) (addr sdk.AccAddress, err error) {
