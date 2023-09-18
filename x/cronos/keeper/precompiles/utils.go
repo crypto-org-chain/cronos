@@ -27,10 +27,12 @@ func exec[Req any, PReq interface {
 	contract common.Address,
 	input []byte,
 	action func(context.Context, PReq) (Resp, error),
+	cb func(sdk.Context, Resp),
 	converter statedb.EventConverter,
 ) ([]byte, error) {
 	msg := PReq(new(Req))
-	if err := cdc.Unmarshal(input, msg); err != nil {
+	err := cdc.Unmarshal(input, msg)
+	if err != nil {
 		return nil, fmt.Errorf("fail to Unmarshal %T %w", msg, err)
 	}
 
@@ -46,6 +48,9 @@ func exec[Req any, PReq interface {
 	if err := stateDB.ExecuteNativeAction(contract, converter, func(ctx sdk.Context) error {
 		var err error
 		res, err = action(ctx, msg)
+		if cb != nil && err == nil {
+			cb(ctx, res)
+		}
 		return err
 	}); err != nil {
 		return nil, err

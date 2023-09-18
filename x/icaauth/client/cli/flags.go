@@ -2,6 +2,9 @@ package cli
 
 const (
 	// The controller chain channel version
-	FlagVersion         = "version"
-	FlagTimeoutDuration = "timeout-duration"
+	flagVersion               = "version"
+	flagTimeoutDuration       = "timeout-duration"
+	flagRelativePacketTimeout = "relative-packet-timeout"
+	flagPrintProtoOnly        = "print-proto-only"
+	flagPacketDataStr         = "packet-data-str"
 )
