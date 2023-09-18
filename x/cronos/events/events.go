@@ -5,7 +5,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	ibctypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ica "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
 	relayer "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
@@ -17,7 +16,7 @@ var (
 	RelayerEvents        map[string]*EventDescriptor
 	IcaEvents            map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
-		ibctypes.AttributeKeyDataHex:     ConvertPacketData,
+		channeltypes.AttributeKeyDataHex: ConvertPacketData,
 		transfertypes.AttributeKeyAmount: ConvertAmount,
 		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
 		banktypes.AttributeKeySpender:    ConvertAccAddressFromBech32,
