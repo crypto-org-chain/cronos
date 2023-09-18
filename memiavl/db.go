@@ -11,13 +11,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 )
 
 const (
-	DefaultSnapshotInterval = 1000
-	LockFileName            = "LOCK"
+	DefaultSnapshotInterval    = 1000
+	LockFileName               = "LOCK"
+	DefaultSnapshotWriterLimit = 32
 )
 
 var errReadOnly = errors.New("db is read-only")
@@ -72,6 +74,8 @@ type DB struct {
 	//   this method is the sole entry point for tree modifications, and there's no concurrency internally
 	//   (the background snapshot rewrite is handled separately), so we don't need locks in the Tree.
 	mtx sync.Mutex
+	// worker goroutine IdleTimeout = 5s
+	snapshotWriterPool *pond.WorkerPool
 }
 
 type Options struct {
@@ -97,6 +101,8 @@ type Options struct {
 	// truncate the versions after the `TargetVersion`, the `TargetVersion` becomes the latest version.
 	// it do nothing if the target version is `0`.
 	LoadForOverwriting bool
+
+	SnapshotWriterLimit int
 }
 
 func (opts Options) Validate() error {
@@ -118,6 +124,10 @@ func (opts *Options) FillDefaults() {
 
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = DefaultSnapshotInterval
+	}
+
+	if opts.SnapshotWriterLimit <= 0 {
+		opts.SnapshotWriterLimit = DefaultSnapshotWriterLimit
 	}
 }
 
@@ -217,6 +227,8 @@ func Load(dir string, opts Options) (*DB, error) {
 			return nil, fmt.Errorf("fail to prune snapshots: %w", err)
 		}
 	}
+	// create worker pool. recv tasks to write snapshot
+	workerPool := pond.New(opts.SnapshotWriterLimit, opts.SnapshotWriterLimit*10)
 
 	db := &DB{
 		MultiTree:              *mtree,
@@ -229,6 +241,7 @@ func Load(dir string, opts Options) (*DB, error) {
 		snapshotKeepRecent:     opts.SnapshotKeepRecent,
 		snapshotInterval:       opts.SnapshotInterval,
 		triggerStateSyncExport: opts.TriggerStateSyncExport,
+		snapshotWriterPool:     workerPool,
 	}
 
 	if !db.readOnly && db.Version() == 0 && len(opts.InitialStores) > 0 {
@@ -604,10 +617,12 @@ func (db *DB) Copy() *DB {
 
 func (db *DB) copy(cacheSize int) *DB {
 	mtree := db.MultiTree.Copy(cacheSize)
+
 	return &DB{
-		MultiTree: *mtree,
-		logger:    db.logger,
-		dir:       db.dir,
+		MultiTree:          *mtree,
+		logger:             db.logger,
+		dir:                db.dir,
+		snapshotWriterPool: db.snapshotWriterPool,
 	}
 }
 
@@ -623,7 +638,7 @@ func (db *DB) RewriteSnapshot() error {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + "-tmp"
 	path := filepath.Join(db.dir, tmpDir)
-	if err := db.MultiTree.WriteSnapshot(path); err != nil {
+	if err := db.MultiTree.WriteSnapshot(path, db.snapshotWriterPool); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
@@ -801,7 +816,7 @@ func (db *DB) WriteSnapshot(dir string) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return db.MultiTree.WriteSnapshot(dir)
+	return db.MultiTree.WriteSnapshot(dir, db.snapshotWriterPool)
 }
 
 func snapshotName(version int64) string {
@@ -901,7 +916,11 @@ func walPath(root string) string {
 func initEmptyDB(dir string, initialVersion uint32) error {
 	tmp := NewEmptyMultiTree(initialVersion, 0)
 	snapshotDir := snapshotName(0)
-	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir)); err != nil {
+	// create tmp worker pool
+	pool := pond.New(DefaultSnapshotWriterLimit, DefaultSnapshotWriterLimit*10)
+	defer pool.Stop()
+
+	if err := tmp.WriteSnapshot(filepath.Join(dir, snapshotDir), pool); err != nil {
 		return err
 	}
 	return updateCurrentSymlink(dir, snapshotDir)
