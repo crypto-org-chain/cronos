@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	cosmossdk.io/errors v1.0.0
-	github.com/alitto/pond v1.8.2
+	github.com/alitto/pond v1.8.3
 	github.com/cometbft/cometbft v0.37.2
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-sdk v0.47.3
@@ -138,7 +138,6 @@ require (
 	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
