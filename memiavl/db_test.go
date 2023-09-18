@@ -16,8 +16,9 @@ import (
 
 func TestRewriteSnapshot(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing: true,
-		InitialStores:   []string{"test"},
+		CreateIfMissing:     true,
+		InitialStores:       []string{"test"},
+		SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 	})
 	require.NoError(t, err)
 
@@ -82,9 +83,10 @@ func TestRemoveSnapshotDir(t *testing.T) {
 
 func TestRewriteSnapshotBackground(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing:    true,
-		InitialStores:      []string{"test"},
-		SnapshotKeepRecent: 0, // only a single snapshot is kept
+		CreateIfMissing:     true,
+		InitialStores:       []string{"test"},
+		SnapshotKeepRecent:  0, // only a single snapshot is kept
+		SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 	})
 	require.NoError(t, err)
 
@@ -183,7 +185,7 @@ func TestInitialVersion(t *testing.T) {
 	value := "world"
 	for _, initialVersion := range []int64{0, 1, 100} {
 		dir := t.TempDir()
-		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}})
+		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}, SnapshotWriterLimit: DefaultSnapshotWriterLimit})
 		require.NoError(t, err)
 		db.SetInitialVersion(initialVersion)
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, value)))
@@ -209,7 +211,7 @@ func TestInitialVersion(t *testing.T) {
 		}
 		require.NoError(t, db.Close())
 
-		db, err = Load(dir, Options{})
+		db, err = Load(dir, Options{SnapshotWriterLimit: DefaultSnapshotWriterLimit})
 		require.NoError(t, err)
 		require.Equal(t, uint32(initialVersion), db.initialVersion)
 		require.Equal(t, v, db.Version())
@@ -255,8 +257,9 @@ func TestInitialVersion(t *testing.T) {
 func TestLoadVersion(t *testing.T) {
 	dir := t.TempDir()
 	db, err := Load(dir, Options{
-		CreateIfMissing: true,
-		InitialStores:   []string{"test"},
+		CreateIfMissing:     true,
+		InitialStores:       []string{"test"},
+		SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 	})
 	require.NoError(t, err)
 
@@ -294,7 +297,7 @@ func TestLoadVersion(t *testing.T) {
 }
 
 func TestZeroCopy(t *testing.T) {
-	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test", "test2"}, CreateIfMissing: true, ZeroCopy: true})
+	db, err := Load(t.TempDir(), Options{InitialStores: []string{"test", "test2"}, CreateIfMissing: true, ZeroCopy: true, SnapshotWriterLimit: DefaultSnapshotWriterLimit})
 	require.NoError(t, err)
 	require.NoError(t, db.ApplyChangeSets([]*NamedChangeSet{
 		{Name: "test", Changeset: ChangeSets[0]},
@@ -429,7 +432,7 @@ func TestExclusiveLock(t *testing.T) {
 func TestFastCommit(t *testing.T) {
 	dir := t.TempDir()
 
-	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}, SnapshotInterval: 3, AsyncCommitBuffer: 10})
+	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test"}, SnapshotInterval: 3, AsyncCommitBuffer: 10, SnapshotWriterLimit: DefaultSnapshotWriterLimit})
 	require.NoError(t, err)
 
 	cs := iavl.ChangeSet{

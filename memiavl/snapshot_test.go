@@ -132,9 +132,10 @@ func TestSnapshotImportExport(t *testing.T) {
 
 func TestDBSnapshotRestore(t *testing.T) {
 	db, err := Load(t.TempDir(), Options{
-		CreateIfMissing:   true,
-		InitialStores:     []string{"test", "test2"},
-		AsyncCommitBuffer: -1,
+		CreateIfMissing:     true,
+		InitialStores:       []string{"test", "test2"},
+		AsyncCommitBuffer:   -1,
+		SnapshotWriterLimit: DefaultSnapshotWriterLimit,
 	})
 	require.NoError(t, err)
 
