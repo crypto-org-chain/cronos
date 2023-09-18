@@ -24,6 +24,7 @@ from eth_utils import abi, to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ledger
 from web3._utils.contracts import abi_to_signature, find_matching_event_abi
+from web3._utils.events import get_event_data
 from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 from web3.datastructures import AttributeDict
@@ -82,6 +83,7 @@ CONTRACTS = {
 
 CONTRACT_ABIS = {
     "IRelayerModule": Path(__file__).parent.parent / "build/IRelayerModule.abi",
+    "IICAModule": Path(__file__).parent.parent / "build/IICAModule.abi",
 }
 
 
@@ -694,3 +696,22 @@ def get_method_map(contract_info):
         key = f"0x{abi.event_signature_to_log_topic(signature).hex()}"
         method_map[key] = signature
     return method_map
+
+
+def get_topic_data(w3, method_map, contract_info, log):
+    method = method_map[log.topics[0].hex()]
+    name = method.split("(")[0]
+    event_abi = find_matching_event_abi(contract_info, name)
+    event_data = get_event_data(w3.codec, event_abi, log)
+    return name, event_data.args
+
+
+def get_logs_since(w3, addr, start):
+    end = w3.eth.get_block_number()
+    return w3.eth.get_logs(
+        {
+            "fromBlock": start,
+            "toBlock": end,
+            "address": [addr],
+        }
+    )

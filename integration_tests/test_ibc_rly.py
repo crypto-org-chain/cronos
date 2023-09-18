@@ -6,8 +6,6 @@ import subprocess
 import pytest
 from eth_utils import keccak, to_checksum_address
 from pystarport import cluster
-from web3._utils.contracts import find_matching_event_abi
-from web3._utils.events import get_event_data
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
@@ -24,7 +22,9 @@ from .utils import (
     CONTRACT_ABIS,
     bech32_to_eth,
     eth_to_bech32,
+    get_logs_since,
     get_method_map,
+    get_topic_data,
     module_address,
     wait_for_fn,
     wait_for_new_blocks,
@@ -80,25 +80,6 @@ def rly_transfer(ibc):
         f"--home {str(path)}"
     )
     subprocess.run(cmd, check=True, shell=True)
-
-
-def get_topic_data(w3, log):
-    method = method_map[log.topics[0].hex()]
-    name = method.split("(")[0]
-    event_abi = find_matching_event_abi(contract_info, name)
-    event_data = get_event_data(w3.codec, event_abi, log)
-    return name, event_data.args
-
-
-def get_logs(w3, start):
-    end = w3.eth.get_block_number()
-    return w3.eth.get_logs(
-        {
-            "fromBlock": start,
-            "toBlock": end,
-            "address": [CONTRACT],
-        }
-    )
 
 
 def coin_received(receiver, amt, denom):
@@ -230,7 +211,7 @@ def test_ibc(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-    logs = get_logs(w3, start)
+    logs = get_logs_since(w3, CONTRACT, start)
     relayer0 = ibc.chainmain.cosmos_cli().address("relayer")
     relayer = to_checksum_address(bech32_to_eth(relayer0))
     cronos_addr = module_address("cronos")
@@ -247,7 +228,7 @@ def test_ibc(ibc):
     ]
 
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, log)
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
 
 
@@ -263,7 +244,7 @@ def test_ibc_incentivized_transfer(ibc):
     wait_for_new_blocks(cli, 1)
     start = w3.eth.get_block_number()
     amount = ibc_incentivized_transfer(ibc)
-    logs = get_logs(w3, start)
+    logs = get_logs_since(w3, CONTRACT, start)
     fee_denom = "ibcfee"
     fee = f"{src_amount}{fee_denom}"
     transfer_denom = "transfer/channel-0/basetcro"
@@ -290,7 +271,7 @@ def test_ibc_incentivized_transfer(ibc):
     ]
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, log)
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
 
 
@@ -320,13 +301,13 @@ def test_cronos_transfer_source_tokens(ibc):
     w3 = ibc.cronos.w3
     start = w3.eth.get_block_number()
     amount, contract = cronos_transfer_source_tokens(ibc)
-    logs = get_logs(w3, start)
+    logs = get_logs_since(w3, CONTRACT, start)
     escrow = get_escrow_address(cli, channel)
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, log)
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
 
 
@@ -336,11 +317,11 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     w3 = ibc.cronos.w3
     start = w3.eth.get_block_number()
     amount, contract = cronos_transfer_source_tokens_with_proxy(ibc)
-    logs = get_logs(w3, start)
+    logs = get_logs_since(w3, CONTRACT, start)
     escrow = get_escrow_address(cli, channel)
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, log)
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]

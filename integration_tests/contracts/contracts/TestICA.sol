@@ -3,16 +3,13 @@ pragma solidity ^0.6.6;
 
 contract TestICA {
     address constant icaContract = 0x0000000000000000000000000000000000000066;
-    event RegisterAccountResult(bytes data);
-    event SubmitMsgsResult(bytes data);
 
     function nativeRegister(string memory connectionID) public {
-        (bool result, bytes memory res) = icaContract.call(abi.encodeWithSignature(
+        (bool result,) = icaContract.call(abi.encodeWithSignature(
             "registerAccount(string,address,string)",
             connectionID, msg.sender, ""
         ));
         require(result, "native call failed");
-        emit RegisterAccountResult(res);
     }
 
     function nativeQueryAccount(string memory connectionID, address addr) public returns (bytes memory) {
@@ -25,11 +22,10 @@ contract TestICA {
     }
 
     function nativeSubmitMsgs(string memory connectionID, string memory data) public {
-        (bool result, bytes memory res) = icaContract.call(abi.encodeWithSignature(
+        (bool result,) = icaContract.call(abi.encodeWithSignature(
             "submitMsgs(string,address,string,uint256)",
             connectionID, msg.sender, data, 300000000000
         ));
         require(result, "native call failed");
-        emit SubmitMsgsResult(res);
     }
 }
