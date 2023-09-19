@@ -5,16 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
-	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
-	ibcchannelkeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
+	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -86,20 +85,17 @@ func init() {
 }
 
 type IcaContract struct {
-	cdc                 codec.Codec
-	channelKeeper       *ibcchannelkeeper.Keeper
-	icaControllerKeeper *icacontrollerkeeper.Keeper
+	BaseContract
+
+	cdc           codec.Codec
+	icaauthKeeper *icaauthkeeper.Keeper
 }
 
-func NewIcaContract(
-	cdc codec.Codec,
-	channelKeeper *ibcchannelkeeper.Keeper,
-	icaControllerKeeper *icacontrollerkeeper.Keeper,
-) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper *icaauthkeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &IcaContract{
-		cdc,
-		channelKeeper,
-		icaControllerKeeper,
+		BaseContract:  NewBaseContract(IcaContractAddress),
+		cdc:           cdc,
+		icaauthKeeper: icaauthKeeper,
 	}
 }
 
@@ -122,7 +118,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
 	converter := cronosevents.IcaConvertEvent
-	var err error
+	var execErr error
 	var res codec.ProtoMarshaler
 	switch string(methodID) {
 	case string(RegisterAccountMethod.ID):
@@ -141,22 +137,13 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, errors.New("unauthorized account registration")
 		}
 		owner := sdk.AccAddress(account.Bytes()).String()
-		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			response, err := ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
+		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			response, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
 			})
 			res = response
-			if err == nil && response != nil {
-				ctx.EventManager().EmitEvents(sdk.Events{
-					sdk.NewEvent(
-						cronoseventstypes.EventTypeRegisterAccountResult,
-						sdk.NewAttribute(channeltypes.AttributeKeyChannelID, response.ChannelId),
-						sdk.NewAttribute(channeltypes.AttributeKeyPortID, response.PortId),
-					),
-				})
-			}
 			return err
 		})
 	case string(QueryAccountMethod.ID):
@@ -166,11 +153,13 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		account := args[1].(common.Address)
-		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
-			res, err = ic.icaControllerKeeper.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
-				Owner:        sdk.AccAddress(account.Bytes()).String(),
+		owner := sdk.AccAddress(account.Bytes()).String()
+		execErr = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
+			response, err := ic.icaauthKeeper.InterchainAccountAddress(ctx, &types.QueryInterchainAccountAddressRequest{
+				Owner:        owner,
 				ConnectionId: connectionID,
 			})
+			res = response
 			return err
 		})
 	case string(SubmitMsgsMethod.ID):
@@ -192,16 +181,18 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		var icaMsgData icatypes.InterchainAccountPacketData
 		err = ic.cdc.UnmarshalJSON([]byte(data), &icaMsgData)
 		if err != nil {
-			panic(err)
+			return nil, errors.New("fail to unmarshal packet data")
 		}
 		owner := sdk.AccAddress(account.Bytes()).String()
-		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			response, err := ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
-				Owner:           owner,
-				ConnectionId:    connectionID,
-				PacketData:      icaMsgData,
-				RelativeTimeout: timeout.Uint64(),
-			})
+		timeoutDuration := time.Duration(timeout.Uint64())
+		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			response, err := ic.icaauthKeeper.SubmitTxWithArgs(
+				ctx,
+				owner,
+				connectionID,
+				timeoutDuration,
+				icaMsgData,
+			)
 			res = response
 			if err == nil && response != nil {
 				ctx.EventManager().EmitEvents(sdk.Events{
@@ -216,8 +207,8 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	default:
 		return nil, errors.New("unknown method")
 	}
-	if err != nil {
-		return nil, err
+	if execErr != nil {
+		return nil, execErr
 	}
 	return ic.cdc.Marshal(res)
 }

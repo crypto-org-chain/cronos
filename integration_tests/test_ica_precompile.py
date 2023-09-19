@@ -6,7 +6,6 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     funds_ica,
-    generate_ica_packet,
     prepare_network,
     wait_for_check_channel_ready,
     wait_for_check_tx,
@@ -38,6 +37,19 @@ def ibc(request, tmp_path_factory):
     yield from network
 
 
+def generate_ica_packet(cli, ica_address, to):
+    # generate a transaction to send to host chain
+    generated_tx_msg = {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": ica_address,
+        "to_address": to,
+        "amount": [{"denom": "basecro", "amount": "50000000"}],
+    }
+    str = json.dumps(generated_tx_msg)
+    generated_packet = cli.ica_generate_packet_data(str)
+    return json.dumps(generated_packet)
+
+
 def test_call(ibc):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
@@ -51,19 +63,11 @@ def test_call(ibc):
     data = {"from": addr, "gas": 200000}
 
     print("register ica account from", contract.address)
-    start = w3.eth.get_block_number()
     tx = contract.functions.nativeRegister(connid).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
-    logs = get_logs_since(w3, CONTRACT, start)
     owner = eth_to_bech32(addr)
     channel_id = "channel-0"
-    port_id = f"icacontroller-{owner}"
-    expected = [{"channelId": channel_id, "portId": port_id}]
-    for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
-
     wait_for_check_channel_ready(cli_controller, connid, channel_id)
     res = cli_controller.ica_query_account(connid, owner)
     ica_address = res["interchain_account_address"]
