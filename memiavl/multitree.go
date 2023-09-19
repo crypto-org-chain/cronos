@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
-	"golang.org/x/sync/errgroup"
 )
 
 const MetadataFileName = "__metadata"
@@ -88,7 +88,7 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 		treeMap[name] = NewFromSnapshot(snapshot, zeroCopy, cacheSize)
 	}
 
-	sort.Strings(treeNames)
+	slices.Sort(treeNames)
 
 	trees := make([]NamedTree, len(treeNames))
 	treesByName := make(map[string]int, len(trees))
@@ -357,20 +357,22 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	return nil
 }
 
-func (t *MultiTree) WriteSnapshot(dir string) error {
+func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
 
-	// write the snapshots in parallel
-	g, _ := errgroup.WithContext(context.Background())
+	// write the snapshots in parallel and wait all jobs done
+	group, _ := wp.GroupContext(context.Background())
+
 	for _, entry := range t.trees {
-		tree, name := entry.Tree, entry.Name // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-		g.Go(func() error {
+		tree, name := entry.Tree, entry.Name
+		group.Submit(func() error {
 			return tree.WriteSnapshot(filepath.Join(dir, name))
 		})
 	}
-	if err := g.Wait(); err != nil {
+
+	if err := group.Wait(); err != nil {
 		return err
 	}
 

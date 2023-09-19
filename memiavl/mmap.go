@@ -52,11 +52,9 @@ func (m *MmapFile) Data() []byte {
 
 func Mmap(f *os.File) ([]byte, *[mmap.MaxMapSize]byte, error) {
 	fi, err := f.Stat()
-	if err != nil {
+	if err != nil || fi.Size() == 0 {
 		return nil, nil, err
 	}
-	if fi.Size() == 0 {
-		return nil, nil, nil
-	}
+
 	return mmap.Mmap(f, int(fi.Size()))
 }
