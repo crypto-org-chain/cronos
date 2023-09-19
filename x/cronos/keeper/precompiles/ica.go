@@ -3,15 +3,13 @@ package precompiles
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
-	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
+	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
@@ -19,18 +17,18 @@ import (
 type IcaContract struct {
 	BaseContract
 
-	cdc                 codec.Codec
-	icaControllerKeeper *icacontrollerkeeper.Keeper
+	cdc           codec.Codec
+	icaauthKeeper *icaauthkeeper.Keeper
 }
 
 func NewIcaContract(
+	icaauthKeeper *icaauthkeeper.Keeper,
 	cdc codec.Codec,
-	icaControllerKeeper *icacontrollerkeeper.Keeper,
 ) vm.PrecompiledContract {
 	return &IcaContract{
-		BaseContract:        NewBaseContract(IcaContractAddress),
-		cdc:                 cdc,
-		icaControllerKeeper: icaControllerKeeper,
+		BaseContract:  NewBaseContract(IcaContractAddress),
+		cdc:           cdc,
+		icaauthKeeper: icaauthKeeper,
 	}
 }
 
@@ -68,30 +66,30 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	converter := cronosevents.IcaConvertEvent
 	switch prefix {
 	case PrefixRegisterAccount:
-		cb := func(ctx sdk.Context, response *icacontrollertypes.MsgRegisterInterchainAccountResponse) {
+		cb := func(ctx sdk.Context, response *types.MsgRegisterAccountResponse) {
 			if err == nil && response != nil {
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeRegisterAccountResult,
-						sdk.NewAttribute(channeltypes.AttributeKeyChannelID, response.ChannelId),
-						sdk.NewAttribute(channeltypes.AttributeKeyPortID, response.PortId),
+						// sdk.NewAttribute(channeltypes.AttributeKeyChannelID, response.ChannelId),
+						// sdk.NewAttribute(channeltypes.AttributeKeyPortID, response.PortId),
 					),
 				})
 			}
 		}
-		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaControllerKeeper.RegisterInterchainAccount, cb, converter)
+		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaauthKeeper.RegisterAccount, cb, converter)
 	case PrefixSubmitMsgs:
-		cb := func(ctx sdk.Context, response *icacontrollertypes.MsgSendTxResponse) {
+		cb := func(ctx sdk.Context, response *types.MsgSubmitTxResponse) {
 			if err == nil && response != nil {
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeSubmitMsgsResult,
-						sdk.NewAttribute(cronoseventstypes.AttributeKeySeq, fmt.Sprintf("%d", response.Sequence)),
+						// sdk.NewAttribute(cronoseventstypes.AttributeKeySeq, fmt.Sprintf("%d", response.Sequence)),
 					),
 				})
 			}
 		}
-		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaControllerKeeper.SendTx, cb, converter) //nolint:staticcheck
+		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaauthKeeper.SubmitTx, cb, converter)
 	default:
 		return nil, errors.New("unknown method")
 	}
