@@ -547,6 +547,7 @@ func New(
 		tracer,
 		evmS,
 		[]vm.PrecompiledContract{
+			cronosprecompiles.NewBankContract(app.BankKeeper, appCodec),
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
 		},
 		allKeys,

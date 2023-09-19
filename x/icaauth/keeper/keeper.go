@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/errors"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -14,8 +13,6 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,16 +53,6 @@ func (k *Keeper) DoSubmitTx(ctx sdk.Context, connectionID, owner string, msgs []
 		return err
 	}
 
-	channelID, found := k.icaControllerKeeper.GetActiveChannelID(ctx, connectionID, portID)
-	if !found {
-		return errors.Wrapf(icatypes.ErrActiveChannelNotFound, "failed to retrieve active channel for port %s", portID)
-	}
-
-	channelCapability, found := k.scopedKeeper.GetCapability(ctx, host.ChannelCapabilityPath(portID, channelID))
-	if !found {
-		return errors.Wrap(channeltypes.ErrChannelCapabilityNotFound, "module does not own channel capability")
-	}
-
 	data, err := icatypes.SerializeCosmosTx(k.cdc, msgs)
 	if err != nil {
 		return err
@@ -79,7 +66,7 @@ func (k *Keeper) DoSubmitTx(ctx sdk.Context, connectionID, owner string, msgs []
 	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
 	timeoutTimestamp := ctx.BlockTime().Add(timeoutDuration).UnixNano()
 
-	_, err = k.icaControllerKeeper.SendTx(ctx, channelCapability, connectionID, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
+	_, err = k.icaControllerKeeper.SendTx(ctx, nil, connectionID, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
 	if err != nil {
 		return err
 	}
