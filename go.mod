@@ -231,8 +231,7 @@ replace (
 	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2-0.20230905115601-790d57e1748f
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b
-	// github.com/cosmos/ibc-go/v7 => github.com/mmsqe/ibc-go/v7 v7.0.0-20230912011206-c6947c7bc623
-	github.com/cosmos/ibc-go/v7 => ../ibc-go
+	github.com/cosmos/ibc-go/v7 => github.com/mmsqe/ibc-go/v7 v7.0.0-20230912011206-c6947c7bc623
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/store => ./store
 	github.com/crypto-org-chain/cronos/versiondb => ./versiondb

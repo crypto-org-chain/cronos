@@ -1,8 +1,8 @@
 package keeper
 
 import (
-	"context"
 	"fmt"
+	"time"
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -10,7 +10,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	"github.com/cosmos/gogoproto/proto"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
+	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"google.golang.org/grpc/codes"
@@ -46,43 +48,40 @@ func NewKeeper(
 }
 
 // DoSubmitTx submits a transaction to the host chain on behalf of interchain account
-func (k *Keeper) SubmitTx(goCtx context.Context, msg *types.MsgSubmitTx) (*types.MsgSubmitTxResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	msgs, err := msg.GetMessages()
-	if err != nil {
-		return nil, err
-	}
-
-	minTimeoutDuration := k.MinTimeoutDuration(ctx)
-	timeoutDuration := msg.CalculateTimeoutDuration(minTimeoutDuration)
+func (k *Keeper) DoSubmitTx(ctx sdk.Context, connectionID, owner string, msgs []proto.Message, timeoutDuration time.Duration) error {
 	data, err := icatypes.SerializeCosmosTx(k.cdc, msgs)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
 	packetData := icatypes.InterchainAccountPacketData{
 		Type: icatypes.EXECUTE_TX,
 		Data: data,
 	}
+
 	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
 	timeoutTimestamp := ctx.BlockTime().Add(timeoutDuration).UnixNano()
-	portID, err := icatypes.NewControllerPortID(msg.Owner)
+	_, err = k.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
+		Owner:           owner,
+		ConnectionId:    connectionID,
+		PacketData:      packetData,
+		RelativeTimeout: uint64(timeoutTimestamp),
+	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	_, err = k.icaControllerKeeper.SendTx(ctx, nil, msg.ConnectionId, portID, packetData, uint64(timeoutTimestamp))
-	if err != nil {
-		return nil, err
-	}
-	return &types.MsgSubmitTxResponse{}, nil
+
+	return nil
 }
 
-// RegisterAccount registers an interchain account with the given `connectionId` and `owner` on the host chain
-func (k *Keeper) RegisterAccount(goCtx context.Context, msg *types.MsgRegisterAccount) (*types.MsgRegisterAccountResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := k.icaControllerKeeper.RegisterInterchainAccount(ctx, msg.Owner, msg.ConnectionId, msg.Version); err != nil {
-		return nil, err
-	}
-	return &types.MsgRegisterAccountResponse{}, nil
+// RegisterInterchainAccount registers an interchain account with the given `connectionId` and `owner` on the host chain
+func (k *Keeper) RegisterInterchainAccount(ctx sdk.Context, connectionID, owner, version string) error {
+	_, err := k.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
+		Owner:        owner,
+		ConnectionId: connectionID,
+		Version:      version,
+	})
+	return err
 }
 
 // GetInterchainAccountAddress fetches the interchain account address for given `connectionId` and `owner`

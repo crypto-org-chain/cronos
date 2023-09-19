@@ -549,7 +549,7 @@ func New(
 		[]vm.PrecompiledContract{
 			cronosprecompiles.NewBankContract(app.BankKeeper, appCodec),
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
-			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, appCodec),
+			cronosprecompiles.NewIcaContract(appCodec, &app.ICAControllerKeeper),
 		},
 		allKeys,
 	)

@@ -14,4 +14,4 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{Keeper: keeper}
 }
 
-var _ types.MsgServer = new(msgServer)
+var _ types.MsgServer = msgServer{}
