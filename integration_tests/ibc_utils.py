@@ -602,12 +602,14 @@ def funds_ica(cli, adr):
     assert cli.balance(adr, denom="basecro") == 100000000
 
 
-def generate_ica_packet(cli, ica_address, tmp_path):
+def generate_ica_packet(cli, ica_address, to):
     # generate a transaction to send to host chain
-    generated_tx = tmp_path / "generated_tx.txt"
-    generated_tx_msg = cli.transfer(
-        ica_address, cli.address("signer2"), "0.5cro", generate_only=True
-    )
-    print(generated_tx_msg)
-    generated_tx.write_text(json.dumps(generated_tx_msg))
-    return generated_tx
+    generated_tx_msg = {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": ica_address,
+        "to_address": to,
+        "amount": [{"denom": "basecro", "amount": "50000000"}],
+    }
+    str = json.dumps(generated_tx_msg)
+    generated_packet = cli.ica_generate_packet_data(str)
+    return json.dumps(generated_packet)

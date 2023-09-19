@@ -1,8 +1,9 @@
+import json
+
 import pytest
 
 from .ibc_utils import (
     funds_ica,
-    generate_ica_packet,
     prepare_network,
     wait_for_check_channel_ready,
     wait_for_check_tx,
@@ -48,7 +49,15 @@ def test_ica(ibc, tmp_path):
 
     funds_ica(cli_host, ica_address)
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-    generated_tx = generate_ica_packet(cli_host, ica_address, tmp_path)
+
+    # generate a transaction to send to host chain
+    generated_tx = tmp_path / "generated_tx.txt"
+    generated_tx_msg = cli_host.transfer(
+        ica_address, cli_host.address("signer2"), "0.5cro", generate_only=True
+    )
+
+    print(generated_tx_msg)
+    generated_tx.write_text(json.dumps(generated_tx_msg))
 
     # submit transaction on host chain on behalf of interchain account
     rsp = cli_controller.icaauth_submit_tx(

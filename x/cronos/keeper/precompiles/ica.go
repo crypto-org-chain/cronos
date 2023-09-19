@@ -1,36 +1,105 @@
 package precompiles
 
 import (
-	"encoding/binary"
+	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
 	icacontrollertypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/types"
+	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
+	ibcchannelkeeper "github.com/cosmos/ibc-go/v7/modules/core/04-channel/keeper"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
-type IcaContract struct {
-	BaseContract
+// TODO: Replace this const with adjusted gas cost corresponding to input when executing precompile contract.
+const ICAContractRequiredGas = 10000
 
+var (
+	RegisterAccountMethod abi.Method
+	QueryAccountMethod    abi.Method
+	SubmitMsgsMethod      abi.Method
+	IcaContractAddress    = common.BytesToAddress([]byte{102})
+)
+
+func init() {
+	addressType, _ := abi.NewType("address", "", nil)
+	stringType, _ := abi.NewType("string", "", nil)
+	bytesType, _ := abi.NewType("bytes", "", nil)
+	uint256Type, _ := abi.NewType("uint256", "", nil)
+	RegisterAccountMethod = abi.NewMethod(
+		"registerAccount", "registerAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+			Name: "connectionID",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "owner",
+			Type: addressType,
+		}, abi.Argument{
+			Name: "version",
+			Type: stringType,
+		}},
+		abi.Arguments{abi.Argument{
+			Name: "res",
+			Type: bytesType,
+		}},
+	)
+	QueryAccountMethod = abi.NewMethod(
+		"queryAccount", "queryAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+			Name: "connectionID",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "owner",
+			Type: addressType,
+		}},
+		abi.Arguments{abi.Argument{
+			Name: "res",
+			Type: bytesType,
+		}},
+	)
+	SubmitMsgsMethod = abi.NewMethod(
+		"submitMsgs", "submitMsgs", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+			Name: "connectionID",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "owner",
+			Type: addressType,
+		}, abi.Argument{
+			Name: "data",
+			Type: stringType,
+		}, abi.Argument{
+			Name: "timeout",
+			Type: uint256Type,
+		}},
+		abi.Arguments{abi.Argument{
+			Name: "res",
+			Type: bytesType,
+		}},
+	)
+}
+
+type IcaContract struct {
 	cdc                 codec.Codec
+	channelKeeper       *ibcchannelkeeper.Keeper
 	icaControllerKeeper *icacontrollerkeeper.Keeper
 }
 
 func NewIcaContract(
 	cdc codec.Codec,
+	channelKeeper *ibcchannelkeeper.Keeper,
 	icaControllerKeeper *icacontrollerkeeper.Keeper,
 ) vm.PrecompiledContract {
 	return &IcaContract{
-		BaseContract:        NewBaseContract(IcaContractAddress),
-		cdc:                 cdc,
-		icaControllerKeeper: icaControllerKeeper,
+		cdc,
+		channelKeeper,
+		icaControllerKeeper,
 	}
 }
 
@@ -48,27 +117,37 @@ func (ic *IcaContract) IsStateful() bool {
 }
 
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
-	if readonly {
-		return nil, errors.New("the method is not readonly")
-	}
 	// parse input
-	if len(contract.Input) < int(PrefixSize4Bytes) {
-		return nil, errors.New("data too short to contain prefix")
-	}
-	prefix := int(binary.LittleEndian.Uint32(contract.Input[:PrefixSize4Bytes]))
-	input := contract.Input[PrefixSize4Bytes:]
+	methodID := contract.Input[:4]
 	stateDB := evm.StateDB.(ExtStateDB)
-
-	var (
-		err error
-		res []byte
-	)
-	addr := ic.Address()
-	caller := contract.CallerAddress
+	precompileAddr := ic.Address()
 	converter := cronosevents.IcaConvertEvent
-	switch prefix {
-	case PrefixRegisterAccount:
-		cb := func(ctx sdk.Context, response *icacontrollertypes.MsgRegisterInterchainAccountResponse) {
+	var err error
+	var res codec.ProtoMarshaler
+	switch string(methodID) {
+	case string(RegisterAccountMethod.ID):
+		if readonly {
+			return nil, errors.New("the method is not readonly")
+		}
+		args, err := RegisterAccountMethod.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		connectionID := args[0].(string)
+		account := args[1].(common.Address)
+		version := args[2].(string)
+		txSender := evm.Origin
+		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
+			return nil, errors.New("unauthorized account registration")
+		}
+		owner := sdk.AccAddress(account.Bytes()).String()
+		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			response, err := ic.icaControllerKeeper.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
+				Owner:        owner,
+				ConnectionId: connectionID,
+				Version:      version,
+			})
+			res = response
 			if err == nil && response != nil {
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
@@ -78,10 +157,52 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 					),
 				})
 			}
+			return err
+		})
+	case string(QueryAccountMethod.ID):
+		args, err := QueryAccountMethod.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
 		}
-		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaControllerKeeper.RegisterInterchainAccount, cb, converter)
-	case PrefixSubmitMsgs:
-		cb := func(ctx sdk.Context, response *icacontrollertypes.MsgSendTxResponse) {
+		connectionID := args[0].(string)
+		account := args[1].(common.Address)
+		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
+			res, err = ic.icaControllerKeeper.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
+				Owner:        sdk.AccAddress(account.Bytes()).String(),
+				ConnectionId: connectionID,
+			})
+			return err
+		})
+	case string(SubmitMsgsMethod.ID):
+		if readonly {
+			return nil, errors.New("the method is not readonly")
+		}
+		args, err := SubmitMsgsMethod.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		connectionID := args[0].(string)
+		account := args[1].(common.Address)
+		data := args[2].(string)
+		timeout := args[3].(*big.Int)
+		txSender := evm.Origin
+		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
+			return nil, errors.New("unauthorized send tx")
+		}
+		var icaMsgData icatypes.InterchainAccountPacketData
+		err = ic.cdc.UnmarshalJSON([]byte(data), &icaMsgData)
+		if err != nil {
+			panic(err)
+		}
+		owner := sdk.AccAddress(account.Bytes()).String()
+		err = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			response, err := ic.icaControllerKeeper.SendTx(ctx, &icacontrollertypes.MsgSendTx{ //nolint:staticcheck
+				Owner:           owner,
+				ConnectionId:    connectionID,
+				PacketData:      icaMsgData,
+				RelativeTimeout: timeout.Uint64(),
+			})
+			res = response
 			if err == nil && response != nil {
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
@@ -90,10 +211,17 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 					),
 				})
 			}
-		}
-		res, err = exec(ic.cdc, stateDB, caller, addr, input, ic.icaControllerKeeper.SendTx, cb, converter) //nolint:staticcheck
+			return err
+		})
 	default:
 		return nil, errors.New("unknown method")
 	}
-	return res, err
+	if err != nil {
+		return nil, err
+	}
+	return ic.cdc.Marshal(res)
+}
+
+func isSameAddress(a common.Address, b common.Address) bool {
+	return bytes.Equal(a.Bytes(), b.Bytes())
 }

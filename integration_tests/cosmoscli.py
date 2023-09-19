@@ -1253,7 +1253,7 @@ class CosmosCLI:
             )
         )
 
-    def icaauth_register_account(self, connid, print_proto_only=False, **kwargs):
+    def icaauth_register_account(self, connid, **kwargs):
         "execute on host chain to attach an account to the connection"
         default_kwargs = {
             "home": self.data_dir,
@@ -1261,18 +1261,16 @@ class CosmosCLI:
             "chain_id": self.chain_id,
             "keyring_backend": "test",
         }
-        raw = self.raw(
-            "tx",
-            "icaauth",
-            "register-account",
-            connid,
-            "-y",
-            "--print-proto-only" if print_proto_only else None,
-            **(default_kwargs | kwargs),
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "icaauth",
+                "register-account",
+                connid,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
         )
-        if print_proto_only:
-            return raw
-        rsp = json.loads(raw)
         if rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
@@ -1298,24 +1296,6 @@ class CosmosCLI:
         if rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
-
-    def icaauth_print_submit_tx_proto(self, connid, packet_data_str="", **kwargs):
-        default_kwargs = {
-            "home": self.data_dir,
-            "node": self.node_rpc,
-            "chain_id": self.chain_id,
-            "keyring_backend": "test",
-        }
-        return self.raw(
-            "tx",
-            "icaauth",
-            "print-submit-tx-proto",
-            connid,
-            "-y",
-            "--packet-data-str" if packet_data_str else None,
-            packet_data_str if packet_data_str else None,
-            **(default_kwargs | kwargs),
-        )
 
     def ica_query_account(self, connid, owner, **kwargs):
         default_kwargs = {
