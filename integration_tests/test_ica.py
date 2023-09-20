@@ -63,6 +63,7 @@ def test_ica(ibc, tmp_path):
     rsp = cli_controller.icaauth_submit_tx(
         connid,
         generated_tx,
+        timeout_duration="2h",
         from_="signer2",
     )
     assert rsp["code"] == 0, rsp["raw_log"]

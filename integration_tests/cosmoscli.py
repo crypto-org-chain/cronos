@@ -1062,10 +1062,10 @@ class CosmosCLI:
         )
 
     def query_gravity_params(self):
-        return json.loads(self.raw("query", "gravity", "params", home=self.data_dir))
+        return self.query_params("gravity")
 
-    def query_evm_params(self):
-        return json.loads(self.raw("query", "evm", "params", home=self.data_dir))
+    def query_params(self, module="cronos"):
+        return json.loads(self.raw("query", module, "params", home=self.data_dir))
 
     def query_signer_set_txs(self):
         return json.loads(
@@ -1275,7 +1275,7 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def icaauth_submit_tx(self, connid, tx, **kwargs):
+    def icaauth_submit_tx(self, connid, tx, timeout_duration="1h", **kwargs):
         default_kwargs = {
             "home": self.data_dir,
             "node": self.node_rpc,
@@ -1289,6 +1289,8 @@ class CosmosCLI:
                 "submit-tx",
                 connid,
                 tx,
+                "--timeout-duration" if timeout_duration else None,
+                timeout_duration if timeout_duration else None,
                 "-y",
                 **(default_kwargs | kwargs),
             )
@@ -1583,17 +1585,6 @@ class CosmosCLI:
                 "-y",
                 home=self.data_dir,
                 **kwargs,
-            )
-        )
-
-    def query_params(self):
-        "query cronos params"
-        return json.loads(
-            self.raw(
-                "query",
-                "cronos",
-                "params",
-                home=self.data_dir,
             )
         )
 
