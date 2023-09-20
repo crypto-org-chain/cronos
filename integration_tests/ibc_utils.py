@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
+from eth_utils import keccak
 from pystarport import cluster, ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
@@ -600,3 +601,24 @@ def funds_ica(cli, adr):
 
     # check if the funds are received in interchain account
     assert cli.balance(adr, denom="basecro") == 100000000
+
+
+def assert_channel_open_init(rsp):
+    assert rsp["code"] == 0, rsp["raw_log"]
+    port_id, channel_id = next(
+        (
+            evt["attributes"][0]["value"],
+            evt["attributes"][1]["value"],
+        )
+        for evt in rsp["events"]
+        if evt["type"] == "channel_open_init"
+    )
+    print("port-id", port_id, "channel-id", channel_id)
+    return port_id, channel_id
+
+
+def update_client():
+    return {
+        "clientId": keccak(text="07-tendermint-0"),
+        "clientType": keccak(text="07-tendermint"),
+    }

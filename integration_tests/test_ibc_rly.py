@@ -16,6 +16,7 @@ from .ibc_utils import (
     ibc_denom,
     ibc_incentivized_transfer,
     prepare_network,
+    update_client,
 )
 from .utils import (
     ADDRS,
@@ -131,13 +132,6 @@ def burn(burner, amt, denom):
     return {
         "burner": burner,
         "amount": [(amt, denom)],
-    }
-
-
-def update_client():
-    return {
-        "clientId": keccak(text="07-tendermint-0"),
-        "clientType": keccak(text="07-tendermint"),
     }
 
 
