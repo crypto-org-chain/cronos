@@ -22,8 +22,7 @@ service Msg {
   rpc TransferTokens(MsgTransferTokens) returns (MsgTransferTokensResponse);
 
   // UpdateTokenMapping defines a method to update token mapping
-  rpc UpdateTokenMapping(MsgUpdateTokenMapping)
-      returns (MsgUpdateTokenMappingResponse);
+  rpc UpdateTokenMapping(MsgUpdateTokenMapping) returns (MsgUpdateTokenMappingResponse);
 
   // TurnBridge defines a method to disable or enable the gravity bridge
   rpc TurnBridge(MsgTurnBridge) returns (MsgTurnBridgeResponse);
@@ -32,29 +31,24 @@ service Msg {
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 
   // UpdatePermissions defines a method to update cronos admins permissions
-  rpc UpdatePermissions(MsgUpdatePermissions)
-      returns (MsgUpdatePermissionsResponse);
+  rpc UpdatePermissions(MsgUpdatePermissions) returns (MsgUpdatePermissionsResponse);
 }
 
 // MsgConvertVouchers represents a message to convert ibc voucher coins to
 // cronos evm coins.
 message MsgConvertVouchers {
-  string address = 1;
-  repeated cosmos.base.v1beta1.Coin coins = 2 [
-    (gogoproto.nullable) = false,
-    (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"
-  ];
+  string   address                        = 1;
+  repeated cosmos.base.v1beta1.Coin coins = 2
+      [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
 // MsgTransferTokens represents a message to transfer cronos evm coins through
 // ibc.
 message MsgTransferTokens {
-  string from = 1;
-  string to = 2;
-  repeated cosmos.base.v1beta1.Coin coins = 3 [
-    (gogoproto.nullable) = false,
-    (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"
-  ];
+  string   from                           = 1;
+  string   to                             = 2;
+  repeated cosmos.base.v1beta1.Coin coins = 3
+      [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
 }
 
 // MsgConvertVouchersResponse defines the ConvertVouchers response type.
@@ -65,11 +59,11 @@ message MsgTransferTokensResponse {}
 
 // MsgUpdateTokenMapping defines the request type
 message MsgUpdateTokenMapping {
-  string sender = 1;
-  string denom = 2;
+  string sender   = 1;
+  string denom    = 2;
   string contract = 3;
   // only when updating cronos (source) tokens
-  string symbol = 4;
+  string symbol  = 4;
   uint32 decimal = 5;
 }
 
@@ -79,7 +73,7 @@ message MsgUpdateTokenMappingResponse {}
 // MsgTurnBridge defines the request type
 message MsgTurnBridge {
   string sender = 1;
-  bool enable = 2;
+  bool   enable = 2;
 }
 
 // MsgTurnBridgegResponse defines the response type
@@ -91,7 +85,7 @@ message MsgUpdateParams {
   string authority = 1;
 
   // NOTE: All parameters must be supplied.
-  Params params = 2 [ (gogoproto.nullable) = false ];
+  Params params = 2 [(gogoproto.nullable) = false];
 }
 
 // MsgUpdateParamsResponse defines the response type.
@@ -100,8 +94,8 @@ message MsgUpdateParamsResponse {}
 // MsgUpdatePermissions defines the request type for updating cronos
 // permissions.
 message MsgUpdatePermissions {
-  string from = 1;
-  string address = 2;
+  string from        = 1;
+  string address     = 2;
   uint64 permissions = 3;
 }
 

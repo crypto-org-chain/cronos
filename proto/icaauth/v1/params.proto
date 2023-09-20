@@ -13,8 +13,8 @@ message Params {
   // min_timeout_duration defines the minimum value of packet timeout when
   // submitting transactions to host chain on behalf of interchain account
   google.protobuf.Duration min_timeout_duration = 1 [
-    (gogoproto.moretags) = "yaml:\"min_timeout_duration\"",
+    (gogoproto.moretags)    = "yaml:\"min_timeout_duration\"",
     (gogoproto.stdduration) = true,
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)    = false
   ];
 }
