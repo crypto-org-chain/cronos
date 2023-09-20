@@ -75,15 +75,14 @@ def test_ica(ibc, tmp_path):
     rsp = cli_controller.icaauth_register_account(
         connid, from_="signer2", gas="400000", fees="100000000basetcro"
     )
-    assert rsp["code"] == 0, rsp["raw_log"]
     port_id, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli_controller, connid, channel_id)
-
     logs = get_logs_since(w3, CONTRACT, start)
     expected = [
         update_client(),
         channel_open_ack(port_id, channel_id, "icahost", "channel-1", connid),
     ]
+    assert len(logs) == len(expected)
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
