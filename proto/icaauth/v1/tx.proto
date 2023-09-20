@@ -25,7 +25,7 @@ message MsgRegisterAccount {
   string owner = 1;
 
   // connection_id represents the IBC `connection_id` of the host chain
-  string connection_id = 2 [ (gogoproto.moretags) = "yaml:\"connection_id\"" ];
+  string connection_id = 2 [(gogoproto.moretags) = "yaml:\"connection_id\""];
 
   // version represents the version of the ICA channel
   string version = 3;
@@ -41,16 +41,14 @@ message MsgSubmitTx {
   string owner = 1;
 
   // connection_id represents the IBC `connection_id` of the host chain
-  string connection_id = 2 [ (gogoproto.moretags) = "yaml:\"connection_id\"" ];
+  string connection_id = 2 [(gogoproto.moretags) = "yaml:\"connection_id\""];
 
   // msgs represents the transactions to be submitted to the host chain
-  repeated google.protobuf.Any msgs = 3
-      [ (cosmos_proto.accepts_interface) = "sdk.Msg" ];
+  repeated google.protobuf.Any msgs = 3 [(cosmos_proto.accepts_interface) = "sdk.Msg"];
 
   // timeout_duration represents the timeout duration for the IBC packet from
   // last block
-  google.protobuf.Duration timeout_duration = 4
-      [ (gogoproto.stdduration) = true ];
+  google.protobuf.Duration timeout_duration = 4 [(gogoproto.stdduration) = true];
 }
 
 // MsgSubmitTxResponse defines the response message for MsgSubmitTx
