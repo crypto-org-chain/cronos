@@ -1,7 +1,6 @@
 package precompiles
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -126,10 +125,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		version := args[1].(string)
-		txSender := evm.Origin
-		if !isSameAddress(caller, txSender) {
-			return nil, errors.New("unauthorized account registration")
-		}
 		owner := sdk.AccAddress(caller.Bytes()).String()
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			response, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
@@ -177,10 +172,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		connectionID := args[0].(string)
 		data := args[1].(string)
 		timeout := args[2].(*big.Int)
-		txSender := evm.Origin
-		if !isSameAddress(caller, txSender) {
-			return nil, errors.New("unauthorized send tx")
-		}
 		var icaMsgData icatypes.InterchainAccountPacketData
 		err = ic.cdc.UnmarshalJSON([]byte(data), &icaMsgData)
 		if err != nil {
@@ -214,8 +205,4 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		return nil, execErr
 	}
 	return ic.cdc.Marshal(res)
-}
-
-func isSameAddress(a common.Address, b common.Address) bool {
-	return bytes.Equal(a.Bytes(), b.Bytes())
 }
