@@ -13,14 +13,12 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
 // Query defines the gRPC querier service.
 service Query {
   // ContractByDenom queries contract addresses by native denom
-  rpc ContractByDenom(ContractByDenomRequest)
-      returns (ContractByDenomResponse) {
+  rpc ContractByDenom(ContractByDenomRequest) returns (ContractByDenomResponse) {
     option (google.api.http).get = "/cronos/v1/contract_by_denom/{denom}";
   }
 
   // DenomByContract queries native denom by contract address
-  rpc DenomByContract(DenomByContractRequest)
-      returns (DenomByContractResponse) {
+  rpc DenomByContract(DenomByContractRequest) returns (DenomByContractResponse) {
     option (google.api.http).get = "/cronos/v1/denom_by_contract/{contract}";
   }
 
@@ -43,7 +41,7 @@ service Query {
 
 // ContractByDenomRequest is the request type of ContractByDenom call
 message ContractByDenomRequest {
-  option (gogoproto.equal) = false;
+  option (gogoproto.equal)           = false;
   option (gogoproto.goproto_getters) = false;
 
   string denom = 1;
@@ -51,32 +49,33 @@ message ContractByDenomRequest {
 
 // ContractByDenomRequest is the response type of ContractByDenom call
 message ContractByDenomResponse {
-  string contract = 1;
+  string contract      = 1;
   string auto_contract = 2;
 }
 
 // DenomByContractRequest is the request type of DenomByContract call
 message DenomByContractRequest {
-  option (gogoproto.equal) = false;
+  option (gogoproto.equal)           = false;
   option (gogoproto.goproto_getters) = false;
 
   string contract = 1;
 }
 
 // DenomByContractResponse is the response type of DenomByContract call
-message DenomByContractResponse { string denom = 1; }
+message DenomByContractResponse {
+  string denom = 1;
+}
 
 // ReplayBlockRequest
 message ReplayBlockRequest {
-  option (gogoproto.equal) = false;
+  option (gogoproto.equal)           = false;
   option (gogoproto.goproto_getters) = false;
 
   // the eth messages in the block
-  repeated ethermint.evm.v1.MsgEthereumTx msgs = 1;
-  int64 block_number = 2;
-  string block_hash = 3;
-  google.protobuf.Timestamp block_time = 4
-      [ (gogoproto.nullable) = false, (gogoproto.stdtime) = true ];
+  repeated ethermint.evm.v1.MsgEthereumTx msgs         = 1;
+  int64                                   block_number = 2;
+  string                                  block_hash   = 3;
+  google.protobuf.Timestamp               block_time   = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
 // ReplayBlockResponse
@@ -90,18 +89,20 @@ message QueryParamsRequest {}
 // QueryParamsResponse is the response type for the Query/Params RPC method.
 message QueryParamsResponse {
   // params defines the parameters of the module.
-  Params params = 1 [ (gogoproto.nullable) = false ];
+  Params params = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryPermissionsRequest is the request type for the Query/Permissions RPC
 // method.
-message QueryPermissionsRequest { string address = 1; }
+message QueryPermissionsRequest {
+  string address = 1;
+}
 
 // QueryPermissionsResponse is the response type for the Query/Permissions RPC
 // method.
 message QueryPermissionsResponse {
   bool can_change_token_mapping = 1;
-  bool can_turn_bridge = 2;
+  bool can_turn_bridge          = 2;
 }
 
 // this line is used by starport scaffolding # 3

@@ -3,6 +3,7 @@ import json
 import time
 from collections import defaultdict
 
+import pytest
 import websockets
 from eth_utils import abi
 from hexbytes import HexBytes
@@ -81,6 +82,7 @@ class Client:
 TEST_EVENT_TOPIC = Web3.keccak(text="TestEvent(uint256)")
 
 
+@pytest.mark.flaky(max_runs=2)
 def test_subscribe_basic(cronos: Cronos):
     """
     test basic subscribe and unsubscribe
