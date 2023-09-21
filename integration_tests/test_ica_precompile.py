@@ -1,5 +1,4 @@
 import json
-import re
 
 import pytest
 from web3.datastructures import AttributeDict
@@ -13,9 +12,7 @@ from .ibc_utils import (
 from .utils import (
     ADDRS,
     CONTRACT_ABIS,
-    CONTRACTS,
     KEYS,
-    deploy_contract,
     eth_to_bech32,
     get_logs_since,
     get_method_map,
@@ -63,12 +60,11 @@ def test_call(ibc):
     w3 = ibc.cronos.w3
     addr = ADDRS["signer2"]
     keys = KEYS["signer2"]
-    jsonfile = CONTRACTS["TestICA"]
-    contract = deploy_contract(w3, jsonfile, (), keys)
-    data = {"from": addr, "gas": 200000}
 
-    print("register ica account from", contract.address)
-    tx = contract.functions.nativeRegister(connid).build_transaction(data)
+    contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
+    data = {"from": addr, "gas": 200000}
+    print("register ica account")
+    tx = contract.functions.registerAccount(connid, "").build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
     owner = eth_to_bech32(addr)
@@ -77,14 +73,12 @@ def test_call(ibc):
     res = cli_controller.ica_query_account(connid, owner)
     ica_address = res["interchain_account_address"]
     print("query ica account", ica_address)
-    res = contract.caller.nativeQueryAccount(connid, addr)
-    res = re.sub(r"\n>", "", res.decode("utf-8"))
-    assert ica_address == res, res
     balance = funds_ica(cli_host, ica_address)
 
     name = "validator"
     denom = "basecro"
     amt = 1000
+    timeout = 300000000000
 
     def submit_msgs(msgs, seq):
         generated_packet = cli_controller.ica_generate_packet_data(msgs)
@@ -92,7 +86,7 @@ def test_call(ibc):
         start = w3.eth.get_block_number()
         str = json.dumps(generated_packet)
         # submit transaction on host chain on behalf of interchain account
-        tx = contract.functions.nativeSubmitMsgs(connid, str).build_transaction(data)
+        tx = contract.functions.submitMsgs(connid, str, timeout).build_transaction(data)
         receipt = send_transaction(w3, tx, keys)
         assert receipt.status == 1
         logs = get_logs_since(w3, CONTRACT, start)

@@ -30,7 +30,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"seq\",\"type\":\"string\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"seq\",\"type\":\"string\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"data\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -177,6 +177,79 @@ func (_ICAModule *ICAModuleTransactorRaw) Transfer(opts *bind.TransactOpts) (*ty
 // Transact invokes the (paid) contract method with params as input values.
 func (_ICAModule *ICAModuleTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _ICAModule.Contract.contract.Transact(opts, method, params...)
+}
+
+// QueryAccount is a free data retrieval call binding the contract method 0x15bf8a47.
+//
+// Solidity: function queryAccount(string connectionID, address addr) view returns(bytes)
+func (_ICAModule *ICAModuleCaller) QueryAccount(opts *bind.CallOpts, connectionID string, addr common.Address) ([]byte, error) {
+	var out []interface{}
+	err := _ICAModule.contract.Call(opts, &out, "queryAccount", connectionID, addr)
+
+	if err != nil {
+		return *new([]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
+
+	return out0, err
+
+}
+
+// QueryAccount is a free data retrieval call binding the contract method 0x15bf8a47.
+//
+// Solidity: function queryAccount(string connectionID, address addr) view returns(bytes)
+func (_ICAModule *ICAModuleSession) QueryAccount(connectionID string, addr common.Address) ([]byte, error) {
+	return _ICAModule.Contract.QueryAccount(&_ICAModule.CallOpts, connectionID, addr)
+}
+
+// QueryAccount is a free data retrieval call binding the contract method 0x15bf8a47.
+//
+// Solidity: function queryAccount(string connectionID, address addr) view returns(bytes)
+func (_ICAModule *ICAModuleCallerSession) QueryAccount(connectionID string, addr common.Address) ([]byte, error) {
+	return _ICAModule.Contract.QueryAccount(&_ICAModule.CallOpts, connectionID, addr)
+}
+
+// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+//
+// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
+func (_ICAModule *ICAModuleTransactor) RegisterAccount(opts *bind.TransactOpts, connectionID string, version string) (*types.Transaction, error) {
+	return _ICAModule.contract.Transact(opts, "registerAccount", connectionID, version)
+}
+
+// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+//
+// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
+func (_ICAModule *ICAModuleSession) RegisterAccount(connectionID string, version string) (*types.Transaction, error) {
+	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version)
+}
+
+// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+//
+// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
+func (_ICAModule *ICAModuleTransactorSession) RegisterAccount(connectionID string, version string) (*types.Transaction, error) {
+	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version)
+}
+
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+//
+// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(bool)
+func (_ICAModule *ICAModuleTransactor) SubmitMsgs(opts *bind.TransactOpts, connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+	return _ICAModule.contract.Transact(opts, "submitMsgs", connectionID, data, timeout)
+}
+
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+//
+// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(bool)
+func (_ICAModule *ICAModuleSession) SubmitMsgs(connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+	return _ICAModule.Contract.SubmitMsgs(&_ICAModule.TransactOpts, connectionID, data, timeout)
+}
+
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+//
+// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(bool)
+func (_ICAModule *ICAModuleTransactorSession) SubmitMsgs(connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+	return _ICAModule.Contract.SubmitMsgs(&_ICAModule.TransactOpts, connectionID, data, timeout)
 }
 
 // ICAModuleSubmitMsgsResultIterator is returned from FilterSubmitMsgsResult and is used to iterate over the raw logs and unpacked data for SubmitMsgsResult events raised by the ICAModule contract.

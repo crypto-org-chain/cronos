@@ -39,9 +39,6 @@ func init() {
 			Name: "connectionID",
 			Type: stringType,
 		}, abi.Argument{
-			Name: "owner",
-			Type: addressType,
-		}, abi.Argument{
 			Name: "version",
 			Type: stringType,
 		}},
@@ -67,9 +64,6 @@ func init() {
 		"submitMsgs", "submitMsgs", abi.Function, "", false, false, abi.Arguments{abi.Argument{
 			Name: "connectionID",
 			Type: stringType,
-		}, abi.Argument{
-			Name: "owner",
-			Type: addressType,
 		}, abi.Argument{
 			Name: "data",
 			Type: stringType,
@@ -117,6 +111,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	methodID := contract.Input[:4]
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
+	caller := contract.CallerAddress
 	converter := cronosevents.IcaConvertEvent
 	var execErr error
 	var res codec.ProtoMarshaler
@@ -130,13 +125,12 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, errors.New("fail to unpack input arguments")
 		}
 		connectionID := args[0].(string)
-		account := args[1].(common.Address)
-		version := args[2].(string)
+		version := args[1].(string)
 		txSender := evm.Origin
-		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
+		if !isSameAddress(caller, txSender) {
 			return nil, errors.New("unauthorized account registration")
 		}
-		owner := sdk.AccAddress(account.Bytes()).String()
+		owner := sdk.AccAddress(caller.Bytes()).String()
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			response, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
 				Owner:        owner,
@@ -171,11 +165,10 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, errors.New("fail to unpack input arguments")
 		}
 		connectionID := args[0].(string)
-		account := args[1].(common.Address)
-		data := args[2].(string)
-		timeout := args[3].(*big.Int)
+		data := args[1].(string)
+		timeout := args[2].(*big.Int)
 		txSender := evm.Origin
-		if !isSameAddress(account, contract.CallerAddress) && !isSameAddress(account, txSender) {
+		if !isSameAddress(caller, txSender) {
 			return nil, errors.New("unauthorized send tx")
 		}
 		var icaMsgData icatypes.InterchainAccountPacketData
@@ -183,7 +176,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if err != nil {
 			return nil, errors.New("fail to unmarshal packet data")
 		}
-		owner := sdk.AccAddress(account.Bytes()).String()
+		owner := sdk.AccAddress(caller.Bytes()).String()
 		timeoutDuration := time.Duration(timeout.Uint64())
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			response, err := ic.icaauthKeeper.SubmitTxWithArgs(
