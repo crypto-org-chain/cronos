@@ -57,7 +57,7 @@ func init() {
 		}},
 		abi.Arguments{abi.Argument{
 			Name: "res",
-			Type: bytesType,
+			Type: stringType,
 		}},
 	)
 	SubmitMsgsMethod = abi.NewMethod(
@@ -137,7 +137,9 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 				ConnectionId: connectionID,
 				Version:      version,
 			})
-			res = response
+			if err == nil && response != nil {
+				res = response
+			}
 			return err
 		})
 	case string(QueryAccountMethod.ID):
@@ -148,14 +150,19 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		connectionID := args[0].(string)
 		account := args[1].(common.Address)
 		owner := sdk.AccAddress(account.Bytes()).String()
+		icaAddress := ""
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
 			response, err := ic.icaauthKeeper.InterchainAccountAddress(ctx, &types.QueryInterchainAccountAddressRequest{
 				Owner:        owner,
 				ConnectionId: connectionID,
 			})
-			res = response
-			return err
+			if err == nil && response != nil {
+				icaAddress = response.InterchainAccountAddress
+				res = response
+			}
+			return nil
 		})
+		return QueryAccountMethod.Outputs.Pack(icaAddress)
 	case string(SubmitMsgsMethod.ID):
 		if readonly {
 			return nil, errors.New("the method is not readonly")
@@ -186,8 +193,8 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 				timeoutDuration,
 				icaMsgData,
 			)
-			res = response
 			if err == nil && response != nil {
+				res = response
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeSubmitMsgsResult,

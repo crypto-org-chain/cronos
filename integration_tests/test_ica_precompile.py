@@ -12,7 +12,9 @@ from .ibc_utils import (
 from .utils import (
     ADDRS,
     CONTRACT_ABIS,
+    CONTRACTS,
     KEYS,
+    deploy_contract,
     eth_to_bech32,
     get_logs_since,
     get_method_map,
@@ -74,6 +76,8 @@ def test_call(ibc):
     ica_address = res["interchain_account_address"]
     print("query ica account", ica_address)
     balance = funds_ica(cli_host, ica_address)
+    res = contract.functions.queryAccount(connid, addr).call()
+    assert ica_address == res, res
 
     name = "validator"
     denom = "basecro"
@@ -118,3 +122,22 @@ def test_call(ibc):
     balance -= amt
     balance -= amt1
     assert cli_host.balance(ica_address, denom=denom) == balance
+
+    tcontract = deploy_contract(w3, CONTRACTS["TestICA"])
+    assert tcontract.functions.callQueryAccount(connid, addr).call() == ica_address
+    assert tcontract.functions.delegateQueryAccount(connid, addr).call() == ica_address
+    assert tcontract.functions.staticQueryAccount(connid, addr).call() == ica_address
+
+    tx = tcontract.functions.callRegister(connid).build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
+    tx = tcontract.functions.delegateRegister(connid).build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
+    tx = tcontract.functions.staticRegister(connid).build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
+
+    tx = tcontract.functions.callSubmitMsgs(connid, "").build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
+    tx = tcontract.functions.delegateSubmitMsgs(connid, "").build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
+    tx = tcontract.functions.staticSubmitMsgs(connid, "").build_transaction(data)
+    assert send_transaction(w3, tx, keys).status == 0
