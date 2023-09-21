@@ -52,4 +52,6 @@ message MsgSubmitTx {
 }
 
 // MsgSubmitTxResponse defines the response message for MsgSubmitTx
-message MsgSubmitTxResponse { uint64 sequence = 1; }
+message MsgSubmitTxResponse {
+  uint64 sequence = 1;
+}
