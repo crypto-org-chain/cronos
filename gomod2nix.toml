@@ -116,7 +116,6 @@ schema = 3
   [mod."github.com/cockroachdb/pebble"]
     version = "v0.0.0-20230807182518-7bcdd55ef1e3"
     hash = "sha256-f0wYwD5GmKMKDXE0ORPAsiA90cJanHfkl9d1vOUxCj8="
-    replaced = "github.com/cockroachdb/pebble"
   [mod."github.com/cockroachdb/redact"]
     version = "v1.1.5"
     hash = "sha256-0rtT7LRO0wxf9XovOK8GXRrhmx8OcbdPK/mXOKbJdog="
