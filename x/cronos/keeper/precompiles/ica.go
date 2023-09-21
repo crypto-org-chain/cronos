@@ -160,8 +160,11 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 				icaAddress = response.InterchainAccountAddress
 				res = response
 			}
-			return nil
+			return err
 		})
+		if execErr != nil {
+			return nil, execErr
+		}
 		return QueryAccountMethod.Outputs.Pack(icaAddress)
 	case string(SubmitMsgsMethod.ID):
 		if readonly {
