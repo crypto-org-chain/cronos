@@ -5,7 +5,7 @@ go 1.20
 require (
 	cosmossdk.io/errors v1.0.0
 	github.com/alitto/pond v1.8.3
-	github.com/cometbft/cometbft v0.37.2
+	github.com/cometbft/cometbft v0.37.3-0.20230920093934-46df7b597e3c
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-sdk v0.47.3
 	github.com/cosmos/gogoproto v1.4.10
@@ -29,7 +29,6 @@ require (
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/ChainSafe/go-schnorrkel v1.0.0 // indirect
-	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
@@ -39,7 +38,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cockroachdb/errors v1.10.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
-	github.com/cockroachdb/pebble v0.0.0-20230315005856-dcb60b9212f9 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/coinbase/rosetta-sdk-go/types v1.0.0 // indirect
 	github.com/confio/ics23/go v0.9.0 // indirect
@@ -154,11 +152,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	// use cometbft
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.37.2-0.20230905115601-790d57e1748f
-	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20230412133340-ac70df4b45f6
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b
-	github.com/cosmos/iavl => github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583
-	github.com/crypto-org-chain/cronos/memiavl => ../memiavl
-)
+replace github.com/crypto-org-chain/cronos/memiavl => ../memiavl
