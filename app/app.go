@@ -169,6 +169,8 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
+
+	FlagBlockedAddresses = "blocked-addresses"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals
@@ -862,7 +864,10 @@ func New(
 	app.SetPreBlocker(app.PreBlocker)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	app.setAnteHandler(encodingConfig.TxConfig, cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)))
+	app.setAnteHandler(encodingConfig.TxConfig,
+		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
+		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
+	)
 	// In v0.46, the SDK introduces _postHandlers_. PostHandlers are like
 	// antehandlers, but are run _after_ the `runMsgs` execution. They are also
 	// defined as a chain, and have the same signature as antehandlers.
@@ -902,7 +907,17 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
+func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) error {
+	blockedMap := make(map[string]struct{}, len(blacklist))
+	for _, str := range blacklist {
+		addr, err := sdk.AccAddressFromBech32(str)
+		if err != nil {
+			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
+		}
+
+		blockedMap[string(addr)] = struct{}{}
+	}
+	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
 	evmOptions := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -919,6 +934,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
 		},
+		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
 	}
 	options := ante.HandlerOptions{
 		EvmOptions:   evmOptions,
@@ -927,10 +943,11 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 
 	anteHandler, err := ante.NewAnteHandler(options)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	app.SetAnteHandler(anteHandler)
+	return nil
 }
 
 func (app *App) setPostHandler() {

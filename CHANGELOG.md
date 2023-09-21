@@ -78,6 +78,7 @@
 - [#1151](https://github.com/crypto-org-chain/cronos/pull/1151) memiavl `CacheMultiStoreWithVersion` supports `io.Closer`.
 - [#1154](https://github.com/crypto-org-chain/cronos/pull/1154) Remove dependency on cosmos-sdk.
 - [#1171](https://github.com/crypto-org-chain/cronos/pull/1171) Add memiavl background snapshot writing concurrency limit.
+- [#]() Support blocking addresses in mempool.
 
 *April 13, 2023*
 

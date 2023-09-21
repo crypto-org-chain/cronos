@@ -17,4 +17,5 @@ def test_create_account(cronos):
     end_time = int(time.time()) + 3000
     fees = f"{fee}{denom}"
     res = cli.create_vesting_account(addr, amt, end_time, from_="validator", fees=fees)
-    assert res["code"] == 18, res["raw_log"]
+    assert res["code"] != 0
+    assert "vesting messages are not supported" in res["raw_log"]
