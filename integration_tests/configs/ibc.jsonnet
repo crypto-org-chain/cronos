@@ -100,6 +100,7 @@ config {
             params: {
               allow_messages: [
                 '/cosmos.bank.v1beta1.MsgSend',
+                '/cosmos.staking.v1beta1.MsgDelegate',
               ],
             },
           },

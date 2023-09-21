@@ -598,9 +598,10 @@ def funds_ica(cli, adr):
     rsp = cli.transfer("signer2", adr, "1cro", gas_prices="1000000basecro")
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
-
+    amt = 100000000
     # check if the funds are received in interchain account
-    assert cli.balance(adr, denom="basecro") == 100000000
+    assert cli.balance(adr, denom="basecro") == amt
+    return amt
 
 
 def assert_channel_open_init(rsp):

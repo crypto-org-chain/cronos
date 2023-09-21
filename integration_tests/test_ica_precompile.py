@@ -37,17 +37,22 @@ def ibc(request, tmp_path_factory):
     yield from network
 
 
-def generate_ica_packet(cli, ica_address, to):
-    # generate a transaction to send to host chain
-    generated_tx_msg = {
+def generate_msg_send(ica_address, to, denom, amt):
+    return {
         "@type": "/cosmos.bank.v1beta1.MsgSend",
         "from_address": ica_address,
         "to_address": to,
-        "amount": [{"denom": "basecro", "amount": "50000000"}],
+        "amount": [{"denom": denom, "amount": f"{amt}"}],
     }
-    str = json.dumps(generated_tx_msg)
-    generated_packet = cli.ica_generate_packet_data(str)
-    return json.dumps(generated_packet)
+
+
+def generate_msg_delegate(ica_address, to, denom, amt):
+    return {
+        "@type": "/cosmos.staking.v1beta1.MsgDelegate",
+        "delegator_address": ica_address,
+        "validator_address": to,
+        "amount": {"denom": denom, "amount": f"{amt}"},
+    }
 
 
 def test_call(ibc):
@@ -75,20 +80,47 @@ def test_call(ibc):
     res = contract.caller.nativeQueryAccount(connid, addr)
     res = re.sub(r"\n>", "", res.decode("utf-8"))
     assert ica_address == res, res
+    balance = funds_ica(cli_host, ica_address)
 
-    funds_ica(cli_host, ica_address)
-    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-    str = generate_ica_packet(cli_controller, ica_address, cli_host.address("signer2"))
-    start = w3.eth.get_block_number()
-    # submit transaction on host chain on behalf of interchain account
-    tx = contract.functions.nativeSubmitMsgs(connid, str).build_transaction(data)
-    receipt = send_transaction(w3, tx, keys)
-    assert receipt.status == 1
-    logs = get_logs_since(w3, CONTRACT, start)
-    expected = [{"seq": "1"}]
-    for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
-    wait_for_check_tx(cli_host, ica_address, num_txs)
-    # check if the funds are reduced in interchain account
-    assert cli_host.balance(ica_address, denom="basecro") == 50000000
+    name = "validator"
+    denom = "basecro"
+    amt = 1000
+
+    def submit_msgs(msgs, seq):
+        generated_packet = cli_controller.ica_generate_packet_data(msgs)
+        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+        start = w3.eth.get_block_number()
+        str = json.dumps(generated_packet)
+        # submit transaction on host chain on behalf of interchain account
+        tx = contract.functions.nativeSubmitMsgs(connid, str).build_transaction(data)
+        receipt = send_transaction(w3, tx, keys)
+        assert receipt.status == 1
+        logs = get_logs_since(w3, CONTRACT, start)
+        expected = [{"seq": seq}]
+        for i, log in enumerate(logs):
+            method_name, args = get_topic_data(w3, method_map, contract_info, log)
+            assert args == AttributeDict(expected[i]), [i, method_name]
+        wait_for_check_tx(cli_host, ica_address, num_txs)
+
+    # generate msg send tx to host chain
+    msg_send = generate_msg_send(
+        ica_address,
+        cli_host.address(name),
+        denom,
+        amt,
+    )
+    submit_msgs(json.dumps(msg_send), "1")
+    balance -= amt
+    assert cli_host.balance(ica_address, denom=denom) == balance
+    # generate multi msgs to host chain
+    amt1 = 100
+    msg_delegate = generate_msg_delegate(
+        ica_address,
+        cli_host.address(name, bech="val"),
+        denom,
+        amt1,
+    )
+    submit_msgs(json.dumps([msg_send, msg_delegate]), "2")
+    balance -= amt
+    balance -= amt1
+    assert cli_host.balance(ica_address, denom=denom) == balance
