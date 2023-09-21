@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -12,33 +14,64 @@ import (
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 )
 
-// TODO: Replace this const with adjusted gas cost corresponding to input when executing precompile contract.
-const RelayerContractRequiredGas = 10000
+var (
+	relayerContractAddress     = common.BytesToAddress([]byte{101})
+	relayerGasRequiredByMethod = map[int]uint64{}
+)
 
-var RelayerContractAddress = common.BytesToAddress([]byte{101})
+func init() {
+	relayerGasRequiredByMethod[prefixCreateClient] = 200000
+	relayerGasRequiredByMethod[prefixUpdateClient] = 400000
+	relayerGasRequiredByMethod[prefixUpgradeClient] = 400000
+	relayerGasRequiredByMethod[prefixSubmitMisbehaviour] = 100000
+	relayerGasRequiredByMethod[prefixConnectionOpenInit] = 100000
+	relayerGasRequiredByMethod[prefixConnectionOpenTry] = 100000
+	relayerGasRequiredByMethod[prefixConnectionOpenAck] = 100000
+	relayerGasRequiredByMethod[prefixConnectionOpenConfirm] = 100000
+	relayerGasRequiredByMethod[prefixChannelOpenInit] = 100000
+	relayerGasRequiredByMethod[prefixChannelOpenTry] = 100000
+	relayerGasRequiredByMethod[prefixChannelOpenAck] = 100000
+	relayerGasRequiredByMethod[prefixChannelOpenConfirm] = 100000
+	relayerGasRequiredByMethod[prefixRecvPacket] = 250000
+	relayerGasRequiredByMethod[prefixAcknowledgement] = 250000
+	relayerGasRequiredByMethod[prefixTimeout] = 100000
+	relayerGasRequiredByMethod[prefixTimeoutOnClose] = 100000
+}
 
 type RelayerContract struct {
 	BaseContract
 
-	cdc       codec.Codec
-	ibcKeeper *ibckeeper.Keeper
+	cdc         codec.Codec
+	ibcKeeper   *ibckeeper.Keeper
+	kvGasConfig storetypes.GasConfig
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &RelayerContract{
-		BaseContract: NewBaseContract(RelayerContractAddress),
+		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
+		kvGasConfig:  kvGasConfig,
 	}
 }
 
 func (bc *RelayerContract) Address() common.Address {
-	return RelayerContractAddress
+	return relayerContractAddress
 }
 
 // RequiredGas calculates the contract gas use
 func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
-	return RelayerContractRequiredGas
+	// base cost to prevent large input size
+	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
+	if len(input) < prefixSize4Bytes {
+		return 0
+	}
+	prefix := int(binary.LittleEndian.Uint32(input[:prefixSize4Bytes]))
+	requiredGas, ok := relayerGasRequiredByMethod[prefix]
+	if ok {
+		return requiredGas + baseCost
+	}
+	return baseCost
 }
 
 func (bc *RelayerContract) IsStateful() bool {
