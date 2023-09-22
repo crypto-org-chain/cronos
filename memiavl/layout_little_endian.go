@@ -18,6 +18,13 @@ func NewNodes(data []byte) (Nodes, error) {
 
 func (nodes Nodes) Node(i uint32) NodeLayout {
 	offset := int(i) * SizeNode
+	if offset > len(nodes.data) {
+		return NodeLayout{data: &[SizeNode]byte{}}
+	}
+
+	if offset+SizeNode > len(nodes.data) {
+		return NodeLayout{data: (*[SizeNode]byte)(nodes.data[offset:])}
+	}
 	return NodeLayout{data: (*[SizeNode]byte)(nodes.data[offset : offset+SizeNode])}
 }
 
