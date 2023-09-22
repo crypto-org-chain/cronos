@@ -35,7 +35,7 @@ func init() {
 	uint64Type, _ := abi.NewType("uint64", "", nil)
 	boolType, _ := abi.NewType("bool", "", nil)
 	RegisterAccountMethod = abi.NewMethod(
-		"registerAccount", "registerAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+		"registerAccount", "registerAccount", abi.Function, "", false, true, abi.Arguments{abi.Argument{
 			Name: "connectionID",
 			Type: stringType,
 		}, abi.Argument{
@@ -61,7 +61,7 @@ func init() {
 		}},
 	)
 	SubmitMsgsMethod = abi.NewMethod(
-		"submitMsgs", "submitMsgs", abi.Function, "", false, false, abi.Arguments{abi.Argument{
+		"submitMsgs", "submitMsgs", abi.Function, "", false, true, abi.Arguments{abi.Argument{
 			Name: "connectionID",
 			Type: stringType,
 		}, abi.Argument{

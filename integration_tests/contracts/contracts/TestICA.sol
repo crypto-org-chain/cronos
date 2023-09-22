@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >0.6.6;
+pragma solidity ^0.8.4;
+
+import {IICAModule} from "./ICA.sol";
 
 contract TestICA {
     address constant icaContract = 0x0000000000000000000000000000000000000066;
+    IICAModule ica = IICAModule(icaContract);
 
     function encodeRegister(string memory connectionID) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -12,9 +15,7 @@ contract TestICA {
     }
 
     function callRegister(string memory connectionID) public returns (bool) {
-        (bool result, ) = icaContract.call(encodeRegister(connectionID));
-        require(result, "call failed");
-        return true;
+        return ica.registerAccount(connectionID, "");
     }
 
     function delegateRegister(string memory connectionID) public returns (bool) {
@@ -37,9 +38,7 @@ contract TestICA {
     }
 
     function callQueryAccount(string memory connectionID, address addr) public returns (string memory) {
-        (bool result, bytes memory data) = icaContract.call(encodeQueryAccount(connectionID, addr));
-        require(result, "call failed");
-        return abi.decode(data, (string));
+        return ica.queryAccount(connectionID, addr);
     }
 
     function delegateQueryAccount(string memory connectionID, address addr) public returns (string memory) {
@@ -62,9 +61,7 @@ contract TestICA {
     }
 
     function callSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
-        (bool result, bytes memory data) = icaContract.call(encodeSubmitMsgs(connectionID, data));
-        require(result, "call failed");
-        return abi.decode(data, (uint64));
+        return ica.submitMsgs(connectionID, data, 300000000000);
     }
 
     function delegateSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
