@@ -6,24 +6,27 @@ contract TestICA {
 
     function encodeRegister(string memory connectionID) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
-            "registerAccount(string,address,string)",
+            "registerAccount(string,string)",
             connectionID, msg.sender, ""
         );
     }
 
-    function callRegister(string memory connectionID) public {
-        (bool result,) = icaContract.call(encodeRegister(connectionID));
+    function callRegister(string memory connectionID) public returns (bool) {
+        (bool result, ) = icaContract.call(encodeRegister(connectionID));
         require(result, "call failed");
+        return true;
     }
 
-    function delegateRegister(string memory connectionID) public {
+    function delegateRegister(string memory connectionID) public returns (bool) {
         (bool result,) = icaContract.delegatecall(encodeRegister(connectionID));
         require(result, "call failed");
+        return true;
     }
 
-    function staticRegister(string memory connectionID) public {
+    function staticRegister(string memory connectionID) public returns (bool) {
         (bool result,) = icaContract.staticcall(encodeRegister(connectionID));
         require(result, "call failed");
+        return true;
     }
 
     function encodeQueryAccount(string memory connectionID, address addr) internal view returns (bytes memory) {
@@ -53,23 +56,26 @@ contract TestICA {
 
     function encodeSubmitMsgs(string memory connectionID, string memory data) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
-            "submitMsgs(string,address,string,uint256)",
+            "submitMsgs(string,string,uint256)",
             connectionID, msg.sender, data, 300000000000
         );
     }
 
-    function callSubmitMsgs(string memory connectionID, string memory data) public {
-        (bool result,) = icaContract.call(encodeSubmitMsgs(connectionID, data));
+    function callSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
+        (bool result, bytes memory data) = icaContract.call(encodeSubmitMsgs(connectionID, data));
         require(result, "call failed");
+        return abi.decode(data, (uint64));
     }
 
-    function delegateSubmitMsgs(string memory connectionID, string memory data) public {
-        (bool result,) = icaContract.delegatecall(encodeSubmitMsgs(connectionID, data));
+    function delegateSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
+        (bool result, bytes memory data) = icaContract.delegatecall(encodeSubmitMsgs(connectionID, data));
         require(result, "call failed");
+        return abi.decode(data, (uint64));
     }
 
-    function staticSubmitMsgs(string memory connectionID, string memory data) public {
-        (bool result,) = icaContract.staticcall(encodeSubmitMsgs(connectionID, data));
+    function staticSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
+        (bool result, bytes memory data) = icaContract.staticcall(encodeSubmitMsgs(connectionID, data));
         require(result, "call failed");
+        return abi.decode(data, (uint64));
     }
 }

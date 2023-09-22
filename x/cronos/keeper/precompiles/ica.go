@@ -31,8 +31,9 @@ var (
 func init() {
 	addressType, _ := abi.NewType("address", "", nil)
 	stringType, _ := abi.NewType("string", "", nil)
-	bytesType, _ := abi.NewType("bytes", "", nil)
 	uint256Type, _ := abi.NewType("uint256", "", nil)
+	uint64Type, _ := abi.NewType("uint64", "", nil)
+	boolType, _ := abi.NewType("bool", "", nil)
 	RegisterAccountMethod = abi.NewMethod(
 		"registerAccount", "registerAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
 			Name: "connectionID",
@@ -43,7 +44,7 @@ func init() {
 		}},
 		abi.Arguments{abi.Argument{
 			Name: "res",
-			Type: bytesType,
+			Type: boolType,
 		}},
 	)
 	QueryAccountMethod = abi.NewMethod(
@@ -72,7 +73,7 @@ func init() {
 		}},
 		abi.Arguments{abi.Argument{
 			Name: "res",
-			Type: bytesType,
+			Type: uint64Type,
 		}},
 	)
 }
@@ -111,9 +112,9 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
 	caller := contract.CallerAddress
+	owner := sdk.AccAddress(caller.Bytes()).String()
 	converter := cronosevents.IcaConvertEvent
 	var execErr error
-	var res codec.ProtoMarshaler
 	switch string(methodID) {
 	case string(RegisterAccountMethod.ID):
 		if readonly {
@@ -125,18 +126,18 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		version := args[1].(string)
-		owner := sdk.AccAddress(caller.Bytes()).String()
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			response, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
+			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
 			})
-			if err == nil && response != nil {
-				res = response
-			}
 			return err
 		})
+		if execErr != nil {
+			return nil, execErr
+		}
+		return RegisterAccountMethod.Outputs.Pack(true)
 	case string(QueryAccountMethod.ID):
 		args, err := QueryAccountMethod.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
@@ -153,7 +154,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			})
 			if err == nil && response != nil {
 				icaAddress = response.InterchainAccountAddress
-				res = response
 			}
 			return err
 		})
@@ -177,8 +177,8 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if err != nil {
 			return nil, errors.New("fail to unmarshal packet data")
 		}
-		owner := sdk.AccAddress(caller.Bytes()).String()
 		timeoutDuration := time.Duration(timeout.Uint64())
+		seq := uint64(0)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			response, err := ic.icaauthKeeper.SubmitTxWithArgs(
 				ctx,
@@ -188,7 +188,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 				icaMsgData,
 			)
 			if err == nil && response != nil {
-				res = response
+				seq = response.Sequence
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeSubmitMsgsResult,
@@ -198,11 +198,11 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			}
 			return err
 		})
+		if execErr != nil {
+			return nil, execErr
+		}
+		return SubmitMsgsMethod.Outputs.Pack(seq)
 	default:
 		return nil, errors.New("unknown method")
 	}
-	if execErr != nil {
-		return nil, execErr
-	}
-	return ic.cdc.Marshal(res)
 }
