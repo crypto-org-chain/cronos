@@ -7,7 +7,7 @@ export TMPDIR=/tmp
 
 echo "build test contracts"
 cd ../integration_tests/contracts
-cp -r ../../x/cronos/events/bindings/src ./contracts
+ln -s $(realpath "../../x/cronos/events/bindings/src") ./contracts/src
 HUSKY_SKIP_INSTALL=1 npm install
 npm run typechain
 cd ..
