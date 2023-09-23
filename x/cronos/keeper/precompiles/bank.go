@@ -13,6 +13,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/bank"
 	"github.com/evmos/ethermint/x/evm/types"
 )
 
@@ -22,62 +23,14 @@ const (
 )
 
 var (
+	bankABI             abi.ABI
 	BankContractAddress = common.BytesToAddress([]byte{100})
-	MintMethod          abi.Method
-	BurnMethod          abi.Method
-	BalanceOfMethod     abi.Method
-	TransferMethod      abi.Method
 )
 
 func init() {
-	addressType, _ := abi.NewType("address", "", nil)
-	uint256Type, _ := abi.NewType("uint256", "", nil)
-	MintMethod = abi.NewMethod(
-		"mint", "mint", abi.Function, "", false, false, abi.Arguments{abi.Argument{
-			Name: "recipient",
-			Type: addressType,
-		}, abi.Argument{
-			Name: "amount",
-			Type: uint256Type,
-		}},
-		nil,
-	)
-	BurnMethod = abi.NewMethod(
-		"burn", "burn", abi.Function, "", false, false, abi.Arguments{abi.Argument{
-			Name: "recipient",
-			Type: addressType,
-		}, abi.Argument{
-			Name: "amount",
-			Type: uint256Type,
-		}},
-		nil,
-	)
-	BalanceOfMethod = abi.NewMethod(
-		"balanceOf", "balanceOf", abi.Function, "", false, false, abi.Arguments{abi.Argument{
-			Name: "token",
-			Type: addressType,
-		}, abi.Argument{
-			Name: "address",
-			Type: addressType,
-		}},
-		abi.Arguments{abi.Argument{
-			Name: "amount",
-			Type: uint256Type,
-		}},
-	)
-	TransferMethod = abi.NewMethod(
-		"transfer", "transfer", abi.Function, "", false, false, abi.Arguments{abi.Argument{
-			Name: "sender",
-			Type: addressType,
-		}, abi.Argument{
-			Name: "recipient",
-			Type: addressType,
-		}, abi.Argument{
-			Name: "amount",
-			Type: uint256Type,
-		}},
-		nil,
-	)
+	if err := bankABI.UnmarshalJSON([]byte(bank.BankModuleMetaData.ABI)); err != nil {
+		panic(err)
+	}
 }
 
 func EVMDenom(token common.Address) string {
@@ -122,20 +75,16 @@ func (bc *BankContract) checkBlockedAddr(addr sdk.AccAddress) error {
 func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
 	methodID := contract.Input[:4]
+	method, err := bankABI.MethodById(methodID)
+	if err != nil {
+		return nil, err
+	}
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := bc.Address()
-
-	switch string(methodID) {
-	case string(MintMethod.ID), string(BurnMethod.ID):
+	switch string(method.Name) {
+	case "mint", "burn":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
-		}
-		mint := string(methodID) == string(MintMethod.ID)
-		var method abi.Method
-		if mint {
-			method = MintMethod
-		} else {
-			method = BurnMethod
 		}
 		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
@@ -156,7 +105,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 			if err := bc.bankKeeper.IsSendEnabledCoins(ctx, amt); err != nil {
 				return err
 			}
-			if mint {
+			if method.Name == "mint" {
 				if err := bc.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.NewCoins(amt)); err != nil {
 					return errorsmod.Wrap(err, "fail to mint coins in precompiled contract")
 				}
@@ -176,8 +125,9 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		if err != nil {
 			return nil, err
 		}
-	case string(BalanceOfMethod.ID):
-		args, err := BalanceOfMethod.Inputs.Unpack(contract.Input[4:])
+		return method.Outputs.Pack(true)
+	case "balanceOf":
+		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
 		}
@@ -189,12 +139,12 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 			balance = bc.bankKeeper.GetBalance(ctx, sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
 			return err
 		})
-		return BalanceOfMethod.Outputs.Pack(balance)
-	case string(TransferMethod.ID):
+		return method.Outputs.Pack(balance)
+	case "transfer":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
-		args, err := TransferMethod.Inputs.Unpack(contract.Input[4:])
+		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
 		}
@@ -220,9 +170,11 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 			}
 			return nil
 		})
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+		return method.Outputs.Pack(true)
 	default:
 		return nil, errors.New("unknown method")
 	}
-	return nil, nil
 }
