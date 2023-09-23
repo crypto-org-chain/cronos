@@ -21,3 +21,4 @@ go.work.sum
 
 # yaml for test
 integration_tests/configs/*.yaml
+integration_tests/contracts/contracts/src

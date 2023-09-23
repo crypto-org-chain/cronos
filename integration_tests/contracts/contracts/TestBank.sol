@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >0.6.6;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {IBankModule} from "./Bank.sol";
+import {IBankModule} from "./src/Bank.sol";
 
 contract TestBank is ERC20 {
     address constant bankContract = 0x0000000000000000000000000000000000000064;
