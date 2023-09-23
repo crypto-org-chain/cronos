@@ -81,7 +81,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 	}
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := bc.Address()
-	switch string(method.Name) {
+	switch method.Name {
 	case "mint", "burn":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
