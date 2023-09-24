@@ -10,6 +10,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
@@ -22,60 +23,14 @@ import (
 const ICAContractRequiredGas = 10000
 
 var (
-	RegisterAccountMethod abi.Method
-	QueryAccountMethod    abi.Method
-	SubmitMsgsMethod      abi.Method
-	IcaContractAddress    = common.BytesToAddress([]byte{102})
+	icaABI             abi.ABI
+	icaContractAddress = common.BytesToAddress([]byte{102})
 )
 
 func init() {
-	addressType, _ := abi.NewType("address", "", nil)
-	stringType, _ := abi.NewType("string", "", nil)
-	uint256Type, _ := abi.NewType("uint256", "", nil)
-	uint64Type, _ := abi.NewType("uint64", "", nil)
-	boolType, _ := abi.NewType("bool", "", nil)
-	RegisterAccountMethod = abi.NewMethod(
-		"registerAccount", "registerAccount", abi.Function, "", false, true, abi.Arguments{abi.Argument{
-			Name: "connectionID",
-			Type: stringType,
-		}, abi.Argument{
-			Name: "version",
-			Type: stringType,
-		}},
-		abi.Arguments{abi.Argument{
-			Name: "res",
-			Type: boolType,
-		}},
-	)
-	QueryAccountMethod = abi.NewMethod(
-		"queryAccount", "queryAccount", abi.Function, "", false, false, abi.Arguments{abi.Argument{
-			Name: "connectionID",
-			Type: stringType,
-		}, abi.Argument{
-			Name: "owner",
-			Type: addressType,
-		}},
-		abi.Arguments{abi.Argument{
-			Name: "res",
-			Type: stringType,
-		}},
-	)
-	SubmitMsgsMethod = abi.NewMethod(
-		"submitMsgs", "submitMsgs", abi.Function, "", false, true, abi.Arguments{abi.Argument{
-			Name: "connectionID",
-			Type: stringType,
-		}, abi.Argument{
-			Name: "data",
-			Type: stringType,
-		}, abi.Argument{
-			Name: "timeout",
-			Type: uint256Type,
-		}},
-		abi.Arguments{abi.Argument{
-			Name: "res",
-			Type: uint64Type,
-		}},
-	)
+	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
+		panic(err)
+	}
 }
 
 type IcaContract struct {
@@ -87,14 +42,14 @@ type IcaContract struct {
 
 func NewIcaContract(icaauthKeeper *icaauthkeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &IcaContract{
-		BaseContract:  NewBaseContract(IcaContractAddress),
+		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 	}
 }
 
 func (ic *IcaContract) Address() common.Address {
-	return IcaContractAddress
+	return icaContractAddress
 }
 
 // RequiredGas calculates the contract gas use
@@ -109,18 +64,23 @@ func (ic *IcaContract) IsStateful() bool {
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
 	methodID := contract.Input[:4]
+	method, err := icaABI.MethodById(methodID)
+	if err != nil {
+		return nil, err
+	}
+
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
 	caller := contract.CallerAddress
 	owner := sdk.AccAddress(caller.Bytes()).String()
 	converter := cronosevents.IcaConvertEvent
 	var execErr error
-	switch string(methodID) {
-	case string(RegisterAccountMethod.ID):
+	switch method.Name {
+	case "registerAccount":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
-		args, err := RegisterAccountMethod.Inputs.Unpack(contract.Input[4:])
+		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
 		}
@@ -137,9 +97,9 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if execErr != nil {
 			return nil, execErr
 		}
-		return RegisterAccountMethod.Outputs.Pack(true)
-	case string(QueryAccountMethod.ID):
-		args, err := QueryAccountMethod.Inputs.Unpack(contract.Input[4:])
+		return method.Outputs.Pack(true)
+	case "queryAccount":
+		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
 		}
@@ -160,12 +120,12 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if execErr != nil {
 			return nil, execErr
 		}
-		return QueryAccountMethod.Outputs.Pack(icaAddress)
-	case string(SubmitMsgsMethod.ID):
+		return method.Outputs.Pack(icaAddress)
+	case "submitMsgs":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
-		args, err := SubmitMsgsMethod.Inputs.Unpack(contract.Input[4:])
+		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
 		}
@@ -201,7 +161,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		if execErr != nil {
 			return nil, execErr
 		}
-		return SubmitMsgsMethod.Outputs.Pack(seq)
+		return method.Outputs.Pack(seq)
 	default:
 		return nil, errors.New("unknown method")
 	}

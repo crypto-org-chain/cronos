@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {IICAModule} from "./ICA.sol";
+import {IICAModule} from "./src/ICA.sol";
 
 contract TestICA {
     address constant icaContract = 0x0000000000000000000000000000000000000066;
