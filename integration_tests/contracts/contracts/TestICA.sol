@@ -6,6 +6,7 @@ import {IICAModule} from "./src/ICA.sol";
 contract TestICA {
     address constant icaContract = 0x0000000000000000000000000000000000000066;
     IICAModule ica = IICAModule(icaContract);
+    uint64 lastAckSeq;
 
     function encodeRegister(string memory connectionID) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -61,18 +62,25 @@ contract TestICA {
     }
 
     function callSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
-        return ica.submitMsgs(connectionID, data, 300000000000);
+        lastAckSeq = ica.submitMsgs(connectionID, data, 300000000000);
+        return lastAckSeq;
     }
 
     function delegateSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.delegatecall(encodeSubmitMsgs(connectionID, data));
         require(result, "call failed");
-        return abi.decode(data, (uint64));
+        lastAckSeq = abi.decode(data, (uint64));
+        return lastAckSeq;
     }
 
     function staticSubmitMsgs(string memory connectionID, string memory data) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.staticcall(encodeSubmitMsgs(connectionID, data));
         require(result, "call failed");
-        return abi.decode(data, (uint64));
+        lastAckSeq = abi.decode(data, (uint64));
+        return lastAckSeq;
+    }
+
+    function getLastAckSeq() public view returns (uint256) {
+        return lastAckSeq;
     }
 }
