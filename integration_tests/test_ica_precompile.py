@@ -25,6 +25,13 @@ from .utils import (
 CONTRACT = "0x0000000000000000000000000000000000000066"
 contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
 method_map = get_method_map(contract_info)
+connid = "connection-0"
+timeout = 300000000000
+denom = "basecro"
+keys = KEYS["signer2"]
+validator = "validator"
+amt = 1000
+amt1 = 100
 
 
 @pytest.fixture(scope="module")
@@ -36,168 +43,165 @@ def ibc(request, tmp_path_factory):
     yield from network
 
 
-def generate_msg_send(ica_address, to, denom, amt):
-    return {
-        "@type": "/cosmos.bank.v1beta1.MsgSend",
-        "from_address": ica_address,
-        "to_address": to,
-        "amount": [{"denom": denom, "amount": f"{amt}"}],
-    }
-
-
-def generate_msg_delegate(ica_address, to, denom, amt):
-    return {
-        "@type": "/cosmos.staking.v1beta1.MsgDelegate",
-        "delegator_address": ica_address,
-        "validator_address": to,
-        "amount": {"denom": denom, "amount": f"{amt}"},
-    }
-
-
-def test_call(ibc):
-    connid = "connection-0"
-    cli_host = ibc.chainmain.cosmos_cli()
-    cli_controller = ibc.cronos.cosmos_cli()
-
-    w3 = ibc.cronos.w3
-    addr = ADDRS["signer2"]
-    keys = KEYS["signer2"]
-
-    contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
-    data = {"from": addr, "gas": 200000}
+def register_acc(cli, w3, register, query, data, addr, channel_id):
     print("register ica account")
-    tx = contract.functions.registerAccount(connid, "").build_transaction(data)
+    tx = register(connid, "").build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
     owner = eth_to_bech32(addr)
-    channel_id = "channel-0"
-    wait_for_check_channel_ready(cli_controller, connid, channel_id)
-    res = cli_controller.ica_query_account(connid, owner)
+    wait_for_check_channel_ready(cli, connid, channel_id)
+    res = cli.ica_query_account(connid, owner)
     ica_address = res["interchain_account_address"]
     print("query ica account", ica_address)
-    balance = funds_ica(cli_host, ica_address)
-    res = contract.functions.queryAccount(connid, addr).call()
+    res = query(connid, addr).call()
     assert ica_address == res, res
+    return ica_address
 
-    name = "validator"
-    denom = "basecro"
-    amt = 1000
-    timeout = 300000000000
 
-    def submit_msgs(msgs, seq):
-        generated_packet = cli_controller.ica_generate_packet_data(msgs)
-        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-        start = w3.eth.get_block_number()
-        str = json.dumps(generated_packet)
-        # submit transaction on host chain on behalf of interchain account
-        tx = contract.functions.submitMsgs(connid, str, timeout).build_transaction(data)
-        receipt = send_transaction(w3, tx, keys)
-        assert receipt.status == 1
-        logs = get_logs_since(w3, CONTRACT, start)
-        expected = [{"seq": seq}]
-        for i, log in enumerate(logs):
-            method_name, args = get_topic_data(w3, method_map, contract_info, log)
-            assert args == AttributeDict(expected[i]), [i, method_name]
-        wait_for_check_tx(cli_host, ica_address, num_txs)
+def submit_msgs(ibc, func, data, ica_address, is_multi, seq):
+    cli_host = ibc.chainmain.cosmos_cli()
+    cli_controller = ibc.cronos.cosmos_cli()
+    w3 = ibc.cronos.w3
+    to = cli_host.address(validator)
+    # generate msg send to host chain
+    msgs = [
+        {
+            "@type": "/cosmos.bank.v1beta1.MsgSend",
+            "from_address": ica_address,
+            "to_address": to,
+            "amount": [{"denom": denom, "amount": f"{amt}"}],
+        }
+    ]
+    if is_multi:
+        to = cli_host.address(validator, bech="val")
+        # generate msg delegate to host chain
+        msgs.append(
+            {
+                "@type": "/cosmos.staking.v1beta1.MsgDelegate",
+                "delegator_address": ica_address,
+                "validator_address": to,
+                "amount": {"denom": denom, "amount": f"{amt1}"},
+            }
+        )
+    generated_packet = cli_controller.ica_generate_packet_data(json.dumps(msgs))
+    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+    start = w3.eth.get_block_number()
+    str = json.dumps(generated_packet)
+    # submit transaction on host chain on behalf of interchain account
+    tx = func(connid, str, timeout).build_transaction(data)
+    receipt = send_transaction(w3, tx, keys)
+    assert receipt.status == 1
+    logs = get_logs_since(w3, CONTRACT, start)
+    expected = [{"seq": f"{seq}"}]
+    assert len(logs) == len(expected)
+    for i, log in enumerate(logs):
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
+        assert args == AttributeDict(expected[i]), [i, method_name]
+    wait_for_check_tx(cli_host, ica_address, num_txs)
+    return str
 
-    # generate msg send tx to host chain
-    msg_send = generate_msg_send(
-        ica_address,
-        cli_host.address(name),
-        denom,
-        amt,
+
+def test_call(ibc):
+    cli_host = ibc.chainmain.cosmos_cli()
+    cli_controller = ibc.cronos.cosmos_cli()
+    w3 = ibc.cronos.w3
+    name = "signer2"
+    addr = ADDRS[name]
+    contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
+    data = {"from": ADDRS[name], "gas": 200000}
+    ica_address = register_acc(
+        cli_controller,
+        w3,
+        contract.functions.registerAccount,
+        contract.functions.queryAccount,
+        data,
+        addr,
+        "channel-0",
     )
-    submit_msgs(json.dumps(msg_send), "1")
+    balance = funds_ica(cli_host, ica_address)
+    submit_msgs(ibc, contract.functions.submitMsgs, data, ica_address, False, 1)
     balance -= amt
     assert cli_host.balance(ica_address, denom=denom) == balance
-    # generate multi msgs to host chain
-    amt1 = 100
-    msg_delegate = generate_msg_delegate(
-        ica_address,
-        cli_host.address(name, bech="val"),
-        denom,
-        amt1,
-    )
-    submit_msgs(json.dumps([msg_send, msg_delegate]), "2")
+    submit_msgs(ibc, contract.functions.submitMsgs, data, ica_address, True, 2)
     balance -= amt
     balance -= amt1
     assert cli_host.balance(ica_address, denom=denom) == balance
 
 
 def test_sc_call(ibc):
-    connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     tcontract = deploy_contract(w3, CONTRACTS["TestICA"])
     addr = tcontract.address
-    signer2 = ADDRS["signer2"]
-    keys = KEYS["signer2"]
-    owner = eth_to_bech32(addr)
-    data = {"from": signer2, "gas": 200000}
-    tx = tcontract.functions.callRegister(connid).build_transaction(data)
-    assert send_transaction(w3, tx, keys).status == 1
-    channel_id = "channel-1"
-    wait_for_check_channel_ready(cli_controller, connid, channel_id)
-    res = cli_controller.ica_query_account(connid, owner)
-    ica_address = res["interchain_account_address"]
-    print("query ica account", ica_address)
+    name = "signer2"
+    signer = ADDRS[name]
+    keys = KEYS[name]
+    data = {"from": signer, "gas": 200000}
+    ica_address = register_acc(
+        cli_controller,
+        w3,
+        tcontract.functions.callRegister,
+        contract.functions.queryAccount,
+        data,
+        addr,
+        "channel-1",
+    )
     balance = funds_ica(cli_host, ica_address)
-    res = contract.functions.queryAccount(connid, addr).call()
-    assert ica_address == res, res
+    assert tcontract.caller.getAccount() == signer
     assert tcontract.functions.callQueryAccount(connid, addr).call() == ica_address
+
+    # register from another user should fail
+    name = "signer1"
+    data = {"from": ADDRS[name], "gas": 200000}
+    version = ""
+    tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
+    res = send_transaction(w3, tx, KEYS[name])
+    assert res.status == 0
+    assert tcontract.caller.getAccount() == signer
+
     assert tcontract.functions.delegateQueryAccount(connid, addr).call() == ica_address
     assert tcontract.functions.staticQueryAccount(connid, addr).call() == ica_address
+
     # readonly call should fail
-    tx = tcontract.functions.delegateRegister(connid).build_transaction(data)
-    assert send_transaction(w3, tx, keys).status == 0
-    tx = tcontract.functions.staticRegister(connid).build_transaction(data)
-    assert send_transaction(w3, tx, keys).status == 0
-
-    name = "validator"
-    denom = "basecro"
-    amt = 1000
-
-    def submit_msgs(msgs, seq):
-        generated_packet = cli_controller.ica_generate_packet_data(msgs)
-        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-        start = w3.eth.get_block_number()
-        str = json.dumps(generated_packet)
-        # submit transaction on host chain on behalf of interchain account
-        tx = tcontract.functions.callSubmitMsgs(connid, str).build_transaction(data)
-        assert send_transaction(w3, tx, keys).status == 1
-        logs = get_logs_since(w3, CONTRACT, start)
-        expected = [{"seq": seq}]
-        for i, log in enumerate(logs):
-            method_name, args = get_topic_data(w3, method_map, contract_info, log)
-            assert args == AttributeDict(expected[i]), [i, method_name]
-        wait_for_check_tx(cli_host, ica_address, num_txs)
-        # readonly call should fail
-        tx = tcontract.functions.delegateSubmitMsgs(connid, str).build_transaction(data)
-        assert send_transaction(w3, tx, keys).status == 0
-        tx = tcontract.functions.staticSubmitMsgs(connid, str).build_transaction(data)
+    def register_ro(func):
+        tx = func(connid, version).build_transaction(data)
         assert send_transaction(w3, tx, keys).status == 0
 
-    # generate msg send tx to host chain
-    msg_send = generate_msg_send(
+    register_ro(tcontract.functions.delegateRegister)
+    register_ro(tcontract.functions.staticRegister)
+
+    # readonly call should fail
+    def submit_msgs_ro(func, str):
+        tx = func(connid, str, timeout).build_transaction(data)
+        assert send_transaction(w3, tx, keys).status == 0
+
+    seq = 1
+    str = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
         ica_address,
-        cli_host.address(name),
-        denom,
-        amt,
+        False,
+        seq,
     )
-    submit_msgs(json.dumps(msg_send), "1")
+    submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
+    submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
+    assert tcontract.caller.getLastAckSeq() == seq
     balance -= amt
     assert cli_host.balance(ica_address, denom=denom) == balance
-    # generate multi msgs to host chain
-    amt1 = 100
-    msg_delegate = generate_msg_delegate(
+    seq = 2
+    str = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
         ica_address,
-        cli_host.address(name, bech="val"),
-        denom,
-        amt1,
+        True,
+        seq,
     )
-    submit_msgs(json.dumps([msg_send, msg_delegate]), "2")
+    submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
+    submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     balance -= amt
     balance -= amt1
     assert cli_host.balance(ica_address, denom=denom) == balance
