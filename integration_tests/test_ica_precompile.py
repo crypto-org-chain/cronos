@@ -92,7 +92,7 @@ def submit_msgs(ibc, func, data, ica_address, is_multi, seq):
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
     logs = get_logs_since(w3, CONTRACT, start)
-    expected = [{"seq": f"{seq}"}]
+    expected = [{"seq": seq}]
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, method_map, contract_info, log)

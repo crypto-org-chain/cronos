@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -35,7 +36,12 @@ func (d ValueDecoders) GetDecoder(name string) (ValueDecoder, bool) {
 	return decoder, ok
 }
 
-const intBase = 10
+const (
+	// intBase is the base `int`s are parsed in, 10.
+	intBase = 10
+	// int64Bits is the number of bits stored in a variabe of `int64` type.
+	int64Bits = 64
+)
 
 func AccAddressFromBech32(address string) (addr sdk.AccAddress, err error) {
 	if len(strings.TrimSpace(address)) == 0 {
@@ -124,6 +130,14 @@ func ConvertPacketData(attributeValue string, indexed bool) ([]any, error) {
 
 func ReturnStringAsIs(attributeValue string, _ bool) ([]any, error) {
 	return []any{attributeValue}, nil
+}
+
+func ConvertUint64(attributeValue string, _ bool) ([]any, error) {
+	res, err := strconv.ParseUint(attributeValue, intBase, int64Bits)
+	if err != nil {
+		return nil, err
+	}
+	return []any{res}, err
 }
 
 func convertAddress(addrString string) (*common.Address, error) {
