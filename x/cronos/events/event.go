@@ -46,7 +46,7 @@ func makeFilter(
 		if !ok {
 			return nil, fmt.Errorf("attribute %s not found", name)
 		}
-		decode, ok := valueDecoders[name]
+		decode, ok := valueDecoders.GetDecoder(name)
 		if !ok {
 			return nil, fmt.Errorf("no decoder for %s", name)
 		}
