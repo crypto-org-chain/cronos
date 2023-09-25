@@ -23,6 +23,7 @@
 - [cronos#1014](https://github.com/crypto-org-chain/cronos/pull/1014) Support stateful precompiled contract for relayer.
 - [cronos#1165](https://github.com/crypto-org-chain/cronos/pull/1165) Icaauth module is not adjusted correctly in ibc-go v7.2.0.
 - [cronos#837](https://github.com/crypto-org-chain/cronos/pull/837) Support stateful precompiled contract for bank.
+- [cronos#1184](https://github.com/crypto-org-chain/cronos/pull/1184) Update ibc-go to `v7.3.0`.
 
 ### Bug Fixes
 
