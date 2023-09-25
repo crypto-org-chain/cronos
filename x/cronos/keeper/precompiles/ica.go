@@ -129,11 +129,11 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, errors.New("fail to unpack input arguments")
 		}
 		connectionID := args[0].(string)
-		data := args[1].(string)
+		data := args[1].([]byte)
 		timeout := args[2].(*big.Int)
 		icaMsgData := icatypes.InterchainAccountPacketData{
 			Type: icatypes.EXECUTE_TX,
-			Data: []byte(data),
+			Data: data,
 		}
 		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)

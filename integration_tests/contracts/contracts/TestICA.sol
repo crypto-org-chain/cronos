@@ -62,27 +62,27 @@ contract TestICA {
         return abi.decode(data, (string));
     }
 
-    function encodeSubmitMsgs(string memory connectionID, string memory data, uint256 timeout) internal view returns (bytes memory) {
+    function encodeSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
-            "submitMsgs(string,string,uint256)",
+            "submitMsgs(string,bytes,uint256)",
             connectionID, msg.sender, data, timeout
         );
     }
 
-    function callSubmitMsgs(string memory connectionID, string memory data, uint256 timeout) public returns (uint64) {
+    function callSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         require(account == msg.sender, "not authorized");
         lastAckSeq = ica.submitMsgs(connectionID, data, timeout);
         return lastAckSeq;
     }
 
-    function delegateSubmitMsgs(string memory connectionID, string memory data, uint256 timeout) public returns (uint64) {
+    function delegateSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.delegatecall(encodeSubmitMsgs(connectionID, data, timeout));
         require(result, "call failed");
         lastAckSeq = abi.decode(data, (uint64));
         return lastAckSeq;
     }
 
-    function staticSubmitMsgs(string memory connectionID, string memory data, uint256 timeout) public returns (uint64) {
+    function staticSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.staticcall(encodeSubmitMsgs(connectionID, data, timeout));
         require(result, "call failed");
         lastAckSeq = abi.decode(data, (uint64));

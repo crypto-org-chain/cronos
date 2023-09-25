@@ -30,7 +30,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"data\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -231,24 +231,24 @@ func (_ICAModule *ICAModuleTransactorSession) RegisterAccount(connectionID strin
 	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version)
 }
 
-// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x697bfa34.
 //
-// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(uint64)
-func (_ICAModule *ICAModuleTransactor) SubmitMsgs(opts *bind.TransactOpts, connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+// Solidity: function submitMsgs(string connectionID, bytes data, uint256 timeout) payable returns(uint64)
+func (_ICAModule *ICAModuleTransactor) SubmitMsgs(opts *bind.TransactOpts, connectionID string, data []byte, timeout *big.Int) (*types.Transaction, error) {
 	return _ICAModule.contract.Transact(opts, "submitMsgs", connectionID, data, timeout)
 }
 
-// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x697bfa34.
 //
-// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(uint64)
-func (_ICAModule *ICAModuleSession) SubmitMsgs(connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+// Solidity: function submitMsgs(string connectionID, bytes data, uint256 timeout) payable returns(uint64)
+func (_ICAModule *ICAModuleSession) SubmitMsgs(connectionID string, data []byte, timeout *big.Int) (*types.Transaction, error) {
 	return _ICAModule.Contract.SubmitMsgs(&_ICAModule.TransactOpts, connectionID, data, timeout)
 }
 
-// SubmitMsgs is a paid mutator transaction binding the contract method 0x0b04ffc9.
+// SubmitMsgs is a paid mutator transaction binding the contract method 0x697bfa34.
 //
-// Solidity: function submitMsgs(string connectionID, string data, uint256 timeout) payable returns(uint64)
-func (_ICAModule *ICAModuleTransactorSession) SubmitMsgs(connectionID string, data string, timeout *big.Int) (*types.Transaction, error) {
+// Solidity: function submitMsgs(string connectionID, bytes data, uint256 timeout) payable returns(uint64)
+func (_ICAModule *ICAModuleTransactorSession) SubmitMsgs(connectionID string, data []byte, timeout *big.Int) (*types.Transaction, error) {
 	return _ICAModule.Contract.SubmitMsgs(&_ICAModule.TransactOpts, connectionID, data, timeout)
 }
 
