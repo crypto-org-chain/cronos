@@ -1323,9 +1323,8 @@ class CosmosCLI:
                 "host",
                 "generate-packet-data",
                 tx,
-                "--memo" if memo else None,
-                "--encoding" if encoding else None,
-                encoding if encoding else None,
+                memo=memo,
+                encoding=encoding,
                 home=self.data_dir,
                 **kwargs,
             )
