@@ -56,7 +56,7 @@ import sources.nixpkgs {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorSha256 = "sha256-Fd1vVVHEeVabsWpfI7yQfmC8T1z+dSDavxwmrKh9MmU=";
+        vendorSha256 = "sha256-IoaGLD3XKRmD61qcr/sPn3aWaa7zYAO9EbMiJFnF5BY=";
         doCheck = false;
         GOWORK = "off";
         postInstall = ''
