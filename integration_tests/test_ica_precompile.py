@@ -1,4 +1,5 @@
 import json
+import base64
 
 import pytest
 from web3.datastructures import AttributeDict
@@ -86,7 +87,7 @@ def submit_msgs(ibc, func, data, ica_address, is_multi, seq):
     generated_packet = cli_controller.ica_generate_packet_data(json.dumps(msgs))
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     start = w3.eth.get_block_number()
-    str = json.dumps(generated_packet)
+    str = base64.b64decode(generated_packet["data"])
     # submit transaction on host chain on behalf of interchain account
     tx = func(connid, str, timeout).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
