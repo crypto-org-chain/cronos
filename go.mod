@@ -12,9 +12,9 @@ require (
 	github.com/cometbft/cometbft v0.37.3-0.20230920093934-46df7b597e3c
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.2
-	github.com/cosmos/cosmos-sdk v0.47.3
+	github.com/cosmos/cosmos-sdk v0.47.4
 	github.com/cosmos/gogoproto v1.4.10
-	github.com/cosmos/ibc-go/v7 v7.2.0
+	github.com/cosmos/ibc-go/v7 v7.3.0
 	github.com/crypto-org-chain/cronos/store v0.0.4
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.10.26
@@ -233,7 +233,7 @@ replace (
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/evmos/go-ethereum v1.10.26-evmos-rc1
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20230921025237-ae144329ecaf
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
