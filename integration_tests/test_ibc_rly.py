@@ -168,13 +168,6 @@ def burn(burner, amt, denom):
     }
 
 
-def update_client():
-    return {
-        "clientId": keccak(text="07-tendermint-0"),
-        "clientType": keccak(text="07-tendermint"),
-    }
-
-
 def recv_packet(src, dst, amt, denom):
     return {
         "packetDataHex": (dst, src, [(amt, denom)]),
@@ -251,7 +244,6 @@ def test_ibc(ibc):
     cronos_addr = module_address("cronos")
     transfer_addr = module_address("transfer")
     expected = [
-        update_client(),
         recv_packet(relayer0, cronos_signer2, src_amount, src_denom),
         denom_trace(denom),
         *send_from_module_to_acc(transfer_addr, cronos_signer2, src_amount, denom),
@@ -260,7 +252,6 @@ def test_ibc(ibc):
         *send_from_module_to_acc(cronos_addr, cronos_signer2, dst_amount, dst_denom),
         write_ack(relayer0, cronos_signer2, src_amount, src_denom),
     ]
-
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
@@ -288,7 +279,6 @@ def test_ibc_incentivized_transfer(ibc):
     feeibc_addr = module_address("feeibc")
     escrow = get_escrow_address(cli, channel)
     expected = [
-        update_client(),
         acknowledge_packet(),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
@@ -297,7 +287,6 @@ def test_ibc_incentivized_transfer(ibc):
         distribute_fee(cronos_signer2, fee),
         *send_coins(feeibc_addr, cronos_signer2, src_amount, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
-        update_client(),
         recv_packet(dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, dst_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
@@ -315,10 +304,8 @@ def get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow):
     cronos_denom = f"cronos{contract}"
     transfer_cronos_denom = f"transfer/{channel}/{cronos_denom}"
     return [
-        update_client(),
         acknowledge_packet(),
         fungible(checksum_dst_adr, ADDRS["validator"], amount, cronos_denom),
-        update_client(),
         recv_packet(dst_adr, cronos_signer2, amount, transfer_cronos_denom),
         *send_coins(escrow, cronos_signer2, amount, cronos_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_cronos_denom),
