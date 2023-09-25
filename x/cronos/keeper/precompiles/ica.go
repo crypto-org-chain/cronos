@@ -107,18 +107,17 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		account := args[1].(common.Address)
 		owner := sdk.AccAddress(account.Bytes()).String()
 		icaAddress := ""
-		execErr = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
-			response, err := ic.icaauthKeeper.InterchainAccountAddress(ctx, &types.QueryInterchainAccountAddressRequest{
+		response, err := ic.icaauthKeeper.InterchainAccountAddress(
+			stateDB.CacheContext(),
+			&types.QueryInterchainAccountAddressRequest{
 				Owner:        owner,
 				ConnectionId: connectionID,
 			})
-			if err == nil && response != nil {
-				icaAddress = response.InterchainAccountAddress
-			}
-			return err
-		})
-		if execErr != nil {
-			return nil, execErr
+		if err != nil {
+			return nil, err
+		}
+		if response != nil {
+			icaAddress = response.InterchainAccountAddress
 		}
 		return method.Outputs.Pack(icaAddress)
 	case "submitMsgs":
