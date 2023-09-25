@@ -4,93 +4,6 @@ pragma solidity ^0.8.4;
 import {Cosmos} from "./CosmosTypes.sol";
 
 interface IRelayerModule {
-    // Client
-    event CreateClient(
-        string indexed clientId,
-        string indexed clientType
-    );
-    event UpdateClient(
-        string indexed clientId,
-        string indexed clientType
-    );
-    event UpgradeClient(
-        string indexed clientId,
-        string indexed clientType
-    );
-    event SubmitMisbehaviour(
-        string indexed subjectId,
-        string indexed clientType
-    );
-    // Connection
-    event ConnectionOpenInit(
-        string indexed connectionId,
-        string indexed clientId,
-        string indexed counterpartyClientId,
-        string counterpartyConnectionId
-    );
-    event ConnectionOpenTry(
-        string indexed connectionId,
-        string indexed clientId,
-        string indexed counterpartyClientId,
-        string counterpartyConnectionId
-    );
-    event ConnectionOpenAck(
-        string indexed connectionId,
-        string indexed clientId,
-        string indexed counterpartyClientId,
-        string counterpartyConnectionId
-    );
-    event ConnectionOpenConfirm(
-        string indexed connectionId,
-        string indexed clientId,
-        string indexed counterpartyClientId,
-        string counterpartyConnectionId
-    );
-    // Channel
-    event ChannelOpenInit(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId,
-        string version
-    );
-    event ChannelOpenTry(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId,
-        string version
-    );
-    event ChannelOpenAck(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId
-    );
-    event ChannelOpenConfirm(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId
-    );
-    event ChannelCloseInit(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId
-    );
-    event ChannelCloseConfirm(
-        string indexed portId,
-        string indexed channelId,
-        string indexed counterpartyPortId,
-        string counterpartyChannelId,
-        string connectionId
-    );
     struct PacketData {
         address receiver;
         string sender;
@@ -116,7 +29,6 @@ interface IRelayerModule {
         string packetDstChannel,
         string packetChannelOrdering
     );
-    event Message();
     // IBC transfer
     event Timeout(
         address indexed refundReceiver,

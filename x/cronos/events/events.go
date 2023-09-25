@@ -3,6 +3,7 @@ package events
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ica "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
@@ -16,14 +17,22 @@ var (
 	RelayerEvents        map[string]*EventDescriptor
 	IcaEvents            map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
-		channeltypes.AttributeKeyDataHex: ConvertPacketData,
-		transfertypes.AttributeKeyAmount: ConvertAmount,
-		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySpender:    ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyReceiver:   ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySender:     ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyMinter:     ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyBurner:     ConvertAccAddressFromBech32,
+		channeltypes.AttributeKeyDataHex:         ConvertPacketData,
+		transfertypes.AttributeKeyAmount:         ConvertAmount,
+		banktypes.AttributeKeyRecipient:          ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySpender:            ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyReceiver:           ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySender:             ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyMinter:             ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyBurner:             ConvertAccAddressFromBech32,
+		channeltypes.AttributeKeyConnection:      ReturnStringAsIs,
+		channeltypes.AttributeKeyChannelOrdering: ReturnStringAsIs,
+		channeltypes.AttributeKeySrcPort:         ReturnStringAsIs,
+		channeltypes.AttributeKeySrcChannel:      ReturnStringAsIs,
+		channeltypes.AttributeKeyDstPort:         ReturnStringAsIs,
+		channeltypes.AttributeKeyDstChannel:      ReturnStringAsIs,
+		ibcfeetypes.AttributeKeyFee:              ReturnStringAsIs,
+		transfertypes.AttributeKeyDenom:          ReturnStringAsIs,
 	}
 	IcaValueDecoders = ValueDecoders{
 		channeltypes.AttributeKeyChannelID: ReturnStringAsIs,
@@ -47,20 +56,14 @@ func init() {
 }
 
 func RelayerConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
-	if event.Type == sdk.EventTypeMessage {
-		return nil, nil
-	}
 	desc, ok := RelayerEvents[event.Type]
 	if !ok {
 		return nil, nil
 	}
-	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders.WithDefaultDecoder(ReturnStringAsIs))
+	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders)
 }
 
 func IcaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
-	if event.Type == sdk.EventTypeMessage {
-		return nil, nil
-	}
 	desc, ok := IcaEvents[event.Type]
 	if !ok {
 		return nil, nil
