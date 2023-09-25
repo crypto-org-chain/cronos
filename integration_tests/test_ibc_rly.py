@@ -16,7 +16,6 @@ from .ibc_utils import (
     ibc_denom,
     ibc_incentivized_transfer,
     prepare_network,
-    update_client,
 )
 from .utils import (
     ADDRS,

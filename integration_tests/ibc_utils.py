@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-from eth_utils import keccak
 from pystarport import cluster, ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
@@ -616,10 +615,3 @@ def assert_channel_open_init(rsp):
     )
     print("port-id", port_id, "channel-id", channel_id)
     return port_id, channel_id
-
-
-def update_client():
-    return {
-        "clientId": keccak(text="07-tendermint-0"),
-        "clientType": keccak(text="07-tendermint"),
-    }
