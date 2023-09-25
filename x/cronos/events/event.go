@@ -48,7 +48,7 @@ func makeFilter(
 		}
 		decode, ok := valueDecoders[name]
 		if !ok {
-			decode = ReturnStringAsIs
+			return nil, fmt.Errorf("no decoder for %s", name)
 		}
 		values, err := decode(value, indexed)
 		if err != nil {
