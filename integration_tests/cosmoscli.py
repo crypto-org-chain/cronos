@@ -1315,7 +1315,7 @@ class CosmosCLI:
             )
         )
 
-    def ica_generate_packet_data(self, tx, memo=None, **kwargs):
+    def ica_generate_packet_data(self, tx, memo=None, encoding="proto3json", **kwargs):
         return json.loads(
             self.raw(
                 "tx",
@@ -1324,6 +1324,8 @@ class CosmosCLI:
                 "generate-packet-data",
                 tx,
                 "--memo" if memo else None,
+                "--encoding" if encoding else None,
+                encoding if encoding else None,
                 home=self.data_dir,
                 **kwargs,
             )
