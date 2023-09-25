@@ -11,4 +11,5 @@ import (
 type ExtStateDB interface {
 	vm.StateDB
 	ExecuteNativeAction(contract common.Address, converter statedb.EventConverter, action func(ctx sdk.Context) error) error
+	CacheContext() sdk.Context
 }
