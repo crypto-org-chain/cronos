@@ -3,7 +3,6 @@ package events
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	ibccallbackstypes "github.com/cosmos/ibc-go/modules/apps/callbacks/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
@@ -36,20 +35,7 @@ var (
 		transfertypes.AttributeKeyDenom:          ReturnStringAsIs,
 	}
 	IcaValueDecoders = ValueDecoders{
-		cronoseventstypes.AttributeKeySeq:                     ConvertUint64,
-		ibccallbackstypes.AttributeKeyCallbackType:            ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackAddress:         ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackResult:          ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackError:           ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackGasLimit:        ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackCommitGasLimit:  ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackSourcePortID:    ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackSourceChannelID: ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackDestPortID:      ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackDestChannelID:   ReturnStringAsIs,
-		ibccallbackstypes.AttributeKeyCallbackSequence:        ReturnStringAsIs,
-		ibccallbackstypes.AttributeValueCallbackSuccess:       ReturnStringAsIs,
-		ibccallbackstypes.AttributeValueCallbackFailure:       ReturnStringAsIs,
+		cronoseventstypes.AttributeKeySeq: ConvertUint64,
 	}
 )
 
