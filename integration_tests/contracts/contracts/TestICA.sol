@@ -8,6 +8,8 @@ contract TestICA {
     IICAModule ica = IICAModule(icaContract);
     address account;
     uint64 lastAckSeq;
+    event OnAcknowledgementPacketResult(uint64 seq, bytes acknowledgement);
+    event OnTimeoutPacketResult(uint64 seq);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -91,5 +93,15 @@ contract TestICA {
 
     function getLastAckSeq() public view returns (uint256) {
         return lastAckSeq;
+    }
+
+    function onAcknowledgementPacketCallback(uint64 seq, address packetSenderAddress, bytes calldata acknowledgement) public {
+        require(packetSenderAddress == address(this), "different sender");
+        emit OnAcknowledgementPacketResult(seq, acknowledgement);
+    }
+
+    function onTimeoutPacketCallback(uint64 seq, address packetSenderAddress) public {
+        require(packetSenderAddress == address(this), "different sender");
+        emit OnTimeoutPacketResult(seq);
     }
 }
