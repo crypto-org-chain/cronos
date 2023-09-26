@@ -15,6 +15,9 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	// this line is used by starport scaffolding # ibc/keeper/import
@@ -274,5 +277,68 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		}
 	}
 
+	return nil
+}
+
+// IBCOnAcknowledgementPacketCallback returns nil if the gas meter has greater than
+// or equal to 500_000 gas remaining.
+// This function oog panics if the gas remaining is less than 500_000.
+// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
+func (k Keeper) IBCOnAcknowledgementPacketCallback(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	acknowledgement []byte,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeAcknowledgementPacket, packetSenderAddress)
+	return nil
+}
+
+// IBCOnTimeoutPacketCallback returns nil if the gas meter has greater than
+// or equal to 500_000 gas remaining.
+// This function oog panics if the gas remaining is less than 500_000.
+// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
+func (k Keeper) IBCOnTimeoutPacketCallback(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeTimeoutPacket, packetSenderAddress)
+	return nil
+}
+
+// IBCReceivePacketCallback returns nil if the gas meter has greater than
+// or equal to 500_000 gas remaining.
+// This function oog panics if the gas remaining is less than 500_000.
+// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
+func (k Keeper) IBCReceivePacketCallback(
+	ctx sdk.Context,
+	packet ibcexported.PacketI,
+	ack ibcexported.Acknowledgement,
+	contractAddress string,
+) error {
+	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeReceivePacket, "")
+	return nil
+}
+
+// IBCPacketSendCallback returns nil if the gas meter has greater than
+// or equal to 500_000 gas remaining.
+// This function oog panics if the gas remaining is less than 500_000.
+// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
+func (k Keeper) IBCSendPacketCallback(
+	ctx sdk.Context,
+	sourcePort string,
+	sourceChannel string,
+	timeoutHeight clienttypes.Height,
+	timeoutTimestamp uint64,
+	packetData []byte,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeSendPacket, packetSenderAddress)
 	return nil
 }
