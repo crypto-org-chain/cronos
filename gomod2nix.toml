@@ -155,8 +155,8 @@ schema = 3
     version = "v0.21.0-alpha.1.0.20230904092046-df3db2d96583"
     hash = "sha256-3Va8Ljq63IXty0oHlRpqfsC6WsMut6TWZ2R+/nYtfTU="
   [mod."github.com/cosmos/ibc-go/v7"]
-    version = "v7.2.0"
-    hash = "sha256-fg+0AykvEMzqRGI5CmqwjQtSIwTyT6RuSDpp12wzReM="
+    version = "v7.3.1-0.20230920070810-c3261472c815"
+    hash = "sha256-x/D64hmU+aOc5sm8RzXMB+8y+530+CCEik/Zpj3Rf9A="
   [mod."github.com/cosmos/ics23/go"]
     version = "v0.10.0"
     hash = "sha256-KYEv727BO/ht63JO02xiKFGFAddg41Ve9l2vSSZZBq0="
@@ -213,8 +213,8 @@ schema = 3
     hash = "sha256-GgcReGsIIuBE2TabDYqDO9sBGogdVr9RSh4arQzdPnE="
     replaced = "github.com/evmos/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20230925010909-716b0754a135"
-    hash = "sha256-I4NiYqyR3Cgs4QWrqod9ABCtpU0c5LVlyGr38GNjAxg="
+    version = "v0.6.1-0.20230925072753-4062d0cc2a32"
+    hash = "sha256-8zwdHROHnAVfly2PIaNAfiXfb2fWsTqePaZ58EJtjH4="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"

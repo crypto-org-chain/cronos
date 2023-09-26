@@ -134,11 +134,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		token := args[0].(common.Address)
 		addr := args[1].(common.Address)
 		// query from storage
-		balance := big.NewInt(0)
-		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
-			balance = bc.bankKeeper.GetBalance(ctx, sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
-			return err
-		})
+		balance := bc.bankKeeper.GetBalance(stateDB.CacheContext(), sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
 		return method.Outputs.Pack(balance)
 	case "transfer":
 		if readonly {
