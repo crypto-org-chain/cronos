@@ -9,18 +9,20 @@ def test_gov_update_params(cronos, tmp_path):
     proposal = tmp_path / "proposal.json"
     # governance module account as signer
     signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    params = {
+        "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
+        "enable_auto_deployment": False,
+        "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
+        "A8988F9B7D5E7E233D8414DB6817F8F1A01600000",
+        "ibc_timeout": "96400000000000",
+        "max_callback_gas": "400000",
+    }
     proposal_src = {
         "messages": [
             {
                 "@type": "/cronos.MsgUpdateParams",
                 "authority": signer,
-                "params": {
-                    "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
-                    "enable_auto_deployment": False,
-                    "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
-                    "A8988F9B7D5E7E233D8414DB6817F8F1A01600000",
-                    "ibc_timeout": "96400000000000",
-                },
+                "params": params,
             }
         ],
         "deposit": "1basetcro",
@@ -35,10 +37,4 @@ def test_gov_update_params(cronos, tmp_path):
     print("check params have been updated now")
     rsp = cli.query_params()
     print("params", rsp)
-    assert rsp == {
-        "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
-        "enable_auto_deployment": False,
-        "ibc_cro_denom": "ibc/6411AE2ADA1E73DB59DB151"
-        "A8988F9B7D5E7E233D8414DB6817F8F1A01600000",
-        "ibc_timeout": "96400000000000",
-    }
+    assert rsp == params
