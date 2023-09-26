@@ -37,7 +37,7 @@ func GetOnAcknowledgementPacketCallback(args ...interface{}) ([]byte, error) {
 	return icaABI.Pack("onAcknowledgementPacketCallback", args...)
 }
 
-func GetOnTimeoutPacketCallbackk(args ...interface{}) ([]byte, error) {
+func GetOnTimeoutPacketCallback(args ...interface{}) ([]byte, error) {
 	return icaABI.Pack("onTimeoutPacketCallback", args...)
 }
 

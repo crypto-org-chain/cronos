@@ -282,10 +282,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
-// IBCOnAcknowledgementPacketCallback returns nil if the gas meter has greater than
-// or equal to 500_000 gas remaining.
-// This function oog panics if the gas remaining is less than 500_000.
-// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
 func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
@@ -304,10 +300,6 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	return err
 }
 
-// IBCOnTimeoutPacketCallback returns nil if the gas meter has greater than
-// or equal to 500_000 gas remaining.
-// This function oog panics if the gas remaining is less than 500_000.
-// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
 func (k Keeper) IBCOnTimeoutPacketCallback(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
@@ -317,7 +309,7 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 ) error {
 	relayerAddr := common.BytesToAddress(relayer.Bytes())
 	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.GetOnTimeoutPacketCallbackk(packet.Sequence, packetSenderAddress)
+	data, err := cronosprecompiles.GetOnTimeoutPacketCallback(packet.Sequence, packetSenderAddress)
 	if err != nil {
 		return err
 	}
@@ -325,10 +317,6 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 	return err
 }
 
-// IBCReceivePacketCallback returns nil if the gas meter has greater than
-// or equal to 500_000 gas remaining.
-// This function oog panics if the gas remaining is less than 500_000.
-// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
 func (k Keeper) IBCReceivePacketCallback(
 	ctx sdk.Context,
 	packet ibcexported.PacketI,
@@ -338,10 +326,6 @@ func (k Keeper) IBCReceivePacketCallback(
 	return nil
 }
 
-// IBCPacketSendCallback returns nil if the gas meter has greater than
-// or equal to 500_000 gas remaining.
-// This function oog panics if the gas remaining is less than 500_000.
-// This function errors if the authAddress is MockCallbackUnauthorizedAddress.
 func (k Keeper) IBCSendPacketCallback(
 	ctx sdk.Context,
 	sourcePort string,
