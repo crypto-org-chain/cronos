@@ -290,9 +290,14 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
+	senderAddr, err := sdk.AccAddressFromBech32(packetSenderAddress)
+	if err != nil {
+		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
+	}
+	sender := common.BytesToAddress(senderAddr.Bytes())
 	relayerAddr := common.BytesToAddress(relayer.Bytes())
 	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.GetOnAcknowledgementPacketCallback(packet.Sequence, packetSenderAddress)
+	data, err := cronosprecompiles.GetOnAcknowledgementPacketCallback(packet.Sequence, sender, acknowledgement)
 	if err != nil {
 		return err
 	}
@@ -307,9 +312,14 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
+	senderAddr, err := sdk.AccAddressFromBech32(packetSenderAddress)
+	if err != nil {
+		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
+	}
+	sender := common.BytesToAddress(senderAddr.Bytes())
 	relayerAddr := common.BytesToAddress(relayer.Bytes())
 	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.GetOnTimeoutPacketCallback(packet.Sequence, packetSenderAddress)
+	data, err := cronosprecompiles.GetOnTimeoutPacketCallback(packet.Sequence, sender)
 	if err != nil {
 		return err
 	}

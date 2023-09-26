@@ -12,8 +12,9 @@ import (
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
-	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -45,14 +46,16 @@ type IcaContract struct {
 	BaseContract
 
 	cdc           codec.Codec
-	icaauthKeeper *icaauthkeeper.Keeper
+	icaauthKeeper types.Icaauthkeeper
+	cronosKeeper  types.CronosKeeper
 }
 
-func NewIcaContract(icaauthKeeper *icaauthkeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
+		cronosKeeper:  cronosKeeper,
 	}
 }
 
@@ -94,7 +97,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		connectionID := args[0].(string)
 		version := args[1].(string)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
+			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &icaauthtypes.MsgRegisterAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
@@ -116,7 +119,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		icaAddress := ""
 		response, err := ic.icaauthKeeper.InterchainAccountAddress(
 			stateDB.CacheContext(),
-			&types.QueryInterchainAccountAddressRequest{
+			&icaauthtypes.QueryInterchainAccountAddressRequest{
 				Owner:        owner,
 				ConnectionId: connectionID,
 			})
@@ -168,7 +171,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, execErr
 		}
 		return method.Outputs.Pack(seq)
-	case "onAcknowledgementPacketCallback", "onTimeoutPacketCallback":
+	case "onAcknowledgementPacketCallback":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
@@ -177,8 +180,41 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, errors.New("fail to unpack input arguments")
 		}
 		seq := args[0].(uint64)
-		packetSenderAddress := args[1].(string)
-		fmt.Printf("mm-%s, %d, %s\n", method.Name, seq, packetSenderAddress)
+		sender := args[1].(common.Address)
+		acknowledgement := args[2].([]byte)
+		data, err := GetOnAcknowledgementPacketCallback(seq, sender, acknowledgement)
+		if err != nil {
+			return nil, err
+		}
+		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			_, _, err := ic.cronosKeeper.CallEVMWithArgs(ctx, &sender, precompileAddr, data, big.NewInt(0))
+			return err
+		})
+		if execErr != nil {
+			return nil, execErr
+		}
+		return method.Outputs.Pack(true)
+	case "onTimeoutPacketCallback":
+		if readonly {
+			return nil, errors.New("the method is not readonly")
+		}
+		args, err := method.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		seq := args[0].(uint64)
+		sender := args[1].(common.Address)
+		data, err := GetOnTimeoutPacketCallback(seq, sender)
+		if err != nil {
+			return nil, err
+		}
+		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			_, _, err := ic.cronosKeeper.CallEVMWithArgs(ctx, &sender, precompileAddr, data, big.NewInt(0))
+			return err
+		})
+		if execErr != nil {
+			return nil, execErr
+		}
 		return method.Outputs.Pack(true)
 	default:
 		return nil, errors.New("unknown method")
