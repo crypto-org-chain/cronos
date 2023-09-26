@@ -661,8 +661,7 @@ func New(
 	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
 	app.ICAControllerKeeper.WithICS4Wrapper(icaControllerStack.(porttypes.Middleware))
-	const maxCallbackGas = uint64(300000)
-	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper, app.CronosKeeper, maxCallbackGas)
+	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper, app.CronosKeeper, cronostypes.MaxCallbackGasDefaultValue)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
