@@ -18,11 +18,14 @@ var (
 	KeyCronosAdmin = []byte("CronosAdmin")
 	// KeyEnableAutoDeployment is store's key for the EnableAutoDeployment
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
+	// KeyMaxCallbackGas is store's key for the MaxCallbackGas
+	KeyMaxCallbackGas = []byte("MaxCallbackGas")
 )
 
 const (
-	IbcCroDenomDefaultValue = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
-	IbcTimeoutDefaultValue  = uint64(86400000000000) // 1 day
+	IbcCroDenomDefaultValue    = "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"
+	IbcTimeoutDefaultValue     = uint64(86400000000000) // 1 day
+	MaxCallbackGasDefaultValue = uint64(300000)
 )
 
 // ParamKeyTable returns the parameter key table.
@@ -31,12 +34,13 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64) Params {
 	return Params{
 		IbcCroDenom:          ibcCroDenom,
 		IbcTimeout:           ibcTimeout,
 		CronosAdmin:          cronosAdmin,
 		EnableAutoDeployment: enableAutoDeployment,
+		MaxCallbackGas:       maxCallbackGas,
 	}
 }
 
@@ -47,6 +51,7 @@ func DefaultParams() Params {
 		IbcTimeout:           IbcTimeoutDefaultValue,
 		CronosAdmin:          "",
 		EnableAutoDeployment: false,
+		MaxCallbackGas:       MaxCallbackGasDefaultValue,
 	}
 }
 
@@ -62,6 +67,9 @@ func (p Params) Validate() error {
 		if _, err := sdk.AccAddressFromBech32(p.CronosAdmin); err != nil {
 			return err
 		}
+	}
+	if err := validateIsUint64(p.MaxCallbackGas); err != nil {
+		return err
 	}
 	return nil
 }
@@ -79,6 +87,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyIbcTimeout, &p.IbcTimeout, validateIsUint64),
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
+		paramtypes.NewParamSetPair(KeyMaxCallbackGas, &p.MaxCallbackGas, validateIsUint64),
 	}
 }
 

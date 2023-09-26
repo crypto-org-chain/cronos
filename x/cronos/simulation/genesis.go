@@ -17,6 +17,7 @@ const (
 	ibcTimeoutKey           = "ibc_timeout"
 	cronosAdminKey          = "cronos_admin"
 	enableAutoDeploymentKey = "enable_auto_deployment"
+	maxCallbackGasKey       = "max_callback_gas"
 )
 
 func GenIbcCroDenom(r *rand.Rand) string {
@@ -39,6 +40,11 @@ func GenEnableAutoDeployment(r *rand.Rand) bool {
 	return r.Intn(2) > 0
 }
 
+func GenMaxCallbackGas(r *rand.Rand) uint64 {
+	maxCallbackGas := r.Uint64()
+	return maxCallbackGas
+}
+
 // RandomizedGenState generates a random GenesisState for the cronos module
 func RandomizedGenState(simState *module.SimulationState) {
 	// cronos params
@@ -47,6 +53,7 @@ func RandomizedGenState(simState *module.SimulationState) {
 		ibcTimeout           uint64
 		cronosAdmin          string
 		enableAutoDeployment bool
+		maxCallbackGas       uint64
 	)
 
 	simState.AppParams.GetOrGenerate(
@@ -69,7 +76,12 @@ func RandomizedGenState(simState *module.SimulationState) {
 		func(r *rand.Rand) { enableAutoDeployment = GenEnableAutoDeployment(r) },
 	)
 
-	params := types.NewParams(ibcCroDenom, ibcTimeout, cronosAdmin, enableAutoDeployment)
+	simState.AppParams.GetOrGenerate(
+		simState.Cdc, maxCallbackGasKey, &ibcTimeout, simState.Rand,
+		func(r *rand.Rand) { maxCallbackGas = GenIbcTimeout(r) },
+	)
+
+	params := types.NewParams(ibcCroDenom, ibcTimeout, cronosAdmin, enableAutoDeployment, maxCallbackGas)
 	cronosGenesis := &types.GenesisState{
 		Params:            params,
 		ExternalContracts: nil,
