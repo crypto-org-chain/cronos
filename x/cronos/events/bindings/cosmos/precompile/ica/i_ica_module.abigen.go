@@ -30,7 +30,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"packetSenderAddress\",\"type\":\"string\"}],\"name\":\"onAcknowledgementPacketCallback\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"},{\"internalType\":\"string\",\"name\":\"packetSenderAddress\",\"type\":\"string\"}],\"name\":\"onTimeoutPacketCallback\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -208,6 +208,48 @@ func (_ICAModule *ICAModuleSession) QueryAccount(connectionID string, addr commo
 // Solidity: function queryAccount(string connectionID, address addr) view returns(string)
 func (_ICAModule *ICAModuleCallerSession) QueryAccount(connectionID string, addr common.Address) (string, error) {
 	return _ICAModule.Contract.QueryAccount(&_ICAModule.CallOpts, connectionID, addr)
+}
+
+// OnAcknowledgementPacketCallback is a paid mutator transaction binding the contract method 0x7f15df2f.
+//
+// Solidity: function onAcknowledgementPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleTransactor) OnAcknowledgementPacketCallback(opts *bind.TransactOpts, seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.contract.Transact(opts, "onAcknowledgementPacketCallback", seq, packetSenderAddress)
+}
+
+// OnAcknowledgementPacketCallback is a paid mutator transaction binding the contract method 0x7f15df2f.
+//
+// Solidity: function onAcknowledgementPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleSession) OnAcknowledgementPacketCallback(seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.Contract.OnAcknowledgementPacketCallback(&_ICAModule.TransactOpts, seq, packetSenderAddress)
+}
+
+// OnAcknowledgementPacketCallback is a paid mutator transaction binding the contract method 0x7f15df2f.
+//
+// Solidity: function onAcknowledgementPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleTransactorSession) OnAcknowledgementPacketCallback(seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.Contract.OnAcknowledgementPacketCallback(&_ICAModule.TransactOpts, seq, packetSenderAddress)
+}
+
+// OnTimeoutPacketCallback is a paid mutator transaction binding the contract method 0xd72be239.
+//
+// Solidity: function onTimeoutPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleTransactor) OnTimeoutPacketCallback(opts *bind.TransactOpts, seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.contract.Transact(opts, "onTimeoutPacketCallback", seq, packetSenderAddress)
+}
+
+// OnTimeoutPacketCallback is a paid mutator transaction binding the contract method 0xd72be239.
+//
+// Solidity: function onTimeoutPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleSession) OnTimeoutPacketCallback(seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.Contract.OnTimeoutPacketCallback(&_ICAModule.TransactOpts, seq, packetSenderAddress)
+}
+
+// OnTimeoutPacketCallback is a paid mutator transaction binding the contract method 0xd72be239.
+//
+// Solidity: function onTimeoutPacketCallback(uint64 seq, string packetSenderAddress) payable returns(bool)
+func (_ICAModule *ICAModuleTransactorSession) OnTimeoutPacketCallback(seq uint64, packetSenderAddress string) (*types.Transaction, error) {
+	return _ICAModule.Contract.OnTimeoutPacketCallback(&_ICAModule.TransactOpts, seq, packetSenderAddress)
 }
 
 // RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.

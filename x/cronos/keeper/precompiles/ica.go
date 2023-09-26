@@ -33,6 +33,14 @@ func init() {
 	}
 }
 
+func GetOnAcknowledgementPacketCallback(args ...interface{}) ([]byte, error) {
+	return icaABI.Pack("onAcknowledgementPacketCallback", args...)
+}
+
+func GetOnTimeoutPacketCallbackk(args ...interface{}) ([]byte, error) {
+	return icaABI.Pack("onTimeoutPacketCallback", args...)
+}
+
 type IcaContract struct {
 	BaseContract
 
@@ -68,7 +76,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	if err != nil {
 		return nil, err
 	}
-
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
 	caller := contract.CallerAddress
@@ -134,6 +141,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		icaMsgData := icatypes.InterchainAccountPacketData{
 			Type: icatypes.EXECUTE_TX,
 			Data: data,
+			Memo: fmt.Sprintf(`{"src_callback": {"address": "%s"}}`, icaContractAddress.String()),
 		}
 		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)
@@ -160,6 +168,18 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, execErr
 		}
 		return method.Outputs.Pack(seq)
+	case "onAcknowledgementPacketCallback", "onTimeoutPacketCallback":
+		if readonly {
+			return nil, errors.New("the method is not readonly")
+		}
+		args, err := method.Inputs.Unpack(contract.Input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		seq := args[0].(uint64)
+		packetSenderAddress := args[1].(string)
+		fmt.Printf("mm-%s, %d, %s\n", method.Name, seq, packetSenderAddress)
+		return method.Outputs.Pack(true)
 	default:
 		return nil, errors.New("unknown method")
 	}

@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"cosmossdk.io/errors"
@@ -18,6 +19,7 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	// this line is used by starport scaffolding # ibc/keeper/import
@@ -292,8 +294,14 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeAcknowledgementPacket, packetSenderAddress)
-	return nil
+	relayerAddr := common.BytesToAddress(relayer.Bytes())
+	precompileAddr := common.HexToAddress(contractAddress)
+	data, err := cronosprecompiles.GetOnAcknowledgementPacketCallback(packet.Sequence, packetSenderAddress)
+	if err != nil {
+		return err
+	}
+	_, _, err = k.CallEVMWithArgs(ctx, &precompileAddr, relayerAddr, data, big.NewInt(0))
+	return err
 }
 
 // IBCOnTimeoutPacketCallback returns nil if the gas meter has greater than
@@ -307,8 +315,14 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeTimeoutPacket, packetSenderAddress)
-	return nil
+	relayerAddr := common.BytesToAddress(relayer.Bytes())
+	precompileAddr := common.HexToAddress(contractAddress)
+	data, err := cronosprecompiles.GetOnTimeoutPacketCallbackk(packet.Sequence, packetSenderAddress)
+	if err != nil {
+		return err
+	}
+	_, _, err = k.CallEVMWithArgs(ctx, &precompileAddr, relayerAddr, data, big.NewInt(0))
+	return err
 }
 
 // IBCReceivePacketCallback returns nil if the gas meter has greater than
@@ -321,7 +335,6 @@ func (k Keeper) IBCReceivePacketCallback(
 	ack ibcexported.Acknowledgement,
 	contractAddress string,
 ) error {
-	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeReceivePacket, "")
 	return nil
 }
 
@@ -339,6 +352,5 @@ func (k Keeper) IBCSendPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	// return k.processMockCallback(ctx, callbacktypes.CallbackTypeSendPacket, packetSenderAddress)
 	return nil
 }
