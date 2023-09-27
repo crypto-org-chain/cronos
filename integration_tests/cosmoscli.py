@@ -1748,5 +1748,6 @@ class CosmosCLI:
             )
         )
 
-    def consensus_params(self):
-        return requests.get(self.node_rpc + "/consensus_params").json()["result"]
+    def consensus_params(self, height):
+        url = self.node_rpc + "/consensus_params" + height
+        return requests.get(url).json()["result"]

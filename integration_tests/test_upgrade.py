@@ -160,7 +160,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
 
     # check consensus params
-    assert cli.consensus_params()["consensus_params"]["block"]["max_gas"] == 60000000
+    res = cli.consensus_params(w3.eth.get_block_number())["consensus_params"]
+    assert res["block"]["max_gas"] == 60000000
 
     # check gravity params
     assert cli.query_gravity_params() == {
