@@ -1,7 +1,6 @@
 package keeper
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
@@ -293,8 +292,9 @@ func (k Keeper) onPacketResult(
 	packetSenderAddress string,
 ) error {
 	contractAddr := common.HexToAddress(contractAddress)
+	// the ack is wrapped by fee middleware
 	var ack ibcfeetypes.IncentivizedAcknowledgement
-	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
+	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
 		return err
 	}
 	var res channeltypes.Acknowledgement
