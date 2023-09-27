@@ -159,6 +159,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         ADDRS["validator"]
     )
 
+    # check consensus params
+    assert cli.consensus_params()["consensus_params"]["block"]["max_gas"] == 60000000
+
     # check gravity params
     assert cli.query_gravity_params() == {
         "params": {

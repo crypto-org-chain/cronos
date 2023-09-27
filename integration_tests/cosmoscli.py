@@ -1,4 +1,5 @@
 import binascii
+import requests
 import enum
 import hashlib
 import json
@@ -1754,3 +1755,6 @@ class CosmosCLI:
                 stderr=subprocess.DEVNULL,
             )
         )
+
+    def consensus_params(self):
+        return requests.get(self.node_rpc + '/consensus_params').json()['result']
