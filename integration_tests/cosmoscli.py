@@ -1,5 +1,4 @@
 import binascii
-import requests
 import enum
 import hashlib
 import json
@@ -10,6 +9,7 @@ import tempfile
 from collections import namedtuple
 
 import bech32
+import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
@@ -1749,4 +1749,4 @@ class CosmosCLI:
         )
 
     def consensus_params(self):
-        return requests.get(self.node_rpc + '/consensus_params').json()['result']
+        return requests.get(self.node_rpc + "/consensus_params").json()["result"]
