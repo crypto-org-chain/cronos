@@ -53,6 +53,9 @@ const EnvPrefix = "CRONOS"
 
 var ChainID string
 
+// skip gravity module or not in the binary.
+const SkipGravity = true
+
 // NewRootCmd creates a new root command for simd. It is called once in the
 // main function.
 func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
@@ -271,7 +274,7 @@ func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, a
 		baseapp.SetChainID(chainID)
 	})
 	return app.New(
-		logger, db, traceStore, true, false, skipUpgradeHeights,
+		logger, db, traceStore, true, SkipGravity, skipUpgradeHeights,
 		home,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		a.encCfg,
@@ -305,7 +308,7 @@ func (a appCreator) appExport(
 			db,
 			traceStore,
 			false,
-			false,
+			SkipGravity,
 			map[int64]bool{},
 			homePath,
 			uint(1),
@@ -324,7 +327,7 @@ func (a appCreator) appExport(
 			db,
 			traceStore,
 			true,
-			false,
+			SkipGravity,
 			map[int64]bool{},
 			homePath,
 			uint(1),
