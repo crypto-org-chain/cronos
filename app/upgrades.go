@@ -106,12 +106,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		if err != nil {
 			return m, err
 		}
-
-		gravParams := app.GravityKeeper.GetParams(ctx)
-		gravParams.GravityId = "cronos_gravity_testnet"
-		// can be activated later on
-		gravParams.BridgeActive = false
-		app.GravityKeeper.SetParams(ctx, gravParams)
 		return m, nil
 	})
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
