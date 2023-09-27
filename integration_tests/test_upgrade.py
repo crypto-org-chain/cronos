@@ -161,6 +161,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
+    assert cli.query_params()["max_callback_gas"] == "300000", rsp
 
     # migrate to sdk v0.47
     custom_cronos.supervisorctl("stop", "all")

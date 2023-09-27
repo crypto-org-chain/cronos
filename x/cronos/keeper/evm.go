@@ -18,20 +18,19 @@ import (
 const DefaultGasCap uint64 = 25000000
 
 // CallEVM execute an evm message from native module
-func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error) {
+func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error) {
 	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
 	msg := ethtypes.NewMessage(
 		types.EVMModuleAddress,
 		to,
 		nonce,
 		value, // amount
-		DefaultGasCap,
+		gasLimit,
 		big.NewInt(0), nil, nil, // gasPrice
 		data,
 		nil,   // accessList
 		false, // isFake
 	)
-
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {
 		return nil, nil, err
@@ -45,7 +44,7 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 	if err != nil {
 		return nil, err
 	}
-	_, res, err := k.CallEVM(ctx, &contract, data, big.NewInt(0))
+	_, res, err := k.CallEVM(ctx, &contract, data, big.NewInt(0), DefaultGasCap)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (k Keeper) DeployModuleCRC21(ctx sdk.Context, denom string) (common.Address
 	data := types.ModuleCRC21Contract.Bin
 	data = append(data, ctor...)
 
-	msg, res, err := k.CallEVM(ctx, nil, data, big.NewInt(0))
+	msg, res, err := k.CallEVM(ctx, nil, data, big.NewInt(0), DefaultGasCap)
 	if err != nil {
 		return common.Address{}, err
 	}
