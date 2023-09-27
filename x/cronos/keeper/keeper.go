@@ -286,22 +286,14 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 func (k Keeper) onPacketResult(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
-	acknowledgement []byte,
+	acknowledgement bool,
 	relayer sdk.AccAddress,
 	contractAddress,
 	packetSenderAddress string,
 ) error {
 	contractAddr := common.HexToAddress(contractAddress)
-	// the ack is wrapped by fee middleware
-	var ack ibcfeetypes.IncentivizedAcknowledgement
-	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
-		return err
-	}
-	var res channeltypes.Acknowledgement
-	if err := k.cdc.UnmarshalJSON(ack.AppAcknowledgement, &res); err != nil {
-		return err
-	}
-	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, res.Success())
+
+	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, acknowledgement)
 	if err != nil {
 		return err
 	}
@@ -317,7 +309,16 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	return k.onPacketResult(ctx, packet, acknowledgement, relayer, contractAddress, packetSenderAddress)
+	// the ack is wrapped by fee middleware
+	var ack ibcfeetypes.IncentivizedAcknowledgement
+	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
+		return err
+	}
+	var res channeltypes.Acknowledgement
+	if err := k.cdc.UnmarshalJSON(ack.AppAcknowledgement, &res); err != nil {
+		return err
+	}
+	return k.onPacketResult(ctx, packet, res.Success(), relayer, contractAddress, packetSenderAddress)
 }
 
 func (k Keeper) IBCOnTimeoutPacketCallback(
@@ -327,7 +328,7 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	return k.onPacketResult(ctx, packet, []byte{}, relayer, contractAddress, packetSenderAddress)
+	return k.onPacketResult(ctx, packet, false, relayer, contractAddress, packetSenderAddress)
 }
 
 func (k Keeper) IBCReceivePacketCallback(
