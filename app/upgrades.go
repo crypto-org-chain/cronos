@@ -32,7 +32,6 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
@@ -69,8 +68,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			keyTable = feemarkettypes.ParamKeyTable()
 		case cronostypes.ModuleName:
 			keyTable = cronostypes.ParamKeyTable()
-		case gravitytypes.ModuleName:
-			keyTable = gravitytypes.ParamKeyTable()
 		default:
 			continue
 		}
@@ -110,12 +107,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			return m, err
 		}
 
-		gravParams := app.GravityKeeper.GetParams(ctx)
-		gravParams.GravityId = "cronos_gravity_testnet"
-		// can be activated later on
-		gravParams.BridgeActive = false
-		app.GravityKeeper.SetParams(ctx, gravParams)
-
 		// enlarge block gas limit
 		consParams, err := app.ConsensusParamsKeeper.Get(ctx)
 		if err != nil {
@@ -123,7 +114,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		}
 		consParams.Block.MaxGas = 60_000_000
 		app.ConsensusParamsKeeper.Set(ctx, consParams)
-
 		return m, nil
 	})
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
@@ -136,7 +126,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 				Added: []string{
 					consensusparamtypes.StoreKey,
 					crisistypes.StoreKey,
-					gravitytypes.StoreKey,
 					icacontrollertypes.StoreKey,
 					icaauthtypes.StoreKey,
 				},
