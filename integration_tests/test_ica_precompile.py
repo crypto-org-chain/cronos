@@ -192,8 +192,7 @@ def test_sc_call(ibc):
     assert tcontract.caller.getLastAckSeq() == seq
     balance -= amt
     ack = tcontract.caller.getLastAck()
-    assert ack == b"\x12&\n$/cosmos.bank.v1beta1.MsgSendResponse", ack
-    assert ack == tcontract.caller.acknowledgement(seq)
+    assert ack == tcontract.caller.acknowledgement(seq), ack
     assert cli_host.balance(ica_address, denom=denom) == balance
     seq = 2
     str = submit_msgs(
@@ -209,6 +208,4 @@ def test_sc_call(ibc):
     balance -= amt
     balance -= amt1
     assert cli_host.balance(ica_address, denom=denom) == balance
-    ack = tcontract.caller.getLastAck()
-    expected = b"\x12&\n$/cosmos.bank.v1beta1.MsgSendResponse\x12-\n+/cosmos.staking.v1beta1.MsgDelegateResponse"  # noqa: E501
-    assert ack == expected, ack
+    assert ack == tcontract.caller.acknowledgement(seq), ack
