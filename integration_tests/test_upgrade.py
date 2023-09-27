@@ -106,7 +106,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "sdk47-upgrade"
+    plan_name = "v1.1.0"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
