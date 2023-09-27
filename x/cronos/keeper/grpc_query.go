@@ -79,14 +79,14 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 		}
 
 		// populate the `From` field
-		if _, err := msg.GetSender(chainID); err != nil {
+		if _, err := msg.GetSenderLegacy(chainID); err != nil {
 			return nil, err
 		}
 		fees, err := evmkeeper.VerifyFee(txData, evmDenom, baseFee, homestead, istanbul, ctx.IsCheckTx())
 		if err != nil {
 			return nil, errorsmod.Wrapf(err, "failed to verify the fees")
 		}
-		if err := k.evmKeeper.DeductTxCostsFromUserBalance(ctx, fees, common.HexToAddress(msg.From)); err != nil {
+		if err := k.evmKeeper.DeductTxCostsFromUserBalance(ctx, fees, common.BytesToAddress(msg.From)); err != nil {
 			return nil, err
 		}
 

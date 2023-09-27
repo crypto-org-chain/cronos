@@ -20,6 +20,11 @@ config {
             base_fee: '0',
           },
         },
+        icaauth: {
+          params: {
+            min_timeout_duration: '1ms',
+          },
+        },
       },
     },
   },
@@ -100,6 +105,7 @@ config {
             params: {
               allow_messages: [
                 '/cosmos.bank.v1beta1.MsgSend',
+                '/cosmos.staking.v1beta1.MsgDelegate',
               ],
             },
           },

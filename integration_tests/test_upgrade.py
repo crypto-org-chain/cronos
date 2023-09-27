@@ -159,6 +159,9 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         ADDRS["validator"]
     )
 
+    rsp = cli.query_params("icaauth")
+    assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
+
     # migrate to sdk v0.47
     custom_cronos.supervisorctl("stop", "all")
     sdk_version = "v0.47"

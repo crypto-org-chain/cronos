@@ -3,6 +3,7 @@ import json
 import pytest
 
 from .ibc_utils import (
+    assert_channel_open_init,
     funds_ica,
     prepare_network,
     wait_for_check_channel_ready,
@@ -28,17 +29,7 @@ def test_ica(ibc, tmp_path):
     rsp = cli_controller.icaauth_register_account(
         connid, from_="signer2", gas="400000", fees="100000000basetcro"
     )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    port_id, channel_id = next(
-        (
-            evt["attributes"][0]["value"],
-            evt["attributes"][1]["value"],
-        )
-        for evt in rsp["events"]
-        if evt["type"] == "channel_open_init"
-    )
-    print("port-id", port_id, "channel-id", channel_id)
-
+    _, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli_controller, connid, channel_id)
 
     print("query ica account")
@@ -63,6 +54,7 @@ def test_ica(ibc, tmp_path):
     rsp = cli_controller.icaauth_submit_tx(
         connid,
         generated_tx,
+        timeout_duration="2h",
         from_="signer2",
     )
     assert rsp["code"] == 0, rsp["raw_log"]

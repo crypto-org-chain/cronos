@@ -452,8 +452,8 @@ github.com/cosmos/gogoproto v1.4.10 h1:QH/yT8X+c0F4ZDacDv3z+xE3WU1P1Z3wQoLMBRJoK
 github.com/cosmos/gogoproto v1.4.10/go.mod h1:3aAZzeRWpAwr+SS/LLkICX2/kDFyaYVzckBDzygIxek=
 github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583 h1:3Matt7/LjZiZkIBPalYazOZcw2B05Ch14dU5TJyqJEc=
 github.com/cosmos/iavl v0.21.0-alpha.1.0.20230904092046-df3db2d96583/go.mod h1:WO7FyvaZJoH65+HFOsDir7xU9FWk2w9cHXNW1XHcl7A=
-github.com/cosmos/ibc-go/v7 v7.2.0 h1:dx0DLUl7rxdyZ8NiT6UsrbzKOJx/w7s+BOaewFRH6cg=
-github.com/cosmos/ibc-go/v7 v7.2.0/go.mod h1:OOcjKIRku/j1Xs1RgKK0yvKRrJ5iFuZYMetR1n3yMlc=
+github.com/cosmos/ibc-go/v7 v7.3.1-0.20230920070810-c3261472c815 h1:raSo7w7B3IXCb7DZozHWz8ajG7HLWZw9foiyCbEgInI=
+github.com/cosmos/ibc-go/v7 v7.3.1-0.20230920070810-c3261472c815/go.mod h1:wvx4pPBofe5ZdMNV3OFRxSI4auEP5Qfqf8JXLLNV04g=
 github.com/cosmos/ics23/go v0.10.0 h1:iXqLLgp2Lp+EdpIuwXTYIQU+AiHj9mOC2X9ab++bZDM=
 github.com/cosmos/ics23/go v0.10.0/go.mod h1:ZfJSmng/TBNTBkFemHHHj5YY7VAU/MBU980F4VU1NG0=
 github.com/cosmos/keyring v1.2.0 h1:8C1lBP9xhImmIabyXW4c3vFjjLiBdGCmfLUfeZlV1Yo=
@@ -482,8 +482,8 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32 h1:Vq
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32/go.mod h1:V32HRAjDsAYLfAT90mk0O9UH+sE7P5apfiCmmmVLt3Q=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b h1:d2GOFR3i3BjDlPsmJkp8Gsrt9LK2nq2IVEnE/rMv1Fo=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20230905040840-b3af5590283b/go.mod h1:EHwCeN9IXonsjKcjpS12MqeStdZvIdxt3VYXhus3G3c=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230921025237-ae144329ecaf h1:XvwFJ6kPHOYevfNjshq4n2nazvYzoSaQ8AjSYWSfUhI=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230921025237-ae144329ecaf/go.mod h1:KtjU2MHMCTcLnAoS9C3U3f+vx4f9HHNQRcOlxXiVDxY=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32 h1:A++epzNCr3EY57dnU6UTSDwbCiPD6MjvUKHKSd/PoI8=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32/go.mod h1:wnJQyK4n0vShhL+YIAUd7XCzUhgZ9fgG6yJ14n7qefo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e/go.mod h1:HBaDqlFjlaXJwVQtA7jHejyaA7xwjXI2o6pU/ccP3tE=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
@@ -1055,8 +1055,8 @@ github.com/libp2p/go-buffer-pool v0.1.0 h1:oK4mSFcQz7cTQIfqbe4MIj9gLW+mnanjyFtc6
 github.com/libp2p/go-buffer-pool v0.1.0/go.mod h1:N+vh8gMqimBzdKkSMVuydVDq+UV5QTWy5HSiZacSbPg=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
-github.com/linxGnu/grocksdb v1.8.0 h1:H4L/LhP7GOMf1j17oQAElHgVlbEje2h14A8Tz9cM2BE=
-github.com/linxGnu/grocksdb v1.8.0/go.mod h1:09CeBborffXhXdNpEcOeZrLKEnRtrZFEpFdPNI9Zjjg=
+github.com/linxGnu/grocksdb v1.8.4 h1:ZMsBpPpJNtRLHiKKp0mI7gW+NT4s7UgfD5xHxx1jVRo=
+github.com/linxGnu/grocksdb v1.8.4/go.mod h1:xZCIb5Muw+nhbDK4Y5UJuOrin5MceOuiXkVUR7vp4WY=
 github.com/lufeee/execinquery v1.2.1/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/lyft/protoc-gen-star v0.5.3/go.mod h1:V0xaHgaf5oCCqmcxYcWiDfTiKsZsRc87/1qhoTACD8w=

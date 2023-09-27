@@ -1,46 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >0.6.6;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IBankModule} from "./src/Bank.sol";
 
 contract TestBank is ERC20 {
     address constant bankContract = 0x0000000000000000000000000000000000000064;
+    IBankModule bank = IBankModule(bankContract);
+
     constructor() public ERC20("Bitcoin MAX", "MAX") {
 		_mint(msg.sender, 100000000000000000000000000);
 	}
-    function encodeMint(uint256 amount) internal view returns (bytes memory) {
-        return abi.encodeWithSignature("mint(address,uint256)", msg.sender, amount);
-    }
-    function moveToNative(uint256 amount) public {
+
+    function moveToNative(uint256 amount) public returns (bool) {
         _burn(msg.sender, amount);
-        (bool result, ) = bankContract.call(encodeMint(amount));
-        require(result, "native call");
+        return bank.mint(msg.sender, amount);
     }
-    function encodeBurn(uint256 amount) internal view returns (bytes memory) {
-        return abi.encodeWithSignature("burn(address,uint256)", msg.sender, amount);
-    }
-    function moveFromNative(uint256 amount) public {
-        (bool result, ) = bankContract.call(encodeBurn(amount));
+
+    function moveFromNative(uint256 amount) public returns (bool) {
+        bool result = bank.burn(msg.sender, amount);
         require(result, "native call");
         _mint(msg.sender, amount);
+        return result;
     }
-    function encodeBalanceOf(address addr) internal view returns (bytes memory) {
-        return abi.encodeWithSignature("balanceOf(address,address)", address(this), addr);
-    }
+
     function nativeBalanceOf(address addr) public returns (uint256) {
-        (bool result, bytes memory data) = bankContract.call(encodeBalanceOf(addr));
-        require(result, "native call");
-        return abi.decode(data, (uint256));
+        return bank.balanceOf(address(this), addr);
     }
+
     function moveToNativeRevert(uint256 amount) public {
         moveToNative(amount);
         revert("test");
     }
-    function encodeTransfer(address recipient, uint256 amount) internal view returns (bytes memory) {
-        return abi.encodeWithSignature("transfer(address,address,uint256)", msg.sender, recipient, amount);
-    }
-    function nativeTransfer(address recipient, uint256 amount) public {
+
+    function nativeTransfer(address recipient, uint256 amount) public returns (bool) {
         _transfer(msg.sender, recipient, amount);
-        (bool result, ) = bankContract.call(encodeTransfer(recipient, amount));
-        require(result, "native transfer");
+        return bank.transfer(msg.sender, recipient, amount);
     }
 }
