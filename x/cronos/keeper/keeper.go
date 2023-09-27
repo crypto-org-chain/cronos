@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
@@ -282,6 +283,14 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
+type IncentivizedAcknowledgement struct {
+	AppAcknowledgement []byte `json:"app_acknowledgement"`
+}
+
+type PacketResult struct {
+	Result []byte `json:"result"`
+}
+
 func (k Keeper) onPacketResult(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
@@ -296,7 +305,15 @@ func (k Keeper) onPacketResult(
 	}
 	sender := common.BytesToAddress(senderAddr.Bytes())
 	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.OnPacketResult(packet.Sequence, sender, acknowledgement)
+	var ack IncentivizedAcknowledgement
+	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
+		return err
+	}
+	var res PacketResult
+	if err := json.Unmarshal(ack.AppAcknowledgement, &res); err != nil {
+		return err
+	}
+	data, err := cronosprecompiles.OnPacketResult(packet.Sequence, sender, res.Result)
 	if err != nil {
 		return err
 	}
