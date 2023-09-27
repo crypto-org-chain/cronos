@@ -297,7 +297,8 @@ func (k Keeper) onPacketResult(
 	if err != nil {
 		return err
 	}
-	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0))
+	gasLimit := k.GetParams(ctx).MaxCallbackGas
+	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
 	return err
 }
 
