@@ -32,7 +32,6 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
-	gravitytypes "github.com/peggyjv/gravity-bridge/module/v2/x/gravity/types"
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
@@ -69,8 +68,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			keyTable = feemarkettypes.ParamKeyTable()
 		case cronostypes.ModuleName:
 			keyTable = cronostypes.ParamKeyTable()
-		case gravitytypes.ModuleName:
-			keyTable = gravitytypes.ParamKeyTable()
 		default:
 			continue
 		}
@@ -127,7 +124,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 				Added: []string{
 					consensusparamtypes.StoreKey,
 					crisistypes.StoreKey,
-					gravitytypes.StoreKey,
 					icacontrollertypes.StoreKey,
 					icaauthtypes.StoreKey,
 				},
