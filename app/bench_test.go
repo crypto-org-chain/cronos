@@ -68,7 +68,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	ethSigner := ethtypes.LatestSignerForChainID(chainID)
 
 	signTx := func(msg *evmtypes.MsgEthereumTx) ([]byte, error) {
-		msg.From = address.String()
+		msg.From = address.Bytes()
 		if err := msg.Sign(ethSigner, signer); err != nil {
 			return nil, err
 		}

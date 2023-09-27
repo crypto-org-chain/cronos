@@ -3,42 +3,70 @@ package events
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
-	ibctypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	generated "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	ica "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
+	relayer "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
+	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 var (
-	IBCEvents        map[string]*EventDescriptor
-	IBCValueDecoders = ValueDecoders{
-		ibctypes.AttributeKeyDataHex:     ConvertPacketData,
-		transfertypes.AttributeKeyAmount: ConvertAmount,
-		banktypes.AttributeKeyRecipient:  ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySpender:    ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyReceiver:   ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySender:     ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyMinter:     ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyBurner:     ConvertAccAddressFromBech32,
+	RelayerEvents        map[string]*EventDescriptor
+	IcaEvents            map[string]*EventDescriptor
+	RelayerValueDecoders = ValueDecoders{
+		channeltypes.AttributeKeyDataHex:         ConvertPacketData,
+		transfertypes.AttributeKeyAmount:         ConvertAmount,
+		banktypes.AttributeKeyRecipient:          ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySpender:            ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyReceiver:           ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySender:             ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyMinter:             ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyBurner:             ConvertAccAddressFromBech32,
+		channeltypes.AttributeKeyConnection:      ReturnStringAsIs,
+		channeltypes.AttributeKeyChannelOrdering: ReturnStringAsIs,
+		channeltypes.AttributeKeySrcPort:         ReturnStringAsIs,
+		channeltypes.AttributeKeySrcChannel:      ReturnStringAsIs,
+		channeltypes.AttributeKeyDstPort:         ReturnStringAsIs,
+		channeltypes.AttributeKeyDstChannel:      ReturnStringAsIs,
+		ibcfeetypes.AttributeKeyFee:              ReturnStringAsIs,
+		transfertypes.AttributeKeyDenom:          ReturnStringAsIs,
+	}
+	IcaValueDecoders = ValueDecoders{
+		channeltypes.AttributeKeyChannelID: ReturnStringAsIs,
+		channeltypes.AttributeKeyPortID:    ReturnStringAsIs,
+		cronoseventstypes.AttributeKeySeq:  ConvertUint64,
 	}
 )
 
 func init() {
-	var ibcABI abi.ABI
-	if err := ibcABI.UnmarshalJSON([]byte(generated.RelayerModuleMetaData.ABI)); err != nil {
+	var relayerABI abi.ABI
+	if err := relayerABI.UnmarshalJSON([]byte(relayer.RelayerModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
-	IBCEvents = NewEventDescriptors(ibcABI)
+	RelayerEvents = NewEventDescriptors(relayerABI)
+
+	var icaABI abi.ABI
+	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
+		panic(err)
+	}
+	IcaEvents = NewEventDescriptors(icaABI)
 }
 
-func ConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
-	if event.Type == sdk.EventTypeMessage {
-		return nil, nil
-	}
-	desc, ok := IBCEvents[event.Type]
+func RelayerConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+	desc, ok := RelayerEvents[event.Type]
 	if !ok {
 		return nil, nil
 	}
-	return desc.ConvertEvent(event.Attributes, IBCValueDecoders)
+	return desc.ConvertEvent(event.Attributes, RelayerValueDecoders)
+}
+
+func IcaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+	desc, ok := IcaEvents[event.Type]
+	if !ok {
+		return nil, nil
+	}
+	return desc.ConvertEvent(event.Attributes, IcaValueDecoders)
 }
