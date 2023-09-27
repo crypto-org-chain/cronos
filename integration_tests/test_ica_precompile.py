@@ -191,6 +191,8 @@ def test_sc_call(ibc):
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     assert tcontract.caller.getLastAckSeq() == seq
     balance -= amt
+    ack = tcontract.caller.getLastAck()
+    assert ack == tcontract.caller.acknowledgement(seq)
     assert cli_host.balance(ica_address, denom=denom) == balance
     seq = 2
     str = submit_msgs(
@@ -206,3 +208,5 @@ def test_sc_call(ibc):
     balance -= amt
     balance -= amt1
     assert cli_host.balance(ica_address, denom=denom) == balance
+    ack = tcontract.caller.getLastAck()
+    assert ack == tcontract.caller.acknowledgement(seq)

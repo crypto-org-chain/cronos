@@ -7,9 +7,12 @@ contract TestICA {
     address constant icaContract = 0x0000000000000000000000000000000000000066;
     IICAModule ica = IICAModule(icaContract);
     address account;
+    // sha256('cronos-evm')[:20]
+    address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
     uint64 lastAckSeq;
-    event OnAcknowledgementPacketResult(uint64 seq, bytes acknowledgement);
-    event OnTimeoutPacketResult(uint64 seq);
+    bytes lastAck;
+    mapping (uint64 => bytes) public acknowledgement;
+    event OnPacketResult(uint64 seq, bytes ack);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -95,13 +98,16 @@ contract TestICA {
         return lastAckSeq;
     }
 
-    function onAcknowledgementPacketCallback(uint64 seq, address packetSenderAddress, bytes calldata acknowledgement) public {
-        require(packetSenderAddress == address(this), "different sender");
-        emit OnAcknowledgementPacketResult(seq, acknowledgement);
+    function getLastAck() public view returns (bytes memory) {
+        return lastAck;
     }
 
-    function onTimeoutPacketCallback(uint64 seq, address packetSenderAddress) public {
-        require(packetSenderAddress == address(this), "different sender");
-        emit OnTimeoutPacketResult(seq);
+    function onPacketResultCallback(uint64 seq, bytes calldata ack) external payable returns (bool) {
+        // require(msg.sender == module_address);
+        lastAckSeq = seq;
+        lastAck = ack;
+        acknowledgement[seq] = ack;
+        emit OnPacketResult(seq, ack);
+        return true;
     }
 }

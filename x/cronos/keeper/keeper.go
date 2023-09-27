@@ -282,7 +282,7 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
-func (k Keeper) IBCOnAcknowledgementPacketCallback(
+func (k Keeper) onPacketResult(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
 	acknowledgement []byte,
@@ -295,14 +295,24 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
 	}
 	sender := common.BytesToAddress(senderAddr.Bytes())
-	relayerAddr := common.BytesToAddress(relayer.Bytes())
 	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.GetOnAcknowledgementPacketCallback(packet.Sequence, sender, acknowledgement)
+	data, err := cronosprecompiles.OnPacketResult(packet.Sequence, sender, acknowledgement)
 	if err != nil {
 		return err
 	}
-	_, _, err = k.CallEVMWithArgs(ctx, &precompileAddr, relayerAddr, data, big.NewInt(0))
+	_, _, err = k.CallEVM(ctx, &precompileAddr, data, big.NewInt(0))
 	return err
+}
+
+func (k Keeper) IBCOnAcknowledgementPacketCallback(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	acknowledgement []byte,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	return k.onPacketResult(ctx, packet, acknowledgement, relayer, contractAddress, packetSenderAddress)
 }
 
 func (k Keeper) IBCOnTimeoutPacketCallback(
@@ -312,19 +322,7 @@ func (k Keeper) IBCOnTimeoutPacketCallback(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	senderAddr, err := sdk.AccAddressFromBech32(packetSenderAddress)
-	if err != nil {
-		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
-	}
-	sender := common.BytesToAddress(senderAddr.Bytes())
-	relayerAddr := common.BytesToAddress(relayer.Bytes())
-	precompileAddr := common.HexToAddress(contractAddress)
-	data, err := cronosprecompiles.GetOnTimeoutPacketCallback(packet.Sequence, sender)
-	if err != nil {
-		return err
-	}
-	_, _, err = k.CallEVMWithArgs(ctx, &precompileAddr, relayerAddr, data, big.NewInt(0))
-	return err
+	return k.onPacketResult(ctx, packet, []byte{}, relayer, contractAddress, packetSenderAddress)
 }
 
 func (k Keeper) IBCReceivePacketCallback(

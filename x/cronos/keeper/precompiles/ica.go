@@ -11,6 +11,7 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/icacallback"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
@@ -25,6 +26,7 @@ const ICAContractRequiredGas = 10000
 
 var (
 	icaABI             abi.ABI
+	icaCallbackABI     abi.ABI
 	icaContractAddress = common.BytesToAddress([]byte{102})
 )
 
@@ -32,14 +34,17 @@ func init() {
 	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
+	if err := icaCallbackABI.UnmarshalJSON([]byte(icacallback.ICACallbackMetaData.ABI)); err != nil {
+		panic(err)
+	}
 }
 
-func GetOnAcknowledgementPacketCallback(args ...interface{}) ([]byte, error) {
-	return icaABI.Pack("onAcknowledgementPacketCallback", args...)
+func OnPacketResult(args ...interface{}) ([]byte, error) {
+	return icaABI.Pack("onPacketResult", args...)
 }
 
-func GetOnTimeoutPacketCallback(args ...interface{}) ([]byte, error) {
-	return icaABI.Pack("onTimeoutPacketCallback", args...)
+func onPacketResultCallback(args ...interface{}) ([]byte, error) {
+	return icaCallbackABI.Pack("onPacketResultCallback", args...)
 }
 
 type IcaContract struct {
@@ -171,7 +176,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, execErr
 		}
 		return method.Outputs.Pack(seq)
-	case "onAcknowledgementPacketCallback":
+	case "onPacketResult":
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
@@ -182,34 +187,12 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		seq := args[0].(uint64)
 		sender := args[1].(common.Address)
 		acknowledgement := args[2].([]byte)
-		data, err := GetOnAcknowledgementPacketCallback(seq, sender, acknowledgement)
+		data, err := onPacketResultCallback(seq, acknowledgement)
 		if err != nil {
 			return nil, err
 		}
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, _, err := ic.cronosKeeper.CallEVMWithArgs(ctx, &sender, precompileAddr, data, big.NewInt(0))
-			return err
-		})
-		if execErr != nil {
-			return nil, execErr
-		}
-		return method.Outputs.Pack(true)
-	case "onTimeoutPacketCallback":
-		if readonly {
-			return nil, errors.New("the method is not readonly")
-		}
-		args, err := method.Inputs.Unpack(contract.Input[4:])
-		if err != nil {
-			return nil, errors.New("fail to unpack input arguments")
-		}
-		seq := args[0].(uint64)
-		sender := args[1].(common.Address)
-		data, err := GetOnTimeoutPacketCallback(seq, sender)
-		if err != nil {
-			return nil, err
-		}
-		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, _, err := ic.cronosKeeper.CallEVMWithArgs(ctx, &sender, precompileAddr, data, big.NewInt(0))
+			_, _, err := ic.cronosKeeper.CallEVM(ctx, &sender, data, big.NewInt(0))
 			return err
 		})
 		if execErr != nil {

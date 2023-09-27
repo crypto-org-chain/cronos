@@ -88,5 +88,5 @@ type Icaauthkeeper interface {
 
 // CronosKeeper defines the interface for cronos keeper
 type CronosKeeper interface {
-	CallEVMWithArgs(ctx sdk.Context, to *common.Address, from common.Address, data []byte, value *big.Int) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error)
+	CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error)
 }
