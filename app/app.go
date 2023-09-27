@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -98,6 +99,7 @@ import (
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
+	ibccallbacks "github.com/cosmos/ibc-go/modules/apps/callbacks"
 	ibcfee "github.com/cosmos/ibc-go/v7/modules/apps/29-fee"
 	ibcfeekeeper "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/keeper"
 	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
@@ -551,7 +553,7 @@ func New(
 		[]vm.PrecompiledContract{
 			cronosprecompiles.NewBankContract(app.BankKeeper, appCodec),
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec),
-			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, appCodec),
+			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec),
 		},
 		allKeys,
 	)
@@ -655,8 +657,13 @@ func New(
 	icaAuthModule := icaauth.NewAppModule(appCodec, app.ICAAuthKeeper)
 	icaAuthIBCModule := icaauth.NewIBCModule(app.ICAAuthKeeper)
 
-	icaControllerIBCModule := icacontroller.NewIBCMiddleware(icaAuthIBCModule, app.ICAControllerKeeper)
-	icaControllerStack := ibcfee.NewIBCMiddleware(icaControllerIBCModule, app.IBCFeeKeeper)
+	var icaControllerStack porttypes.IBCModule
+	icaControllerStack = icacontroller.NewIBCMiddleware(icaAuthIBCModule, app.ICAControllerKeeper)
+	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
+	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
+	app.ICAControllerKeeper.WithICS4Wrapper(icaControllerStack.(porttypes.Middleware))
+	// we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
+	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper, app.CronosKeeper, math.MaxUint64)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()

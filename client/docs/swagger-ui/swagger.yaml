@@ -452,6 +452,9 @@ paths:
                     title: the admin address who can update token mapping
                   enable_auto_deployment:
                     type: boolean
+                  max_callback_gas:
+                    type: string
+                    format: uint64
             description: >-
               QueryParamsResponse is the response type for the Query/Params RPC
               method.
@@ -43648,6 +43651,9 @@ definitions:
         title: the admin address who can update token mapping
       enable_auto_deployment:
         type: boolean
+      max_callback_gas:
+        type: string
+        format: uint64
     description: Params defines the parameters for the cronos module.
   cronos.QueryParamsResponse:
     type: object
@@ -43666,6 +43672,9 @@ definitions:
             title: the admin address who can update token mapping
           enable_auto_deployment:
             type: boolean
+          max_callback_gas:
+            type: string
+            format: uint64
     description: QueryParamsResponse is the response type for the Query/Params RPC method.
   cronos.QueryPermissionsResponse:
     type: object

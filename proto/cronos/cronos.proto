@@ -13,6 +13,7 @@ message Params {
   // the admin address who can update token mapping
   string cronos_admin           = 3;
   bool   enable_auto_deployment = 4;
+  uint64 max_callback_gas       = 5;
 }
 
 // TokenMappingChangeProposal defines a proposal to change one token mapping.

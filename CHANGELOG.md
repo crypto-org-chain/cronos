@@ -26,6 +26,7 @@
 - [cronos#837](https://github.com/crypto-org-chain/cronos/pull/837) Support stateful precompiled contract for bank.
 - [cronos#1184](https://github.com/crypto-org-chain/cronos/pull/1184) Update ibc-go to `v7.3.1`.
 - [cronos#1186](https://github.com/crypto-org-chain/cronos/pull/1186) Enlarge the max block gas limit in new version.
+- [cronos#1185](https://github.com/crypto-org-chain/cronos/pull/1185) Support ibc callback.
 
 ### Bug Fixes
 
