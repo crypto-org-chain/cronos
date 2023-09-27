@@ -299,12 +299,7 @@ func (k Keeper) onPacketResult(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
-	senderAddr, err := sdk.AccAddressFromBech32(packetSenderAddress)
-	if err != nil {
-		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
-	}
-	sender := common.BytesToAddress(senderAddr.Bytes())
-	precompileAddr := common.HexToAddress(contractAddress)
+	contractAddr := common.HexToAddress(contractAddress)
 	var ack IncentivizedAcknowledgement
 	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
 		return err
@@ -313,11 +308,11 @@ func (k Keeper) onPacketResult(
 	if err := json.Unmarshal(ack.AppAcknowledgement, &res); err != nil {
 		return err
 	}
-	data, err := cronosprecompiles.OnPacketResult(packet.Sequence, sender, res.Result)
+	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, res.Result)
 	if err != nil {
 		return err
 	}
-	_, _, err = k.CallEVM(ctx, &precompileAddr, data, big.NewInt(0))
+	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0))
 	return err
 }
 

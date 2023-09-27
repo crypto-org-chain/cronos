@@ -39,11 +39,7 @@ func init() {
 	}
 }
 
-func OnPacketResult(args ...interface{}) ([]byte, error) {
-	return icaABI.Pack("onPacketResult", args...)
-}
-
-func onPacketResultCallback(args ...interface{}) ([]byte, error) {
+func OnPacketResultCallback(args ...interface{}) ([]byte, error) {
 	return icaCallbackABI.Pack("onPacketResultCallback", args...)
 }
 
@@ -149,7 +145,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		icaMsgData := icatypes.InterchainAccountPacketData{
 			Type: icatypes.EXECUTE_TX,
 			Data: data,
-			Memo: fmt.Sprintf(`{"src_callback": {"address": "%s"}}`, icaContractAddress.String()),
+			Memo: fmt.Sprintf(`{"src_callback": {"address": "%s"}}`, caller.String()),
 		}
 		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)
@@ -176,29 +172,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, execErr
 		}
 		return method.Outputs.Pack(seq)
-	case "onPacketResult":
-		if readonly {
-			return nil, errors.New("the method is not readonly")
-		}
-		args, err := method.Inputs.Unpack(contract.Input[4:])
-		if err != nil {
-			return nil, errors.New("fail to unpack input arguments")
-		}
-		seq := args[0].(uint64)
-		sender := args[1].(common.Address)
-		acknowledgement := args[2].([]byte)
-		data, err := onPacketResultCallback(seq, acknowledgement)
-		if err != nil {
-			return nil, err
-		}
-		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, _, err := ic.cronosKeeper.CallEVM(ctx, &sender, data, big.NewInt(0))
-			return err
-		})
-		if execErr != nil {
-			return nil, execErr
-		}
-		return method.Outputs.Pack(true)
 	default:
 		return nil, errors.New("unknown method")
 	}
