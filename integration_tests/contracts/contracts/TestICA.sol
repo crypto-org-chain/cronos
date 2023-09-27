@@ -103,7 +103,8 @@ contract TestICA {
     }
 
     function onPacketResultCallback(uint64 seq, bytes calldata ack) external payable returns (bool) {
-        // require(msg.sender == module_address);
+        // To prevent called by arbitrary user
+        require(msg.sender == module_address);
         lastAckSeq = seq;
         lastAck = ack;
         acknowledgement[seq] = ack;
