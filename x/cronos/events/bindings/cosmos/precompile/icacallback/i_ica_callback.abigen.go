@@ -30,7 +30,7 @@ var (
 
 // ICACallbackMetaData contains all meta data concerning the ICACallback contract.
 var ICACallbackMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"},{\"internalType\":\"bytes\",\"name\":\"ack\",\"type\":\"bytes\"}],\"name\":\"onPacketResultCallback\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"},{\"internalType\":\"bool\",\"name\":\"ack\",\"type\":\"bool\"}],\"name\":\"onPacketResultCallback\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICACallbackABI is the input ABI used to generate the binding from.
@@ -179,23 +179,23 @@ func (_ICACallback *ICACallbackTransactorRaw) Transact(opts *bind.TransactOpts, 
 	return _ICACallback.Contract.contract.Transact(opts, method, params...)
 }
 
-// OnPacketResultCallback is a paid mutator transaction binding the contract method 0xa6d9a1c2.
+// OnPacketResultCallback is a paid mutator transaction binding the contract method 0x74fb6019.
 //
-// Solidity: function onPacketResultCallback(uint64 seq, bytes ack) payable returns(bool)
-func (_ICACallback *ICACallbackTransactor) OnPacketResultCallback(opts *bind.TransactOpts, seq uint64, ack []byte) (*types.Transaction, error) {
+// Solidity: function onPacketResultCallback(uint64 seq, bool ack) payable returns(bool)
+func (_ICACallback *ICACallbackTransactor) OnPacketResultCallback(opts *bind.TransactOpts, seq uint64, ack bool) (*types.Transaction, error) {
 	return _ICACallback.contract.Transact(opts, "onPacketResultCallback", seq, ack)
 }
 
-// OnPacketResultCallback is a paid mutator transaction binding the contract method 0xa6d9a1c2.
+// OnPacketResultCallback is a paid mutator transaction binding the contract method 0x74fb6019.
 //
-// Solidity: function onPacketResultCallback(uint64 seq, bytes ack) payable returns(bool)
-func (_ICACallback *ICACallbackSession) OnPacketResultCallback(seq uint64, ack []byte) (*types.Transaction, error) {
+// Solidity: function onPacketResultCallback(uint64 seq, bool ack) payable returns(bool)
+func (_ICACallback *ICACallbackSession) OnPacketResultCallback(seq uint64, ack bool) (*types.Transaction, error) {
 	return _ICACallback.Contract.OnPacketResultCallback(&_ICACallback.TransactOpts, seq, ack)
 }
 
-// OnPacketResultCallback is a paid mutator transaction binding the contract method 0xa6d9a1c2.
+// OnPacketResultCallback is a paid mutator transaction binding the contract method 0x74fb6019.
 //
-// Solidity: function onPacketResultCallback(uint64 seq, bytes ack) payable returns(bool)
-func (_ICACallback *ICACallbackTransactorSession) OnPacketResultCallback(seq uint64, ack []byte) (*types.Transaction, error) {
+// Solidity: function onPacketResultCallback(uint64 seq, bool ack) payable returns(bool)
+func (_ICACallback *ICACallbackTransactorSession) OnPacketResultCallback(seq uint64, ack bool) (*types.Transaction, error) {
 	return _ICACallback.Contract.OnPacketResultCallback(&_ICACallback.TransactOpts, seq, ack)
 }

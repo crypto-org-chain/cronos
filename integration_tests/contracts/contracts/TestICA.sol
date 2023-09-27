@@ -10,9 +10,9 @@ contract TestICA {
     // sha256('cronos-evm')[:20]
     address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
     uint64 lastAckSeq;
-    bytes lastAck;
-    mapping (uint64 => bytes) public acknowledgement;
-    event OnPacketResult(uint64 seq, bytes ack);
+    bool lastAck;
+    mapping (uint64 => bool) public acknowledgement;
+    event OnPacketResult(uint64 seq, bool ack);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -98,11 +98,11 @@ contract TestICA {
         return lastAckSeq;
     }
 
-    function getLastAck() public view returns (bytes memory) {
+    function getLastAck() public view returns (bool) {
         return lastAck;
     }
 
-    function onPacketResultCallback(uint64 seq, bytes calldata ack) external payable returns (bool) {
+    function onPacketResultCallback(uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
         lastAckSeq = seq;

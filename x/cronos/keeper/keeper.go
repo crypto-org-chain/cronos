@@ -284,10 +284,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
-type PacketResult struct {
-	Result []byte `json:"result"`
-}
-
 func (k Keeper) onPacketResult(
 	ctx sdk.Context,
 	packet channeltypes.Packet,
@@ -301,11 +297,11 @@ func (k Keeper) onPacketResult(
 	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
 		return err
 	}
-	var res PacketResult
-	if err := json.Unmarshal(ack.AppAcknowledgement, &res); err != nil {
+	var res channeltypes.Acknowledgement
+	if err := k.cdc.UnmarshalJSON(ack.AppAcknowledgement, &res); err != nil {
 		return err
 	}
-	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, res.Result)
+	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, res.Success())
 	if err != nil {
 		return err
 	}
