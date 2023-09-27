@@ -29,6 +29,9 @@ from .utils import (
 
 pytestmark = pytest.mark.gravity
 
+# skip gravity-bridge integration tests since it's not enabled by default.
+pytest.skip("skipping gravity-bridge tests", allow_module_level=True)
+
 Account.enable_unaudited_hdwallet_features()
 
 
