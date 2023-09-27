@@ -17,6 +17,7 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
@@ -283,10 +284,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	return nil
 }
 
-type IncentivizedAcknowledgement struct {
-	AppAcknowledgement []byte `json:"app_acknowledgement"`
-}
-
 type PacketResult struct {
 	Result []byte `json:"result"`
 }
@@ -300,7 +297,7 @@ func (k Keeper) onPacketResult(
 	packetSenderAddress string,
 ) error {
 	contractAddr := common.HexToAddress(contractAddress)
-	var ack IncentivizedAcknowledgement
+	var ack ibcfeetypes.IncentivizedAcknowledgement
 	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
 		return err
 	}
