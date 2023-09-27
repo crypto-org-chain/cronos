@@ -11,9 +11,11 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/icacallback"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
-	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -24,6 +26,7 @@ const ICAContractRequiredGas = 10000
 
 var (
 	icaABI             abi.ABI
+	icaCallbackABI     abi.ABI
 	icaContractAddress = common.BytesToAddress([]byte{102})
 )
 
@@ -31,20 +34,29 @@ func init() {
 	if err := icaABI.UnmarshalJSON([]byte(ica.ICAModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
+	if err := icaCallbackABI.UnmarshalJSON([]byte(icacallback.ICACallbackMetaData.ABI)); err != nil {
+		panic(err)
+	}
+}
+
+func OnPacketResultCallback(args ...interface{}) ([]byte, error) {
+	return icaCallbackABI.Pack("onPacketResultCallback", args...)
 }
 
 type IcaContract struct {
 	BaseContract
 
 	cdc           codec.Codec
-	icaauthKeeper *icaauthkeeper.Keeper
+	icaauthKeeper types.Icaauthkeeper
+	cronosKeeper  types.CronosKeeper
 }
 
-func NewIcaContract(icaauthKeeper *icaauthkeeper.Keeper, cdc codec.Codec) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
+		cronosKeeper:  cronosKeeper,
 	}
 }
 
@@ -68,7 +80,6 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	if err != nil {
 		return nil, err
 	}
-
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
 	caller := contract.CallerAddress
@@ -87,7 +98,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		connectionID := args[0].(string)
 		version := args[1].(string)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &types.MsgRegisterAccount{
+			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &icaauthtypes.MsgRegisterAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
@@ -109,7 +120,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		icaAddress := ""
 		response, err := ic.icaauthKeeper.InterchainAccountAddress(
 			stateDB.CacheContext(),
-			&types.QueryInterchainAccountAddressRequest{
+			&icaauthtypes.QueryInterchainAccountAddressRequest{
 				Owner:        owner,
 				ConnectionId: connectionID,
 			})
@@ -134,6 +145,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		icaMsgData := icatypes.InterchainAccountPacketData{
 			Type: icatypes.EXECUTE_TX,
 			Data: data,
+			Memo: fmt.Sprintf(`{"src_callback": {"address": "%s"}}`, caller.String()),
 		}
 		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)

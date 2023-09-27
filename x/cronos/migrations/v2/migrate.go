@@ -13,12 +13,14 @@ import (
 // module state.
 func Migrate(ctx sdk.Context, store sdk.KVStore, legacySubspace exported.Subspace, cdc codec.BinaryCodec) error {
 	var currParams types.Params
-	legacySubspace.GetParamSet(ctx, &currParams)
+	legacySubspace.GetParamSetIfExists(ctx, &currParams)
 
 	if err := currParams.Validate(); err != nil {
 		return err
 	}
-
+	if currParams.GetMaxCallbackGas() == 0 {
+		currParams.MaxCallbackGas = types.MaxCallbackGasDefaultValue
+	}
 	bz := cdc.MustMarshal(&currParams)
 	store.Set(types.ParamsKey, bz)
 

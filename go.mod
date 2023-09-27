@@ -14,6 +14,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.2
 	github.com/cosmos/cosmos-sdk v0.47.5
 	github.com/cosmos/gogoproto v1.4.10
+	github.com/cosmos/ibc-go/modules/apps/callbacks v0.1.1-0.20230831194909-17cf1260a9cd
 	github.com/cosmos/ibc-go/v7 v7.3.1-0.20230920070810-c3261472c815
 	github.com/crypto-org-chain/cronos/store v0.0.4
 	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000

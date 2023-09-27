@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"cosmossdk.io/errors"
@@ -15,6 +16,11 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	ibcfeetypes "github.com/cosmos/ibc-go/v7/modules/apps/29-fee/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	// this line is used by starport scaffolding # ibc/keeper/import
@@ -274,5 +280,76 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		}
 	}
 
+	return nil
+}
+
+func (k Keeper) onPacketResult(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	acknowledgement bool,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	contractAddr := common.HexToAddress(contractAddress)
+
+	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, acknowledgement)
+	if err != nil {
+		return err
+	}
+	gasLimit := k.GetParams(ctx).MaxCallbackGas
+	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
+	return err
+}
+
+func (k Keeper) IBCOnAcknowledgementPacketCallback(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	acknowledgement []byte,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	// the ack is wrapped by fee middleware
+	var ack ibcfeetypes.IncentivizedAcknowledgement
+	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
+		return err
+	}
+	var res channeltypes.Acknowledgement
+	if err := k.cdc.UnmarshalJSON(ack.AppAcknowledgement, &res); err != nil {
+		return err
+	}
+	return k.onPacketResult(ctx, packet, res.Success(), relayer, contractAddress, packetSenderAddress)
+}
+
+func (k Keeper) IBCOnTimeoutPacketCallback(
+	ctx sdk.Context,
+	packet channeltypes.Packet,
+	relayer sdk.AccAddress,
+	contractAddress,
+	packetSenderAddress string,
+) error {
+	return k.onPacketResult(ctx, packet, false, relayer, contractAddress, packetSenderAddress)
+}
+
+func (k Keeper) IBCReceivePacketCallback(
+	ctx sdk.Context,
+	packet ibcexported.PacketI,
+	ack ibcexported.Acknowledgement,
+	contractAddress string,
+) error {
+	return nil
+}
+
+func (k Keeper) IBCSendPacketCallback(
+	ctx sdk.Context,
+	sourcePort string,
+	sourceChannel string,
+	timeoutHeight clienttypes.Height,
+	timeoutTimestamp uint64,
+	packetData []byte,
+	contractAddress,
+	packetSenderAddress string,
+) error {
 	return nil
 }
