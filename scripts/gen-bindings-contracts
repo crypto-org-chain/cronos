@@ -11,4 +11,4 @@ abigen --pkg lib --abi build/CosmosTypes.abi --bin build/CosmosTypes.bin --out x
 abigen --pkg relayer --abi build/IRelayerModule.abi --bin build/IRelayerModule.bin --out x/cronos/events/bindings/cosmos/precompile/relayer/i_relayer_module.abigen.go --type RelayerModule
 abigen --pkg bank --abi build/IBankModule.abi --bin build/IBankModule.bin --out x/cronos/events/bindings/cosmos/precompile/bank/i_bank_module.abigen.go --type BankModule
 abigen --pkg ica --abi build/IICAModule.abi --bin build/IICAModule.bin --out x/cronos/events/bindings/cosmos/precompile/ica/i_ica_module.abigen.go --type ICAModule
-abigen --pkg icacallback --abi build/ICACallback.abi --bin build/ICACallback.bin --out x/cronos/events/bindings/cosmos/precompile/icacallback/icacallback.abigen.go --type ICACallback
+abigen --pkg icacallback --abi build/IICACallback.abi --bin build/IICACallback.bin --out x/cronos/events/bindings/cosmos/precompile/icacallback/i_ica_callback.abigen.go --type ICACallback
