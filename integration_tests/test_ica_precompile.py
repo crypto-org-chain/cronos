@@ -38,7 +38,7 @@ amt1 = 100
 
 
 class Status(IntEnum):
-    NONE, SUCCESS, TIMEOUT = range(3)
+    NONE, SUCCESS, FAIL = range(3)
 
 
 @pytest.fixture(scope="module")
@@ -73,6 +73,8 @@ def submit_msgs(
     is_multi,
     expected_seq,
     timeout=no_timeout,
+    amount=amt,
+    status=1,
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -84,7 +86,7 @@ def submit_msgs(
             "@type": "/cosmos.bank.v1beta1.MsgSend",
             "from_address": ica_address,
             "to_address": to,
-            "amount": [{"denom": denom, "amount": f"{amt}"}],
+            "amount": [{"denom": denom, "amount": f"{amount}"}],
         }
     ]
     if is_multi:
@@ -105,7 +107,7 @@ def submit_msgs(
     # submit transaction on host chain on behalf of interchain account
     tx = func(connid, str, timeout).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
-    assert receipt.status == 1
+    assert receipt.status == status
     if timeout < no_timeout:
         timeout_in_s = timeout / 1e9 + 1
         print(f"wait for {timeout_in_s}s")
@@ -263,4 +265,22 @@ def test_sc_call(ibc):
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
-    assert status == Status.TIMEOUT
+    assert status == Status.FAIL
+
+    # balance and seq should not change on fail
+    str = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+        timeout,
+        amount=100000001,
+        status=0,
+    )
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.FAIL
