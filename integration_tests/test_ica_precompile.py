@@ -74,7 +74,7 @@ def submit_msgs(
     expected_seq,
     timeout=no_timeout,
     amount=amt,
-    status=1,
+    need_wait=True,
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -107,7 +107,7 @@ def submit_msgs(
     # submit transaction on host chain on behalf of interchain account
     tx = func(connid, str, timeout).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
-    assert receipt.status == status
+    assert receipt.status == 1
     if timeout < no_timeout:
         timeout_in_s = timeout / 1e9 + 1
         print(f"wait for {timeout_in_s}s")
@@ -119,7 +119,8 @@ def submit_msgs(
         for i, log in enumerate(logs):
             method_name, args = get_topic_data(w3, method_map, contract_info, log)
             assert args == AttributeDict(expected[i]), [i, method_name]
-        wait_for_check_tx(cli_host, ica_address, num_txs)
+        if need_wait:
+            wait_for_check_tx(cli_host, ica_address, num_txs)
     return str
 
 
@@ -249,9 +250,8 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
 
-    # balance and seq should not change on timeout
-    timeout = 300000
     expected_seq = 3
+    # balance should not change on fail
     str = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -259,7 +259,8 @@ def test_sc_call(ibc):
         ica_address,
         False,
         expected_seq,
-        timeout,
+        amount=100000001,
+        need_wait=False,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
@@ -267,7 +268,9 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.FAIL
 
-    # balance and seq should not change on fail
+    # balance and seq should not change on timeout
+    expected_seq = 4
+    timeout = 300000
     str = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -276,8 +279,6 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         timeout,
-        amount=100000001,
-        status=0,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
