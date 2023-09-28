@@ -5,7 +5,6 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     'precompiled-contract-address': '0x0000000000000000000000000000000000000065',
-    'gas-adjustment': 3,
     key_name: 'signer1',
     accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
       coins: super.coins + ',100000000000ibcfee',
@@ -140,8 +139,8 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
-        max_gas: 800000,
-        gas_multiplier: 2,
+        max_gas: 500000,
+        gas_multiplier: 4,
         address_type: {
           derivation: 'ethermint',
           proto_type: {

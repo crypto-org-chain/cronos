@@ -131,7 +131,7 @@ def test_call(ibc):
     name = "signer2"
     addr = ADDRS[name]
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
-    data = {"from": ADDRS[name], "gas": 500000}
+    data = {"from": ADDRS[name], "gas": 400000}
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -173,7 +173,7 @@ def test_sc_call(ibc):
     name = "signer2"
     signer = ADDRS[name]
     keys = KEYS[name]
-    data = {"from": signer, "gas": 500000}
+    data = {"from": signer, "gas": 400000}
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -189,7 +189,7 @@ def test_sc_call(ibc):
 
     # register from another user should fail
     name = "signer1"
-    data = {"from": ADDRS[name], "gas": 500000}
+    data = {"from": ADDRS[name], "gas": 400000}
     version = ""
     tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
     res = send_transaction(w3, tx, KEYS[name])
