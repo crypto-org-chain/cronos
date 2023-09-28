@@ -106,7 +106,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "sdk47-upgrade"
+    plan_name = "v1.1.0"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
@@ -158,6 +158,10 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     assert old_erc20_balance == contract.caller(block_identifier=old_height).balanceOf(
         ADDRS["validator"]
     )
+    # check consensus params
+    port = ports.rpc_port(custom_cronos.base_port(0))
+    res = cli.consensus_params(port, w3.eth.get_block_number())
+    assert res["block"]["max_gas"] == "60000000"
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp

@@ -35,7 +35,7 @@ import (
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
-	planName := "sdk47-upgrade"
+	planName := "v1.1.0"
 	// Set param key table for params module migration
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
 		var keyTable paramstypes.KeyTable
@@ -106,6 +106,14 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		if err != nil {
 			return m, err
 		}
+
+		// enlarge block gas limit
+		consParams, err := app.ConsensusParamsKeeper.Get(ctx)
+		if err != nil {
+			return m, err
+		}
+		consParams.Block.MaxGas = 60_000_000
+		app.ConsensusParamsKeeper.Set(ctx, consParams)
 		return m, nil
 	})
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
