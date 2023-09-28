@@ -13,7 +13,7 @@ contract TestICA {
     enum Status {
         NONE,
         SUCCESS,
-        TIMEOUT
+        FAIL
     }
     mapping (uint64 => Status) public statusMap;
     event OnPacketResult(uint64 seq, Status status);
@@ -105,7 +105,7 @@ contract TestICA {
     function onPacketResultCallback(uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
-        Status status = Status.TIMEOUT;
+        Status status = Status.FAIL;
         if (ack) {
             status = Status.SUCCESS;
         }

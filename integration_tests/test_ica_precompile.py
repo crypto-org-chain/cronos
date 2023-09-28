@@ -38,7 +38,7 @@ amt1 = 100
 
 
 class Status(IntEnum):
-    NONE, SUCCESS, TIMEOUT = range(3)
+    NONE, SUCCESS, FAIL = range(3)
 
 
 @pytest.fixture(scope="module")
@@ -73,6 +73,8 @@ def submit_msgs(
     is_multi,
     expected_seq,
     timeout=no_timeout,
+    amount=amt,
+    need_wait=True,
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -84,7 +86,7 @@ def submit_msgs(
             "@type": "/cosmos.bank.v1beta1.MsgSend",
             "from_address": ica_address,
             "to_address": to,
-            "amount": [{"denom": denom, "amount": f"{amt}"}],
+            "amount": [{"denom": denom, "amount": f"{amount}"}],
         }
     ]
     if is_multi:
@@ -117,7 +119,8 @@ def submit_msgs(
         for i, log in enumerate(logs):
             method_name, args = get_topic_data(w3, method_map, contract_info, log)
             assert args == AttributeDict(expected[i]), [i, method_name]
-        wait_for_check_tx(cli_host, ica_address, num_txs)
+        if need_wait:
+            wait_for_check_tx(cli_host, ica_address, num_txs)
     return str
 
 
@@ -247,9 +250,27 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
 
-    # balance and seq should not change on timeout
-    timeout = 300000
     expected_seq = 3
+    # balance should not change on fail
+    str = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+        amount=100000001,
+        need_wait=False,
+    )
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.FAIL
+
+    # balance and seq should not change on timeout
+    expected_seq = 4
+    timeout = 300000
     str = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -263,4 +284,4 @@ def test_sc_call(ibc):
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
-    assert status == Status.TIMEOUT
+    assert status == Status.FAIL
