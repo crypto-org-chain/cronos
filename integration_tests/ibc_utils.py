@@ -578,7 +578,7 @@ def wait_for_check_channel_ready(cli, connid, channel_id):
     wait_for_fn("channel ready", check_channel_ready)
 
 
-def wait_for_check_tx(cli, adr, num_txs):
+def wait_for_check_tx(cli, adr, num_txs, timeout=None):
     print("wait for tx arrive")
 
     def check_tx():
@@ -586,7 +586,15 @@ def wait_for_check_tx(cli, adr, num_txs):
         print("current", current)
         return current > num_txs
 
-    wait_for_fn("transfer tx", check_tx)
+    if timeout is None:
+        wait_for_fn("transfer tx", check_tx)
+    else:
+        try:
+            print(f"should assert timeout err when pass {timeout}s")
+            wait_for_fn("transfer tx", check_tx, timeout=timeout)
+        except TimeoutError:
+            raised = True
+        assert raised
 
 
 def funds_ica(cli, adr):

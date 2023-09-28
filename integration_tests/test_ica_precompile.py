@@ -1,5 +1,6 @@
 import base64
 import json
+from enum import IntEnum
 
 import pytest
 from web3.datastructures import AttributeDict
@@ -21,18 +22,23 @@ from .utils import (
     get_method_map,
     get_topic_data,
     send_transaction,
+    wait_for_fn,
 )
 
 CONTRACT = "0x0000000000000000000000000000000000000066"
 contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
 method_map = get_method_map(contract_info)
 connid = "connection-0"
-timeout = 300000000000
+no_timeout = 300000000000
 denom = "basecro"
 keys = KEYS["signer2"]
 validator = "validator"
 amt = 1000
 amt1 = 100
+
+
+class Status(IntEnum):
+    NONE, SUCCESS, TIMEOUT = range(3)
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +65,15 @@ def register_acc(cli, w3, register, query, data, addr, channel_id):
     return ica_address
 
 
-def submit_msgs(ibc, func, data, ica_address, is_multi, seq):
+def submit_msgs(
+    ibc,
+    func,
+    data,
+    ica_address,
+    is_multi,
+    expected_seq,
+    timeout=no_timeout,
+):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
@@ -92,13 +106,18 @@ def submit_msgs(ibc, func, data, ica_address, is_multi, seq):
     tx = func(connid, str, timeout).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
-    logs = get_logs_since(w3, CONTRACT, start)
-    expected = [{"seq": seq}]
-    assert len(logs) == len(expected)
-    for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
-    wait_for_check_tx(cli_host, ica_address, num_txs)
+    if timeout < no_timeout:
+        timeout_in_s = timeout / 1e9 + 1
+        print(f"wait for {timeout_in_s}s")
+        wait_for_check_tx(cli_host, ica_address, num_txs, timeout_in_s)
+    else:
+        logs = get_logs_since(w3, CONTRACT, start)
+        expected = [{"seq": expected_seq}]
+        assert len(logs) == len(expected)
+        for i, log in enumerate(logs):
+            method_name, args = get_topic_data(w3, method_map, contract_info, log)
+            assert args == AttributeDict(expected[i]), [i, method_name]
+        wait_for_check_tx(cli_host, ica_address, num_txs)
     return str
 
 
@@ -129,12 +148,24 @@ def test_call(ibc):
     assert cli_host.balance(ica_address, denom=denom) == balance
 
 
+def wait_for_status_change(tcontract, seq):
+    print(f"wait for status change for {seq}")
+
+    def check_status():
+        status = tcontract.caller.statusMap(seq)
+        print("current", status)
+        return status
+
+    wait_for_fn("current status", check_status)
+
+
 def test_sc_call(ibc):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
-    tcontract = deploy_contract(w3, CONTRACTS["TestICA"])
+    jsonfile = CONTRACTS["TestICA"]
+    tcontract = deploy_contract(w3, jsonfile)
     addr = tcontract.address
     name = "signer2"
     signer = ADDRS[name]
@@ -175,37 +206,61 @@ def test_sc_call(ibc):
 
     # readonly call should fail
     def submit_msgs_ro(func, str):
-        tx = func(connid, str, timeout).build_transaction(data)
+        tx = func(connid, str, no_timeout).build_transaction(data)
         assert send_transaction(w3, tx, keys).status == 0
 
-    seq = 1
+    expected_seq = 1
     str = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
         ica_address,
         False,
-        seq,
+        expected_seq,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
-    assert tcontract.caller.getLastAckSeq() == seq
     balance -= amt
-    ack = tcontract.caller.getLastAck()
-    assert ack == tcontract.caller.acknowledgement(seq), ack
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.SUCCESS
     assert cli_host.balance(ica_address, denom=denom) == balance
-    seq = 2
+
+    expected_seq = 2
     str = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
         ica_address,
         True,
-        seq,
+        expected_seq,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     balance -= amt
     balance -= amt1
-    assert cli_host.balance(ica_address, denom=denom) == balance
-    assert ack == tcontract.caller.acknowledgement(seq), ack
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.SUCCESS
+
+    # balance and seq should not change on timeout
+    timeout = 300000
+    expected_seq = 3
+    str = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+        timeout,
+    )
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.TIMEOUT

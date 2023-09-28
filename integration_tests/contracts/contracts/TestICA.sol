@@ -9,10 +9,14 @@ contract TestICA {
     address account;
     // sha256('cronos-evm')[:20]
     address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
-    uint64 lastAckSeq;
-    bool lastAck;
-    mapping (uint64 => bool) public acknowledgement;
-    event OnPacketResult(uint64 seq, bool ack);
+    uint64 lastSeq;
+    enum Status {
+        NONE,
+        SUCCESS,
+        TIMEOUT
+    }
+    mapping (uint64 => Status) public statusMap;
+    event OnPacketResult(uint64 seq, Status status);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -76,39 +80,37 @@ contract TestICA {
 
     function callSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         require(account == msg.sender, "not authorized");
-        lastAckSeq = ica.submitMsgs(connectionID, data, timeout);
-        return lastAckSeq;
+        lastSeq = ica.submitMsgs(connectionID, data, timeout);
+        return lastSeq;
     }
 
     function delegateSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.delegatecall(encodeSubmitMsgs(connectionID, data, timeout));
         require(result, "call failed");
-        lastAckSeq = abi.decode(data, (uint64));
-        return lastAckSeq;
+        lastSeq = abi.decode(data, (uint64));
+        return lastSeq;
     }
 
     function staticSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
         (bool result, bytes memory data) = icaContract.staticcall(encodeSubmitMsgs(connectionID, data, timeout));
         require(result, "call failed");
-        lastAckSeq = abi.decode(data, (uint64));
-        return lastAckSeq;
+        lastSeq = abi.decode(data, (uint64));
+        return lastSeq;
     }
 
-    function getLastAckSeq() public view returns (uint256) {
-        return lastAckSeq;
-    }
-
-    function getLastAck() public view returns (bool) {
-        return lastAck;
+    function getLastSeq() public view returns (uint256) {
+        return lastSeq;
     }
 
     function onPacketResultCallback(uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
-        lastAckSeq = seq;
-        lastAck = ack;
-        acknowledgement[seq] = ack;
-        emit OnPacketResult(seq, ack);
+        Status status = Status.TIMEOUT;
+        if (ack) {
+            status = Status.SUCCESS;
+        }
+        statusMap[seq] = status;
+        emit OnPacketResult(seq, status);
         return true;
     }
 }
