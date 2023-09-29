@@ -46,6 +46,18 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     path = tmp_path_factory.mktemp("ibc_rly")
     procs = []
+
+    def kill_procs():
+        for proc in procs:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            # proc.terminate()
+            proc.wait()
+
+    signal.signal(signal.SIGINT, kill_procs)
+    signal.signal(signal.SIGTERM, kill_procs)
     try:
         for network in prepare_network(
             path,
@@ -58,13 +70,7 @@ def ibc(request, tmp_path_factory):
             yield network
     finally:
         print("finally:", procs)
-        for proc in procs:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            # proc.terminate()
-            proc.wait()
+        kill_procs()
 
 
 def rly_transfer(ibc):
