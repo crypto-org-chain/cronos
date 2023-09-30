@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"time"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
@@ -21,13 +23,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
-// TODO: Replace this const with adjusted gas cost corresponding to input when executing precompile contract.
-const ICAContractRequiredGas = 10000
+const (
+	RegisterAccountMethodName = "registerAccount"
+	QueryAccountMethodName    = "queryAccount"
+	SubmitMsgsMethodName      = "submitMsgs"
+)
 
 var (
-	icaABI             abi.ABI
-	icaCallbackABI     abi.ABI
-	icaContractAddress = common.BytesToAddress([]byte{102})
+	icaABI                 abi.ABI
+	icaCallbackABI         abi.ABI
+	icaContractAddress     = common.BytesToAddress([]byte{102})
+	icaGasRequiredByMethod = map[[4]byte]uint64{}
 )
 
 func init() {
@@ -36,6 +42,21 @@ func init() {
 	}
 	if err := icaCallbackABI.UnmarshalJSON([]byte(icacallback.ICACallbackMetaData.ABI)); err != nil {
 		panic(err)
+	}
+
+	for methodName := range icaABI.Methods {
+		var methodID [4]byte
+		copy(methodID[:], icaABI.Methods[methodName].ID[:4])
+		switch methodName {
+		case RegisterAccountMethodName:
+			icaGasRequiredByMethod[methodID] = 300000
+		case QueryAccountMethodName:
+			icaGasRequiredByMethod[methodID] = 100000
+		case SubmitMsgsMethodName:
+			icaGasRequiredByMethod[methodID] = 300000
+		default:
+			icaGasRequiredByMethod[methodID] = 0
+		}
 	}
 }
 
@@ -49,14 +70,16 @@ type IcaContract struct {
 	cdc           codec.Codec
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
+	kvGasConfig   storetypes.GasConfig
 }
 
-func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
+		kvGasConfig:   kvGasConfig,
 	}
 }
 
@@ -66,7 +89,15 @@ func (ic *IcaContract) Address() common.Address {
 
 // RequiredGas calculates the contract gas use
 func (ic *IcaContract) RequiredGas(input []byte) uint64 {
-	return ICAContractRequiredGas
+	// base cost to prevent large input size
+	baseCost := uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
+	var methodID [4]byte
+	copy(methodID[:], input[:4])
+	requiredGas, ok := icaGasRequiredByMethod[methodID]
+	if ok {
+		return requiredGas + baseCost
+	}
+	return baseCost
 }
 
 func (ic *IcaContract) IsStateful() bool {
@@ -87,7 +118,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	converter := cronosevents.IcaConvertEvent
 	var execErr error
 	switch method.Name {
-	case "registerAccount":
+	case RegisterAccountMethodName:
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
@@ -109,7 +140,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, execErr
 		}
 		return method.Outputs.Pack(true)
-	case "queryAccount":
+	case QueryAccountMethodName:
 		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
@@ -131,7 +162,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			icaAddress = response.InterchainAccountAddress
 		}
 		return method.Outputs.Pack(icaAddress)
-	case "submitMsgs":
+	case SubmitMsgsMethodName:
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
