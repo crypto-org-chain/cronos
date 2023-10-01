@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/big"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+
 	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -18,18 +20,36 @@ import (
 )
 
 const (
-	EVMDenomPrefix          = "evm/"
-	BankContractRequiredGas = 10000
+	EVMDenomPrefix      = "evm/"
+	MintMethodName      = "mint"
+	BurnMethodName      = "burn"
+	BalanceOfMethodName = "balanceOf"
+	TransferMethodName  = "transfer"
 )
 
 var (
-	bankABI             abi.ABI
-	BankContractAddress = common.BytesToAddress([]byte{100})
+	bankABI                 abi.ABI
+	bankContractAddress     = common.BytesToAddress([]byte{100})
+	bankGasRequiredByMethod = map[[4]byte]uint64{}
 )
 
 func init() {
 	if err := bankABI.UnmarshalJSON([]byte(bank.BankModuleMetaData.ABI)); err != nil {
 		panic(err)
+	}
+	for methodName := range bankABI.Methods {
+		var methodID [4]byte
+		copy(methodID[:], bankABI.Methods[methodName].ID[:4])
+		switch methodName {
+		case MintMethodName, BurnMethodName:
+			bankGasRequiredByMethod[methodID] = 200000
+		case BalanceOfMethodName:
+			bankGasRequiredByMethod[methodID] = 10000
+		case TransferMethodName:
+			bankGasRequiredByMethod[methodID] = 150000
+		default:
+			bankGasRequiredByMethod[methodID] = 0
+		}
 	}
 }
 
@@ -38,23 +58,31 @@ func EVMDenom(token common.Address) string {
 }
 
 type BankContract struct {
-	bankKeeper types.BankKeeper
-	cdc        codec.Codec
+	bankKeeper  types.BankKeeper
+	cdc         codec.Codec
+	kvGasConfig storetypes.GasConfig
 }
 
 // NewBankContract creates the precompiled contract to manage native tokens
-func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec) vm.PrecompiledContract {
-	return &BankContract{bankKeeper, cdc}
+func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+	return &BankContract{bankKeeper, cdc, kvGasConfig}
 }
 
 func (bc *BankContract) Address() common.Address {
-	return BankContractAddress
+	return bankContractAddress
 }
 
 // RequiredGas calculates the contract gas use
 func (bc *BankContract) RequiredGas(input []byte) uint64 {
-	// TODO estimate required gas
-	return BankContractRequiredGas
+	// base cost to prevent large input size
+	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
+	var methodID [4]byte
+	copy(methodID[:], input[:4])
+	requiredGas, ok := bankGasRequiredByMethod[methodID]
+	if ok {
+		return requiredGas + baseCost
+	}
+	return baseCost
 }
 
 func (bc *BankContract) IsStateful() bool {
@@ -82,7 +110,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := bc.Address()
 	switch method.Name {
-	case "mint", "burn":
+	case MintMethodName, BurnMethodName:
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
@@ -126,7 +154,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 			return nil, err
 		}
 		return method.Outputs.Pack(true)
-	case "balanceOf":
+	case BalanceOfMethodName:
 		args, err := method.Inputs.Unpack(contract.Input[4:])
 		if err != nil {
 			return nil, errors.New("fail to unpack input arguments")
@@ -136,7 +164,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		// query from storage
 		balance := bc.bankKeeper.GetBalance(stateDB.CacheContext(), sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
 		return method.Outputs.Pack(balance)
-	case "transfer":
+	case TransferMethodName:
 		if readonly {
 			return nil, errors.New("the method is not readonly")
 		}
