@@ -63,10 +63,8 @@ def ibc(request, tmp_path_factory):
             path,
             "ibc",
             relayer=cluster.Relayer.RLY.value,
+            on_process_open=lambda proc: procs.append(proc),
         ):
-            if network.proc:
-                procs.append(network.proc)
-                print("append:", network.proc)
             yield network
     finally:
         print("finally:", procs)

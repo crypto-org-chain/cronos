@@ -30,7 +30,6 @@ class IBCNetwork(NamedTuple):
     chainmain: Chainmain
     hermes: Hermes | None
     incentivized: bool
-    proc: subprocess.Popen[bytes] | None
 
 
 def call_hermes_cmd(
@@ -121,6 +120,7 @@ def prepare_network(
     is_relay=True,
     connection_only=False,
     relayer=cluster.Relayer.HERMES.value,
+    on_process_open=lambda proc: (),
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
@@ -136,6 +136,7 @@ def prepare_network(
         relayer=relayer,
     )
     cronos = next(gen)
+    on_process_open(cronos.proc)
     chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
     # wait for grpc ready
     wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
@@ -154,7 +155,6 @@ def prepare_network(
     else:
         call_rly_cmd(path, version)
 
-    proc = None
     if incentivized:
         # register fee payee
         src_chain = cronos.cosmos_cli()
@@ -185,8 +185,9 @@ def prepare_network(
                 ],
                 preexec_fn=os.setsid,
             )
+            on_process_open(proc)
             port = 5183
-    yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
+    yield IBCNetwork(cronos, chainmain, hermes, incentivized)
     if port:
         wait_for_port(port)
 
