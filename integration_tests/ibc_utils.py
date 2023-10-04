@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
@@ -171,21 +170,10 @@ def prepare_network(
 
     port = None
     if is_relay:
+        cronos.supervisorctl("start", "relayer-demo")
         if is_hermes:
-            cronos.supervisorctl("start", "relayer-demo")
             port = hermes.port
         else:
-            proc = subprocess.Popen(
-                [
-                    "rly",
-                    "start",
-                    "chainmain-cronos",
-                    "--home",
-                    str(path),
-                ],
-                preexec_fn=os.setsid,
-            )
-            on_process_open(proc)
             port = 5183
     yield IBCNetwork(cronos, chainmain, hermes, incentivized)
     if port:

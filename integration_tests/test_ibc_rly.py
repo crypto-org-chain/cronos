@@ -44,31 +44,25 @@ channel = "channel-0"
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    path = tmp_path_factory.mktemp("ibc_rly")
+    name = "ibc_rly"
+    path = tmp_path_factory.mktemp(name)
     procs = []
 
-    def kill_procs():
-        for proc in procs:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            # proc.terminate()
-            proc.wait()
-
-    signal.signal(signal.SIGINT, kill_procs)
-    signal.signal(signal.SIGTERM, kill_procs)
     try:
         for network in prepare_network(
             path,
-            "ibc",
+            name,
             relayer=cluster.Relayer.RLY.value,
             on_process_open=lambda proc: procs.append(proc),
         ):
             yield network
     finally:
-        print("finally:", procs)
-        kill_procs()
+        for proc in procs:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            proc.wait()
 
 
 def rly_transfer(ibc):
