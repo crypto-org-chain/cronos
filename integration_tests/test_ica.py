@@ -1,4 +1,6 @@
 import json
+import os
+import signal
 
 import pytest
 
@@ -16,8 +18,24 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name, incentivized=False, connection_only=True)
-    yield from network
+    procs = []
+
+    try:
+        for network in prepare_network(
+            path,
+            name,
+            incentivized=False,
+            connection_only=True,
+            on_process_open=lambda proc: procs.append(proc),
+        ):
+            yield network
+    finally:
+        for proc in procs:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            proc.wait()
 
 
 def test_ica(ibc, tmp_path):

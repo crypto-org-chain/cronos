@@ -81,7 +81,7 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, version):
+def call_rly_cmd(path, connection_only, version):
     cmd = [
         "rly",
         "pth",
@@ -93,22 +93,32 @@ def call_rly_cmd(path, version):
         str(path),
     ]
     subprocess.check_call(cmd)
-    cmd = [
-        "rly",
-        "tx",
-        "connect",
-        "chainmain-cronos",
-        "--src-port",
-        "transfer",
-        "--dst-port",
-        "transfer",
-        "--order",
-        "unordered",
-        "--version",
-        json.dumps(version),
-        "--home",
-        str(path),
-    ]
+    if connection_only:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--home",
+            str(path),
+        ]
+    else:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--src-port",
+            "transfer",
+            "--dst-port",
+            "transfer",
+            "--order",
+            "unordered",
+            "--version",
+            json.dumps(version),
+            "--home",
+            str(path),
+        ]
     subprocess.check_call(cmd)
 
 
@@ -152,7 +162,7 @@ def prepare_network(
             version,
         )
     else:
-        call_rly_cmd(path, version)
+        call_rly_cmd(path, connection_only, version)
 
     if incentivized:
         # register fee payee
