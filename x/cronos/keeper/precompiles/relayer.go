@@ -118,39 +118,42 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	}
 	input := args[0].([]byte)
 	converter := cronosevents.RelayerConvertEvent
+	e := &Executor{
+		bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, converter,
+	}
 	switch method.Name {
 	case CreateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.CreateClient, converter)
+		res, err = exec(e, bc.ibcKeeper.CreateClient)
 	case UpdateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpdateClient, converter)
+		res, err = exec(e, bc.ibcKeeper.UpdateClient)
 	case UpgradeClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpgradeClient, converter)
+		res, err = exec(e, bc.ibcKeeper.UpgradeClient)
 	case SubmitMisbehaviour:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.SubmitMisbehaviour, converter)
+		res, err = exec(e, bc.ibcKeeper.SubmitMisbehaviour)
 	case ConnectionOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenInit, converter)
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenInit)
 	case ConnectionOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenTry, converter)
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenTry)
 	case ConnectionOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenAck, converter)
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenAck)
 	case ConnectionOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenConfirm, converter)
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenConfirm)
 	case ChannelOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenInit, converter)
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenInit)
 	case ChannelOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenTry, converter)
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenTry)
 	case ChannelOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenAck, converter)
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenAck)
 	case ChannelOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenConfirm, converter)
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenConfirm)
 	case RecvPacket:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.RecvPacket, converter)
+		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Acknowledgement, converter)
+		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
 	case Timeout:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Timeout, converter)
+		res, err = exec(e, bc.ibcKeeper.Timeout)
 	case TimeoutOnClose:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.TimeoutOnClose, converter)
+		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	default:
 		return nil, errors.New("unknown method")
 	}

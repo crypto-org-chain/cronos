@@ -16,21 +16,25 @@ type NativeMessage interface {
 	GetSigners() []sdk.AccAddress
 }
 
+type Executor struct {
+	cdc       codec.Codec
+	stateDB   ExtStateDB
+	caller    common.Address
+	contract  common.Address
+	input     []byte
+	converter statedb.EventConverter
+}
+
 // exec is a generic function that executes the given action in statedb, and marshal/unmarshal the input/output
 func exec[Req any, PReq interface {
 	*Req
 	NativeMessage
 }, Resp codec.ProtoMarshaler](
-	cdc codec.Codec,
-	stateDB ExtStateDB,
-	caller common.Address,
-	contract common.Address,
-	input []byte,
+	e *Executor,
 	action func(context.Context, PReq) (Resp, error),
-	converter statedb.EventConverter,
 ) ([]byte, error) {
 	msg := PReq(new(Req))
-	if err := cdc.Unmarshal(input, msg); err != nil {
+	if err := e.cdc.Unmarshal(e.input, msg); err != nil {
 		return nil, fmt.Errorf("fail to Unmarshal %T %w", msg, err)
 	}
 
@@ -38,12 +42,12 @@ func exec[Req any, PReq interface {
 	if len(signers) != 1 {
 		return nil, errors.New("don't support multi-signers message")
 	}
-	if common.BytesToAddress(signers[0].Bytes()) != caller {
+	if common.BytesToAddress(signers[0].Bytes()) != e.caller {
 		return nil, errors.New("caller is not authenticated")
 	}
 
 	var res Resp
-	if err := stateDB.ExecuteNativeAction(contract, converter, func(ctx sdk.Context) error {
+	if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
 		var err error
 		res, err = action(ctx, msg)
 		return err
@@ -51,5 +55,5 @@ func exec[Req any, PReq interface {
 		return nil, err
 	}
 
-	return cdc.Marshal(res)
+	return e.cdc.Marshal(res)
 }
