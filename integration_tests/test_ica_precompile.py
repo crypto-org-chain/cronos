@@ -9,6 +9,7 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     funds_ica,
+    gen_send_msg,
     get_next_channel,
     prepare_network,
     wait_for_check_channel_ready,
@@ -89,7 +90,7 @@ def submit_msgs(
     func,
     data,
     ica_address,
-    is_multi,
+    add_delegate,
     expected_seq,
     timeout=no_timeout,
     amount=amt,
@@ -99,16 +100,12 @@ def submit_msgs(
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
     to = cli_host.address(validator)
-    # generate msg send to host chain
-    msgs = [
-        {
-            "@type": "/cosmos.bank.v1beta1.MsgSend",
-            "from_address": ica_address,
-            "to_address": to,
-            "amount": [{"denom": denom, "amount": f"{amount}"}],
-        }
-    ]
-    if is_multi:
+    # generate msgs send to host chain
+    m = gen_send_msg(ica_address, to, denom, amount)
+    msgs = []
+    for i in range(2):
+        msgs.append(m)
+    if add_delegate:
         to = cli_host.address(validator, bech="val")
         # generate msg delegate to host chain
         msgs.append(
@@ -287,7 +284,7 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.FAIL
 
-    # balance and seq should not change on timeout
+    # balance should not change on timeout
     expected_seq = 4
     timeout = 300000
     str = submit_msgs(

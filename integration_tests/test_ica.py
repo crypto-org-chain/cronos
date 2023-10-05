@@ -3,10 +3,12 @@ import os
 import signal
 
 import pytest
+from pystarport import cluster
 
 from .ibc_utils import (
     assert_channel_open_init,
     funds_ica,
+    gen_send_msg,
     prepare_network,
     wait_for_check_channel_ready,
     wait_for_check_tx,
@@ -26,6 +28,7 @@ def ibc(request, tmp_path_factory):
             name,
             incentivized=False,
             connection_only=True,
+            relayer=cluster.Relayer.RLY.value,
             on_process_open=lambda proc: procs.append(proc),
         ):
             yield network
@@ -56,18 +59,33 @@ def test_ica(ibc, tmp_path):
     )["interchain_account_address"]
     print("ica address", ica_address)
 
-    funds_ica(cli_host, ica_address)
+    balance = funds_ica(cli_host, ica_address)
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
 
     # generate a transaction to send to host chain
     generated_tx = tmp_path / "generated_tx.txt"
-    generated_tx_msg = cli_host.transfer(
-        ica_address, cli_host.address("signer2"), "0.5cro", generate_only=True
-    )
-
-    print(generated_tx_msg)
+    to = cli_host.address("signer2")
+    amount = 1000
+    denom = "basecro"
+    # generate msgs send to host chain
+    m = gen_send_msg(ica_address, to, denom, amount)
+    msgs = []
+    for i in range(2):
+        msgs.append(m)
+        balance -= amount
+    fee = {"denom": "basetcro", "amount": "20000000000000000"}
+    generated_tx_msg = {
+        "body": {
+            "messages": msgs,
+        },
+        "auth_info": {
+            "fee": {
+                "amount": [fee],
+                "gas_limit": "200000",
+            },
+        },
+    }
     generated_tx.write_text(json.dumps(generated_tx_msg))
-
     # submit transaction on host chain on behalf of interchain account
     rsp = cli_controller.icaauth_submit_tx(
         connid,
@@ -84,4 +102,4 @@ def test_ica(ibc, tmp_path):
     print("packet sequence", packet_seq)
     wait_for_check_tx(cli_host, ica_address, num_txs)
     # check if the funds are reduced in interchain account
-    assert cli_host.balance(ica_address, denom="basecro") == 50000000
+    assert cli_host.balance(ica_address, denom=denom) == balance

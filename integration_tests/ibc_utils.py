@@ -632,3 +632,12 @@ def assert_channel_open_init(rsp):
     )
     print("port-id", port_id, "channel-id", channel_id)
     return port_id, channel_id
+
+
+def gen_send_msg(sender, receiver, denom, amount):
+    return {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": sender,
+        "to_address": receiver,
+        "amount": [{"denom": denom, "amount": f"{amount}"}],
+    }
