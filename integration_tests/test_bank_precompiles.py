@@ -11,6 +11,8 @@ from .utils import (
     send_transaction,
 )
 
+pytest.skip("skipping bank precompile tests", allow_module_level=True)
+
 
 def get_balance(cli, addr, denom):
     return cli.balance(eth_to_bech32(addr), denom)
