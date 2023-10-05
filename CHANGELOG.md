@@ -28,6 +28,7 @@
 - [cronos#1186](https://github.com/crypto-org-chain/cronos/pull/1186) Enlarge the max block gas limit in new version.
 - [cronos#1187](https://github.com/crypto-org-chain/cronos/pull/1187) Disable gravity module in app.
 - [cronos#1185](https://github.com/crypto-org-chain/cronos/pull/1185) Support ibc callback.
+- [cronos#](https://github.com/crypto-org-chain/cronos/pull/) Skip register stateful precompiled contract for bank.
 
 ### Bug Fixes
 
