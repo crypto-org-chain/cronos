@@ -560,7 +560,7 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
 
 
 def wait_for_check_channel_ready(cli, connid, channel_id):
-    print("wait for channel ready")
+    print("wait for channel ready", channel_id)
 
     def check_channel_ready():
         channels = cli.ibc_query_channels(connid)["channels"]
@@ -575,6 +575,16 @@ def wait_for_check_channel_ready(cli, connid, channel_id):
         return state == "STATE_OPEN"
 
     wait_for_fn("channel ready", check_channel_ready)
+
+
+def get_next_channel(cli, connid):
+    prefix = "channel-"
+    channels = cli.ibc_query_channels(connid)["channels"]
+    c = 0
+    if len(channels) > 0:
+        c = max(channel["channel_id"] for channel in channels)
+        c = int(c.removeprefix(prefix)) + 1
+    return f"{prefix}{c}"
 
 
 def wait_for_check_tx(cli, adr, num_txs, timeout=None):
