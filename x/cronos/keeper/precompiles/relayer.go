@@ -44,7 +44,7 @@ func init() {
 	if err := irelayerABI.UnmarshalJSON([]byte(relayer.RelayerFunctionsMetaData.ABI)); err != nil {
 		panic(err)
 	}
-	for methodName := range irelayerABI.Methods {
+	for methodName, _ := range irelayerABI.Methods {
 		var methodID [4]byte
 		copy(methodID[:], irelayerABI.Methods[methodName].ID[:4])
 		switch methodName {
