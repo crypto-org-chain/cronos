@@ -38,7 +38,6 @@ denom = "basecro"
 keys = KEYS["signer2"]
 validator = "validator"
 amt = 1000
-amt1 = 100
 
 
 class Status(IntEnum):
@@ -103,11 +102,14 @@ def submit_msgs(
     # generate msgs send to host chain
     m = gen_send_msg(ica_address, to, denom, amount)
     msgs = []
+    diff_amt = 0
     for i in range(2):
         msgs.append(m)
+        diff_amt += amount
     if add_delegate:
         to = cli_host.address(validator, bech="val")
         # generate msg delegate to host chain
+        amt1 = 100
         msgs.append(
             {
                 "@type": "/cosmos.staking.v1beta1.MsgDelegate",
@@ -116,6 +118,7 @@ def submit_msgs(
                 "amount": {"denom": denom, "amount": f"{amt1}"},
             }
         )
+        diff_amt += amt1
     generated_packet = cli_controller.ica_generate_packet_data(json.dumps(msgs))
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     start = w3.eth.get_block_number()
@@ -137,7 +140,7 @@ def submit_msgs(
             assert args == AttributeDict(expected[i]), [i, method_name]
         if need_wait:
             wait_for_check_tx(cli_host, ica_address, num_txs)
-    return str
+    return str, diff_amt
 
 
 def test_call(ibc):
@@ -158,12 +161,27 @@ def test_call(ibc):
         get_next_channel(cli_controller, connid),
     )
     balance = funds_ica(cli_host, ica_address)
-    submit_msgs(ibc, contract.functions.submitMsgs, data, ica_address, False, 1)
-    balance -= amt
+    expected_seq = 1
+    _, diff = submit_msgs(
+        ibc,
+        contract.functions.submitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+    )
+    balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
-    submit_msgs(ibc, contract.functions.submitMsgs, data, ica_address, True, 2)
-    balance -= amt
-    balance -= amt1
+    expected_seq += 1
+    _, diff = submit_msgs(
+        ibc,
+        contract.functions.submitMsgs,
+        data,
+        ica_address,
+        True,
+        expected_seq,
+    )
+    balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
 
@@ -229,7 +247,7 @@ def test_sc_call(ibc):
         assert send_transaction(w3, tx, keys).status == 0
 
     expected_seq = 1
-    str = submit_msgs(
+    str, diff = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
@@ -239,16 +257,16 @@ def test_sc_call(ibc):
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
-    balance -= amt
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
-    expected_seq = 2
-    str = submit_msgs(
+    expected_seq += 1
+    str, diff = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
@@ -258,17 +276,17 @@ def test_sc_call(ibc):
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
-    balance -= amt
-    balance -= amt1
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    balance -= diff
+    assert cli_host.balance(ica_address, denom=denom) == balance
 
-    expected_seq = 3
+    expected_seq += 1
     # balance should not change on fail
-    str = submit_msgs(
+    submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
@@ -283,11 +301,12 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
-    expected_seq = 4
+    expected_seq += 1
     timeout = 300000
-    str = submit_msgs(
+    submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
         data,
@@ -301,3 +320,4 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    assert cli_host.balance(ica_address, denom=denom) == balance
