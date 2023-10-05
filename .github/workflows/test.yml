@@ -58,10 +58,12 @@ jobs:
           path: debug_files.tar.gz
           if-no-files-found: ignore
       - name: Convert coverage data
+        if: steps.changed-files.outputs.only_changed == 'false'
         run: |
           nix profile install ./nix#go_1_20
           go tool covdata textfmt -i=integration_tests/coverage -o profile.txt
       - name: Upload coverage report
+        if: steps.changed-files.outputs.only_changed == 'false'
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
