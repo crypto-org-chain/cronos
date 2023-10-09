@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+*October 9, 2023*
+
+## v1.1.0
 
 ### State Machine Breaking
 
