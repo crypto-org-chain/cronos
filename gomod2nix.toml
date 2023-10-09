@@ -118,9 +118,9 @@ schema = 3
     version = "v0.7.9"
     hash = "sha256-ZWIXIXcHGjeCNgMrpXymry8/8esDDauGFfF/+gEoO1Y="
   [mod."github.com/cometbft/cometbft-db"]
-    version = "v0.7.1-0.20231009013259-284130a5e32e"
+    version = "v0.0.0-20231009014949-be8213ea61a4"
     hash = "sha256-v8WT3m2PbEyiMCWcqASYFBd900MYyZ88wvGvHDRn9VU="
-    replaced = "github.com/yihuang/cometbft-db"
+    replaced = "github.com/crypto-org-chain/cometbft-db"
   [mod."github.com/confio/ics23/go"]
     version = "v0.9.0"
     hash = "sha256-guD8w7YygfUp7lpTAUyXQuCPx8F3lXkcg+yR5+JOCbk="
