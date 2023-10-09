@@ -1,6 +1,6 @@
 # Changelog
 
-*October 5, 2023*
+*October 9, 2023*
 
 ## v1.1.0
 
