@@ -1458,8 +1458,8 @@ tomlkit = "^0.7.0"
 [package.source]
 type = "git"
 url = "https://github.com/crypto-com/pystarport.git"
-reference = "5d3672c6fcacbdbb9f806b7fdae36cde0e85127d"
-resolved_reference = "5d3672c6fcacbdbb9f806b7fdae36cde0e85127d"
+reference = "326bb3e8c4523458463496a524defad0fb7a655e"
+resolved_reference = "326bb3e8c4523458463496a524defad0fb7a655e"
 
 [[package]]
 name = "pytest"
@@ -2053,4 +2053,4 @@ testing = ["func-timeout", "jaraco.itertools", "pytest (>=6)", "pytest-black (>=
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "2e54f5e9a0335e3a094fb4418fdff4bad0fb5fb2927a2684fa0e0bc9f30ed562"
+content-hash = "97a734f440b40396ee61496f50c3c1c03e513c9b1d187b1d669048c3300cdff7"
