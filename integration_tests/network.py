@@ -14,9 +14,7 @@ from .utils import supervisorctl, wait_for_port
 
 
 class Cronos:
-    proc: subprocess.Popen[bytes] | None
-
-    def __init__(self, base_dir, chain_binary="cronosd", proc=None):
+    def __init__(self, base_dir, chain_binary="cronosd"):
         self._w3 = None
         self.base_dir = base_dir
         self.config = json.loads((base_dir / "config.json").read_text())
@@ -25,7 +23,6 @@ class Cronos:
         )["app_state"]["cronos"]["params"]["enable_auto_deployment"]
         self._use_websockets = False
         self.chain_binary = chain_binary
-        self.proc = proc
 
     def copy(self):
         return Cronos(self.base_dir)
@@ -187,11 +184,7 @@ def setup_custom_cronos(
         if wait_port:
             wait_for_port(ports.evmrpc_port(base_port))
             wait_for_port(ports.evmrpc_ws_port(base_port))
-        yield Cronos(
-            path / "cronos_777-1",
-            chain_binary=chain_binary or "cronosd",
-            proc=proc,
-        )
+        yield Cronos(path / "cronos_777-1", chain_binary=chain_binary or "cronosd")
     finally:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         # proc.terminate()

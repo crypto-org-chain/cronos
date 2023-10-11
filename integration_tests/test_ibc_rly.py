@@ -1,6 +1,4 @@
 import json
-import os
-import signal
 import subprocess
 
 import pytest
@@ -46,23 +44,12 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
-    procs = []
-
-    try:
-        for network in prepare_network(
-            path,
-            name,
-            relayer=cluster.Relayer.RLY.value,
-            on_process_open=lambda proc: procs.append(proc),
-        ):
-            yield network
-    finally:
-        for proc in procs:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            proc.wait()
+    network = prepare_network(
+        path,
+        name,
+        relayer=cluster.Relayer.RLY.value,
+    )
+    yield from network
 
 
 def rly_transfer(ibc):

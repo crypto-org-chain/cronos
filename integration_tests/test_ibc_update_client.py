@@ -1,6 +1,4 @@
 import json
-import os
-import signal
 import subprocess
 
 import pytest
@@ -14,23 +12,8 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    procs = []
-
-    try:
-        for network in prepare_network(
-            path,
-            name,
-            is_relay=False,
-            on_process_open=lambda proc: procs.append(proc),
-        ):
-            yield network
-    finally:
-        for proc in procs:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            proc.wait()
+    network = prepare_network(path, name, is_relay=False)
+    yield from network
 
 
 def test_ibc_update_client(ibc, tmp_path):
