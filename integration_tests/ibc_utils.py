@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from typing import NamedTuple
 
@@ -129,66 +130,65 @@ def prepare_network(
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
     file = f"configs/{file}.jsonnet"
-    gen = setup_custom_cronos(
+    with contextmanager(setup_custom_cronos)(
         tmp_path,
         26700,
         Path(__file__).parent / file,
         relayer=relayer,
-    )
-    cronos = next(gen)
-    chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
-    # wait for grpc ready
-    wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
-    wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
+    ) as cronos:
+        chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
+        # wait for grpc ready
+        wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
+        wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
 
-    version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-    path = cronos.base_dir.parent / "relayer"
-    if is_hermes:
-        hermes = Hermes(path.with_suffix(".toml"))
-        call_hermes_cmd(
-            hermes,
-            connection_only,
-            incentivized,
-            version,
-        )
-    else:
-        call_rly_cmd(path, version)
-
-    proc = None
-    if incentivized:
-        # register fee payee
-        src_chain = cronos.cosmos_cli()
-        dst_chain = chainmain.cosmos_cli()
-        rsp = dst_chain.register_counterparty_payee(
-            "transfer",
-            "channel-0",
-            dst_chain.address("relayer"),
-            src_chain.address("signer1"),
-            from_="relayer",
-            fees="100000000basecro",
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-
-    port = None
-    if is_relay:
+        version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+        path = cronos.base_dir.parent / "relayer"
         if is_hermes:
-            cronos.supervisorctl("start", "relayer-demo")
-            port = hermes.port
-        else:
-            proc = subprocess.Popen(
-                [
-                    "rly",
-                    "start",
-                    "chainmain-cronos",
-                    "--home",
-                    str(path),
-                ],
-                preexec_fn=os.setsid,
+            hermes = Hermes(path.with_suffix(".toml"))
+            call_hermes_cmd(
+                hermes,
+                connection_only,
+                incentivized,
+                version,
             )
-            port = 5183
-    yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
-    if port:
-        wait_for_port(port)
+        else:
+            call_rly_cmd(path, version)
+
+        proc = None
+        if incentivized:
+            # register fee payee
+            src_chain = cronos.cosmos_cli()
+            dst_chain = chainmain.cosmos_cli()
+            rsp = dst_chain.register_counterparty_payee(
+                "transfer",
+                "channel-0",
+                dst_chain.address("relayer"),
+                src_chain.address("signer1"),
+                from_="relayer",
+                fees="100000000basecro",
+            )
+            assert rsp["code"] == 0, rsp["raw_log"]
+
+        port = None
+        if is_relay:
+            if is_hermes:
+                cronos.supervisorctl("start", "relayer-demo")
+                port = hermes.port
+            else:
+                proc = subprocess.Popen(
+                    [
+                        "rly",
+                        "start",
+                        "chainmain-cronos",
+                        "--home",
+                        str(path),
+                    ],
+                    preexec_fn=os.setsid,
+                )
+                port = 5183
+        yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
+        if port:
+            wait_for_port(port)
 
 
 def assert_ready(ibc):
