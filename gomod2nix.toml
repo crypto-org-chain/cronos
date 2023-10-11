@@ -118,8 +118,8 @@ schema = 3
     version = "v0.7.9"
     hash = "sha256-ZWIXIXcHGjeCNgMrpXymry8/8esDDauGFfF/+gEoO1Y="
   [mod."github.com/cometbft/cometbft-db"]
-    version = "v0.0.0-20231009014949-be8213ea61a4"
-    hash = "sha256-v8WT3m2PbEyiMCWcqASYFBd900MYyZ88wvGvHDRn9VU="
+    version = "v0.0.0-20231011055109-57922ac52a63"
+    hash = "sha256-iLs/FN1be3AcoyhKj2+b5Msqeat9j2ja4acyOs+w+Uk="
     replaced = "github.com/crypto-org-chain/cometbft-db"
   [mod."github.com/confio/ics23/go"]
     version = "v0.9.0"
