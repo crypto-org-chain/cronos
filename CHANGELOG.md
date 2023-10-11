@@ -1,13 +1,15 @@
 # Changelog
 
-## [Unreleased]
+## UNRELEASED
 
 ### Bug Fixes
-* [#1206](https://github.com/crypto-org-chain/cronos/pull/1206) Add missing keypair of SendEnabled to restore legacy param set before migration.
+
+- [#1206](https://github.com/crypto-org-chain/cronos/pull/1206) Add missing keypair of SendEnabled to restore legacy param set before migration.
+- [#1197](https://github.com/crypto-org-chain/cronos/pull/1197) tune rocksdb options to control memory consumption.
 
 *October 9, 2023*
 
-## v1.1.0
+## v1.1.0-rc0
 
 ### State Machine Breaking
 
