@@ -44,12 +44,11 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(
+    yield from prepare_network(
         path,
         name,
         relayer=cluster.Relayer.RLY.value,
     )
-    yield from network
 
 
 def rly_transfer(ibc):
