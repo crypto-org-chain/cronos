@@ -161,7 +161,7 @@ def prepare_network(
                 version,
             )
         else:
-            call_rly_cmd(path, version)
+            call_rly_cmd(path, connection_only, version)
 
         if incentivized:
             # register fee payee
