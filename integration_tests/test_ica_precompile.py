@@ -47,8 +47,7 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    network = prepare_network(path, name, incentivized=False, connection_only=True)
-    yield from network
+    yield from prepare_network(path, name, incentivized=False, connection_only=True)
 
 
 def register_acc(cli, w3, register, query, data, addr, channel_id):
