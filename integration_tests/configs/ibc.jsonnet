@@ -4,7 +4,6 @@ config {
   'cronos_777-1'+: {
     'account-prefix': 'crc',
     'coin-type': 60,
-    'precompiled-contract-address': '0x0000000000000000000000000000000000000065',
     key_name: 'signer1',
     accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
       coins: super.coins + ',100000000000ibcfee',

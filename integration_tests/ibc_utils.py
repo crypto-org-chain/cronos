@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from typing import NamedTuple
 
@@ -30,7 +31,6 @@ class IBCNetwork(NamedTuple):
     chainmain: Chainmain
     hermes: Hermes | None
     incentivized: bool
-    proc: subprocess.Popen[bytes] | None
 
 
 def call_hermes_cmd(
@@ -83,7 +83,7 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, version):
+def call_rly_cmd(path, connection_only, version):
     cmd = [
         "rly",
         "pth",
@@ -95,22 +95,32 @@ def call_rly_cmd(path, version):
         str(path),
     ]
     subprocess.check_call(cmd)
-    cmd = [
-        "rly",
-        "tx",
-        "connect",
-        "chainmain-cronos",
-        "--src-port",
-        "transfer",
-        "--dst-port",
-        "transfer",
-        "--order",
-        "unordered",
-        "--version",
-        json.dumps(version),
-        "--home",
-        str(path),
-    ]
+    if connection_only:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--home",
+            str(path),
+        ]
+    else:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--src-port",
+            "transfer",
+            "--dst-port",
+            "transfer",
+            "--order",
+            "unordered",
+            "--version",
+            json.dumps(version),
+            "--home",
+            str(path),
+        ]
     subprocess.check_call(cmd)
 
 
@@ -129,66 +139,64 @@ def prepare_network(
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
     file = f"configs/{file}.jsonnet"
-    gen = setup_custom_cronos(
+    with contextmanager(setup_custom_cronos)(
         tmp_path,
         26700,
         Path(__file__).parent / file,
         relayer=relayer,
-    )
-    cronos = next(gen)
-    chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
-    # wait for grpc ready
-    wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
-    wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
+    ) as cronos:
+        chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
+        # wait for grpc ready
+        wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
+        wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
 
-    version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-    path = cronos.base_dir.parent / "relayer"
-    if is_hermes:
-        hermes = Hermes(path.with_suffix(".toml"))
-        call_hermes_cmd(
-            hermes,
-            connection_only,
-            incentivized,
-            version,
-        )
-    else:
-        call_rly_cmd(path, version)
-
-    proc = None
-    if incentivized:
-        # register fee payee
-        src_chain = cronos.cosmos_cli()
-        dst_chain = chainmain.cosmos_cli()
-        rsp = dst_chain.register_counterparty_payee(
-            "transfer",
-            "channel-0",
-            dst_chain.address("relayer"),
-            src_chain.address("signer1"),
-            from_="relayer",
-            fees="100000000basecro",
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-
-    port = None
-    if is_relay:
+        version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+        path = cronos.base_dir.parent / "relayer"
         if is_hermes:
-            cronos.supervisorctl("start", "relayer-demo")
-            port = hermes.port
-        else:
-            proc = subprocess.Popen(
-                [
-                    "rly",
-                    "start",
-                    "chainmain-cronos",
-                    "--home",
-                    str(path),
-                ],
-                preexec_fn=os.setsid,
+            hermes = Hermes(path.with_suffix(".toml"))
+            call_hermes_cmd(
+                hermes,
+                connection_only,
+                incentivized,
+                version,
             )
-            port = 5183
-    yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
-    if port:
-        wait_for_port(port)
+        else:
+            call_rly_cmd(path, connection_only, version)
+
+        if incentivized:
+            # register fee payee
+            src_chain = cronos.cosmos_cli()
+            dst_chain = chainmain.cosmos_cli()
+            rsp = dst_chain.register_counterparty_payee(
+                "transfer",
+                "channel-0",
+                dst_chain.address("relayer"),
+                src_chain.address("signer1"),
+                from_="relayer",
+                fees="100000000basecro",
+            )
+            assert rsp["code"] == 0, rsp["raw_log"]
+
+        port = None
+        if is_relay:
+            if is_hermes:
+                cronos.supervisorctl("start", "relayer-demo")
+                port = hermes.port
+            else:
+                subprocess.Popen(
+                    [
+                        "rly",
+                        "start",
+                        "chainmain-cronos",
+                        "--home",
+                        str(path),
+                    ],
+                    preexec_fn=os.setsid,
+                )
+                port = 5183
+        yield IBCNetwork(cronos, chainmain, hermes, incentivized)
+        if port:
+            wait_for_port(port)
 
 
 def assert_ready(ibc):
@@ -561,7 +569,7 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
 
 
 def wait_for_check_channel_ready(cli, connid, channel_id):
-    print("wait for channel ready")
+    print("wait for channel ready", channel_id)
 
     def check_channel_ready():
         channels = cli.ibc_query_channels(connid)["channels"]
@@ -576,6 +584,16 @@ def wait_for_check_channel_ready(cli, connid, channel_id):
         return state == "STATE_OPEN"
 
     wait_for_fn("channel ready", check_channel_ready)
+
+
+def get_next_channel(cli, connid):
+    prefix = "channel-"
+    channels = cli.ibc_query_channels(connid)["channels"]
+    c = 0
+    if len(channels) > 0:
+        c = max(channel["channel_id"] for channel in channels)
+        c = int(c.removeprefix(prefix)) + 1
+    return f"{prefix}{c}"
 
 
 def wait_for_check_tx(cli, adr, num_txs, timeout=None):
@@ -623,3 +641,12 @@ def assert_channel_open_init(rsp):
     )
     print("port-id", port_id, "channel-id", channel_id)
     return port_id, channel_id
+
+
+def gen_send_msg(sender, receiver, denom, amount):
+    return {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": sender,
+        "to_address": receiver,
+        "amount": [{"denom": denom, "amount": f"{amount}"}],
+    }
