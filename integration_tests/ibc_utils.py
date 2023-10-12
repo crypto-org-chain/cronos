@@ -31,7 +31,6 @@ class IBCNetwork(NamedTuple):
     chainmain: Chainmain
     hermes: Hermes | None
     incentivized: bool
-    proc: subprocess.Popen[bytes] | None
 
 
 def call_hermes_cmd(
@@ -84,7 +83,7 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, version):
+def call_rly_cmd(path, connection_only, version):
     cmd = [
         "rly",
         "pth",
@@ -96,22 +95,32 @@ def call_rly_cmd(path, version):
         str(path),
     ]
     subprocess.check_call(cmd)
-    cmd = [
-        "rly",
-        "tx",
-        "connect",
-        "chainmain-cronos",
-        "--src-port",
-        "transfer",
-        "--dst-port",
-        "transfer",
-        "--order",
-        "unordered",
-        "--version",
-        json.dumps(version),
-        "--home",
-        str(path),
-    ]
+    if connection_only:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--home",
+            str(path),
+        ]
+    else:
+        cmd = [
+            "rly",
+            "tx",
+            "connect",
+            "chainmain-cronos",
+            "--src-port",
+            "transfer",
+            "--dst-port",
+            "transfer",
+            "--order",
+            "unordered",
+            "--version",
+            json.dumps(version),
+            "--home",
+            str(path),
+        ]
     subprocess.check_call(cmd)
 
 
@@ -152,9 +161,8 @@ def prepare_network(
                 version,
             )
         else:
-            call_rly_cmd(path, version)
+            call_rly_cmd(path, connection_only, version)
 
-        proc = None
         if incentivized:
             # register fee payee
             src_chain = cronos.cosmos_cli()
@@ -175,7 +183,7 @@ def prepare_network(
                 cronos.supervisorctl("start", "relayer-demo")
                 port = hermes.port
             else:
-                proc = subprocess.Popen(
+                subprocess.Popen(
                     [
                         "rly",
                         "start",
@@ -186,7 +194,7 @@ def prepare_network(
                     preexec_fn=os.setsid,
                 )
                 port = 5183
-        yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
+        yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
 
@@ -561,7 +569,7 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
 
 
 def wait_for_check_channel_ready(cli, connid, channel_id):
-    print("wait for channel ready")
+    print("wait for channel ready", channel_id)
 
     def check_channel_ready():
         channels = cli.ibc_query_channels(connid)["channels"]
@@ -576,6 +584,16 @@ def wait_for_check_channel_ready(cli, connid, channel_id):
         return state == "STATE_OPEN"
 
     wait_for_fn("channel ready", check_channel_ready)
+
+
+def get_next_channel(cli, connid):
+    prefix = "channel-"
+    channels = cli.ibc_query_channels(connid)["channels"]
+    c = 0
+    if len(channels) > 0:
+        c = max(channel["channel_id"] for channel in channels)
+        c = int(c.removeprefix(prefix)) + 1
+    return f"{prefix}{c}"
 
 
 def wait_for_check_tx(cli, adr, num_txs, timeout=None):
@@ -623,3 +641,12 @@ def assert_channel_open_init(rsp):
     )
     print("port-id", port_id, "channel-id", channel_id)
     return port_id, channel_id
+
+
+def gen_send_msg(sender, receiver, denom, amount):
+    return {
+        "@type": "/cosmos.bank.v1beta1.MsgSend",
+        "from_address": sender,
+        "to_address": receiver,
+        "amount": [{"denom": denom, "amount": f"{amount}"}],
+    }
