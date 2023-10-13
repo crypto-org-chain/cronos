@@ -26,20 +26,6 @@ config {
             ],
           },
         },
-        bank+: {
-          params: {
-            send_enabled: [
-              {
-                denom: 'stake',
-                enabled: true,
-              },
-              {
-                denom: 'basetcro',
-                enabled: false,
-              },
-            ],
-          },
-        },
         feemarket+: {
           params+: {
             no_base_fee: false,
