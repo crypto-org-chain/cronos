@@ -425,7 +425,8 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			suite.app.CronosKeeper = cronosKeeper
 
 			tc.malleate()
-			err := suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, &tc.msg)
+			msg := tc.msg
+			err := suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, &msg)
 			if tc.error {
 				suite.Require().Error(err)
 			} else {
