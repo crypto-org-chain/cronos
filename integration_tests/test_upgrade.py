@@ -14,6 +14,8 @@ from .utils import (
     approve_proposal,
     deploy_contract,
     edit_ini_sections,
+    get_consensus_params,
+    get_send_enable,
     send_transaction,
     wait_for_block,
     wait_for_new_blocks,
@@ -85,7 +87,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
     ]
-    p = cli.send_enable(port)
+    p = get_send_enable(port)
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
     # export genesis from cronos v0.8.x
@@ -168,7 +170,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     # check consensus params
     port = ports.rpc_port(custom_cronos.base_port(0))
-    res = cli.consensus_params(port, w3.eth.get_block_number())
+    res = get_consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
 
     # check bank send enable
