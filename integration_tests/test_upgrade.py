@@ -80,6 +80,14 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     - it should work transparently
     """
     cli = custom_cronos.cosmos_cli()
+    port = ports.api_port(custom_cronos.base_port(0))
+    send_enable = [
+        {"denom": "basetcro", "enabled": False},
+        {"denom": "stake", "enabled": True},
+    ]
+    p = cli.send_enable(port)
+    assert sorted(p, key=lambda x: x["denom"]) == send_enable
+
     # export genesis from cronos v0.8.x
     custom_cronos.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
@@ -162,6 +170,34 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     port = ports.rpc_port(custom_cronos.base_port(0))
     res = cli.consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
+
+    # check bank send enable
+    p = cli.query_bank_send()
+    assert len(p) == 0, "should be empty due to the bug"
+
+    proposal = migrate / "proposal.json"
+    # governance module account as signer
+    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    proposal_src = {
+        "messages": [
+            {
+                "@type": "/cosmos.bank.v1beta1.MsgSetSendEnabled",
+                "authority": signer,
+                "sendEnabled": send_enable,
+            }
+        ],
+        "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cli.submit_gov_proposal(proposal, from_="community")
+
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal(custom_cronos, rsp)
+    print("check params have been updated now")
+    p = cli.query_bank_send()
+    assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
