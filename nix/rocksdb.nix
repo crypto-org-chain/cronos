@@ -1,7 +1,6 @@
 { lib
 , stdenv
 , fetchFromGitHub
-, fetchzip
 , fetchpatch
 , cmake
 , ninja
