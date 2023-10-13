@@ -18,6 +18,7 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    approve_proposal,
     build_batch_tx,
     contract_address,
     contract_path,
@@ -852,3 +853,36 @@ def test_replay_protection(cronos):
 
 def test_submit_any_proposal(cronos, tmp_path):
     submit_any_proposal(cronos, tmp_path)
+
+
+def test_submit_send_enabled(cronos, tmp_path):
+    # check bank send enable
+    cli = cronos.cosmos_cli()
+    p = cli.query_bank_send()
+    assert len(p) == 0, "should be empty"
+    proposal = tmp_path / "proposal.json"
+    # governance module account as signer
+    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
+    send_enable = [
+        {"denom": "basetcro", "enabled": False},
+        {"denom": "stake", "enabled": True},
+    ]
+    proposal_src = {
+        "messages": [
+            {
+                "@type": "/cosmos.bank.v1beta1.MsgSetSendEnabled",
+                "authority": signer,
+                "sendEnabled": send_enable,
+            }
+        ],
+        "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cli.submit_gov_proposal(proposal, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal(cronos, rsp)
+    print("check params have been updated now")
+    p = cli.query_bank_send()
+    assert sorted(p, key=lambda x: x["denom"]) == send_enable
