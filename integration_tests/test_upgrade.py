@@ -14,6 +14,7 @@ from .utils import (
     approve_proposal,
     deploy_contract,
     edit_ini_sections,
+    get_consensus_params,
     send_transaction,
     wait_for_block,
     wait_for_new_blocks,
@@ -160,7 +161,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     # check consensus params
     port = ports.rpc_port(custom_cronos.base_port(0))
-    res = cli.consensus_params(port, w3.eth.get_block_number())
+    res = get_consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
 
     rsp = cli.query_params("icaauth")

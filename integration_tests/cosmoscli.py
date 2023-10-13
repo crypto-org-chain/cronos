@@ -9,7 +9,6 @@ import tempfile
 from collections import namedtuple
 
 import bech32
-import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
@@ -1748,6 +1747,6 @@ class CosmosCLI:
             )
         )
 
-    def consensus_params(self, port, height):
-        url = f"http://127.0.0.1:{port}/consensus_params?height={height}"
-        return requests.get(url).json()["result"]["consensus_params"]
+    def query_bank_send(self):
+        res = json.loads(self.raw("q", "bank", "send-enabled", home=self.data_dir))
+        return res["send_enabled"]
