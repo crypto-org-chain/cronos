@@ -482,8 +482,6 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32 h1:VqP0YWKZ6bPHkVHu47EvlrqjYzQiQ0MyRE7NY/fJpU4=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32/go.mod h1:V32HRAjDsAYLfAT90mk0O9UH+sE7P5apfiCmmmVLt3Q=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690 h1:qDb6BvtxeKsm6o5U4o1oZMhJ9gdXZS8HtO58IXfawd8=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32 h1:A++epzNCr3EY57dnU6UTSDwbCiPD6MjvUKHKSd/PoI8=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32/go.mod h1:wnJQyK4n0vShhL+YIAUd7XCzUhgZ9fgG6yJ14n7qefo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
@@ -1140,6 +1138,8 @@ github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RR
 github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjUEN1uBnDo34A=
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
+github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20231013004053-773bde0a3a9f h1:92Hpsi9Vxl6lgymPHrP8O0swXc6O5PlJfjc47rLM4wI=
+github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20231013004053-773bde0a3a9f/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
 github.com/moby/sys/mountinfo v0.5.0/go.mod h1:3bMD3Rg+zkqx8MRYPi7Pyb0Ie97QEBmdxbhnCLlSvSU=
 github.com/moby/term v0.0.0-20201216013528-df9cb8a40635/go.mod h1:FBS0z0QWA44HXygs7VXDUOGoN/1TV3RuWkLO04am3wc=
 github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6/go.mod h1:E2VnQOmVuvZB6UYnnDB0qG5Nq/1tD9acaOpo6xmt0Kw=

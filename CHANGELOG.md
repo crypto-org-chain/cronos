@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+* [#](https://github.com/crypto-org-chain/cronos/pull/) Add missing keypair of SendEnabled to restore legacy param set before migration.
+
 *October 9, 2023*
 
 ## v1.1.0

@@ -1751,3 +1751,12 @@ class CosmosCLI:
     def consensus_params(self, port, height):
         url = f"http://127.0.0.1:{port}/consensus_params?height={height}"
         return requests.get(url).json()["result"]["consensus_params"]
+    
+    def send_enable(self, port):
+        url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
+        raw = requests.get(url).json()
+        return raw["params"]["send_enabled"]
+
+    def query_bank_send(self):
+        res = json.loads(self.raw("q", "bank", "send-enabled", home=self.data_dir))
+        return res["send_enabled"]
