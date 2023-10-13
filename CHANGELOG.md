@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#]() Update rocksdb to `v8.5.4`.
+
 *Aug 11, 2023*
 
 ## v1.0.12

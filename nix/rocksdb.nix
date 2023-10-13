@@ -1,6 +1,7 @@
 { lib
 , stdenv
 , fetchFromGitHub
+, fetchzip
 , fetchpatch
 , cmake
 , ninja
@@ -21,13 +22,13 @@
 
 stdenv.mkDerivation rec {
   pname = "rocksdb";
-  version = "8.1.1";
+  version = "8.5.4";
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = pname;
     rev = "v${version}";
-    sha256 = "sha256-79hRtc5QSWLLyjRGCmuYZSoIc9IcIsnl8UCinz2sVw4=";
+    sha256 = "sha256-74CsGPdLgonxmXhcryn98sjFW8bb+j0/vzo/4cK5xf8=";
   };
 
   nativeBuildInputs = [ cmake ninja ];
