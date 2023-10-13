@@ -855,7 +855,7 @@ def test_submit_any_proposal(cronos, tmp_path):
     submit_any_proposal(cronos, tmp_path)
 
 
-def test_submit_send_enabeld(cronos, tmp_path):
+def test_submit_send_enabled(cronos, tmp_path):
     # check bank send enable
     cli = cronos.cosmos_cli()
     p = cli.query_bank_send()
