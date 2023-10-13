@@ -73,20 +73,6 @@
             evm_denom: 'basetcro',
           },
         },
-        bank: {
-          params: {
-            send_enabled: [
-              {
-                denom: 'stake',
-                enabled: true,
-              },
-              {
-                denom: 'basetcro',
-                enabled: false,
-              },
-            ],
-          },
-        },
         cronos: {
           params: {
             cronos_admin: '${CRONOS_ADMIN}',
