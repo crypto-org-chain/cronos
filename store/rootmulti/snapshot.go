@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
+	"github.com/cosmos/cosmos-sdk/snapshots/types"
 	protoio "github.com/cosmos/gogoproto/io"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
@@ -39,9 +39,9 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr 
 
 		switch item := item.(type) {
 		case *memiavl.ExportNode:
-			if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
-				Item: &snapshottypes.SnapshotItem_IAVL{
-					IAVL: &snapshottypes.SnapshotIAVLItem{
+			if err := protoWriter.WriteMsg(&types.SnapshotItem{
+				Item: &types.SnapshotItem_IAVL{
+					IAVL: &types.SnapshotIAVLItem{
 						Key:     item.Key,
 						Value:   item.Value,
 						Height:  int32(item.Height),
@@ -52,9 +52,9 @@ func (rs *Store) Snapshot(height uint64, protoWriter protoio.Writer) (returnErr 
 				return err
 			}
 		case string:
-			if err := protoWriter.WriteMsg(&snapshottypes.SnapshotItem{
-				Item: &snapshottypes.SnapshotItem_Store{
-					Store: &snapshottypes.SnapshotStoreItem{
+			if err := protoWriter.WriteMsg(&types.SnapshotItem{
+				Item: &types.SnapshotItem_Store{
+					Store: &types.SnapshotStoreItem{
 						Name: item,
 					},
 				},
