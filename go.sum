@@ -482,8 +482,8 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32 h1:VqP0YWKZ6bPHkVHu47EvlrqjYzQiQ0MyRE7NY/fJpU4=
 github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32/go.mod h1:V32HRAjDsAYLfAT90mk0O9UH+sE7P5apfiCmmmVLt3Q=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690 h1:qDb6BvtxeKsm6o5U4o1oZMhJ9gdXZS8HtO58IXfawd8=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
+github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467 h1:m0/aHPIJAzi2MSP3TXzzbLTFf+koRFQiaYmerRZUtK4=
+github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32 h1:A++epzNCr3EY57dnU6UTSDwbCiPD6MjvUKHKSd/PoI8=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32/go.mod h1:wnJQyK4n0vShhL+YIAUd7XCzUhgZ9fgG6yJ14n7qefo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=

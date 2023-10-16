@@ -15,6 +15,7 @@ from .utils import (
     deploy_contract,
     edit_ini_sections,
     get_consensus_params,
+    get_send_enable,
     send_transaction,
     wait_for_block,
     wait_for_new_blocks,
@@ -81,6 +82,14 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     - it should work transparently
     """
     cli = custom_cronos.cosmos_cli()
+    port = ports.api_port(custom_cronos.base_port(0))
+    send_enable = [
+        {"denom": "basetcro", "enabled": False},
+        {"denom": "stake", "enabled": True},
+    ]
+    p = get_send_enable(port)
+    assert sorted(p, key=lambda x: x["denom"]) == send_enable
+
     # export genesis from cronos v0.8.x
     custom_cronos.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
@@ -163,6 +172,10 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     port = ports.rpc_port(custom_cronos.base_port(0))
     res = get_consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
+
+    # check bank send enable
+    p = cli.query_bank_send()
+    assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
