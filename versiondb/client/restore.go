@@ -13,7 +13,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/snapshots"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
+	"github.com/cosmos/cosmos-sdk/snapshots/types"
 
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
@@ -82,13 +82,13 @@ func RestoreVersionDBCmd() *cobra.Command {
 // readSnapshotEntries reads key-value entries from protobuf reader and feed to the channel
 func readSnapshotEntries(protoReader protoio.Reader, ch chan<- versiondb.ImportEntry) error {
 	var (
-		snapshotItem snapshottypes.SnapshotItem
+		snapshotItem types.SnapshotItem
 		storeKey     string
 	)
 
 loop:
 	for {
-		snapshotItem = snapshottypes.SnapshotItem{}
+		snapshotItem = types.SnapshotItem{}
 		err := protoReader.ReadMsg(&snapshotItem)
 		if err == io.EOF {
 			break
@@ -97,9 +97,9 @@ loop:
 		}
 
 		switch item := snapshotItem.Item.(type) {
-		case *snapshottypes.SnapshotItem_Store:
+		case *types.SnapshotItem_Store:
 			storeKey = item.Store.Name
-		case *snapshottypes.SnapshotItem_IAVL:
+		case *types.SnapshotItem_IAVL:
 			if storeKey == "" {
 				return errors.Wrap(err, "invalid protobuf message, store name is empty")
 			}
