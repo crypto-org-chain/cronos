@@ -722,3 +722,9 @@ def get_logs_since(w3, addr, start):
 def get_consensus_params(port, height):
     url = f"http://127.0.0.1:{port}/consensus_params?height={height}"
     return requests.get(url).json()["result"]["consensus_params"]
+
+
+def get_send_enable(port):
+    url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
+    raw = requests.get(url).json()
+    return raw["params"]["send_enabled"]
