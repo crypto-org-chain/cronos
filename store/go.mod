@@ -126,4 +126,7 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/crypto-org-chain/cronos/memiavl => ../memiavl
+replace (
+	github.com/crypto-org-chain/cronos/memiavl => ../memiavl
+	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.8.0
+)
