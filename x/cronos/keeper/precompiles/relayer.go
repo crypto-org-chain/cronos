@@ -2,19 +2,14 @@ package precompiles
 
 import (
 	"errors"
-	"fmt"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	connectiontypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
@@ -128,7 +123,15 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	input := args[0].([]byte)
 	converter := cronosevents.RelayerConvertEvent
 	e := &Executor{
-		bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, converter,
+		cdc:       bc.cdc,
+		stateDB:   stateDB,
+		caller:    contract.CallerAddress,
+		contract:  precompileAddr,
+		input:     input,
+		converter: converter,
+	}
+	if len(args) > 1 {
+		e.input2 = args[1].([]byte)
 	}
 	switch method.Name {
 	case CreateClient:
@@ -164,89 +167,13 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case TimeoutOnClose:
 		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	case UpdateClientAndConnectionOpenTry:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			var msg1 connectiontypes.MsgConnectionOpenTry
-			if err := e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err = bc.ibcKeeper.ConnectionOpenTry(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ConnectionOpenTry %w", err)
-			}
-			return err
-		}); err != nil {
-			return nil, err
-		}
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenTry)
 	case UpdateClientAndConnectionOpenConfirm:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			var msg1 connectiontypes.MsgConnectionOpenConfirm
-			if err := e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err := bc.ibcKeeper.ConnectionOpenConfirm(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ConnectionOpenConfirm %w", err)
-			}
-			return err
-		}); err != nil {
-			return nil, err
-		}
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenConfirm)
 	case UpdateClientAndChannelOpenTry:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			var msg1 channeltypes.MsgChannelOpenTry
-			if err := e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err := bc.ibcKeeper.ChannelOpenTry(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ChannelOpenTry %w", err)
-			}
-			return err
-		}); err != nil {
-			return nil, err
-		}
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenTry)
 	case UpdateClientAndChannelOpenConfirm:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			var msg1 channeltypes.MsgChannelOpenConfirm
-			if err := e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err := bc.ibcKeeper.ChannelOpenConfirm(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ChannelOpenConfirm %w", err)
-			}
-			return err
-		}); err != nil {
-			return nil, err
-		}
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenConfirm)
 	default:
 		return nil, errors.New("unknown method")
 	}
