@@ -18,4 +18,8 @@ interface IRelayerFunctions {
     function acknowledgement(bytes calldata data) external payable returns (bytes calldata);
     function timeout(bytes calldata data) external payable returns (bytes calldata);
     function timeoutOnClose(bytes calldata data) external payable returns (bytes calldata);
+    function updateClientAndConnectionOpenTry(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndConnectionOpenConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndChannelOpenTry(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndChannelOpenConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
 }
