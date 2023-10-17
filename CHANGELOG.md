@@ -102,6 +102,7 @@
 - [#1179](https://github.com/crypto-org-chain/cronos/pull/1179) Support blocking addresses in mempool.
 - [#1182](https://github.com/crypto-org-chain/cronos/pull/1182) Bump librocksdb to 8.5.3.
 - [#1183](https://github.com/crypto-org-chain/cronos/pull/1183) Avoid redundant logs added from relayer.
+- [#1193](https://github.com/crypto-org-chain/cronos/pull/1193) Make use of binding contract in relayer.
 
 *April 13, 2023*
 

@@ -126,10 +126,10 @@
         "homepage": "https://github.com/mmsqe/relayer",
         "owner": "mmsqe",
         "repo": "relayer",
-        "rev": "723e4785841a5e2e274929d6a8c2bebd8d4d2760",
-        "sha256": "0ghf98vmaz80nr519n559b4snwgz3kvds9b2wvzdj02cyprbrfhv",
+        "rev": "468fc43e0fa97794f6cfd5b5156d8f5093eb59e0",
+        "sha256": "1fnydlpbqbfy7i9k1kf04v4jli8g4hn20xf1ccqyiv91nq6h8zzj",
         "type": "tarball",
-        "url": "https://github.com/mmsqe/relayer/archive/723e4785841a5e2e274929d6a8c2bebd8d4d2760.tar.gz",
+        "url": "https://github.com/mmsqe/relayer/archive/468fc43e0fa97794f6cfd5b5156d8f5093eb59e0.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

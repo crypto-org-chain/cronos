@@ -1,41 +1,63 @@
 package precompiles
 
 import (
-	"encoding/binary"
 	"errors"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 )
 
 var (
+	irelayerABI                abi.ABI
 	relayerContractAddress     = common.BytesToAddress([]byte{101})
-	relayerGasRequiredByMethod = map[int]uint64{}
+	relayerGasRequiredByMethod = map[[4]byte]uint64{}
+)
+
+const (
+	CreateClient          = "createClient"
+	UpdateClient          = "updateClient"
+	UpgradeClient         = "upgradeClient"
+	SubmitMisbehaviour    = "submitMisbehaviour"
+	ConnectionOpenInit    = "connectionOpenInit"
+	ConnectionOpenTry     = "connectionOpenTry"
+	ConnectionOpenAck     = "connectionOpenAck"
+	ConnectionOpenConfirm = "connectionOpenConfirm"
+	ChannelOpenInit       = "channelOpenInit"
+	ChannelOpenTry        = "channelOpenTry"
+	ChannelOpenAck        = "channelOpenAck"
+	ChannelOpenConfirm    = "channelOpenConfirm"
+	RecvPacket            = "recvPacket"
+	Acknowledgement       = "acknowledgement"
+	Timeout               = "timeout"
+	TimeoutOnClose        = "timeoutOnClose"
 )
 
 func init() {
-	relayerGasRequiredByMethod[prefixCreateClient] = 200000
-	relayerGasRequiredByMethod[prefixUpdateClient] = 400000
-	relayerGasRequiredByMethod[prefixUpgradeClient] = 400000
-	relayerGasRequiredByMethod[prefixSubmitMisbehaviour] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenInit] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenTry] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenAck] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenConfirm] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenInit] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenTry] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenAck] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenConfirm] = 100000
-	relayerGasRequiredByMethod[prefixRecvPacket] = 250000
-	relayerGasRequiredByMethod[prefixAcknowledgement] = 250000
-	relayerGasRequiredByMethod[prefixTimeout] = 100000
-	relayerGasRequiredByMethod[prefixTimeoutOnClose] = 100000
+	if err := irelayerABI.UnmarshalJSON([]byte(relayer.RelayerFunctionsMetaData.ABI)); err != nil {
+		panic(err)
+	}
+	for methodName := range irelayerABI.Methods {
+		var methodID [4]byte
+		copy(methodID[:], irelayerABI.Methods[methodName].ID[:4])
+		switch methodName {
+		case CreateClient:
+			relayerGasRequiredByMethod[methodID] = 200000
+		case RecvPacket, Acknowledgement:
+			relayerGasRequiredByMethod[methodID] = 250000
+		case UpdateClient, UpgradeClient:
+			relayerGasRequiredByMethod[methodID] = 400000
+		default:
+			relayerGasRequiredByMethod[methodID] = 100000
+		}
+	}
 }
 
 type RelayerContract struct {
@@ -63,11 +85,9 @@ func (bc *RelayerContract) Address() common.Address {
 func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size
 	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
-	if len(input) < prefixSize4Bytes {
-		return 0
-	}
-	prefix := int(binary.LittleEndian.Uint32(input[:prefixSize4Bytes]))
-	requiredGas, ok := relayerGasRequiredByMethod[prefix]
+	var methodID [4]byte
+	copy(methodID[:], input[:4])
+	requiredGas, ok := relayerGasRequiredByMethod[methodID]
 	if ok {
 		return requiredGas + baseCost
 	}
@@ -78,83 +98,62 @@ func (bc *RelayerContract) IsStateful() bool {
 	return true
 }
 
-// prefix bytes for the relayer msg type
-const (
-	prefixSize4Bytes = 4
-	// Client
-	prefixCreateClient = iota + 1
-	prefixUpdateClient
-	prefixUpgradeClient
-	prefixSubmitMisbehaviour
-	// Connection
-	prefixConnectionOpenInit
-	prefixConnectionOpenTry
-	prefixConnectionOpenAck
-	prefixConnectionOpenConfirm
-	// Channel
-	prefixChannelOpenInit
-	prefixChannelOpenTry
-	prefixChannelOpenAck
-	prefixChannelOpenConfirm
-	prefixChannelCloseInit
-	prefixChannelCloseConfirm
-	prefixRecvPacket
-	prefixAcknowledgement
-	prefixTimeout
-	prefixTimeoutOnClose
-)
-
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("the method is not readonly")
 	}
 	// parse input
-	if len(contract.Input) < int(prefixSize4Bytes) {
-		return nil, errors.New("data too short to contain prefix")
+	methodID := contract.Input[:4]
+	method, err := irelayerABI.MethodById(methodID)
+	if err != nil {
+		return nil, err
 	}
-	prefix := int(binary.LittleEndian.Uint32(contract.Input[:prefixSize4Bytes]))
-	input := contract.Input[prefixSize4Bytes:]
 	stateDB := evm.StateDB.(ExtStateDB)
 
-	var (
-		err error
-		res []byte
-	)
+	var res []byte
 	precompileAddr := bc.Address()
+	args, err := method.Inputs.Unpack(contract.Input[4:])
+	if err != nil {
+		return nil, errors.New("fail to unpack input arguments")
+	}
+	input := args[0].([]byte)
 	converter := cronosevents.RelayerConvertEvent
-	switch prefix {
-	case prefixCreateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.CreateClient, converter)
-	case prefixUpdateClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpdateClient, converter)
-	case prefixUpgradeClient:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.UpgradeClient, converter)
-	case prefixSubmitMisbehaviour:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.SubmitMisbehaviour, converter)
-	case prefixConnectionOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenInit, converter)
-	case prefixConnectionOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenTry, converter)
-	case prefixConnectionOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenAck, converter)
-	case prefixConnectionOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ConnectionOpenConfirm, converter)
-	case prefixChannelOpenInit:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenInit, converter)
-	case prefixChannelOpenTry:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenTry, converter)
-	case prefixChannelOpenAck:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenAck, converter)
-	case prefixChannelOpenConfirm:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenConfirm, converter)
-	case prefixRecvPacket:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.RecvPacket, converter)
-	case prefixAcknowledgement:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Acknowledgement, converter)
-	case prefixTimeout:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.Timeout, converter)
-	case prefixTimeoutOnClose:
-		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.TimeoutOnClose, converter)
+	e := &Executor{
+		bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, converter,
+	}
+	switch method.Name {
+	case CreateClient:
+		res, err = exec(e, bc.ibcKeeper.CreateClient)
+	case UpdateClient:
+		res, err = exec(e, bc.ibcKeeper.UpdateClient)
+	case UpgradeClient:
+		res, err = exec(e, bc.ibcKeeper.UpgradeClient)
+	case SubmitMisbehaviour:
+		res, err = exec(e, bc.ibcKeeper.SubmitMisbehaviour)
+	case ConnectionOpenInit:
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenInit)
+	case ConnectionOpenTry:
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenTry)
+	case ConnectionOpenAck:
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenAck)
+	case ConnectionOpenConfirm:
+		res, err = exec(e, bc.ibcKeeper.ConnectionOpenConfirm)
+	case ChannelOpenInit:
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenInit)
+	case ChannelOpenTry:
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenTry)
+	case ChannelOpenAck:
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenAck)
+	case ChannelOpenConfirm:
+		res, err = exec(e, bc.ibcKeeper.ChannelOpenConfirm)
+	case RecvPacket:
+		res, err = exec(e, bc.ibcKeeper.RecvPacket)
+	case Acknowledgement:
+		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
+	case Timeout:
+		res, err = exec(e, bc.ibcKeeper.Timeout)
+	case TimeoutOnClose:
+		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	default:
 		return nil, errors.New("unknown method")
 	}
