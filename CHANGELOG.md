@@ -1,10 +1,13 @@
 # Changelog
 
-## [Unreleased]
+*October 17, 2023*
+
+## v1.1.0-rc1
 
 ### Bug Fixes
 
 - [#1206](https://github.com/crypto-org-chain/cronos/pull/1206) Add missing keypair of SendEnabled to restore legacy param set before migration.
+- [#1205](https://github.com/crypto-org-chain/cronos/pull/1205) Fix versiondb and memiavl upgrade issues, add integration test.
 
 ### Improvements
 
