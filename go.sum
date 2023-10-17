@@ -480,10 +480,10 @@ github.com/creachadair/tomledit v0.0.22/go.mod h1:cIu/4x5L855oSRejIqr+WRFh+mv9g4
 github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7DoTY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32 h1:VqP0YWKZ6bPHkVHu47EvlrqjYzQiQ0MyRE7NY/fJpU4=
-github.com/crypto-org-chain/cometbft-db v0.0.0-20230921030527-0d47d7537e32/go.mod h1:V32HRAjDsAYLfAT90mk0O9UH+sE7P5apfiCmmmVLt3Q=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690 h1:qDb6BvtxeKsm6o5U4o1oZMhJ9gdXZS8HtO58IXfawd8=
-github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231009083556-8fbcfbe50690/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
+github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63 h1:R1QJ9a3XdYMSKo+1RdFifxb/g3lNypC52L/rpYrWoKo=
+github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63/go.mod h1:rocwIfnS+kA060x64gkSIRvWB9StSppIkJuo5MWzL24=
+github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467 h1:m0/aHPIJAzi2MSP3TXzzbLTFf+koRFQiaYmerRZUtK4=
+github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32 h1:A++epzNCr3EY57dnU6UTSDwbCiPD6MjvUKHKSd/PoI8=
 github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32/go.mod h1:wnJQyK4n0vShhL+YIAUd7XCzUhgZ9fgG6yJ14n7qefo=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
@@ -1057,8 +1057,8 @@ github.com/libp2p/go-buffer-pool v0.1.0 h1:oK4mSFcQz7cTQIfqbe4MIj9gLW+mnanjyFtc6
 github.com/libp2p/go-buffer-pool v0.1.0/go.mod h1:N+vh8gMqimBzdKkSMVuydVDq+UV5QTWy5HSiZacSbPg=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
-github.com/linxGnu/grocksdb v1.8.4 h1:ZMsBpPpJNtRLHiKKp0mI7gW+NT4s7UgfD5xHxx1jVRo=
-github.com/linxGnu/grocksdb v1.8.4/go.mod h1:xZCIb5Muw+nhbDK4Y5UJuOrin5MceOuiXkVUR7vp4WY=
+github.com/linxGnu/grocksdb v1.8.0 h1:H4L/LhP7GOMf1j17oQAElHgVlbEje2h14A8Tz9cM2BE=
+github.com/linxGnu/grocksdb v1.8.0/go.mod h1:09CeBborffXhXdNpEcOeZrLKEnRtrZFEpFdPNI9Zjjg=
 github.com/lufeee/execinquery v1.2.1/go.mod h1:EC7DrEKView09ocscGHC+apXMIaorh4xqSxS/dy8SbM=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/lyft/protoc-gen-star v0.5.3/go.mod h1:V0xaHgaf5oCCqmcxYcWiDfTiKsZsRc87/1qhoTACD8w=

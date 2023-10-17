@@ -5,24 +5,21 @@ config {
     'app-config'+: {
       'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '100000000000basetcro',
-      memiavl:: super.memiavl,
-      store:: super.store,
-      streamers:: super.streamers,
       'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
-    validators: [super.validators[0] {
-      'app-config':: super['app-config'],
-    }] + super.validators[1:],
     genesis+: {
       app_state+: {
-        evm+: {
-          params+: {
-            // emulate the environment on production network
-            extra_eips: [
-              '2929',
-              '2200',
-              '1884',
-              '1344',
+        bank+: {
+          params: {
+            send_enabled: [
+              {
+                denom: 'stake',
+                enabled: true,
+              },
+              {
+                denom: 'basetcro',
+                enabled: false,
+              },
             ],
           },
         },

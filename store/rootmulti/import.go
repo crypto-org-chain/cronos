@@ -6,7 +6,7 @@ import (
 	"math"
 
 	"cosmossdk.io/errors"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
+	"github.com/cosmos/cosmos-sdk/snapshots/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	protoio "github.com/cosmos/gogoproto/io"
 
@@ -16,17 +16,17 @@ import (
 // Implements interface Snapshotter
 func (rs *Store) Restore(
 	height uint64, format uint32, protoReader protoio.Reader,
-) (snapshottypes.SnapshotItem, error) {
+) (types.SnapshotItem, error) {
 	if rs.db != nil {
 		if err := rs.db.Close(); err != nil {
-			return snapshottypes.SnapshotItem{}, fmt.Errorf("failed to close db: %w", err)
+			return types.SnapshotItem{}, fmt.Errorf("failed to close db: %w", err)
 		}
 		rs.db = nil
 	}
 
 	item, err := rs.restore(height, format, protoReader)
 	if err != nil {
-		return snapshottypes.SnapshotItem{}, err
+		return types.SnapshotItem{}, err
 	}
 
 	return item, rs.LoadLatestVersion()
@@ -34,32 +34,32 @@ func (rs *Store) Restore(
 
 func (rs *Store) restore(
 	height uint64, format uint32, protoReader protoio.Reader,
-) (snapshottypes.SnapshotItem, error) {
+) (types.SnapshotItem, error) {
 	importer, err := memiavl.NewMultiTreeImporter(rs.dir, height)
 	if err != nil {
-		return snapshottypes.SnapshotItem{}, err
+		return types.SnapshotItem{}, err
 	}
 	defer importer.Close()
 
-	var snapshotItem snapshottypes.SnapshotItem
+	var snapshotItem types.SnapshotItem
 loop:
 	for {
-		snapshotItem = snapshottypes.SnapshotItem{}
+		snapshotItem = types.SnapshotItem{}
 		err := protoReader.ReadMsg(&snapshotItem)
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return snapshottypes.SnapshotItem{}, errors.Wrap(err, "invalid protobuf message")
+			return types.SnapshotItem{}, errors.Wrap(err, "invalid protobuf message")
 		}
 
 		switch item := snapshotItem.Item.(type) {
-		case *snapshottypes.SnapshotItem_Store:
+		case *types.SnapshotItem_Store:
 			if err := importer.AddTree(item.Store.Name); err != nil {
-				return snapshottypes.SnapshotItem{}, err
+				return types.SnapshotItem{}, err
 			}
-		case *snapshottypes.SnapshotItem_IAVL:
+		case *types.SnapshotItem_IAVL:
 			if item.IAVL.Height > math.MaxInt8 {
-				return snapshottypes.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
+				return types.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
 					item.IAVL.Height, math.MaxInt8)
 			}
 			node := &memiavl.ExportNode{
@@ -84,7 +84,7 @@ loop:
 	}
 
 	if err := importer.Finalize(); err != nil {
-		return snapshottypes.SnapshotItem{}, err
+		return types.SnapshotItem{}, err
 	}
 
 	return snapshotItem, nil
