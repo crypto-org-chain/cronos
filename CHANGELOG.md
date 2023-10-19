@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to fix of concurrent write in fee history.
+
 *October 17, 2023*
 
 ## v1.1.0-rc1
