@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to fix of concurrent write in fee history.
+- [#1215](https://github.com/crypto-org-chain/cronos/pull/1215) Update ethermint to fix of concurrent write in fee history.
 
 *October 17, 2023*
 
