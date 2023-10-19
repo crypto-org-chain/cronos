@@ -49,6 +49,7 @@ const (
 	UpdateClientAndConnectionOpenConfirm = "updateClientAndConnectionOpenConfirm"
 	UpdateClientAndChannelOpenTry        = "updateClientAndChannelOpenTry"
 	UpdateClientAndChannelOpenConfirm    = "updateClientAndChannelOpenConfirm"
+	UpdateClientAndRecvPacket            = "updateClientAndRecvPacket"
 )
 
 func init() {
@@ -223,7 +224,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		}); err != nil {
 			return nil, err
 		}
-	case UpdateClientAndChannelOpenConfirm:
+	case UpdateClientAndChannelOpenConfirm, UpdateClientAndRecvPacket:
 		var msg0 clienttypes.MsgUpdateClient
 		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
 			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
@@ -244,12 +245,22 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
 				return fmt.Errorf("fail to UpdateClient %w", err)
 			}
-			var msg1 channeltypes.MsgChannelOpenConfirm
-			if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err := bc.ibcKeeper.ChannelOpenConfirm(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ChannelOpenConfirm %w", err)
+			if method.Name == UpdateClientAndChannelOpenConfirm {
+				var msg1 channeltypes.MsgChannelOpenConfirm
+				if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
+					return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
+				}
+				if _, err := bc.ibcKeeper.ChannelOpenConfirm(ctx, &msg1); err != nil {
+					return fmt.Errorf("fail to ChannelOpenConfirm %w", err)
+				}
+			} else {
+				var msg1 channeltypes.MsgRecvPacket
+				if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
+					return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
+				}
+				if _, err := bc.ibcKeeper.RecvPacket(ctx, &msg1); err != nil {
+					return fmt.Errorf("fail to RecvPacket %w", err)
+				}
 			}
 			return nil
 		}); err != nil {
