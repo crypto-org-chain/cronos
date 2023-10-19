@@ -59,7 +59,7 @@ func exec[Req any, PReq interface {
 	return e.cdc.Marshal(res)
 }
 
-func execMultiple[Req any,
+func execMultipleWithHooks[Req any,
 	PReq interface {
 		*Req
 		NativeMessage
@@ -73,6 +73,7 @@ func execMultiple[Req any,
 	Resp2 codec.ProtoMarshaler,
 ](
 	e *Executor,
+	preAction func(sdk.Context, PReq, PReq2) error,
 	action func(context.Context, PReq) (Resp, error),
 	action2 func(context.Context, PReq2) (Resp2, error),
 ) ([]byte, error) {
@@ -95,15 +96,40 @@ func execMultiple[Req any,
 	}
 
 	var res Resp
-	if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-		var err error
+	if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) (err error) {
+		if preAction != nil {
+			if err = preAction(ctx, msg, msg2); err != nil {
+				return err
+			}
+		}
+
 		res, err = action(ctx, msg)
 		if err == nil && len(e.input2) > 0 {
 			_, err = action2(ctx, msg2)
 		}
-		return err
+		return
 	}); err != nil {
 		return nil, err
 	}
 	return e.cdc.Marshal(res)
+}
+
+func execMultiple[Req any,
+	PReq interface {
+		*Req
+		NativeMessage
+	},
+	Resp codec.ProtoMarshaler,
+	Req2 any,
+	PReq2 interface {
+		*Req2
+		NativeMessage
+	},
+	Resp2 codec.ProtoMarshaler,
+](
+	e *Executor,
+	action func(context.Context, PReq) (Resp, error),
+	action2 func(context.Context, PReq2) (Resp2, error),
+) ([]byte, error) {
+	return execMultipleWithHooks(e, nil, action, action2)
 }

@@ -15,7 +15,8 @@ import (
 	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	"github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -124,6 +125,24 @@ func (bc *RelayerContract) findMemkey() *storetypes.MemoryStoreKey {
 	return nil
 }
 
+func (bc *RelayerContract) setMemStoreKeys(
+	ctx sdk.Context,
+	memKey storetypes.StoreKey,
+	index uint64,
+	keyName string,
+) error {
+	memStore := ctx.KVStore(memKey)
+	key := []byte(fmt.Sprintf("ibc/rev/%s", keyName))
+	memStore.Set(key, sdk.Uint64ToBigEndian(index))
+	cap, ok := bc.scopedIBCKeeper.GetCapability(ctx, keyName)
+	if !ok {
+		return fmt.Errorf("fail to find cap for %s", keyName)
+	}
+	key = capabilitytypes.FwdCapabilityKey(exported.ModuleName, cap)
+	memStore.Set(key, []byte(keyName))
+	return nil
+}
+
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("the method is not readonly")
@@ -194,87 +213,45 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case UpdateClientAndConnectionOpenConfirm:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenConfirm)
 	case UpdateClientAndChannelOpenTry:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			memStore := ctx.KVStore(memKey)
-			index := uint64(1)
-			name := "ports/transfer"
-			key := []byte(fmt.Sprintf("ibc/rev/%s", name))
-			memStore.Set(key, sdk.Uint64ToBigEndian(index))
-			cap, ok := bc.scopedIBCKeeper.GetCapability(ctx, name)
-			if !ok {
-				return fmt.Errorf("fail to find cap for %s", name)
-			}
-			key = capabilitytypes.FwdCapabilityKey(exported.ModuleName, cap)
-			memStore.Set(key, []byte(name))
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			var msg1 channeltypes.MsgChannelOpenTry
-			if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
-				return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-			}
-			if _, err := bc.ibcKeeper.ChannelOpenTry(ctx, &msg1); err != nil {
-				return fmt.Errorf("fail to ChannelOpenTry %w", err)
-			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-	case UpdateClientAndChannelOpenConfirm, UpdateClientAndRecvPacket, UpdateClientAndAcknowledgement:
-		var msg0 clienttypes.MsgUpdateClient
-		if err := e.cdc.Unmarshal(input, &msg0); err != nil {
-			return nil, fmt.Errorf("fail to Unmarshal %T %w", msg0, err)
-		}
-		input1 := args[1].([]byte)
-		if err := e.stateDB.ExecuteNativeAction(e.contract, e.converter, func(ctx sdk.Context) error {
-			memStore := ctx.KVStore(memKey)
-			index := uint64(2)
-			name := "capabilities/ports/transfer/channels/channel-0"
-			key := []byte(fmt.Sprintf("ibc/rev/%s", name))
-			memStore.Set(key, sdk.Uint64ToBigEndian(index))
-			cap, ok := bc.scopedIBCKeeper.GetCapability(ctx, name)
-			key = capabilitytypes.FwdCapabilityKey(exported.ModuleName, cap)
-			if !ok {
-				return fmt.Errorf("fail to find cap for %s", name)
-			}
-			memStore.Set(key, []byte(name))
-			if _, err := bc.ibcKeeper.UpdateClient(ctx, &msg0); err != nil {
-				return fmt.Errorf("fail to UpdateClient %w", err)
-			}
-			if method.Name == UpdateClientAndChannelOpenConfirm {
-				var msg1 channeltypes.MsgChannelOpenConfirm
-				if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
-					return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-				}
-				if _, err := bc.ibcKeeper.ChannelOpenConfirm(ctx, &msg1); err != nil {
-					return fmt.Errorf("fail to ChannelOpenConfirm %w", err)
-				}
-			} else if method.Name == UpdateClientAndRecvPacket {
-				var msg1 channeltypes.MsgRecvPacket
-				if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
-					return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-				}
-				if _, err := bc.ibcKeeper.RecvPacket(ctx, &msg1); err != nil {
-					return fmt.Errorf("fail to RecvPacket %w", err)
-				}
-			} else {
-				var msg1 channeltypes.MsgAcknowledgement
-				if err = e.cdc.Unmarshal(input1, &msg1); err != nil {
-					return fmt.Errorf("fail to Unmarshal %T %w", msg1, err)
-				}
-				if _, err := bc.ibcKeeper.Acknowledgement(ctx, &msg1); err != nil {
-					return fmt.Errorf("fail to Acknowledgement %w", err)
-				}
-			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcot *types.MsgChannelOpenTry) error {
+				keyName := host.PortPath(mcot.PortId)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(1), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.ChannelOpenTry,
+		)
+	case UpdateClientAndChannelOpenConfirm:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoc *types.MsgChannelOpenConfirm) error {
+				keyName := host.ChannelCapabilityPath(mcoc.PortId, mcoc.ChannelId)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.ChannelOpenConfirm,
+		)
+	case UpdateClientAndRecvPacket:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mrp *types.MsgRecvPacket) error {
+				keyName := host.ChannelCapabilityPath(mrp.Packet.DestinationPort, mrp.Packet.DestinationChannel)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.RecvPacket,
+		)
+	case UpdateClientAndAcknowledgement:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mack *types.MsgAcknowledgement) error {
+				keyName := host.ChannelCapabilityPath(mack.Packet.DestinationPort, mack.Packet.DestinationChannel)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.Acknowledgement,
+		)
 	default:
 		return nil, errors.New("unknown method")
 	}
