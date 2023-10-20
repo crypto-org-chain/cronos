@@ -46,12 +46,18 @@ const (
 	Acknowledgement                      = "acknowledgement"
 	Timeout                              = "timeout"
 	TimeoutOnClose                       = "timeoutOnClose"
+	UpdateClientAndConnectionOpenInit    = "updateClientAndConnectionOpenInit"
 	UpdateClientAndConnectionOpenTry     = "updateClientAndConnectionOpenTry"
+	UpdateClientAndConnectionOpenAck     = "updateClientAndConnectionOpenAck"
 	UpdateClientAndConnectionOpenConfirm = "updateClientAndConnectionOpenConfirm"
+	UpdateClientAndChannelOpenInit       = "updateClientAndChannelOpenInit"
 	UpdateClientAndChannelOpenTry        = "updateClientAndChannelOpenTry"
+	UpdateClientAndChannelOpenAck        = "updateClientAndChannelOpenAck"
 	UpdateClientAndChannelOpenConfirm    = "updateClientAndChannelOpenConfirm"
 	UpdateClientAndRecvPacket            = "updateClientAndRecvPacket"
 	UpdateClientAndAcknowledgement       = "updateClientAndAcknowledgement"
+	UpdateClientAndTimeout               = "updateClientAndTimeout"
+	UpdateClientAndTimeoutOnClose        = "updateClientAndTimeoutOnClose"
 )
 
 func init() {
@@ -175,6 +181,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		e.input2 = args[1].([]byte)
 	}
 	memKey := bc.findMemkey()
+	fmt.Println("mm-method.Name", method.Name)
 	switch method.Name {
 	case CreateClient:
 		res, err = exec(e, bc.ibcKeeper.CreateClient)
@@ -208,10 +215,24 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(e, bc.ibcKeeper.Timeout)
 	case TimeoutOnClose:
 		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
+	case UpdateClientAndConnectionOpenInit:
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenInit)
 	case UpdateClientAndConnectionOpenTry:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenTry)
+	case UpdateClientAndConnectionOpenAck:
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenAck)
 	case UpdateClientAndConnectionOpenConfirm:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenConfirm)
+	case UpdateClientAndChannelOpenInit:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoi *types.MsgChannelOpenInit) error {
+				keyName := host.PortPath(mcoi.PortId)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(1), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.ChannelOpenInit,
+		)
 	case UpdateClientAndChannelOpenTry:
 		res, err = execMultipleWithHooks(
 			e,
@@ -221,6 +242,16 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 			},
 			bc.ibcKeeper.UpdateClient,
 			bc.ibcKeeper.ChannelOpenTry,
+		)
+	case UpdateClientAndChannelOpenAck:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoa *types.MsgChannelOpenAck) error {
+				keyName := host.ChannelCapabilityPath(mcoa.PortId, mcoa.ChannelId)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.ChannelOpenAck,
 		)
 	case UpdateClientAndChannelOpenConfirm:
 		res, err = execMultipleWithHooks(
@@ -251,6 +282,26 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 			},
 			bc.ibcKeeper.UpdateClient,
 			bc.ibcKeeper.Acknowledgement,
+		)
+	case UpdateClientAndTimeout:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mt *types.MsgTimeout) error {
+				keyName := host.ChannelCapabilityPath(mt.Packet.SourcePort, mt.Packet.SourceChannel)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.Timeout,
+		)
+	case UpdateClientAndTimeoutOnClose:
+		res, err = execMultipleWithHooks(
+			e,
+			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mtoc *types.MsgTimeoutOnClose) error {
+				keyName := host.ChannelCapabilityPath(mtoc.Packet.SourcePort, mtoc.Packet.SourceChannel)
+				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
+			},
+			bc.ibcKeeper.UpdateClient,
+			bc.ibcKeeper.TimeoutOnClose,
 		)
 	default:
 		return nil, errors.New("unknown method")

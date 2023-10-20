@@ -44,12 +44,13 @@ channel = "channel-0"
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    path = tmp_path_factory.mktemp("ibc_rly")
+    name = "ibc_rly"
+    path = tmp_path_factory.mktemp(name)
     procs = []
     try:
         for network in prepare_network(
             path,
-            "ibc_rly",
+            name,
             relayer=cluster.Relayer.RLY.value,
         ):
             if network.proc:
