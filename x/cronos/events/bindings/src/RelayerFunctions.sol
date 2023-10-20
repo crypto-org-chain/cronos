@@ -23,4 +23,5 @@ interface IRelayerFunctions {
     function updateClientAndChannelOpenTry(bytes calldata data1, bytes calldata data2) external payable returns (bool);
     function updateClientAndChannelOpenConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
     function updateClientAndRecvPacket(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndAcknowledgement(bytes calldata data1, bytes calldata data2) external payable returns (bool);
 }
