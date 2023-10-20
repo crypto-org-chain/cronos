@@ -246,7 +246,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = execMultipleWithHooks(
 			e,
 			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mack *types.MsgAcknowledgement) error {
-				keyName := host.ChannelCapabilityPath(mack.Packet.DestinationPort, mack.Packet.DestinationChannel)
+				keyName := host.ChannelCapabilityPath(mack.Packet.SourcePort, mack.Packet.SourceChannel)
 				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
 			},
 			bc.ibcKeeper.UpdateClient,
