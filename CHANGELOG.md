@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#]() Use the default chain-id behavour in sdk.
+- [#1217](https://github.com/crypto-org-chain/cronos/pull/1217) Use the default chain-id behavour in sdk.
 
 *October 17, 2023*
 
