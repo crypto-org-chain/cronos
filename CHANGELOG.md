@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#]() Use the default chain-id behavour in sdk.
+
 *October 17, 2023*
 
 ## v1.1.0-rc1

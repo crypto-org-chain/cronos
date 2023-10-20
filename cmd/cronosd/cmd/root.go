@@ -4,12 +4,10 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 
 	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"github.com/spf13/viper"
 
 	dbm "github.com/cometbft/cometbft-db"
 	tmcfg "github.com/cometbft/cometbft/config"
@@ -243,36 +241,14 @@ type appCreator struct {
 // newApp is an AppCreator
 func (a appCreator) newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
 	home := cast.ToString(appOpts.Get(flags.FlagHome))
-	snapshotDir := filepath.Join(home, "data", "snapshots")
-	if err := os.MkdirAll(snapshotDir, os.ModePerm); err != nil {
-		panic(err)
-	}
 
 	skipUpgradeHeights := make(map[int64]bool)
 	for _, h := range cast.ToIntSlice(appOpts.Get(server.FlagUnsafeSkipUpgrades)) {
 		skipUpgradeHeights[int64(h)] = true
 	}
 
-	// Setup chainId
-	chainID := cast.ToString(appOpts.Get(flags.FlagChainID))
-	if len(chainID) == 0 {
-		v := viper.New()
-		v.AddConfigPath(filepath.Join(home, "config"))
-		v.SetConfigName("client")
-		v.SetConfigType("toml")
-		if err := v.ReadInConfig(); err != nil {
-			panic(err)
-		}
-		conf := new(config.ClientConfig)
-		if err := v.Unmarshal(conf); err != nil {
-			panic(err)
-		}
-		chainID = conf.ChainID
-	}
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
-	baseappOptions = append(baseappOptions, func(app *baseapp.BaseApp) {
-		baseapp.SetChainID(chainID)
-	})
+
 	return app.New(
 		logger, db, traceStore, true, SkipGravity, skipUpgradeHeights,
 		home,
