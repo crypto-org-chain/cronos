@@ -36,7 +36,7 @@ func NewMultiTreeImporter(dir string, height uint64) (*MultiTreeImporter, error)
 }
 
 func (mti *MultiTreeImporter) tmpDir() string {
-	return filepath.Join(mti.dir, mti.snapshotDir+"-tmp")
+	return filepath.Join(mti.dir, mti.snapshotDir+TmpSuffix)
 }
 
 func (mti *MultiTreeImporter) Add(item interface{}) error {
