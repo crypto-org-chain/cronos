@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -83,12 +82,12 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, connection_only, version):
+def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
     cmd = [
         "rly",
         "pth",
         "new",
-        "chainmain-1",
+        hostchain,
         "cronos_777-1",
         "chainmain-cronos",
         "--home",
@@ -179,20 +178,10 @@ def prepare_network(
 
         port = None
         if is_relay:
+            cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
-                cronos.supervisorctl("start", "relayer-demo")
                 port = hermes.port
             else:
-                subprocess.Popen(
-                    [
-                        "rly",
-                        "start",
-                        "chainmain-cronos",
-                        "--home",
-                        str(path),
-                    ],
-                    preexec_fn=os.setsid,
-                )
                 port = 5183
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
