@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/cometbft/cometbft/libs/log"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 
 	sdkmath "cosmossdk.io/math"
@@ -31,6 +32,7 @@ var (
 	bankABI                 abi.ABI
 	bankContractAddress     = common.BytesToAddress([]byte{100})
 	bankGasRequiredByMethod = map[[4]byte]uint64{}
+	bankMethodMap           = map[[4]byte]string{}
 )
 
 func init() {
@@ -50,6 +52,7 @@ func init() {
 		default:
 			bankGasRequiredByMethod[methodID] = 0
 		}
+		bankMethodMap[methodID] = methodName
 	}
 }
 
@@ -61,11 +64,17 @@ type BankContract struct {
 	bankKeeper  types.BankKeeper
 	cdc         codec.Codec
 	kvGasConfig storetypes.GasConfig
+	logger      log.Logger
 }
 
 // NewBankContract creates the precompiled contract to manage native tokens
-func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
-	return &BankContract{bankKeeper, cdc, kvGasConfig}
+func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig, logger log.Logger) vm.PrecompiledContract {
+	return &BankContract{
+		bankKeeper:  bankKeeper,
+		cdc:         cdc,
+		kvGasConfig: kvGasConfig,
+		logger:      logger.With("precompiles", "bank"),
+	}
 }
 
 func (bc *BankContract) Address() common.Address {
@@ -73,11 +82,18 @@ func (bc *BankContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-func (bc *BankContract) RequiredGas(input []byte) uint64 {
+func (bc *BankContract) RequiredGas(input []byte) (gas uint64) {
+	method := ""
+	inputLen := 0
+	defer func() {
+		bc.logger.Info("required", "gas", gas, "method", method, "len", inputLen)
+	}()
 	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
+	inputLen = len(input)
+	baseCost := uint64(inputLen) * bc.kvGasConfig.WriteCostPerByte
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
+	method = bankMethodMap[methodID]
 	requiredGas, ok := bankGasRequiredByMethod[methodID]
 	if ok {
 		return requiredGas + baseCost
