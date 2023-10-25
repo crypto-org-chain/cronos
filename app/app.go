@@ -554,7 +554,7 @@ func New(
 		evmS,
 		[]vm.PrecompiledContract{
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, gasConfig, app.Logger()),
-			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig),
+			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig, app.Logger()),
 		},
 		allKeys,
 	)

@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/cometbft/cometbft/libs/log"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -34,6 +35,7 @@ var (
 	icaCallbackABI         abi.ABI
 	icaContractAddress     = common.BytesToAddress([]byte{102})
 	icaGasRequiredByMethod = map[[4]byte]uint64{}
+	icaMethodMap           = map[[4]byte]string{}
 )
 
 func init() {
@@ -57,6 +59,7 @@ func init() {
 		default:
 			icaGasRequiredByMethod[methodID] = 0
 		}
+		icaMethodMap[methodID] = methodName
 	}
 }
 
@@ -71,15 +74,23 @@ type IcaContract struct {
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
 	kvGasConfig   storetypes.GasConfig
+	logger        log.Logger
 }
 
-func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewIcaContract(
+	icaauthKeeper types.Icaauthkeeper,
+	cronosKeeper types.CronosKeeper,
+	cdc codec.Codec,
+	kvGasConfig storetypes.GasConfig,
+	logger log.Logger,
+) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
 		kvGasConfig:   kvGasConfig,
+		logger:        logger.With("precompiles", "ica"),
 	}
 }
 
@@ -88,11 +99,18 @@ func (ic *IcaContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-func (ic *IcaContract) RequiredGas(input []byte) uint64 {
+func (ic *IcaContract) RequiredGas(input []byte) (gas uint64) {
+	method := ""
+	inputLen := 0
+	defer func() {
+		ic.logger.Info("required", "gas", gas, "method", method, "len", inputLen)
+	}()
 	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
+	inputLen = len(input)
+	baseCost := uint64(inputLen) * ic.kvGasConfig.WriteCostPerByte
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
+	method = icaMethodMap[methodID]
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
 	if ok {
 		return requiredGas + baseCost
