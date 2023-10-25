@@ -61,44 +61,30 @@ func EVMDenom(token common.Address) string {
 }
 
 type BankContract struct {
-	bankKeeper  types.BankKeeper
-	cdc         codec.Codec
-	kvGasConfig storetypes.GasConfig
-	logger      log.Logger
+	BaseContract
+
+	bankKeeper types.BankKeeper
+	cdc        codec.Codec
 }
 
 // NewBankContract creates the precompiled contract to manage native tokens
 func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig, logger log.Logger) vm.PrecompiledContract {
 	return &BankContract{
-		bankKeeper:  bankKeeper,
-		cdc:         cdc,
-		kvGasConfig: kvGasConfig,
-		logger:      logger.With("precompiles", "bank"),
+		BaseContract: NewBaseContract(
+			bankContractAddress,
+			kvGasConfig,
+			bankMethodMap,
+			bankGasRequiredByMethod,
+			false,
+			logger.With("precompiles", "bank"),
+		),
+		cdc:        cdc,
+		bankKeeper: bankKeeper,
 	}
 }
 
 func (bc *BankContract) Address() common.Address {
 	return bankContractAddress
-}
-
-// RequiredGas calculates the contract gas use
-func (bc *BankContract) RequiredGas(input []byte) (gas uint64) {
-	method := ""
-	inputLen := 0
-	defer func() {
-		bc.logger.Info("required", "gas", gas, "method", method, "len", inputLen)
-	}()
-	// base cost to prevent large input size
-	inputLen = len(input)
-	baseCost := uint64(inputLen) * bc.kvGasConfig.WriteCostPerByte
-	var methodID [4]byte
-	copy(methodID[:], input[:4])
-	method = bankMethodMap[methodID]
-	requiredGas, ok := bankGasRequiredByMethod[methodID]
-	if ok {
-		return requiredGas + baseCost
-	}
-	return baseCost
 }
 
 func (bc *BankContract) IsStateful() bool {

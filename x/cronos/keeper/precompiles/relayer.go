@@ -3,6 +3,7 @@ package precompiles
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 
@@ -17,70 +18,67 @@ import (
 
 var (
 	relayerContractAddress     = common.BytesToAddress([]byte{101})
-	relayerGasRequiredByMethod = map[int]uint64{}
+	relayerGasRequiredByMethod = map[[4]byte]uint64{}
+	relayerMethodMap           = map[[4]byte]string{}
 )
 
+func assignMethodGas(prefix int, gas uint64) {
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, uint32(prefix))
+	var id [4]byte
+	copy(id[:], data[:4])
+	relayerMethodMap[id] = fmt.Sprintf("%d", prefix)
+	relayerGasRequiredByMethod[id] = gas
+}
+
 func init() {
-	relayerGasRequiredByMethod[prefixCreateClient] = 200000
-	relayerGasRequiredByMethod[prefixUpdateClient] = 400000
-	relayerGasRequiredByMethod[prefixUpgradeClient] = 400000
-	relayerGasRequiredByMethod[prefixSubmitMisbehaviour] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenInit] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenTry] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenAck] = 100000
-	relayerGasRequiredByMethod[prefixConnectionOpenConfirm] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenInit] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenTry] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenAck] = 100000
-	relayerGasRequiredByMethod[prefixChannelOpenConfirm] = 100000
-	relayerGasRequiredByMethod[prefixRecvPacket] = 250000
-	relayerGasRequiredByMethod[prefixAcknowledgement] = 250000
-	relayerGasRequiredByMethod[prefixTimeout] = 100000
-	relayerGasRequiredByMethod[prefixTimeoutOnClose] = 100000
+	assignMethodGas(prefixCreateClient, 200000)
+	assignMethodGas(prefixUpdateClient, 400000)
+	assignMethodGas(prefixUpgradeClient, 400000)
+	assignMethodGas(prefixSubmitMisbehaviour, 100000)
+	assignMethodGas(prefixConnectionOpenInit, 100000)
+	assignMethodGas(prefixConnectionOpenTry, 100000)
+	assignMethodGas(prefixConnectionOpenAck, 100000)
+	assignMethodGas(prefixConnectionOpenConfirm, 100000)
+	assignMethodGas(prefixChannelOpenInit, 100000)
+	assignMethodGas(prefixChannelOpenTry, 100000)
+	assignMethodGas(prefixChannelOpenAck, 100000)
+	assignMethodGas(prefixChannelOpenConfirm, 100000)
+	assignMethodGas(prefixRecvPacket, 250000)
+	assignMethodGas(prefixAcknowledgement, 250000)
+	assignMethodGas(prefixTimeout, 100000)
+	assignMethodGas(prefixTimeoutOnClose, 100000)
 }
 
 type RelayerContract struct {
 	BaseContract
 
-	cdc         codec.Codec
-	ibcKeeper   *ibckeeper.Keeper
-	kvGasConfig storetypes.GasConfig
-	logger      log.Logger
+	cdc       codec.Codec
+	ibcKeeper *ibckeeper.Keeper
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(
+	ibcKeeper *ibckeeper.Keeper,
+	cdc codec.Codec,
+	kvGasConfig storetypes.GasConfig,
+	logger log.Logger,
+) vm.PrecompiledContract {
 	return &RelayerContract{
-		BaseContract: NewBaseContract(relayerContractAddress),
-		ibcKeeper:    ibcKeeper,
-		cdc:          cdc,
-		kvGasConfig:  kvGasConfig,
-		logger:       logger.With("precompiles", "relayer"),
+		BaseContract: NewBaseContract(
+			relayerContractAddress,
+			kvGasConfig,
+			relayerMethodMap,
+			relayerGasRequiredByMethod,
+			true,
+			logger.With("precompiles", "relayer"),
+		),
+		ibcKeeper: ibcKeeper,
+		cdc:       cdc,
 	}
 }
 
 func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
-}
-
-// RequiredGas calculates the contract gas use
-func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
-	prefix := 0
-	inputLen := 0
-	defer func() {
-		bc.logger.Info("required", "gas", gas, "prefix", prefix, "len", inputLen)
-	}()
-	// base cost to prevent large input size
-	inputLen = len(input)
-	baseCost := uint64(inputLen) * bc.kvGasConfig.WriteCostPerByte
-	if len(input) < prefixSize4Bytes {
-		return
-	}
-	prefix = int(binary.LittleEndian.Uint32(input[:prefixSize4Bytes]))
-	requiredGas, ok := relayerGasRequiredByMethod[prefix]
-	if ok {
-		return requiredGas + baseCost
-	}
-	return baseCost
 }
 
 func (bc *RelayerContract) IsStateful() bool {

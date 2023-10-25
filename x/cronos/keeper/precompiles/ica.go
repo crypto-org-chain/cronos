@@ -73,8 +73,6 @@ type IcaContract struct {
 	cdc           codec.Codec
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
-	kvGasConfig   storetypes.GasConfig
-	logger        log.Logger
 }
 
 func NewIcaContract(
@@ -85,37 +83,22 @@ func NewIcaContract(
 	logger log.Logger,
 ) vm.PrecompiledContract {
 	return &IcaContract{
-		BaseContract:  NewBaseContract(icaContractAddress),
+		BaseContract: NewBaseContract(
+			icaContractAddress,
+			kvGasConfig,
+			icaMethodMap,
+			icaGasRequiredByMethod,
+			false,
+			logger.With("precompiles", "ica"),
+		),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
-		kvGasConfig:   kvGasConfig,
-		logger:        logger.With("precompiles", "ica"),
 	}
 }
 
 func (ic *IcaContract) Address() common.Address {
 	return icaContractAddress
-}
-
-// RequiredGas calculates the contract gas use
-func (ic *IcaContract) RequiredGas(input []byte) (gas uint64) {
-	method := ""
-	inputLen := 0
-	defer func() {
-		ic.logger.Info("required", "gas", gas, "method", method, "len", inputLen)
-	}()
-	// base cost to prevent large input size
-	inputLen = len(input)
-	baseCost := uint64(inputLen) * ic.kvGasConfig.WriteCostPerByte
-	var methodID [4]byte
-	copy(methodID[:], input[:4])
-	method = icaMethodMap[methodID]
-	requiredGas, ok := icaGasRequiredByMethod[methodID]
-	if ok {
-		return requiredGas + baseCost
-	}
-	return baseCost
 }
 
 func (ic *IcaContract) IsStateful() bool {
