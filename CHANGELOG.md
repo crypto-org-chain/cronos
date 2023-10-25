@@ -7,6 +7,10 @@
 - [#1215](https://github.com/crypto-org-chain/cronos/pull/1215) Update ethermint to fix of concurrent write in fee history.
 - [#1217](https://github.com/crypto-org-chain/cronos/pull/1217) Use the default chain-id behavour in sdk.
 
+### Improvements
+
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Add required gas log in precompiles.
+
 *October 17, 2023*
 
 ## v1.1.0-rc1

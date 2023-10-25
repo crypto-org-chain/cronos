@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	"github.com/cometbft/cometbft/libs/log"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 )
@@ -44,14 +45,16 @@ type RelayerContract struct {
 	cdc         codec.Codec
 	ibcKeeper   *ibckeeper.Keeper
 	kvGasConfig storetypes.GasConfig
+	logger      log.Logger
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
 		kvGasConfig:  kvGasConfig,
+		logger:       logger.With("precompiles", "relayer"),
 	}
 }
 
@@ -60,13 +63,19 @@ func (bc *RelayerContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
+func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
+	prefix := 0
+	inputLen := 0
+	defer func() {
+		bc.logger.Info("required", "gas", gas, "prefix", prefix, "len", inputLen)
+	}()
 	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
+	inputLen = len(input)
+	baseCost := uint64(inputLen) * bc.kvGasConfig.WriteCostPerByte
 	if len(input) < prefixSize4Bytes {
-		return 0
+		return
 	}
-	prefix := int(binary.LittleEndian.Uint32(input[:prefixSize4Bytes]))
+	prefix = int(binary.LittleEndian.Uint32(input[:prefixSize4Bytes]))
 	requiredGas, ok := relayerGasRequiredByMethod[prefix]
 	if ok {
 		return requiredGas + baseCost
