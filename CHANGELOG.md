@@ -9,7 +9,7 @@
 
 ### Improvements
 
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Add required gas log in precompiles.
+- [#1223](https://github.com/crypto-org-chain/cronos/pull/1223) Add required gas log in precompiles.
 
 *October 17, 2023*
 
