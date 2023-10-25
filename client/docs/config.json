@@ -181,10 +181,10 @@
       }
     },
     {
-      "url": "./tmp-swagger-gen/ibc/applications/interchain_accounts/host/v1/query.swagger.json",
+      "url": "./tmp-swagger-gen/icaauth/v1/query.swagger.json",
       "operationIds": {
         "rename": {
-          "Params": "InterchainAccountsHostParams"
+          "Params": "IcaauthParams"
         }
       }
     }
