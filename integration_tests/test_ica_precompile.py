@@ -131,7 +131,7 @@ def test_call(ibc):
     name = "signer2"
     addr = ADDRS[name]
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
-    data = {"from": ADDRS[name], "gas": 400000}
+    data = {"from": ADDRS[name]}
     ica_address = register_acc(
         cli_controller,
         w3,
