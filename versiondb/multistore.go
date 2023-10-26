@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/store/cachemulti"
-	"github.com/cosmos/cosmos-sdk/store/mem"
 	"github.com/cosmos/cosmos-sdk/store/transient"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -89,10 +88,11 @@ func (s *MultiStore) MountTransientStores(keys map[string]*types.TransientStoreK
 	}
 }
 
-// MountMemoryStores simlates the same behavior as sdk to support grpc query service.
-func (s *MultiStore) MountMemoryStores(keys map[string]*types.MemoryStoreKey) {
-	for _, key := range keys {
-		s.transientStores[key] = mem.NewStore()
+// MountMemoryStores simlates the same behavior as sdk to support grpc query service,
+// it shares the existing mem store instance.
+func (s *MultiStore) MountMemoryStores(keys map[types.StoreKey]types.KVStore) {
+	for key, store := range keys {
+		s.transientStores[key] = store
 	}
 }
 

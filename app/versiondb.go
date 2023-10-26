@@ -7,16 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
-func setupVersionDB(
+// setupVersionDB needs to reuse the existing mem store instances, call this **after** the `app.MountMemoryStores()`.
+func (app *App) setupVersionDB(
 	homePath string,
-	app *baseapp.BaseApp,
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
 	memKeys map[string]*storetypes.MemoryStoreKey,
@@ -41,7 +40,12 @@ func setupVersionDB(
 
 	verDB := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
 	verDB.MountTransientStores(tkeys)
-	verDB.MountMemoryStores(memKeys)
+
+	memStores := make(map[storetypes.StoreKey]storetypes.KVStore)
+	for _, memKey := range memKeys {
+		memStores[memKey] = app.CommitMultiStore().GetKVStore(memKey)
+	}
+	verDB.MountMemoryStores(memStores)
 
 	app.SetQueryMultiStore(verDB)
 	return verDB, nil
