@@ -6,7 +6,7 @@
 
 - [#1215](https://github.com/crypto-org-chain/cronos/pull/1215) Update ethermint to fix of concurrent write in fee history.
 - [#1217](https://github.com/crypto-org-chain/cronos/pull/1217) Use the default chain-id behavour in sdk.
-- [#]() Fix mem store in versiondb multistore.
+- [#1230](https://github.com/crypto-org-chain/cronos/pull/1230) Fix mem store in versiondb multistore.
 
 *October 17, 2023*
 
