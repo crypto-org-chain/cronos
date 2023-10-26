@@ -29,7 +29,7 @@ type MultiStore struct {
 
 // NewMultiStore returns a new versiondb `MultiStore`.
 func NewMultiStore(parent types.MultiStore, versionDB VersionStore, storeKeys []types.StoreKey) *MultiStore {
-	return &MultiStore{versionDB: versionDB, storeKeys: storeKeys, transientStores: make(map[types.StoreKey]struct{})}
+	return &MultiStore{versionDB: versionDB, storeKeys: storeKeys, parent: parent, transientStores: make(map[types.StoreKey]struct{})}
 }
 
 // GetStoreType implements `MultiStore` interface.
