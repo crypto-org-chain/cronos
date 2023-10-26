@@ -13,7 +13,6 @@ import (
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
-// setupVersionDB needs to reuse the existing mem store instances, call this **after** the `app.MountMemoryStores()`.
 func (app *App) setupVersionDB(
 	homePath string,
 	keys map[string]*storetypes.KVStoreKey,
@@ -38,14 +37,9 @@ func (app *App) setupVersionDB(
 	service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
 	app.SetStreamingService(service)
 
-	verDB := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
+	verDB := versiondb.NewMultiStore(app.CommitMultiStore(), versionDB, exposeStoreKeys)
 	verDB.MountTransientStores(tkeys)
-
-	memStores := make(map[storetypes.StoreKey]storetypes.KVStore)
-	for _, memKey := range memKeys {
-		memStores[memKey] = app.CommitMultiStore().GetKVStore(memKey)
-	}
-	verDB.MountMemoryStores(memStores)
+	verDB.MountMemoryStores(memKeys)
 
 	app.SetQueryMultiStore(verDB)
 	return verDB, nil
