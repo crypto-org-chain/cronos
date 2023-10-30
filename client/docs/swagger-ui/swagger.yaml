@@ -43623,6 +43623,203 @@ paths:
                       format: byte
       tags:
         - Query
+  /ibc/apps/interchain_accounts/controller/v1/owners/{owner}/connections/{connection_id}:
+    get:
+      summary: >-
+        InterchainAccount returns the interchain account address for a given
+        owner address on a given connection
+      operationId: InterchainAccount
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              address:
+                type: string
+            description: >-
+              QueryInterchainAccountResponse the response type for the
+              Query/InterchainAccount RPC method.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          type: string
+        - name: connection_id
+          in: path
+          required: true
+          type: string
+      tags:
+        - Query
+  /ibc/apps/interchain_accounts/controller/v1/params:
+    get:
+      summary: Params queries all parameters of the ICA controller submodule.
+      operationId: InterchainAccountsControllerParams
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              params:
+                description: params defines the parameters of the module.
+                type: object
+                properties:
+                  controller_enabled:
+                    type: boolean
+                    description: >-
+                      controller_enabled enables or disables the controller
+                      submodule.
+            description: >-
+              QueryParamsResponse is the response type for the Query/Params RPC
+              method.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      tags:
+        - Query
+  /cronos/icaauth/v1/interchain_account_address/{connection_id}/{owner}:
+    get:
+      summary: >-
+        InterchainAccountAddress queries the interchain account address for
+        given
+
+        `connection_id` and `owner`
+      operationId: InterchainAccountAddress
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              interchain_account_address:
+                type: string
+            description: |-
+              QueryInterchainAccountAddressResponse defines the response for the
+              InterchainAccountAddress query.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          type: string
+        - name: owner
+          in: path
+          required: true
+          type: string
+      tags:
+        - Query
+  /cronos/icaauth/v1/params:
+    get:
+      summary: Parameters queries the parameters of the module.
+      operationId: IcaauthParams
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              params:
+                description: params holds all the parameters of this module.
+                type: object
+                properties:
+                  min_timeout_duration:
+                    type: string
+                    title: >-
+                      min_timeout_duration defines the minimum value of packet
+                      timeout when
+
+                      submitting transactions to host chain on behalf of
+                      interchain account
+            description: >-
+              QueryParamsResponse is response type for the Query/Params RPC
+              method.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      tags:
+        - Query
 definitions:
   cronos.ContractByDenomResponse:
     type: object
@@ -70915,3 +71112,64 @@ definitions:
     description: >-
       QueryTotalEscrowForDenomResponse is the response type for
       TotalEscrowForDenom RPC method.
+  ibc.applications.interchain_accounts.controller.v1.Params:
+    type: object
+    properties:
+      controller_enabled:
+        type: boolean
+        description: controller_enabled enables or disables the controller submodule.
+    description: |-
+      Params defines the set of on-chain interchain accounts parameters.
+      The following parameters may be used to disable the controller submodule.
+  ibc.applications.interchain_accounts.controller.v1.QueryInterchainAccountResponse:
+    type: object
+    properties:
+      address:
+        type: string
+    description: >-
+      QueryInterchainAccountResponse the response type for the
+      Query/InterchainAccount RPC method.
+  ibc.applications.interchain_accounts.controller.v1.QueryParamsResponse:
+    type: object
+    properties:
+      params:
+        description: params defines the parameters of the module.
+        type: object
+        properties:
+          controller_enabled:
+            type: boolean
+            description: controller_enabled enables or disables the controller submodule.
+    description: QueryParamsResponse is the response type for the Query/Params RPC method.
+  icaauth.v1.Params:
+    type: object
+    properties:
+      min_timeout_duration:
+        type: string
+        title: |-
+          min_timeout_duration defines the minimum value of packet timeout when
+          submitting transactions to host chain on behalf of interchain account
+    description: Params defines the parameters for the module.
+  icaauth.v1.QueryInterchainAccountAddressResponse:
+    type: object
+    properties:
+      interchain_account_address:
+        type: string
+    description: |-
+      QueryInterchainAccountAddressResponse defines the response for the
+      InterchainAccountAddress query.
+  icaauth.v1.QueryParamsResponse:
+    type: object
+    properties:
+      params:
+        description: params holds all the parameters of this module.
+        type: object
+        properties:
+          min_timeout_duration:
+            type: string
+            title: >-
+              min_timeout_duration defines the minimum value of packet timeout
+              when
+
+              submitting transactions to host chain on behalf of interchain
+              account
+    description: QueryParamsResponse is response type for the Query/Params RPC method.

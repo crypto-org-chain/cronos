@@ -484,8 +484,8 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63 h1:R1
 github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63/go.mod h1:rocwIfnS+kA060x64gkSIRvWB9StSppIkJuo5MWzL24=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467 h1:m0/aHPIJAzi2MSP3TXzzbLTFf+koRFQiaYmerRZUtK4=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32 h1:A++epzNCr3EY57dnU6UTSDwbCiPD6MjvUKHKSd/PoI8=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20230925072753-4062d0cc2a32/go.mod h1:wnJQyK4n0vShhL+YIAUd7XCzUhgZ9fgG6yJ14n7qefo=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20231027030935-291bfa0458c4 h1:uLaq7qqIYJ2tJ5fQE5EBvqAgvM5Y4jWbz9V4AURwMGI=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20231027030935-291bfa0458c4/go.mod h1:rbAKU2rftDobCIoCiol3SO+bTqw2cERu9TEki7PvfK0=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e/go.mod h1:HBaDqlFjlaXJwVQtA7jHejyaA7xwjXI2o6pU/ccP3tE=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
@@ -2365,8 +2365,8 @@ google.golang.org/grpc v1.48.0/go.mod h1:vN9eftEi1UMyUsIF80+uQXhHjbXYbm0uXoFCACu
 google.golang.org/grpc v1.49.0/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
 google.golang.org/grpc v1.50.0/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
 google.golang.org/grpc v1.50.1/go.mod h1:ZgQEeidpAuNRZ8iRrlBKXZQP1ghovWIVhdJRyCDK+GI=
-google.golang.org/grpc v1.57.0 h1:kfzNeI/klCGD2YPMUlaGNT3pxvYfga7smW3Vth8Zsiw=
-google.golang.org/grpc v1.57.0/go.mod h1:Sd+9RMTACXwmub0zcNY2c4arhtrbBYD1AUHI/dt16Mo=
+google.golang.org/grpc v1.57.1 h1:upNTNqv0ES+2ZOOqACwVtS3Il8M12/+Hz41RCPzAjQg=
+google.golang.org/grpc v1.57.1/go.mod h1:Sd+9RMTACXwmub0zcNY2c4arhtrbBYD1AUHI/dt16Mo=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

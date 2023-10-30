@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 var (
@@ -76,11 +76,11 @@ type RelayerContract struct {
 	BaseContract
 
 	cdc         codec.Codec
-	ibcKeeper   *ibckeeper.Keeper
+	ibcKeeper   types.IbcKeeper
 	kvGasConfig storetypes.GasConfig
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,

@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -31,7 +30,6 @@ class IBCNetwork(NamedTuple):
     chainmain: Chainmain
     hermes: Hermes | None
     incentivized: bool
-    proc: subprocess.Popen[bytes] | None
 
 
 def call_hermes_cmd(
@@ -84,12 +82,12 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, connection_only, version):
+def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
     cmd = [
         "rly",
         "pth",
         "new",
-        "chainmain-1",
+        hostchain,
         "cronos_777-1",
         "chainmain-cronos",
         "--home",
@@ -164,7 +162,6 @@ def prepare_network(
         else:
             call_rly_cmd(path, connection_only, version)
 
-        proc = None
         if incentivized:
             # register fee payee
             src_chain = cronos.cosmos_cli()
@@ -181,22 +178,12 @@ def prepare_network(
 
         port = None
         if is_relay:
+            cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
-                cronos.supervisorctl("start", "relayer-demo")
                 port = hermes.port
             else:
-                proc = subprocess.Popen(
-                    [
-                        "rly",
-                        "start",
-                        "chainmain-cronos",
-                        "--home",
-                        str(path),
-                    ],
-                    preexec_fn=os.setsid,
-                )
                 port = 5183
-        yield IBCNetwork(cronos, chainmain, hermes, incentivized, proc)
+        yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
 
@@ -261,7 +248,6 @@ def ibc_transfer_with_hermes(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-
     # assert that the relayer transactions do enables the dynamic fee extension option.
     cli = ibc.cronos.cosmos_cli()
     criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
