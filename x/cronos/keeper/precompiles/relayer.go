@@ -2,7 +2,6 @@ package precompiles
 
 import (
 	"errors"
-	"fmt"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 
@@ -11,13 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	capabilitykeeper "github.com/cosmos/cosmos-sdk/x/capability/keeper"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
-	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	"github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
-	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
@@ -83,21 +75,17 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc             codec.Codec
-	ibcKeeper       *ibckeeper.Keeper
-	scopedIBCKeeper *capabilitykeeper.ScopedKeeper
-	memKeys         map[string]*storetypes.MemoryStoreKey
-	kvGasConfig     storetypes.GasConfig
+	cdc         codec.Codec
+	ibcKeeper   *ibckeeper.Keeper
+	kvGasConfig storetypes.GasConfig
 }
 
-func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, scopedIBCKeeper *capabilitykeeper.ScopedKeeper, memKeys map[string]*storetypes.MemoryStoreKey, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper *ibckeeper.Keeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &RelayerContract{
-		BaseContract:    NewBaseContract(relayerContractAddress),
-		ibcKeeper:       ibcKeeper,
-		scopedIBCKeeper: scopedIBCKeeper,
-		memKeys:         memKeys,
-		cdc:             cdc,
-		kvGasConfig:     kvGasConfig,
+		BaseContract: NewBaseContract(relayerContractAddress),
+		ibcKeeper:    ibcKeeper,
+		cdc:          cdc,
+		kvGasConfig:  kvGasConfig,
 	}
 }
 
@@ -120,33 +108,6 @@ func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
 
 func (bc *RelayerContract) IsStateful() bool {
 	return true
-}
-
-func (bc *RelayerContract) findMemkey() *storetypes.MemoryStoreKey {
-	for _, m := range bc.memKeys {
-		if m.Name() == capabilitytypes.MemStoreKey {
-			return m
-		}
-	}
-	return nil
-}
-
-func (bc *RelayerContract) setMemStoreKeys(
-	ctx sdk.Context,
-	memKey storetypes.StoreKey,
-	index uint64,
-	keyName string,
-) error {
-	memStore := ctx.KVStore(memKey)
-	key := []byte(fmt.Sprintf("ibc/rev/%s", keyName))
-	memStore.Set(key, sdk.Uint64ToBigEndian(index))
-	cap, ok := bc.scopedIBCKeeper.GetCapability(ctx, keyName)
-	if !ok {
-		return fmt.Errorf("fail to find cap for %s", keyName)
-	}
-	key = capabilitytypes.FwdCapabilityKey(exported.ModuleName, cap)
-	memStore.Set(key, []byte(keyName))
-	return nil
 }
 
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
@@ -180,8 +141,6 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	if len(args) > 1 {
 		e.input2 = args[1].([]byte)
 	}
-	memKey := bc.findMemkey()
-	fmt.Println("mm-method.Name", method.Name)
 	switch method.Name {
 	case CreateClient:
 		res, err = exec(e, bc.ibcKeeper.CreateClient)
@@ -224,85 +183,21 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case UpdateClientAndConnectionOpenConfirm:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ConnectionOpenConfirm)
 	case UpdateClientAndChannelOpenInit:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoi *types.MsgChannelOpenInit) error {
-				keyName := host.PortPath(mcoi.PortId)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(1), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.ChannelOpenInit,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenInit)
 	case UpdateClientAndChannelOpenTry:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcot *types.MsgChannelOpenTry) error {
-				keyName := host.PortPath(mcot.PortId)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(1), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.ChannelOpenTry,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenTry)
 	case UpdateClientAndChannelOpenAck:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoa *types.MsgChannelOpenAck) error {
-				keyName := host.ChannelCapabilityPath(mcoa.PortId, mcoa.ChannelId)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.ChannelOpenAck,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenAck)
 	case UpdateClientAndChannelOpenConfirm:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mcoc *types.MsgChannelOpenConfirm) error {
-				keyName := host.ChannelCapabilityPath(mcoc.PortId, mcoc.ChannelId)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.ChannelOpenConfirm,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenConfirm)
 	case UpdateClientAndRecvPacket:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mrp *types.MsgRecvPacket) error {
-				keyName := host.ChannelCapabilityPath(mrp.Packet.DestinationPort, mrp.Packet.DestinationChannel)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.RecvPacket,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.RecvPacket)
 	case UpdateClientAndAcknowledgement:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mack *types.MsgAcknowledgement) error {
-				keyName := host.ChannelCapabilityPath(mack.Packet.SourcePort, mack.Packet.SourceChannel)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.Acknowledgement,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.Acknowledgement)
 	case UpdateClientAndTimeout:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mt *types.MsgTimeout) error {
-				keyName := host.ChannelCapabilityPath(mt.Packet.SourcePort, mt.Packet.SourceChannel)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.Timeout,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.Timeout)
 	case UpdateClientAndTimeoutOnClose:
-		res, err = execMultipleWithHooks(
-			e,
-			func(ctx sdk.Context, _ *clienttypes.MsgUpdateClient, mtoc *types.MsgTimeoutOnClose) error {
-				keyName := host.ChannelCapabilityPath(mtoc.Packet.SourcePort, mtoc.Packet.SourceChannel)
-				return bc.setMemStoreKeys(ctx, memKey, uint64(2), keyName)
-			},
-			bc.ibcKeeper.UpdateClient,
-			bc.ibcKeeper.TimeoutOnClose,
-		)
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.TimeoutOnClose)
 	default:
 		return nil, errors.New("unknown method")
 	}
