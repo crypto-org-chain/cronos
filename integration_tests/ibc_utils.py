@@ -665,10 +665,5 @@ def log_gas_records(cli):
     records = []
     for tx in txs:
         res = tx["tx_result"]
-        actions = []
-        for event in res["events"]:
-            for attribute in event["attributes"]:
-                if attribute["key"] == "action":
-                    actions.append(attribute["value"])
-        records.append(res["gas_used"])
-    print("records", records)
+        if res["gas_used"]:
+            records.append(res["gas_used"])
