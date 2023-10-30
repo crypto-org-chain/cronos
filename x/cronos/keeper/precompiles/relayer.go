@@ -3,13 +3,14 @@ package precompiles
 import (
 	"errors"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-
+	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -18,6 +19,7 @@ import (
 var (
 	irelayerABI                abi.ABI
 	relayerContractAddress     = common.BytesToAddress([]byte{101})
+	relayerMethodNamedByMethod = map[[4]byte]string{}
 	relayerGasRequiredByMethod = map[[4]byte]uint64{}
 )
 
@@ -61,31 +63,39 @@ func init() {
 		copy(methodID[:], irelayerABI.Methods[methodName].ID[:4])
 		switch methodName {
 		case CreateClient:
-			relayerGasRequiredByMethod[methodID] = 200000
-		case RecvPacket, Acknowledgement:
-			relayerGasRequiredByMethod[methodID] = 250000
-		case UpdateClient, UpgradeClient:
-			relayerGasRequiredByMethod[methodID] = 400000
+			relayerGasRequiredByMethod[methodID] = 117462
+		case UpdateClientAndConnectionOpenTry:
+			relayerGasRequiredByMethod[methodID] = 150362
+		case UpdateClientAndConnectionOpenConfirm:
+			relayerGasRequiredByMethod[methodID] = 124820
+		case UpdateClientAndChannelOpenTry:
+			relayerGasRequiredByMethod[methodID] = 182676
+		case UpdateClientAndChannelOpenConfirm:
+			relayerGasRequiredByMethod[methodID] = 132734
+		case UpdateClientAndRecvPacket:
+			relayerGasRequiredByMethod[methodID] = 257120
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}
+
+		relayerMethodNamedByMethod[methodID] = methodName
 	}
 }
 
 type RelayerContract struct {
 	BaseContract
 
-	cdc         codec.Codec
-	ibcKeeper   types.IbcKeeper
-	kvGasConfig storetypes.GasConfig
+	cdc       codec.Codec
+	ibcKeeper types.IbcKeeper
+	logger    log.Logger
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
-		kvGasConfig:  kvGasConfig,
+		logger:       logger.With("precompiles", "relayer"),
 	}
 }
 
@@ -94,16 +104,32 @@ func (bc *RelayerContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-func (bc *RelayerContract) RequiredGas(input []byte) uint64 {
+func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
+	inputLen := len(input)
+	if inputLen < 4 {
+		return 0
+	}
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	if err != nil {
+		return 0
+	}
 	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * bc.kvGasConfig.WriteCostPerByte
+	baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := relayerGasRequiredByMethod[methodID]
-	if ok {
-		return requiredGas + baseCost
+	if !ok {
+		requiredGas = 0
 	}
-	return baseCost
+	defer func() {
+		method := relayerMethodNamedByMethod[methodID]
+		bc.logger.Debug("required", "gas", gas, "method", method, "len", inputLen, "intrinsic", intrinsicGas)
+	}()
+	total := requiredGas + baseCost
+	if total < intrinsicGas {
+		return 0
+	}
+	return total - intrinsicGas
 }
 
 func (bc *RelayerContract) IsStateful() bool {

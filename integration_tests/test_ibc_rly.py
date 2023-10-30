@@ -1,5 +1,4 @@
 import json
-import subprocess
 
 import pytest
 from eth_utils import keccak, to_checksum_address
@@ -14,6 +13,7 @@ from .ibc_utils import (
     ibc_denom,
     ibc_incentivized_transfer,
     prepare_network,
+    rly_transfer,
 )
 from .utils import (
     ADDRS,
@@ -49,21 +49,6 @@ def ibc(request, tmp_path_factory):
         name,
         relayer=cluster.Relayer.RLY.value,
     )
-
-
-def rly_transfer(ibc):
-    # chainmain-1 -> cronos_777-1
-    my_ibc0 = "chainmain-1"
-    my_ibc1 = "cronos_777-1"
-    path = ibc.cronos.base_dir.parent / "relayer"
-    # srcchainid dstchainid amount dst_addr srchannelid
-    cmd = (
-        f"rly tx transfer {my_ibc0} {my_ibc1} {src_amount}{src_denom} "
-        f"{eth_to_bech32(cronos_signer2)} {channel} "
-        f"--path chainmain-cronos "
-        f"--home {str(path)}"
-    )
-    subprocess.run(cmd, check=True, shell=True)
 
 
 def coin_received(receiver, amt, denom):

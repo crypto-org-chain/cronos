@@ -217,6 +217,25 @@ def hermes_transfer(ibc):
     return src_amount
 
 
+def rly_transfer(ibc):
+    # chainmain-1 -> cronos_777-1
+    my_ibc0 = "chainmain-1"
+    my_ibc1 = "cronos_777-1"
+    channel = "channel-0"
+    dst_addr = eth_to_bech32(ADDRS["signer2"])
+    src_amount = 10
+    src_denom = "basecro"
+    path = ibc.cronos.base_dir.parent / "relayer"
+    # srcchainid dstchainid amount dst_addr srchannelid
+    cmd = (
+        f"rly tx transfer {my_ibc0} {my_ibc1} {src_amount}{src_denom} "
+        f"{dst_addr} {channel} "
+        f"--path chainmain-cronos "
+        f"--home {str(path)}"
+    )
+    subprocess.run(cmd, check=True, shell=True)
+
+
 def find_duplicate(attributes):
     res = set()
     key = attributes[0]["key"]
@@ -638,3 +657,18 @@ def gen_send_msg(sender, receiver, denom, amount):
         "to_address": receiver,
         "amount": [{"denom": denom, "amount": f"{amount}"}],
     }
+
+
+def log_gas_records(cli):
+    criteria = "tx.height >= 0"
+    txs = cli.tx_search_rpc(criteria)
+    records = []
+    for tx in txs:
+        res = tx["tx_result"]
+        actions = []
+        for event in res["events"]:
+            for attribute in event["attributes"]:
+                if attribute["key"] == "action":
+                    actions.append(attribute["value"])
+        records.append(res["gas_used"])
+    print("records", records)
