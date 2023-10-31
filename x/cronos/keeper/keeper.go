@@ -304,7 +304,7 @@ func (k Keeper) onPacketResult(
 		return err
 	}
 
-	if stateDB, ok := ctx.Value("statedb").(vm.StateDB); ok {
+	if stateDB, ok := ctx.Value(types.StateDBContextKey).(vm.StateDB); ok {
 		for _, l := range rsp.Logs {
 			stateDB.AddLog(l.ToEthereum())
 		}
