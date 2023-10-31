@@ -8,6 +8,7 @@
 - [#1217](https://github.com/crypto-org-chain/cronos/pull/1217) Use the default chain-id behavour in sdk.
 - [#1216](https://github.com/crypto-org-chain/cronos/pull/1216) Update ethermint to fix of avoid redundant parse chainID from gensis when start server.
 - [#1230](https://github.com/crypto-org-chain/cronos/pull/1230) Fix mem store in versiondb multistore.
+- [#]() Re-emit logs in callback contract.
 
 *October 17, 2023*
 

@@ -45,6 +45,7 @@ func exec[Req any, PReq interface {
 	var res Resp
 	if err := stateDB.ExecuteNativeAction(contract, converter, func(ctx sdk.Context) error {
 		var err error
+		ctx = ctx.WithValue("statedb", stateDB)
 		res, err = action(ctx, msg)
 		return err
 	}); err != nil {

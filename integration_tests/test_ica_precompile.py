@@ -302,3 +302,5 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.FAIL
     assert cli_host.balance(ica_address, denom=denom) == balance
+
+    print(tcontract.events.OnPacketResult().get_logs())
