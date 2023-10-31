@@ -10,6 +10,11 @@
 - [#1230](https://github.com/crypto-org-chain/cronos/pull/1230) Fix mem store in versiondb multistore.
 - [#1233](https://github.com/crypto-org-chain/cronos/pull/1233) Re-emit logs in callback contract.
 
+### State Machine Breaking
+
+- [#1232](https://github.com/crypto-org-chain/cronos/pull/1232) Adjust require gas in relayer precompile to be closed with actual consumed.
+
+
 *October 17, 2023*
 
 ## v1.1.0-rc1

@@ -536,7 +536,7 @@ func New(
 		tracer,
 		evmS,
 		[]vm.PrecompiledContract{
-			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, gasConfig),
+			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, app.Logger()),
 			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig),
 		},
 		allKeys,
