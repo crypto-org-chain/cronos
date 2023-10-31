@@ -303,4 +303,4 @@ def test_sc_call(ibc):
     assert status == Status.FAIL
     assert cli_host.balance(ica_address, denom=denom) == balance
 
-    print(tcontract.events.OnPacketResult().get_logs())
+    print(tcontract.events.OnPacketResult.getLogs())
