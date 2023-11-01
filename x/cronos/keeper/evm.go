@@ -8,6 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -35,6 +36,14 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// if the call originally comes from an ibc-in precompiled message, re-emit the logs into the original stateDB.
+	if stateDB, ok := ctx.Value(types.StateDBContextKey).(vm.StateDB); ok {
+		for _, l := range ret.Logs {
+			stateDB.AddLog(l.ToEthereum())
+		}
+	}
+
 	return &msg, ret, nil
 }
 

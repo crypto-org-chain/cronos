@@ -23,7 +23,6 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	// this line is used by starport scaffolding # ibc/keeper/import
 )
 
@@ -299,16 +298,11 @@ func (k Keeper) onPacketResult(
 		return err
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
-	_, rsp, err := k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
+	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
 	if err != nil {
 		return err
 	}
 
-	if stateDB, ok := ctx.Value(types.StateDBContextKey).(vm.StateDB); ok {
-		for _, l := range rsp.Logs {
-			stateDB.AddLog(l.ToEthereum())
-		}
-	}
 	return nil
 }
 
