@@ -27,8 +27,6 @@ const (
 	prefixContractToDenom
 	paramsKey
 	prefixAdminToPermissions
-
-	StateDBContextKey = "statedb"
 )
 
 // KVStore key prefixes

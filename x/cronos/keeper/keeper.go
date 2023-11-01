@@ -299,11 +299,7 @@ func (k Keeper) onPacketResult(
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
 	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (k Keeper) IBCOnAcknowledgementPacketCallback(

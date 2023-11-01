@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/x/evm/statedb"
 )
@@ -46,7 +45,6 @@ func exec[Req any, PReq interface {
 	var res Resp
 	if err := stateDB.ExecuteNativeAction(contract, converter, func(ctx sdk.Context) error {
 		var err error
-		ctx = ctx.WithValue(types.StateDBContextKey, stateDB)
 		res, err = action(ctx, msg)
 		return err
 	}); err != nil {

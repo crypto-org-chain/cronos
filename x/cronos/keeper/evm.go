@@ -10,6 +10,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/evmos/ethermint/x/evm/statedb"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -37,8 +38,8 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 		return nil, nil, err
 	}
 
-	// if the call originally comes from an ibc-in precompiled message, re-emit the logs into the original stateDB.
-	if stateDB, ok := ctx.Value(types.StateDBContextKey).(vm.StateDB); ok {
+	// if the call is from an precompiled contract call, then re-emit the logs into the original stateDB.
+	if stateDB, ok := ctx.Value(statedb.StateDBContextKey).(vm.StateDB); ok {
 		for _, l := range ret.Logs {
 			stateDB.AddLog(l.ToEthereum())
 		}
