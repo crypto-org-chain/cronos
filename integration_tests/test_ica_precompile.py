@@ -184,7 +184,9 @@ def wait_for_status_change(tcontract, seq):
     wait_for_fn("current status", check_status)
 
 
-def assert_packet_event(logs, seq, status):
+def assert_packet_result(event, seq, status):
+    (logs) = event.getLogs()
+    assert len(logs) > 0
     return logs[0].args == AttributeDict({"seq": seq, "status": status})
 
 
@@ -252,11 +254,9 @@ def test_sc_call(ibc):
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
-    status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    (logs) = tcontract.events.OnPacketResult.getLogs()
-    assert_packet_event(logs, expected_seq, status)
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -276,8 +276,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    (logs) = tcontract.events.OnPacketResult.getLogs()
-    assert_packet_event(logs, expected_seq, status)
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -298,8 +297,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    (logs) = tcontract.events.OnPacketResult.getLogs()
-    assert_packet_event(logs, expected_seq, status)
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
@@ -319,6 +317,5 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    (logs) = tcontract.events.OnPacketResult.getLogs()
-    assert_packet_event(logs, expected_seq, status)
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
