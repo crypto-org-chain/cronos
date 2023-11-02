@@ -1250,7 +1250,7 @@ class CosmosCLI:
             "gas": "auto",
             "gas_adjustment": "1.5",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1264,6 +1264,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def icaauth_register_account(self, connid, **kwargs):
         "execute on host chain to attach an account to the connection"
