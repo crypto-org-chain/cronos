@@ -3,6 +3,7 @@ import json
 from enum import IntEnum
 
 import pytest
+from pystarport import cluster
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
@@ -45,9 +46,15 @@ class Status(IntEnum):
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    name = "ibc"
+    name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, incentivized=False, connection_only=True)
+    yield from prepare_network(
+        path,
+        name,
+        incentivized=False,
+        connection_only=True,
+        relayer=cluster.Relayer.RLY.value,
+    )
 
 
 def register_acc(cli, w3, register, query, data, addr, channel_id):
@@ -177,6 +184,12 @@ def wait_for_status_change(tcontract, seq):
     wait_for_fn("current status", check_status)
 
 
+def assert_packet_result(event, seq, status):
+    (logs) = event.getLogs()
+    assert len(logs) > 0
+    return logs[0].args == AttributeDict({"seq": seq, "status": status})
+
+
 def test_sc_call(ibc):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -243,6 +256,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -262,6 +276,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -282,6 +297,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
@@ -301,4 +317,5 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
