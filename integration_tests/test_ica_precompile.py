@@ -21,16 +21,11 @@ from .utils import (
     KEYS,
     deploy_contract,
     eth_to_bech32,
-    get_logs_since,
-    get_method_map,
-    get_topic_data,
     send_transaction,
     wait_for_fn,
 )
 
 CONTRACT = "0x0000000000000000000000000000000000000066"
-contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
-method_map = get_method_map(contract_info)
 connid = "connection-0"
 no_timeout = 300000000000
 denom = "basecro"
@@ -79,6 +74,7 @@ def submit_msgs(
     ica_address,
     add_delegate,
     expected_seq,
+    event,
     timeout=no_timeout,
     amount=amt,
     need_wait=True,
@@ -109,7 +105,6 @@ def submit_msgs(
         diff_amt += amt1
     generated_packet = cli_controller.ica_generate_packet_data(json.dumps(msgs))
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-    start = w3.eth.get_block_number()
     str = base64.b64decode(generated_packet["data"])
     # submit transaction on host chain on behalf of interchain account
     tx = func(connid, str, timeout).build_transaction(data)
@@ -120,12 +115,9 @@ def submit_msgs(
         print(f"wait for {timeout_in_s}s")
         wait_for_check_tx(cli_host, ica_address, num_txs, timeout_in_s)
     else:
-        logs = get_logs_since(w3, CONTRACT, start)
-        expected = [{"seq": expected_seq}]
-        assert len(logs) == len(expected)
-        for i, log in enumerate(logs):
-            method_name, args = get_topic_data(w3, method_map, contract_info, log)
-            assert args == AttributeDict(expected[i]), [i, method_name]
+        (logs) = event.getLogs()
+        assert len(logs) > 0
+        assert logs[0].args == AttributeDict({"seq": expected_seq})
         if need_wait:
             wait_for_check_tx(cli_host, ica_address, num_txs)
     return str, diff_amt
@@ -137,6 +129,7 @@ def test_call(ibc):
     w3 = ibc.cronos.w3
     name = "signer2"
     addr = ADDRS[name]
+    contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     data = {"from": ADDRS[name]}
     ica_address = register_acc(
@@ -157,6 +150,7 @@ def test_call(ibc):
         ica_address,
         False,
         expected_seq,
+        contract.events.SubmitMsgsResult,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -168,6 +162,7 @@ def test_call(ibc):
         ica_address,
         True,
         expected_seq,
+        contract.events.SubmitMsgsResult,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -194,6 +189,7 @@ def test_sc_call(ibc):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
+    contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     jsonfile = CONTRACTS["TestICA"]
     tcontract = deploy_contract(w3, jsonfile)
@@ -248,6 +244,7 @@ def test_sc_call(ibc):
         ica_address,
         False,
         expected_seq,
+        contract.events.SubmitMsgsResult,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -268,6 +265,7 @@ def test_sc_call(ibc):
         ica_address,
         True,
         expected_seq,
+        contract.events.SubmitMsgsResult,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -289,6 +287,7 @@ def test_sc_call(ibc):
         ica_address,
         False,
         expected_seq,
+        contract.events.SubmitMsgsResult,
         amount=100000001,
         need_wait=False,
     )
@@ -310,6 +309,7 @@ def test_sc_call(ibc):
         ica_address,
         False,
         expected_seq,
+        contract.events.SubmitMsgsResult,
         timeout,
     )
     last_seq = tcontract.caller.getLastSeq()
