@@ -46,7 +46,7 @@ class Status(IntEnum):
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    name = "ibc"
+    name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
     yield from prepare_network(
         path,
