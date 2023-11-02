@@ -1,10 +1,8 @@
 import base64
-import itertools
 import json
 from enum import IntEnum
 
 import pytest
-from hexbytes import HexBytes
 from pystarport import cluster
 from web3.datastructures import AttributeDict
 
@@ -186,11 +184,14 @@ def wait_for_status_change(tcontract, seq):
     wait_for_fn("current status", check_status)
 
 
+def assert_packet_event(logs, seq, status):
+    return logs[0].args == AttributeDict({"seq": seq, "status": status})
+
+
 def test_sc_call(ibc):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
-    begin_block = w3.eth.block_number
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     jsonfile = CONTRACTS["TestICA"]
     tcontract = deploy_contract(w3, jsonfile)
@@ -251,8 +252,11 @@ def test_sc_call(ibc):
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
+    status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    (logs) = tcontract.events.OnPacketResult.getLogs()
+    assert_packet_event(logs, expected_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -272,6 +276,8 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
+    (logs) = tcontract.events.OnPacketResult.getLogs()
+    assert_packet_event(logs, expected_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -292,6 +298,8 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    (logs) = tcontract.events.OnPacketResult.getLogs()
+    assert_packet_event(logs, expected_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
@@ -311,81 +319,6 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
+    (logs) = tcontract.events.OnPacketResult.getLogs()
+    assert_packet_event(logs, expected_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
-
-    # check logs emitted in callback
-    logs = get_logs_since(w3, addr, begin_block)
-    assert_logs_equal(
-        logs,
-        [
-            {
-                "address": addr,
-                "topics": [
-                    HexBytes(
-                        "0xb58d968e02022e42ce2b8f5c494b724806ff73755eb957ff2be7a62947"
-                        "8ac9f9"
-                    )
-                ],
-                "data": HexBytes(
-                    "0x00000000000000000000000000000000000000000000000000000000000000"
-                    "010000000000000000000000000000000000000000000000000000000000000001"
-                ),
-                "transactionIndex": 1,
-                "logIndex": 0,
-                "removed": False,
-            },
-            {
-                "address": addr,
-                "topics": [
-                    HexBytes(
-                        "0xb58d968e02022e42ce2b8f5c494b724806ff73755eb957ff2be7a62947"
-                        "8ac9f9"
-                    )
-                ],
-                "data": HexBytes(
-                    "0x00000000000000000000000000000000000000000000000000000000000000"
-                    "020000000000000000000000000000000000000000000000000000000000000001"
-                ),
-                "transactionIndex": 1,
-                "logIndex": 0,
-                "removed": False,
-            },
-            {
-                "address": addr,
-                "topics": [
-                    HexBytes(
-                        "0xb58d968e02022e42ce2b8f5c494b724806ff73755eb957ff2be7a62947"
-                        "8ac9f9"
-                    )
-                ],
-                "data": HexBytes(
-                    "0x00000000000000000000000000000000000000000000000000000000000000"
-                    "030000000000000000000000000000000000000000000000000000000000000002"
-                ),
-                "transactionIndex": 1,
-                "logIndex": 0,
-                "removed": False,
-            },
-            {
-                "address": addr,
-                "topics": [
-                    HexBytes(
-                        "0xb58d968e02022e42ce2b8f5c494b724806ff73755eb957ff2be7a62947"
-                        "8ac9f9"
-                    )
-                ],
-                "data": HexBytes(
-                    "0x00000000000000000000000000000000000000000000000000000000000000"
-                    "040000000000000000000000000000000000000000000000000000000000000002"
-                ),
-                "transactionIndex": 1,
-                "logIndex": 0,
-                "removed": False,
-            },
-        ],
-    )
-
-
-def assert_logs_equal(logs, exp_logs):
-    for exp_log, log in itertools.zip_longest(exp_logs, logs):
-        assert exp_log.items() <= log.items()
