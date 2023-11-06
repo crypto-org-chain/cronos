@@ -68,6 +68,34 @@ func init() {
 		switch methodName {
 		case CreateClient:
 			relayerGasRequiredByMethod[methodID] = 117462
+		case UpdateClient:
+			relayerGasRequiredByMethod[methodID] = 111894
+		case UpgradeClient:
+			relayerGasRequiredByMethod[methodID] = 400000
+		case ConnectionOpenInit:
+			relayerGasRequiredByMethod[methodID] = 19755
+		case ConnectionOpenTry:
+			relayerGasRequiredByMethod[methodID] = 38468
+		case ConnectionOpenAck:
+			relayerGasRequiredByMethod[methodID] = 29603
+		case ConnectionOpenConfirm:
+			relayerGasRequiredByMethod[methodID] = 12865
+		case ChannelOpenInit:
+			relayerGasRequiredByMethod[methodID] = 68701
+		case ChannelOpenTry:
+			relayerGasRequiredByMethod[methodID] = 70562
+		case ChannelOpenAck:
+			relayerGasRequiredByMethod[methodID] = 22127
+		case ChannelOpenConfirm:
+			relayerGasRequiredByMethod[methodID] = 21190
+		case ChannelCloseConfirm:
+			relayerGasRequiredByMethod[methodID] = 31199
+		case RecvPacket:
+			relayerGasRequiredByMethod[methodID] = 144025
+		case Acknowledgement:
+			relayerGasRequiredByMethod[methodID] = 61781
+		case Timeout:
+			relayerGasRequiredByMethod[methodID] = 104283
 		case UpdateClientAndConnectionOpenTry:
 			relayerGasRequiredByMethod[methodID] = 150362
 		case UpdateClientAndConnectionOpenConfirm:
