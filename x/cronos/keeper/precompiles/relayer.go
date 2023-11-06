@@ -34,7 +34,7 @@ func init() {
 	relayerGasRequiredByMethod[prefixChannelOpenTry] = 70562
 	relayerGasRequiredByMethod[prefixChannelOpenAck] = 22127
 	relayerGasRequiredByMethod[prefixChannelOpenConfirm] = 21190
-	relayerGasRequiredByMethod[prefixRecvPacket] = 144925
+	relayerGasRequiredByMethod[prefixRecvPacket] = 144025
 	relayerGasRequiredByMethod[prefixAcknowledgement] = 61781
 	relayerGasRequiredByMethod[prefixTimeout] = 104283
 	relayerGasRequiredByMethod[prefixTimeoutOnClose] = 100000
