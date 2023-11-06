@@ -36,6 +36,8 @@ const (
 	ChannelOpenTry                       = "channelOpenTry"
 	ChannelOpenAck                       = "channelOpenAck"
 	ChannelOpenConfirm                   = "channelOpenConfirm"
+	ChannelCloseInit                     = "channelCloseInit"
+	ChannelCloseConfirm                  = "channelCloseConfirm"
 	RecvPacket                           = "recvPacket"
 	Acknowledgement                      = "acknowledgement"
 	Timeout                              = "timeout"
@@ -47,6 +49,8 @@ const (
 	UpdateClientAndChannelOpenInit       = "updateClientAndChannelOpenInit"
 	UpdateClientAndChannelOpenTry        = "updateClientAndChannelOpenTry"
 	UpdateClientAndChannelOpenAck        = "updateClientAndChannelOpenAck"
+	UpdateClientAndChannelCloseInit      = "updateClientAndChannelCloseInit"
+	UpdateClientAndChannelCloseConfirm   = "updateClientAndChannelCloseConfirm"
 	UpdateClientAndChannelOpenConfirm    = "updateClientAndChannelOpenConfirm"
 	UpdateClientAndRecvPacket            = "updateClientAndRecvPacket"
 	UpdateClientAndAcknowledgement       = "updateClientAndAcknowledgement"
@@ -82,6 +86,8 @@ func init() {
 			relayerGasRequiredByMethod[methodID] = 180815
 		case UpdateClientAndChannelOpenAck:
 			relayerGasRequiredByMethod[methodID] = 133834
+		case UpdateClientAndChannelCloseConfirm:
+			relayerGasRequiredByMethod[methodID] = 143366
 		case UpdateClientAndTimeout:
 			relayerGasRequiredByMethod[methodID] = 230638
 		case UpdateClientAndAcknowledgement:
@@ -198,6 +204,10 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(e, bc.ibcKeeper.ChannelOpenAck)
 	case ChannelOpenConfirm:
 		res, err = exec(e, bc.ibcKeeper.ChannelOpenConfirm)
+	case ChannelCloseInit:
+		res, err = exec(e, bc.ibcKeeper.ChannelCloseInit)
+	case ChannelCloseConfirm:
+		res, err = exec(e, bc.ibcKeeper.ChannelCloseConfirm)
 	case RecvPacket:
 		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
@@ -218,6 +228,10 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenInit)
 	case UpdateClientAndChannelOpenTry:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenTry)
+	case UpdateClientAndChannelCloseInit:
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelCloseInit)
+	case UpdateClientAndChannelCloseConfirm:
+		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelCloseConfirm)
 	case UpdateClientAndChannelOpenAck:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.ChannelOpenAck)
 	case UpdateClientAndChannelOpenConfirm:

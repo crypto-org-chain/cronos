@@ -14,6 +14,8 @@ interface IRelayerFunctions {
     function channelOpenTry(bytes calldata data) external payable returns (bytes calldata);
     function channelOpenAck(bytes calldata data) external payable returns (bytes calldata);
     function channelOpenConfirm(bytes calldata data) external payable returns (bytes calldata);
+    function channelCloseInit(bytes calldata data) external payable returns (bytes calldata);
+    function channelCloseConfirm(bytes calldata data) external payable returns (bytes calldata);
     function recvPacket(bytes calldata data) external payable returns (bytes calldata);
     function acknowledgement(bytes calldata data) external payable returns (bytes calldata);
     function timeout(bytes calldata data) external payable returns (bytes calldata);
@@ -29,4 +31,6 @@ interface IRelayerFunctions {
     function updateClientAndRecvPacket(bytes calldata data1, bytes calldata data2) external payable returns (bool);
     function updateClientAndAcknowledgement(bytes calldata data1, bytes calldata data2) external payable returns (bool);
     function updateClientAndTimeout(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndChannelCloseInit(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function updateClientAndChannelCloseConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
 }
