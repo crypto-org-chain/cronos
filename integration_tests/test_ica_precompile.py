@@ -198,6 +198,7 @@ def test_sc_call(ibc):
     signer = ADDRS[name]
     keys = KEYS[name]
     data = {"from": signer, "gas": 400000}
+    channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -205,7 +206,7 @@ def test_sc_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id,
     )
     balance = funds_ica(cli_host, ica_address)
     assert tcontract.caller.getAccount() == signer
@@ -318,4 +319,32 @@ def test_sc_call(ibc):
     assert expected_seq == last_seq
     assert status == Status.FAIL
     assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    assert cli_host.balance(ica_address, denom=denom) == balance
+    wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
+    ica_address2 = register_acc(
+        cli_controller,
+        w3,
+        tcontract.functions.callRegister,
+        contract.functions.queryAccount,
+        data,
+        addr,
+        get_next_channel(cli_controller, connid),
+    )
+    assert ica_address2 == ica_address, ica_address2
+    expected_seq = 1
+    str, diff = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+    )
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.SUCCESS
+    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance

@@ -576,8 +576,8 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
     return amount, contract.address
 
 
-def wait_for_check_channel_ready(cli, connid, channel_id):
-    print("wait for channel ready", channel_id)
+def wait_for_check_channel_ready(cli, connid, channel_id, target="STATE_OPEN"):
+    print("wait for channel ready", channel_id, target)
 
     def check_channel_ready():
         channels = cli.ibc_query_channels(connid)["channels"]
@@ -589,7 +589,7 @@ def wait_for_check_channel_ready(cli, connid, channel_id):
             )
         except StopIteration:
             return False
-        return state == "STATE_OPEN"
+        return state == target
 
     wait_for_fn("channel ready", check_channel_ready)
 
