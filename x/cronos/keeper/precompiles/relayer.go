@@ -64,6 +64,7 @@ func (bc *RelayerContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
+// `len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	if len(input) < prefixSize4Bytes {
 		return 0
