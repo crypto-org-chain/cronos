@@ -74,6 +74,18 @@ func init() {
 			relayerGasRequiredByMethod[methodID] = 132734
 		case UpdateClientAndRecvPacket:
 			relayerGasRequiredByMethod[methodID] = 257120
+		case UpdateClientAndConnectionOpenInit:
+			relayerGasRequiredByMethod[methodID] = 131649
+		case UpdateClientAndConnectionOpenAck:
+			relayerGasRequiredByMethod[methodID] = 141558
+		case UpdateClientAndChannelOpenInit:
+			relayerGasRequiredByMethod[methodID] = 180815
+		case UpdateClientAndChannelOpenAck:
+			relayerGasRequiredByMethod[methodID] = 133834
+		case UpdateClientAndTimeout:
+			relayerGasRequiredByMethod[methodID] = 230638
+		case UpdateClientAndAcknowledgement:
+			relayerGasRequiredByMethod[methodID] = 174785
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}
@@ -103,27 +115,22 @@ func (bc *RelayerContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
+// `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
-	inputLen := len(input)
-	if inputLen < 4 {
-		return 0
-	}
-	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
-	if err != nil {
-		return 0
-	}
 	// base cost to prevent large input size
+	inputLen := len(input)
 	baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := relayerGasRequiredByMethod[methodID]
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, true, true)
+	defer func() {
+		methodName := relayerMethodNamedByMethod[methodID]
+		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
+	}()
 	if !ok {
 		requiredGas = 0
 	}
-	defer func() {
-		method := relayerMethodNamedByMethod[methodID]
-		bc.logger.Debug("required", "gas", gas, "method", method, "len", inputLen, "intrinsic", intrinsicGas)
-	}()
 	total := requiredGas + baseCost
 	if total < intrinsicGas {
 		return 0
