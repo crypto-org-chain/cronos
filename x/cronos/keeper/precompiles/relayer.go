@@ -80,8 +80,6 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	}
 	// base cost to prevent large input size
 	baseCost := uint64(len(input)) * authtypes.DefaultTxSizeCostPerByte
-	var methodID [4]byte
-	copy(methodID[:], input[:4])
 	defer func() {
 		bc.logger.Debug("required", "gas", gas, "method", prefix, "len", len(input), "intrinsic", intrinsicGas)
 	}()
