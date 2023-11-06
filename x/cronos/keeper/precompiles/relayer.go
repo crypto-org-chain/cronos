@@ -77,7 +77,6 @@ func init() {
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}
-
 		relayerMethodNamedByMethod[methodID] = methodName
 	}
 }
