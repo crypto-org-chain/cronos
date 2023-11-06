@@ -34,6 +34,8 @@ func init() {
 	relayerGasRequiredByMethod[prefixChannelOpenTry] = 70562
 	relayerGasRequiredByMethod[prefixChannelOpenAck] = 22127
 	relayerGasRequiredByMethod[prefixChannelOpenConfirm] = 21190
+	relayerGasRequiredByMethod[prefixChannelCloseInit] = 100000
+	relayerGasRequiredByMethod[prefixChannelCloseConfirm] = 31199
 	relayerGasRequiredByMethod[prefixRecvPacket] = 144025
 	relayerGasRequiredByMethod[prefixAcknowledgement] = 61781
 	relayerGasRequiredByMethod[prefixTimeout] = 104283
@@ -162,6 +164,10 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenAck, converter)
 	case prefixChannelOpenConfirm:
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenConfirm, converter)
+	case prefixChannelCloseInit:
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelCloseInit, converter)
+	case prefixChannelCloseConfirm:
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelCloseConfirm, converter)
 	case prefixRecvPacket:
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.RecvPacket, converter)
 	case prefixAcknowledgement:
