@@ -1,6 +1,5 @@
 import hashlib
 import json
-import os
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -83,12 +82,12 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, connection_only, version):
+def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
     cmd = [
         "rly",
         "pth",
         "new",
-        "chainmain-1",
+        hostchain,
         "cronos_777-1",
         "chainmain-cronos",
         "--home",
@@ -179,20 +178,10 @@ def prepare_network(
 
         port = None
         if is_relay:
+            cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
-                cronos.supervisorctl("start", "relayer-demo")
                 port = hermes.port
             else:
-                subprocess.Popen(
-                    [
-                        "rly",
-                        "start",
-                        "chainmain-cronos",
-                        "--home",
-                        str(path),
-                    ],
-                    preexec_fn=os.setsid,
-                )
                 port = 5183
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
@@ -226,6 +215,25 @@ def hermes_transfer(ibc):
     )
     subprocess.run(cmd, check=True, shell=True)
     return src_amount
+
+
+def rly_transfer(ibc):
+    # chainmain-1 -> cronos_777-1
+    my_ibc0 = "chainmain-1"
+    my_ibc1 = "cronos_777-1"
+    channel = "channel-0"
+    dst_addr = eth_to_bech32(ADDRS["signer2"])
+    src_amount = 10
+    src_denom = "basecro"
+    path = ibc.cronos.base_dir.parent / "relayer"
+    # srcchainid dstchainid amount dst_addr srchannelid
+    cmd = (
+        f"rly tx transfer {my_ibc0} {my_ibc1} {src_amount}{src_denom} "
+        f"{dst_addr} {channel} "
+        f"--path chainmain-cronos "
+        f"--home {str(path)}"
+    )
+    subprocess.run(cmd, check=True, shell=True)
 
 
 def find_duplicate(attributes):
@@ -650,3 +658,17 @@ def gen_send_msg(sender, receiver, denom, amount):
         "to_address": receiver,
         "amount": [{"denom": denom, "amount": f"{amount}"}],
     }
+
+
+def log_gas_records(cli):
+    criteria = "tx.height >= 0"
+    txs = cli.tx_search_rpc(criteria)
+    records = []
+    for tx in txs:
+        res = tx["tx_result"]
+        actions = []
+        for event in res["events"]:
+            for attribute in event["attributes"]:
+                if attribute["key"] == "action":
+                    actions.append(attribute["value"])
+        records.append(res["gas_used"])

@@ -72,7 +72,7 @@ func NewBankContract(bankKeeper types.BankKeeper, cdc codec.Codec, kvGasConfig s
 	return &BankContract{
 		BaseContract: NewBaseContract(
 			bankContractAddress,
-			kvGasConfig,
+			kvGasConfig.WriteCostPerByte,
 			bankMethodMap,
 			bankGasRequiredByMethod,
 			false,

@@ -85,7 +85,7 @@ func NewIcaContract(
 	return &IcaContract{
 		BaseContract: NewBaseContract(
 			icaContractAddress,
-			kvGasConfig,
+			kvGasConfig.WriteCostPerByte,
 			icaMethodMap,
 			icaGasRequiredByMethod,
 			false,

@@ -9,6 +9,7 @@ import tempfile
 from collections import namedtuple
 
 import bech32
+import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
@@ -220,6 +221,17 @@ class CosmosCLI:
         return json.loads(
             self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
         )
+
+    def tx_search_rpc(self, criteria: str):
+        node_rpc_http = "http" + self.node_rpc.removeprefix("tcp")
+        rsp = requests.get(
+            f"{node_rpc_http}/tx_search",
+            params={
+                "query": f'"{criteria}"',
+            },
+        ).json()
+        assert "error" not in rsp, rsp["error"]
+        return rsp["result"]["txs"]
 
     def distribution_commission(self, addr):
         coin = json.loads(
@@ -1238,7 +1250,7 @@ class CosmosCLI:
             "gas": "auto",
             "gas_adjustment": "1.5",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "cronos",
@@ -1252,6 +1264,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def icaauth_register_account(self, connid, **kwargs):
         "execute on host chain to attach an account to the connection"

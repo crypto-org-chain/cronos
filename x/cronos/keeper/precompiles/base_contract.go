@@ -2,7 +2,6 @@ package precompiles
 
 import (
 	"github.com/cometbft/cometbft/libs/log"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -17,7 +16,7 @@ type BaseContract interface {
 
 type baseContract struct {
 	address                       common.Address
-	kvGasConfig                   storetypes.GasConfig
+	writeCostPerByte              uint64
 	nameByMethod                  map[[4]byte]string
 	gasByMethod                   map[[4]byte]uint64
 	emptyGasIfInputLessThanPrefix bool
@@ -26,7 +25,7 @@ type baseContract struct {
 
 func NewBaseContract(
 	address common.Address,
-	kvGasConfig storetypes.GasConfig,
+	writeCostPerByte uint64,
 	nameByMethod map[[4]byte]string,
 	gasByMethod map[[4]byte]uint64,
 	emptyGasIfInputLessThanPrefix bool,
@@ -34,7 +33,7 @@ func NewBaseContract(
 ) BaseContract {
 	return &baseContract{
 		address,
-		kvGasConfig,
+		writeCostPerByte,
 		nameByMethod,
 		gasByMethod,
 		emptyGasIfInputLessThanPrefix,
@@ -53,13 +52,13 @@ func (c *baseContract) RequiredGas(input []byte) (gas uint64) {
 	inputLen := len(input)
 	defer func() {
 		method := c.nameByMethod[methodID]
-		c.logger.Info("required", "gas", gas, "method", method, "len", inputLen)
+		c.logger.Debug("required", "gas", gas, "method", method, "len", inputLen)
 	}()
 	if c.emptyGasIfInputLessThanPrefix && inputLen < 4 {
 		return
 	}
 	// base cost to prevent large input size
-	gas = uint64(inputLen) * c.kvGasConfig.WriteCostPerByte
+	gas = uint64(inputLen) * c.writeCostPerByte
 	if requiredGas, ok := c.gasByMethod[methodID]; ok {
 		gas += requiredGas
 	}

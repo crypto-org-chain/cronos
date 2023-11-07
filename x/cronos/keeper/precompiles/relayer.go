@@ -5,15 +5,17 @@ import (
 	"errors"
 	"fmt"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cometbft/cometbft/libs/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 
-	"github.com/cometbft/cometbft/libs/log"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ibckeeper "github.com/cosmos/ibc-go/v7/modules/core/keeper"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 var (
@@ -32,21 +34,23 @@ func assignMethodGas(prefix int, gas uint64) {
 }
 
 func init() {
-	assignMethodGas(prefixCreateClient, 200000)
-	assignMethodGas(prefixUpdateClient, 400000)
+	assignMethodGas(prefixCreateClient, 117462)
+	assignMethodGas(prefixUpdateClient, 111894)
 	assignMethodGas(prefixUpgradeClient, 400000)
 	assignMethodGas(prefixSubmitMisbehaviour, 100000)
-	assignMethodGas(prefixConnectionOpenInit, 100000)
-	assignMethodGas(prefixConnectionOpenTry, 100000)
-	assignMethodGas(prefixConnectionOpenAck, 100000)
-	assignMethodGas(prefixConnectionOpenConfirm, 100000)
-	assignMethodGas(prefixChannelOpenInit, 100000)
-	assignMethodGas(prefixChannelOpenTry, 100000)
-	assignMethodGas(prefixChannelOpenAck, 100000)
-	assignMethodGas(prefixChannelOpenConfirm, 100000)
-	assignMethodGas(prefixRecvPacket, 250000)
-	assignMethodGas(prefixAcknowledgement, 250000)
-	assignMethodGas(prefixTimeout, 100000)
+	assignMethodGas(prefixConnectionOpenInit, 19755)
+	assignMethodGas(prefixConnectionOpenTry, 38468)
+	assignMethodGas(prefixConnectionOpenAck, 29603)
+	assignMethodGas(prefixConnectionOpenConfirm, 12865)
+	assignMethodGas(prefixChannelOpenInit, 68701)
+	assignMethodGas(prefixChannelOpenTry, 70562)
+	assignMethodGas(prefixChannelOpenAck, 22127)
+	assignMethodGas(prefixChannelOpenConfirm, 21190)
+	assignMethodGas(prefixChannelCloseInit, 100000)
+	assignMethodGas(prefixChannelCloseConfirm, 31199)
+	assignMethodGas(prefixRecvPacket, 144025)
+	assignMethodGas(prefixAcknowledgement, 61781)
+	assignMethodGas(prefixTimeout, 104283)
 	assignMethodGas(prefixTimeoutOnClose, 100000)
 }
 
@@ -54,31 +58,52 @@ type RelayerContract struct {
 	BaseContract
 
 	cdc       codec.Codec
-	ibcKeeper *ibckeeper.Keeper
+	ibcKeeper types.IbcKeeper
+	logger    log.Logger
 }
 
 func NewRelayerContract(
 	ibcKeeper *ibckeeper.Keeper,
 	cdc codec.Codec,
-	kvGasConfig storetypes.GasConfig,
 	logger log.Logger,
 ) vm.PrecompiledContract {
+	bcLogger := logger.With("precompiles", "relayer")
 	return &RelayerContract{
 		BaseContract: NewBaseContract(
 			relayerContractAddress,
-			kvGasConfig,
+			authtypes.DefaultTxSizeCostPerByte,
 			relayerMethodMap,
 			relayerGasRequiredByMethod,
 			true,
-			logger.With("precompiles", "relayer"),
+			bcLogger,
 		),
 		ibcKeeper: ibcKeeper,
 		cdc:       cdc,
+		logger:    bcLogger,
 	}
 }
 
 func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
+}
+
+// RequiredGas calculates the contract gas use
+// `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
+func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	if err != nil {
+		return 0
+	}
+
+	total := bc.BaseContract.RequiredGas(input)
+	defer func() {
+		bc.logger.Debug("required", "gas", gas, "intrinsic", intrinsicGas, "total", total)
+	}()
+
+	if total < intrinsicGas {
+		return 0
+	}
+	return total - intrinsicGas
 }
 
 func (bc *RelayerContract) IsStateful() bool {
@@ -154,6 +179,10 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenAck, converter)
 	case prefixChannelOpenConfirm:
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelOpenConfirm, converter)
+	case prefixChannelCloseInit:
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelCloseInit, converter)
+	case prefixChannelCloseConfirm:
+		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.ChannelCloseConfirm, converter)
 	case prefixRecvPacket:
 		res, err = exec(bc.cdc, stateDB, contract.CallerAddress, precompileAddr, input, bc.ibcKeeper.RecvPacket, converter)
 	case prefixAcknowledgement:
