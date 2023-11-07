@@ -302,7 +302,7 @@ def test_sc_call(ibc):
 
     # balance should not change on timeout
     expected_seq += 1
-    timeout = 300000
+    timeout = 1000000000
     submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -331,6 +331,8 @@ def test_sc_call(ibc):
         get_next_channel(cli_controller, connid),
     )
     assert ica_address2 == ica_address, ica_address2
+    # wait new channel get ready
+    wait_for_new_blocks(cli_controller, 5)
     expected_seq = 1
     str, diff = submit_msgs(
         ibc,
