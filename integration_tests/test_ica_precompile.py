@@ -116,7 +116,7 @@ def submit_msgs(
         print(f"wait for {timeout_in_s}s")
         wait_for_check_tx(cli_host, ica_address, num_txs, timeout_in_s)
     else:
-        (logs) = event.getLogs()
+        logs = event.getLogs()
         assert len(logs) > 0
         assert logs[0].args == AttributeDict({"seq": expected_seq})
         if need_wait:
