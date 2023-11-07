@@ -185,7 +185,7 @@ def wait_for_packet_log(event, seq, status):
     expected = AttributeDict({"seq": seq, "status": status})
 
     def check_log():
-        (logs) = event.getLogs()
+        logs = event.getLogs()
         return len(logs) > 0 and logs[0].args == expected
 
     wait_for_fn("packet log", check_log)
