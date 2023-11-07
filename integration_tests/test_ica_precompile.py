@@ -23,6 +23,7 @@ from .utils import (
     eth_to_bech32,
     send_transaction,
     wait_for_fn,
+    wait_for_new_blocks,
 )
 
 CONTRACT = "0x0000000000000000000000000000000000000066"
@@ -179,10 +180,15 @@ def wait_for_status_change(tcontract, seq):
     wait_for_fn("current status", check_status)
 
 
-def assert_packet_result(event, seq, status):
-    (logs) = event.getLogs()
-    assert len(logs) > 0
-    return logs[0].args == AttributeDict({"seq": seq, "status": status})
+def wait_for_packet_log(event, seq, status):
+    print("wait for log arrive")
+    expected = AttributeDict({"seq": seq, "status": status})
+
+    def check_log():
+        (logs) = event.getLogs()
+        return len(logs) > 0 and logs[0].args == expected
+
+    wait_for_fn("packet log", check_log)
 
 
 def test_sc_call(ibc):
@@ -254,7 +260,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -275,7 +281,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -297,7 +303,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
@@ -318,7 +324,7 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
     ica_address2 = register_acc(
@@ -341,12 +347,14 @@ def test_sc_call(ibc):
         ica_address,
         False,
         expected_seq,
+        contract.events.SubmitMsgsResult,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    # wait for ack to add log from call evm
+    wait_for_packet_log(tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
