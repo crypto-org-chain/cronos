@@ -168,11 +168,11 @@ def test_call(ibc):
     assert cli_host.balance(ica_address, denom=denom) == balance
 
 
-def wait_for_status_change(tcontract, seq):
+def wait_for_status_change(tcontract, channel_id, seq):
     print(f"wait for status change for {seq}")
 
     def check_status():
-        status = tcontract.caller.statusMap(seq)
+        status = tcontract.caller.getStatus(channel_id, seq)
         print("current", status)
         return status
 
@@ -198,6 +198,7 @@ def test_sc_call(ibc):
     signer = ADDRS[name]
     keys = KEYS[name]
     data = {"from": signer, "gas": 400000}
+    channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -205,7 +206,7 @@ def test_sc_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id,
     )
     balance = funds_ica(cli_host, ica_address)
     assert tcontract.caller.getAccount() == signer
@@ -249,8 +250,8 @@ def test_sc_call(ibc):
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
     assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
@@ -270,8 +271,8 @@ def test_sc_call(ibc):
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
     assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
@@ -292,8 +293,8 @@ def test_sc_call(ibc):
         need_wait=False,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
     assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
@@ -313,8 +314,8 @@ def test_sc_call(ibc):
         timeout,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
     assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
