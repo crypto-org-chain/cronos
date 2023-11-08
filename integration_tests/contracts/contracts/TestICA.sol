@@ -16,7 +16,7 @@ contract TestICA {
         FAIL
     }
     mapping (string => mapping (uint64 => Status)) public statusMap;
-    event OnPacketResult(uint64 seq, Status status);
+    event OnPacketResult(string indexed packetSrcChannel, uint64 seq, Status status);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -114,7 +114,7 @@ contract TestICA {
             status = Status.SUCCESS;
         }
         statusMap[packetSrcChannel][seq] = status;
-        emit OnPacketResult(seq, status);
+        emit OnPacketResult(packetSrcChannel, seq, status);
         return true;
     }
 }
