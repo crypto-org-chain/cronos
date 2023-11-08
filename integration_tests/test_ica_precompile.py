@@ -182,7 +182,8 @@ def wait_for_status_change(tcontract, channel_id, seq):
 def assert_packet_result(event, channel_id, seq, status):
     (logs) = event.getLogs()
     assert len(logs) > 0
-    return logs[0].args == AttributeDict({"channel_id": channel_id, "seq": seq, "status": status})
+    expected = AttributeDict({"channel_id": channel_id, "seq": seq, "status": status})
+    return logs[0].args == expected
 
 
 def test_sc_call(ibc):
