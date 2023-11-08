@@ -106,7 +106,7 @@ contract TestICA {
         return statusMap[packetSrcChannel][seq];
     }
 
-    function onPacketResultCallback(uint64 seq, bool ack, string calldata packetSrcChannel, string calldata packetDstChannel) external payable returns (bool) {
+    function onPacketResultCallback(string calldata packetSrcChannel, uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
         Status status = Status.FAIL;
