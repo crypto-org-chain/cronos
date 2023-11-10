@@ -56,7 +56,7 @@ func init() {
 		case QueryAccountMethodName:
 			icaGasRequiredByMethod[methodID] = 100000
 		case SubmitMsgsMethodName:
-			icaGasRequiredByMethod[methodID] = 300000
+			icaGasRequiredByMethod[methodID] = 83086
 		default:
 			icaGasRequiredByMethod[methodID] = 0
 		}
