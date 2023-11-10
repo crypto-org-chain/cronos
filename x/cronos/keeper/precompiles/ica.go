@@ -6,7 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/cometbft/cometbft/libs/log"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -20,6 +21,7 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 )
 
@@ -33,6 +35,7 @@ var (
 	icaABI                 abi.ABI
 	icaCallbackABI         abi.ABI
 	icaContractAddress     = common.BytesToAddress([]byte{102})
+	icaMethodNamedByMethod = map[[4]byte]string{}
 	icaGasRequiredByMethod = map[[4]byte]uint64{}
 )
 
@@ -49,7 +52,7 @@ func init() {
 		copy(methodID[:], icaABI.Methods[methodName].ID[:4])
 		switch methodName {
 		case RegisterAccountMethodName:
-			icaGasRequiredByMethod[methodID] = 300000
+			icaGasRequiredByMethod[methodID] = 231455
 		case QueryAccountMethodName:
 			icaGasRequiredByMethod[methodID] = 100000
 		case SubmitMsgsMethodName:
@@ -57,6 +60,7 @@ func init() {
 		default:
 			icaGasRequiredByMethod[methodID] = 0
 		}
+		icaMethodNamedByMethod[methodID] = methodName
 	}
 }
 
@@ -70,16 +74,16 @@ type IcaContract struct {
 	cdc           codec.Codec
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
-	kvGasConfig   storetypes.GasConfig
+	logger        log.Logger
 }
 
-func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
-		kvGasConfig:   kvGasConfig,
+		logger:        logger.With("precompiles", "ica"),
 	}
 }
 
@@ -88,16 +92,29 @@ func (ic *IcaContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-func (ic *IcaContract) RequiredGas(input []byte) uint64 {
-	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
+// `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
+func (ic *IcaContract) RequiredGas(input []byte) (gas uint64) {
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	if err != nil {
+		return 0
+	}
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
-	if ok {
-		return requiredGas + baseCost
+	if !ok {
+		requiredGas = 0
 	}
-	return baseCost
+	// base cost to prevent large input size
+	baseCost := uint64(len(input)) * authtypes.DefaultTxSizeCostPerByte
+	defer func() {
+		method := icaMethodNamedByMethod[methodID]
+		ic.logger.Debug("required", "gas", gas, "method", method, "len", len(input), "intrinsic", intrinsicGas)
+	}()
+	total := requiredGas + baseCost
+	if total < intrinsicGas {
+		return 0
+	}
+	return total - intrinsicGas
 }
 
 func (ic *IcaContract) IsStateful() bool {
