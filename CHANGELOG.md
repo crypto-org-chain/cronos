@@ -13,7 +13,7 @@
 ### State Machine Breaking
 
 - [#1232](https://github.com/crypto-org-chain/cronos/pull/1232) Adjust require gas in relayer precompile to be closed with actual consumed.
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Adjust require gas in ica precompile to be closed with actual consumed.
+- [#1237](https://github.com/crypto-org-chain/cronos/pull/1237) Adjust require gas in ica precompile to be closed with actual consumed.
 
 
 *October 17, 2023*

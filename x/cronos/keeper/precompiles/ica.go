@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/libs/log"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -54,7 +55,7 @@ func init() {
 		case RegisterAccountMethodName:
 			icaGasRequiredByMethod[methodID] = 231455
 		case QueryAccountMethodName:
-			icaGasRequiredByMethod[methodID] = 100000
+			icaGasRequiredByMethod[methodID] = 1000 + 1000 // HasCost + ReadFlat
 		case SubmitMsgsMethodName:
 			icaGasRequiredByMethod[methodID] = 83086
 		default:
@@ -74,15 +75,17 @@ type IcaContract struct {
 	cdc           codec.Codec
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
+	kvGasConfig   storetypes.GasConfig
 	logger        log.Logger
 }
 
-func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
+func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig, logger log.Logger) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
+		kvGasConfig:   kvGasConfig,
 		logger:        logger.With("precompiles", "ica"),
 	}
 }
@@ -92,12 +95,9 @@ func (ic *IcaContract) Address() common.Address {
 }
 
 // RequiredGas calculates the contract gas use
-// `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
+// write `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
+// query `len(input) * ReadCostPerByte + HasCost + ReadFlat`
 func (ic *IcaContract) RequiredGas(input []byte) (gas uint64) {
-	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
-	if err != nil {
-		return 0
-	}
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
@@ -105,9 +105,18 @@ func (ic *IcaContract) RequiredGas(input []byte) (gas uint64) {
 		requiredGas = 0
 	}
 	// base cost to prevent large input size
-	baseCost := uint64(len(input)) * authtypes.DefaultTxSizeCostPerByte
+	baseCost := uint64(0)
+	method := icaMethodNamedByMethod[methodID]
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	if err != nil {
+		return 0
+	}
+	if method == QueryAccountMethodName {
+		baseCost = uint64(len(input)) * ic.kvGasConfig.ReadCostPerByte
+	} else {
+		baseCost = uint64(len(input)) * authtypes.DefaultTxSizeCostPerByte
+	}
 	defer func() {
-		method := icaMethodNamedByMethod[methodID]
 		ic.logger.Debug("required", "gas", gas, "method", method, "len", len(input), "intrinsic", intrinsicGas)
 	}()
 	total := requiredGas + baseCost
