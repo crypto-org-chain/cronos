@@ -484,8 +484,6 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63 h1:R1
 github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63/go.mod h1:rocwIfnS+kA060x64gkSIRvWB9StSppIkJuo5MWzL24=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467 h1:m0/aHPIJAzi2MSP3TXzzbLTFf+koRFQiaYmerRZUtK4=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20231013072415-eec017435467/go.mod h1:G384omH7cXgm90xXR7xpHvsKG7vdBaDuz4To6GpTHUU=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20231101080732-b9078abfe0fd h1:8AWwJrxYtQxoZ1rrM9+w6MLScVe6LzskRo8UF9ep7Qs=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20231101080732-b9078abfe0fd/go.mod h1:rbAKU2rftDobCIoCiol3SO+bTqw2cERu9TEki7PvfK0=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e/go.mod h1:HBaDqlFjlaXJwVQtA7jHejyaA7xwjXI2o6pU/ccP3tE=
 github.com/cyphar/filepath-securejoin v0.2.3/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
@@ -1566,6 +1564,8 @@ github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=
 github.com/yagipy/maintidx v1.0.0/go.mod h1:0qNf/I/CCZXSMhsRsrEPDZ+DkekpKLXAJfsTACwgXLk=
 github.com/yeya24/promlinter v0.2.0/go.mod h1:u54lkmBOZrpEbQQ6gox2zWKKLKu2SGe+2KOiextY+IA=
+github.com/yihuang/ethermint v0.6.1-0.20231113092823-55f5531711a4 h1:8fCPulwW6LBDzO8iS3XlagR99C/N5hxDrPhshpk/rcw=
+github.com/yihuang/ethermint v0.6.1-0.20231113092823-55f5531711a4/go.mod h1:rbAKU2rftDobCIoCiol3SO+bTqw2cERu9TEki7PvfK0=
 github.com/yudai/gojsondiff v1.0.0/go.mod h1:AY32+k2cwILAkW1fbgxQ5mUmMiZFgLIV+FBNExI05xg=
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82/go.mod h1:lgjkn3NuSvDfVJdfcVVdX+jpBxNmX4rDAzaS45IcYoM=
 github.com/yudai/pp v2.0.1+incompatible/go.mod h1:PuxR/8QJ7cyCkFp/aUDS+JY727OFEZkTdatxwunjIkc=
