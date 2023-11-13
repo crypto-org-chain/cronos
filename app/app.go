@@ -528,6 +528,7 @@ func New(
 		allKeys[k] = v
 	}
 
+	gasConfig := storetypes.TransientGasConfig()
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], tkeys[evmtypes.TransientKey], authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.StakingKeeper,
@@ -536,7 +537,7 @@ func New(
 		evmS,
 		[]vm.PrecompiledContract{
 			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, app.Logger()),
-			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, app.Logger()),
+			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig, app.Logger()),
 		},
 		allKeys,
 	)
