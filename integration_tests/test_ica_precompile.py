@@ -3,6 +3,7 @@ import json
 from enum import IntEnum
 
 import pytest
+from eth_utils import keccak
 from pystarport import cluster
 from web3.datastructures import AttributeDict
 
@@ -181,7 +182,13 @@ def wait_for_status_change(tcontract, channel_id, seq):
 
 def wait_for_packet_log(event, channel_id, seq, status):
     print("wait for log arrive", seq, status)
-    expected = AttributeDict({"packetSrcChannel": channel_id, "seq": seq, "status": status})
+    expected = AttributeDict(
+        {
+            "packetSrcChannel": keccak(text=channel_id),
+            "seq": seq,
+            "status": status,
+        }
+    )
 
     def check_log():
         logs = event.getLogs()
@@ -353,7 +360,7 @@ def test_sc_call(ibc):
         contract.events.SubmitMsgsResult,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
+    wait_for_status_change(tcontract, channel_id2, last_seq)
     status = tcontract.caller.getStatus(channel_id2, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
