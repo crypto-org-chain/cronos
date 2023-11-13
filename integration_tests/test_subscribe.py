@@ -155,11 +155,11 @@ def test_subscribe_basic(cronos: Cronos):
             await asyncio.gather(*[subscriber_test(c) for i in range(3)])
             contract = deploy_contract(cronos.w3, CONTRACTS["TestERC20A"])
             address = contract.address
-            await asyncio.gather(*[transfer_test(c, cronos.w3, contract, address)])
+            await transfer_test(c, cronos.w3, contract, address)
             contract = deploy_contract(cronos.w3, CONTRACTS["TestMessageCall"])
             inner = contract.caller.inner()
             begin = time.time()
-            await asyncio.gather(*[logs_test(c, cronos.w3, contract, inner)])
+            await logs_test(c, cronos.w3, contract, inner)
             print("msg call time", time.time() - begin)
             t.cancel()
             try:
