@@ -174,7 +174,6 @@ def wait_for_status_change(tcontract, channel_id, seq):
 
     def check_status():
         status = tcontract.caller.getStatus(channel_id, seq)
-        print("current", status)
         return status
 
     wait_for_fn("current status", check_status)
@@ -182,7 +181,7 @@ def wait_for_status_change(tcontract, channel_id, seq):
 
 def wait_for_packet_log(event, channel_id, seq, status):
     print("wait for log arrive", seq, status)
-    expected = AttributeDict({"channel_id": channel_id, "seq": seq, "status": status})
+    expected = AttributeDict({"packetSrcChannel": channel_id, "seq": seq, "status": status})
 
     def check_log():
         logs = event.getLogs()
@@ -355,7 +354,7 @@ def test_sc_call(ibc):
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    status = tcontract.caller.getStatus(channel_id2, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
     # wait for ack to add log from call evm
