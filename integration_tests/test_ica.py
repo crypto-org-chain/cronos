@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from pystarport import cluster
 
 from .ibc_utils import (
     assert_channel_open_init,
@@ -15,9 +16,15 @@ from .ibc_utils import (
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    name = "ibc"
+    name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, incentivized=False, connection_only=True)
+    yield from prepare_network(
+        path,
+        name,
+        incentivized=False,
+        connection_only=True,
+        relayer=cluster.Relayer.RLY.value,
+    )
 
 
 def test_ica(ibc, tmp_path):
@@ -25,60 +32,69 @@ def test_ica(ibc, tmp_path):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
 
-    print("register ica account")
-    rsp = cli_controller.icaauth_register_account(
-        connid, from_="signer2", gas="400000", fees="100000000basetcro"
-    )
-    _, channel_id = assert_channel_open_init(rsp)
-    wait_for_check_channel_ready(cli_controller, connid, channel_id)
+    def register_acc():
+        print("register ica account")
+        rsp = cli_controller.icaauth_register_account(
+            connid, from_="signer2", gas="400000", fees="100000000basetcro"
+        )
+        _, channel_id = assert_channel_open_init(rsp)
+        wait_for_check_channel_ready(cli_controller, connid, channel_id)
 
-    print("query ica account")
-    ica_address = cli_controller.ica_query_account(
-        connid, cli_controller.address("signer2")
-    )["interchain_account_address"]
-    print("ica address", ica_address)
+        print("query ica account")
+        ica_address = cli_controller.ica_query_account(
+            connid, cli_controller.address("signer2")
+        )["interchain_account_address"]
+        print("ica address", ica_address, "channel_id", channel_id)
+        return ica_address, channel_id
 
+    ica_address, channel_id = register_acc()
     balance = funds_ica(cli_host, ica_address)
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-
-    # generate a transaction to send to host chain
-    generated_tx = tmp_path / "generated_tx.txt"
     to = cli_host.address("signer2")
     amount = 1000
     denom = "basecro"
-    # generate msgs send to host chain
-    m = gen_send_msg(ica_address, to, denom, amount)
-    msgs = []
-    for i in range(2):
-        msgs.append(m)
-        balance -= amount
-    fee = {"denom": "basetcro", "amount": "20000000000000000"}
-    generated_tx_msg = {
-        "body": {
-            "messages": msgs,
-        },
-        "auth_info": {
-            "fee": {
-                "amount": [fee],
-                "gas_limit": "200000",
+
+    def generated_tx_txt(msg_num):
+        # generate a transaction to send to host chain
+        generated_tx = tmp_path / "generated_tx.txt"
+        m = gen_send_msg(ica_address, to, denom, amount)
+        msgs = []
+        for i in range(msg_num):
+            msgs.append(m)
+        generated_tx_msg = {
+            "body": {
+                "messages": msgs,
             },
-        },
-    }
-    generated_tx.write_text(json.dumps(generated_tx_msg))
-    # submit transaction on host chain on behalf of interchain account
-    rsp = cli_controller.icaauth_submit_tx(
-        connid,
-        generated_tx,
-        timeout_duration="2h",
-        from_="signer2",
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    packet_seq = next(
-        int(evt["attributes"][4]["value"])
-        for evt in rsp["events"]
-        if evt["type"] == "send_packet"
-    )
-    print("packet sequence", packet_seq)
-    wait_for_check_tx(cli_host, ica_address, num_txs)
-    # check if the funds are reduced in interchain account
+        }
+        generated_tx.write_text(json.dumps(generated_tx_msg))
+        return generated_tx
+
+    no_timeout = 60
+
+    def submit_msgs(msg_num, timeout_in_s=no_timeout, gas="200000"):
+        # submit transaction on host chain on behalf of interchain account
+        rsp = cli_controller.icaauth_submit_tx(
+            connid,
+            generated_tx_txt(msg_num),
+            timeout_duration=f"{timeout_in_s}s",
+            gas=gas,
+            from_="signer2",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        timeout = timeout_in_s + 3 if timeout_in_s < no_timeout else None
+        wait_for_check_tx(cli_host, ica_address, num_txs, timeout)
+
+    # submit large txs to trigger timeout
+    msg_num = 140
+    submit_msgs(msg_num, 5, "600000")
     assert cli_host.balance(ica_address, denom=denom) == balance
+    wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
+    # reopen ica account after channel get closed
+    ica_address2, channel_id2 = register_acc()
+    assert ica_address2 == ica_address, ica_address2
+    assert channel_id2 != channel_id, channel_id2
+    # submit normal txs should work
+    msg_num = 2
+    submit_msgs(msg_num)
+    # check if the funds are reduced in interchain account
+    assert cli_host.balance(ica_address, denom=denom) == balance - amount * msg_num
