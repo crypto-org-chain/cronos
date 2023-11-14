@@ -73,24 +73,8 @@ func (k *Keeper) SubmitTx(goCtx context.Context, msg *types.MsgSubmitTx) (*types
 		Type: icatypes.EXECUTE_TX,
 		Data: data,
 	}
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	portID, err := icatypes.NewControllerPortID(msg.Owner)
-	if err != nil {
-		return nil, err
-	}
-	minTimeoutDuration := k.MinTimeoutDuration(ctx)
-	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
-	timeoutTimestamp := ctx.BlockTime().Add(
-		types.MsgSubmitTx{
-			TimeoutDuration: msg.TimeoutDuration,
-		}.CalculateTimeoutDuration(minTimeoutDuration)).UnixNano()
-	res, err := k.icaControllerKeeper.SendTx(ctx, nil, msg.ConnectionId, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
-	if err != nil {
-		return nil, err
-	}
-	return &types.MsgSubmitTxResponse{
-		Sequence: res,
-	}, nil
+	_, rsp, err := k.SubmitTxWithArgs(goCtx, msg.Owner, msg.ConnectionId, *msg.TimeoutDuration, packetData)
+	return rsp, err
 }
 
 func (k *Keeper) sendTx(ctx sdk.Context, connectionID, portID string, icaPacketData icatypes.InterchainAccountPacketData, timeoutTimestamp uint64) (string, uint64, error) {

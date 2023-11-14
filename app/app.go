@@ -638,15 +638,16 @@ func New(
 	app.StakingKeeper.SetHooks(stakingtypes.NewMultiStakingHooks(hooks...))
 
 	app.ICAAuthKeeper = *icaauthkeeper.NewKeeper(appCodec, keys[icaauthtypes.StoreKey], keys[icaauthtypes.MemStoreKey], app.ICAControllerKeeper, scopedICAAuthKeeper, scopedICAControllerKeeper)
-	icaAuthModule := icaauth.NewAppModule(appCodec, app.ICAAuthKeeper)
 	icaAuthIBCModule := icaauth.NewIBCModule(app.ICAAuthKeeper)
 
 	var icaControllerStack porttypes.IBCModule
 	icaControllerStack = icacontroller.NewIBCMiddleware(icaAuthIBCModule, app.ICAControllerKeeper)
 	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
-	app.ICAControllerKeeper.WithICS4Wrapper(icaControllerStack.(porttypes.Middleware))
-	app.ICAAuthKeeper.WithICS4Wrapper(icaControllerStack.(porttypes.Middleware))
+	ics4Wrapper := icaControllerStack.(porttypes.Middleware)
+	app.ICAControllerKeeper.WithICS4Wrapper(ics4Wrapper)
+	app.ICAAuthKeeper.WithICS4Wrapper(ics4Wrapper)
+	icaAuthModule := icaauth.NewAppModule(appCodec, app.ICAAuthKeeper, ics4Wrapper)
 	// we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
 	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper, app.CronosKeeper, math.MaxUint64)
 
