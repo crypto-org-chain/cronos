@@ -14,6 +14,10 @@
 
 - [#1232](https://github.com/crypto-org-chain/cronos/pull/1232) Adjust require gas in relayer precompile to be closed with actual consumed.
 
+### Improvements
+
+- [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
+
 
 *October 17, 2023*
 
