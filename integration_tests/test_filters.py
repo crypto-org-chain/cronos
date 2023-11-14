@@ -12,6 +12,8 @@ from .utils import (
 def test_pending_transaction_filter(cluster):
     w3: Web3 = cluster.w3
     flt = w3.eth.filter("pending")
+    # update offset to latest in stream server side
+    flt.get_new_entries()
     assert flt.get_new_entries() == []
     receipt = send_transaction(w3, {"to": ADDRS["community"], "value": 1000})
     assert receipt.status == 1
