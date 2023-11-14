@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 )
 
+const NodeChannelBuffer = 2048
+
 type MultiTreeImporter struct {
 	dir         string
 	snapshotDir string
@@ -100,7 +102,7 @@ type TreeImporter struct {
 }
 
 func NewTreeImporter(dir string, version int64) *TreeImporter {
-	nodesChan := make(chan *ExportNode)
+	nodesChan := make(chan *ExportNode, NodeChannelBuffer)
 	quitChan := make(chan error)
 	go func() {
 		defer close(quitChan)
