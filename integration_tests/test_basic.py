@@ -785,7 +785,7 @@ def test_contract(cronos):
 origin_cmd = None
 
 
-@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000])
+@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000, None])
 def test_tx_inclusion(cronos, max_gas_wanted):
     """
     - send multiple heavy transactions at the same time.
@@ -798,6 +798,8 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         global origin_cmd
         if origin_cmd is None:
             origin_cmd = cmd
+        if max_gas_wanted is None:
+            return origin_cmd
         return f"{origin_cmd} --evm.max-tx-gas-wanted {max_gas_wanted}"
 
     modify_command_in_supervisor_config(
@@ -806,6 +808,10 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     )
     cronos.supervisorctl("update")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+
+    # reset to origin_cmd only
+    if max_gas_wanted is None:
+        return
 
     w3 = cronos.w3
     cli = cronos.cosmos_cli()
