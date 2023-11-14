@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	errorsmod "cosmossdk.io/errors"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -13,6 +14,9 @@ import (
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	icacontrollerkeeper "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/controller/keeper"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
+	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
+	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,8 +28,10 @@ type (
 		storeKey storetypes.StoreKey
 		memKey   storetypes.StoreKey
 
-		icaControllerKeeper icacontrollerkeeper.Keeper
-		scopedKeeper        capabilitykeeper.ScopedKeeper
+		icaControllerKeeper    icacontrollerkeeper.Keeper
+		ics4Wrapper            porttypes.ICS4Wrapper
+		scopedKeeper           capabilitykeeper.ScopedKeeper
+		controllerScopedKeeper capabilitykeeper.ScopedKeeper
 	}
 )
 
@@ -35,15 +41,20 @@ func NewKeeper(
 	memKey storetypes.StoreKey,
 	icaControllerKeeper icacontrollerkeeper.Keeper,
 	scopedKeeper capabilitykeeper.ScopedKeeper,
+	controllerScopedKeeper capabilitykeeper.ScopedKeeper,
 ) *Keeper {
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		memKey:   memKey,
-
-		icaControllerKeeper: icaControllerKeeper,
-		scopedKeeper:        scopedKeeper,
+		cdc:                    cdc,
+		storeKey:               storeKey,
+		memKey:                 memKey,
+		icaControllerKeeper:    icaControllerKeeper,
+		scopedKeeper:           scopedKeeper,
+		controllerScopedKeeper: controllerScopedKeeper,
 	}
+}
+
+func (k *Keeper) WithICS4Wrapper(ics4Wrapper porttypes.ICS4Wrapper) {
+	k.ics4Wrapper = ics4Wrapper
 }
 
 // SubmitTx submits a transaction to the host chain on behalf of interchain account
@@ -62,12 +73,8 @@ func (k *Keeper) SubmitTx(goCtx context.Context, msg *types.MsgSubmitTx) (*types
 		Type: icatypes.EXECUTE_TX,
 		Data: data,
 	}
-	return k.SubmitTxWithArgs(goCtx, msg.Owner, msg.ConnectionId, *msg.TimeoutDuration, packetData)
-}
-
-func (k *Keeper) SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (*types.MsgSubmitTxResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	portID, err := icatypes.NewControllerPortID(owner)
+	portID, err := icatypes.NewControllerPortID(msg.Owner)
 	if err != nil {
 		return nil, err
 	}
@@ -75,13 +82,60 @@ func (k *Keeper) SubmitTxWithArgs(goCtx context.Context, owner, connectionId str
 	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
 	timeoutTimestamp := ctx.BlockTime().Add(
 		types.MsgSubmitTx{
-			TimeoutDuration: &timeoutDuration,
+			TimeoutDuration: msg.TimeoutDuration,
 		}.CalculateTimeoutDuration(minTimeoutDuration)).UnixNano()
-	res, err := k.icaControllerKeeper.SendTx(ctx, nil, connectionId, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
+	res, err := k.icaControllerKeeper.SendTx(ctx, nil, msg.ConnectionId, portID, packetData, uint64(timeoutTimestamp)) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
 	return &types.MsgSubmitTxResponse{
+		Sequence: res,
+	}, nil
+}
+
+func (k *Keeper) sendTx(ctx sdk.Context, connectionID, portID string, icaPacketData icatypes.InterchainAccountPacketData, timeoutTimestamp uint64) (string, uint64, error) {
+	activeChannelID, found := k.icaControllerKeeper.GetOpenActiveChannel(ctx, connectionID, portID)
+	if !found {
+		return "", 0, errorsmod.Wrapf(icatypes.ErrActiveChannelNotFound, "failed to retrieve active channel on connection %s for port %s", connectionID, portID)
+	}
+
+	chanCap, found := k.controllerScopedKeeper.GetCapability(ctx, host.ChannelCapabilityPath(portID, activeChannelID))
+	if !found {
+		return "", 0, errorsmod.Wrapf(capabilitytypes.ErrCapabilityNotFound, "failed to find capability: %s", host.ChannelCapabilityPath(portID, activeChannelID))
+	}
+
+	if uint64(ctx.BlockTime().UnixNano()) >= timeoutTimestamp {
+		return "", 0, icatypes.ErrInvalidTimeoutTimestamp
+	}
+
+	if err := icaPacketData.ValidateBasic(); err != nil {
+		return "", 0, errorsmod.Wrap(err, "invalid interchain account packet data")
+	}
+
+	sequence, err := k.ics4Wrapper.SendPacket(ctx, chanCap, portID, activeChannelID, clienttypes.ZeroHeight(), timeoutTimestamp, icaPacketData.GetBytes())
+	if err != nil {
+		return "", 0, err
+	}
+	return activeChannelID, sequence, nil
+}
+
+func (k *Keeper) SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (string, *types.MsgSubmitTxResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	portID, err := icatypes.NewControllerPortID(owner)
+	if err != nil {
+		return "", nil, err
+	}
+	minTimeoutDuration := k.MinTimeoutDuration(ctx)
+	// timeoutDuration should be constraited by MinTimeoutDuration parameter.
+	timeoutTimestamp := ctx.BlockTime().Add(
+		types.MsgSubmitTx{
+			TimeoutDuration: &timeoutDuration,
+		}.CalculateTimeoutDuration(minTimeoutDuration)).UnixNano()
+	activeChannelID, res, err := k.sendTx(ctx, connectionId, portID, packetData, uint64(timeoutTimestamp))
+	if err != nil {
+		return "", nil, err
+	}
+	return activeChannelID, &types.MsgSubmitTxResponse{
 		Sequence: res,
 	}, nil
 }

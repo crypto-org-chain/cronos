@@ -80,6 +80,7 @@ def submit_msgs(
     amount=amt,
     need_wait=True,
     msg_num=2,
+    channel_id="",
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -119,7 +120,12 @@ def submit_msgs(
     else:
         logs = event.getLogs()
         assert len(logs) > 0
-        assert logs[0].args == AttributeDict({"seq": expected_seq})
+        assert logs[0].args == AttributeDict(
+            {
+                "packetSrcChannel": keccak(text=channel_id),
+                "seq": expected_seq,
+            }
+        )
         if need_wait:
             wait_for_check_tx(cli_host, ica_address, num_txs)
     return str, diff_amt
@@ -134,6 +140,7 @@ def test_call(ibc):
     contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     data = {"from": ADDRS[name]}
+    channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -141,7 +148,7 @@ def test_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id,
     )
     balance = funds_ica(cli_host, ica_address)
     expected_seq = 1
@@ -153,6 +160,7 @@ def test_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -165,6 +173,7 @@ def test_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -259,6 +268,7 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -280,6 +290,7 @@ def test_sc_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -304,6 +315,7 @@ def test_sc_call(ibc):
         contract.events.SubmitMsgsResult,
         amount=100000001,
         need_wait=False,
+        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -327,6 +339,7 @@ def test_sc_call(ibc):
         contract.events.SubmitMsgsResult,
         timeout,
         msg_num=100,
+        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -358,6 +371,7 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id2,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id2, last_seq)

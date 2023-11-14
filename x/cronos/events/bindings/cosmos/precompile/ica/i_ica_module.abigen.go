@@ -30,7 +30,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -321,28 +321,39 @@ func (it *ICAModuleSubmitMsgsResultIterator) Close() error {
 
 // ICAModuleSubmitMsgsResult represents a SubmitMsgsResult event raised by the ICAModule contract.
 type ICAModuleSubmitMsgsResult struct {
-	Seq uint64
-	Raw types.Log // Blockchain specific contextual infos
+	PacketSrcChannel common.Hash
+	Seq              uint64
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterSubmitMsgsResult is a free log retrieval operation binding the contract event 0x9445c42aa80c009b1b0204bc10c31084e1262133ee7f838b51280832874afc1c.
+// FilterSubmitMsgsResult is a free log retrieval operation binding the contract event 0x3e695f8f5525f556604458a25db1d059820bd331e56bc17b0693b9d35e243eca.
 //
-// Solidity: event SubmitMsgsResult(uint64 seq)
-func (_ICAModule *ICAModuleFilterer) FilterSubmitMsgsResult(opts *bind.FilterOpts) (*ICAModuleSubmitMsgsResultIterator, error) {
+// Solidity: event SubmitMsgsResult(string indexed packetSrcChannel, uint64 seq)
+func (_ICAModule *ICAModuleFilterer) FilterSubmitMsgsResult(opts *bind.FilterOpts, packetSrcChannel []string) (*ICAModuleSubmitMsgsResultIterator, error) {
 
-	logs, sub, err := _ICAModule.contract.FilterLogs(opts, "SubmitMsgsResult")
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _ICAModule.contract.FilterLogs(opts, "SubmitMsgsResult", packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
 	return &ICAModuleSubmitMsgsResultIterator{contract: _ICAModule.contract, event: "SubmitMsgsResult", logs: logs, sub: sub}, nil
 }
 
-// WatchSubmitMsgsResult is a free log subscription operation binding the contract event 0x9445c42aa80c009b1b0204bc10c31084e1262133ee7f838b51280832874afc1c.
+// WatchSubmitMsgsResult is a free log subscription operation binding the contract event 0x3e695f8f5525f556604458a25db1d059820bd331e56bc17b0693b9d35e243eca.
 //
-// Solidity: event SubmitMsgsResult(uint64 seq)
-func (_ICAModule *ICAModuleFilterer) WatchSubmitMsgsResult(opts *bind.WatchOpts, sink chan<- *ICAModuleSubmitMsgsResult) (event.Subscription, error) {
+// Solidity: event SubmitMsgsResult(string indexed packetSrcChannel, uint64 seq)
+func (_ICAModule *ICAModuleFilterer) WatchSubmitMsgsResult(opts *bind.WatchOpts, sink chan<- *ICAModuleSubmitMsgsResult, packetSrcChannel []string) (event.Subscription, error) {
 
-	logs, sub, err := _ICAModule.contract.WatchLogs(opts, "SubmitMsgsResult")
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _ICAModule.contract.WatchLogs(opts, "SubmitMsgsResult", packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -374,9 +385,9 @@ func (_ICAModule *ICAModuleFilterer) WatchSubmitMsgsResult(opts *bind.WatchOpts,
 	}), nil
 }
 
-// ParseSubmitMsgsResult is a log parse operation binding the contract event 0x9445c42aa80c009b1b0204bc10c31084e1262133ee7f838b51280832874afc1c.
+// ParseSubmitMsgsResult is a log parse operation binding the contract event 0x3e695f8f5525f556604458a25db1d059820bd331e56bc17b0693b9d35e243eca.
 //
-// Solidity: event SubmitMsgsResult(uint64 seq)
+// Solidity: event SubmitMsgsResult(string indexed packetSrcChannel, uint64 seq)
 func (_ICAModule *ICAModuleFilterer) ParseSubmitMsgsResult(log types.Log) (*ICAModuleSubmitMsgsResult, error) {
 	event := new(ICAModuleSubmitMsgsResult)
 	if err := _ICAModule.contract.UnpackLog(event, "SubmitMsgsResult", log); err != nil {
