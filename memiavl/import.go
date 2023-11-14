@@ -25,7 +25,7 @@ func Import(
 		return snapshottypes.SnapshotItem{}, fmt.Errorf("version overflows uint32: %d", height)
 	}
 	snapshotDir := snapshotName(int64(height))
-	tmpDir := snapshotDir + "-tmp"
+	tmpDir := snapshotDir + TmpSuffix
 
 	var fileLock FileLock
 	fileLock, err = LockFile(filepath.Join(dir, LockFileName))

@@ -20,6 +20,7 @@ import (
 const (
 	DefaultSnapshotInterval = 1000
 	LockFileName            = "LOCK"
+	TmpSuffix               = "-tmp"
 )
 
 var errReadOnly = errors.New("db is read-only")
@@ -259,7 +260,7 @@ func removeTmpDirs(rootDir string) error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), "-tmp") {
+		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), TmpSuffix) {
 			continue
 		}
 
@@ -628,7 +629,7 @@ func (db *DB) RewriteSnapshot() error {
 	}
 
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
-	tmpDir := snapshotDir + "-tmp"
+	tmpDir := snapshotDir + TmpSuffix
 	path := filepath.Join(db.dir, tmpDir)
 	if err := db.MultiTree.WriteSnapshot(path); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
@@ -835,7 +836,7 @@ func currentPath(root string) string {
 }
 
 func currentTmpPath(root string) string {
-	return filepath.Join(root, "current-tmp")
+	return currentPath(root) + TmpSuffix
 }
 
 func currentVersion(root string) (int64, error) {
@@ -981,7 +982,7 @@ func traverseSnapshots(dir string, ascending bool, callback func(int64) (bool, e
 
 // atomicRemoveDir is equavalent to `mv snapshot snapshot-tmp && rm -r snapshot-tmp`
 func atomicRemoveDir(path string) error {
-	tmpPath := path + "-tmp"
+	tmpPath := path + TmpSuffix
 	if err := os.Rename(path, tmpPath); err != nil {
 		return err
 	}

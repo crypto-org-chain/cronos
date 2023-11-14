@@ -45,7 +45,7 @@ func TestRemoveSnapshotDir(t *testing.T) {
 	defer os.RemoveAll(dbDir)
 
 	snapshotDir := filepath.Join(dbDir, snapshotName(0))
-	tmpDir := snapshotDir + "-tmp"
+	tmpDir := snapshotDir + TmpSuffix
 	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		t.Fatalf("Failed to create dummy snapshot directory: %v", err)
 	}
