@@ -5,6 +5,7 @@
 - [#1197](https://github.com/crypto-org-chain/cronos/pull/1197) tune rocksdb options to control memory consumption.
 - [#1207](https://github.com/crypto-org-chain/cronos/pull/1207) Update rocksdb to `v8.6.7`.
 - [#1240](https://github.com/crypto-org-chain/cronos/pull/1240) Revert rocksdb upgrade.
+- [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
 
 *Aug 11, 2023*
 
