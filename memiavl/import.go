@@ -17,6 +17,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+const NodeChannelBuffer = 2048
+
 // Import restore memiavl db from state-sync snapshot stream
 func Import(
 	dir string, height uint64, format uint32, protoReader protoio.Reader,
@@ -116,7 +118,7 @@ type TreeImporter struct {
 }
 
 func NewTreeImporter(dir string, version int64) *TreeImporter {
-	nodesChan := make(chan *iavl.ExportNode)
+	nodesChan := make(chan *iavl.ExportNode, NodeChannelBuffer)
 	quitChan := make(chan error)
 	go func() {
 		defer close(quitChan)
