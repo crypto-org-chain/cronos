@@ -6,6 +6,7 @@
 - [#1207](https://github.com/crypto-org-chain/cronos/pull/1207) Update rocksdb to `v8.6.7`.
 - [#1240](https://github.com/crypto-org-chain/cronos/pull/1240) Revert rocksdb upgrade.
 - [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
+- [#1246](https://github.com/crypto-org-chain/cronos/pull/1246) Update memiavl deps to include bug fixes and state sync restore performance improvement.
 
 *Aug 11, 2023*
 
