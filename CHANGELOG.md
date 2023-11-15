@@ -18,6 +18,7 @@
 ### Improvements
 
 - [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
+- [#1241](https://github.com/crypto-org-chain/cronos/pull/1241) Improve parallelization of memiavl restoration.
 
 
 *October 17, 2023*
