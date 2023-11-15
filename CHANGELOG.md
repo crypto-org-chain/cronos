@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [#1241](https://github.com/crypto-org-chain/cronos/pull/1241) Improve parallelization of memiavl restoration.
+
 ### State Machine Breaking
 
 - [cronos#695](https://github.com/crypto-org-chain/cronos/pull/695) Implement ADR-007, generic events format with indexed params.
