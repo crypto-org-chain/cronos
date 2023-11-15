@@ -1268,8 +1268,8 @@ github.com/crypto-org-chain/cronos/store v0.0.4 h1:w3pv5XVLiHQ3f0Ir8MpFjZy8rrBOG
 github.com/crypto-org-chain/cronos/store v0.0.4/go.mod h1:LVocDb5u3bTS1c5IWvjp0Mgn9iQ66Jt5N4osvizpkpY=
 github.com/crypto-org-chain/cronos/versiondb v0.0.0-20230809065519-af389f66015a h1:NUlWNavUQrx5V2YW2bwV64utaDrCf5eoK45vIgW2kWc=
 github.com/crypto-org-chain/cronos/versiondb v0.0.0-20230809065519-af389f66015a/go.mod h1:i9e8vrU54C/JvSM+rX/jUidFRBcyXZ8FgNX+EvrasQc=
-github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20230809091211-3fdb18b1c2d9 h1:c1KS8c8epruyUAonKBYHDCrCSCsSmGIIPXA/49505dE=
-github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20230809091211-3fdb18b1c2d9/go.mod h1:EDjmywAw/EMpMufJA2Q+E9pNHAB00Dt5siQanMOZC88=
+github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20231114081059-0cd23d4cd4d6 h1:INlxFa0JW/j2xZfDqD2mRmpLW8OKq+LnsCNaOceLoQY=
+github.com/crypto-org-chain/ethermint v0.20.11-cronos.0.20231114081059-0cd23d4cd4d6/go.mod h1:EDjmywAw/EMpMufJA2Q+E9pNHAB00Dt5siQanMOZC88=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable h1:VQLW0R8t9DcC/HvQZO1i0mIWjJfAezhI8lLUCholP0M=
 github.com/crypto-org-chain/go-ethereum v1.10.19-deepcopy-jumptable/go.mod h1:IJBNMtzKcNHPtllYihy6BL2IgK1u+32JriaTbdt4v+w=
 github.com/crypto-org-chain/go-ethereum-hdwallet v0.1.2 h1:Qu2GMavGHCcomdVWmZej76JpOO6uvII6IpPDdJUG+Qo=

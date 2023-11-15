@@ -16,12 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	evmrpc "github.com/evmos/ethermint/rpc"
 	"github.com/evmos/ethermint/rpc/backend"
+	"github.com/evmos/ethermint/rpc/stream"
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/tendermint/tendermint/libs/log"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	rpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
 )
 
 const (
@@ -40,7 +40,7 @@ func init() {
 }
 
 // CreateCronosRPCAPIs creates extension json-rpc apis
-func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, tmWSClient *rpcclient.WSClient, allowUnprotectedTxs bool, indexer ethermint.EVMTxIndexer) []rpc.API {
+func CreateCronosRPCAPIs(ctx *server.Context, clientCtx client.Context, _ *stream.RPCStream, allowUnprotectedTxs bool, indexer ethermint.EVMTxIndexer) []rpc.API {
 	evmBackend := backend.NewBackend(ctx, ctx.Logger, clientCtx, allowUnprotectedTxs, indexer)
 	return []rpc.API{
 		{
