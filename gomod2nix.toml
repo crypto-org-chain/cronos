@@ -54,8 +54,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-atJ2waz124m0DVHjol8v3NfCLKidU3fYu5AgzT9xCBA="
   [mod."github.com/DataDog/zstd"]
-    version = "v1.4.5"
-    hash = "sha256-WFHcU2EFRIIc1wSc0jN2VPeJzBMcZTIN5LFNBFk+NAY="
+    version = "v1.5.2"
+    hash = "sha256-LVkZHLG8O4CzmqyQVbGn+0r6AKIMABej8a4HKMFw/xo="
   [mod."github.com/StackExchange/wmi"]
     version = "v0.0.0-20180116203802-5d049714c4a6"
     hash = "sha256-0yUxhZB3v3ZE3QY36zHs2cJ1S4GXptXIhyAi6sI2nOo="
@@ -178,9 +178,9 @@ schema = 3
   [mod."github.com/davecgh/go-spew"]
     version = "v1.1.1"
     hash = "sha256-nhzSUrE1fCkN0+RL04N4h8jWmRFPPPWbCuDc7Ss0akI="
-  [mod."github.com/deckarep/golang-set"]
-    version = "v1.8.0"
-    hash = "sha256-ELJKphksU9AOYwV3BtjvwPtUpbZvX9YMmo7eIiauQSc="
+  [mod."github.com/deckarep/golang-set/v2"]
+    version = "v2.1.0"
+    hash = "sha256-Co6gfAcVn256IUEJNNPmVlx8LZRI4sT+KmqGs2uIQ90="
   [mod."github.com/decred/dcrd/dcrec/secp256k1/v4"]
     version = "v4.1.0"
     hash = "sha256-cS4ZrKz1B4G7+vqih6B7C/WNkcMvRKmvR6S8aw7PotY="
@@ -197,11 +197,11 @@ schema = 3
     version = "v0.0.0-20200201041132-a6ae2369ad13"
     hash = "sha256-aOMlPwFY36bLiiIx4HonbCYRAhagk5N6HAWN7Ygif+E="
   [mod."github.com/dlclark/regexp2"]
-    version = "v1.4.1-0.20201116162257-a2a8dda75c91"
-    hash = "sha256-VNNMZIc7NkDg3DVLnqeJNM/KZqkkaZu2/HTLBL8X2xE="
+    version = "v1.7.0"
+    hash = "sha256-Z/M62esiZ0fVwvueVQhwz18z0eS22LZ3DJ4O8FKp3AY="
   [mod."github.com/dop251/goja"]
-    version = "v0.0.0-20220405120441-9037c2b61cbf"
-    hash = "sha256-ueVIwPRUwxzd9+NybuFv1Pvp5tbwl9gGEgXB6cwqzEc="
+    version = "v0.0.0-20230122112309-96b1610dd4f7"
+    hash = "sha256-iKN5Eqr61dDSipTfdf8gd5Va+rSfsKdlDteAkjZXq2g="
   [mod."github.com/dustin/go-humanize"]
     version = "v1.0.1"
     hash = "sha256-yuvxYYngpfVkUg9yAmG99IUVmADTQA0tMbBXe0Fq0Mc="
@@ -212,13 +212,13 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-LFcJue98awAFkSPRc93tVvon3kWS7AvumrluxxRzt4c="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.26-evmos-rc1"
-    hash = "sha256-GgcReGsIIuBE2TabDYqDO9sBGogdVr9RSh4arQzdPnE="
-    replaced = "github.com/evmos/go-ethereum"
+    version = "v1.10.27-0.20231116010256-4bc837707f7f"
+    hash = "sha256-GI+shChkliMiljbZmbycYPfj7/Auhw0FZcd3WUS+lOI="
+    replaced = "github.com/mmsqe/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20231114052006-8b1ec2327fac"
-    hash = "sha256-+Rgexd0GX8/afOw2lMULQfOn8tW5dk5RkxpCFrco3og="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.6.5-0.20231116043235-a7fd83b2d02c"
+    hash = "sha256-L0lsSbzdSAYLwxlPuZUfhM41fokZOP/sVGhbGnHtDwY="
+    replaced = "github.com/mmsqe/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
     hash = "sha256-hj6FZQ1fDAV+1wGIViAt8XaAkWZ1I5vJzgjIJa7XRBA="
@@ -342,6 +342,9 @@ schema = 3
   [mod."github.com/hdevalence/ed25519consensus"]
     version = "v0.1.0"
     hash = "sha256-MkqFWnyXt653RaJQUMWWxcW6NCskIxou8VEfj+8vd3Y="
+  [mod."github.com/holiman/big"]
+    version = "v0.0.0-20221017200358-a027dc42d04e"
+    hash = "sha256-BPYwQRH3ckgrA7DhEsWkXiIbKmYcBlUT0wqEPiFpRIc="
   [mod."github.com/holiman/bloomfilter/v2"]
     version = "v2.0.3"
     hash = "sha256-5VsJMQzJSNd4F7yAl3iF/q6JodWOlE4dUvTQ0UGPe+k="
@@ -470,9 +473,6 @@ schema = 3
   [mod."github.com/regen-network/cosmos-proto"]
     version = "v0.3.1"
     hash = "sha256-Bchbq/Hg72EA7Hevs8+PNuENuQaZAzk3qeVjMqFMUxc="
-  [mod."github.com/rjeczalik/notify"]
-    version = "v0.9.1"
-    hash = "sha256-YLGNrHHM+mN4ElW/XWuylOnFrA/VjSY+eBuC4LN//5c="
   [mod."github.com/rogpeppe/go-internal"]
     version = "v1.11.0"
     hash = "sha256-BucSndJVnqX9e6p5PfA6Z8N2bGfIeRfxAxYLUDXTbIo="
@@ -507,8 +507,8 @@ schema = 3
     version = "v1.16.0"
     hash = "sha256-TgBr1SBMaus1oAlA5Kn+iNUJfQCMyo0hT/xFaA7hreQ="
   [mod."github.com/status-im/keycard-go"]
-    version = "v0.0.0-20200402102358-957c09536969"
-    hash = "sha256-yddXXuu6mEFEO2/K6c1tWymeBKzOcvLQnNsFGRjtfXk="
+    version = "v0.2.0"
+    hash = "sha256-UUiGmlgaIZDeMUJv3fdZBoQ9hJeSsg2ixRGmm6TgHug="
   [mod."github.com/stretchr/testify"]
     version = "v1.8.4"
     hash = "sha256-MoOmRzbz9QgiJ+OOBo5h5/LbilhJfRUryvzHJmXAWjo="

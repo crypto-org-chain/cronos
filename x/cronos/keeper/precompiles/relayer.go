@@ -69,7 +69,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	if len(input) < prefixSize4Bytes {
 		return 0
 	}
-	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true, true)
 	if err != nil {
 		return 0
 	}
