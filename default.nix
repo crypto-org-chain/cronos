@@ -10,7 +10,7 @@
 , nativeByteOrder ? true # nativeByteOrder mode will panic on big endian machines
 }:
 let
-  version = "v1.0.12";
+  version = "v1.0.13";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_no_link" ]
     ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
