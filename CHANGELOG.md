@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Nov 20, 2023*
+
+## v1.0.13
 
 - [#1197](https://github.com/crypto-org-chain/cronos/pull/1197) tune rocksdb options to control memory consumption.
 - [#1207](https://github.com/crypto-org-chain/cronos/pull/1207) Update rocksdb to `v8.6.7`.
