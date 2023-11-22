@@ -85,10 +85,6 @@ func (bc *BankContract) RequiredGas(input []byte) uint64 {
 	return baseCost
 }
 
-func (bc *BankContract) IsStateful() bool {
-	return true
-}
-
 func (bc *BankContract) checkBlockedAddr(addr sdk.AccAddress) error {
 	to, err := sdk.AccAddressFromBech32(addr.String())
 	if err != nil {

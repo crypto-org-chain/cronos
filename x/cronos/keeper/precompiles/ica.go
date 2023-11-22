@@ -100,10 +100,6 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	return baseCost
 }
 
-func (ic *IcaContract) IsStateful() bool {
-	return true
-}
-
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
 	methodID := contract.Input[:4]

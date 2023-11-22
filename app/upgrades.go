@@ -30,6 +30,7 @@ import (
 	ibctmmigrations "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint/migrations"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
+	v0evmtypes "github.com/evmos/ethermint/x/evm/migrations/v0/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 )
@@ -63,7 +64,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		case icaauthtypes.ModuleName:
 			keyTable = icaauthtypes.ParamKeyTable()
 		case evmtypes.ModuleName:
-			keyTable = evmtypes.ParamKeyTable() //nolint:staticcheck
+			keyTable = v0evmtypes.ParamKeyTable() //nolint:staticcheck
 		case feemarkettypes.ModuleName:
 			keyTable = feemarkettypes.ParamKeyTable()
 		case cronostypes.ModuleName:

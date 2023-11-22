@@ -90,10 +90,6 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	return total - intrinsicGas
 }
 
-func (bc *RelayerContract) IsStateful() bool {
-	return true
-}
-
 // prefix bytes for the relayer msg type
 const (
 	prefixSize4Bytes = 4
