@@ -1,0 +1,16 @@
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/evmos/ethermint/x/evm/types";
+
+// AccessTuple is the element type of an access list.
+message AccessTuple {
+  option (gogoproto.goproto_getters) = false;
+
+  // address is a hex formatted ethereum address
+  string address = 1;
+  // storage_keys are hex formatted hashes of the storage keys
+  repeated string storage_keys = 2 [(gogoproto.jsontag) = "storageKeys"];
+}
