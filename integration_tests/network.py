@@ -114,6 +114,8 @@ def setup_geth(path, base_port):
             str(base_port + 1),
             "--networkid",
             str(15),
+            "--miner.etherbase",
+            "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2",
         ]
         print(*cmd)
         proc = subprocess.Popen(
