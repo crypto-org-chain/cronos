@@ -212,8 +212,8 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-LFcJue98awAFkSPRc93tVvon3kWS7AvumrluxxRzt4c="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.24-0.20231123010828-56c2cc86af1d"
-    hash = "sha256-c+LsJ/l1sKEBQVGejSAYlHSMsHWYCnE3Xce5jYioLvo="
+    version = "v1.10.24-0.20231123130228-82f765d21a1b"
+    hash = "sha256-0i/EwUkKe95I74QJgsmF5P2SPZ72fydHrUzdA0R1grs="
     replaced = "github.com/mmsqe/go-ethereum"
   [mod."github.com/evmos/ethermint"]
     version = "v0.6.1-0.20231123013901-b3fcb10994ac"

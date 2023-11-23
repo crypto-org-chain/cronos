@@ -66,10 +66,16 @@ func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
 }
 
-func (bc *RelayerContract) SetChainConfig(isHomestead, isIstanbul, isShanghai bool) {
-	bc.isHomestead = isHomestead
-	bc.isIstanbul = isIstanbul
-	bc.isShanghai = isShanghai
+func (bc *RelayerContract) WithChainConfig(isHomestead, isIstanbul, isShanghai bool) vm.PrecompiledContract {
+	return &RelayerContract{
+		BaseContract: bc.BaseContract,
+		cdc:          bc.cdc,
+		ibcKeeper:    bc.ibcKeeper,
+		logger:       bc.logger,
+		isHomestead:  isHomestead,
+		isIstanbul:   isIstanbul,
+		isShanghai:   isShanghai,
+	}
 }
 
 // RequiredGas calculates the contract gas use
