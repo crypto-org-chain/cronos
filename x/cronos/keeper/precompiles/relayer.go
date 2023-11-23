@@ -45,9 +45,12 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc       codec.Codec
-	ibcKeeper types.IbcKeeper
-	logger    log.Logger
+	cdc         codec.Codec
+	ibcKeeper   types.IbcKeeper
+	logger      log.Logger
+	isHomestead bool
+	isIstanbul  bool
+	isShanghai  bool
 }
 
 func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
@@ -63,13 +66,19 @@ func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
 }
 
+func (bc *RelayerContract) SetChainConfig(isHomestead, isIstanbul, isShanghai bool) {
+	bc.isHomestead = isHomestead
+	bc.isIstanbul = isIstanbul
+	bc.isShanghai = isShanghai
+}
+
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	if len(input) < prefixSize4Bytes {
 		return 0
 	}
-	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true, true)
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	if err != nil {
 		return 0
 	}

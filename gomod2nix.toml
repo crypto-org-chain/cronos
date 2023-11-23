@@ -212,12 +212,12 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-LFcJue98awAFkSPRc93tVvon3kWS7AvumrluxxRzt4c="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.20-0.20231122021350-f905c2ec3570"
-    hash = "sha256-1LRIM5dPmwjBxd57c9Y+2mZuBrbGWfMvEIlqYpdVBPA="
-    replaced = "github.com/crypto-org-chain/go-ethereum"
+    version = "v1.10.24-0.20231123010828-56c2cc86af1d"
+    hash = "sha256-c+LsJ/l1sKEBQVGejSAYlHSMsHWYCnE3Xce5jYioLvo="
+    replaced = "github.com/mmsqe/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20231122101434-6f3ad29bf943"
-    hash = "sha256-gt8+TkOU9Rg9YjT+ZquRrgxFyCHibLRm27rzuRirpW4="
+    version = "v0.6.1-0.20231123013901-b3fcb10994ac"
+    hash = "sha256-9MxoxtYMnK7WswZeBO9RErKG/31E7t9QYig81aLZUlA="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
