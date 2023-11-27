@@ -78,6 +78,7 @@ def submit_msgs(
     timeout=no_timeout,
     amount=amt,
     need_wait=True,
+    msg_num=2,
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -87,7 +88,7 @@ def submit_msgs(
     m = gen_send_msg(ica_address, to, denom, amount)
     msgs = []
     diff_amt = 0
-    for i in range(2):
+    for i in range(msg_num):
         msgs.append(m)
         diff_amt += amount
     if add_delegate:
@@ -115,7 +116,7 @@ def submit_msgs(
         print(f"wait for {timeout_in_s}s")
         wait_for_check_tx(cli_host, ica_address, num_txs, timeout_in_s)
     else:
-        (logs) = event.getLogs()
+        logs = event.getLogs()
         assert len(logs) > 0
         assert logs[0].args == AttributeDict({"seq": expected_seq})
         if need_wait:
@@ -179,10 +180,15 @@ def wait_for_status_change(tcontract, seq):
     wait_for_fn("current status", check_status)
 
 
-def assert_packet_result(event, seq, status):
-    (logs) = event.getLogs()
-    assert len(logs) > 0
-    return logs[0].args == AttributeDict({"seq": seq, "status": status})
+def wait_for_packet_log(start, event, seq, status):
+    print("wait for log arrive", seq, status)
+    expected = AttributeDict({"seq": seq, "status": status})
+
+    def check_log():
+        logs = event.getLogs(fromBlock=start)
+        return len(logs) > 0 and logs[-1].args == expected
+
+    wait_for_fn("packet log", check_log)
 
 
 def test_sc_call(ibc):
@@ -197,7 +203,9 @@ def test_sc_call(ibc):
     name = "signer2"
     signer = ADDRS[name]
     keys = KEYS[name]
-    data = {"from": signer, "gas": 400000}
+    default_gas = 400000
+    data = {"from": signer, "gas": default_gas}
+    channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -205,7 +213,7 @@ def test_sc_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id,
     )
     balance = funds_ica(cli_host, ica_address)
     assert tcontract.caller.getAccount() == signer
@@ -213,7 +221,7 @@ def test_sc_call(ibc):
 
     # register from another user should fail
     name = "signer1"
-    data = {"from": ADDRS[name], "gas": 400000}
+    data = {"from": ADDRS[name], "gas": default_gas}
     version = ""
     tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
     res = send_transaction(w3, tx, KEYS[name])
@@ -237,6 +245,7 @@ def test_sc_call(ibc):
         assert send_transaction(w3, tx, keys).status == 0
 
     expected_seq = 1
+    start = w3.eth.get_block_number()
     str, diff = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -253,11 +262,12 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     expected_seq += 1
+    start = w3.eth.get_block_number()
     str, diff = submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -274,11 +284,12 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     expected_seq += 1
+    start = w3.eth.get_block_number()
     # balance should not change on fail
     submit_msgs(
         ibc,
@@ -296,12 +307,14 @@ def test_sc_call(ibc):
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
     expected_seq += 1
-    timeout = 300000
+    start = w3.eth.get_block_number()
+    timeout = 5000000000
+    data["gas"] = 800000
     submit_msgs(
         ibc,
         tcontract.functions.callSubmitMsgs,
@@ -311,11 +324,44 @@ def test_sc_call(ibc):
         expected_seq,
         contract.events.SubmitMsgsResult,
         timeout,
+        msg_num=100,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, last_seq)
     status = tcontract.caller.statusMap(last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    assert_packet_result(tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    assert cli_host.balance(ica_address, denom=denom) == balance
+    wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
+    data["gas"] = default_gas
+    ica_address2 = register_acc(
+        cli_controller,
+        w3,
+        tcontract.functions.callRegister,
+        contract.functions.queryAccount,
+        data,
+        addr,
+        get_next_channel(cli_controller, connid),
+    )
+    assert ica_address2 == ica_address, ica_address2
+    expected_seq = 1
+    start = w3.eth.get_block_number()
+    str, diff = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+        contract.events.SubmitMsgsResult,
+    )
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, last_seq)
+    status = tcontract.caller.statusMap(last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.SUCCESS
+    # wait for ack to add log from call evm
+    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance

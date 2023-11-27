@@ -15,6 +15,11 @@
 - [#1232](https://github.com/crypto-org-chain/cronos/pull/1232) Adjust require gas in relayer precompile to be closed with actual consumed.
 - [#1209](https://github.com/crypto-org-chain/cronos/pull/1209) Support accurate estimate gas in evm tx from relayer.
 
+### Improvements
+
+- [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
+- [#1241](https://github.com/crypto-org-chain/cronos/pull/1241) Improve parallelization of memiavl restoration.
+
 *October 17, 2023*
 
 ## v1.1.0-rc1
