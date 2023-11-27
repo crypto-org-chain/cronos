@@ -667,3 +667,4 @@ def log_gas_records(cli):
         res = tx["tx_result"]
         if res["gas_used"]:
             records.append(res["gas_used"])
+    return records
