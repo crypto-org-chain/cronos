@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -53,29 +54,20 @@ type RelayerContract struct {
 	isShanghai  bool
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
+		isHomestead:  rules.IsHomestead,
+		isIstanbul:   rules.IsIstanbul,
+		isShanghai:   rules.IsShanghai,
 		logger:       logger.With("precompiles", "relayer"),
 	}
 }
 
 func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
-}
-
-func (bc *RelayerContract) WithChainConfig(isHomestead, isIstanbul, isShanghai bool) vm.PrecompiledContract {
-	return &RelayerContract{
-		BaseContract: bc.BaseContract,
-		cdc:          bc.cdc,
-		ibcKeeper:    bc.ibcKeeper,
-		logger:       bc.logger,
-		isHomestead:  isHomestead,
-		isIstanbul:   isIstanbul,
-		isShanghai:   isShanghai,
-	}
 }
 
 // RequiredGas calculates the contract gas use
