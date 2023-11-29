@@ -15,8 +15,8 @@ contract TestICA {
         SUCCESS,
         FAIL
     }
-    mapping (uint64 => Status) public statusMap;
-    event OnPacketResult(uint64 seq, Status status);
+    mapping (string => mapping (uint64 => Status)) public statusMap;
+    event OnPacketResult(string indexed packetSrcChannel, uint64 seq, Status status);
 
     function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
@@ -102,15 +102,19 @@ contract TestICA {
         return lastSeq;
     }
 
-    function onPacketResultCallback(uint64 seq, bool ack) external payable returns (bool) {
+    function getStatus(string calldata packetSrcChannel, uint64 seq) public view returns (Status) {
+        return statusMap[packetSrcChannel][seq];
+    }
+
+    function onPacketResultCallback(string calldata packetSrcChannel, uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
         Status status = Status.FAIL;
         if (ack) {
             status = Status.SUCCESS;
         }
-        statusMap[seq] = status;
-        emit OnPacketResult(seq, status);
+        statusMap[packetSrcChannel][seq] = status;
+        emit OnPacketResult(packetSrcChannel, seq, status);
         return true;
     }
 }
