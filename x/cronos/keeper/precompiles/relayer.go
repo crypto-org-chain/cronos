@@ -2,6 +2,7 @@ package precompiles
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -180,6 +181,9 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	if readonly {
 		return nil, errors.New("the method is not readonly")
 	}
+	if len(contract.Input) < 4 {
+		return nil, errors.New("input too short")
+	}
 	// parse input
 	methodID := contract.Input[:4]
 	method, err := irelayerABI.MethodById(methodID)
@@ -273,7 +277,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case UpdateClientAndTimeoutOnClose:
 		res, err = execMultiple(e, bc.ibcKeeper.UpdateClient, bc.ibcKeeper.TimeoutOnClose)
 	default:
-		return nil, errors.New("unknown method")
+		return nil, fmt.Errorf("unknown method: %s", method.Name)
 	}
 	return res, err
 }

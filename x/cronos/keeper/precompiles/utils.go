@@ -43,8 +43,9 @@ func exec[Req any, PReq interface {
 	if len(signers) != 1 {
 		return nil, errors.New("don't support multi-signers message")
 	}
-	if common.BytesToAddress(signers[0].Bytes()) != e.caller {
-		return nil, errors.New("caller is not authenticated")
+	caller := common.BytesToAddress(signers[0].Bytes())
+	if caller != e.caller {
+		return nil, fmt.Errorf("caller is not authenticated: expected %s, got %s", e.caller.Hex(), caller.Hex())
 	}
 
 	var res Resp
@@ -56,7 +57,11 @@ func exec[Req any, PReq interface {
 		return nil, err
 	}
 
-	return e.cdc.Marshal(res)
+	output, err := e.cdc.Marshal(res)
+	if err != nil {
+		return nil, fmt.Errorf("fail to Marshal %T %w", res, err)
+	}
+	return output, nil
 }
 
 func execMultipleWithHooks[Req any,
@@ -89,7 +94,7 @@ func execMultipleWithHooks[Req any,
 
 	signers := msg.GetSigners()
 	if len(signers) != 1 {
-		return nil, errors.New("don't support multi-signers message")
+		return nil, fmt.Errorf("expected 1 signer, got %d", len(signers))
 	}
 	if common.BytesToAddress(signers[0].Bytes()) != e.caller {
 		return nil, errors.New("caller is not authenticated")

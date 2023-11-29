@@ -27,5 +27,5 @@ def test_ibc(ibc):
         records.append(record)
     if len(records) == 2:
         for e1, e2 in zip(*records):
-            res = int(e2) / int(e1)
+            res = float(e2) / float(e1)
             assert 1 - diff <= res <= 1 + diff, res
