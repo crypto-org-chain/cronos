@@ -35,7 +35,8 @@ var (
 		transfertypes.AttributeKeyDenom:          ReturnStringAsIs,
 	}
 	IcaValueDecoders = ValueDecoders{
-		cronoseventstypes.AttributeKeySeq: ConvertUint64,
+		cronoseventstypes.AttributeKeySeq:   ConvertUint64,
+		channeltypes.AttributeKeySrcChannel: ReturnStringAsIs,
 	}
 )
 
