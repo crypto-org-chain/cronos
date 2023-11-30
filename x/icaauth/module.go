@@ -11,6 +11,7 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/client/cli"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	"github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
@@ -104,7 +105,9 @@ type AppModule struct {
 func NewAppModule(
 	cdc codec.BinaryCodec,
 	keeper keeper.Keeper,
+	ics4Wrapper porttypes.ICS4Wrapper,
 ) AppModule {
+	keeper.WithICS4Wrapper(ics4Wrapper)
 	return AppModule{
 		AppModuleBasic: NewAppModuleBasic(cdc),
 		keeper:         keeper,
