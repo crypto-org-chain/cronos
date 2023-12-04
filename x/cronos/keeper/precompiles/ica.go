@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	icatypes "github.com/cosmos/ibc-go/v7/modules/apps/27-interchain-accounts/types"
+	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/icacallback"
@@ -181,7 +182,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			response, err := ic.icaauthKeeper.SubmitTxWithArgs(
+			activeChannelID, response, err := ic.icaauthKeeper.SubmitTxWithArgs(
 				ctx,
 				owner,
 				connectionID,
@@ -193,6 +194,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeSubmitMsgsResult,
+						sdk.NewAttribute(channeltypes.AttributeKeySrcChannel, activeChannelID),
 						sdk.NewAttribute(cronoseventstypes.AttributeKeySeq, fmt.Sprintf("%d", response.Sequence)),
 					),
 				})

@@ -3,6 +3,7 @@ import json
 from enum import IntEnum
 
 import pytest
+from eth_utils import keccak
 from pystarport import cluster
 from web3.datastructures import AttributeDict
 
@@ -79,6 +80,7 @@ def submit_msgs(
     amount=amt,
     need_wait=True,
     msg_num=2,
+    channel_id="",
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -118,7 +120,12 @@ def submit_msgs(
     else:
         logs = event.getLogs()
         assert len(logs) > 0
-        assert logs[0].args == AttributeDict({"seq": expected_seq})
+        assert logs[0].args == AttributeDict(
+            {
+                "packetSrcChannel": keccak(text=channel_id),
+                "seq": expected_seq,
+            }
+        )
         if need_wait:
             wait_for_check_tx(cli_host, ica_address, num_txs)
     return str, diff_amt
@@ -133,6 +140,7 @@ def test_call(ibc):
     contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     data = {"from": ADDRS[name]}
+    channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
         w3,
@@ -140,7 +148,7 @@ def test_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id,
     )
     balance = funds_ica(cli_host, ica_address)
     expected_seq = 1
@@ -152,6 +160,7 @@ def test_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -164,25 +173,31 @@ def test_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
 
-def wait_for_status_change(tcontract, seq):
+def wait_for_status_change(tcontract, channel_id, seq):
     print(f"wait for status change for {seq}")
 
     def check_status():
-        status = tcontract.caller.statusMap(seq)
-        print("current", status)
+        status = tcontract.caller.getStatus(channel_id, seq)
         return status
 
     wait_for_fn("current status", check_status)
 
 
-def wait_for_packet_log(start, event, seq, status):
+def wait_for_packet_log(start, event, channel_id, seq, status):
     print("wait for log arrive", seq, status)
-    expected = AttributeDict({"seq": seq, "status": status})
+    expected = AttributeDict(
+        {
+            "packetSrcChannel": keccak(text=channel_id),
+            "seq": seq,
+            "status": status,
+        }
+    )
 
     def check_log():
         logs = event.getLogs(fromBlock=start)
@@ -245,6 +260,7 @@ def test_sc_call(ibc):
         assert send_transaction(w3, tx, keys).status == 0
 
     expected_seq = 1
+    packet_event = tcontract.events.OnPacketResult
     start = w3.eth.get_block_number()
     str, diff = submit_msgs(
         ibc,
@@ -254,15 +270,16 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -276,15 +293,16 @@ def test_sc_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
-    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
 
@@ -301,13 +319,14 @@ def test_sc_call(ibc):
         contract.events.SubmitMsgsResult,
         amount=100000001,
         need_wait=False,
+        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
 
     # balance should not change on timeout
@@ -325,16 +344,18 @@ def test_sc_call(ibc):
         contract.events.SubmitMsgsResult,
         timeout,
         msg_num=100,
+        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
     assert expected_seq == last_seq
     assert status == Status.FAIL
-    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
     data["gas"] = default_gas
+    channel_id2 = get_next_channel(cli_controller, connid)
     ica_address2 = register_acc(
         cli_controller,
         w3,
@@ -342,8 +363,9 @@ def test_sc_call(ibc):
         contract.functions.queryAccount,
         data,
         addr,
-        get_next_channel(cli_controller, connid),
+        channel_id2,
     )
+    assert channel_id2 != channel_id, channel_id2
     assert ica_address2 == ica_address, ica_address2
     expected_seq = 1
     start = w3.eth.get_block_number()
@@ -355,13 +377,14 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id=channel_id2,
     )
     last_seq = tcontract.caller.getLastSeq()
-    wait_for_status_change(tcontract, last_seq)
-    status = tcontract.caller.statusMap(last_seq)
+    wait_for_status_change(tcontract, channel_id2, last_seq)
+    status = tcontract.caller.getStatus(channel_id2, last_seq)
     assert expected_seq == last_seq
     assert status == Status.SUCCESS
     # wait for ack to add log from call evm
-    wait_for_packet_log(start, tcontract.events.OnPacketResult, last_seq, status)
+    wait_for_packet_log(start, packet_event, channel_id2, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance

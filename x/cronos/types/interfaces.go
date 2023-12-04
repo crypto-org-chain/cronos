@@ -87,7 +87,7 @@ type EvmKeeper interface {
 type Icaauthkeeper interface {
 	RegisterAccount(goCtx context.Context, msg *icaauthtypes.MsgRegisterAccount) (*icaauthtypes.MsgRegisterAccountResponse, error)
 	InterchainAccountAddress(goCtx context.Context, req *icaauthtypes.QueryInterchainAccountAddressRequest) (*icaauthtypes.QueryInterchainAccountAddressResponse, error)
-	SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (*icaauthtypes.MsgSubmitTxResponse, error)
+	SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (string, *icaauthtypes.MsgSubmitTxResponse, error)
 }
 
 // CronosKeeper defines the interface for cronos keeper

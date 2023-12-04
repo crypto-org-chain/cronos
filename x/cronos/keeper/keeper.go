@@ -292,8 +292,7 @@ func (k Keeper) onPacketResult(
 	packetSenderAddress string,
 ) error {
 	contractAddr := common.HexToAddress(contractAddress)
-
-	data, err := cronosprecompiles.OnPacketResultCallback(packet.Sequence, acknowledgement)
+	data, err := cronosprecompiles.OnPacketResultCallback(packet.SourceChannel, packet.Sequence, acknowledgement)
 	if err != nil {
 		return err
 	}
