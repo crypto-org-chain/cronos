@@ -267,7 +267,6 @@ def ibc_transfer_with_hermes(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-
     # assert that the relayer transactions do enables the dynamic fee extension option.
     cli = ibc.cronos.cosmos_cli()
     criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
@@ -666,9 +665,6 @@ def log_gas_records(cli):
     records = []
     for tx in txs:
         res = tx["tx_result"]
-        actions = []
-        for event in res["events"]:
-            for attribute in event["attributes"]:
-                if attribute["key"] == "action":
-                    actions.append(attribute["value"])
-        records.append(res["gas_used"])
+        if res["gas_used"]:
+            records.append(res["gas_used"])
+    return records
