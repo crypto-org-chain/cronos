@@ -14,6 +14,7 @@
     "berlinBlock": 0,
     "yoloV3Block": 0,
     "londonBlock": 0,
+    "shanghaiTime": 0,
     "clique": {
       "period": 2,
       "epoch": 30000

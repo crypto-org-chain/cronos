@@ -10,16 +10,16 @@ let
 in
 buildGoModule rec {
   pname = "go-ethereum";
-  version = "1.10.15";
+  version = "1.11.2";
 
   src = fetchFromGitHub {
     owner = "ethereum";
     repo = pname;
     rev = "v${version}";
-    sha256 = "0f6n9rg42ph47mvykc9f0lf99yzwqy4jm7mlzyks4l6i6fl1g3q1";
+    sha256 = "sha256-LCJDpSyQUL7DXZDbZepaoU78uXfoPPMKMETy/uq+0LE=";
   };
 
-  vendorSha256 = "1s5yfpk2yn7f3zwjl2fdrh6c63ki2b8rlmnlss27yxibsidaj0yd";
+  vendorSha256 = "sha256-6yLkeT5DrAPUohAmobssKkvxgXI8kACxiu17WYbw+n0=";
 
   doCheck = false;
 
@@ -42,7 +42,6 @@ buildGoModule rec {
     "cmd/faucet"
     "cmd/geth"
     "cmd/p2psim"
-    "cmd/puppeth"
     "cmd/rlpdump"
     "cmd/utils"
   ];

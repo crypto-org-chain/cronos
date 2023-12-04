@@ -1,0 +1,39 @@
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "gogoproto/gogo.proto";
+import "ethermint/evm/v1/chain_config.proto";
+
+option go_package = "github.com/evmos/ethermint/x/evm/types";
+
+// TraceConfig holds extra parameters to trace functions.
+message TraceConfig {
+  // DEPRECATED: DisableMemory and DisableReturnData have been renamed to
+  // Enable*.
+  reserved 4, 7;
+  reserved "disable_memory", "disable_return_data";
+
+  // tracer is a custom javascript tracer
+  string tracer = 1;
+  // timeout overrides the default timeout of 5 seconds for JavaScript-based tracing
+  // calls
+  string timeout = 2;
+  // reexec defines the number of blocks the tracer is willing to go back
+  uint64 reexec = 3;
+  // disable_stack switches stack capture
+  bool disable_stack = 5 [(gogoproto.jsontag) = "disableStack"];
+  // disable_storage switches storage capture
+  bool disable_storage = 6 [(gogoproto.jsontag) = "disableStorage"];
+  // debug can be used to print output during capture end
+  bool debug = 8;
+  // limit defines the maximum length of output, but zero means unlimited
+  int32 limit = 9;
+  // overrides can be used to execute a trace using future fork rules
+  ChainConfig overrides = 10;
+  // enable_memory switches memory capture
+  bool enable_memory = 11 [(gogoproto.jsontag) = "enableMemory"];
+  // enable_return_data switches the capture of return data
+  bool enable_return_data = 12 [(gogoproto.jsontag) = "enableReturnData"];
+  // tracer_json_config configures the tracer using a JSON string
+  string tracer_json_config = 13 [(gogoproto.jsontag) = "tracerConfig"];
+}

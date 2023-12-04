@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -131,16 +132,22 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc       codec.Codec
-	ibcKeeper types.IbcKeeper
-	logger    log.Logger
+	cdc         codec.Codec
+	ibcKeeper   types.IbcKeeper
+	logger      log.Logger
+	isHomestead bool
+	isIstanbul  bool
+	isShanghai  bool
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
+		isHomestead:  rules.IsHomestead,
+		isIstanbul:   rules.IsIstanbul,
+		isShanghai:   rules.IsShanghai,
 		logger:       logger.With("precompiles", "relayer"),
 	}
 }
@@ -158,7 +165,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := relayerGasRequiredByMethod[methodID]
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, true, true)
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
@@ -171,10 +178,6 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		return 0
 	}
 	return total - intrinsicGas
-}
-
-func (bc *RelayerContract) IsStateful() bool {
-	return true
 }
 
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {

@@ -152,13 +152,14 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
 
 	// Force-load the tracer engines to trigger registration
+	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+	ethparams "github.com/ethereum/go-ethereum/params"
 
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
@@ -535,9 +536,13 @@ func New(
 		app.FeeMarketKeeper,
 		tracer,
 		evmS,
-		[]vm.PrecompiledContract{
-			cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, app.Logger()),
-			cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig),
+		[]evmkeeper.CustomContractFn{
+			func(rules ethparams.Rules) vm.PrecompiledContract {
+				return cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, rules, app.Logger())
+			},
+			func(rules ethparams.Rules) vm.PrecompiledContract {
+				return cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig)
+			},
 		},
 		allKeys,
 	)
@@ -1155,7 +1160,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibcexported.ModuleName)
 	paramsKeeper.Subspace(icacontrollertypes.SubModuleName)
 	paramsKeeper.Subspace(icaauthtypes.ModuleName)
-	paramsKeeper.Subspace(evmtypes.ModuleName).WithKeyTable(evmtypes.ParamKeyTable()) //nolint: staticcheck
+	paramsKeeper.Subspace(evmtypes.ModuleName)
 	paramsKeeper.Subspace(feemarkettypes.ModuleName).WithKeyTable(feemarkettypes.ParamKeyTable())
 	if !skipGravity {
 		paramsKeeper.Subspace(gravitytypes.ModuleName)
