@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -45,16 +46,22 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc       codec.Codec
-	ibcKeeper types.IbcKeeper
-	logger    log.Logger
+	cdc         codec.Codec
+	ibcKeeper   types.IbcKeeper
+	logger      log.Logger
+	isHomestead bool
+	isIstanbul  bool
+	isShanghai  bool
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
 		cdc:          cdc,
+		isHomestead:  rules.IsHomestead,
+		isIstanbul:   rules.IsIstanbul,
+		isShanghai:   rules.IsShanghai,
 		logger:       logger.With("precompiles", "relayer"),
 	}
 }
@@ -69,7 +76,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	if len(input) < prefixSize4Bytes {
 		return 0
 	}
-	intrinsicGas, err := core.IntrinsicGas(input, nil, false, true, true)
+	intrinsicGas, err := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	if err != nil {
 		return 0
 	}
@@ -88,10 +95,6 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		return 0
 	}
 	return total - intrinsicGas
-}
-
-func (bc *RelayerContract) IsStateful() bool {
-	return true
 }
 
 // prefix bytes for the relayer msg type

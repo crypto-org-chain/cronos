@@ -1,0 +1,16 @@
+syntax = "proto3";
+package ethermint.evm.v1;
+
+import "ethermint/evm/v1/log.proto";
+
+option go_package = "github.com/evmos/ethermint/x/evm/types";
+
+// TransactionLogs define the logs generated from a transaction execution
+// with a given hash. It it used for import/export data as transactions are not
+// persisted on blockchain state after an upgrade.
+message TransactionLogs {
+  // hash of the transaction
+  string hash = 1;
+  // logs is an array of Logs for the given transaction hash
+  repeated Log logs = 2;
+}

@@ -3,10 +3,12 @@ package ethermint.evm.v1;
 
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
-import "ethermint/evm/v1/evm.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/any.proto";
+import "ethermint/evm/v1/access_tuple.proto";
+import "ethermint/evm/v1/log.proto";
+import "ethermint/evm/v1/params.proto";
 
 option go_package = "github.com/evmos/ethermint/x/evm/types";
 
@@ -32,10 +34,11 @@ message MsgEthereumTx {
   double size = 2 [(gogoproto.jsontag) = "-"];
   // hash of the transaction in hex format
   string hash = 3 [(gogoproto.moretags) = "rlp:\"-\""];
-  // from is the ethereum signer address in hex format. This address value is checked
+  string deprecated_from = 4 [deprecated = true];
+  // from is the bytes of ethereum signer address. This address value is checked
   // against the address derived from the signature (V, R, S) using the
   // secp256k1 elliptic curve
-  string from = 4;
+  bytes from = 5;
 }
 
 // LegacyTx is the transaction data of regular Ethereum transactions.

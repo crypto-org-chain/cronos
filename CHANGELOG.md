@@ -13,6 +13,7 @@
 ### State Machine Breaking
 
 - [#1232](https://github.com/crypto-org-chain/cronos/pull/1232) Adjust require gas in relayer precompile to be closed with actual consumed.
+- [#1247](https://github.com/crypto-org-chain/cronos/pull/1247) Update ethermint to develop, go-ethereum to `v1.11.2`.
 - [#1235](https://github.com/crypto-org-chain/cronos/pull/1235) Add channel detail in ica packet callback.
 
 ### Improvements
