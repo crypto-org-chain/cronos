@@ -92,9 +92,8 @@ CONTRACT_ABIS = {
 def wait_for_fn(name, fn, *, timeout=240, interval=1):
     for i in range(int(timeout / interval)):
         result = fn()
-        print("check", name, result)
         if result:
-            break
+            return result
         time.sleep(interval)
     else:
         raise TimeoutError(f"wait for {name} timeout")

@@ -1314,6 +1314,29 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
+    def ica_ctrl_send_tx(self, connid, tx, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "ica",
+                "controller",
+                "send-tx",
+                connid,
+                tx,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def ica_query_account(self, connid, owner, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,

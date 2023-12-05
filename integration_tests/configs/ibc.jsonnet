@@ -13,6 +13,11 @@ config {
     },
     genesis+: {
       app_state+: {
+        cronos+: {
+          params+: {
+            max_callback_gas: 50000,
+          },
+        },
         feemarket+: {
           params+: {
             no_base_fee: true,

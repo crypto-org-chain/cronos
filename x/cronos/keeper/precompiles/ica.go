@@ -34,6 +34,7 @@ var (
 	icaABI                 abi.ABI
 	icaCallbackABI         abi.ABI
 	icaContractAddress     = common.BytesToAddress([]byte{102})
+	icaMethodNamesByID     = map[[4]byte]string{}
 	icaGasRequiredByMethod = map[[4]byte]uint64{}
 )
 
@@ -58,6 +59,7 @@ func init() {
 		default:
 			icaGasRequiredByMethod[methodID] = 0
 		}
+		icaMethodNamesByID[methodID] = methodName
 	}
 }
 
@@ -68,15 +70,17 @@ func OnPacketResultCallback(args ...interface{}) ([]byte, error) {
 type IcaContract struct {
 	BaseContract
 
+	ctx           sdk.Context
 	cdc           codec.Codec
 	icaauthKeeper types.Icaauthkeeper
 	cronosKeeper  types.CronosKeeper
 	kvGasConfig   storetypes.GasConfig
 }
 
-func NewIcaContract(icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewIcaContract(ctx sdk.Context, icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &IcaContract{
 		BaseContract:  NewBaseContract(icaContractAddress),
+		ctx:           ctx,
 		cdc:           cdc,
 		icaauthKeeper: icaauthKeeper,
 		cronosKeeper:  cronosKeeper,
@@ -95,6 +99,9 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
+	if icaMethodNamesByID[methodID] == SubmitMsgsMethodName {
+		requiredGas += ic.cronosKeeper.GetParams(ic.ctx).MaxCallbackGas
+	}
 	if ok {
 		return requiredGas + baseCost
 	}
