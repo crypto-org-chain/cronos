@@ -298,7 +298,7 @@ func (k Keeper) onPacketResult(
 	senderAddr := common.BytesToAddress(sender)
 	contractAddr := common.HexToAddress(contractAddress)
 	if senderAddr != contractAddr {
-		return fmt.Errorf("sender is not authenticated: expected %s, got %s\n", senderAddr, contractAddr)
+		return fmt.Errorf("sender is not authenticated: expected %s, got %s", senderAddr, contractAddr)
 	}
 	data, err := cronosprecompiles.OnPacketResultCallback(packet.SourceChannel, packet.Sequence, acknowledgement)
 	if err != nil {
