@@ -622,6 +622,23 @@ def wait_for_check_tx(cli, adr, num_txs, timeout=None):
         assert raised
 
 
+def register_acc(cli, connid):
+    print("register ica account")
+    rsp = cli.icaauth_register_account(
+        connid, from_="signer2", gas="400000", fees="100000000basetcro"
+    )
+    _, channel_id = assert_channel_open_init(rsp)
+    wait_for_check_channel_ready(cli, connid, channel_id)
+
+    print("query ica account")
+    ica_address = cli.ica_query_account(
+        connid,
+        cli.address("signer2"),
+    )["interchain_account_address"]
+    print("ica address", ica_address, "channel_id", channel_id)
+    return ica_address, channel_id
+
+
 def funds_ica(cli, adr):
     # initial balance of interchain account should be zero
     assert cli.balance(adr) == 0

@@ -4,10 +4,10 @@ import pytest
 from pystarport import cluster
 
 from .ibc_utils import (
-    assert_channel_open_init,
     funds_ica,
     gen_send_msg,
     prepare_network,
+    register_acc,
     wait_for_check_channel_ready,
     wait_for_check_tx,
 )
@@ -31,23 +31,7 @@ def test_ica(ibc, tmp_path):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
-
-    def register_acc():
-        print("register ica account")
-        rsp = cli_controller.icaauth_register_account(
-            connid, from_="signer2", gas="400000", fees="100000000basetcro"
-        )
-        _, channel_id = assert_channel_open_init(rsp)
-        wait_for_check_channel_ready(cli_controller, connid, channel_id)
-
-        print("query ica account")
-        ica_address = cli_controller.ica_query_account(
-            connid, cli_controller.address("signer2")
-        )["interchain_account_address"]
-        print("ica address", ica_address, "channel_id", channel_id)
-        return ica_address, channel_id
-
-    ica_address, channel_id = register_acc()
+    ica_address, channel_id = register_acc(cli_controller, connid)
     balance = funds_ica(cli_host, ica_address)
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     to = cli_host.address("signer2")
@@ -90,7 +74,7 @@ def test_ica(ibc, tmp_path):
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
     # reopen ica account after channel get closed
-    ica_address2, channel_id2 = register_acc()
+    ica_address2, channel_id2 = register_acc(cli_controller, connid)
     assert ica_address2 == ica_address, ica_address2
     assert channel_id2 != channel_id, channel_id2
     # submit normal txs should work
