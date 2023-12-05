@@ -15,7 +15,6 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -92,7 +91,7 @@ type Icaauthkeeper interface {
 
 // CronosKeeper defines the interface for cronos keeper
 type CronosKeeper interface {
-	CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error)
+	GetParams(ctx sdk.Context) (params Params)
 }
 
 // IbcKeeper defines the interface for ibc keeper

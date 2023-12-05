@@ -537,11 +537,11 @@ func New(
 		tracer,
 		evmS,
 		[]evmkeeper.CustomContractFn{
-			func(rules ethparams.Rules) vm.PrecompiledContract {
+			func(_ sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
 				return cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, rules, app.Logger())
 			},
-			func(rules ethparams.Rules) vm.PrecompiledContract {
-				return cronosprecompiles.NewIcaContract(&app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig)
+			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
+				return cronosprecompiles.NewIcaContract(ctx, &app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig)
 			},
 		},
 		allKeys,
