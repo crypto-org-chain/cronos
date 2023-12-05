@@ -291,13 +291,21 @@ func (k Keeper) onPacketResult(
 	contractAddress,
 	packetSenderAddress string,
 ) error {
+	sender, err := sdk.AccAddressFromBech32(packetSenderAddress)
+	if err != nil {
+		return fmt.Errorf("invalid bech32 address: %s, err: %w", packetSenderAddress, err)
+	}
+	senderAddr := common.BytesToAddress(sender)
 	contractAddr := common.HexToAddress(contractAddress)
+	if senderAddr != contractAddr {
+		return fmt.Errorf("sender is not authenticated: expected %s, got %s\n", senderAddr, contractAddr)
+	}
 	data, err := cronosprecompiles.OnPacketResultCallback(packet.SourceChannel, packet.Sequence, acknowledgement)
 	if err != nil {
 		return err
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
-	_, _, err = k.CallEVM(ctx, &contractAddr, data, big.NewInt(0), gasLimit)
+	_, _, err = k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
 	return err
 }
 
