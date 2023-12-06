@@ -4,13 +4,16 @@ import pytest
 from pystarport import cluster
 
 from .ibc_utils import (
+    deploy_contract,
     funds_ica,
     gen_send_msg,
+    parse_events_rpc,
     prepare_network,
     register_acc,
     wait_for_check_channel_ready,
     wait_for_check_tx,
 )
+from .utils import CONTRACTS, wait_for_fn
 
 
 @pytest.fixture(scope="module")
@@ -33,10 +36,49 @@ def test_ica(ibc, tmp_path):
     cli_controller = ibc.cronos.cosmos_cli()
     ica_address, channel_id = register_acc(cli_controller, connid)
     balance = funds_ica(cli_host, ica_address)
-    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     to = cli_host.address("signer2")
     amount = 1000
     denom = "basecro"
+    jsonfile = CONTRACTS["TestICA"]
+    tcontract = deploy_contract(ibc.cronos.w3, jsonfile)
+    memo = {"src_callback": {"address": tcontract.address}}
+
+    def generated_tx_packet(msg_num):
+        # generate a transaction to send to host chain
+        m = gen_send_msg(ica_address, to, denom, amount)
+        msgs = []
+        for i in range(msg_num):
+            msgs.append(m)
+        data = json.dumps(msgs)
+        packet = cli_controller.ica_generate_packet_data(data, json.dumps(memo))
+        return packet
+
+    def send_tx(msg_num, gas="200000"):
+        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+        generated_tx = json.dumps(generated_tx_packet(msg_num))
+        # submit transaction on host chain on behalf of interchain account
+        rsp = cli_controller.ica_ctrl_send_tx(
+            connid,
+            generated_tx,
+            gas=gas,
+            from_="signer2",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        wait_for_check_tx(cli_host, ica_address, num_txs)
+
+    msg_num = 10
+    send_tx(msg_num)
+    balance -= amount * msg_num
+    assert cli_host.balance(ica_address, denom=denom) == balance
+
+    def check_for_ack():
+        criteria = "message.action=/ibc.core.channel.v1.MsgAcknowledgement"
+        return cli_controller.tx_search(criteria)["txs"]
+
+    txs = wait_for_fn("ack change", check_for_ack)
+    events = parse_events_rpc(txs[0]["events"])
+    err = events.get("ibc_src_callback")["callback_error"]
+    assert "sender is not authenticated" in err, err
 
     def generated_tx_txt(msg_num):
         # generate a transaction to send to host chain
@@ -56,6 +98,7 @@ def test_ica(ibc, tmp_path):
     no_timeout = 60
 
     def submit_msgs(msg_num, timeout_in_s=no_timeout, gas="200000"):
+        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
         # submit transaction on host chain on behalf of interchain account
         rsp = cli_controller.icaauth_submit_tx(
             connid,
@@ -80,5 +123,6 @@ def test_ica(ibc, tmp_path):
     # submit normal txs should work
     msg_num = 2
     submit_msgs(msg_num)
+    balance -= amount * msg_num
     # check if the funds are reduced in interchain account
-    assert cli_host.balance(ica_address, denom=denom) == balance - amount * msg_num
+    assert cli_host.balance(ica_address, denom=denom) == balance
