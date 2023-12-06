@@ -667,73 +667,12 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_v0_7(self, proposer, kind, proposal, **kwargs):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        if kind == "software-upgrade":
-            return json.loads(
-                self.raw(
-                    "tx",
-                    "gov",
-                    "submit-proposal",
-                    kind,
-                    proposal["name"],
-                    "-y",
-                    from_=proposer,
-                    # content
-                    title=proposal.get("title"),
-                    description=proposal.get("description"),
-                    upgrade_height=proposal.get("upgrade-height"),
-                    upgrade_time=proposal.get("upgrade-time"),
-                    upgrade_info=proposal.get("upgrade-info"),
-                    deposit=proposal.get("deposit"),
-                    # basic
-                    home=self.data_dir,
-                    **kwargs,
-                )
-            )
-        elif kind == "cancel-software-upgrade":
-            return json.loads(
-                self.raw(
-                    "tx",
-                    "gov",
-                    "submit-proposal",
-                    kind,
-                    "-y",
-                    from_=proposer,
-                    # content
-                    title=proposal.get("title"),
-                    description=proposal.get("description"),
-                    deposit=proposal.get("deposit"),
-                    # basic
-                    home=self.data_dir,
-                    **kwargs,
-                )
-            )
-        else:
-            with tempfile.NamedTemporaryFile("w") as fp:
-                json.dump(proposal, fp)
-                fp.flush()
-                return json.loads(
-                    self.raw(
-                        "tx",
-                        "gov",
-                        "submit-proposal",
-                        kind,
-                        fp.name,
-                        "-y",
-                        from_=proposer,
-                        # basic
-                        home=self.data_dir,
-                        **kwargs,
-                    )
-                )
-
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
-        kwargs.setdefault("broadcast_mode", "block")
+        # kwargs.setdefault("broadcast_mode", "block")
         if kind == "software-upgrade":
-            return json.loads(
+            rsp = json.loads(
                 self.raw(
                     "tx",
                     "gov",
@@ -755,8 +694,11 @@ class CosmosCLI:
                     **kwargs,
                 )
             )
+            if rsp["code"] == 0:
+                rsp = self.event_query_tx_for(rsp["txhash"])
+            return rsp
         elif kind == "cancel-software-upgrade":
-            return json.loads(
+            rsp = json.loads(
                 self.raw(
                     "tx",
                     "gov",
@@ -773,11 +715,14 @@ class CosmosCLI:
                     **kwargs,
                 )
             )
+            if rsp["code"] == 0:
+                rsp = self.event_query_tx_for(rsp["txhash"])
+            return rsp
         else:
             with tempfile.NamedTemporaryFile("w") as fp:
                 json.dump(proposal, fp)
                 fp.flush()
-                return json.loads(
+                rsp = json.loads(
                     self.raw(
                         "tx",
                         "gov",
@@ -791,10 +736,13 @@ class CosmosCLI:
                         **kwargs,
                     )
                 )
+                if rsp["code"] == 0:
+                    rsp = self.event_query_tx_for(rsp["txhash"])
+                return rsp
 
     def gov_vote(self, voter, proposal_id, option, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gov",
@@ -807,6 +755,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def gov_deposit(self, depositor, proposal_id, amount):
         return json.loads(
@@ -1196,7 +1147,7 @@ class CosmosCLI:
 
     def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gov",
@@ -1208,6 +1159,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def update_token_mapping(self, denom, contract, symbol, decimals, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)

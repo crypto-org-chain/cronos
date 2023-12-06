@@ -15,7 +15,6 @@ from .utils import (
     deploy_contract,
     edit_ini_sections,
     get_consensus_params,
-    get_send_enable,
     send_transaction,
     wait_for_block,
     wait_for_new_blocks,
@@ -87,13 +86,13 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
     ]
-    p = get_send_enable(port)
+    p = cli.query_bank_send()
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
-    # export genesis from cronos v0.8.x
+    # export genesis from cronos v1.1.0-rc1
     custom_cronos.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
-    file_path0 = Path(migrate / "v0.8.json")
+    file_path0 = Path(migrate / "v1.1.0-rc1.json")
     with open(file_path0, "w") as fp:
         json.dump(json.loads(cli.export()), fp)
         fp.flush()
@@ -116,7 +115,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v1.1.0"
+    plan_name = "v1.1.0-testnet"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
@@ -179,22 +178,8 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
-    assert cli.query_params()["max_callback_gas"] == "50000", rsp
-
-    # migrate to sdk v0.47
-    custom_cronos.supervisorctl("stop", "all")
-    sdk_version = "v0.47"
-    file_path1 = Path(migrate / f"{sdk_version}.json")
-    with open(file_path1, "w") as fp:
-        json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
-        fp.flush()
-    # migrate to cronos v1.0.x
-    cronos_version = "v1.0"
-    file_path2 = Path(migrate / f"{cronos_version}.json")
-    with open(file_path2, "w") as fp:
-        json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
-        fp.flush()
-    print(cli.validate_genesis(str(file_path2)))
+    max_callback_gas = cli.query_params()["max_callback_gas"]
+    assert max_callback_gas == "50000", max_callback_gas
 
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)
@@ -202,7 +187,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     config = custom_cronos.config
     config["genesis-time"] = newtime
     for i, _ in enumerate(config["validators"]):
-        genesis = json.load(open(file_path2))
+        genesis = json.load(open(file_path0))
         genesis["genesis_time"] = config.get("genesis-time")
         file = custom_cronos.cosmos_cli(i).data_dir / "config/genesis.json"
         file.write_text(json.dumps(genesis))
