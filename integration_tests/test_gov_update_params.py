@@ -31,7 +31,6 @@ def test_gov_update_params(cronos, tmp_path):
     }
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")
-
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp)
     print("check params have been updated now")

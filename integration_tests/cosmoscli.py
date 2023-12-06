@@ -1124,7 +1124,7 @@ class CosmosCLI:
     def gov_propose_update_client_legacy(self, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", 600000)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gov",
@@ -1145,6 +1145,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
