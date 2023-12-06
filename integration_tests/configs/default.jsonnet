@@ -64,7 +64,7 @@
       consensus_params: {
         block: {
           max_bytes: '1048576',
-          max_gas: '60000000',
+          max_gas: '81500000',
         },
       },
       app_state: {

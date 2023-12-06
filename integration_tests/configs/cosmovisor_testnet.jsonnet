@@ -8,6 +8,11 @@ config {
       'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
     genesis+: {
+      consensus_params+: {
+        block+: {
+          max_gas: '60000000',
+        },
+      },
       app_state+: {
         bank+: {
           send_enabled+: [
