@@ -17,6 +17,7 @@
 - [#1247](https://github.com/crypto-org-chain/cronos/pull/1247) Update ethermint to develop, go-ethereum to `v1.11.2`.
 - [#1235](https://github.com/crypto-org-chain/cronos/pull/1235) Add channel detail in ica packet callback.
 - [#1251](https://github.com/crypto-org-chain/cronos/pull/1251) Adjust require gas for submitMsgs in ica precompile.
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Add plan `v1.1.0-testnet` to update default max_callback_gas param.
 
 ### Improvements
 

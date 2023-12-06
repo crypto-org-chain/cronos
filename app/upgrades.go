@@ -28,6 +28,7 @@ import (
 	clientkeeper "github.com/cosmos/ibc-go/v7/modules/core/02-client/keeper"
 	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	ibctmmigrations "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint/migrations"
+	cronosparamstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	v0evmtypes "github.com/evmos/ethermint/x/evm/migrations/v0/types"
@@ -117,6 +118,19 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		app.ConsensusParamsKeeper.Set(ctx, consParams)
 		return m, nil
 	})
+
+	testnetPlanName := "v1.1.0-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(testnetPlanName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return m, err
+		}
+		params := app.CronosKeeper.GetParams(ctx)
+		params.MaxCallbackGas = cronosparamstypes.MaxCallbackGasDefaultValue
+		app.CronosKeeper.SetParams(ctx, params)
+		return m, nil
+	})
+
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
 		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))
