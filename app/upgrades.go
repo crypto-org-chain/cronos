@@ -35,17 +35,6 @@ import (
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 )
 
-// enlarge block gas limit
-func (app *App) enlargeBlockGasLimit(ctx sdk.Context) error {
-	consParams, err := app.ConsensusParamsKeeper.Get(ctx)
-	if err != nil {
-		return err
-	}
-	consParams.Block.MaxGas = 60_000_000
-	app.ConsensusParamsKeeper.Set(ctx, consParams)
-	return nil
-}
-
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
 	planName := "v1.1.0"
 	// Set param key table for params module migration
@@ -119,9 +108,13 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			return m, err
 		}
 
-		if err := app.enlargeBlockGasLimit(ctx); err != nil {
+		// enlarge block gas limit
+		consParams, err := app.ConsensusParamsKeeper.Get(ctx)
+		if err != nil {
 			return m, err
 		}
+		consParams.Block.MaxGas = 60_000_000
+		app.ConsensusParamsKeeper.Set(ctx, consParams)
 		return m, nil
 	})
 
@@ -134,9 +127,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		params := app.CronosKeeper.GetParams(ctx)
 		params.MaxCallbackGas = cronostypes.MaxCallbackGasDefaultValue
 		if err := app.CronosKeeper.SetParams(ctx, params); err != nil {
-			return m, err
-		}
-		if err := app.enlargeBlockGasLimit(ctx); err != nil {
 			return m, err
 		}
 		return m, nil
