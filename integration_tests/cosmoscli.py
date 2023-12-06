@@ -667,10 +667,11 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
+    def gov_propose_legacy(self, proposer, kind, proposal, mode="block", **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
-        # kwargs.setdefault("broadcast_mode", "block")
+        if mode:
+            kwargs.setdefault("broadcast_mode", mode)
         if kind == "software-upgrade":
             rsp = json.loads(
                 self.raw(
@@ -694,7 +695,7 @@ class CosmosCLI:
                     **kwargs,
                 )
             )
-            if rsp["code"] == 0:
+            if rsp["code"] == 0 and mode is None:
                 rsp = self.event_query_tx_for(rsp["txhash"])
             return rsp
         elif kind == "cancel-software-upgrade":
@@ -740,7 +741,7 @@ class CosmosCLI:
                     rsp = self.event_query_tx_for(rsp["txhash"])
                 return rsp
 
-    def gov_vote(self, voter, proposal_id, option, **kwargs):
+    def gov_vote(self, voter, proposal_id, option, event_query_tx=True, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         rsp = json.loads(
             self.raw(
@@ -755,7 +756,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )
-        if rsp["code"] == 0:
+        if rsp["code"] == 0 and event_query_tx:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
