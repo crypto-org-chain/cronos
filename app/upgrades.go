@@ -117,6 +117,21 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		app.ConsensusParamsKeeper.Set(ctx, consParams)
 		return m, nil
 	})
+
+	testnetPlanName := "v1.1.0-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(testnetPlanName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return m, err
+		}
+		params := app.CronosKeeper.GetParams(ctx)
+		params.MaxCallbackGas = cronostypes.MaxCallbackGasDefaultValue
+		if err := app.CronosKeeper.SetParams(ctx, params); err != nil {
+			return m, err
+		}
+		return m, nil
+	})
+
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
 		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))

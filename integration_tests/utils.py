@@ -133,19 +133,17 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp, event_query_tx=True):
+def approve_proposal(n, rsp, event_query_tx=False):
     cli = n.cosmos_cli()
-    if event_query_tx:
-        rsp = cli.event_query_tx_for(rsp["txhash"])
-    # get proposal_id
 
     def cb(attrs):
         return "proposal_id" in attrs
 
     ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
+    # get proposal_id
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
-        rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+        rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes", event_query_tx)
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     assert (
@@ -651,7 +649,7 @@ def module_address(name):
     return to_checksum_address(decode_bech32(eth_to_bech32(data)).hex())
 
 
-def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
+def submit_any_proposal(cronos, tmp_path):
     # governance module account as granter
     cli = cronos.cosmos_cli()
     granter_addr = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
@@ -679,9 +677,7 @@ def submit_any_proposal(cronos, tmp_path, event_query_tx=True):
     proposal_file.write_text(json.dumps(proposal_json))
     rsp = cli.submit_gov_proposal(proposal_file, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-
-    approve_proposal(cronos, rsp, event_query_tx)
-
+    approve_proposal(cronos, rsp)
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr

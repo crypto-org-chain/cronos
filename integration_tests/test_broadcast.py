@@ -15,4 +15,4 @@ def custom_cronos(tmp_path_factory):
 
 
 def test_submit_any_proposal(custom_cronos, tmp_path):
-    submit_any_proposal(custom_cronos, tmp_path, True)
+    submit_any_proposal(custom_cronos, tmp_path)
