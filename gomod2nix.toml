@@ -212,12 +212,12 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-LFcJue98awAFkSPRc93tVvon3kWS7AvumrluxxRzt4c="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.20-0.20231122021350-f905c2ec3570"
-    hash = "sha256-1LRIM5dPmwjBxd57c9Y+2mZuBrbGWfMvEIlqYpdVBPA="
+    version = "v1.10.20-0.20231207063621-43cf32d91c3e"
+    hash = "sha256-lDIqRLUrXYCb9mmFBY/+WW+ee69+IkxOgqjHVyo4ij0="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20231205070424-9f62598bff76"
-    hash = "sha256-xRa8V6b9nVVtTq0L0e/Klz/2VPyNSaB6WvSUbopJlsE="
+    version = "v0.6.1-0.20231207064623-aaff96b011f1"
+    hash = "sha256-7t030Vpi8mmfzYqFwhnWaWXFsYv/588rPay7rOSVn9I="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"
@@ -252,6 +252,9 @@ schema = 3
   [mod."github.com/godbus/dbus"]
     version = "v0.0.0-20190726142602-4481cbc300e2"
     hash = "sha256-R7Gb9+Zjy80FbQSDGketoVEqfdOQKuOVTfWRjQ5kxZY="
+  [mod."github.com/gofrs/flock"]
+    version = "v0.8.1"
+    hash = "sha256-pm3JJjYx+DjthmmdnIZQ4PvvtUVlpUTGiucIvmNI0dY="
   [mod."github.com/gogo/googleapis"]
     version = "v1.4.1"
     hash = "sha256-4KgwVRIA6GOV/Lkv11c/vj2RMlgu4ZMjwJGeyb2DZC4="
@@ -271,8 +274,8 @@ schema = 3
     version = "v1.5.3"
     hash = "sha256-svogITcP4orUIsJFjMtp+Uv1+fKJv2Q5Zwf2dMqnpOQ="
   [mod."github.com/golang/snappy"]
-    version = "v0.0.4"
-    hash = "sha256-Umx+5xHAQCN/Gi4HbtMhnDCSPFAXSsjVbXd8n5LhjAA="
+    version = "v0.0.5-0.20220116011046-fa5810519dcb"
+    hash = "sha256-4GVLPBwJIXYFJU+Uvoa/sb5VHea7yJhwE7feABa7ucs="
   [mod."github.com/google/btree"]
     version = "v1.1.2"
     hash = "sha256-K7V2obq3pLM71Mg0vhhHtZ+gtaubwXPQx3xcIyZDCjM="
@@ -342,15 +345,12 @@ schema = 3
   [mod."github.com/hdevalence/ed25519consensus"]
     version = "v0.1.0"
     hash = "sha256-MkqFWnyXt653RaJQUMWWxcW6NCskIxou8VEfj+8vd3Y="
-  [mod."github.com/holiman/big"]
-    version = "v0.0.0-20221017200358-a027dc42d04e"
-    hash = "sha256-BPYwQRH3ckgrA7DhEsWkXiIbKmYcBlUT0wqEPiFpRIc="
   [mod."github.com/holiman/bloomfilter/v2"]
     version = "v2.0.3"
     hash = "sha256-5VsJMQzJSNd4F7yAl3iF/q6JodWOlE4dUvTQ0UGPe+k="
   [mod."github.com/holiman/uint256"]
-    version = "v1.2.1"
-    hash = "sha256-1N+MvvzTIegV1UPEGUVyxBZaxczId/Z/BUVcnx7ckHE="
+    version = "v1.2.2-0.20230321075855-87b91420868c"
+    hash = "sha256-Ek4KUYsFaAYfvnXJFLH4zFHQ6FzZGB+OsMIpjQ/kLGw="
   [mod."github.com/huandu/skiplist"]
     version = "v1.2.0"
     hash = "sha256-/r4QP1SldMlhpkr1ZQFHImSYaeMZEtqBW7R53yN+JtQ="
@@ -461,9 +461,6 @@ schema = 3
   [mod."github.com/prometheus/procfs"]
     version = "v0.9.0"
     hash = "sha256-imZN+1HRpMvgmrot2V+AK5ueYLmsp49vZfHtx2N6Wek="
-  [mod."github.com/prometheus/tsdb"]
-    version = "v0.7.1"
-    hash = "sha256-BPz7YJbfMZgeR+u9YaeWeipVzHIS73EdgXD7VSJSLbA="
   [mod."github.com/rakyll/statik"]
     version = "v0.1.7"
     hash = "sha256-/bfnXHBmN8vviPL7D85IzcEVXCaWyjbPPNyauzEcQ8Q="

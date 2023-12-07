@@ -7,7 +7,7 @@ import (
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/evmos/ethermint/x/evm/statedb"
@@ -20,19 +20,21 @@ import (
 const DefaultGasCap uint64 = 25000000
 
 // CallEVM execute an evm message from native module
-func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*ethtypes.Message, *evmtypes.MsgEthereumTxResponse, error) {
+func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*core.Message, *evmtypes.MsgEthereumTxResponse, error) {
 	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
-	msg := ethtypes.NewMessage(
-		types.EVMModuleAddress,
-		to,
-		nonce,
-		value, // amount
-		gasLimit,
-		big.NewInt(0), nil, nil, // gasPrice
-		data,
-		nil,   // accessList
-		false, // isFake
-	)
+	msg := core.Message{
+		From:              types.EVMModuleAddress,
+		To:                to,
+		Nonce:             nonce,
+		Value:             value, // amount
+		GasLimit:          gasLimit,
+		GasPrice:          big.NewInt(0),
+		GasFeeCap:         nil,
+		GasTipCap:         nil, // gasPrice
+		Data:              data,
+		AccessList:        nil,   // accessList
+		SkipAccountChecks: false, // isFake
+	}
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {
 		return nil, nil, err
@@ -81,7 +83,7 @@ func (k Keeper) DeployModuleCRC21(ctx sdk.Context, denom string) (common.Address
 	if res.Failed() {
 		return common.Address{}, fmt.Errorf("contract deploy failed: %s", res.Ret)
 	}
-	return crypto.CreateAddress(types.EVMModuleAddress, msg.Nonce()), nil
+	return crypto.CreateAddress(types.EVMModuleAddress, msg.Nonce), nil
 }
 
 // ConvertCoinFromNativeToCRC21 convert native token to erc20 token
