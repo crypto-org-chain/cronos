@@ -1,5 +1,7 @@
 import json
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -21,6 +23,16 @@ from .utils import (
     wait_for_new_blocks,
     wait_for_port,
 )
+
+
+@pytest.fixture(scope="module")
+def testnet(tmp_path_factory):
+    yield from setup_cronos_test(tmp_path_factory)
+
+
+@pytest.fixture(scope="module")
+def mainnet(tmp_path_factory):
+    yield from setup_cronos_test(tmp_path_factory, False)
 
 
 def init_cosmovisor(home):
@@ -54,59 +66,62 @@ def post_init(path, base_port, config):
     )
 
 
-@pytest.fixture(scope="module")
-def custom_cronos(tmp_path_factory):
+def setup_cronos_test(tmp_path_factory, testnet=True):
     path = tmp_path_factory.mktemp("upgrade")
+    port = 26100 if testnet else 26200
+    nix_name = "upgrade-testnet-test-package" if testnet else "upgrade-test-package"
+    cfg_name = "cosmovisor_testnet" if testnet else "cosmovisor"
     cmd = [
         "nix-build",
-        Path(__file__).parent / "configs/upgrade-test-package.nix",
+        Path(__file__).parent / f"configs/{nix_name}.nix",
         "-o",
         path / "upgrades",
     ]
     print(*cmd)
     subprocess.run(cmd, check=True)
     # init with genesis binary
-    yield from setup_custom_cronos(
+    with contextmanager(setup_custom_cronos)(
         path,
-        26100,
-        Path(__file__).parent / "configs/cosmovisor.jsonnet",
+        port,
+        Path(__file__).parent / f"configs/{cfg_name}.jsonnet",
         post_init=post_init,
         chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
-    )
+    ) as cronos:
+        yield cronos
 
 
-def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
+def exec(c, tmp_path_factory, testnet=True):
     """
     - propose an upgrade and pass it
     - wait for it to happen
     - it should work transparently
     """
-    cli = custom_cronos.cosmos_cli()
-    port = ports.api_port(custom_cronos.base_port(0))
+    cli = c.cosmos_cli()
+    port = ports.api_port(c.base_port(0))
     send_enable = [
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
     ]
-    p = get_send_enable(port)
+    p = cli.query_bank_send() if testnet else get_send_enable(port)
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
-    # export genesis from cronos v0.8.x
-    custom_cronos.supervisorctl("stop", "all")
+    # export genesis from old version
+    c.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
-    file_path0 = Path(migrate / "v0.8.json")
+    file_path0 = Path(migrate / "old.json")
     with open(file_path0, "w") as fp:
         json.dump(json.loads(cli.export()), fp)
         fp.flush()
 
-    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
-    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
     wait_for_new_blocks(cli, 1)
 
     height = cli.block_height()
     target_height = height + 15
     print("upgrade height", target_height)
 
-    w3 = custom_cronos.w3
+    w3 = c.w3
     contract = deploy_contract(w3, CONTRACTS["TestERC20A"])
     old_height = w3.eth.block_number
     old_balance = w3.eth.get_balance(ADDRS["validator"], block_identifier=old_height)
@@ -116,7 +131,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v1.1.0"
+    plan_name = "v1.1.0-testnet" if testnet else "v1.1.0"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
@@ -127,28 +142,29 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
             "upgrade-height": target_height,
             "deposit": "10000basetcro",
         },
+        mode=None if testnet else "block",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(custom_cronos, rsp, False)
+    event_query_tx = not testnet
+    approve_proposal(c, rsp, event_query_tx)
 
     # update cli chain binary
-    custom_cronos.chain_binary = (
-        Path(custom_cronos.chain_binary).parent.parent.parent
-        / f"{plan_name}/bin/cronosd"
+    c.chain_binary = (
+        Path(c.chain_binary).parent.parent.parent / f"{plan_name}/bin/cronosd"
     )
-    cli = custom_cronos.cosmos_cli()
+    cli = c.cosmos_cli()
 
     # block should pass the target height
     wait_for_block(cli, target_height + 2, timeout=480)
-    wait_for_port(ports.rpc_port(custom_cronos.base_port(0)))
+    wait_for_port(ports.rpc_port(c.base_port(0)))
 
     # test migrate keystore
     cli.migrate_keystore()
 
     # check basic tx works
-    wait_for_port(ports.evmrpc_port(custom_cronos.base_port(0)))
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
     receipt = send_transaction(
-        custom_cronos.w3,
+        c.w3,
         {
             "to": ADDRS["community"],
             "value": 1000,
@@ -169,7 +185,7 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
         ADDRS["validator"]
     )
     # check consensus params
-    port = ports.rpc_port(custom_cronos.base_port(0))
+    port = ports.rpc_port(c.base_port(0))
     res = get_consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
 
@@ -179,33 +195,43 @@ def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
-    assert cli.query_params()["max_callback_gas"] == "300000", rsp
-
-    # migrate to sdk v0.47
-    custom_cronos.supervisorctl("stop", "all")
-    sdk_version = "v0.47"
-    file_path1 = Path(migrate / f"{sdk_version}.json")
-    with open(file_path1, "w") as fp:
-        json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
-        fp.flush()
-    # migrate to cronos v1.0.x
-    cronos_version = "v1.0"
-    file_path2 = Path(migrate / f"{cronos_version}.json")
-    with open(file_path2, "w") as fp:
-        json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
-        fp.flush()
-    print(cli.validate_genesis(str(file_path2)))
+    max_callback_gas = cli.query_params()["max_callback_gas"]
+    assert max_callback_gas == "50000", max_callback_gas
+    if not testnet:
+        # migrate to sdk v0.47
+        c.supervisorctl("stop", "all")
+        sdk_version = "v0.47"
+        file_path1 = Path(migrate / f"{sdk_version}.json")
+        with open(file_path1, "w") as fp:
+            json.dump(cli.migrate_sdk_genesis(sdk_version, str(file_path0)), fp)
+            fp.flush()
+        # migrate to cronos v1.0.x
+        cronos_version = "v1.0"
+        file_path0 = Path(migrate / f"{cronos_version}.json")
+        with open(file_path0, "w") as fp:
+            json.dump(cli.migrate_cronos_genesis(cronos_version, str(file_path1)), fp)
+            fp.flush()
+        print(cli.validate_genesis(str(file_path0)))
 
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)
     newtime = newtime.replace(tzinfo=None).isoformat("T") + "Z"
-    config = custom_cronos.config
+    config = c.config
     config["genesis-time"] = newtime
     for i, _ in enumerate(config["validators"]):
-        genesis = json.load(open(file_path2))
+        genesis = json.load(open(file_path0))
         genesis["genesis_time"] = config.get("genesis-time")
-        file = custom_cronos.cosmos_cli(i).data_dir / "config/genesis.json"
+        file = c.cosmos_cli(i).data_dir / "config/genesis.json"
         file.write_text(json.dumps(genesis))
-    custom_cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
-    wait_for_new_blocks(custom_cronos.cosmos_cli(), 1)
-    custom_cronos.supervisorctl("stop", "all")
+    c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_new_blocks(c.cosmos_cli(), 1)
+    c.supervisorctl("stop", "all")
+
+
+def test_cosmovisor_upgrade(testnet: Cronos, mainnet: Cronos, tmp_path_factory):
+    providers = [testnet, mainnet]
+    path = tmp_path_factory
+    with ThreadPoolExecutor(len(providers)) as executor:
+        as_completed(
+            [executor.submit(exec, net, path, net == testnet) for net in providers]
+        )
