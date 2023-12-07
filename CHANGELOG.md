@@ -22,7 +22,7 @@
 
 - [#1239](https://github.com/crypto-org-chain/cronos/pull/1239) Refactor websocket/subscription system to improve performance and stability.
 - [#1241](https://github.com/crypto-org-chain/cronos/pull/1241) Improve parallelization of memiavl restoration.
-- (deps) [#](https://github.com/crypto-org-chain/cronos/pull/) Upgrade Go-Ethereum version to [`v1.11.6`](https://github.com/ethereum/go-ethereum/releases/tag/v1.11.6).
+- (deps) [#1253](https://github.com/crypto-org-chain/cronos/pull/1253) Upgrade Go-Ethereum version to [`v1.11.6`](https://github.com/ethereum/go-ethereum/releases/tag/v1.11.6).
 
 *October 17, 2023*
 
