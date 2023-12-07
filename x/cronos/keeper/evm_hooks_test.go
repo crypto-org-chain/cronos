@@ -17,6 +17,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -43,7 +44,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				suite.Require().NoError(err)
 			},
 		},
@@ -65,7 +66,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				suite.Require().Error(err)
 			},
 		},
@@ -95,7 +96,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				suite.Require().NoError(err)
 
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -138,7 +139,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				// should fail, because of not gravity denom name
 				suite.Require().Error(err)
 			},
@@ -178,7 +179,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				suite.Require().NoError(err)
 
 				// contract's balance deducted
@@ -233,7 +234,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
 				// should fail, because of not ibc denom name
 				suite.Require().Error(err)
 			},
