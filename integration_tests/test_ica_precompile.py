@@ -1,6 +1,5 @@
 import base64
 import json
-from enum import IntEnum
 
 import pytest
 from eth_utils import keccak
@@ -8,12 +7,14 @@ from pystarport import cluster
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
+    Status,
     funds_ica,
     gen_send_msg,
     get_next_channel,
     prepare_network,
     wait_for_check_channel_ready,
     wait_for_check_tx,
+    wait_for_status_change,
 )
 from .utils import (
     ADDRS,
@@ -33,10 +34,6 @@ denom = "basecro"
 keys = KEYS["signer2"]
 validator = "validator"
 amt = 1000
-
-
-class Status(IntEnum):
-    NONE, SUCCESS, FAIL = range(3)
 
 
 @pytest.fixture(scope="module")
@@ -177,16 +174,6 @@ def test_call(ibc):
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
-
-
-def wait_for_status_change(tcontract, channel_id, seq):
-    print(f"wait for status change for {seq}")
-
-    def check_status():
-        status = tcontract.caller.getStatus(channel_id, seq)
-        return status
-
-    wait_for_fn("current status", check_status)
 
 
 def wait_for_packet_log(start, event, channel_id, seq, status):

@@ -2,6 +2,7 @@ import hashlib
 import json
 import subprocess
 from contextlib import contextmanager
+from enum import IntEnum
 from pathlib import Path
 from typing import NamedTuple
 
@@ -23,6 +24,10 @@ from .utils import (
 )
 
 RATIO = 10**10
+
+
+class Status(IntEnum):
+    NONE, SUCCESS, FAIL = range(3)
 
 
 class IBCNetwork(NamedTuple):
@@ -617,6 +622,24 @@ def wait_for_check_tx(cli, adr, num_txs, timeout=None):
         try:
             print(f"should assert timeout err when pass {timeout}s")
             wait_for_fn("transfer tx", check_tx, timeout=timeout)
+        except TimeoutError:
+            raised = True
+        assert raised
+
+
+def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
+    print(f"wait for status change for {seq}")
+
+    def check_status():
+        status = tcontract.caller.getStatus(channel_id, seq)
+        return status
+
+    if timeout is None:
+        wait_for_fn("current status", check_status)
+    else:
+        try:
+            print(f"should assert timeout err when pass {timeout}s")
+            wait_for_fn("current status", check_status, timeout=timeout)
         except TimeoutError:
             raised = True
         assert raised
