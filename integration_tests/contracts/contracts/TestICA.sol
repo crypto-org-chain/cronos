@@ -11,7 +11,7 @@ contract TestICA {
     address constant module_address = 0x89A7EF2F08B1c018D5Cc88836249b84Dd5392905;
     uint64 lastSeq;
     enum Status {
-        NONE,
+        PENDING,
         SUCCESS,
         FAIL
     }
@@ -78,9 +78,10 @@ contract TestICA {
         );
     }
 
-    function callSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) public returns (uint64) {
+    function callSubmitMsgs(string memory connectionID, string calldata packetSrcChannel, bytes memory data, uint256 timeout) public returns (uint64) {
         require(account == msg.sender, "not authorized");
         lastSeq = ica.submitMsgs(connectionID, data, timeout);
+        statusMap[packetSrcChannel][lastSeq] = Status.PENDING;
         return lastSeq;
     }
 
@@ -109,6 +110,11 @@ contract TestICA {
     function onPacketResultCallback(string calldata packetSrcChannel, uint64 seq, bool ack) external payable returns (bool) {
         // To prevent called by arbitrary user
         require(msg.sender == module_address);
+        Status currentStatus = statusMap[packetSrcChannel][seq];
+        if (currentStatus != Status.PENDING) {
+            return true;
+        }
+        delete statusMap[packetSrcChannel][seq];
         Status status = Status.FAIL;
         if (ack) {
             status = Status.SUCCESS;

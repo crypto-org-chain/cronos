@@ -1272,7 +1272,7 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def ica_ctrl_send_tx(self, connid, tx, **kwargs):
+    def ica_ctrl_send_tx(self, connid, tx, timeout_in_ns=None, **kwargs):
         default_kwargs = {
             "home": self.data_dir,
             "node": self.node_rpc,
@@ -1287,6 +1287,8 @@ class CosmosCLI:
                 "send-tx",
                 connid,
                 tx,
+                "--relative-packet-timeout" if timeout_in_ns else None,
+                timeout_in_ns if timeout_in_ns else None,
                 "-y",
                 **(default_kwargs | kwargs),
             )

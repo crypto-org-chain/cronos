@@ -1,6 +1,5 @@
 import base64
 import json
-from enum import IntEnum
 
 import pytest
 from eth_utils import keccak
@@ -8,12 +7,14 @@ from pystarport import cluster
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
+    Status,
     funds_ica,
     gen_send_msg,
     get_next_channel,
     prepare_network,
     wait_for_check_channel_ready,
     wait_for_check_tx,
+    wait_for_status_change,
 )
 from .utils import (
     ADDRS,
@@ -33,10 +34,6 @@ denom = "basecro"
 keys = KEYS["signer2"]
 validator = "validator"
 amt = 1000
-
-
-class Status(IntEnum):
-    NONE, SUCCESS, FAIL = range(3)
 
 
 @pytest.fixture(scope="module")
@@ -76,11 +73,12 @@ def submit_msgs(
     add_delegate,
     expected_seq,
     event,
+    channel_id,
     timeout=no_timeout,
     amount=amt,
     need_wait=True,
     msg_num=2,
-    channel_id="",
+    with_channel_id=True,
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -110,7 +108,10 @@ def submit_msgs(
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     str = base64.b64decode(generated_packet["data"])
     # submit transaction on host chain on behalf of interchain account
-    tx = func(connid, str, timeout).build_transaction(data)
+    if with_channel_id:
+        tx = func(connid, channel_id, str, timeout).build_transaction(data)
+    else:
+        tx = func(connid, str, timeout).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
     if timeout < no_timeout:
@@ -160,7 +161,8 @@ def test_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
-        channel_id=channel_id,
+        channel_id,
+        with_channel_id=False,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -173,20 +175,11 @@ def test_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
-        channel_id=channel_id,
+        channel_id,
+        with_channel_id=False,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
-
-
-def wait_for_status_change(tcontract, channel_id, seq):
-    print(f"wait for status change for {seq}")
-
-    def check_status():
-        status = tcontract.caller.getStatus(channel_id, seq)
-        return status
-
-    wait_for_fn("current status", check_status)
 
 
 def wait_for_packet_log(start, event, channel_id, seq, status):
@@ -218,7 +211,7 @@ def test_sc_call(ibc):
     name = "signer2"
     signer = ADDRS[name]
     keys = KEYS[name]
-    default_gas = 400000
+    default_gas = 500000
     data = {"from": signer, "gas": default_gas}
     channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
@@ -270,7 +263,7 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
-        channel_id=channel_id,
+        channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -293,7 +286,7 @@ def test_sc_call(ibc):
         True,
         expected_seq,
         contract.events.SubmitMsgsResult,
-        channel_id=channel_id,
+        channel_id,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -317,9 +310,9 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id,
         amount=100000001,
         need_wait=False,
-        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -342,9 +335,9 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
+        channel_id,
         timeout,
         msg_num=100,
-        channel_id=channel_id,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -377,7 +370,7 @@ def test_sc_call(ibc):
         False,
         expected_seq,
         contract.events.SubmitMsgsResult,
-        channel_id=channel_id2,
+        channel_id2,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id2, last_seq)

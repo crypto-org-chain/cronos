@@ -4,6 +4,7 @@ import pytest
 from pystarport import cluster
 
 from .ibc_utils import (
+    Status,
     deploy_contract,
     funds_ica,
     gen_send_msg,
@@ -12,6 +13,7 @@ from .ibc_utils import (
     register_acc,
     wait_for_check_channel_ready,
     wait_for_check_tx,
+    wait_for_status_change,
 )
 from .utils import CONTRACTS, wait_for_fn
 
@@ -42,6 +44,8 @@ def test_ica(ibc, tmp_path):
     jsonfile = CONTRACTS["TestICA"]
     tcontract = deploy_contract(ibc.cronos.w3, jsonfile)
     memo = {"src_callback": {"address": tcontract.address}}
+    timeout_in_ns = 6000000000
+    seq = 1
 
     def generated_tx_packet(msg_num):
         # generate a transaction to send to host chain
@@ -60,16 +64,22 @@ def test_ica(ibc, tmp_path):
         rsp = cli_controller.ica_ctrl_send_tx(
             connid,
             generated_tx,
+            timeout_in_ns,
             gas=gas,
             from_="signer2",
         )
         assert rsp["code"] == 0, rsp["raw_log"]
+        events = parse_events_rpc(rsp["events"])
+        assert int(events.get("send_packet")["packet_sequence"]) == seq
         wait_for_check_tx(cli_host, ica_address, num_txs)
 
     msg_num = 10
+    assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
     send_tx(msg_num)
     balance -= amount * msg_num
     assert cli_host.balance(ica_address, denom=denom) == balance
+    wait_for_status_change(tcontract, channel_id, seq, timeout_in_ns / 1e9)
+    assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
 
     def check_for_ack():
         criteria = "message.action=/ibc.core.channel.v1.MsgAcknowledgement"
