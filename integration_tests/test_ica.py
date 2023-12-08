@@ -74,12 +74,12 @@ def test_ica(ibc, tmp_path):
         wait_for_check_tx(cli_host, ica_address, num_txs)
 
     msg_num = 10
-    assert tcontract.caller.getStatus(channel_id, seq) == Status.NONE
+    assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
     send_tx(msg_num)
     balance -= amount * msg_num
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_status_change(tcontract, channel_id, seq, timeout_in_ns / 1e9)
-    assert tcontract.caller.getStatus(channel_id, seq) == Status.NONE
+    assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
 
     def check_for_ack():
         criteria = "message.action=/ibc.core.channel.v1.MsgAcknowledgement"

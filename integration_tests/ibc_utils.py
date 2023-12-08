@@ -27,7 +27,7 @@ RATIO = 10**10
 
 
 class Status(IntEnum):
-    NONE, SUCCESS, FAIL = range(3)
+    PENDING, SUCCESS, FAIL = range(3)
 
 
 class IBCNetwork(NamedTuple):
