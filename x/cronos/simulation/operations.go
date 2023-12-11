@@ -91,7 +91,7 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 		}
 
 		oper, ops, err := simulation.GenAndDeliverTxWithRandFees(txCtx)
-		if simAccount.Address.String() != cronosAdmin && errors.Is(err, errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is not authorized")) {
+		if simAccount.Address.String() != cronosAdmin && errors.Is(err, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")) {
 			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unauthorized tx should fail"), nil, nil
 		}
 		return oper, ops, err
