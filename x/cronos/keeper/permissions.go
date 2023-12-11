@@ -28,13 +28,21 @@ func (k Keeper) GetPermissions(ctx sdk.Context, address sdk.AccAddress) uint64 {
 }
 
 // HasPermission check if an account has a specific permission. by default cronos admin has all permissions
-func (k Keeper) HasPermission(ctx sdk.Context, account sdk.AccAddress, permissionsToCheck uint64) bool {
+func (k Keeper) HasPermission(ctx sdk.Context, accounts []sdk.AccAddress, permissionsToCheck uint64) bool {
 	// case when no permission is needed
 	if permissionsToCheck == 0 {
 		return true
 	}
 	admin := k.GetParams(ctx).CronosAdmin
-	permission := k.GetPermissions(ctx, account)
-	mask := permission & permissionsToCheck
-	return (admin == account.String()) || (mask == permissionsToCheck)
+	for _, account := range accounts {
+		if admin == account.String() {
+			return true
+		}
+		permission := k.GetPermissions(ctx, account)
+		if permission&permissionsToCheck == permissionsToCheck {
+			return true
+		}
+	}
+
+	return false
 }

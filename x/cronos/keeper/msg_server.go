@@ -66,6 +66,12 @@ func (k msgServer) TransferTokens(goCtx context.Context, msg *types.MsgTransferT
 // UpdateTokenMapping implements the grpc method
 func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdateTokenMapping) (*types.MsgUpdateTokenMappingResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	// check permission
+	if !k.Keeper.HasPermission(ctx, msg.GetSigners(), CanChangeTokenMapping) {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+	}
+
 	// msg is already validated
 	if err := k.Keeper.RegisterOrUpdateTokenMapping(ctx, msg); err != nil {
 		return nil, err
@@ -76,6 +82,12 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 // TurnBridge implements the grpc method
 func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (*types.MsgTurnBridgeResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	// check permission
+	if !k.Keeper.HasPermission(ctx, msg.GetSigners(), CanTurnBridge) {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+	}
+
 	gravityParams := k.gravityKeeper.GetParams(ctx)
 	gravityParams.BridgeActive = msg.Enable
 	k.gravityKeeper.SetParams(ctx, gravityParams)

@@ -144,7 +144,6 @@ import (
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
-	"github.com/crypto-org-chain/cronos/v2/app/ante"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -936,7 +935,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		blockedMap[string(addr)] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
-	evmOptions := evmante.HandlerOptions{
+	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
 		EvmKeeper:              app.EvmKeeper,
@@ -954,12 +953,8 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		},
 		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
 	}
-	options := ante.HandlerOptions{
-		EvmOptions:   evmOptions,
-		CronosKeeper: app.CronosKeeper,
-	}
 
-	anteHandler, err := ante.NewAnteHandler(options)
+	anteHandler, err := evmante.NewAnteHandler(options)
 	if err != nil {
 		return err
 	}
