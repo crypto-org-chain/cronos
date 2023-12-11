@@ -11,6 +11,7 @@
 - [#1216](https://github.com/crypto-org-chain/cronos/pull/1216) Update ethermint to fix of avoid redundant parse chainID from gensis when start server.
 - [#1230](https://github.com/crypto-org-chain/cronos/pull/1230) Fix mem store in versiondb multistore.
 - [#1233](https://github.com/crypto-org-chain/cronos/pull/1233) Re-emit logs in callback contract.
+- [#1256](https://github.com/crypto-org-chain/cronos/pull/1256) Improve permission checkings for some messages.
 
 ### State Machine Breaking
 

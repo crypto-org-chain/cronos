@@ -41,7 +41,7 @@ func (suite *KeeperTestSuite) TestHasPermissions() {
 	priv, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	address := common.BytesToAddress(priv.PubKey().Address().Bytes())
-	cosmosAddress := sdk.AccAddress(address.Bytes())
+	cosmosAddress := []sdk.AccAddress{sdk.AccAddress(address.Bytes())}
 
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, 0))
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, 0))
@@ -49,15 +49,15 @@ func (suite *KeeperTestSuite) TestHasPermissions() {
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanChangeTokenMapping))
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanTurnBridge))
 
-	keeper.SetPermissions(suite.ctx, cosmosAddress, CanChangeTokenMapping)
+	keeper.SetPermissions(suite.ctx, cosmosAddress[0], CanChangeTokenMapping)
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, CanChangeTokenMapping))
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanTurnBridge))
 
-	keeper.SetPermissions(suite.ctx, cosmosAddress, CanTurnBridge)
+	keeper.SetPermissions(suite.ctx, cosmosAddress[0], CanTurnBridge)
 	suite.Require().Equal(false, keeper.HasPermission(suite.ctx, cosmosAddress, CanChangeTokenMapping))
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, CanTurnBridge))
 
-	keeper.SetPermissions(suite.ctx, cosmosAddress, All)
+	keeper.SetPermissions(suite.ctx, cosmosAddress[0], All)
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, CanChangeTokenMapping))
 	suite.Require().Equal(true, keeper.HasPermission(suite.ctx, cosmosAddress, CanTurnBridge))
 }
