@@ -113,7 +113,7 @@ func (k msgServer) UpdatePermissions(goCtx context.Context, msg *types.MsgUpdate
 	admin := k.Keeper.GetParams(ctx).CronosAdmin
 	// if admin is empty, no sender could be equal to it
 	if admin != msg.From {
-		return nil, errors.Wrap(sdkerrors.ErrInvalidAddress, "msg sender is not authorized")
+		return nil, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
 	}
 	acc, err := sdk.AccAddressFromBech32(msg.Address)
 	if err != nil {
