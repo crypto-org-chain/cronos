@@ -69,7 +69,7 @@ func (k msgServer) UpdateTokenMapping(goCtx context.Context, msg *types.MsgUpdat
 
 	// check permission
 	if !k.Keeper.HasPermission(ctx, msg.GetSigners(), CanChangeTokenMapping) {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+		return nil, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
 	}
 
 	// msg is already validated
@@ -85,7 +85,7 @@ func (k msgServer) TurnBridge(goCtx context.Context, msg *types.MsgTurnBridge) (
 
 	// check permission
 	if !k.Keeper.HasPermission(ctx, msg.GetSigners(), CanTurnBridge) {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+		return nil, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
 	}
 
 	gravityParams := k.gravityKeeper.GetParams(ctx)
