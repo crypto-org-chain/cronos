@@ -41,7 +41,7 @@ func ForkV1Logic(ctx sdk.Context, app *App) {
 	params.BaseFeeChangeDenominator = 300
 	params.ElasticityMultiplier = 4
 	params.BaseFee = sdk.NewInt(10000000000000)
-	params.MinGasPrice = sdk.NewDecWithPrec(10000, 9)
+	params.MinGasPrice = sdk.NewDec(10000000000000)
 	app.FeeMarketKeeper.SetParams(ctx, params)
 }
 
@@ -54,7 +54,7 @@ var (
 	}
 	ForkV1Dryrun = Fork{
 		UpgradeName:    "v1.0.x-base-fee",
-		UpgradeHeight:  5214180,
+		UpgradeHeight:  5214963,
 		UpgradeChainId: "tempcronosmainnet_28-1",
 		BeginForkLogic: ForkV1Logic,
 	}
