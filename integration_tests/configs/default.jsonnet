@@ -101,7 +101,10 @@
         feemarket: {
           params: {
             no_base_fee: false,
-            base_fee: '100000000000',
+            base_fee_change_denominator: '300',
+            elasticity_multiplier: '4',
+            base_fee: '10000000000000',
+            // min_gas_price: '0.00001'
           },
         },
       },
