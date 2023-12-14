@@ -14,6 +14,8 @@ type Fork struct {
 	UpgradeName string
 	// height the upgrade occurs at
 	UpgradeHeight int64
+	// chain-id the upgrade occurs at
+	UpgradeChainId string
 
 	// Function that runs some custom state transition code at the beginning of a fork.
 	BeginForkLogic func(ctx sdk.Context, app *App)
@@ -22,7 +24,7 @@ type Fork struct {
 // BeginBlockForks is intended to be ran in a chain upgrade.
 func BeginBlockForks(ctx sdk.Context, app *App) {
 	for _, fork := range Forks {
-		if ctx.BlockHeight() == fork.UpgradeHeight {
+		if ctx.BlockHeight() == fork.UpgradeHeight && ctx.ChainID() == fork.UpgradeChainId {
 			fork.BeginForkLogic(ctx, app)
 			return
 		}
