@@ -54,7 +54,7 @@ var (
 	}
 	ForkV1Dryrun = Fork{
 		UpgradeName:    "v1.0.x-base-fee",
-		UpgradeHeight:  5214963,
+		UpgradeHeight:  5215165,
 		UpgradeChainId: "tempcronosmainnet_28-1",
 		BeginForkLogic: ForkV1Logic,
 	}
