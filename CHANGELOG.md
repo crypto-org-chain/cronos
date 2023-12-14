@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#1259](https://github.com/crypto-org-chain/cronos/pull/1259) Use a hard-fork style upgrade to adjust feemarket parameters.
+
 *Nov 20, 2023*
 
 ## v1.0.13

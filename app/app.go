@@ -854,6 +854,8 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 		panic("halt application")
 	}
 
+	BeginBlockForks(ctx, app)
+
 	return app.mm.BeginBlock(ctx, req)
 }
 
