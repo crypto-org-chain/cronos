@@ -25,6 +25,7 @@
     validators: [{
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
+      gas_prices: '10000000000000basetcro',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
       client_config: {
         'broadcast-mode': 'sync',
@@ -42,6 +43,7 @@
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
+      gas_prices: '10000000000000basetcro',
       mnemonic: '${VALIDATOR2_MNEMONIC}',
       client_config: {
         'broadcast-mode': 'sync',
@@ -104,7 +106,7 @@
             base_fee_change_denominator: '300',
             elasticity_multiplier: '4',
             base_fee: '10000000000000',
-            // min_gas_price: '0.00001'
+            min_gas_price: '10000000000000'
           },
         },
       },
