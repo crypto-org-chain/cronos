@@ -823,9 +823,11 @@ class CosmosCLI:
         amount,
         channel,  # src channel
         target_version,  # chain version number of target chain
-        fee,
-        i=0,
+        **kwargs,
     ):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
         return json.loads(
             self.raw(
                 "tx",
@@ -835,18 +837,16 @@ class CosmosCLI:
                 channel,
                 to,
                 amount,
-                "--fees",
-                fee,
                 "-y",
                 # FIXME https://github.com/cosmos/cosmos-sdk/issues/8059
                 "--absolute-timeouts",
                 from_=from_,
-                home=self.data_dir,
                 node=self.node_rpc,
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 packet_timeout_height=f"{target_version}-10000000000",
                 packet_timeout_timestamp=0,
+                **(default_kwargs | kwargs),
             )
         )
 
@@ -1204,10 +1204,7 @@ class CosmosCLI:
         )
 
     def transfer_tokens(self, from_, to, amount, **kwargs):
-        default_kwargs = {
-            "gas": "auto",
-            "gas_adjustment": "1.5",
-        }
+        default_kwargs = self.get_default_kwargs()
         rsp = json.loads(
             self.raw(
                 "tx",
@@ -1233,6 +1230,7 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
+            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(
@@ -1254,6 +1252,7 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
+            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(
@@ -1278,6 +1277,7 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
+            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(
@@ -1535,7 +1535,7 @@ class CosmosCLI:
         default_kwargs = {
             "home": self.data_dir,
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc-fee",
@@ -1547,6 +1547,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_grant(self, granter, grantee):
         "query grant details by granter and grantee addresses"

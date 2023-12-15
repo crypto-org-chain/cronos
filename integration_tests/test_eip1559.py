@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
+from .utils import ADDRS, DEFAULT_GAS_PRICE, KEYS, send_transaction, w3_wait_for_block
 
 
 def adjust_base_fee(parent_fee, gas_limit, gas_used, params):
@@ -45,7 +45,7 @@ def test_dynamic_fee_tx(cronos, geth):
         amount = 10000
         before = w3.eth.get_balance(ADDRS["community"])
         tip_price = 1
-        max_price = 10000000000000 + tip_price
+        max_price = DEFAULT_GAS_PRICE + tip_price
         tx = {
             "to": "0x0000000000000000000000000000000000000000",
             "value": amount,
