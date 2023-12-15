@@ -14,7 +14,7 @@ from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
 # the default initial base fee used by integration tests
-DEFAULT_GAS_PRICE = "100000000000basetcro"
+DEFAULT_GAS_PRICE = "10000000000000basetcro"
 DEFAULT_GAS = "250000"
 
 
