@@ -3,14 +3,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
 
 
-def adjust_base_fee(parent_fee, gas_limit, gas_used):
+def adjust_base_fee(parent_fee, gas_limit, gas_used, params):
     "spec: https://eips.ethereum.org/EIPS/eip-1559#specification"
-    change_denominator = 8
-    elasticity_multiplier = 2
+    change_denominator = params["base_fee_change_denominator"]
+    elasticity_multiplier = params["elasticity_multiplier"]
     gas_target = gas_limit // elasticity_multiplier
 
     delta = parent_fee * (gas_target - gas_used) // gas_target // change_denominator
-    return parent_fee - delta
+    # https://github.com/crypto-org-chain/ethermint/blob/develop/x/feemarket/keeper/eip1559.go#L104
+    return max(parent_fee - delta, params["min_gas_price"])
 
 
 def crosscheck(cronos, geth, process):
@@ -20,6 +21,17 @@ def crosscheck(cronos, geth, process):
         res = [future.result() for future in as_completed(tasks)]
         assert len(res) == len(providers)
         assert res[0] == res[1], res
+
+
+def get_params(w3, cronos):
+    if w3 != cronos.w3:
+        return {
+            "base_fee_change_denominator": 8,
+            "elasticity_multiplier": 2,
+            "min_gas_price": 0,
+        }
+    params = cronos.cosmos_cli().query_params("feemarket")["params"]
+    return {k: int(float(v)) for k, v in params.items()}
 
 
 def test_dynamic_fee_tx(cronos, geth):
@@ -55,11 +67,12 @@ def test_dynamic_fee_tx(cronos, geth):
 
         # check the next block's base fee is adjusted accordingly
         w3_wait_for_block(w3, txreceipt.blockNumber + 1)
-        next_base_price = w3.eth.get_block(txreceipt.blockNumber + 1).baseFeePerGas
-
-        assert next_base_price == adjust_base_fee(
-            blk.baseFeePerGas, blk.gasLimit, blk.gasUsed
-        )
+        fee = w3.eth.get_block(txreceipt.blockNumber + 1).baseFeePerGas
+        params = get_params(w3, cronos)
+        print("mm-next_base_price", blk.baseFeePerGas, blk.gasLimit, blk.gasUsed, fee)
+        assert fee == adjust_base_fee(
+            blk.baseFeePerGas, blk.gasLimit, blk.gasUsed, params
+        ), fee
 
     crosscheck(cronos, geth, process)
 
@@ -75,10 +88,11 @@ def test_base_fee_adjustment(cronos, geth):
 
         blk = w3.eth.get_block(begin)
         parent_fee = blk.baseFeePerGas
+        params = get_params(w3, cronos)
 
         for i in range(3):
             fee = w3.eth.get_block(begin + 1 + i).baseFeePerGas
-            assert fee == adjust_base_fee(parent_fee, blk.gasLimit, 0)
+            assert fee == adjust_base_fee(parent_fee, blk.gasLimit, 0, params)
             parent_fee = fee
 
     crosscheck(cronos, geth, process)
