@@ -157,7 +157,7 @@ config {
         },
         extension_options: [{
           type: 'ethermint_dynamic_fee',
-          value: '1000000',
+          value: '10000000000000',
         }],
       },
       {
