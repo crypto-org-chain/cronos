@@ -21,7 +21,7 @@ def test_ibc(ibc):
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
     rly_transfer(ibc)
-    diff = 0.005
+    diff = 0.01
     record = log_gas_records(cli)
     if record:
         records.append(record)

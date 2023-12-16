@@ -20,7 +20,7 @@ from .utils import (
 )
 
 
-@pytest.fixture(scope="module", params=[True])
+@pytest.fixture(scope="module", params=[True, False])
 def ibc(request, tmp_path_factory):
     "prepare-network"
     incentivized = request.param

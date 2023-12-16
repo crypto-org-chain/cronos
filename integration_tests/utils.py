@@ -623,7 +623,7 @@ def multiple_send_to_cosmos(gcontract, tcontract, w3, recipient, amount, keys):
 def setup_token_mapping(cronos, name, symbol):
     # deploy contract
     w3 = cronos.w3
-    contract = deploy_contract(w3, CONTRACTS[name])
+    contract = deploy_contract(w3, CONTRACTS[name], gas_price=DEFAULT_GAS_PRICE)
 
     # setup the contract mapping
     cronos_cli = cronos.cosmos_cli()

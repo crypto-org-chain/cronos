@@ -282,7 +282,7 @@ def ibc_transfer_with_hermes(ibc):
     gas = int(tx["gas_wanted"])
     # the effective fee is decided by the max_priority_fee (base fee is zero)
     # rather than the normal gas price
-    assert fee == gas * 1000000
+    assert fee == gas * DEFAULT_GAS_PRICE
 
     # check duplicate OnRecvPacket events
     criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"

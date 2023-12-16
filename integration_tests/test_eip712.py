@@ -11,7 +11,7 @@ from .eip712_utils import (
     create_tx_raw_eip712,
     signature_to_web3_extension,
 )
-from .utils import ADDRS, KEYS
+from .utils import ADDRS, DEFAULT_GAS_PRICE, KEYS
 
 
 def test_native_tx(cronos):
@@ -37,9 +37,8 @@ def test_native_tx(cronos):
     denom = "basetcro"
     dst_addr = cli.address("signer1")
     gas = 200000
-    gas_price = 100000000000  # default base fee
     fee = {
-        "amount": str(gas * gas_price),
+        "amount": str(gas * DEFAULT_GAS_PRICE),
         "denom": denom,
         "gas": str(gas),
     }
