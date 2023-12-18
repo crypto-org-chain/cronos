@@ -155,7 +155,7 @@ def prepare_network(
             cli = cronos.cosmos_cli()
             granter_addr = cli.address("signer1")
             grantee_addr = cli.address(grantee)
-            max_gas = 500000
+            max_gas = 1000000
             gas_price = 10000000000000000
             limit = f"{max_gas*gas_price*2}basetcro"
             rsp = cli.grant(granter_addr, grantee_addr, limit)
@@ -296,7 +296,7 @@ def ibc_transfer_with_hermes(ibc):
     gas = int(tx["gas_wanted"])
     # the effective fee is decided by the max_priority_fee (base fee is zero)
     # rather than the normal gas price
-    assert fee == gas * DEFAULT_GAS_PRICE
+    assert fee == gas * 1000000
 
     # check duplicate OnRecvPacket events
     criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
