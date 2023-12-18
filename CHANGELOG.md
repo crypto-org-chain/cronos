@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#1265](https://github.com/crypto-org-chain/cronos/pull/1265) Fix nil pointer panic when filter timeout
+
 *Dec 15, 2023*
 
 ## v1.0.14
