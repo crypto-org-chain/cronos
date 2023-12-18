@@ -1564,6 +1564,29 @@ class CosmosCLI:
             )
         )
 
+    def grant(self, granter, grantee, limit, **kwargs):
+        default_kwargs = self.get_default_kwargs()
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "feegrant",
+                "grant",
+                granter,
+                grantee,
+                "--period",
+                "60",
+                "--period-limit",
+                limit,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def query_batches(self):
         "query all gravity batches"
         return json.loads(

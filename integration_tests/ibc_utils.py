@@ -135,6 +135,7 @@ def prepare_network(
     incentivized=True,
     is_relay=True,
     connection_only=False,
+    grantee=None,
     relayer=cluster.Relayer.HERMES.value,
 ):
     print("incentivized", incentivized)
@@ -150,6 +151,19 @@ def prepare_network(
         Path(__file__).parent / file,
         relayer=relayer,
     ) as cronos:
+        if grantee:
+            cli = cronos.cosmos_cli()
+            granter_addr = cli.address("signer1")
+            grantee_addr = cli.address(grantee)
+            max_gas = 500000
+            gas_price = 10000000000000000
+            limit = f"{max_gas*gas_price*2}basetcro"
+            rsp = cli.grant(granter_addr, grantee_addr, limit)
+            assert rsp["code"] == 0, rsp["raw_log"]
+            grant_detail = cli.query_grant(granter_addr, grantee_addr)
+            assert grant_detail["granter"] == granter_addr
+            assert grant_detail["grantee"] == grantee_addr
+
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
         # wait for grpc ready
         wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
