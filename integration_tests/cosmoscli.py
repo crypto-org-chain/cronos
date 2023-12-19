@@ -14,7 +14,7 @@ from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
 # the default initial base fee used by integration tests
-DEFAULT_GAS_PRICE = "10000000000000basetcro"
+DEFAULT_GAS_PRICE = "100000000000basetcro"
 DEFAULT_GAS = "250000"
 
 
@@ -1204,7 +1204,10 @@ class CosmosCLI:
         )
 
     def transfer_tokens(self, from_, to, amount, **kwargs):
-        default_kwargs = self.get_default_kwargs()
+        default_kwargs = {
+            "gas": "auto",
+            "gas_adjustment": "1.5",
+        }
         rsp = json.loads(
             self.raw(
                 "tx",
@@ -1230,7 +1233,6 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
-            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(
@@ -1252,7 +1254,6 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
-            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(
@@ -1277,7 +1278,6 @@ class CosmosCLI:
             "node": self.node_rpc,
             "chain_id": self.chain_id,
             "keyring_backend": "test",
-            "gas_prices": DEFAULT_GAS_PRICE,
         }
         rsp = json.loads(
             self.raw(

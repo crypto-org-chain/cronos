@@ -20,7 +20,6 @@ from .utils import (
     ADDRS,
     CONTRACT_ABIS,
     CONTRACTS,
-    DEFAULT_GAS_PRICE,
     KEYS,
     deploy_contract,
     eth_to_bech32,
@@ -53,7 +52,6 @@ def ibc(request, tmp_path_factory):
 
 def register_acc(cli, w3, register, query, data, addr, channel_id):
     print(f"register ica account with {channel_id}")
-    data["gasPrice"] = DEFAULT_GAS_PRICE
     tx = register(connid, "").build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
@@ -109,7 +107,6 @@ def submit_msgs(
     generated_packet = cli_controller.ica_generate_packet_data(json.dumps(msgs))
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
     str = base64.b64decode(generated_packet["data"])
-    data["gasPrice"] = DEFAULT_GAS_PRICE
     # submit transaction on host chain on behalf of interchain account
     if with_channel_id:
         tx = func(connid, channel_id, str, timeout).build_transaction(data)
@@ -209,7 +206,7 @@ def test_sc_call(ibc):
     contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     jsonfile = CONTRACTS["TestICA"]
-    tcontract = deploy_contract(w3, jsonfile, gas_price=DEFAULT_GAS_PRICE)
+    tcontract = deploy_contract(w3, jsonfile)
     addr = tcontract.address
     name = "signer2"
     signer = ADDRS[name]
@@ -232,7 +229,7 @@ def test_sc_call(ibc):
 
     # register from another user should fail
     name = "signer1"
-    data = {"from": ADDRS[name], "gas": default_gas, "gasPrice": DEFAULT_GAS_PRICE}
+    data = {"from": ADDRS[name], "gas": default_gas}
     version = ""
     tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
     res = send_transaction(w3, tx, KEYS[name])

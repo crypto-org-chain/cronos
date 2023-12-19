@@ -88,8 +88,6 @@ CONTRACT_ABIS = {
     "IICAModule": Path(__file__).parent.parent / "build/IICAModule.abi",
 }
 
-DEFAULT_GAS_PRICE = 10000000000000
-
 
 def wait_for_fn(name, fn, *, timeout=240, interval=1):
     for i in range(int(timeout / interval)):
@@ -347,7 +345,7 @@ def supervisorctl(inipath, *args):
     ).decode()
 
 
-def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"], gas_price=None):
+def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     """
     deploy contract and return the deployed contract instance
     """
@@ -359,10 +357,7 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"], gas_price=None
     if "byte" in info:
         bytecode = info["byte"]
     contract = w3.eth.contract(abi=info["abi"], bytecode=bytecode)
-    data = {"from": acct.address}
-    if gas_price:
-        data["gasPrice"] = gas_price
-    tx = contract.constructor(*args).build_transaction(data)
+    tx = contract.constructor(*args).build_transaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1
     address = txreceipt.contractAddress
@@ -623,7 +618,7 @@ def multiple_send_to_cosmos(gcontract, tcontract, w3, recipient, amount, keys):
 def setup_token_mapping(cronos, name, symbol):
     # deploy contract
     w3 = cronos.w3
-    contract = deploy_contract(w3, CONTRACTS[name], gas_price=DEFAULT_GAS_PRICE)
+    contract = deploy_contract(w3, CONTRACTS[name])
 
     # setup the contract mapping
     cronos_cli = cronos.cosmos_cli()

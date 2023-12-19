@@ -15,7 +15,7 @@ from .ibc_utils import (
     wait_for_check_tx,
     wait_for_status_change,
 )
-from .utils import CONTRACTS, DEFAULT_GAS_PRICE, wait_for_fn
+from .utils import CONTRACTS, wait_for_fn
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +42,7 @@ def test_ica(ibc, tmp_path):
     amount = 1000
     denom = "basecro"
     jsonfile = CONTRACTS["TestICA"]
-    tcontract = deploy_contract(ibc.cronos.w3, jsonfile, gas_price=DEFAULT_GAS_PRICE)
+    tcontract = deploy_contract(ibc.cronos.w3, jsonfile)
     memo = {"src_callback": {"address": tcontract.address}}
     timeout_in_ns = 6000000000
     seq = 1

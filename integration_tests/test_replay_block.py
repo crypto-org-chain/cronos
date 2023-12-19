@@ -9,7 +9,6 @@ from .network import setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
-    DEFAULT_GAS_PRICE,
     KEYS,
     deploy_contract,
     send_raw_transactions,
@@ -35,8 +34,7 @@ def test_replay_block(custom_cronos):
     )
     iterations = 400
     gas_limit = 800000
-    # avoid max fee per gas less than block base fee
-    gas_price = int(DEFAULT_GAS_PRICE * 1.1)
+    gas_price = 100000000000
     names = ["validator", "validator2"]
     addrs = [ADDRS[names[0]], ADDRS[names[1]]]
     keys = [KEYS[names[0]], KEYS[names[1]]]

@@ -7,7 +7,7 @@ from .ibc_utils import (
     hermes_transfer,
     prepare_network,
 )
-from .utils import ADDRS, DEFAULT_GAS_PRICE, eth_to_bech32, wait_for_fn
+from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +49,6 @@ def test_cronos_transfer_timeout(ibc):
     src_amount = dst_amount * RATIO  # the decimal places difference
     src_addr = cli.address("signer2")
     src_denom = "basetcro"
-    gas_prices = DEFAULT_GAS_PRICE
 
     # case 1: use cronos cli
     old_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
@@ -58,22 +57,20 @@ def test_cronos_transfer_timeout(ibc):
         src_addr,
         dst_addr,
         f"{src_amount}{src_denom}",
-        gas_prices=f"{gas_prices}{src_denom}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    paid_fee = int(rsp["gas_wanted"]) * gas_prices
 
     def check_balance_change():
         new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
         get_balance(ibc.chainmain, dst_addr, dst_denom)
-        return old_src_balance - paid_fee != new_src_balance
+        return old_src_balance != new_src_balance
 
     wait_for_fn("balance has change", check_balance_change)
 
     def check_no_change():
         new_src_balance = get_balance(ibc.cronos, src_addr, src_denom)
         get_balance(ibc.chainmain, dst_addr, dst_denom)
-        return old_src_balance - paid_fee == new_src_balance
+        return old_src_balance == new_src_balance
 
     wait_for_fn("balance no change", check_no_change)
     new_dst_balance = get_balance(ibc.chainmain, dst_addr, dst_denom)
