@@ -2,9 +2,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pytest
+
 from .network import setup_custom_cronos
 from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
-
 
 
 @pytest.fixture(scope="module")
