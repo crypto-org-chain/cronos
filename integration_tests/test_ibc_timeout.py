@@ -9,7 +9,7 @@ from .ibc_utils import (
 )
 from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
-pytestmark = pytest.mark.gov
+pytestmark = pytest.mark.ibc
 
 
 @pytest.fixture(scope="module")

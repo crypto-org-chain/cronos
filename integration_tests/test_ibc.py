@@ -12,7 +12,7 @@ from .ibc_utils import (
 )
 from .utils import ADDRS, CONTRACTS, deploy_contract, send_transaction, wait_for_fn
 
-pytestmark = pytest.mark.gov
+pytestmark = pytest.mark.ibc
 
 
 @pytest.fixture(scope="module", params=[True, False])

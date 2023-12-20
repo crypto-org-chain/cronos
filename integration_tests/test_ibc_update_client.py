@@ -6,7 +6,7 @@ import pytest
 from .ibc_utils import prepare_network
 from .utils import approve_proposal, wait_for_fn
 
-pytestmark = pytest.mark.gov
+pytestmark = pytest.mark.ibc
 
 
 @pytest.fixture(scope="module")
