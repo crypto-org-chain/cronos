@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 - [#1265](https://github.com/crypto-org-chain/cronos/pull/1265) Fix nil pointer panic when filter timeout
+- [#1270](https://github.com/crypto-org-chain/cronos/pull/1270) Avoid out of bound panic from error message
 
 *Dec 15, 2023*
 
