@@ -126,10 +126,10 @@
         "homepage": "https://github.com/crypto-org-chain/relayer",
         "owner": "crypto-org-chain",
         "repo": "relayer",
-        "rev": "1432eb16fae943d7da2878893129cbf22406238d",
-        "sha256": "1i1270z9j68vpz0p4awl9v9br1cyp39qfwzsfy8vks1k33ibyzws",
+        "rev": "bd88a2cba9154450924837ecda915688ff8f9e04",
+        "sha256": "106mf4mc2ag4a5d21lcqpsq7ixvq70097jglw862jz4g9lbxyv8f",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/relayer/archive/1432eb16fae943d7da2878893129cbf22406238d.tar.gz",
+        "url": "https://github.com/crypto-org-chain/relayer/archive/bd88a2cba9154450924837ecda915688ff8f9e04.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
