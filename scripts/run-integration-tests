@@ -7,10 +7,8 @@ export TMPDIR=/tmp
 
 echo "build test contracts"
 cd ../integration_tests/contracts
-( flock -w 60 -n 9 || exit 1;
 HUSKY_SKIP_INSTALL=1 npm install
 npm run typechain
-) 9> lockfile
 cd ..
 TESTS_TO_RUN="${TESTS_TO_RUN:-all}"
 if [[ "$TESTS_TO_RUN" == "all" ]]; then
