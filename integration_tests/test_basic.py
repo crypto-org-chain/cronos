@@ -857,10 +857,12 @@ def test_replay_protection(cronos):
         w3.eth.send_raw_transaction(HexBytes(raw))
 
 
+@pytest.mark.gov
 def test_submit_any_proposal(cronos, tmp_path):
     submit_any_proposal(cronos, tmp_path)
 
 
+@pytest.mark.gov
 def test_submit_send_enabled(cronos, tmp_path):
     # check bank send enable
     cli = cronos.cosmos_cli()

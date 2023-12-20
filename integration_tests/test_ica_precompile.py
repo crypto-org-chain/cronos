@@ -27,6 +27,8 @@ from .utils import (
     wait_for_fn,
 )
 
+pytestmark = pytest.mark.ica
+
 CONTRACT = "0x0000000000000000000000000000000000000066"
 connid = "connection-0"
 no_timeout = 300000000000

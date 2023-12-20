@@ -1,6 +1,10 @@
 import json
 
+import pytest
+
 from .utils import approve_proposal
+
+pytestmark = pytest.mark.gov
 
 
 def test_gov_update_params(cronos, tmp_path):

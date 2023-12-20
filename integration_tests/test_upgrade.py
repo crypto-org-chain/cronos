@@ -24,6 +24,8 @@ from .utils import (
     wait_for_port,
 )
 
+pytestmark = pytest.mark.upgrade
+
 
 @pytest.fixture(scope="module")
 def testnet(tmp_path_factory):

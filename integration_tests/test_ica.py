@@ -17,6 +17,8 @@ from .ibc_utils import (
 )
 from .utils import CONTRACTS, wait_for_fn
 
+pytestmark = pytest.mark.ica
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):

@@ -16,6 +16,8 @@ from .utils import (
     wait_for_new_blocks,
 )
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
@@ -25,7 +27,7 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-def test_replay_block(custom_cronos):
+def test_block_overflow(custom_cronos):
     w3: web3.Web3 = custom_cronos.w3
     contract = deploy_contract(
         w3,
