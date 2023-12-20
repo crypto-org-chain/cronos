@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 cd "$(dirname "$0")"
 
@@ -10,4 +10,12 @@ cd ../integration_tests/contracts
 HUSKY_SKIP_INSTALL=1 npm install
 npm run typechain
 cd ..
-nix-shell --run "pytest -vv -s"
+TESTS_TO_RUN="${TESTS_TO_RUN:-all}"
+if [[ "$TESTS_TO_RUN" == "all" ]]; then
+  echo "run all tests"
+  cmd="pytest -vv -s"
+else
+  echo "run tests matching $TESTS_TO_RUN"
+  cmd="pytest -vv -s -m '$TESTS_TO_RUN'"
+fi
+nix-shell --run "$cmd"

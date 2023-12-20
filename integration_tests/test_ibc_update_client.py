@@ -5,6 +5,8 @@ import pytest
 
 from .ibc_utils import prepare_network
 
+pytestmark = pytest.mark.ibc_update_client
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):

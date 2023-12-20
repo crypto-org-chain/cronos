@@ -9,6 +9,8 @@ from .ibc_utils import (
 )
 from .utils import ADDRS, eth_to_bech32, wait_for_fn
 
+pytestmark = pytest.mark.ibc_timeout
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
