@@ -16,7 +16,6 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     KEYS,
-    PROVIDERS,
     Greeter,
     RevertTestContract,
     approve_proposal,
@@ -35,13 +34,11 @@ from .utils import (
 )
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_basic(cluster):
     w3 = cluster.w3
     assert w3.eth.chain_id == 777
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_send_transaction(cluster):
     "test eth_sendTransaction api"
     w3 = cluster.w3
@@ -56,8 +53,7 @@ def test_send_transaction(cluster):
     assert receipt.status == 1
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
-def test_events(cluster):
+def test_events(cluster, suspend_capture):
     w3 = cluster.w3
     erc20 = deploy_contract(
         w3,
@@ -528,7 +524,6 @@ def assert_receipt_transaction_and_block(w3, futures):
         assert transaction["blockNumber"] == block["number"]
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_exception(cluster):
     w3 = cluster.w3
     contract = deploy_contract(
@@ -548,7 +543,6 @@ def test_exception(cluster):
     assert 5 * (10**18) == contract.caller.query()
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_refund_unused_gas_when_contract_tx_reverted(cluster):
     """
     Call a smart contract method that reverts with very high gas limit
@@ -600,7 +594,6 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_suicide(cluster):
     """
     test compliance of contract suicide
@@ -754,7 +747,6 @@ def test_failed_transfer_tx(cronos):
         assert receipt.gasUsed == rsp["gas"]
 
 
-@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_log0(cluster):
     """
     test compliance of empty topics behavior

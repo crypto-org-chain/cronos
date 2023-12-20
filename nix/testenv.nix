@@ -14,7 +14,6 @@ poetry2nix.mkPoetryEnv {
           pytest-github-actions-annotate-failures = [ "setuptools" ];
           flake8-black = [ "setuptools" ];
           multiaddr = [ "setuptools" ];
-          pyunormalize = [ "setuptools" "tomli" ];
         };
       in
       lib.mapAttrs
