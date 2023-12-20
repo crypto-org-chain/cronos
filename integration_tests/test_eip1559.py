@@ -14,19 +14,13 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-@pytest.fixture(scope="module", params=["cronos", "custom_cronos", "geth", "cronos-ws"])
-def cluster(request, cronos, custom_cronos, geth):
+@pytest.fixture(scope="module", params=["cluster", "custom_cronos"])
+def custom_cluster(request, cluster, custom_cronos):
     provider = request.param
-    if provider == "cronos":
-        yield cronos
+    if provider == "cluster":
+        yield cluster
     elif provider == "custom_cronos":
         yield custom_cronos
-    elif provider == "geth":
-        yield geth
-    elif provider == "cronos-ws":
-        cronos_ws = cronos.copy()
-        cronos_ws.use_websocket()
-        yield cronos_ws
     else:
         raise NotImplementedError
 
@@ -53,18 +47,18 @@ def get_params(cli):
     return {k: int(float(v)) for k, v in params.items()}
 
 
-def test_dynamic_fee_tx(cluster, custom_cronos, geth):
+def test_dynamic_fee_tx(custom_cluster, custom_cronos, geth):
     """
     test basic eip-1559 tx works:
     - tx fee calculation is compliant to go-ethereum
     - base fee adjustment is compliant to go-ethereum
     """
-    w3 = cluster.w3
+    w3 = custom_cluster.w3
     amount = 10000
     before = w3.eth.get_balance(ADDRS["community"])
     tip_price = 1
     max_price = 1000000000000 + tip_price
-    if cluster == custom_cronos:
+    if custom_cluster == custom_cronos:
         max_price = 10000000000000 + tip_price
     tx = {
         "to": "0x0000000000000000000000000000000000000000",
@@ -88,24 +82,24 @@ def test_dynamic_fee_tx(cluster, custom_cronos, geth):
     # check the next block's base fee is adjusted accordingly
     w3_wait_for_block(w3, txreceipt.blockNumber + 1)
     fee = w3.eth.get_block(txreceipt.blockNumber + 1).baseFeePerGas
-    cli = None if cluster == geth else cluster.cosmos_cli()
+    cli = None if custom_cluster == geth else custom_cluster.cosmos_cli()
     params = get_params(cli)
     assert fee == adjust_base_fee(
         blk.baseFeePerGas, blk.gasLimit, blk.gasUsed, params
     ), fee
 
 
-def test_base_fee_adjustment(cluster, geth):
+def test_base_fee_adjustment(custom_cluster, geth):
     """
     verify base fee adjustment of three continuous empty blocks
     """
-    w3 = cluster.w3
+    w3 = custom_cluster.w3
     begin = w3.eth.block_number
     w3_wait_for_block(w3, begin + 3)
 
     blk = w3.eth.get_block(begin)
     parent_fee = blk.baseFeePerGas
-    cli = None if cluster == geth else cluster.cosmos_cli()
+    cli = None if custom_cluster == geth else custom_cluster.cosmos_cli()
     params = get_params(cli)
 
     for i in range(3):
@@ -114,12 +108,12 @@ def test_base_fee_adjustment(cluster, geth):
         parent_fee = fee
 
 
-def test_recommended_fee_per_gas(cluster):
+def test_recommended_fee_per_gas(custom_cluster):
     """The recommended base fee per gas returned by eth_gasPrice is
     base fee of the block just produced + eth_maxPriorityFeePerGas (the buffer).\n
     Verify the calculation of recommended base fee per gas (eth_gasPrice)
     """
-    w3 = cluster.w3
+    w3 = custom_cluster.w3
 
     recommended_base_fee_per_gas = w3.eth.gas_price
     latest_block = w3.eth.get_block("latest")
@@ -132,12 +126,14 @@ def test_recommended_fee_per_gas(cluster):
     )
 
 
-def test_current_fee_per_gas_should_not_be_smaller_than_next_block_base_fee(cluster):
+def test_current_fee_per_gas_should_not_be_smaller_than_next_block_base_fee(
+    custom_cluster,
+):
     """The recommended base fee per gas returned by eth_gasPrice should
     be bigger than or equal to the base fee per gas of the next block, \n
     otherwise the tx does not meet the requirement to be included in the next block.\n
     """
-    w3 = cluster.w3
+    w3 = custom_cluster.w3
 
     base_block = w3.eth.block_number
     recommended_base_fee = w3.eth.gas_price
