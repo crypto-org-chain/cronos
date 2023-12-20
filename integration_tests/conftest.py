@@ -61,7 +61,7 @@ def geth(tmp_path_factory):
     yield from setup_geth(path, 8545)
 
 
-@pytest.fixture(scope="session", params=["cronos", "geth", "cronos-ws"])
+@pytest.fixture(scope="session")
 def cluster(request, cronos, geth):
     """
     run on both cronos and geth

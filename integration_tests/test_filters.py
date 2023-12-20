@@ -1,14 +1,17 @@
 from web3 import Web3
 
+import pytest
 from .utils import (
     ADDRS,
     CONTRACTS,
+    PROVIDERS,
     deploy_contract,
     send_transaction,
     wait_for_new_blocks,
 )
 
 
+@pytest.mark.parametrize("cluster", PROVIDERS, indirect=True)
 def test_pending_transaction_filter(cluster):
     w3: Web3 = cluster.w3
     flt = w3.eth.filter("pending")

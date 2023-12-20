@@ -88,6 +88,8 @@ CONTRACT_ABIS = {
     "IICAModule": Path(__file__).parent.parent / "build/IICAModule.abi",
 }
 
+PROVIDERS = ["cronos", "geth", "cronos-ws"]
+
 
 def wait_for_fn(name, fn, *, timeout=240, interval=1):
     for i in range(int(timeout / interval)):
