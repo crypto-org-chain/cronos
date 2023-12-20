@@ -19,6 +19,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "ibc_rly_evm: marks ibc_rly_evm tests")
     config.addinivalue_line("markers", "ibc_rly_gas: marks ibc relayer gas tests")
     config.addinivalue_line("markers", "ibc_timeout: marks ibc timeout tests")
+    config.addinivalue_line("markers", "ibc_update_client: marks ibc updateclient test")
     config.addinivalue_line("markers", "gov: marks gov related tests")
 
 
