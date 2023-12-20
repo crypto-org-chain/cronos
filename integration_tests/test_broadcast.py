@@ -5,6 +5,8 @@ import pytest
 from .network import setup_custom_cronos
 from .utils import submit_any_proposal
 
+pytestmark = pytest.mark.gov
+
 
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
