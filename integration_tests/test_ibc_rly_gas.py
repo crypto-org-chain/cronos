@@ -4,6 +4,8 @@ from pystarport import cluster
 from .ibc_utils import log_gas_records, prepare_network, rly_transfer
 from .utils import wait_for_new_blocks
 
+pytestmark = pytest.mark.gov
+
 
 @pytest.fixture(scope="module", params=["ibc_rly", "ibc_rly_evm"])
 def ibc(request, tmp_path_factory):

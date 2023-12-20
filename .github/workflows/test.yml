@@ -17,6 +17,11 @@ jobs:
   integration_tests:
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      matrix:
+        tests: [unmarked ibc ica upgrade]
+    env:
+      TESTS_TO_RUN: ${{ matrix.tests }}
     steps:
       - uses: actions/checkout@v3
         with:

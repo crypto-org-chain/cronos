@@ -13,6 +13,15 @@ sys.path.append(dir + "/protobuf")
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
     config.addinivalue_line("markers", "gravity: gravity bridge test cases")
+    config.addinivalue_line("markers", "ibc: marks ibc tests")
+    config.addinivalue_line("markers", "ica: marks ica tests")
+    config.addinivalue_line("markers", "upgrade: marks upgrade tests")
+
+
+def pytest_collection_modifyitems(items, config):
+    for item in items:
+        if not any(item.iter_markers()):
+            item.add_marker("unmarked")
 
 
 @pytest.fixture(scope="session")

@@ -28,6 +28,8 @@ from .utils import (
     wait_for_new_blocks,
 )
 
+pytestmark = pytest.mark.gov
+
 CONTRACT = "0x0000000000000000000000000000000000000065"
 contract_info = json.loads(CONTRACT_ABIS["IRelayerModule"].read_text())
 method_map = get_method_map(contract_info)

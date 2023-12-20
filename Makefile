@@ -219,6 +219,12 @@ test-sim-profile:
 ###                                Integration Test                         ###
 ###############################################################################
 
+# possible values:
+# - all: run all integration tests
+# - unmarked: run integration tests that are not marked
+# - marker1,marker2: markers separated by comma, run integration tests that are marked with any of the markers
+TESTS_TO_RUN ?= all
+
 run-integration-tests:
 	@make gen-bindings-contracts
 	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests

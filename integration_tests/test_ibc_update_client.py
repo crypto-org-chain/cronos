@@ -6,6 +6,8 @@ import pytest
 from .ibc_utils import prepare_network
 from .utils import approve_proposal, wait_for_fn
 
+pytestmark = pytest.mark.gov
+
 
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
