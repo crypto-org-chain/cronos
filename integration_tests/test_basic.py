@@ -138,6 +138,7 @@ def test_native_call(cronos):
     assert receipt.status == 0
 
 
+@pytest.mark.slow
 def test_statesync(cronos):
     # cronos fixture
     # Load cronos-devnet.yaml
@@ -254,6 +255,7 @@ def test_statesync(cronos):
     clustercli.supervisor.stopProcess(f"{clustercli.chain_id}-node{i}")
 
 
+@pytest.mark.slow
 def test_local_statesync(cronos, tmp_path_factory):
     """
     - init a new node, enable versiondb

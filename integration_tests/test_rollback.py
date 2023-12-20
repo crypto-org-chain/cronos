@@ -9,6 +9,8 @@ from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from .network import setup_custom_cronos
 from .utils import supervisorctl, wait_for_block, wait_for_port
 
+pytestmark = pytest.mark.slow
+
 
 def update_node2_cmd(path, cmd, i):
     ini_path = path / SUPERVISOR_CONFIG_FILE
