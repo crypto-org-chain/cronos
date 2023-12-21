@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 - [#1258](https://github.com/crypto-org-chain/cronos/pull/1258) Support hard-fork style upgrades.
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to develop, cosmos-sdk to `v0.47.7`.
 
 *December 11, 2023*
 
