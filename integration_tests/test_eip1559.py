@@ -18,7 +18,7 @@ def custom_cronos(tmp_path_factory):
 
 
 @pytest.fixture(
-    scope="session",
+    scope="module",
     params=[
         lazy_fixture("cronos"),
         lazy_fixture("geth"),
