@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from pytest_lazyfixture import lazy_fixture
 
 from .network import setup_cronos, setup_custom_cronos, setup_geth
 
@@ -76,23 +75,19 @@ def geth(tmp_path_factory):
     yield from setup_geth(path, 8545)
 
 
-@pytest.fixture(scope="session")
-def cronos_ws(cronos):
-    cronos_ws = cronos.copy()
-    cronos_ws.use_websocket()
-    yield cronos_ws
-
-
-@pytest.fixture(
-    scope="session",
-    params=[
-        lazy_fixture("cronos"),
-        lazy_fixture("geth"),
-        lazy_fixture("cronos_ws"),
-    ],
-)
-def cluster(request):
+@pytest.fixture(scope="session", params=["cronos", "geth", "cronos-ws"])
+def cluster(request, cronos, geth):
     """
     run on both cronos and geth
     """
-    yield request.param
+    provider = request.param
+    if provider == "cronos":
+        yield cronos
+    elif provider == "geth":
+        yield geth
+    elif provider == "cronos-ws":
+        cronos_ws = cronos.copy()
+        cronos_ws.use_websocket()
+        yield cronos_ws
+    else:
+        raise NotImplementedError
