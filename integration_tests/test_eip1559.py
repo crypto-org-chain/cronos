@@ -1,9 +1,12 @@
 from pathlib import Path
 
 import pytest
+from pytest_lazyfixture import lazy_fixture
 
 from .network import setup_custom_cronos
 from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
+
+pytestmark = pytest.mark.slow
 
 
 @pytest.fixture(scope="module")
@@ -14,15 +17,17 @@ def custom_cronos(tmp_path_factory):
     )
 
 
-@pytest.fixture(scope="module", params=["cluster", "custom_cronos"])
-def custom_cluster(request, cluster, custom_cronos):
-    provider = request.param
-    if provider == "cluster":
-        yield cluster
-    elif provider == "custom_cronos":
-        yield custom_cronos
-    else:
-        raise NotImplementedError
+@pytest.fixture(
+    scope="session",
+    params=[
+        lazy_fixture("cronos"),
+        lazy_fixture("geth"),
+        lazy_fixture("cronos_ws"),
+        lazy_fixture("custom_cronos"),
+    ],
+)
+def custom_cluster(request):
+    yield request.param
 
 
 def adjust_base_fee(parent_fee, gas_limit, gas_used, params):

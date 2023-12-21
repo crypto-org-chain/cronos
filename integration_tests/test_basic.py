@@ -39,9 +39,12 @@ def test_basic(cluster):
     assert w3.eth.chain_id == 777
 
 
-def test_send_transaction(cluster):
+def test_send_transaction(cluster, geth):
     "test eth_sendTransaction api"
     w3 = cluster.w3
+    # wait 1s to avoid unlock error
+    if cluster == geth:
+        time.sleep(1)
     txhash = w3.eth.send_transaction(
         {
             "from": ADDRS["validator"],
