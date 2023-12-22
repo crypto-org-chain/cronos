@@ -1,4 +1,8 @@
+import pytest
+
 from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
+
+pytestmark = pytest.mark.gas
 
 
 def adjust_base_fee(parent_fee, gas_limit, gas_used):

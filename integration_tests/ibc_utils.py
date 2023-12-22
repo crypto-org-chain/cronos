@@ -134,6 +134,7 @@ def prepare_network(
     incentivized=True,
     is_relay=True,
     connection_only=False,
+    grantee=None,
     relayer=cluster.Relayer.HERMES.value,
 ):
     print("incentivized", incentivized)
@@ -149,6 +150,19 @@ def prepare_network(
         Path(__file__).parent / file,
         relayer=relayer,
     ) as cronos:
+        if grantee:
+            cli = cronos.cosmos_cli()
+            granter_addr = cli.address("signer1")
+            grantee_addr = cli.address(grantee)
+            max_gas = 1000000
+            gas_price = 10000000000000000
+            limit = f"{max_gas*gas_price*2}basetcro"
+            rsp = cli.grant(granter_addr, grantee_addr, limit)
+            assert rsp["code"] == 0, rsp["raw_log"]
+            grant_detail = cli.query_grant(granter_addr, grantee_addr)
+            assert grant_detail["granter"] == granter_addr
+            assert grant_detail["grantee"] == grantee_addr
+
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
         # wait for grpc ready
         wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
@@ -324,7 +338,7 @@ def ibc_incentivized_transfer(ibc):
         f"{amount}{base_denom}",
         src_channel,
         1,
-        "0basecro",
+        fees="0basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     src_chain = ibc.cronos.cosmos_cli()
@@ -343,7 +357,6 @@ def ibc_incentivized_transfer(ibc):
         from_=sender,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    rsp = src_chain.event_query_tx_for(rsp["txhash"])
     # fee is locked
     assert chains[0].balance(sender, fee_denom) == old_amt_sender_fee - 30
 
@@ -359,10 +372,11 @@ def ibc_incentivized_transfer(ibc):
     wait_for_fn("wait for relayer to receive the fee", check_fee)
 
     # timeout fee is refunded
-    assert get_balances(ibc.cronos, sender) == [
+    actual = get_balances(ibc.cronos, sender)
+    assert actual == [
         {"denom": base_denom, "amount": f"{old_amt_sender_base - amount}"},
         {"denom": fee_denom, "amount": f"{old_amt_sender_fee - 20}"},
-    ]
+    ], actual
     path = f"transfer/{dst_channel}/{base_denom}"
     denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
     assert json.loads(
@@ -387,7 +401,7 @@ def ibc_incentivized_transfer(ibc):
         f"{amount}ibc/{denom_hash}",
         dst_channel,
         1,
-        f"{fee_amount}basecro",
+        fees=f"{fee_amount}basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -395,7 +409,8 @@ def ibc_incentivized_transfer(ibc):
         return chains[0].balance(sender, base_denom) != old_amt_sender_base - amount
 
     wait_for_fn("balance change", check_balance_change)
-    assert chains[0].balance(sender, base_denom) == old_amt_sender_base
+    actual = chains[0].balance(sender, base_denom)
+    assert actual == old_amt_sender_base, actual
     assert chains[1].balance(receiver, "basecro") == old_amt_receiver_base - fee_amount
     return amount
 
@@ -461,8 +476,9 @@ def cronos_transfer_source_tokens(ibc):
     cronos_receiver = eth_to_bech32(ADDRS["signer2"])
 
     coin = "1000" + dest_denom
+    fees = "100000000basecro"
     rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
+        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, fees=fees
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -562,8 +578,9 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
     cronos_receiver = eth_to_bech32(ADDRS["signer2"])
 
     coin = f"{amount}{dest_denom}"
+    fees = "100000000basecro"
     rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, "100000000basecro"
+        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, fees=fees
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -647,9 +664,7 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid):
     print("register ica account")
-    rsp = cli.icaauth_register_account(
-        connid, from_="signer2", gas="400000", fees="100000000basetcro"
-    )
+    rsp = cli.icaauth_register_account(connid, from_="signer2", gas="400000")
     _, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
 

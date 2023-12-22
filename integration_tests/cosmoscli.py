@@ -823,9 +823,11 @@ class CosmosCLI:
         amount,
         channel,  # src channel
         target_version,  # chain version number of target chain
-        fee,
-        i=0,
+        **kwargs,
     ):
+        default_kwargs = {
+            "home": self.data_dir,
+        }
         return json.loads(
             self.raw(
                 "tx",
@@ -835,18 +837,16 @@ class CosmosCLI:
                 channel,
                 to,
                 amount,
-                "--fees",
-                fee,
                 "-y",
                 # FIXME https://github.com/cosmos/cosmos-sdk/issues/8059
                 "--absolute-timeouts",
                 from_=from_,
-                home=self.data_dir,
                 node=self.node_rpc,
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 packet_timeout_height=f"{target_version}-10000000000",
                 packet_timeout_timestamp=0,
+                **(default_kwargs | kwargs),
             )
         )
 
@@ -1535,7 +1535,7 @@ class CosmosCLI:
         default_kwargs = {
             "home": self.data_dir,
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc-fee",
@@ -1547,6 +1547,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_grant(self, granter, grantee):
         "query grant details by granter and grantee addresses"
@@ -1560,6 +1563,29 @@ class CosmosCLI:
                 home=self.data_dir,
             )
         )
+
+    def grant(self, granter, grantee, limit, **kwargs):
+        default_kwargs = self.get_default_kwargs()
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "feegrant",
+                "grant",
+                granter,
+                grantee,
+                "--period",
+                "60",
+                "--period-limit",
+                limit,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **(default_kwargs | kwargs),
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_batches(self):
         "query all gravity batches"
