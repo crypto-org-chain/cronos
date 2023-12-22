@@ -230,10 +230,9 @@ def exec(c, tmp_path_factory, testnet=True):
     c.supervisorctl("stop", "all")
 
 
-def test_cosmovisor_upgrade(testnet: Cronos, mainnet: Cronos, tmp_path_factory):
-    providers = [testnet, mainnet]
-    path = tmp_path_factory
-    with ThreadPoolExecutor(len(providers)) as executor:
-        as_completed(
-            [executor.submit(exec, net, path, net == testnet) for net in providers]
-        )
+def test_cosmovisor_upgrade_mainnet(mainnet: Cronos, tmp_path_factory):
+    exec(mainnet, tmp_path_factory, False)
+
+
+def test_cosmovisor_upgrade_testnet(testnet: Cronos, tmp_path_factory):
+    exec(testnet, tmp_path_factory, True)
