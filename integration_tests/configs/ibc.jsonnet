@@ -143,8 +143,8 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
-        max_gas: 500000,
-        gas_multiplier: 4,
+        max_gas: 1000000,
+        gas_multiplier: 1.1,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
