@@ -15,10 +15,4 @@ ibc {
       for i in std.range(1, 2)
     ],
   },
-  relayer+: {
-    chains: [super.chains[0] {
-      max_gas: 1000000,
-      gas_multiplier: 1.1,
-    }] + super.chains[1:],
-  },
 }
