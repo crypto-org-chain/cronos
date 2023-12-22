@@ -61,7 +61,6 @@ def test_cronos_transfer_tokens(ibc):
         f"{src_amount}{src_denom}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
     new_dst_balance = 0
 
     def check_balance_change():
@@ -96,7 +95,6 @@ def test_cronos_transfer_tokens_acknowledgement_error(ibc):
         f"{src_amount}{src_denom}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
     new_src_balance = 0
 
     def check_balance_change():
@@ -123,7 +121,10 @@ def test_cro_bridge_contract(ibc):
     w3 = ibc.cronos.w3
     contract = deploy_contract(w3, CONTRACTS["CroBridge"])
     tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
-        {"from": ADDRS["signer2"], "value": src_amount}
+        {
+            "from": ADDRS["signer2"],
+            "value": src_amount,
+        }
     )
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
