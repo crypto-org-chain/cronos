@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 - [#1258](https://github.com/crypto-org-chain/cronos/pull/1258) Support hard-fork style upgrades.
+- [#]() Remove authz module.
 
 *December 11, 2023*
 
