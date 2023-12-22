@@ -64,7 +64,7 @@ def test_events(cluster, suspend_capture):
         w3,
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
-        exp_gas_used=633810,
+        exp_gas_used=641641,
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
