@@ -9,7 +9,7 @@ config {
       app_state+: {
         feemarket+: {
           params+: {
-            base_fee_change_denominator: '300',
+            base_fee_change_denominator: '3',
             elasticity_multiplier: '4',
             base_fee: '10000000000000',
             min_gas_price: '10000000000000',
