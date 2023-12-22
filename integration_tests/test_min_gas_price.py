@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from .network import setup_custom_cronos
-from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block
+from .utils import ADDRS, KEYS, send_transaction, w3_wait_for_block, wait_for_new_blocks
 
 pytestmark = pytest.mark.gas
 
@@ -26,7 +26,7 @@ def custom_cronos(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def custom_cronos_lte(tmp_path_factory):
-    path = tmp_path_factory.mktemp("min-gas-price-gt")
+    path = tmp_path_factory.mktemp("min-gas-price-lte")
     yield from setup_custom_cronos(
         path, 26560, Path(__file__).parent / "configs/min_gas_price_lte.jsonnet"
     )
@@ -65,6 +65,7 @@ def get_params(cli):
 
 
 def test_dynamic_fee_tx(custom_cluster):
+    wait_for_new_blocks(custom_cluster.cosmos_cli(), 1)
     w3 = custom_cluster.w3
     amount = 10000
     before = w3.eth.get_balance(ADDRS["community"])
@@ -102,6 +103,7 @@ def test_base_fee_adjustment(custom_cluster):
     """
     verify base fee adjustment of three continuous empty blocks
     """
+    wait_for_new_blocks(custom_cluster.cosmos_cli(), 1)
     w3 = custom_cluster.w3
     begin = w3.eth.block_number
     w3_wait_for_block(w3, begin + 3)
