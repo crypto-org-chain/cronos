@@ -1,6 +1,5 @@
 import json
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -147,8 +146,7 @@ def exec(c, tmp_path_factory, testnet=True):
         mode=None if testnet else "block",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    event_query_tx = not testnet
-    approve_proposal(c, rsp, event_query_tx)
+    approve_proposal(c, rsp, event_query_tx=testnet)
 
     # update cli chain binary
     c.chain_binary = (
@@ -230,10 +228,9 @@ def exec(c, tmp_path_factory, testnet=True):
     c.supervisorctl("stop", "all")
 
 
-def test_cosmovisor_upgrade(testnet: Cronos, mainnet: Cronos, tmp_path_factory):
-    providers = [testnet, mainnet]
-    path = tmp_path_factory
-    with ThreadPoolExecutor(len(providers)) as executor:
-        as_completed(
-            [executor.submit(exec, net, path, net == testnet) for net in providers]
-        )
+def test_cosmovisor_upgrade_mainnet(mainnet: Cronos, tmp_path_factory):
+    exec(mainnet, tmp_path_factory, False)
+
+
+def test_cosmovisor_upgrade_testnet(testnet: Cronos, tmp_path_factory):
+    exec(testnet, tmp_path_factory, True)
