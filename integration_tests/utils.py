@@ -345,7 +345,7 @@ def supervisorctl(inipath, *args):
     ).decode()
 
 
-def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
+def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"], exp_gas_used=None):
     """
     deploy contract and return the deployed contract instance
     """
@@ -360,6 +360,10 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"]):
     tx = contract.constructor(*args).build_transaction({"from": acct.address})
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1
+    if exp_gas_used is not None:
+        assert (
+            exp_gas_used == txreceipt.gasUsed
+        ), f"exp {exp_gas_used}, got {txreceipt.gasUsed}"
     address = txreceipt.contractAddress
     return w3.eth.contract(address=address, abi=info["abi"])
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.10;
+pragma solidity 0.8.21;
 
 /**
  * @dev Interface of the CosmosToken deployed by the gravity contract
