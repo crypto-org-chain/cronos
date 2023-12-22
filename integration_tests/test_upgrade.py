@@ -123,6 +123,13 @@ def exec(c, tmp_path_factory, testnet=True):
     print("upgrade height", target_height)
 
     w3 = c.w3
+
+    if not testnet:
+        # before upgrade, PUSH0 opcode is not supported
+        with pytest.raises(ValueError) as e_info:
+            deploy_contract(w3, CONTRACTS["Greeter"])
+        assert "invalid opcode: PUSH0" in str(e_info.value)
+
     contract = deploy_contract(w3, CONTRACTS["TestERC20A"])
     old_height = w3.eth.block_number
     old_balance = w3.eth.get_balance(ADDRS["validator"], block_identifier=old_height)
@@ -173,6 +180,10 @@ def exec(c, tmp_path_factory, testnet=True):
         },
     )
     assert receipt.status == 1
+
+    if not testnet:
+        # after upgrade, PUSH0 opcode is supported
+        deploy_contract(w3, CONTRACTS["Greeter"])
 
     # query json-rpc on older blocks should success
     assert old_balance == w3.eth.get_balance(
