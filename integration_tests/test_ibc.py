@@ -19,6 +19,8 @@ from .utils import (
     wait_for_new_blocks,
 )
 
+pytestmark = pytest.mark.ibc
+
 
 @pytest.fixture(scope="module", params=[True, False])
 def ibc(request, tmp_path_factory):

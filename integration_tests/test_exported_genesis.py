@@ -6,6 +6,8 @@ import pytest
 from .network import setup_custom_cronos
 from .utils import ADDRS, CONTRACTS
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
