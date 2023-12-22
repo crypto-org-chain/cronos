@@ -51,6 +51,7 @@ def test_send_transaction(cluster):
     )
     receipt = w3.eth.wait_for_transaction_receipt(txhash)
     assert receipt.status == 1
+    assert receipt.gasUsed == 21000
 
 
 def test_events(cluster, suspend_capture):
@@ -59,6 +60,7 @@ def test_events(cluster, suspend_capture):
         w3,
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
+        exp_gas_used=633810,
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}

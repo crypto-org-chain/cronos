@@ -11,6 +11,7 @@ sys.path.append(dir + "/protobuf")
 
 
 def pytest_configure(config):
+    config.addinivalue_line("markers", "unmarked: fallback mark for unmarked tests")
     config.addinivalue_line("markers", "slow: marks tests as slow")
     config.addinivalue_line("markers", "gravity: gravity bridge test cases")
     config.addinivalue_line("markers", "ica: marks ica tests")
