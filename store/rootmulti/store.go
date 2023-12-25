@@ -334,12 +334,15 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	}
 
 	var treeUpgrades []*memiavl.TreeNameUpgrade
-	for _, key := range storesKeys {
-		switch {
-		case upgrades.IsDeleted(key.Name()):
-			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), Delete: true})
-		case upgrades.IsAdded(key.Name()) || upgrades.RenamedFrom(key.Name()) != "":
-			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: key.Name(), RenameFrom: upgrades.RenamedFrom(key.Name())})
+	if upgrades != nil {
+		for _, name := range upgrades.Deleted {
+			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: name, Delete: true})
+		}
+		for _, name := range upgrades.Added {
+			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: name})
+		}
+		for _, rename := range upgrades.Renamed {
+			treeUpgrades = append(treeUpgrades, &memiavl.TreeNameUpgrade{Name: rename.NewKey, RenameFrom: rename.OldKey})
 		}
 	}
 
@@ -368,6 +371,7 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	} else {
 		rs.lastCommitInfo = &types.CommitInfo{}
 	}
+
 	return nil
 }
 

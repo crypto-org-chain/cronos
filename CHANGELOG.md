@@ -4,7 +4,8 @@
 
 - [#1258](https://github.com/crypto-org-chain/cronos/pull/1258) Support hard-fork style upgrades.
 - [#1272](https://github.com/crypto-org-chain/cronos/pull/1272) Update ethermint to develop, cosmos-sdk to `v0.47.7`.
-- [#1273](https://github.com/crypto-org-chain/cronos/pull/1273) Enable push0 opcode in integration test
+- [#1273](https://github.com/crypto-org-chain/cronos/pull/1273) Enable push0 opcode in integration test.
+- [#1274](https://github.com/crypto-org-chain/cronos/pull/1274) Remove authz module.
 
 *December 11, 2023*
 
