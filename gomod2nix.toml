@@ -163,6 +163,9 @@ schema = 3
   [mod."github.com/cosmos/ics23/go"]
     version = "v0.10.0"
     hash = "sha256-KYEv727BO/ht63JO02xiKFGFAddg41Ve9l2vSSZZBq0="
+  [mod."github.com/cosmos/interchain-security/v3"]
+    version = "v3.2.0"
+    hash = "sha256-zJlTa5geUQYIJU2jDYhUBq3uuk+S5lxRVVyQbfUURqY="
   [mod."github.com/cosmos/ledger-cosmos-go"]
     version = "v0.12.4"
     hash = "sha256-SYABql9QYhuZaNxRnvfHw/KqDTTzjYWgzbN7PDKVmGA="
@@ -526,8 +529,8 @@ schema = 3
     version = "v1.7.0"
     hash = "sha256-bnr6c7a0nqo2HyGqxHk0kEZCEsjLYkPbAVY9WzaZ30o="
   [mod."github.com/tidwall/gjson"]
-    version = "v1.14.4"
-    hash = "sha256-3DS2YNL95wG0qSajgRtIABD32J+oblaKVk8LIw+KSOc="
+    version = "v1.17.0"
+    hash = "sha256-eS+Ble3UZClAH/XpulH+MuxyZFsF7/yvWeBIn1D9ryk="
   [mod."github.com/tidwall/match"]
     version = "v1.1.1"
     hash = "sha256-M2klhPId3Q3T3VGkSbOkYl/2nLHnsG+yMbXkPkyrRdg="
@@ -634,8 +637,8 @@ schema = 3
     version = "v1.8.6"
     hash = "sha256-DyaiCc/1iELrl6JSpz6WYMtFwUiSCOSoNF8IhSyP1ag="
   [mod."pgregory.net/rapid"]
-    version = "v0.5.5"
-    hash = "sha256-VUgKDG+AcSVdsqKk5H4doz2rvehsWgt8rdZPDMKFDtE="
+    version = "v1.1.0"
+    hash = "sha256-sVQY9EQ9Y5blYyVYfaOa+y12e+399OqdHiEY3BaDnqo="
   [mod."sigs.k8s.io/yaml"]
     version = "v1.3.0"
     hash = "sha256-RVp8vca2wxg8pcBDYospG7Z1dujoH7zXNu2rgZ1kky0="
