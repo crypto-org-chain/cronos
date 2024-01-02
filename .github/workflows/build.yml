@@ -26,7 +26,7 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - id: changed-files
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: |
             **/*.go
@@ -62,7 +62,7 @@ jobs:
         with:
           go-version: '^1.20.0'
       - id: changed-files
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: |
             **/*.go
@@ -99,7 +99,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: changed-files
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: |
             go.mod
@@ -134,7 +134,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: changed-files
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         with:
           files: |
             contracts
