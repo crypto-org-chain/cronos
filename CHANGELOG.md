@@ -1,6 +1,6 @@
 # Changelog
 
-*January 1, 2023*
+*January 2, 2023*
 
 ## v1.1.0-rc2
 
