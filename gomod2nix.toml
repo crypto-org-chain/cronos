@@ -139,8 +139,8 @@ schema = 3
     version = "v1.0.0-beta.2"
     hash = "sha256-Am8A44NSxdY77GIEDx1AY+pLU0npeyuTlr3mc4stg3I="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.0-beta2.0.20231221065437-7b1583073ee8"
-    hash = "sha256-YAFoQM1dyjYakxfPHv4QzkyRo7zU98XuCpCDKelTWjc="
+    version = "v0.46.0-beta2.0.20240103063449-c887e863fae2"
+    hash = "sha256-Y8kxYglCrAXNvNey1NWwly0nw3CB3wWleuvEimVEbPs="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
