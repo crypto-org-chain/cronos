@@ -130,6 +130,14 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		if err := app.CronosKeeper.SetParams(ctx, params); err != nil {
 			return m, err
 		}
+
+		feeparams := app.FeeMarketKeeper.GetParams(ctx)
+		feeparams.BaseFeeChangeDenominator = 300
+		feeparams.ElasticityMultiplier = 4
+		feeparams.BaseFee = sdk.NewInt(10000000000000)
+		feeparams.MinGasPrice = sdk.NewDec(10000000000000)
+		app.FeeMarketKeeper.SetParams(ctx, feeparams)
+
 		return m, nil
 	})
 

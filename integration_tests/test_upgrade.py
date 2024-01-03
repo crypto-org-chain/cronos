@@ -175,7 +175,7 @@ def exec(c, tmp_path_factory, testnet=True):
         {
             "to": ADDRS["community"],
             "value": 1000,
-            "maxFeePerGas": 1000000000000,
+            "maxFeePerGas": 10000000000000,
             "maxPriorityFeePerGas": 10000,
         },
     )
