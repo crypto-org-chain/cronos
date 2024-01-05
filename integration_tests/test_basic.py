@@ -743,14 +743,21 @@ def test_failed_transfer_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
-        for h in tx_hashes
+        w3.provider.make_request("debug_traceTransaction", [h.hex()]) for h in tx_hashes
     ]
     for rsp, receipt in zip(rsps, receipts):
-        # FIXME https://github.com/evmos/ethermint/issues/1185
-        # trace transaction always return success for simple transfer tx
-        assert not rsp["failed"]
-        assert receipt.gasUsed == rsp["gas"]
+        if receipt.status == 1:
+            result = rsp["result"]
+            assert not result["failed"]
+            assert receipt.gasUsed == result["gas"]
+        else:
+            assert rsp["error"] == {
+                "code": -32000,
+                "message": (
+                    "rpc error: code = Internal desc = "
+                    "insufficient balance for transfer"
+                ),
+            }
 
 
 def test_log0(cluster):
