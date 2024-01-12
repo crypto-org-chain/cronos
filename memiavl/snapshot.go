@@ -2,6 +2,7 @@ package memiavl
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -24,6 +25,9 @@ const (
 	FileNameLeaves   = "leaves"
 	FileNameKVs      = "kvs"
 	FileNameMetadata = "metadata"
+
+	// check for cancel every 1000 leaves
+	CancelCheckInterval = 1000
 )
 
 // Snapshot manage the lifecycle of mmap-ed files for the snapshot,
@@ -348,8 +352,8 @@ func (snapshot *Snapshot) export(callback func(*ExportNode) bool) {
 }
 
 // WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(snapshotDir string) error {
-	return writeSnapshot(snapshotDir, t.version, func(w *snapshotWriter) (uint32, error) {
+func (t *Tree) WriteSnapshot(ctx context.Context, snapshotDir string) error {
+	return writeSnapshot(ctx, snapshotDir, t.version, func(w *snapshotWriter) (uint32, error) {
 		if t.root == nil {
 			return 0, nil
 		} else {
@@ -362,6 +366,7 @@ func (t *Tree) WriteSnapshot(snapshotDir string) error {
 }
 
 func writeSnapshot(
+	ctx context.Context,
 	dir string, version uint32,
 	doWrite func(*snapshotWriter) (uint32, error),
 ) (returnErr error) {
@@ -407,7 +412,7 @@ func writeSnapshot(
 	leavesWriter := bufio.NewWriter(fpLeaves)
 	kvsWriter := bufio.NewWriter(fpKVs)
 
-	w := newSnapshotWriter(nodesWriter, leavesWriter, kvsWriter)
+	w := newSnapshotWriter(ctx, nodesWriter, leavesWriter, kvsWriter)
 	leaves, err := doWrite(w)
 	if err != nil {
 		return err
@@ -460,6 +465,9 @@ func writeSnapshot(
 }
 
 type snapshotWriter struct {
+	// context for cancel the writing process
+	ctx context.Context
+
 	nodesWriter, leavesWriter, kvWriter io.Writer
 
 	// count how many nodes have been written
@@ -469,8 +477,9 @@ type snapshotWriter struct {
 	kvsOffset uint64
 }
 
-func newSnapshotWriter(nodesWriter, leavesWriter, kvsWriter io.Writer) *snapshotWriter {
+func newSnapshotWriter(ctx context.Context, nodesWriter, leavesWriter, kvsWriter io.Writer) *snapshotWriter {
 	return &snapshotWriter{
+		ctx:          ctx,
 		nodesWriter:  nodesWriter,
 		leavesWriter: leavesWriter,
 		kvWriter:     kvsWriter,
@@ -502,6 +511,14 @@ func (w *snapshotWriter) writeKeyValue(key, value []byte) error {
 }
 
 func (w *snapshotWriter) writeLeaf(version uint32, key, value, hash []byte) error {
+	if w.leafCounter%CancelCheckInterval == 0 {
+		select {
+		case <-w.ctx.Done():
+			return w.ctx.Err()
+		default:
+		}
+	}
+
 	var buf [SizeLeafWithoutHash]byte
 	binary.LittleEndian.PutUint32(buf[OffsetLeafVersion:], version)
 	binary.LittleEndian.PutUint32(buf[OffsetLeafKeyLen:], uint32(len(key)))

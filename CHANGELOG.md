@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#]() memiavl cancel background snapshot rewriting when graceful shutdown.
+
 *January 5, 2024*
 
 ## v1.1.0-rc2

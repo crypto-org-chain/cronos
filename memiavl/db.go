@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -50,6 +51,9 @@ type DB struct {
 
 	// result channel of snapshot rewrite goroutine
 	snapshotRewriteChan chan snapshotResult
+	// context cancel function to cancel the snapshot rewrite goroutine
+	snapshotRewriteCancel context.CancelFunc
+
 	// the number of old snapshots to keep (excluding the latest one)
 	snapshotKeepRecent uint32
 	// block interval to take a new snapshot
@@ -414,6 +418,7 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 	select {
 	case result := <-db.snapshotRewriteChan:
 		db.snapshotRewriteChan = nil
+		db.snapshotRewriteCancel = nil
 
 		if result.mtree == nil {
 			// background snapshot rewrite failed
@@ -628,7 +633,7 @@ func (db *DB) copy(cacheSize int) *DB {
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
-func (db *DB) RewriteSnapshot() error {
+func (db *DB) RewriteSnapshot(ctx context.Context) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -639,7 +644,7 @@ func (db *DB) RewriteSnapshot() error {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + TmpSuffix
 	path := filepath.Join(db.dir, tmpDir)
-	if err := db.MultiTree.WriteSnapshot(path, db.snapshotWriterPool); err != nil {
+	if err := db.MultiTree.WriteSnapshot(ctx, path, db.snapshotWriterPool); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
@@ -707,8 +712,11 @@ func (db *DB) rewriteSnapshotBackground() error {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
+	db.snapshotRewriteCancel = cancel
 
 	cloned := db.copy(0)
 	wal := db.wal
@@ -716,7 +724,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 		defer close(ch)
 
 		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
-		if err := cloned.RewriteSnapshot(); err != nil {
+		if err := cloned.RewriteSnapshot(ctx); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
@@ -746,13 +754,22 @@ func (db *DB) Close() error {
 	defer db.mtx.Unlock()
 
 	errs := []error{
-		db.waitAsyncCommit(), db.MultiTree.Close(), db.wal.Close(),
+		db.waitAsyncCommit(),
+		db.MultiTree.Close(),
+		db.wal.Close(),
 	}
 	db.wal = nil
 
 	if db.fileLock != nil {
 		errs = append(errs, db.fileLock.Unlock())
 		db.fileLock = nil
+	}
+
+	if db.snapshotRewriteChan != nil {
+		db.snapshotRewriteCancel()
+		<-db.snapshotRewriteChan
+		db.snapshotRewriteChan = nil
+		db.snapshotRewriteCancel = nil
 	}
 
 	return errors.Join(errs...)
