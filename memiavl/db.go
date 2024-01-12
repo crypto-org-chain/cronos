@@ -753,23 +753,25 @@ func (db *DB) Close() error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	errs := []error{
-		db.waitAsyncCommit(),
-		db.MultiTree.Close(),
-		db.wal.Close(),
-	}
-	db.wal = nil
-
-	if db.fileLock != nil {
-		errs = append(errs, db.fileLock.Unlock())
-		db.fileLock = nil
-	}
+	errs := []error{db.waitAsyncCommit()}
 
 	if db.snapshotRewriteChan != nil {
 		db.snapshotRewriteCancel()
 		<-db.snapshotRewriteChan
 		db.snapshotRewriteChan = nil
 		db.snapshotRewriteCancel = nil
+	}
+
+	errs = append(errs,
+		db.MultiTree.Close(),
+		db.wal.Close(),
+	)
+
+	db.wal = nil
+
+	if db.fileLock != nil {
+		errs = append(errs, db.fileLock.Unlock())
+		db.fileLock = nil
 	}
 
 	return errors.Join(errs...)
