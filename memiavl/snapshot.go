@@ -351,8 +351,12 @@ func (snapshot *Snapshot) export(callback func(*ExportNode) bool) {
 	}
 }
 
-// WriteSnapshot save the IAVL tree to a new snapshot directory.
-func (t *Tree) WriteSnapshot(ctx context.Context, snapshotDir string) error {
+func (t *Tree) WriteSnapshot(snapshotDir string) error {
+	return t.WriteSnapshotWithContext(context.Background(), snapshotDir)
+}
+
+// WriteSnapshotWithContext save the IAVL tree to a new snapshot directory.
+func (t *Tree) WriteSnapshotWithContext(ctx context.Context, snapshotDir string) error {
 	return writeSnapshot(ctx, snapshotDir, t.version, func(w *snapshotWriter) (uint32, error) {
 		if t.root == nil {
 			return 0, nil

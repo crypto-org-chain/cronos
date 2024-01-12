@@ -633,7 +633,12 @@ func (db *DB) copy(cacheSize int) *DB {
 }
 
 // RewriteSnapshot writes the current version of memiavl into a snapshot, and update the `current` symlink.
-func (db *DB) RewriteSnapshot(ctx context.Context) error {
+func (db *DB) RewriteSnapshot() error {
+	return db.RewriteSnapshotWithContext(context.Background())
+}
+
+// RewriteSnapshotWithContext writes the current version of memiavl into a snapshot, and update the `current` symlink.
+func (db *DB) RewriteSnapshotWithContext(ctx context.Context) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
@@ -644,7 +649,7 @@ func (db *DB) RewriteSnapshot(ctx context.Context) error {
 	snapshotDir := snapshotName(db.lastCommitInfo.Version)
 	tmpDir := snapshotDir + TmpSuffix
 	path := filepath.Join(db.dir, tmpDir)
-	if err := db.MultiTree.WriteSnapshot(ctx, path, db.snapshotWriterPool); err != nil {
+	if err := db.MultiTree.WriteSnapshotWithContext(ctx, path, db.snapshotWriterPool); err != nil {
 		return errors.Join(err, os.RemoveAll(path))
 	}
 	if err := os.Rename(path, filepath.Join(db.dir, snapshotDir)); err != nil {
@@ -724,7 +729,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 		defer close(ch)
 
 		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
-		if err := cloned.RewriteSnapshot(ctx); err != nil {
+		if err := cloned.RewriteSnapshotWithContext(ctx); err != nil {
 			ch <- snapshotResult{err: err}
 			return
 		}
@@ -832,11 +837,16 @@ func (db *DB) UpdateCommitInfo() {
 }
 
 // WriteSnapshot wraps MultiTree.WriteSnapshot to add a lock.
-func (db *DB) WriteSnapshot(dir string) error {
+func (db *DB) WriteSnapshot(ctx context.Context, dir string) error {
+	return db.WriteSnapshotWithContext(ctx, dir)
+}
+
+// WriteSnapshotWithContext wraps MultiTree.WriteSnapshotWithContext to add a lock.
+func (db *DB) WriteSnapshotWithContext(ctx context.Context, dir string) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	return db.MultiTree.WriteSnapshot(dir, db.snapshotWriterPool)
+	return db.MultiTree.WriteSnapshotWithContext(ctx, dir, db.snapshotWriterPool)
 }
 
 func snapshotName(version int64) string {

@@ -357,7 +357,11 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	return nil
 }
 
-func (t *MultiTree) WriteSnapshot(ctx context.Context, dir string, wp *pond.WorkerPool) error {
+func (t *MultiTree) WriteSnapshot(dir string, wp *pond.WorkerPool) error {
+	return t.WriteSnapshotWithContext(context.Background(), dir, wp)
+}
+
+func (t *MultiTree) WriteSnapshotWithContext(ctx context.Context, dir string, wp *pond.WorkerPool) error {
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
 	}
@@ -368,7 +372,7 @@ func (t *MultiTree) WriteSnapshot(ctx context.Context, dir string, wp *pond.Work
 	for _, entry := range t.trees {
 		tree, name := entry.Tree, entry.Name
 		group.Submit(func() error {
-			return tree.WriteSnapshot(ctx, filepath.Join(dir, name))
+			return tree.WriteSnapshotWithContext(ctx, filepath.Join(dir, name))
 		})
 	}
 
