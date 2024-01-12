@@ -837,8 +837,8 @@ func (db *DB) UpdateCommitInfo() {
 }
 
 // WriteSnapshot wraps MultiTree.WriteSnapshot to add a lock.
-func (db *DB) WriteSnapshot(ctx context.Context, dir string) error {
-	return db.WriteSnapshotWithContext(ctx, dir)
+func (db *DB) WriteSnapshot(dir string) error {
+	return db.WriteSnapshotWithContext(context.Background(), dir)
 }
 
 // WriteSnapshotWithContext wraps MultiTree.WriteSnapshotWithContext to add a lock.
