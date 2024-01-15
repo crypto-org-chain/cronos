@@ -2,7 +2,7 @@
 
 ## UNRELEASED
 
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to fix and improve of debug_traceCall.
+- [#1294](https://github.com/crypto-org-chain/cronos/pull/1294) Update ethermint to fix and improve of debug_traceCall.
 
 *January 5, 2024*
 
