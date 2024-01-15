@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to fix and improve of debug_traceCall.
+
 *January 5, 2024*
 
 ## v1.1.0-rc2
