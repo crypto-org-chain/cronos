@@ -44,6 +44,7 @@ jobs:
         with:
           name: cronos
           extraPullNames: dapp
+          installCommand: "nix-env --quiet -j8 -iA cachix -f https://cachix.org/api/v1/install/1.6.1"
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -101,6 +102,7 @@ jobs:
         with:
           name: cronos
           extraPullNames: dapp
+          installCommand: "nix-env --quiet -j8 -iA cachix -f https://cachix.org/api/v1/install/1.6.1"
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
