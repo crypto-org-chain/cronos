@@ -221,11 +221,13 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 	stores := make(map[types.StoreKey]types.CacheWrapper)
 
 	// add the transient/mem stores registered in current app.
+	rs.mtx.RLock()
 	for k, store := range rs.stores {
 		if store.GetStoreType() != types.StoreTypeIAVL {
 			stores[k] = store
 		}
 	}
+	rs.mtx.RUnlock()
 
 	// add all the iavl stores at the target version.
 	for _, tree := range db.Trees() {
