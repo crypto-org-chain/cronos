@@ -116,3 +116,8 @@ def test_base_fee_adjustment(custom_cluster):
         fee = w3.eth.get_block(begin + 1 + i).baseFeePerGas
         assert fee == adjust_base_fee(parent_fee, blk.gasLimit, 0, params)
         parent_fee = fee
+
+    call = w3.provider.make_request
+    res = call("eth_feeHistory", [2, "latest", []])["result"]["baseFeePerGas"]
+    # nextBaseFee should align max with minGasPrice in eth_feeHistory
+    assert all(fee == hex(10000000000000) for fee in res), res

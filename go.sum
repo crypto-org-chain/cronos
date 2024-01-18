@@ -484,8 +484,6 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63 h1:R1
 github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63/go.mod h1:rocwIfnS+kA060x64gkSIRvWB9StSppIkJuo5MWzL24=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20240103063449-c887e863fae2 h1:z3LXxlOuRHfRuS6LpA3t9eSaekHmzsdrrDkaXP8UEeU=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20240103063449-c887e863fae2/go.mod h1:hljXsedSCJYge78hyaMYy+yzDQVGZtKAZBjZn5QMddk=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20240112072747-e2b1d5ed5624 h1:LVzJ+FdwnvyJKYVYjZhywhMa97HtUPsUqjEjy/3x8Pk=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20240112072747-e2b1d5ed5624/go.mod h1:T3Tkhw8XMu8rYObcXpeTqGUaKogS+DKsGPD3ulHN/mg=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e h1:vnyepPQ/m25+19xcTuBUdRxmltZ/EjVWNqEjhg7Ummk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e/go.mod h1:+a8pUj1tOyJ2RinsNQD4326YS+leSoKGiG/uVVb0x6Y=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
@@ -1145,6 +1143,8 @@ github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RR
 github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjUEN1uBnDo34A=
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
+github.com/mmsqe/ethermint v0.6.5-0.20240118012629-2662c0fa52d1 h1:h0HQOGw0QLwewDqWsPFj0ZZbhgW7+3VIbSXp+vFINdU=
+github.com/mmsqe/ethermint v0.6.5-0.20240118012629-2662c0fa52d1/go.mod h1:T3Tkhw8XMu8rYObcXpeTqGUaKogS+DKsGPD3ulHN/mg=
 github.com/moby/sys/mountinfo v0.5.0/go.mod h1:3bMD3Rg+zkqx8MRYPi7Pyb0Ie97QEBmdxbhnCLlSvSU=
 github.com/moby/term v0.0.0-20201216013528-df9cb8a40635/go.mod h1:FBS0z0QWA44HXygs7VXDUOGoN/1TV3RuWkLO04am3wc=
 github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6/go.mod h1:E2VnQOmVuvZB6UYnnDB0qG5Nq/1tD9acaOpo6xmt0Kw=
