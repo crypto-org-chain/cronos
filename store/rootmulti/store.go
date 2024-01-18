@@ -73,9 +73,8 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNon
 func (rs *Store) flush() error {
 	var changeSets []*memiavl.NamedChangeSet
 	rs.mtx.RLock()
-	for key := range rs.stores {
+	for key, store := range rs.stores {
 		// it'll unwrap the inter-block cache
-		store := rs.GetCommitKVStore(key)
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
 			cs := memiavlStore.PopChangeSet()
 			if len(cs.Pairs) > 0 {
