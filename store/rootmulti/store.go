@@ -190,6 +190,7 @@ func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 // Implements interface MultiStore
 func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	stores := make(map[types.StoreKey]types.CacheWrapper)
+	rs.mtx.RLock()
 	for k, v := range rs.stores {
 		store := types.KVStore(v)
 		// Wire the listenkv.Store to allow listeners to observe the writes from the cache store,
@@ -199,6 +200,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 		}
 		stores[k] = store
 	}
+	rs.mtx.RUnlock()
 	return cachemulti.NewStore(nil, stores, rs.keysByName, nil, nil, nil)
 }
 
