@@ -113,12 +113,13 @@ func (rs *Store) Commit() types.CommitID {
 	if err := rs.flush(); err != nil {
 		panic(err)
 	}
-
+	rs.mtx.RLock()
 	for _, store := range rs.stores {
 		if store.GetStoreType() != types.StoreTypeIAVL {
 			_ = store.Commit()
 		}
 	}
+	rs.mtx.RUnlock()
 
 	_, err := rs.db.Commit()
 	if err != nil {
