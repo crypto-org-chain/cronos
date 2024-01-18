@@ -112,10 +112,14 @@ func (rs *Store) Commit() types.CommitID {
 	if err := rs.flush(); err != nil {
 		panic(err)
 	}
+
+	iavlStoreKeys := make([]types.StoreKey, 0)
 	rs.mtx.RLock()
-	for _, store := range rs.stores {
+	for key, store := range rs.stores {
 		if store.GetStoreType() != types.StoreTypeIAVL {
 			_ = store.Commit()
+		} else {
+			iavlStoreKeys = append(iavlStoreKeys, key)
 		}
 	}
 	rs.mtx.RUnlock()
@@ -126,15 +130,12 @@ func (rs *Store) Commit() types.CommitID {
 	}
 
 	// the underlying memiavl tree might be reloaded, reload the store as well.
-	for key := range rs.stores {
-		store := rs.stores[key]
-		if store.GetStoreType() == types.StoreTypeIAVL {
-			rs.mtx.Lock()
-			rs.stores[key], err = rs.loadCommitStoreFromParams(rs.db, key, rs.storesParams[key])
-			rs.mtx.Unlock()
-			if err != nil {
-				panic(fmt.Errorf("inconsistent store map, store %s not found", key.Name()))
-			}
+	for _, key := range iavlStoreKeys {
+		rs.mtx.Lock()
+		rs.stores[key], err = rs.loadCommitStoreFromParams(rs.db, key, rs.storesParams[key])
+		rs.mtx.Unlock()
+		if err != nil {
+			panic(fmt.Errorf("inconsistent store map, store %s not found", key.Name()))
 		}
 	}
 
