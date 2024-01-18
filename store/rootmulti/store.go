@@ -296,6 +296,8 @@ func (rs *Store) GetCommitStore(key types.StoreKey) types.CommitStore {
 
 // Implements interface CommitMultiStore
 func (rs *Store) GetCommitKVStore(key types.StoreKey) types.CommitKVStore {
+	rs.mtx.RLock()
+	defer rs.mtx.RUnlock()
 	return rs.stores[key]
 }
 
