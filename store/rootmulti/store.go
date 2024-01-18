@@ -370,7 +370,9 @@ func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgra
 	}
 
 	rs.db = db
+	rs.mtx.Lock()
 	rs.stores = newStores
+	rs.mtx.Unlock()
 	// to keep the root hash compatible with cosmos-sdk 0.46
 	if db.Version() != 0 {
 		rs.lastCommitInfo = convertCommitInfo(db.LastCommitInfo())
