@@ -72,6 +72,7 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNon
 // flush writes all the pending change sets to memiavl tree.
 func (rs *Store) flush() error {
 	var changeSets []*memiavl.NamedChangeSet
+	rs.mtx.RLock()
 	for key := range rs.stores {
 		// it'll unwrap the inter-block cache
 		store := rs.GetCommitKVStore(key)
@@ -85,6 +86,7 @@ func (rs *Store) flush() error {
 			}
 		}
 	}
+	rs.mtx.RUnlock()
 	sort.SliceStable(changeSets, func(i, j int) bool {
 		return changeSets[i].Name < changeSets[j].Name
 	})
