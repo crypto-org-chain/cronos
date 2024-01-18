@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 
 	"cosmossdk.io/errors"
 	dbm "github.com/cometbft/cometbft-db"
@@ -50,6 +51,7 @@ type Store struct {
 	sdk46Compact bool
 	// it's more efficient to export snapshot versions, we can filter out the non-snapshot versions
 	supportExportNonSnapshotVersion bool
+	mtx                             sync.RWMutex
 }
 
 func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNonSnapshotVersion bool) *Store {
@@ -63,6 +65,7 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNon
 		keysByName:   make(map[string]types.StoreKey),
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		listeners:    make(map[types.StoreKey][]types.WriteListener),
+		mtx:          sync.RWMutex{},
 	}
 }
 
@@ -124,7 +127,9 @@ func (rs *Store) Commit() types.CommitID {
 	for key := range rs.stores {
 		store := rs.stores[key]
 		if store.GetStoreType() == types.StoreTypeIAVL {
+			rs.mtx.Lock()
 			rs.stores[key], err = rs.loadCommitStoreFromParams(rs.db, key, rs.storesParams[key])
+			rs.mtx.Unlock()
 			if err != nil {
 				panic(fmt.Errorf("inconsistent store map, store %s not found", key.Name()))
 			}
@@ -227,11 +232,15 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 
 // Implements interface MultiStore
 func (rs *Store) GetStore(key types.StoreKey) types.Store {
+	rs.mtx.RLock()
+	defer rs.mtx.RUnlock()
 	return rs.stores[key]
 }
 
 // Implements interface MultiStore
 func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
+	rs.mtx.RLock()
+	defer rs.mtx.RUnlock()
 	return rs.stores[key]
 }
 

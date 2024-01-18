@@ -1,5 +1,10 @@
 # Changelog
 
+## UNRELEASED
+
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Avoid concurrent map access in multistore on grpc call.
+
+
 *January 5, 2024*
 
 ## v1.1.0-rc2
