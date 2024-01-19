@@ -120,6 +120,7 @@ import (
 	icaauth "github.com/crypto-org-chain/cronos/v2/x/icaauth"
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
+	"github.com/crypto-org-chain/cronos/versiondb"
 
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
@@ -858,9 +859,10 @@ func New(
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
 	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
 	var qms sdk.MultiStore
+	var vstore versiondb.VersionStore
 	if slices.Contains(streamers, "versiondb") {
 		var err error
-		qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
+		qms, vstore, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
 		if err != nil {
 			panic(err)
 		}
@@ -901,7 +903,15 @@ func New(
 			v1 := qms.LatestVersion()
 			v2 := app.LastBlockHeight()
 			if v1 > 0 && v1 != v2 {
-				tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", v1, v2))
+				if v1 > v2 {
+					err := vstore.SetLatestVersion(v2)
+					if err != nil {
+						errMsg := fmt.Sprintf("failed to set latest version in versiondb to %d: %s", v2, err)
+						panic(errMsg)
+					}
+				} else {
+					tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", v1, v2))
+				}
 			}
 		}
 	}

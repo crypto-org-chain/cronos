@@ -18,14 +18,14 @@ func (app *App) setupVersionDB(
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
 	memKeys map[string]*storetypes.MemoryStoreKey,
-) (sdk.MultiStore, error) {
+) (sdk.MultiStore, versiondb.VersionStore, error) {
 	dataDir := filepath.Join(homePath, "data", "versiondb")
 	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	versionDB, err := tsrocksdb.NewStore(dataDir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// default to exposing all
@@ -42,5 +42,5 @@ func (app *App) setupVersionDB(
 	verDB.MountMemoryStores(memKeys)
 
 	app.SetQueryMultiStore(verDB)
-	return verDB, nil
+	return verDB, versionDB, nil
 }

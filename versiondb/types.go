@@ -13,6 +13,7 @@ type VersionStore interface {
 	IteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error)
 	ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error)
 	GetLatestVersion() (int64, error)
+	SetLatestVersion(version int64) error
 
 	// Persist the change set of a block,
 	// the `changeSet` should be ordered by (storeKey, key),

@@ -8,6 +8,7 @@ import (
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/crypto-org-chain/cronos/versiondb"
 )
 
 func (app *App) setupVersionDB(
@@ -15,6 +16,6 @@ func (app *App) setupVersionDB(
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
 	memKeys map[string]*storetypes.MemoryStoreKey,
-) (sdk.MultiStore, error) {
-	return nil, errors.New("versiondb is not supported in this binary")
+) (sdk.MultiStore, versiondb.VersionStore, error) {
+	return nil, nil, errors.New("versiondb is not supported in this binary")
 }
