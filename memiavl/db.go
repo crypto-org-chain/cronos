@@ -200,14 +200,14 @@ func Load(dir string, opts Options) (*DB, error) {
 
 		if snapshot != currentSnapshot {
 			// downgrade `"current"` link first
-			opts.Logger.Info("downgrade current link to %s", snapshot)
+			opts.Logger.Info("downgrade current link to", "snapshot", snapshot)
 			if err := updateCurrentSymlink(dir, snapshot); err != nil {
 				return nil, fmt.Errorf("fail to update current snapshot link: %w", err)
 			}
 		}
 
 		// truncate the WAL
-		opts.Logger.Info("truncate WAL from back, version: %d", opts.TargetVersion)
+		opts.Logger.Info("truncate WAL from back", "version", opts.TargetVersion)
 		if err := wal.TruncateBack(walIndex(int64(opts.TargetVersion), mtree.initialVersion)); err != nil {
 			return nil, fmt.Errorf("fail to truncate wal logs: %w", err)
 		}
@@ -219,9 +219,9 @@ func Load(dir string, opts Options) (*DB, error) {
 			}
 
 			if err := atomicRemoveDir(filepath.Join(dir, snapshotName(version))); err != nil {
-				opts.Logger.Error("fail to prune snapshot, version: %d", version)
+				opts.Logger.Error("fail to prune snapshot", "version", version)
 			} else {
-				opts.Logger.Info("prune snapshot, version: %d", version)
+				opts.Logger.Info("prune snapshot", "version", version)
 			}
 			return false, nil
 		}); err != nil {
