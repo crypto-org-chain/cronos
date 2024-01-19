@@ -5,7 +5,7 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, send_transaction, wait_for_port
+from .utils import ADDRS, send_transaction, wait_for_new_blocks, wait_for_port
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -92,6 +92,15 @@ def test_versiondb_migration(cronos: Cronos):
             "value": 1000,
         },
     )
+    blk0 = cli0.block_height()
+    print(f"rollback on node0 to trigger match iavl latest version on {blk0}")
+    print(cronos.supervisorctl("stop", "cronos_777-1-node0"))
+    cli0.rollback()
+    print(cronos.supervisorctl("start", "cronos_777-1-node0"))
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+    wait_for_new_blocks(cli0, 1)
+    blk1 = cli0.block_height()
+    assert blk1 > blk0, blk1
 
 
 def patch_app_db_backend(path, backend):
