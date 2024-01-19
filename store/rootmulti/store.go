@@ -65,14 +65,12 @@ func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNon
 		keysByName:   make(map[string]types.StoreKey),
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		listeners:    make(map[types.StoreKey][]types.WriteListener),
-		mtx:          sync.RWMutex{},
 	}
 }
 
 // flush writes all the pending change sets to memiavl tree.
 func (rs *Store) flush() error {
 	var changeSets []*memiavl.NamedChangeSet
-	rs.mtx.RLock()
 	for key, store := range rs.stores {
 		// it'll unwrap the inter-block cache
 		if memiavlStore, ok := store.(*memiavlstore.Store); ok {
@@ -85,7 +83,6 @@ func (rs *Store) flush() error {
 			}
 		}
 	}
-	rs.mtx.RUnlock()
 	sort.SliceStable(changeSets, func(i, j int) bool {
 		return changeSets[i].Name < changeSets[j].Name
 	})
@@ -97,7 +94,10 @@ func (rs *Store) flush() error {
 //
 // Implements interface Committer.
 func (rs *Store) WorkingHash() []byte {
-	if err := rs.flush(); err != nil {
+	rs.mtx.RLock()
+	err := rs.flush()
+	rs.mtx.RUnlock()
+	if err != nil {
 		panic(err)
 	}
 	commitInfo := convertCommitInfo(rs.db.WorkingCommitInfo())
@@ -109,7 +109,10 @@ func (rs *Store) WorkingHash() []byte {
 
 // Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
-	if err := rs.flush(); err != nil {
+	rs.mtx.RLock()
+	err := rs.flush()
+	rs.mtx.RUnlock()
+	if err != nil {
 		panic(err)
 	}
 
@@ -124,7 +127,7 @@ func (rs *Store) Commit() types.CommitID {
 	}
 	rs.mtx.RUnlock()
 
-	_, err := rs.db.Commit()
+	_, err = rs.db.Commit()
 	if err != nil {
 		panic(err)
 	}
