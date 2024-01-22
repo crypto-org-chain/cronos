@@ -5,13 +5,7 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import (
-    ADDRS,
-    derive_new_account,
-    send_transaction,
-    wait_for_new_blocks,
-    wait_for_port,
-)
+from .utils import ADDRS, send_transaction, wait_for_new_blocks, wait_for_port
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -109,34 +103,6 @@ def test_versiondb_migration(cronos: Cronos):
     wait_for_new_blocks(cli0, 1)
     blk1 = cli0.block_height()
     assert blk1 > blk0, blk1
-
-
-def test_versiondb_sync(cronos: Cronos):
-    """
-    test sync versiondb version works when mismatch iavl latest version.
-    """
-    w3 = cronos.w3
-    cli0 = cronos.cosmos_cli(i=0)
-    cli1 = cronos.cosmos_cli(i=1)
-    acc = derive_new_account(2)
-    fund = 3000000000000000000
-    addr = acc.address
-    tx = {"to": addr, "value": fund, "gasPrice": w3.eth.gas_price}
-    res = {}
-    for versiondb in ["", "versiondb"]:
-        print(cronos.supervisorctl("stop", "all"))
-        patch_app_cfg(cli0.data_dir, "store", {"streamers": [versiondb]})
-        if versiondb == "versiondb":
-            lastest = cli0.changeset_latest()
-            changeset_dir = f"{cli0.data_dir}/dump"
-            print(f"dump start block {lastest} to: {changeset_dir}")
-            print(cli1.changeset_dump(changeset_dir, start_version=lastest))
-        print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
-        wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
-        if versiondb == "":
-            res = send_transaction(w3, tx)
-        b0 = w3.eth.get_balance(addr, block_identifier=res.blockNumber)
-        assert b0 == fund, fund
 
 
 def patch_app_cfg(dir, key, value):

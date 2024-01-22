@@ -19,11 +19,3 @@ func (app *App) setupVersionDB(
 ) (sdk.MultiStore, versiondb.VersionStore, error) {
 	return nil, nil, errors.New("versiondb is not supported in this binary")
 }
-
-func (app *App) buildVersionDBSSTFiles(
-	storeKeyNames []string,
-	homePath string,
-	start, end int64,
-) ([]string, error) {
-	return nil, nil
-}

@@ -293,7 +293,6 @@ func StoreKeyNames(skipGravity bool) []string {
 }
 
 func StoreKeys(skipGravity bool) (
-	[]string,
 	map[string]*storetypes.KVStoreKey,
 	map[string]*storetypes.MemoryStoreKey,
 	map[string]*storetypes.TransientStoreKey,
@@ -305,7 +304,7 @@ func StoreKeys(skipGravity bool) (
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
-	return keyNames, keys, memKeys, tkeys
+	return keys, memKeys, tkeys
 }
 
 var (
@@ -406,7 +405,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	storeKeyNames, keys, memKeys, tkeys := StoreKeys(skipGravity)
+	keys, memKeys, tkeys := StoreKeys(skipGravity)
 
 	app := &App{
 		BaseApp:           bApp,
@@ -908,37 +907,17 @@ func New(
 		}
 
 		if qms != nil {
-			versiondbVersion := qms.LatestVersion()
-			iavlVersion := app.LastBlockHeight()
-			if versiondbVersion > 0 && versiondbVersion != iavlVersion {
-				if versiondbVersion < iavlVersion {
-					filePaths, err := app.buildVersionDBSSTFiles(
-						storeKeyNames,
-						homePath,
-						versiondbVersion, iavlVersion,
-					)
+			v1 := qms.LatestVersion()
+			v2 := app.LastBlockHeight()
+			if v1 > 0 && v1 != v2 {
+				if v1 > v2 {
+					err := vstore.SetLatestVersion(v2)
 					if err != nil {
-						panic(err)
+						errMsg := fmt.Sprintf("failed to set latest version in versiondb to %d: %s", v2, err)
+						panic(errMsg)
 					}
-
-					if len(filePaths) > 0 {
-						if err = vstore.IngestExternalFileCF(filePaths); err != nil {
-							panic(err)
-						}
-					}
-				}
-
-				fmt.Println("align latest versiondb version to", iavlVersion)
-				err := vstore.SetLatestVersion(iavlVersion)
-				if err != nil {
-					errMsg := fmt.Sprintf("failed to set latest version in versiondb to %d: %s", iavlVersion, err)
-					panic(errMsg)
-				}
-				// double check
-				versiondbVersion = qms.LatestVersion()
-				iavlVersion = app.LastBlockHeight()
-				if versiondbVersion > 0 && versiondbVersion != iavlVersion {
-					tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", versiondbVersion, iavlVersion))
+				} else {
+					tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", v1, v2))
 				}
 			}
 		}

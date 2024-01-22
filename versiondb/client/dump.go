@@ -33,84 +33,6 @@ const (
 	DefaultMaxCapacity   = 1024
 )
 
-func Exec(
-	db dbm.DB,
-	stores []string,
-	startVersion, endVersion, chunkSize int64,
-	cacheSize, concurrency, zlibLevel int,
-	outDir string,
-) error {
-	// create fixed size task pool with big enough buffer.
-	pool := pond.New(concurrency, DefaultMaxCapacity)
-	defer pool.StopAndWait()
-	// we handle multiple stores sequentially, because different stores don't share much in db, handle concurrently reduces cache efficiency.
-	for _, store := range stores {
-		fmt.Println("begin store", store, time.Now().Format(time.RFC3339))
-
-		// find the first version in the db, reading raw db because no public api for it.
-		prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-		fmt.Println("mm-prefix", fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-		storeStartVersion, err := getNextVersion(dbm.NewPrefixDB(db, prefix), 0)
-		if err != nil {
-			return err
-		}
-		if storeStartVersion == 0 {
-			// store not exists
-			fmt.Println("skip empty store")
-			continue
-		}
-		if startVersion > storeStartVersion {
-			storeStartVersion = startVersion
-		}
-
-		// share the iavl tree between tasks to reuse the node cache
-		iavlTreePool := sync.Pool{
-			New: func() any {
-				// use separate prefixdb and iavl tree in each task to maximize concurrency performance
-				return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true)
-			},
-		}
-
-		// first split work load into chunks
-		var chunks []chunk
-		for i := storeStartVersion; i < endVersion; i += chunkSize {
-			end := i + chunkSize
-			if end > endVersion {
-				end = endVersion
-			}
-
-			var taskFiles []string
-			group, _ := pool.GroupContext(context.Background())
-			// then split each chunk according to number of workers, the results will be concatenated into a single chunk file
-			for _, workRange := range splitWorkLoad(concurrency, Range{Start: i, End: end}) {
-				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-				workRange := workRange
-				taskFile := filepath.Join(outDir, fmt.Sprintf("tmp-%s-%d.snappy", store, workRange.Start))
-				group.Submit(func() error {
-					fmt.Println("mm-store", store)
-					tree := iavlTreePool.Get().(*iavl.ImmutableTree)
-					defer iavlTreePool.Put(tree)
-					return dumpRangeBlocks(taskFile, tree, workRange)
-				})
-
-				taskFiles = append(taskFiles, taskFile)
-			}
-
-			chunks = append(chunks, chunk{
-				store: store, beginVersion: i, taskFiles: taskFiles, taskGroup: group,
-			})
-		}
-
-		// for each chunk, wait for related tasks to finish, and concatenate the result files in order
-		for _, chunk := range chunks {
-			if err := chunk.collect(outDir, zlibLevel); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func DumpChangeSetCmd(opts Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dump outDir",
@@ -173,13 +95,71 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 				fmt.Println("end version not specified, default to latest version + 1,", endVersion)
 			}
 
-			if err := Exec(
-				db, stores,
-				startVersion, endVersion, int64(chunkSize),
-				cacheSize, concurrency, zlibLevel,
-				outDir,
-			); err != nil {
-				return err
+			// create fixed size task pool with big enough buffer.
+			pool := pond.New(concurrency, DefaultMaxCapacity)
+			defer pool.StopAndWait()
+			// we handle multiple stores sequentially, because different stores don't share much in db, handle concurrently reduces cache efficiency.
+			for _, store := range stores {
+				fmt.Println("begin store", store, time.Now().Format(time.RFC3339))
+
+				// find the first version in the db, reading raw db because no public api for it.
+				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
+				storeStartVersion, err := getNextVersion(dbm.NewPrefixDB(db, prefix), 0)
+				if err != nil {
+					return err
+				}
+				if storeStartVersion == 0 {
+					// store not exists
+					fmt.Println("skip empty store")
+					continue
+				}
+				if startVersion > storeStartVersion {
+					storeStartVersion = startVersion
+				}
+
+				// share the iavl tree between tasks to reuse the node cache
+				iavlTreePool := sync.Pool{
+					New: func() any {
+						// use separate prefixdb and iavl tree in each task to maximize concurrency performance
+						return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true)
+					},
+				}
+
+				// first split work load into chunks
+				var chunks []chunk
+				for i := storeStartVersion; i < endVersion; i += int64(chunkSize) {
+					end := i + int64(chunkSize)
+					if end > endVersion {
+						end = endVersion
+					}
+
+					var taskFiles []string
+					group, _ := pool.GroupContext(context.Background())
+					// then split each chunk according to number of workers, the results will be concatenated into a single chunk file
+					for _, workRange := range splitWorkLoad(concurrency, Range{Start: i, End: end}) {
+						// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+						workRange := workRange
+						taskFile := filepath.Join(outDir, fmt.Sprintf("tmp-%s-%d.snappy", store, workRange.Start))
+						group.Submit(func() error {
+							tree := iavlTreePool.Get().(*iavl.ImmutableTree)
+							defer iavlTreePool.Put(tree)
+							return dumpRangeBlocks(taskFile, tree, workRange)
+						})
+
+						taskFiles = append(taskFiles, taskFile)
+					}
+
+					chunks = append(chunks, chunk{
+						store: store, beginVersion: i, taskFiles: taskFiles, taskGroup: group,
+					})
+				}
+
+				// for each chunk, wait for related tasks to finish, and concatenate the result files in order
+				for _, chunk := range chunks {
+					if err := chunk.collect(outDir, zlibLevel); err != nil {
+						return err
+					}
+				}
 			}
 			return nil
 		},

@@ -4,16 +4,12 @@
 package app
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
-	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
@@ -47,54 +43,4 @@ func (app *App) setupVersionDB(
 
 	app.SetQueryMultiStore(verDB)
 	return verDB, versionDB, nil
-}
-
-func waitForFiles(storeKeyNames []string, outDir, file string) error {
-	maxRetries := 10
-	for i := 0; i < maxRetries; i++ {
-		allFoldersContainFiles := true
-		for _, storeKeyName := range storeKeyNames {
-			matches, err := filepath.Glob(filepath.Join(outDir, storeKeyName, file))
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-			if len(matches) == 0 {
-				allFoldersContainFiles = false
-				break
-			}
-		}
-		if allFoldersContainFiles {
-			return nil
-		}
-		time.Sleep(time.Second)
-	}
-	return errors.New("partial dump from store")
-}
-
-func (app *App) buildVersionDBSSTFiles(
-	storeKeyNames []string,
-	homePath string,
-	start, end int64,
-) ([]string, error) {
-	// wait changeset dump
-	outDir := fmt.Sprintf("%s/dump", homePath)
-	file := fmt.Sprintf("block-%d.zz", start)
-	if err := waitForFiles(storeKeyNames, outDir, file); err != nil {
-		return nil, err
-	}
-	// changeset build-versiondb-sst
-	sstDir := fmt.Sprintf("%s/build", homePath)
-	if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
-		return nil, err
-	}
-	concurrency := 1
-	if err := versiondbclient.ConvertSingleStores(
-		storeKeyNames, outDir, sstDir,
-		versiondbclient.DefaultSSTFileSize, versiondbclient.DefaultSorterChunkSize,
-		concurrency,
-	); err != nil {
-		return nil, err
-	}
-
-	return versiondbclient.GetSSTFilePaths(sstDir)
 }

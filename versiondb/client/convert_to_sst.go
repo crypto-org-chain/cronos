@@ -27,28 +27,6 @@ const (
 	SizeKeyLength = 4
 )
 
-func ConvertSingleStores(
-	stores []string,
-	changeSetDir, sstDir string,
-	sstFileSize uint64, sorterChunkSize int64,
-	concurrency int,
-) error {
-	// create fixed size task pool with big enough buffer.
-	pool := pond.New(concurrency, 0)
-	defer pool.StopAndWait()
-
-	group, _ := pool.GroupContext(context.Background())
-	for _, store := range stores {
-		// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-		store := store
-		group.Submit(func() error {
-			return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
-		})
-	}
-
-	return group.Wait()
-}
-
 func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build-versiondb-sst changeSetDir sstDir",
@@ -79,7 +57,20 @@ func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 			if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
 				return err
 			}
-			return ConvertSingleStores(stores, changeSetDir, sstDir, sstFileSize, sorterChunkSize, concurrency)
+			// create fixed size task pool with big enough buffer.
+			pool := pond.New(concurrency, 0)
+			defer pool.StopAndWait()
+
+			group, _ := pool.GroupContext(context.Background())
+			for _, store := range stores {
+				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+				store := store
+				group.Submit(func() error {
+					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
+				})
+			}
+
+			return group.Wait()
 		},
 	}
 
