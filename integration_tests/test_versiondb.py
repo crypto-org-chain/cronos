@@ -113,7 +113,7 @@ def test_versiondb_migration(cronos: Cronos):
 
 def test_versiondb_sync(cronos: Cronos):
     """
-    test sync versiondb version works when older than iavl version.
+    test sync versiondb version works when mismatch iavl latest version.
     """
     w3 = cronos.w3
     cli0 = cronos.cosmos_cli(i=0)

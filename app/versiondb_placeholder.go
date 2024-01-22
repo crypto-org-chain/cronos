@@ -6,12 +6,9 @@ package app
 import (
 	"errors"
 
-	dbm "github.com/cometbft/cometbft-db"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
-	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
-	"github.com/linxGnu/grocksdb"
 )
 
 func (app *App) setupVersionDB(
@@ -23,14 +20,10 @@ func (app *App) setupVersionDB(
 	return nil, nil, errors.New("versiondb is not supported in this binary")
 }
 
-func GetOptions(storeNames []string) versiondbclient.Options {
-	return versiondbclient.Options{
-		DefaultStores: storeNames,
-		OpenReadOnlyDB: func(home string, backend dbm.BackendType) (dbm.DB, error) {
-			return nil, errors.New("versiondb is not supported in this binary")
-		},
-		AppRocksDBOptions: func(sstFileWriter bool) *grocksdb.Options {
-			return nil
-		},
-	}
+func (app *App) buildVersionDBSSTFiles(
+	storeKeyNames []string,
+	dbDir, homePath string,
+	start, end int64,
+) ([]string, error) {
+	return nil, nil
 }

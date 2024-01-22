@@ -25,7 +25,7 @@ func GetSSTFilePaths(folder string) ([]string, error) {
 
 func IngestVersionDBSSTCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "ingest-versiondb-sst versiondb-path [file1.sst file2.sst ...]",
+		Use:   "ingest-versiondb-sst [versiondb-path] [file1.sst file2.sst ...]",
 		Short: "Ingest sst files into versiondb and update the latest version",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,7 +51,6 @@ func IngestVersionDBSSTCmd() *cobra.Command {
 			} else if len(args) > 1 {
 				filePaths = args[1:]
 			}
-			fmt.Println("mm-filePaths", filePaths)
 			ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
 			ingestOpts.SetMoveFiles(moveFiles)
 			if err := db.IngestExternalFileCF(cfHandle, filePaths, ingestOpts); err != nil {
@@ -80,7 +79,7 @@ func IngestVersionDBSSTCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool(flagMoveFiles, false, "move sst files instead of copy them")
-	cmd.Flags().String(flagByFolder, "", "move sst files by folder instead of file")
+	cmd.Flags().String(flagByFolder, "", "ingest sst files by folder instead of files")
 	cmd.Flags().Int64(flagMaximumVersion, 0, "Specify the maximum version covered by the ingested files, if it's bigger than existing recorded latest version, will update it.")
 	return cmd
 }

@@ -1,10 +1,7 @@
 package client
 
 import (
-	"sort"
-
 	dbm "github.com/cometbft/cometbft-db"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 )
@@ -34,13 +31,4 @@ func ChangeSetGroupCmd(opts Options) *cobra.Command {
 		GetLatestVersionCmd(),
 	)
 	return cmd
-}
-
-func GetStoreNames(keys map[string]*storetypes.KVStoreKey) []string {
-	storeNames := make([]string, 0, len(keys))
-	for name := range keys {
-		storeNames = append(storeNames, name)
-	}
-	sort.Strings(storeNames)
-	return storeNames
 }

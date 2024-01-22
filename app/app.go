@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -121,7 +122,6 @@ import (
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
-	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
@@ -267,12 +267,8 @@ func GenModuleBasics() module.BasicManager {
 	return module.NewBasicManager(basicModules...)
 }
 
-func StoreKeys(skipGravity bool) (
-	map[string]*storetypes.KVStoreKey,
-	map[string]*storetypes.MemoryStoreKey,
-	map[string]*storetypes.TransientStoreKey,
-) {
-	storeKeys := []string{
+func StoreKeyNames(skipGravity bool) []string {
+	storeNames := []string{
 		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
@@ -290,15 +286,26 @@ func StoreKeys(skipGravity bool) (
 		cronostypes.StoreKey,
 	}
 	if !skipGravity {
-		storeKeys = append(storeKeys, gravitytypes.StoreKey)
+		storeNames = append(storeNames, gravitytypes.StoreKey)
 	}
-	keys := sdk.NewKVStoreKeys(storeKeys...)
+	sort.Strings(storeNames)
+	return storeNames
+}
+
+func StoreKeys(skipGravity bool) (
+	[]string,
+	map[string]*storetypes.KVStoreKey,
+	map[string]*storetypes.MemoryStoreKey,
+	map[string]*storetypes.TransientStoreKey,
+) {
+	keyNames := StoreKeyNames(skipGravity)
+	keys := sdk.NewKVStoreKeys(keyNames...)
 
 	// Add the EVM transient store key
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
-	return keys, memKeys, tkeys
+	return keyNames, keys, memKeys, tkeys
 }
 
 var (
@@ -399,7 +406,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	keys, memKeys, tkeys := StoreKeys(skipGravity)
+	storeKeyNames, keys, memKeys, tkeys := StoreKeys(skipGravity)
 
 	app := &App{
 		BaseApp:           bApp,
@@ -905,46 +912,20 @@ func New(
 			iavlVersion := app.LastBlockHeight()
 			if versiondbVersion > 0 && versiondbVersion != iavlVersion {
 				if versiondbVersion < iavlVersion {
-					// 1. changeset dump
-					storeNames := versiondbclient.GetStoreNames(keys)
-					opts := GetOptions(storeNames)
-					dir := "/private/tmp/pytest-of-mavis/pytest-0/indexer0/cronos_777-1/node1"
-					outDir := fmt.Sprintf("%s/dump", homePath)
-					db, err := opts.OpenReadOnlyDB(dir, dbm.RocksDBBackend)
+					dbDir := "/private/tmp/pytest-of-mavis/pytest-0/indexer0/cronos_777-1/node1"
+					filePaths, err := app.buildVersionDBSSTFiles(
+						storeKeyNames,
+						dbDir, homePath,
+						versiondbVersion, iavlVersion,
+					)
 					if err != nil {
 						panic(err)
 					}
-					concurrency := 1
-					if err := versiondbclient.Exec(
-						db, storeNames,
-						versiondbVersion, iavlVersion, int64(versiondbclient.DefaultChunkSize),
-						versiondbclient.DefaultIAVLCacheSize, concurrency, versiondbclient.DefaultZlibLevel,
-						outDir,
-					); err != nil {
-						panic(err)
-					}
 
-					// 2. changeset build-versiondb-sst
-					sstDir := fmt.Sprintf("%s/build", homePath)
-					if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
-						panic(err)
-					}
-
-					if err := versiondbclient.ConvertSingleStores(
-						storeNames, outDir, sstDir,
-						versiondbclient.DefaultSSTFileSize, versiondbclient.DefaultSorterChunkSize,
-						concurrency,
-					); err != nil {
-						panic(err)
-					}
-
-					// 3. changeset ingest-versiondb-sst
-					var filePaths []string
-					if filePaths, err = versiondbclient.GetSSTFilePaths(sstDir); err != nil {
-						panic(err)
-					}
-					if err := vstore.IngestExternalFileCF(filePaths); err != nil {
-						panic(err)
+					if len(filePaths) > 0 {
+						if err = vstore.IngestExternalFileCF(filePaths); err != nil {
+							panic(err)
+						}
 					}
 				}
 
