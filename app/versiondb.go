@@ -4,14 +4,14 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
-	dbm "github.com/cometbft/cometbft-db"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
@@ -49,34 +49,45 @@ func (app *App) setupVersionDB(
 	return verDB, versionDB, nil
 }
 
+func waitForFiles(storeKeyNames []string, outDir, file string) error {
+	maxRetries := 10
+	for i := 0; i < maxRetries; i++ {
+		allFoldersContainFiles := true
+		for _, storeKeyName := range storeKeyNames {
+			matches, err := filepath.Glob(filepath.Join(outDir, storeKeyName, file))
+			if err != nil {
+				return err
+			}
+			if len(matches) == 0 {
+				allFoldersContainFiles = false
+				break
+			}
+		}
+		if allFoldersContainFiles {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return errors.New("partial dump from store")
+}
+
 func (app *App) buildVersionDBSSTFiles(
 	storeKeyNames []string,
-	dbDir, homePath string,
+	homePath string,
 	start, end int64,
 ) ([]string, error) {
-	db, err := opendb.OpenReadOnlyDB(dbDir, dbm.RocksDBBackend)
-	if err != nil {
-		return nil, err
-	}
-
-	// changeset dump
+	// wait changeset dump
 	outDir := fmt.Sprintf("%s/dump", homePath)
-	concurrency := 1
-	if err := versiondbclient.Exec(
-		db, storeKeyNames,
-		start, end, int64(versiondbclient.DefaultChunkSize),
-		versiondbclient.DefaultIAVLCacheSize, concurrency, versiondbclient.DefaultZlibLevel,
-		outDir,
-	); err != nil {
+	file := fmt.Sprintf("block-%d.zz", start)
+	if err := waitForFiles(storeKeyNames, outDir, file); err != nil {
 		return nil, err
 	}
-
 	// changeset build-versiondb-sst
 	sstDir := fmt.Sprintf("%s/build", homePath)
 	if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
 		return nil, err
 	}
-
+	concurrency := 1
 	if err := versiondbclient.ConvertSingleStores(
 		storeKeyNames, outDir, sstDir,
 		versiondbclient.DefaultSSTFileSize, versiondbclient.DefaultSorterChunkSize,

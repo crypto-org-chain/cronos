@@ -22,7 +22,7 @@ func (app *App) setupVersionDB(
 
 func (app *App) buildVersionDBSSTFiles(
 	storeKeyNames []string,
-	dbDir, homePath string,
+	homePath string,
 	start, end int64,
 ) ([]string, error) {
 	return nil, nil

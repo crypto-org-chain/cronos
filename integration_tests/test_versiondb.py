@@ -117,6 +117,7 @@ def test_versiondb_sync(cronos: Cronos):
     """
     w3 = cronos.w3
     cli0 = cronos.cosmos_cli(i=0)
+    cli1 = cronos.cosmos_cli(i=1)
     acc = derive_new_account(2)
     fund = 3000000000000000000
     addr = acc.address
@@ -125,6 +126,11 @@ def test_versiondb_sync(cronos: Cronos):
     for versiondb in ["", "versiondb"]:
         print(cronos.supervisorctl("stop", "all"))
         patch_app_cfg(cli0.data_dir, "store", {"streamers": [versiondb]})
+        if versiondb == "versiondb":
+            lastest = cli0.changeset_latest()
+            changeset_dir = f"{cli0.data_dir}/dump"
+            print(f"dump start block {lastest} to: {changeset_dir}")
+            print(cli1.changeset_dump(changeset_dir, start_version=lastest))
         print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
         wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
         if versiondb == "":

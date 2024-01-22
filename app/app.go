@@ -912,10 +912,9 @@ func New(
 			iavlVersion := app.LastBlockHeight()
 			if versiondbVersion > 0 && versiondbVersion != iavlVersion {
 				if versiondbVersion < iavlVersion {
-					dbDir := "/private/tmp/pytest-of-mavis/pytest-0/indexer0/cronos_777-1/node1"
 					filePaths, err := app.buildVersionDBSSTFiles(
 						storeKeyNames,
-						dbDir, homePath,
+						homePath,
 						versiondbVersion, iavlVersion,
 					)
 					if err != nil {
