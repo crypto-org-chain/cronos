@@ -923,6 +923,20 @@ func New(
 					); err != nil {
 						panic(err)
 					}
+
+					// 2. changeset build-versiondb-sst
+					sstDir := fmt.Sprintf("%s/build", homePath)
+					if err := os.MkdirAll(sstDir, os.ModePerm); err != nil {
+						panic(err)
+					}
+
+					if err := versiondbclient.ConvertSingleStores(
+						storeNames, outDir, sstDir,
+						versiondbclient.DefaultSSTFileSize, versiondbclient.DefaultSorterChunkSize,
+						concurrency,
+					); err != nil {
+						panic(err)
+					}
 				}
 
 				fmt.Println("align latest versiondb version to", iavlVersion)
