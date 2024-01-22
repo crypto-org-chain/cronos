@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- [#1292](https://github.com/crypto-org-chain/cronos/pull/1292) memiavl cancel background snapshot rewriting when graceful shutdown.
+
 *January 5, 2024*
 
 ## v1.1.0-rc2
