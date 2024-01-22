@@ -12,6 +12,7 @@ const (
 	flagZlibLevel        = "zlib-level"
 	flagSSTFileSize      = "sst-file-size"
 	flagMoveFiles        = "move-files"
+	flagByFolder         = "by-folder"
 	flagStore            = "store"
 	flagStores           = "stores"
 	flagMaximumVersion   = "maximum-version"

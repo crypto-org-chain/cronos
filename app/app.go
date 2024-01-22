@@ -937,6 +937,15 @@ func New(
 					); err != nil {
 						panic(err)
 					}
+
+					// 3. changeset ingest-versiondb-sst
+					var filePaths []string
+					if filePaths, err = versiondbclient.GetSSTFilePaths(sstDir); err != nil {
+						panic(err)
+					}
+					if err := vstore.IngestExternalFileCF(filePaths); err != nil {
+						panic(err)
+					}
 				}
 
 				fmt.Println("align latest versiondb version to", iavlVersion)

@@ -14,6 +14,7 @@ type VersionStore interface {
 	ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error)
 	GetLatestVersion() (int64, error)
 	SetLatestVersion(version int64) error
+	IngestExternalFileCF(filePaths []string) error
 
 	// Persist the change set of a block,
 	// the `changeSet` should be ordered by (storeKey, key),

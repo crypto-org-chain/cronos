@@ -59,6 +59,11 @@ func (s Store) SetLatestVersion(version int64) error {
 	return s.db.Put(defaultWriteOpts, []byte(latestVersionKey), ts[:])
 }
 
+func (s Store) IngestExternalFileCF(filePaths []string) error {
+	ingestOpts := grocksdb.NewDefaultIngestExternalFileOptions()
+	return s.db.IngestExternalFileCF(s.cfHandle, filePaths, ingestOpts)
+}
+
 // PutAtVersion implements VersionStore interface
 func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error {
 	var ts [TimestampSize]byte
