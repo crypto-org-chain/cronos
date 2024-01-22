@@ -55,7 +55,7 @@ func waitForFiles(storeKeyNames []string, outDir, file string) error {
 		allFoldersContainFiles := true
 		for _, storeKeyName := range storeKeyNames {
 			matches, err := filepath.Glob(filepath.Join(outDir, storeKeyName, file))
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
 			if len(matches) == 0 {

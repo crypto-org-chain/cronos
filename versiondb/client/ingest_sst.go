@@ -15,6 +15,9 @@ func GetSSTFilePaths(folder string) ([]string, error) {
 	extension := ".sst"
 	var filePaths []string
 	err := filepath.Walk(folder, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !info.IsDir() && filepath.Ext(path) == extension {
 			filePaths = append(filePaths, path)
 		}
