@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/spf13/cobra"
 )
 
@@ -32,4 +33,27 @@ func GetStoresOrDefault(cmd *cobra.Command, defaultStores []string) ([]string, e
 		return defaultStores, nil
 	}
 	return strings.Split(stores, " "), nil
+}
+
+func GetLatestVersionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "latest-version [versiondb-path]",
+		Short: "Get latest version in current versiondb version",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dbPath := args[0]
+			db, cfHandle, err := tsrocksdb.OpenVersionDB(dbPath)
+			if err != nil {
+				return err
+			}
+			store := tsrocksdb.NewStoreWithDB(db, cfHandle)
+			version, err := store.GetLatestVersion()
+			if err != nil {
+				return err
+			}
+			cmd.Println(version)
+			return nil
+		},
+	}
+	return cmd
 }

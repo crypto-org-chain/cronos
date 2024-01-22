@@ -28,6 +28,7 @@ func ChangeSetGroupCmd(opts Options) *cobra.Command {
 		ChangeSetToVersionDBCmd(),
 		RestoreAppDBCmd(opts),
 		RestoreVersionDBCmd(),
+		GetLatestVersionCmd(),
 	)
 	return cmd
 }
