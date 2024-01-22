@@ -5,7 +5,13 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, send_transaction, wait_for_new_blocks, wait_for_port
+from .utils import (
+    ADDRS,
+    derive_new_account,
+    send_transaction,
+    wait_for_new_blocks,
+    wait_for_port,
+)
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -67,7 +73,7 @@ def test_versiondb_migration(cronos: Cronos):
     )
 
     # force node1's app-db-backend to be rocksdb
-    patch_app_db_backend(cli1.data_dir / "config/app.toml", "rocksdb")
+    patch_app_cfg(cli1.data_dir, "app-db-backend", "rocksdb")
 
     print("start all nodes")
     print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
@@ -92,6 +98,8 @@ def test_versiondb_migration(cronos: Cronos):
             "value": 1000,
         },
     )
+
+    # check rollback versiondb version works when newer than iavl version
     blk0 = cli0.block_height()
     print(f"rollback on node0 to trigger match iavl latest version on {blk0}")
     print(cronos.supervisorctl("stop", "cronos_777-1-node0"))
@@ -103,7 +111,30 @@ def test_versiondb_migration(cronos: Cronos):
     assert blk1 > blk0, blk1
 
 
-def patch_app_db_backend(path, backend):
+def test_versiondb_sync(cronos: Cronos):
+    """
+    test sync versiondb version works when older than iavl version.
+    """
+    w3 = cronos.w3
+    cli0 = cronos.cosmos_cli(i=0)
+    acc = derive_new_account(2)
+    fund = 3000000000000000000
+    addr = acc.address
+    tx = {"to": addr, "value": fund, "gasPrice": w3.eth.gas_price}
+    res = {}
+    for versiondb in ["", "versiondb"]:
+        print(cronos.supervisorctl("stop", "all"))
+        patch_app_cfg(cli0.data_dir, "store", {"streamers": [versiondb]})
+        print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
+        wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+        if versiondb == "":
+            res = send_transaction(w3, tx)
+        b0 = w3.eth.get_balance(addr, block_identifier=res.blockNumber)
+        assert b0 == fund, fund
+
+
+def patch_app_cfg(dir, key, value):
+    path = dir / "config/app.toml"
     cfg = tomlkit.parse(path.read_text())
-    cfg["app-db-backend"] = backend
+    cfg[key] = value
     path.write_text(tomlkit.dumps(cfg))

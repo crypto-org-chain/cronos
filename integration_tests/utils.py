@@ -391,6 +391,13 @@ def send_transaction(w3, tx, key=KEYS["validator"]):
     return w3.eth.wait_for_transaction_receipt(txhash)
 
 
+def derive_new_account(n=1):
+    # derive a new address
+    account_path = f"m/44'/60'/0'/0/{n}"
+    mnemonic = os.getenv("COMMUNITY_MNEMONIC")
+    return Account.from_mnemonic(mnemonic, account_path=account_path)
+
+
 def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
     "return cronos address from mnemonics"
     acct = Account.from_mnemonic(mnemonics)

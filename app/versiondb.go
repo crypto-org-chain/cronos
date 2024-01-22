@@ -9,8 +9,11 @@ import (
 
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/versiondb"
+	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
+	"github.com/linxGnu/grocksdb"
 )
 
 func (app *App) setupVersionDB(
@@ -43,4 +46,14 @@ func (app *App) setupVersionDB(
 
 	app.SetQueryMultiStore(verDB)
 	return verDB, versionDB, nil
+}
+
+func GetOptions(storeNames []string) versiondbclient.Options {
+	return versiondbclient.Options{
+		DefaultStores:  storeNames,
+		OpenReadOnlyDB: opendb.OpenReadOnlyDB,
+		AppRocksDBOptions: func(sstFileWriter bool) *grocksdb.Options {
+			return opendb.NewRocksdbOptions(nil, sstFileWriter)
+		},
+	}
 }

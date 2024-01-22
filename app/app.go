@@ -121,6 +121,7 @@ import (
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
+	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
 
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
@@ -900,17 +901,41 @@ func New(
 		}
 
 		if qms != nil {
-			v1 := qms.LatestVersion()
-			v2 := app.LastBlockHeight()
-			if v1 > 0 && v1 != v2 {
-				if v1 > v2 {
-					err := vstore.SetLatestVersion(v2)
+			versiondbVersion := qms.LatestVersion()
+			iavlVersion := app.LastBlockHeight()
+			if versiondbVersion > 0 && versiondbVersion != iavlVersion {
+				if versiondbVersion < iavlVersion {
+					// 1. changeset dump
+					storeNames := versiondbclient.GetStoreNames(keys)
+					opts := GetOptions(storeNames)
+					dir := "/private/tmp/pytest-of-mavis/pytest-0/indexer0/cronos_777-1/node1"
+					outDir := fmt.Sprintf("%s/dump", homePath)
+					db, err := opts.OpenReadOnlyDB(dir, dbm.RocksDBBackend)
 					if err != nil {
-						errMsg := fmt.Sprintf("failed to set latest version in versiondb to %d: %s", v2, err)
-						panic(errMsg)
+						panic(err)
 					}
-				} else {
-					tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", v1, v2))
+					concurrency := 1
+					if err := versiondbclient.Exec(
+						db, storeNames,
+						versiondbVersion, iavlVersion, int64(versiondbclient.DefaultChunkSize),
+						versiondbclient.DefaultIAVLCacheSize, concurrency, versiondbclient.DefaultZlibLevel,
+						outDir,
+					); err != nil {
+						panic(err)
+					}
+				}
+
+				fmt.Println("align latest versiondb version to", iavlVersion)
+				err := vstore.SetLatestVersion(iavlVersion)
+				if err != nil {
+					errMsg := fmt.Sprintf("failed to set latest version in versiondb to %d: %s", iavlVersion, err)
+					panic(errMsg)
+				}
+				// double check
+				versiondbVersion = qms.LatestVersion()
+				iavlVersion = app.LastBlockHeight()
+				if versiondbVersion > 0 && versiondbVersion != iavlVersion {
+					tmos.Exit(fmt.Sprintf("versiondb lastest version %d don't match iavl latest version %d", versiondbVersion, iavlVersion))
 				}
 			}
 		}
