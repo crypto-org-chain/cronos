@@ -2,6 +2,7 @@
 
 ## UNRELEASED
 
+- [#1292](https://github.com/crypto-org-chain/cronos/pull/1292) memiavl cancel background snapshot rewriting when graceful shutdown.
 - [#1300](https://github.com/crypto-org-chain/cronos/pull/1300) Align versiondb version after ungraceful shutdown.
 
 *January 5, 2024*
