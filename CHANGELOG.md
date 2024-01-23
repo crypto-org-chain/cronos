@@ -5,6 +5,7 @@
 - [#1292](https://github.com/crypto-org-chain/cronos/pull/1292) memiavl cancel background snapshot rewriting when graceful shutdown.
 - [#1294](https://github.com/crypto-org-chain/cronos/pull/1294) Update ethermint to fix and improve of debug_traceCall and eth_feeHistory.
 - [#1300](https://github.com/crypto-org-chain/cronos/pull/1300) Allow align versiondb version after ungraceful shutdown with set-version.
+- [#1302](https://github.com/crypto-org-chain/cronos/pull/1302) Fix concurrent map access in rootmulti store.
 
 *January 5, 2024*
 
