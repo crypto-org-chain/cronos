@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/crypto-org-chain/cronos/store/rootmulti"
+	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/spf13/cobra"
 )
@@ -92,8 +92,10 @@ func SetVersionCmd() *cobra.Command {
 			}
 			if targetVersion <= 0 {
 				dir := getDataDir(cmd)
-				cms := rootmulti.NewStore(filepath.Join(dir, "memiavl.db"), nil, false, false)
-				targetVersion = cms.LastCommitID().Version
+				targetVersion, err = memiavl.GetLatestVersion(filepath.Join(dir, "memiavl.db"))
+				if err != nil {
+					return err
+				}
 			}
 			cmd.Println(targetVersion)
 			return store.SetLatestVersion(targetVersion)

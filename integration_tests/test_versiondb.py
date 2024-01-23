@@ -129,6 +129,7 @@ def test_versiondb_set(cronos: Cronos):
     patch_app_cfg(cli0.data_dir, "store", {"streamers": ["versiondb"]})
     v0 = cli0.changeset_get_version()
     v1 = cli0.changeset_set_version()
+    assert v1 >= v0, v1
     print(f"gap occurs when skip sync block from {v0} to {v1}")
     print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
     wait_for_port(p0)
