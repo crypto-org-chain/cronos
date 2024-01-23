@@ -1661,10 +1661,17 @@ class CosmosCLI:
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
 
-    def changeset_latest(self, **kwargs):
-        return self.raw(
-            "changeset", "latest-version", f"{self.data_dir}/data/versiondb", **kwargs
+    def changeset_get_version(self, **kwargs):
+        default_kwargs = {"home": self.data_dir}
+        res = self.raw(
+            "changeset", "get-latest-version", **(default_kwargs | kwargs)
         ).decode()
+        return re.sub(r"\n", "", res)
+
+    def changeset_set_version(self, **kwargs):
+        default_kwargs = {"home": self.data_dir}
+        res = self.raw("changeset", "set-version", **(default_kwargs | kwargs)).decode()
+        return re.sub(r"\n", "", res)
 
     def changeset_dump(self, changeset_dir, **kwargs):
         default_kwargs = {

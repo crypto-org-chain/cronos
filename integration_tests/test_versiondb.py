@@ -105,6 +105,37 @@ def test_versiondb_migration(cronos: Cronos):
     assert blk1 > blk0, blk1
 
 
+def test_versiondb_set(cronos: Cronos):
+    """
+    test set versiondb version works when mismatch iavl latest version.
+    """
+    w3 = cronos.w3
+    cli0 = cronos.cosmos_cli(i=0)
+    p0 = ports.evmrpc_port(cronos.base_port(0))
+    community = ADDRS["community"]
+    b0 = w3.eth.get_balance(community)
+    amt = 1000
+    tx = {"to": community, "value": amt, "gasPrice": w3.eth.gas_price}
+
+    print(cronos.supervisorctl("stop", "all"))
+    patch_app_cfg(cli0.data_dir, "store", {"streamers": [""]})
+    print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
+    wait_for_port(p0)
+    res = send_transaction(w3, tx)
+    b1 = w3.eth.get_balance(community, block_identifier=res.blockNumber)
+    assert b1 == b0 + amt, b1
+
+    print(cronos.supervisorctl("stop", "all"))
+    patch_app_cfg(cli0.data_dir, "store", {"streamers": ["versiondb"]})
+    v0 = cli0.changeset_get_version()
+    v1 = cli0.changeset_set_version()
+    print(f"gap occurs when skip sync block from {v0} to {v1}")
+    print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
+    wait_for_port(p0)
+    b2 = w3.eth.get_balance(community, block_identifier=res.blockNumber)
+    assert b2 == b0, b2
+
+
 def patch_app_cfg(dir, key, value):
     path = dir / "config/app.toml"
     cfg = tomlkit.parse(path.read_text())

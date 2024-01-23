@@ -2,8 +2,12 @@ package client
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/spf13/cobra"
 )
@@ -35,18 +39,32 @@ func GetStoresOrDefault(cmd *cobra.Command, defaultStores []string) ([]string, e
 	return strings.Split(stores, " "), nil
 }
 
+func getDataDir(cmd *cobra.Command) string {
+	ctx := server.GetServerContextFromCmd(cmd)
+	home := ctx.Viper.GetString(flags.FlagHome)
+	return filepath.Join(home, "data")
+}
+
+func getStore(cmd *cobra.Command) (*tsrocksdb.Store, error) {
+	dir := getDataDir(cmd)
+	db, cfHandle, err := tsrocksdb.OpenVersionDB(filepath.Join(dir, "versiondb"))
+	if err != nil {
+		return nil, err
+	}
+	store := tsrocksdb.NewStoreWithDB(db, cfHandle)
+	return &store, nil
+}
+
 func GetLatestVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "latest-version [versiondb-path]",
-		Short: "Get latest version in current versiondb version",
-		Args:  cobra.MinimumNArgs(1),
+		Use:   "get-latest-version",
+		Short: "Get latest version of current versiondb",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath := args[0]
-			db, cfHandle, err := tsrocksdb.OpenVersionDB(dbPath)
+			store, err := getStore(cmd)
 			if err != nil {
 				return err
 			}
-			store := tsrocksdb.NewStoreWithDB(db, cfHandle)
 			version, err := store.GetLatestVersion()
 			if err != nil {
 				return err
@@ -55,5 +73,32 @@ func GetLatestVersionCmd() *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+func SetVersionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-version",
+		Short: "Set target version of current versiondb",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := getStore(cmd)
+			if err != nil {
+				return err
+			}
+			targetVersion, err := cmd.Flags().GetInt64(flagTargetVersion)
+			if err != nil {
+				return err
+			}
+			if targetVersion <= 0 {
+				dir := getDataDir(cmd)
+				cms := rootmulti.NewStore(filepath.Join(dir, "memiavl.db"), nil, false, false)
+				targetVersion = cms.LastCommitID().Version
+			}
+			cmd.Println(targetVersion)
+			return store.SetLatestVersion(targetVersion)
+		},
+	}
+	cmd.Flags().Int64(flagTargetVersion, 0, "specify the target version, default to latest iavl version")
 	return cmd
 }
