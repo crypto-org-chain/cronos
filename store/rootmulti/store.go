@@ -120,14 +120,11 @@ func (rs *Store) Commit() types.CommitID {
 		panic(err)
 	}
 
-	// the underlying memiavl tree might be reloaded, reload the store as well.
+	// the underlying memiavl tree might be reloaded, update the tree.
 	for key := range rs.stores {
 		store := rs.stores[key]
 		if store.GetStoreType() == types.StoreTypeIAVL {
-			rs.stores[key], err = rs.loadCommitStoreFromParams(rs.db, key, rs.storesParams[key])
-			if err != nil {
-				panic(fmt.Errorf("inconsistent store map, store %s not found", key.Name()))
-			}
+			store.(*memiavlstore.Store).SetTree(rs.db.TreeByName(key.Name()))
 		}
 	}
 
