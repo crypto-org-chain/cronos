@@ -26,9 +26,14 @@ var (
 
 	_ versiondb.VersionStore = Store{}
 
-	defaultWriteOpts = grocksdb.NewDefaultWriteOptions()
-	defaultReadOpts  = grocksdb.NewDefaultReadOptions()
+	defaultWriteOpts     = grocksdb.NewDefaultWriteOptions()
+	defaultSyncWriteOpts = grocksdb.NewDefaultWriteOptions()
+	defaultReadOpts      = grocksdb.NewDefaultReadOptions()
 )
+
+func init() {
+	defaultSyncWriteOpts.SetSync(true)
+}
 
 type Store struct {
 	db       *grocksdb.DB
@@ -77,7 +82,7 @@ func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error 
 		}
 	}
 
-	return s.db.Write(defaultWriteOpts, batch)
+	return s.db.Write(defaultSyncWriteOpts, batch)
 }
 
 func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*grocksdb.Slice, error) {
