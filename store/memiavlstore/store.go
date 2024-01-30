@@ -39,6 +39,10 @@ func New(tree *memiavl.Tree, logger log.Logger) *Store {
 	return &Store{tree: tree, logger: logger}
 }
 
+func (st *Store) SetTree(tree *memiavl.Tree) {
+	st.tree = tree
+}
+
 func (st *Store) Commit() types.CommitID {
 	panic("memiavl store is not supposed to be committed alone")
 }
