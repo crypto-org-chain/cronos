@@ -15,7 +15,7 @@ func (i IbcKeeperMock) Transfer(goCtx context.Context, msg *types.MsgTransfer) (
 }
 
 func (i IbcKeeperMock) GetDenomTrace(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.DenomTrace, bool) {
-	if denomTraceHash.String() == "6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865" { //nolint:gosec // test only
+	if denomTraceHash.String() == "6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865" {
 		return types.DenomTrace{
 			Path:      "transfer/channel-0",
 			BaseDenom: "basetcro",
