@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 - [#1298](https://github.com/crypto-org-chain/cronos/pull/1298) Update cosmos-sdk to latest `v0.46.x`.
+- [#1307](https://github.com/crypto-org-chain/cronos/pull/1307) Include fasten memiavl restore and versiondb version mismatch related fixes from submodules.
 
 *Jan 05, 2024*
 
