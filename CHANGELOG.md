@@ -13,6 +13,7 @@
 ### Improvements
 
 - [#1291](https://github.com/crypto-org-chain/cronos/pull/1291) Update ibc-go to v7.3.2.
+- [#1309](https://github.com/crypto-org-chain/cronos/pull/1309) Add missing destroy for file lock and close map on error.
 
 *January 5, 2024*
 
