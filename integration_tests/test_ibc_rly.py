@@ -7,6 +7,7 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     RATIO,
+    assert_duplicate,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
     get_balance,
@@ -189,6 +190,9 @@ def test_ibc(ibc):
         *send_from_module_to_acc(cronos_addr, cronos_signer2, dst_amount, dst_denom),
         write_ack(relayer0, cronos_signer2, src_amount, src_denom),
     ]
+    assert len(logs) == len(expected)
+    height = logs[0]["blockNumber"]
+    assert_duplicate(ibc.cronos.base_port(0), height)
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
@@ -264,6 +268,8 @@ def test_cronos_transfer_source_tokens(ibc):
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
     assert len(logs) == len(expected)
+    height = logs[0]["blockNumber"]
+    assert_duplicate(ibc.cronos.base_port(0), height)
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
@@ -280,6 +286,8 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
     assert len(logs) == len(expected)
+    height = logs[0]["blockNumber"]
+    assert_duplicate(ibc.cronos.base_port(0), height)
     for i, log in enumerate(logs):
         method_name, args = get_topic_data(w3, method_map, contract_info, log)
         assert args == AttributeDict(expected[i]), [i, method_name]
