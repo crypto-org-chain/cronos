@@ -6,6 +6,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import NamedTuple
 
+import requests
 from pystarport import cluster, ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
@@ -253,6 +254,20 @@ def rly_transfer(ibc):
         f"--home {str(path)}"
     )
     subprocess.run(cmd, check=True, shell=True)
+
+
+def assert_duplicate(base_port, height):
+    port = ports.rpc_port(base_port)
+    url = f"http://127.0.0.1:{port}/block_results?height={height}"
+    res = requests.get(url).json().get("result")
+    events = res["txs_results"][0]["events"]
+    values = set()
+    for event in events:
+        if event["type"] == "message":
+            continue
+        str = json.dumps(event)
+        assert str not in values, f"dup event find: {str}"
+        values.add(str)
 
 
 def find_duplicate(attributes):
