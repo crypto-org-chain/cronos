@@ -775,7 +775,7 @@ func (db *DB) Close() error {
 	db.wal = nil
 
 	if db.fileLock != nil {
-		errs = append(errs, db.fileLock.Unlock())
+		errs = append(errs, db.fileLock.Unlock(), db.fileLock.Destroy())
 		db.fileLock = nil
 	}
 

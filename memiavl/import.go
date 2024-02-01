@@ -93,7 +93,7 @@ func (mti *MultiTreeImporter) Close() error {
 	if mti.importer != nil {
 		err = mti.importer.Close()
 	}
-	return errors.Join(err, mti.fileLock.Unlock())
+	return errors.Join(err, mti.fileLock.Unlock(), mti.fileLock.Destroy())
 }
 
 // TreeImporter import a single memiavl tree from state-sync snapshot

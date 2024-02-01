@@ -60,7 +60,7 @@ func NewEmptySnapshot(version uint32) *Snapshot {
 
 // OpenSnapshot parse the version number and the root node index from metadata file,
 // and mmap the other files.
-func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
+func OpenSnapshot(snapshotDir string) (snapshot *Snapshot, err error) {
 	// read metadata file
 	bz, err := os.ReadFile(filepath.Join(snapshotDir, FileNameMetadata))
 	if err != nil {
@@ -81,28 +81,30 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 	version := binary.LittleEndian.Uint32(bz[8:])
 
 	var nodesMap, leavesMap, kvsMap *MmapFile
-	cleanupHandles := func(err error) error {
-		errs := []error{err}
-		if nodesMap != nil {
-			errs = append(errs, nodesMap.Close())
+	defer func() {
+		if err != nil {
+			errs := []error{err}
+			if nodesMap != nil {
+				errs = append(errs, nodesMap.Close())
+			}
+			if leavesMap != nil {
+				errs = append(errs, leavesMap.Close())
+			}
+			if kvsMap != nil {
+				errs = append(errs, kvsMap.Close())
+			}
+			err = errors.Join(errs...)
 		}
-		if leavesMap != nil {
-			errs = append(errs, leavesMap.Close())
-		}
-		if kvsMap != nil {
-			errs = append(errs, kvsMap.Close())
-		}
-		return errors.Join(errs...)
-	}
+	}()
 
 	if nodesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameNodes)); err != nil {
-		return nil, cleanupHandles(err)
+		return nil, err
 	}
 	if leavesMap, err = NewMmap(filepath.Join(snapshotDir, FileNameLeaves)); err != nil {
-		return nil, cleanupHandles(err)
+		return nil, err
 	}
 	if kvsMap, err = NewMmap(filepath.Join(snapshotDir, FileNameKVs)); err != nil {
-		return nil, cleanupHandles(err)
+		return nil, err
 	}
 
 	nodes := nodesMap.Data()
@@ -111,22 +113,16 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 
 	// validate nodes length
 	if len(nodes)%SizeNode != 0 {
-		return nil, cleanupHandles(
-			fmt.Errorf("corrupted snapshot, nodes file size %d is not a multiple of %d", len(nodes), SizeNode),
-		)
+		return nil, fmt.Errorf("corrupted snapshot, nodes file size %d is not a multiple of %d", len(nodes), SizeNode)
 	}
 	if len(leaves)%SizeLeaf != 0 {
-		return nil, cleanupHandles(
-			fmt.Errorf("corrupted snapshot, leaves file size %d is not a multiple of %d", len(leaves), SizeLeaf),
-		)
+		return nil, fmt.Errorf("corrupted snapshot, leaves file size %d is not a multiple of %d", len(leaves), SizeLeaf)
 	}
 
 	nodesLen := len(nodes) / SizeNode
 	leavesLen := len(leaves) / SizeLeaf
 	if (leavesLen > 0 && nodesLen+1 != leavesLen) || (leavesLen == 0 && nodesLen != 0) {
-		return nil, cleanupHandles(
-			fmt.Errorf("corrupted snapshot, branch nodes size %d don't match leaves size %d", nodesLen, leavesLen),
-		)
+		return nil, fmt.Errorf("corrupted snapshot, branch nodes size %d don't match leaves size %d", nodesLen, leavesLen)
 	}
 
 	nodesData, err := NewNodes(nodes)
@@ -139,7 +135,7 @@ func OpenSnapshot(snapshotDir string) (*Snapshot, error) {
 		return nil, err
 	}
 
-	snapshot := &Snapshot{
+	snapshot = &Snapshot{
 		nodesMap:  nodesMap,
 		leavesMap: leavesMap,
 		kvsMap:    kvsMap,
