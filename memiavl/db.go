@@ -223,7 +223,7 @@ func Load(dir string, opts Options) (*DB, error) {
 			}
 
 			if err := atomicRemoveDir(filepath.Join(dir, snapshotName(version))); err != nil {
-				opts.Logger.Error("fail to prune snapshot", "version", version)
+				opts.Logger.Error("fail to prune snapshot", "version", version, "err", err)
 			} else {
 				opts.Logger.Info("prune snapshot", "version", version)
 			}
