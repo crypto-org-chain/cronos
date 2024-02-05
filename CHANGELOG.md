@@ -11,6 +11,7 @@
 - [#1302](https://github.com/crypto-org-chain/cronos/pull/1302) Fix concurrent map access in rootmulti store.
 - [#1304](https://github.com/crypto-org-chain/cronos/pull/1304) Write versiondb with fsync, and relax the version requirement on startup.
 - [#1308](https://github.com/crypto-org-chain/cronos/pull/1308) Update ethermint to fix duplicate cache events emitted from evm hooks and wrong priority tx.
+- [#1311](https://github.com/crypto-org-chain/cronos/pull/1311) Add missing version in memiavl log.
 
 ### Improvements
 
