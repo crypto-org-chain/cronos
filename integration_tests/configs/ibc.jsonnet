@@ -155,6 +155,9 @@ config {
           price: 10000000000000000,
           denom: 'basetcro',
         },
+        event_source: {
+          batch_delay: '5000ms',
+        },
         extension_options: [{
           type: 'ethermint_dynamic_fee',
           value: '1000000',
@@ -166,6 +169,9 @@ config {
         gas_price: {
           price: 1000000,
           denom: 'basecro',
+        },
+        event_source: {
+          batch_delay: '5000ms',
         },
       },
     ],
