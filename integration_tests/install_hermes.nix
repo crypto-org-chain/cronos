@@ -10,7 +10,7 @@ let
     x86_64-darwin = {
       url =
         "https://github.com/informalsystems/hermes/releases/download/${version}/hermes-${version}-x86_64-apple-darwin.tar.gz";
-      sha256 = "0000000000000000000000000000000000000000000000000000";
+      sha256 = "sha256-Z1LGmM3PCJFyESqmbkf1rT4ORqtc1JIVzLqb22o8fZ8=";
     };
     aarch64-darwin = {
       url =
