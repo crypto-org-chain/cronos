@@ -13,6 +13,7 @@ import sources.nixpkgs {
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
     }) # update to a version that supports eip-1559
+    (import "${sources.poetry2nix}/overlay.nix")
     (import "${sources.gomod2nix}/overlay.nix")
     (pkgs: _:
       import ./scripts.nix {
@@ -43,11 +44,11 @@ import sources.nixpkgs {
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: {
-      cosmovisor = pkgs.buildGo118Module rec {
+      cosmovisor = pkgs.buildGo120Module rec {
         name = "cosmovisor";
         src = sources.cosmos-sdk + "/cosmovisor";
         subPackages = [ "./cmd/cosmovisor" ];
-        vendorSha256 = "sha256-OAXWrwpartjgSP7oeNvDJ7cTR9lyYVNhEM8HUnv3acE=";
+        vendorHash = "sha256-OAXWrwpartjgSP7oeNvDJ7cTR9lyYVNhEM8HUnv3acE=";
         doCheck = false;
       };
     })
@@ -56,7 +57,7 @@ import sources.nixpkgs {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorSha256 = "sha256-5s5URiAZk59mOfZdUcqYAB/IvzFuBiQH5jDBuh6huTE=";
+        vendorHash = "sha256-5s5URiAZk59mOfZdUcqYAB/IvzFuBiQH5jDBuh6huTE=";
         doCheck = false;
         GOWORK = "off";
         postInstall = ''

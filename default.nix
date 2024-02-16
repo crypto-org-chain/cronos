@@ -43,13 +43,14 @@ buildGoApplication rec {
   subPackages = [ "cmd/cronosd" ];
   buildFlags = lib.optionalString coverage "-cover";
   CGO_ENABLED = "1";
-  CGO_LDFLAGS =
+  CGO_LDFLAGS = lib.optionalString (rocksdb != null) (
     if static then "-lrocksdb -pthread -lstdc++ -ldl -lzstd -lsnappy -llz4 -lbz2 -lz"
     else if stdenv.hostPlatform.isWindows then "-lrocksdb-shared"
-    else "-lrocksdb -pthread -lstdc++ -ldl";
+    else "-lrocksdb -pthread -lstdc++ -ldl"
+  );
 
-  postFixup = lib.optionalString stdenv.isDarwin ''
-    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.8.dylib" "${rocksdb}/lib/librocksdb.dylib" $out/bin/cronosd
+  postFixup = lib.optionalString (stdenv.isDarwin && rocksdb != null) ''
+    ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.8.dylib" "${rocksdb}/lib/librocksdb.dylib" $out/bin/cronosd
   '';
 
   doCheck = false;

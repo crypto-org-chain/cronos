@@ -17,7 +17,7 @@ concurrency:
 jobs:
   golangci:
     name: Run golangci-lint
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 40
     steps:
       - uses: actions/setup-go@v3

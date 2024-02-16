@@ -10,7 +10,6 @@ pkgs.mkShell {
     (pkgs.callPackage ../. { coverage = true; }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
-    pkgs.gorc
     pkgs.cosmovisor
     pkgs.poetry
     pkgs.nodejs

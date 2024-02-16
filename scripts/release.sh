@@ -39,6 +39,8 @@ elif [[ "$build_platform" == "aarch64-linux" ]]; then
 elif [[ "$build_platform" == "x86_64-darwin" ]]; then
     hosts="Darwin_x86_64,native"
 elif [[ "$build_platform" == "aarch64-darwin" ]]; then
+    # cross compiling to x86_64-darwin from aarch64-darwin is not supported
+    # see: https://github.com/NixOS/nixpkgs/issues/180771
     hosts="Darwin_arm64,native"
 else
     echo "don't support build platform: $build_platform" 
