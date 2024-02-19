@@ -25,6 +25,7 @@ from .utils import (
     get_method_map,
     get_topic_data,
     module_address,
+    parse_events_rpc,
     wait_for_fn,
     wait_for_new_blocks,
 )
@@ -106,20 +107,26 @@ def burn(burner, amt, denom):
     }
 
 
-def recv_packet(src, dst, amt, denom):
+def recv_packet(seq, src, dst, amt, denom):
     return {
+        "packetSequence": keccak(text=f"{seq}"),
+        "packetSrcPort": keccak(text="transfer"),
+        "packetSrcChannel": keccak(text=channel),
+        "packetDstPort": "transfer",
+        "packetDstChannel": channel,
+        "connectionId": "connection-0",
         "packetDataHex": (dst, src, [(amt, denom)]),
     }
 
 
-def acknowledge_packet():
+def acknowledge_packet(seq):
     return {
+        "packetSequence": keccak(text=f"{seq}"),
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
-        "packetDstPort": keccak(text="transfer"),
+        "packetDstPort": "transfer",
         "packetDstChannel": channel,
-        "packetChannelOrdering": "ORDER_UNORDERED",
-        "packetConnection": "connection-0",
+        "connectionId": "connection-0",
     }
 
 
@@ -129,9 +136,14 @@ def denom_trace(denom):
     }
 
 
-def write_ack(src, dst, amt, denom):
+def write_ack(seq, src, dst, amt, denom):
     return {
-        "packetConnection": "connection-0",
+        "packetSequence": keccak(text=f"{seq}"),
+        "packetSrcPort": keccak(text="transfer"),
+        "packetSrcChannel": keccak(text=channel),
+        "packetDstPort": "transfer",
+        "packetDstChannel": channel,
+        "connectionId": "connection-0",
         "packetDataHex": (dst, src, [(amt, denom)]),
     }
 
@@ -158,6 +170,23 @@ def send_from_acc_to_module(src, dst, amt, denom):
     ]
 
 
+def get_send_packet_seq(
+    cli,
+    criteria="message.action='/ibc.applications.transfer.v1.MsgTransfer'",
+):
+    txs = cli.tx_search_rpc(
+        criteria,
+        order="desc",
+    )
+    for tx in txs:
+        res = tx["tx_result"]
+        events = parse_events_rpc(res["events"])
+        target = events.get("send_packet")
+        if target and target["packet_sequence"]:
+            return target["packet_sequence"]
+    return None
+
+
 def test_ibc(ibc):
     # chainmain-1 relayer -> cronos_777-1 signer2
     w3 = ibc.cronos.w3
@@ -177,18 +206,20 @@ def test_ibc(ibc):
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
     logs = get_logs_since(w3, CONTRACT, start)
-    relayer0 = ibc.chainmain.cosmos_cli().address("relayer")
+    chainmain_cli = ibc.chainmain.cosmos_cli()
+    relayer0 = chainmain_cli.address("relayer")
     relayer = to_checksum_address(bech32_to_eth(relayer0))
     cronos_addr = module_address("cronos")
     transfer_addr = module_address("transfer")
+    seq = get_send_packet_seq(chainmain_cli)
     expected = [
-        recv_packet(relayer0, cronos_signer2, src_amount, src_denom),
+        recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom),
         denom_trace(denom),
         *send_from_module_to_acc(transfer_addr, cronos_signer2, src_amount, denom),
         fungible(cronos_signer2, relayer, src_amount, src_denom),
         *send_from_acc_to_module(cronos_signer2, cronos_addr, src_amount, denom),
         *send_from_module_to_acc(cronos_addr, cronos_signer2, dst_amount, dst_denom),
-        write_ack(relayer0, cronos_signer2, src_amount, src_denom),
+        write_ack(seq, relayer0, cronos_signer2, src_amount, src_denom),
     ]
     assert len(logs) == len(expected)
     height = logs[0]["blockNumber"]
@@ -209,7 +240,7 @@ def test_ibc_incentivized_transfer(ibc):
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
     start = w3.eth.get_block_number()
-    amount = ibc_incentivized_transfer(ibc)
+    amount, seq = ibc_incentivized_transfer(ibc)
     logs = get_logs_since(w3, CONTRACT, start)
     fee_denom = "ibcfee"
     fee = f"{src_amount}{fee_denom}"
@@ -219,8 +250,9 @@ def test_ibc_incentivized_transfer(ibc):
     checksum_dst_adr = to_checksum_address(bech32_to_eth(dst_adr))
     feeibc_addr = module_address("feeibc")
     escrow = get_escrow_address(cli, channel)
+    chainmain_seq = get_send_packet_seq(ibc.chainmain.cosmos_cli())
     expected = [
-        acknowledge_packet(),
+        acknowledge_packet(seq),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
         distribute_fee(src_relayer, fee),
@@ -228,10 +260,10 @@ def test_ibc_incentivized_transfer(ibc):
         distribute_fee(cronos_signer2, fee),
         *send_coins(feeibc_addr, cronos_signer2, src_amount, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
-        recv_packet(dst_adr, cronos_signer2, amount, transfer_denom),
+        recv_packet(chainmain_seq, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, dst_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
-        write_ack(dst_adr, cronos_signer2, amount, transfer_denom),
+        write_ack(chainmain_seq, dst_adr, cronos_signer2, amount, transfer_denom),
     ]
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
@@ -239,55 +271,46 @@ def test_ibc_incentivized_transfer(ibc):
         assert args == AttributeDict(expected[i]), [i, method_name]
 
 
-def get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow):
+def assert_transfer_source_tokens_topics(ibc, fn):
+    cli = ibc.cronos.cosmos_cli()
+    wait_for_new_blocks(cli, 1)
+    w3 = ibc.cronos.w3
+    start = w3.eth.get_block_number()
+    amount, contract = fn(ibc)
+    logs = get_logs_since(w3, CONTRACT, start)
+    escrow = get_escrow_address(cli, channel)
+    dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
+    seq0 = get_send_packet_seq(
+        ibc.cronos.cosmos_cli(),
+        criteria="message.action='/ethermint.evm.v1.MsgEthereumTx'",
+    )
+    seq1 = get_send_packet_seq(ibc.chainmain.cosmos_cli())
     checksum_dst_adr = to_checksum_address(bech32_to_eth(dst_adr))
     cronos_addr = module_address("cronos")
     cronos_denom = f"cronos{contract}"
     transfer_cronos_denom = f"transfer/{channel}/{cronos_denom}"
-    return [
-        acknowledge_packet(),
+    expected = [
+        acknowledge_packet(seq0),
         fungible(checksum_dst_adr, ADDRS["validator"], amount, cronos_denom),
-        recv_packet(dst_adr, cronos_signer2, amount, transfer_cronos_denom),
+        recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_cronos_denom),
         *send_coins(escrow, cronos_signer2, amount, cronos_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_cronos_denom),
         *send_coins(cronos_signer2, cronos_addr, amount, cronos_denom),
         coin_spent(cronos_addr, amount, cronos_denom),
         burn(cronos_addr, amount, cronos_denom),
-        write_ack(dst_adr, cronos_signer2, amount, transfer_cronos_denom),
+        write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_cronos_denom),
     ]
+    assert len(logs) == len(expected)
+    height = logs[0]["blockNumber"]
+    assert_duplicate(ibc.cronos.base_port(0), height)
+    for i, log in enumerate(logs):
+        method_name, args = get_topic_data(w3, method_map, contract_info, log)
+        assert args == AttributeDict(expected[i]), [i, method_name]
 
 
 def test_cronos_transfer_source_tokens(ibc):
-    cli = ibc.cronos.cosmos_cli()
-    wait_for_new_blocks(cli, 1)
-    w3 = ibc.cronos.w3
-    start = w3.eth.get_block_number()
-    amount, contract = cronos_transfer_source_tokens(ibc)
-    logs = get_logs_since(w3, CONTRACT, start)
-    escrow = get_escrow_address(cli, channel)
-    dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
-    expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
-    assert len(logs) == len(expected)
-    height = logs[0]["blockNumber"]
-    assert_duplicate(ibc.cronos.base_port(0), height)
-    for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
+    assert_transfer_source_tokens_topics(ibc, cronos_transfer_source_tokens)
 
 
 def test_cronos_transfer_source_tokens_with_proxy(ibc):
-    cli = ibc.cronos.cosmos_cli()
-    wait_for_new_blocks(cli, 1)
-    w3 = ibc.cronos.w3
-    start = w3.eth.get_block_number()
-    amount, contract = cronos_transfer_source_tokens_with_proxy(ibc)
-    logs = get_logs_since(w3, CONTRACT, start)
-    escrow = get_escrow_address(cli, channel)
-    dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
-    expected = get_transfer_source_tokens_topics(dst_adr, amount, contract, escrow)
-    assert len(logs) == len(expected)
-    height = logs[0]["blockNumber"]
-    assert_duplicate(ibc.cronos.base_port(0), height)
-    for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
+    assert_transfer_source_tokens_topics(ibc, cronos_transfer_source_tokens_with_proxy)
