@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: '^1.20.0'
+          go-version: '^1.22.0'
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v23
         with:
@@ -38,7 +38,7 @@ jobs:
             *.sum
       - name: run golangci-lint
         run: |
-          nix profile install nixpkgs#golangci-lint
+          nix profile install -f ./nix golangci-lint
           nix profile install -f ./nix rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
