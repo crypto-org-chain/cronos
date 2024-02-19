@@ -23,11 +23,12 @@ interface IRelayerModule {
         string connectionId
     );
     event TimeoutPacket(
+        string indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
-        string indexed packetDstPort,
+        string packetDstPort,
         string packetDstChannel,
-        string packetChannelOrdering
+        string connectionId
     );
     // IBC transfer
     event Timeout(
