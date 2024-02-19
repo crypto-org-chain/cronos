@@ -11,7 +11,12 @@ interface IRelayerModule {
     }
     event RecvPacket(PacketData packetDataHex);
     event WriteAcknowledgement(
-        string packetConnection,
+        string indexed packetSequence,
+        string indexed packetSrcPort,
+        string indexed packetSrcChannel,
+        string packetDstPort,
+        string packetDstChannel,
+        string connectionId,
         PacketData packetDataHex
     );
     event AcknowledgePacket(
