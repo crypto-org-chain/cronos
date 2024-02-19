@@ -36,6 +36,7 @@ CONTRACT = "0x0000000000000000000000000000000000000065"
 contract_info = json.loads(CONTRACT_ABIS["IRelayerModule"].read_text())
 method_map = get_method_map(contract_info)
 method_name_map = get_method_map(contract_info, by_name=True)
+method_with_seq = ["RecvPacket", "WriteAcknowledgement", "AcknowledgePacket"]
 cronos_signer2 = ADDRS["signer2"]
 src_amount = 10
 src_denom = "basecro"
@@ -225,31 +226,26 @@ def test_ibc(ibc):
     cronos_addr = module_address("cronos")
     transfer_addr = module_address("transfer")
     seq = get_send_packet_seq(chainmain_cli)
-    # filter RecvPacket by seq
-    logs0 = filter_logs_since(w3, start, "RecvPacket", seq)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs0)
-    recv_topic = recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom)
-    assert topic == AttributeDict(recv_topic), method_name
-    # filter WriteAcknowledgement by seq
-    logs1 = filter_logs_since(w3, start, "WriteAcknowledgement", seq)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs1)
-    write_ack_topic = write_ack(seq, relayer0, cronos_signer2, src_amount, src_denom)
-    assert topic == AttributeDict(write_ack_topic), method_name
     expected = [
-        recv_topic,
+        recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom),
         denom_trace(denom),
         *send_from_module_to_acc(transfer_addr, cronos_signer2, src_amount, denom),
         fungible(cronos_signer2, relayer, src_amount, src_denom),
         *send_from_acc_to_module(cronos_signer2, cronos_addr, src_amount, denom),
         *send_from_module_to_acc(cronos_addr, cronos_signer2, dst_amount, dst_denom),
-        write_ack_topic,
+        write_ack(seq, relayer0, cronos_signer2, src_amount, src_denom),
     ]
     assert len(logs) == len(expected)
     height = logs[0]["blockNumber"]
     assert_duplicate(ibc.cronos.base_port(0), height)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
+        method_name, topic = get_topic_data(w3, method_map, contract_info, log)
+        assert topic == AttributeDict(expected[i]), [i, method_name]
+        # test filter by seq
+        if method_name in method_with_seq:
+            flogs = filter_logs_since(w3, start, method_name, seq)[0]
+            _, ftopic = get_topic_data(w3, method_map, contract_info, flogs)
+            assert ftopic == topic, method_name
 
 
 def get_escrow_address(cli, channel):
@@ -274,23 +270,8 @@ def test_ibc_incentivized_transfer(ibc):
     feeibc_addr = module_address("feeibc")
     escrow = get_escrow_address(cli, channel)
     seq1 = get_send_packet_seq(ibc.chainmain.cosmos_cli())
-    # filter AcknowledgePacket by seq
-    logs0 = filter_logs_since(w3, start, "AcknowledgePacket", seq0)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs0)
-    ack_topic = acknowledge_packet(seq0)
-    assert topic == AttributeDict(ack_topic), method_name
-    # filter RecvPacket by seq
-    logs1 = filter_logs_since(w3, start, "RecvPacket", seq1)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs1)
-    recv_topic = recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom)
-    assert topic == AttributeDict(recv_topic), method_name
-    # filter WriteAcknowledgement by seq
-    logs2 = filter_logs_since(w3, start, "WriteAcknowledgement", seq1)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs2)
-    write_ack_topic = write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_denom)
-    assert topic == AttributeDict(write_ack_topic), method_name
     expected = [
-        ack_topic,
+        acknowledge_packet(seq0),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
         distribute_fee(src_relayer, fee),
@@ -298,15 +279,21 @@ def test_ibc_incentivized_transfer(ibc):
         distribute_fee(cronos_signer2, fee),
         *send_coins(feeibc_addr, cronos_signer2, src_amount, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
-        recv_topic,
+        recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, dst_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
-        write_ack_topic,
+        write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
     ]
     assert len(logs) == len(expected)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
+        method_name, topic = get_topic_data(w3, method_map, contract_info, log)
+        assert topic == AttributeDict(expected[i]), [i, method_name]
+        # test filter by seq
+        if method_name in method_with_seq:
+            seq = seq0 if method_name == "AcknowledgePacket" else seq1
+            flogs = filter_logs_since(w3, start, method_name, seq)[0]
+            _, ftopic = get_topic_data(w3, method_map, contract_info, flogs)
+            assert ftopic == topic, method_name
 
 
 def assert_transfer_source_tokens_topics(ibc, fn):
@@ -327,38 +314,29 @@ def assert_transfer_source_tokens_topics(ibc, fn):
     cronos_addr = module_address("cronos")
     cronos_denom = f"cronos{contract}"
     transfer_denom = f"transfer/{channel}/{cronos_denom}"
-    # filter AcknowledgePacket by seq
-    logs0 = filter_logs_since(w3, start, "AcknowledgePacket", seq0)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs0)
-    ack_topic = acknowledge_packet(seq0)
-    assert topic == AttributeDict(ack_topic), method_name
-    # filter RecvPacket by seq
-    logs1 = filter_logs_since(w3, start, "RecvPacket", seq1)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs1)
-    recv_topic = recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom)
-    assert topic == AttributeDict(recv_topic), method_name
-    # filter WriteAcknowledgement by seq
-    logs2 = filter_logs_since(w3, start, "WriteAcknowledgement", seq1)[0]
-    method_name, topic = get_topic_data(w3, method_map, contract_info, logs2)
-    write_ack_topic = write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_denom)
-    assert topic == AttributeDict(write_ack_topic), method_name
     expected = [
-        ack_topic,
+        acknowledge_packet(seq0),
         fungible(checksum_dst_adr, ADDRS["validator"], amount, cronos_denom),
-        recv_topic,
+        recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, cronos_denom),
         fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
         *send_coins(cronos_signer2, cronos_addr, amount, cronos_denom),
         coin_spent(cronos_addr, amount, cronos_denom),
         burn(cronos_addr, amount, cronos_denom),
-        write_ack_topic,
+        write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
     ]
     assert len(logs) == len(expected)
     height = logs[0]["blockNumber"]
     assert_duplicate(ibc.cronos.base_port(0), height)
     for i, log in enumerate(logs):
-        method_name, args = get_topic_data(w3, method_map, contract_info, log)
-        assert args == AttributeDict(expected[i]), [i, method_name]
+        method_name, topic = get_topic_data(w3, method_map, contract_info, log)
+        assert topic == AttributeDict(expected[i]), [i, method_name]
+        # test filter by seq
+        if method_name in method_with_seq:
+            seq = seq0 if method_name == "AcknowledgePacket" else seq1
+            flogs = filter_logs_since(w3, start, method_name, seq)[0]
+            _, ftopic = get_topic_data(w3, method_map, contract_info, flogs)
+            assert ftopic == topic, method_name
 
 
 def test_cronos_transfer_source_tokens(ibc):
