@@ -7,12 +7,13 @@ poetry2nix.mkPoetryEnv {
       let
         buildSystems = {
           eth-bloom = [ "setuptools" ];
-          pystarport = [ "poetry" ];
+          pystarport = [ "poetry-core" ];
           cprotobuf = [ "setuptools" ];
           durations = [ "setuptools" ];
           multitail2 = [ "setuptools" ];
           pytest-github-actions-annotate-failures = [ "setuptools" ];
           flake8-black = [ "setuptools" ];
+          flake8-isort = [ "hatchling" ];
           multiaddr = [ "setuptools" ];
         };
       in
