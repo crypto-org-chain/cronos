@@ -119,25 +119,12 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		return m, nil
 	})
 
-	testnetPlanName := "v1.1.0-testnet"
+	testnetPlanName := "v1.1.0-testnet-1"
 	app.UpgradeKeeper.SetUpgradeHandler(testnetPlanName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
 			return m, err
 		}
-		params := app.CronosKeeper.GetParams(ctx)
-		params.MaxCallbackGas = cronostypes.MaxCallbackGasDefaultValue
-		if err := app.CronosKeeper.SetParams(ctx, params); err != nil {
-			return m, err
-		}
-
-		feeparams := app.FeeMarketKeeper.GetParams(ctx)
-		feeparams.BaseFeeChangeDenominator = 300
-		feeparams.ElasticityMultiplier = 4
-		feeparams.BaseFee = sdk.NewInt(10000000000000)
-		feeparams.MinGasPrice = sdk.NewDec(10000000000000)
-		app.FeeMarketKeeper.SetParams(ctx, feeparams)
-
 		return m, nil
 	})
 

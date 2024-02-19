@@ -139,7 +139,7 @@ def exec(c, tmp_path_factory, testnet=True):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v1.1.0-testnet" if testnet else "v1.1.0"
+    plan_name = "v1.1.0-testnet-1" if testnet else "v1.1.0"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",
