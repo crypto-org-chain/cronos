@@ -37,7 +37,9 @@ if [[ "$build_platform" == "x86_64-linux" ]]; then
 elif [[ "$build_platform" == "aarch64-linux" ]]; then
     hosts="Linux_arm64,native Linux_x86_64,gnu64 Windows_x86_64,mingwW64"
 elif [[ "$build_platform" == "x86_64-darwin" ]]; then
-    hosts="Darwin_x86_64,native Darwin_arm64,aarch64-darwin"
+    hosts="Darwin_x86_64,native"
+elif [[ "$build_platform" == "aarch64-darwin" ]]; then
+    hosts="Darwin_arm64,native"
 else
     echo "don't support build platform: $build_platform" 
     exit 1
