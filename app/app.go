@@ -1177,6 +1177,7 @@ func VerifyAddressFormat(bz []byte) error {
 
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
+	// debug
 	err := app.BaseApp.Close()
 
 	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
