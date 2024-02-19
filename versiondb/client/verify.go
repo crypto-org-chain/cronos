@@ -231,7 +231,6 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 
 			return err
 		})
-
 		if err != nil {
 			break
 		}
