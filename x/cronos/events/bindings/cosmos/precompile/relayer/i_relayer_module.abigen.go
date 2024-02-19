@@ -26,6 +26,7 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
+	_ = abi.ConvertType
 )
 
 // CosmosCoin is an auto generated low-level Go binding around an user-defined struct.
@@ -43,7 +44,7 @@ type IRelayerModulePacketData struct {
 
 // RelayerModuleMetaData contains all meta data concerning the RelayerModule contract.
 var RelayerModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetChannelOrdering\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetConnection\",\"type\":\"string\"}],\"name\":\"AcknowledgePacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"burner\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Burn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ChannelClosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinSpent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"minter\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Coinbase\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"name\":\"DenominationTrace\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"fee\",\"type\":\"string\"}],\"name\":\"DistributeFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"FungibleTokenPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"IbcTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"RecvPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"refundReceiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"refundDenom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Timeout\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetChannelOrdering\",\"type\":\"string\"}],\"name\":\"TimeoutPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetConnection\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"WriteAcknowledgement\",\"type\":\"event\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSequence\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"AcknowledgePacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"burner\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Burn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ChannelClosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinSpent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"minter\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Coinbase\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"name\":\"DenominationTrace\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"fee\",\"type\":\"string\"}],\"name\":\"DistributeFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"FungibleTokenPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"IbcTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSequence\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"RecvPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"refundReceiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"refundDenom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Timeout\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSequence\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"TimeoutPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSequence\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"WriteAcknowledgement\",\"type\":\"event\"}]",
 }
 
 // RelayerModuleABI is the input ABI used to generate the binding from.
@@ -147,11 +148,11 @@ func NewRelayerModuleFilterer(address common.Address, filterer bind.ContractFilt
 
 // bindRelayerModule binds a generic wrapper to an already deployed contract.
 func bindRelayerModule(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(RelayerModuleABI))
+	parsed, err := RelayerModuleMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and
@@ -261,20 +262,24 @@ func (it *RelayerModuleAcknowledgePacketIterator) Close() error {
 
 // RelayerModuleAcknowledgePacket represents a AcknowledgePacket event raised by the RelayerModule contract.
 type RelayerModuleAcknowledgePacket struct {
-	PacketSrcPort         common.Hash
-	PacketSrcChannel      common.Hash
-	PacketDstPort         common.Hash
-	PacketDstChannel      string
-	PacketChannelOrdering string
-	PacketConnection      string
-	Raw                   types.Log // Blockchain specific contextual infos
+	PacketSequence   common.Hash
+	PacketSrcPort    common.Hash
+	PacketSrcChannel common.Hash
+	PacketDstPort    string
+	PacketDstChannel string
+	ConnectionId     string
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
 // FilterAcknowledgePacket is a free log retrieval operation binding the contract event 0xc7b594c06c08a3e531587ce7aea85dd2d77aa812e153185114587f284481ee2d.
 //
-// Solidity: event AcknowledgePacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering, string packetConnection)
-func (_RelayerModule *RelayerModuleFilterer) FilterAcknowledgePacket(opts *bind.FilterOpts, packetSrcPort []string, packetSrcChannel []string, packetDstPort []string) (*RelayerModuleAcknowledgePacketIterator, error) {
+// Solidity: event AcknowledgePacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
+func (_RelayerModule *RelayerModuleFilterer) FilterAcknowledgePacket(opts *bind.FilterOpts, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (*RelayerModuleAcknowledgePacketIterator, error) {
 
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
 	var packetSrcPortRule []interface{}
 	for _, packetSrcPortItem := range packetSrcPort {
 		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
@@ -283,12 +288,8 @@ func (_RelayerModule *RelayerModuleFilterer) FilterAcknowledgePacket(opts *bind.
 	for _, packetSrcChannelItem := range packetSrcChannel {
 		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
 	}
-	var packetDstPortRule []interface{}
-	for _, packetDstPortItem := range packetDstPort {
-		packetDstPortRule = append(packetDstPortRule, packetDstPortItem)
-	}
 
-	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "AcknowledgePacket", packetSrcPortRule, packetSrcChannelRule, packetDstPortRule)
+	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "AcknowledgePacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -297,9 +298,13 @@ func (_RelayerModule *RelayerModuleFilterer) FilterAcknowledgePacket(opts *bind.
 
 // WatchAcknowledgePacket is a free log subscription operation binding the contract event 0xc7b594c06c08a3e531587ce7aea85dd2d77aa812e153185114587f284481ee2d.
 //
-// Solidity: event AcknowledgePacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering, string packetConnection)
-func (_RelayerModule *RelayerModuleFilterer) WatchAcknowledgePacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleAcknowledgePacket, packetSrcPort []string, packetSrcChannel []string, packetDstPort []string) (event.Subscription, error) {
+// Solidity: event AcknowledgePacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
+func (_RelayerModule *RelayerModuleFilterer) WatchAcknowledgePacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleAcknowledgePacket, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (event.Subscription, error) {
 
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
 	var packetSrcPortRule []interface{}
 	for _, packetSrcPortItem := range packetSrcPort {
 		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
@@ -308,12 +313,8 @@ func (_RelayerModule *RelayerModuleFilterer) WatchAcknowledgePacket(opts *bind.W
 	for _, packetSrcChannelItem := range packetSrcChannel {
 		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
 	}
-	var packetDstPortRule []interface{}
-	for _, packetDstPortItem := range packetDstPort {
-		packetDstPortRule = append(packetDstPortRule, packetDstPortItem)
-	}
 
-	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "AcknowledgePacket", packetSrcPortRule, packetSrcChannelRule, packetDstPortRule)
+	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "AcknowledgePacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +348,7 @@ func (_RelayerModule *RelayerModuleFilterer) WatchAcknowledgePacket(opts *bind.W
 
 // ParseAcknowledgePacket is a log parse operation binding the contract event 0xc7b594c06c08a3e531587ce7aea85dd2d77aa812e153185114587f284481ee2d.
 //
-// Solidity: event AcknowledgePacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering, string packetConnection)
+// Solidity: event AcknowledgePacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
 func (_RelayerModule *RelayerModuleFilterer) ParseAcknowledgePacket(log types.Log) (*RelayerModuleAcknowledgePacket, error) {
 	event := new(RelayerModuleAcknowledgePacket)
 	if err := _RelayerModule.contract.UnpackLog(event, "AcknowledgePacket", log); err != nil {
@@ -1762,28 +1763,60 @@ func (it *RelayerModuleRecvPacketIterator) Close() error {
 
 // RelayerModuleRecvPacket represents a RecvPacket event raised by the RelayerModule contract.
 type RelayerModuleRecvPacket struct {
-	PacketDataHex IRelayerModulePacketData
-	Raw           types.Log // Blockchain specific contextual infos
+	PacketSequence   common.Hash
+	PacketSrcPort    common.Hash
+	PacketSrcChannel common.Hash
+	PacketDstPort    string
+	PacketDstChannel string
+	ConnectionId     string
+	PacketDataHex    IRelayerModulePacketData
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterRecvPacket is a free log retrieval operation binding the contract event 0x9b65d2e7fb26fd6c5ea41ebf07b4360b58fb218c4e50aa439df57a4c082f9190.
+// FilterRecvPacket is a free log retrieval operation binding the contract event 0x62684955fa74e6d241dd205edd120a5638726bf554d2eff7ef03bc028bff953f.
 //
-// Solidity: event RecvPacket((address,string,(uint256,string)[]) packetDataHex)
-func (_RelayerModule *RelayerModuleFilterer) FilterRecvPacket(opts *bind.FilterOpts) (*RelayerModuleRecvPacketIterator, error) {
+// Solidity: event RecvPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
+func (_RelayerModule *RelayerModuleFilterer) FilterRecvPacket(opts *bind.FilterOpts, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (*RelayerModuleRecvPacketIterator, error) {
 
-	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "RecvPacket")
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
+	var packetSrcPortRule []interface{}
+	for _, packetSrcPortItem := range packetSrcPort {
+		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
+	}
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "RecvPacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
 	return &RelayerModuleRecvPacketIterator{contract: _RelayerModule.contract, event: "RecvPacket", logs: logs, sub: sub}, nil
 }
 
-// WatchRecvPacket is a free log subscription operation binding the contract event 0x9b65d2e7fb26fd6c5ea41ebf07b4360b58fb218c4e50aa439df57a4c082f9190.
+// WatchRecvPacket is a free log subscription operation binding the contract event 0x62684955fa74e6d241dd205edd120a5638726bf554d2eff7ef03bc028bff953f.
 //
-// Solidity: event RecvPacket((address,string,(uint256,string)[]) packetDataHex)
-func (_RelayerModule *RelayerModuleFilterer) WatchRecvPacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleRecvPacket) (event.Subscription, error) {
+// Solidity: event RecvPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
+func (_RelayerModule *RelayerModuleFilterer) WatchRecvPacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleRecvPacket, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (event.Subscription, error) {
 
-	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "RecvPacket")
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
+	var packetSrcPortRule []interface{}
+	for _, packetSrcPortItem := range packetSrcPort {
+		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
+	}
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "RecvPacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1815,9 +1848,9 @@ func (_RelayerModule *RelayerModuleFilterer) WatchRecvPacket(opts *bind.WatchOpt
 	}), nil
 }
 
-// ParseRecvPacket is a log parse operation binding the contract event 0x9b65d2e7fb26fd6c5ea41ebf07b4360b58fb218c4e50aa439df57a4c082f9190.
+// ParseRecvPacket is a log parse operation binding the contract event 0x62684955fa74e6d241dd205edd120a5638726bf554d2eff7ef03bc028bff953f.
 //
-// Solidity: event RecvPacket((address,string,(uint256,string)[]) packetDataHex)
+// Solidity: event RecvPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
 func (_RelayerModule *RelayerModuleFilterer) ParseRecvPacket(log types.Log) (*RelayerModuleRecvPacket, error) {
 	event := new(RelayerModuleRecvPacket)
 	if err := _RelayerModule.contract.UnpackLog(event, "RecvPacket", log); err != nil {
@@ -2050,19 +2083,24 @@ func (it *RelayerModuleTimeoutPacketIterator) Close() error {
 
 // RelayerModuleTimeoutPacket represents a TimeoutPacket event raised by the RelayerModule contract.
 type RelayerModuleTimeoutPacket struct {
-	PacketSrcPort         common.Hash
-	PacketSrcChannel      common.Hash
-	PacketDstPort         common.Hash
-	PacketDstChannel      string
-	PacketChannelOrdering string
-	Raw                   types.Log // Blockchain specific contextual infos
+	PacketSequence   common.Hash
+	PacketSrcPort    common.Hash
+	PacketSrcChannel common.Hash
+	PacketDstPort    string
+	PacketDstChannel string
+	ConnectionId     string
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterTimeoutPacket is a free log retrieval operation binding the contract event 0x15785d3f86870204161ea96f3a26ee3848d7732767e6aa943ab88f45efc1cca0.
+// FilterTimeoutPacket is a free log retrieval operation binding the contract event 0x3ad66d8d917bc0710ec6bcba621370e0cb65d6359ee1341a8cf4320ac458ff5b.
 //
-// Solidity: event TimeoutPacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering)
-func (_RelayerModule *RelayerModuleFilterer) FilterTimeoutPacket(opts *bind.FilterOpts, packetSrcPort []string, packetSrcChannel []string, packetDstPort []string) (*RelayerModuleTimeoutPacketIterator, error) {
+// Solidity: event TimeoutPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
+func (_RelayerModule *RelayerModuleFilterer) FilterTimeoutPacket(opts *bind.FilterOpts, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (*RelayerModuleTimeoutPacketIterator, error) {
 
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
 	var packetSrcPortRule []interface{}
 	for _, packetSrcPortItem := range packetSrcPort {
 		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
@@ -2071,23 +2109,23 @@ func (_RelayerModule *RelayerModuleFilterer) FilterTimeoutPacket(opts *bind.Filt
 	for _, packetSrcChannelItem := range packetSrcChannel {
 		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
 	}
-	var packetDstPortRule []interface{}
-	for _, packetDstPortItem := range packetDstPort {
-		packetDstPortRule = append(packetDstPortRule, packetDstPortItem)
-	}
 
-	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "TimeoutPacket", packetSrcPortRule, packetSrcChannelRule, packetDstPortRule)
+	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "TimeoutPacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
 	return &RelayerModuleTimeoutPacketIterator{contract: _RelayerModule.contract, event: "TimeoutPacket", logs: logs, sub: sub}, nil
 }
 
-// WatchTimeoutPacket is a free log subscription operation binding the contract event 0x15785d3f86870204161ea96f3a26ee3848d7732767e6aa943ab88f45efc1cca0.
+// WatchTimeoutPacket is a free log subscription operation binding the contract event 0x3ad66d8d917bc0710ec6bcba621370e0cb65d6359ee1341a8cf4320ac458ff5b.
 //
-// Solidity: event TimeoutPacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering)
-func (_RelayerModule *RelayerModuleFilterer) WatchTimeoutPacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleTimeoutPacket, packetSrcPort []string, packetSrcChannel []string, packetDstPort []string) (event.Subscription, error) {
+// Solidity: event TimeoutPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
+func (_RelayerModule *RelayerModuleFilterer) WatchTimeoutPacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleTimeoutPacket, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (event.Subscription, error) {
 
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
 	var packetSrcPortRule []interface{}
 	for _, packetSrcPortItem := range packetSrcPort {
 		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
@@ -2096,12 +2134,8 @@ func (_RelayerModule *RelayerModuleFilterer) WatchTimeoutPacket(opts *bind.Watch
 	for _, packetSrcChannelItem := range packetSrcChannel {
 		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
 	}
-	var packetDstPortRule []interface{}
-	for _, packetDstPortItem := range packetDstPort {
-		packetDstPortRule = append(packetDstPortRule, packetDstPortItem)
-	}
 
-	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "TimeoutPacket", packetSrcPortRule, packetSrcChannelRule, packetDstPortRule)
+	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "TimeoutPacket", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2133,9 +2167,9 @@ func (_RelayerModule *RelayerModuleFilterer) WatchTimeoutPacket(opts *bind.Watch
 	}), nil
 }
 
-// ParseTimeoutPacket is a log parse operation binding the contract event 0x15785d3f86870204161ea96f3a26ee3848d7732767e6aa943ab88f45efc1cca0.
+// ParseTimeoutPacket is a log parse operation binding the contract event 0x3ad66d8d917bc0710ec6bcba621370e0cb65d6359ee1341a8cf4320ac458ff5b.
 //
-// Solidity: event TimeoutPacket(string indexed packetSrcPort, string indexed packetSrcChannel, string indexed packetDstPort, string packetDstChannel, string packetChannelOrdering)
+// Solidity: event TimeoutPacket(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId)
 func (_RelayerModule *RelayerModuleFilterer) ParseTimeoutPacket(log types.Log) (*RelayerModuleTimeoutPacket, error) {
 	event := new(RelayerModuleTimeoutPacket)
 	if err := _RelayerModule.contract.UnpackLog(event, "TimeoutPacket", log); err != nil {
@@ -2368,29 +2402,60 @@ func (it *RelayerModuleWriteAcknowledgementIterator) Close() error {
 
 // RelayerModuleWriteAcknowledgement represents a WriteAcknowledgement event raised by the RelayerModule contract.
 type RelayerModuleWriteAcknowledgement struct {
-	PacketConnection string
+	PacketSequence   common.Hash
+	PacketSrcPort    common.Hash
+	PacketSrcChannel common.Hash
+	PacketDstPort    string
+	PacketDstChannel string
+	ConnectionId     string
 	PacketDataHex    IRelayerModulePacketData
 	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterWriteAcknowledgement is a free log retrieval operation binding the contract event 0x4adabcca51310729667d527f01d2da2f2dd3f0a132db55702fe874d878eaf856.
+// FilterWriteAcknowledgement is a free log retrieval operation binding the contract event 0x537a2c8f190233a8d94fec1e9c145cb247a6cf9e270755b343c69a905288cac7.
 //
-// Solidity: event WriteAcknowledgement(string packetConnection, (address,string,(uint256,string)[]) packetDataHex)
-func (_RelayerModule *RelayerModuleFilterer) FilterWriteAcknowledgement(opts *bind.FilterOpts) (*RelayerModuleWriteAcknowledgementIterator, error) {
+// Solidity: event WriteAcknowledgement(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
+func (_RelayerModule *RelayerModuleFilterer) FilterWriteAcknowledgement(opts *bind.FilterOpts, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (*RelayerModuleWriteAcknowledgementIterator, error) {
 
-	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "WriteAcknowledgement")
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
+	var packetSrcPortRule []interface{}
+	for _, packetSrcPortItem := range packetSrcPort {
+		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
+	}
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "WriteAcknowledgement", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
 	return &RelayerModuleWriteAcknowledgementIterator{contract: _RelayerModule.contract, event: "WriteAcknowledgement", logs: logs, sub: sub}, nil
 }
 
-// WatchWriteAcknowledgement is a free log subscription operation binding the contract event 0x4adabcca51310729667d527f01d2da2f2dd3f0a132db55702fe874d878eaf856.
+// WatchWriteAcknowledgement is a free log subscription operation binding the contract event 0x537a2c8f190233a8d94fec1e9c145cb247a6cf9e270755b343c69a905288cac7.
 //
-// Solidity: event WriteAcknowledgement(string packetConnection, (address,string,(uint256,string)[]) packetDataHex)
-func (_RelayerModule *RelayerModuleFilterer) WatchWriteAcknowledgement(opts *bind.WatchOpts, sink chan<- *RelayerModuleWriteAcknowledgement) (event.Subscription, error) {
+// Solidity: event WriteAcknowledgement(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
+func (_RelayerModule *RelayerModuleFilterer) WatchWriteAcknowledgement(opts *bind.WatchOpts, sink chan<- *RelayerModuleWriteAcknowledgement, packetSequence []string, packetSrcPort []string, packetSrcChannel []string) (event.Subscription, error) {
 
-	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "WriteAcknowledgement")
+	var packetSequenceRule []interface{}
+	for _, packetSequenceItem := range packetSequence {
+		packetSequenceRule = append(packetSequenceRule, packetSequenceItem)
+	}
+	var packetSrcPortRule []interface{}
+	for _, packetSrcPortItem := range packetSrcPort {
+		packetSrcPortRule = append(packetSrcPortRule, packetSrcPortItem)
+	}
+	var packetSrcChannelRule []interface{}
+	for _, packetSrcChannelItem := range packetSrcChannel {
+		packetSrcChannelRule = append(packetSrcChannelRule, packetSrcChannelItem)
+	}
+
+	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "WriteAcknowledgement", packetSequenceRule, packetSrcPortRule, packetSrcChannelRule)
 	if err != nil {
 		return nil, err
 	}
@@ -2422,9 +2487,9 @@ func (_RelayerModule *RelayerModuleFilterer) WatchWriteAcknowledgement(opts *bin
 	}), nil
 }
 
-// ParseWriteAcknowledgement is a log parse operation binding the contract event 0x4adabcca51310729667d527f01d2da2f2dd3f0a132db55702fe874d878eaf856.
+// ParseWriteAcknowledgement is a log parse operation binding the contract event 0x537a2c8f190233a8d94fec1e9c145cb247a6cf9e270755b343c69a905288cac7.
 //
-// Solidity: event WriteAcknowledgement(string packetConnection, (address,string,(uint256,string)[]) packetDataHex)
+// Solidity: event WriteAcknowledgement(string indexed packetSequence, string indexed packetSrcPort, string indexed packetSrcChannel, string packetDstPort, string packetDstChannel, string connectionId, (address,string,(uint256,string)[]) packetDataHex)
 func (_RelayerModule *RelayerModuleFilterer) ParseWriteAcknowledgement(log types.Log) (*RelayerModuleWriteAcknowledgement, error) {
 	event := new(RelayerModuleWriteAcknowledgement)
 	if err := _RelayerModule.contract.UnpackLog(event, "WriteAcknowledgement", log); err != nil {
