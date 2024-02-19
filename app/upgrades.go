@@ -146,13 +146,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 				},
 			}
 			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
-		} else if upgradeInfo.Name == testnetPlanName {
-			storeUpgrades := storetypes.StoreUpgrades{
-				Deleted: []string{
-					authzkeeper.StoreKey,
-				},
-			}
-			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 		}
 	}
 }
