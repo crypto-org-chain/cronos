@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+- [#](https://github.com/crypto-org-chain/cronos/pull/) Add packet_sequence index in relayer event.
+
 *February 5, 2024*
 
 ## v1.1.0-rc3

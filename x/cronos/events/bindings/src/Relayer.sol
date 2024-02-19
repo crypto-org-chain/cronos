@@ -15,12 +15,12 @@ interface IRelayerModule {
         PacketData packetDataHex
     );
     event AcknowledgePacket(
+        string indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
-        string indexed packetDstPort,
+        string packetDstPort,
         string packetDstChannel,
-        string packetChannelOrdering,
-        string packetConnection
+        string connectionId
     );
     event TimeoutPacket(
         string indexed packetSrcPort,
