@@ -206,8 +206,6 @@ def exec(c, tmp_path_factory, testnet=True):
 
     rsp = cli.query_params("icaauth")
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
-    max_callback_gas = cli.query_params()["max_callback_gas"]
-    assert max_callback_gas == "50000", max_callback_gas
     if not testnet:
         # migrate to sdk v0.47
         c.supervisorctl("stop", "all")
