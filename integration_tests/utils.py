@@ -687,7 +687,7 @@ def submit_any_proposal(cronos, tmp_path):
     assert grant_detail["grantee"] == grantee_addr
 
 
-def get_method_map(contract_info):
+def get_method_map(contract_info, by_name=False):
     method_map = {}
     for item in contract_info:
         if item["type"] != "event":
@@ -695,7 +695,11 @@ def get_method_map(contract_info):
         event_abi = find_matching_event_abi(contract_info, item["name"])
         signature = abi_to_signature(event_abi)
         key = f"0x{abi.event_signature_to_log_topic(signature).hex()}"
-        method_map[key] = signature
+        if by_name:
+            name = signature.split("(")[0]
+            method_map[name] = key
+        else:
+            method_map[key] = signature
     return method_map
 
 

@@ -427,7 +427,7 @@ def ibc_incentivized_transfer(ibc):
     actual = chains[0].balance(sender, base_denom)
     assert actual == old_amt_sender_base, actual
     assert chains[1].balance(receiver, "basecro") == old_amt_receiver_base - fee_amount
-    return amount
+    return amount, packet_seq
 
 
 def ibc_denom(channel, denom):

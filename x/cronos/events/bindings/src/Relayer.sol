@@ -9,25 +9,39 @@ interface IRelayerModule {
         string sender;
         Cosmos.Coin[] amount;
     }
-    event RecvPacket(PacketData packetDataHex);
+    event RecvPacket(
+        string indexed packetSequence,
+        string indexed packetSrcPort,
+        string indexed packetSrcChannel,
+        string packetDstPort,
+        string packetDstChannel,
+        string connectionId,
+        PacketData packetDataHex
+    );
     event WriteAcknowledgement(
-        string packetConnection,
+        string indexed packetSequence,
+        string indexed packetSrcPort,
+        string indexed packetSrcChannel,
+        string packetDstPort,
+        string packetDstChannel,
+        string connectionId,
         PacketData packetDataHex
     );
     event AcknowledgePacket(
+        string indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
-        string indexed packetDstPort,
+        string packetDstPort,
         string packetDstChannel,
-        string packetChannelOrdering,
-        string packetConnection
+        string connectionId
     );
     event TimeoutPacket(
+        string indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
-        string indexed packetDstPort,
+        string packetDstPort,
         string packetDstChannel,
-        string packetChannelOrdering
+        string connectionId
     );
     // IBC transfer
     event Timeout(

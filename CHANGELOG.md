@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### State Machine Breaking
+
+- [#1318](https://github.com/crypto-org-chain/cronos/pull/1318) Add packet_sequence index in relayer event.
+
 *February 5, 2024*
 
 ## v1.1.0-rc3

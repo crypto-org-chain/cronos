@@ -222,13 +222,16 @@ class CosmosCLI:
             self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
         )
 
-    def tx_search_rpc(self, criteria: str):
+    def tx_search_rpc(self, criteria: str, order=None):
         node_rpc_http = "http" + self.node_rpc.removeprefix("tcp")
+        params = {
+            "query": f'"{criteria}"',
+        }
+        if order:
+            params["order_by"] = f'"{order}"'
         rsp = requests.get(
             f"{node_rpc_http}/tx_search",
-            params={
-                "query": f'"{criteria}"',
-            },
+            params=params,
         ).json()
         assert "error" not in rsp, rsp["error"]
         return rsp["result"]["txs"]
