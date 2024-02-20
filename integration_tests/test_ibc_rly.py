@@ -57,24 +57,35 @@ def ibc(request, tmp_path_factory):
     )
 
 
+def amount_dict(amt, denom):
+    return [
+        AttributeDict(
+            {
+                "amount": amt,
+                "denom": denom,
+            }
+        )
+    ]
+
+
 def coin_received(receiver, amt, denom):
     return {
         "receiver": receiver,
-        "amount": [(amt, denom)],
+        "amount": amount_dict(amt, denom),
     }
 
 
 def coin_base(minter, amt, denom):
     return {
         "minter": minter,
-        "amount": [(amt, denom)],
+        "amount": amount_dict(amt, denom),
     }
 
 
 def coin_spent(spender, amt, denom):
     return {
         "spender": spender,
-        "amount": [(amt, denom)],
+        "amount": amount_dict(amt, denom),
     }
 
 
@@ -98,14 +109,14 @@ def transfer(src, dst, amt, denom):
     return {
         "recipient": dst,
         "sender": src,
-        "amount": [(amt, denom)],
+        "amount": amount_dict(amt, denom),
     }
 
 
 def burn(burner, amt, denom):
     return {
         "burner": burner,
-        "amount": [(amt, denom)],
+        "amount": amount_dict(amt, denom),
     }
 
 
@@ -117,7 +128,13 @@ def recv_packet(seq, src, dst, amt, denom):
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
-        "packetDataHex": (dst, src, [(amt, denom)]),
+        "packetDataHex": AttributeDict(
+            {
+                "receiver": dst,
+                "sender": src,
+                "amount": amount_dict(amt, denom),
+            }
+        ),
     }
 
 
@@ -146,7 +163,13 @@ def write_ack(seq, src, dst, amt, denom):
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
-        "packetDataHex": (dst, src, [(amt, denom)]),
+        "packetDataHex": AttributeDict(
+            {
+                "receiver": dst,
+                "sender": src,
+                "amount": amount_dict(amt, denom),
+            }
+        ),
     }
 
 

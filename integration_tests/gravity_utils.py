@@ -1,6 +1,6 @@
-import sha3
 import toml
 from eth_account.account import Account
+from eth_hash.auto import keccak
 from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from pystarport import ports
@@ -131,11 +131,10 @@ def prepare_gravity(custom_cronos, custom_geth):
     print("gravity contract deployed", contract.address)
 
     # make all the orchestrator "Relayer" roles
-    k_relayer = sha3.keccak_256()
-    k_relayer.update(b"RELAYER")
+    k_relayer = keccak.new(b"RELAYER")
     for _, address in enumerate(eth_addresses):
         set_role_tx = contract.functions.grantRole(
-            k_relayer.hexdigest(), address
+            k_relayer.digest(), address
         ).build_transaction({"from": admin.address})
         set_role_receipt = send_transaction(w3, set_role_tx, admin.key)
         print("set_role_tx", set_role_receipt)

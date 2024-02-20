@@ -34,13 +34,13 @@ def test_event_log_filter(cronos):
     mycontract = deploy_contract(w3, CONTRACTS["Greeter"])
     assert "Hello" == mycontract.caller.greet()
     current_height = hex(w3.eth.get_block_number())
-    event_filter = mycontract.events.ChangeGreeting.createFilter(
+    event_filter = mycontract.events.ChangeGreeting.create_filter(
         fromBlock=current_height
     )
 
     tx = mycontract.functions.setGreeting("world").build_transaction()
     tx_receipt = send_transaction(w3, tx)
-    log = mycontract.events.ChangeGreeting().processReceipt(tx_receipt)[0]
+    log = mycontract.events.ChangeGreeting().process_receipt(tx_receipt)[0]
     assert log["event"] == "ChangeGreeting"
     assert tx_receipt.status == 1
     new_entries = event_filter.get_new_entries()
