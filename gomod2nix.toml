@@ -29,8 +29,8 @@ schema = 3
     version = "v1.0.1"
     hash = "sha256-MgTocXkBzri9FKkNtkARJXPmxRrRO/diQJS5ZzvYrJY="
   [mod."cosmossdk.io/log"]
-    version = "v1.3.0"
-    hash = "sha256-ti835PlPIWxP8c2Drfo5asi2Kd6kBkmXaadQZ/BiMqw="
+    version = "v1.3.1"
+    hash = "sha256-otkUvsz35VuuUWXoTmWBwR61+o6YzvWETGdLfwWDvwY="
   [mod."cosmossdk.io/math"]
     version = "v1.2.0"
     hash = "sha256-yLPUAsJPQxuI0C22cPbP/BzclWb9eBzGFntGDQmdVUc="
@@ -136,11 +136,11 @@ schema = 3
     version = "v1.0.5"
     hash = "sha256-t572Sr5iiHcuMKLMWa2i+LBAt192oa+G1oA371tG/eI="
   [mod."github.com/cosmos/cosmos-proto"]
-    version = "v1.0.0-beta.2"
-    hash = "sha256-Am8A44NSxdY77GIEDx1AY+pLU0npeyuTlr3mc4stg3I="
+    version = "v1.0.0-beta.4"
+    hash = "sha256-5Kn82nsZfiEtuwhhLZqmMxdAY1tX/Fi3HJ0/MEaRohw="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.0-beta2.0.20240103063449-c887e863fae2"
-    hash = "sha256-Y8kxYglCrAXNvNey1NWwly0nw3CB3wWleuvEimVEbPs="
+    version = "v0.46.0-beta2.0.20240220010730-59107173536d"
+    hash = "sha256-OXWcFgNN+YwnW63S/Iw1fB9TKCiuMM1z+FthUo2yihc="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -483,8 +483,8 @@ schema = 3
     version = "v1.8.3"
     hash = "sha256-VgVB4HKAhPSjNg96mIEUN1bt5ZQng8Fi3ZABy3CDWQE="
   [mod."github.com/rs/zerolog"]
-    version = "v1.31.0"
-    hash = "sha256-OF4VM+Rv6M5EAaUVD2nOzcbZLQ4b7OAMteyyTqIoU0M="
+    version = "v1.32.0"
+    hash = "sha256-9dZjtsES+wLp1cFiSVMuEUbdeXVFcgT0dgg5ACZkILk="
   [mod."github.com/sasha-s/go-deadlock"]
     version = "v0.3.1"
     hash = "sha256-2CBEi9/iN/OMt7wEIG+hRjgDH6CRWIgibGGGy1dQ78I="
@@ -646,8 +646,8 @@ schema = 3
     version = "v1.8.6"
     hash = "sha256-DyaiCc/1iELrl6JSpz6WYMtFwUiSCOSoNF8IhSyP1ag="
   [mod."pgregory.net/rapid"]
-    version = "v0.5.5"
-    hash = "sha256-VUgKDG+AcSVdsqKk5H4doz2rvehsWgt8rdZPDMKFDtE="
+    version = "v1.1.0"
+    hash = "sha256-sVQY9EQ9Y5blYyVYfaOa+y12e+399OqdHiEY3BaDnqo="
   [mod."sigs.k8s.io/yaml"]
     version = "v1.3.0"
     hash = "sha256-RVp8vca2wxg8pcBDYospG7Z1dujoH7zXNu2rgZ1kky0="

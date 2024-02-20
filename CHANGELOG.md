@@ -10,6 +10,10 @@
 - [#1318](https://github.com/crypto-org-chain/cronos/pull/1318) Fix filter rule for eth_getLogs.
 - [#1322](https://github.com/crypto-org-chain/cronos/pull/1322) Add `v1.1.0-testnet-1` upgrade plan for testnet.
 
+### Improvements
+
+- [#1324](https://github.com/crypto-org-chain/cronos/pull/1324) Update cosmos-sdk to `v0.47.9`.
+
 *February 5, 2024*
 
 ## v1.1.0-rc3
