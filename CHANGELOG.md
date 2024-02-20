@@ -12,7 +12,7 @@
 
 ### Improvements
 
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Update cosmos-sdk to `v0.47.9`.
+- [#1324](https://github.com/crypto-org-chain/cronos/pull/1324) Update cosmos-sdk to `v0.47.9`.
 
 *February 5, 2024*
 
