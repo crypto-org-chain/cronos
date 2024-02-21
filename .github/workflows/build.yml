@@ -74,7 +74,7 @@ jobs:
 
           # run versiondb tests
           cd ./versiondb
-          nix-shell -I nixpkgs=../nix -p rocksdb go_1_20 --run "go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt"
+          nix-shell -I nixpkgs=../nix -p rocksdb go_1_22 --run "go test -v -mod=readonly ./... -tags rocksdb,grocksdb_clean_link -coverprofile=coverage.txt"
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
