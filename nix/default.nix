@@ -40,7 +40,7 @@ import sources.nixpkgs {
           paths = with pkgs.openssl; [ out dev ];
         };
       };
-      hermes = pkgs.callPackage ../integration_tests/install_hermes.nix { };
+      hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: {
