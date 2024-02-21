@@ -213,7 +213,7 @@ def create_transaction_with_multiple_messages(
     )
 
     hash_amino = keccak.new(sig_doc_amino.SerializeToString())
-    to_sign_amino = hash_amino.digest().hex()
+    to_sign_amino = hash_amino.digest()
 
     # SignDirect
     sig_info_direct = create_signer_info(
@@ -230,7 +230,7 @@ def create_transaction_with_multiple_messages(
         account_number,
     )
     hash_direct = keccak.new(sign_doc_direct.SerializeToString())
-    to_sign_direct = hash_direct.digest().hex()
+    to_sign_direct = hash_direct.digest()
     return {
         "legacyAmino": {
             "body": body,
