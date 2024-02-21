@@ -47,7 +47,7 @@
           devShells = {
             cronosd = pkgs.mkShell {
               buildInputs = with pkgs; [
-                go_1_20
+                go_1_22
                 rocksdb
               ];
             };

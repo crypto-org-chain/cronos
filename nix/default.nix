@@ -4,7 +4,7 @@ import sources.nixpkgs {
     (import ./build_overlay.nix)
     (import ./dapptools-overlay.nix { dapptools-release = sources.dapptools; dapptools-master = sources.dapptools-master; })
     (_: pkgs: {
-      go = pkgs.go_1_20;
+      go = pkgs.go_1_22;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
