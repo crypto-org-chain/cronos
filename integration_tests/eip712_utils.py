@@ -235,12 +235,12 @@ def create_transaction_with_multiple_messages(
         "legacyAmino": {
             "body": body,
             "authInfo": auth_info_amino,
-            "signBytes": base64.b64encode(to_sign_amino),
+            "signBytes": to_sign_amino,
         },
         "signDirect": {
             "body": body,
             "authInfo": auth_info_direct,
-            "signBytes": base64.b64encode(to_sign_direct),
+            "signBytes": to_sign_direct,
         },
     }
 
