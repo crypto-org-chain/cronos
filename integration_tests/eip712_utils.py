@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from eth_hash.auto import keccak
-from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
+from google.protobuf import any_pb2
 
 from .protobuf.cosmos.bank.v1beta1.tx_pb2 import MsgSend
 from .protobuf.cosmos.base.v1beta1.coin_pb2 import Coin
@@ -254,7 +254,7 @@ def create_body_with_multiple_messages(messages, memo):
 
 
 def create_any_message(msg):
-    any = google_dot_protobuf_dot_any__pb2.Any()
+    any = any_pb2.Any()
     any.Pack(msg["message"], "/")
     return any
 
