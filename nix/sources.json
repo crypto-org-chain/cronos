@@ -66,10 +66,10 @@
         "homepage": null,
         "owner": "nix-community",
         "repo": "gomod2nix",
-        "rev": "3cbf3a51fe32e2f57af4c52744e7228bab22983d",
-        "sha256": "11kn199nxcw6zspqawkrsfwv8wzx581wif3day160qlg11ya9di5",
+        "rev": "30e3c3a9ec4ac8453282ca7f67fca9e1da12c3e6",
+        "sha256": "1m0q0p1xidsp61xfrbj8ld1dqk3fhyrfifxj2ks36yjbnzmi1x69",
         "type": "tarball",
-        "url": "https://github.com/nix-community/gomod2nix/archive/3cbf3a51fe32e2f57af4c52744e7228bab22983d.tar.gz",
+        "url": "https://github.com/nix-community/gomod2nix/archive/30e3c3a9ec4ac8453282ca7f67fca9e1da12c3e6.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
