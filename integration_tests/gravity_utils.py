@@ -134,7 +134,7 @@ def prepare_gravity(custom_cronos, custom_geth):
     k_relayer = keccak.new(b"RELAYER")
     for _, address in enumerate(eth_addresses):
         set_role_tx = contract.functions.grantRole(
-            k_relayer.digest(), address
+            k_relayer.digest().hex(), address
         ).build_transaction({"from": admin.address})
         set_role_receipt = send_transaction(w3, set_role_tx, admin.key)
         print("set_role_tx", set_role_receipt)
