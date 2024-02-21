@@ -11,10 +11,10 @@ from .ibc_utils import (
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
     get_balance,
+    hermes_transfer,
     ibc_denom,
     ibc_incentivized_transfer,
     prepare_network,
-    rly_transfer,
 )
 from .utils import (
     ADDRS,
@@ -53,7 +53,7 @@ def ibc(request, tmp_path_factory):
     yield from prepare_network(
         path,
         name,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
     )
 
 
@@ -229,7 +229,7 @@ def test_ibc(ibc):
     w3 = ibc.cronos.w3
     wait_for_new_blocks(ibc.cronos.cosmos_cli(), 1)
     start = w3.eth.get_block_number()
-    rly_transfer(ibc)
+    hermes_transfer(ibc)
     denom = ibc_denom(channel, src_denom)
     dst_addr = eth_to_bech32(cronos_signer2)
     old_dst_balance = get_balance(ibc.cronos, dst_addr, dst_denom)

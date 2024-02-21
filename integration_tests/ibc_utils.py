@@ -627,7 +627,7 @@ def wait_for_check_channel_ready(cli, connid, channel_id, target="STATE_OPEN"):
             return False
         return state == target
 
-    wait_for_fn("channel ready", check_channel_ready)
+    wait_for_fn("channel ready", check_channel_ready, timeout=30)
 
 
 def get_next_channel(cli, connid):
