@@ -177,9 +177,7 @@ def test_multiple_attestation_processing(gravity):
         print("fund all accounts")
         for name in ACCOUNTS:
             address = ACCOUNTS[name].address
-            send_transaction(
-                geth, {"to": address, "value": 10**17}, KEYS["validator"]
-            )
+            send_transaction(geth, {"to": address, "value": 10**17}, KEYS["validator"])
             tx = erc20.functions.transfer(address, amount).build_transaction(
                 {"from": ADDRS["validator"]}
             )

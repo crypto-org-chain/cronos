@@ -2,7 +2,8 @@ import base64
 import json
 from pathlib import Path
 
-import sha3
+from eth_hash.auto import keccak
+from google.protobuf import any_pb2
 
 from .protobuf.cosmos.bank.v1beta1.tx_pb2 import MsgSend
 from .protobuf.cosmos.base.v1beta1.coin_pb2 import Coin
@@ -18,7 +19,6 @@ from .protobuf.cosmos.tx.v1beta1.tx_pb2 import (
 )
 from .protobuf.ethermint.crypto.v1.ethsecp256k1.keys_pb2 import PubKey as EPubKey
 from .protobuf.ethermint.types.v1.web3_pb2 import ExtensionOptionsWeb3Tx
-from .protobuf.google.protobuf.any_pb2 import Any
 
 LEGACY_AMINO = 127
 SIGN_DIRECT = 1
@@ -212,9 +212,8 @@ def create_transaction_with_multiple_messages(
         account_number,
     )
 
-    hash_amino = sha3.keccak_256()
-    hash_amino.update(sig_doc_amino.SerializeToString())
-    to_sign_amino = hash_amino.hexdigest()
+    hash_amino = keccak.new(sig_doc_amino.SerializeToString())
+    to_sign_amino = hash_amino.digest()
 
     # SignDirect
     sig_info_direct = create_signer_info(
@@ -230,19 +229,18 @@ def create_transaction_with_multiple_messages(
         chain_id,
         account_number,
     )
-    hash_direct = sha3.keccak_256()
-    hash_direct.update(sign_doc_direct.SerializeToString())
-    to_sign_direct = hash_direct.hexdigest()
+    hash_direct = keccak.new(sign_doc_direct.SerializeToString())
+    to_sign_direct = hash_direct.digest()
     return {
         "legacyAmino": {
             "body": body,
             "authInfo": auth_info_amino,
-            "signBytes": base64.b64decode(to_sign_amino),
+            "signBytes": to_sign_amino,
         },
         "signDirect": {
             "body": body,
             "authInfo": auth_info_direct,
-            "signBytes": base64.b64decode(to_sign_direct),
+            "signBytes": to_sign_direct,
         },
     }
 
@@ -256,7 +254,7 @@ def create_body_with_multiple_messages(messages, memo):
 
 
 def create_any_message(msg):
-    any = Any()
+    any = any_pb2.Any()
     any.Pack(msg["message"], "/")
     return any
 
