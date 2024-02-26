@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -800,6 +802,22 @@ func New(
 
 // use Ethermint's custom AnteHandler
 func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) {
+	if len(blacklist) > 0 {
+		// hash blacklist concatenated
+		h := sha256.New()
+		for _, addr := range blacklist {
+			_, err := h.Write([]byte(addr))
+			if err != nil {
+				panic(err)
+			}
+		}
+		app.Logger().Info("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
+		for _, addr := range blacklist {
+			app.Logger().Info("Blacklisted address", "address", addr)
+		}
+	} else {
+		app.Logger().Info("Setting ante handler without blacklist")
+	}
 	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
