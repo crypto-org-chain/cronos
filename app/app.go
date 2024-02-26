@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	"golang.org/x/exp/slices"
@@ -803,6 +804,7 @@ func New(
 // use Ethermint's custom AnteHandler
 func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) {
 	if len(blacklist) > 0 {
+		sort.Strings(blacklist)
 		// hash blacklist concatenated
 		h := sha256.New()
 		for _, addr := range blacklist {
