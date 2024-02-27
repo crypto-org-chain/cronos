@@ -8,8 +8,8 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
+	"cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/store/types"
 )
 
 var _ baseapp.StreamingService = &StreamingService{}
@@ -37,10 +37,10 @@ func NewStreamingService(versionStore VersionStore, storeKeys []types.StoreKey) 
 }
 
 // Listeners satisfies the baseapp.StreamingService interface
-func (fss *StreamingService) Listeners() map[types.StoreKey][]types.WriteListener {
-	listeners := make(map[types.StoreKey][]types.WriteListener, len(fss.listeners))
+func (fss *StreamingService) Listeners() map[types.StoreKey][]types.MemoryListener {
+	listeners := make(map[types.StoreKey][]types.MemoryListener, len(fss.listeners))
 	for _, listener := range fss.listeners {
-		listeners[listener.StoreKey()] = []types.WriteListener{listener}
+		listeners[listener.StoreKey()] = []types.MemoryListener{listener}
 	}
 	return listeners
 }

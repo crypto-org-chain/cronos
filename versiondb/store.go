@@ -4,10 +4,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/store/cachekv"
-	"github.com/cosmos/cosmos-sdk/store/listenkv"
-	"github.com/cosmos/cosmos-sdk/store/tracekv"
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/cachekv"
+	"cosmossdk.io/store/listenkv"
+	"cosmossdk.io/store/tracekv"
+	"cosmossdk.io/store/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 )
 
@@ -43,7 +43,7 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 }
 
 // CacheWrapWithListeners implements the CacheWrapper interface.
-func (st *Store) CacheWrapWithListeners(storeKey types.StoreKey, listeners []types.WriteListener) types.CacheWrap {
+func (st *Store) CacheWrapWithListeners(storeKey types.StoreKey, listeners []types.MemoryListener) types.CacheWrap {
 	return cachekv.NewStore(listenkv.NewStore(st, storeKey, listeners))
 }
 

@@ -3,9 +3,9 @@ package simapp
 import (
 	"time"
 
-	tmdb "github.com/cometbft/cometbft-db"
+	tmdb "github.com/cosmos/cosmos-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"

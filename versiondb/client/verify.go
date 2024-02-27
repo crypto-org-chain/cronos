@@ -16,8 +16,8 @@ import (
 	"github.com/cosmos/iavl"
 	"github.com/spf13/cobra"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	storetypes "cosmossdk.io/store/types"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 )

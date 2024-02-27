@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 	"github.com/cosmos/iavl"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"

@@ -6,8 +6,7 @@ package app
 import (
 	"errors"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	storetypes "cosmossdk.io/store/types"
 )
 
 func (app *App) setupVersionDB(
@@ -15,6 +14,6 @@ func (app *App) setupVersionDB(
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
 	memKeys map[string]*storetypes.MemoryStoreKey,
-) (sdk.MultiStore, error) {
+) (storetypes.MultiStore, error) {
 	return nil, errors.New("versiondb is not supported in this binary")
 }

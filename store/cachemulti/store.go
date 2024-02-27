@@ -3,9 +3,9 @@ package cachemulti
 import (
 	"io"
 
-	dbm "github.com/cometbft/cometbft-db"
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/cachemulti"
+	"cosmossdk.io/store/types"
+	dbm "github.com/cosmos/cosmos-db"
 )
 
 var NoopCloser io.Closer = CloserFunc(func() error { return nil })

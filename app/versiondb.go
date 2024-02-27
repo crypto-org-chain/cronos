@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"

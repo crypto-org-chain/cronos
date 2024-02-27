@@ -1,7 +1,7 @@
 package versiondb
 
 import (
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 )
 
 // VersionStore is a versioned storage of a flat key-value pairs.

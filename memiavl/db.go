@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/alitto/pond"
-	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 )
 
@@ -341,17 +340,23 @@ func (db *DB) ApplyChangeSets(changeSets []*NamedChangeSet) error {
 		return errReadOnly
 	}
 
-	if len(db.pendingLog.Changesets) > 0 {
-		return errors.New("don't support multiple ApplyChangeSets calls in the same version")
+	if len(db.pendingLog.Changesets) == 0 {
+		db.pendingLog.Changesets = changeSets
+	} else {
+		// slow path, merge into exist changesets one by one
+		for _, cs := range changeSets {
+			if err := db.applyChangeSet(cs.Name, cs.Changeset); err != nil {
+				return err
+			}
+		}
 	}
-	db.pendingLog.Changesets = changeSets
 
 	return db.MultiTree.ApplyChangeSets(changeSets)
 }
 
 // ApplyChangeSet wraps MultiTree.ApplyChangeSet, it also append the changesets in the pending log,
 // which will be persisted to the WAL in next Commit call.
-func (db *DB) ApplyChangeSet(name string, changeSet iavl.ChangeSet) error {
+func (db *DB) ApplyChangeSet(name string, changeSet ChangeSet) error {
 	if len(changeSet.Pairs) == 0 {
 		return nil
 	}
@@ -359,23 +364,35 @@ func (db *DB) ApplyChangeSet(name string, changeSet iavl.ChangeSet) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
+	return db.applyChangeSet(name, changeSet)
+}
+
+func (db *DB) applyChangeSet(name string, changeSet ChangeSet) error {
+	if len(changeSet.Pairs) == 0 {
+		return nil
+	}
+
 	if db.readOnly {
 		return errReadOnly
 	}
 
+	var updated bool
 	for _, cs := range db.pendingLog.Changesets {
 		if cs.Name == name {
-			return errors.New("don't support multiple ApplyChangeSet calls with the same name in the same version")
+			cs.Changeset.Pairs = append(cs.Changeset.Pairs, changeSet.Pairs...)
+			updated = true
 		}
 	}
 
-	db.pendingLog.Changesets = append(db.pendingLog.Changesets, &NamedChangeSet{
-		Name:      name,
-		Changeset: changeSet,
-	})
-	sort.SliceStable(db.pendingLog.Changesets, func(i, j int) bool {
-		return db.pendingLog.Changesets[i].Name < db.pendingLog.Changesets[j].Name
-	})
+	if !updated {
+		db.pendingLog.Changesets = append(db.pendingLog.Changesets, &NamedChangeSet{
+			Name:      name,
+			Changeset: changeSet,
+		})
+		sort.SliceStable(db.pendingLog.Changesets, func(i, j int) bool {
+			return db.pendingLog.Changesets[i].Name < db.pendingLog.Changesets[j].Name
+		})
+	}
 
 	return db.MultiTree.ApplyChangeSet(name, changeSet)
 }
