@@ -1163,8 +1163,8 @@ github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjU
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20240227092514-fbb68a1bf7c5 h1:U55PLcyChlyOW0N+oHw9mUQI+IYwVaeAbTfiV4VgTuE=
-github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20240227092514-fbb68a1bf7c5/go.mod h1:cmAawe8FV/52oPKbgeHLt4UpNkrNu8R5KD+kw0kxJFc=
+github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20240227134610-4f8ec2dc1913 h1:ZS+qiQnolSSpPGT1o9TfLdcxHIbKvmSCGzJkojkLPcY=
+github.com/mmsqe/cosmos-sdk v0.47.0-rc1.0.20240227134610-4f8ec2dc1913/go.mod h1:cmAawe8FV/52oPKbgeHLt4UpNkrNu8R5KD+kw0kxJFc=
 github.com/moby/sys/mountinfo v0.5.0/go.mod h1:3bMD3Rg+zkqx8MRYPi7Pyb0Ie97QEBmdxbhnCLlSvSU=
 github.com/moby/term v0.0.0-20201216013528-df9cb8a40635/go.mod h1:FBS0z0QWA44HXygs7VXDUOGoN/1TV3RuWkLO04am3wc=
 github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6/go.mod h1:E2VnQOmVuvZB6UYnnDB0qG5Nq/1tD9acaOpo6xmt0Kw=
