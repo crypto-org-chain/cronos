@@ -2,7 +2,7 @@ import json
 
 from pystarport import ports
 
-from .utils import wait_for_port
+from .utils import wait_for_block, wait_for_port
 
 
 def test_config_client_id(cronos):
@@ -21,6 +21,9 @@ def test_config_client_id(cronos):
         cronos.supervisorctl("start", n0)
         wait_for_port(ports.evmrpc_port(p0))
         assert w3.eth.chain_id == chain_id
+        height = w3.eth.get_block_number()
+        # check CONSENSUS FAILURE
+        wait_for_block(cli, height + 2, timeout=10)
 
     assert_chain_id(776)
     cronos.supervisorctl("stop", n0)

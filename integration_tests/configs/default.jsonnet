@@ -4,11 +4,13 @@
     cmd: 'cronosd',
     'start-flags': '--trace',
     config: {
+      db_backend: 'rocksdb',
       mempool: {
         version: 'v1',
       },
     },
     'app-config': {
+      chain_id: 'cronos_777-1',
       'app-db-backend': 'pebbledb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
