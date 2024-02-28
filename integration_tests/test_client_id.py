@@ -13,7 +13,7 @@ def test_config_client_id(cronos):
     cli = cronos.cosmos_cli(0)
     dir = cli.data_dir / "config"
 
-    def assert_chain_id(chain_id):
+    def assert_chain_id(chain_id, timeout=None):
         genesis_cfg = dir / "genesis.json"
         genesis = json.loads(genesis_cfg.read_text())
         genesis["chain_id"] = f"cronos_{chain_id}-1"
@@ -21,10 +21,18 @@ def test_config_client_id(cronos):
         cronos.supervisorctl("start", n0)
         wait_for_port(ports.evmrpc_port(p0))
         assert w3.eth.chain_id == chain_id
-        height = w3.eth.get_block_number()
+        height = w3.eth.get_block_number() + 2
         # check CONSENSUS FAILURE
-        wait_for_block(cli, height + 2, timeout=10)
+        if timeout is None:
+            wait_for_block(cli, height)
+        else:
+            try:
+                print(f"should assert timeout err when pass {timeout}s")
+                wait_for_block(cli, height, timeout)
+            except TimeoutError:
+                raised = True
+            assert raised
 
-    assert_chain_id(776)
+    assert_chain_id(776, 5)
     cronos.supervisorctl("stop", n0)
     assert_chain_id(777)
