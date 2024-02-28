@@ -9,7 +9,7 @@
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.utils.follows = "flake-utils";
+      inputs.flake-utils.follows = "flake-utils";
     };
   };
 
@@ -45,14 +45,20 @@
           defaultPackage = packages.cronosd;
           defaultApp = apps.cronosd;
           devShells = {
-            cronosd = pkgs.mkShell {
-              buildInputs = with pkgs; [
-                go_1_22
-                rocksdb
+            default = pkgs.mkShell {
+              buildInputs = [
+                defaultPackage.go
+                pkgs.gomod2nix
+              ];
+            };
+            rocksdb = pkgs.mkShell {
+              buildInputs = [
+                defaultPackage.go
+                pkgs.gomod2nix
+                pkgs.rocksdb
               ];
             };
           };
-          devShell = devShells.cronosd;
           legacyPackages = pkgs;
         }
       )
