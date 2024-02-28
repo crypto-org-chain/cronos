@@ -64,6 +64,7 @@
       )
     ) // {
       overlay = final: super: {
+        go = super.go_1_22;
         bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
