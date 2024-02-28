@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#1329](https://github.com/crypto-org-chain/cronos/pull/1329) Update cosmos-sdk to `v0.47.10`.
+
 *February 19, 2024*
 
 ## v1.1.0-rc4

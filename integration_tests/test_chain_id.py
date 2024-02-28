@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from pystarport import ports
 
 from .utils import wait_for_block, wait_for_port
@@ -26,12 +27,8 @@ def test_config_client_id(cronos):
         if timeout is None:
             wait_for_block(cli, height)
         else:
-            try:
-                print(f"should assert timeout err when pass {timeout}s")
+            with pytest.raises(TimeoutError):
                 wait_for_block(cli, height, timeout)
-            except TimeoutError:
-                raised = True
-            assert raised
 
     assert_chain_id(776, 5)
     cronos.supervisorctl("stop", n0)
