@@ -813,12 +813,12 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 				panic(err)
 			}
 		}
-		app.Logger().Info("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
+		app.Logger().Error("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
 		for _, addr := range blacklist {
-			app.Logger().Info("Blacklisted address", "address", addr)
+			app.Logger().Error("Blacklisted address", "address", addr)
 		}
 	} else {
-		app.Logger().Info("Setting ante handler without blacklist")
+		app.Logger().Error("Setting ante handler without blacklist")
 	}
 	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
