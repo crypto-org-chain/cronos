@@ -4,6 +4,14 @@
 
 ### Bug Fixes
 
+- [#1336](https://github.com/crypto-org-chain/cronos/pull/1336) Update ethermint to develop to fix feeHistory rpc api.
+
+*February 28, 2024*
+
+## v1.1.0-rc5
+
+### Bug Fixes
+
 - [#1329](https://github.com/crypto-org-chain/cronos/pull/1329) Update cosmos-sdk to `v0.47.10`.
 
 *February 19, 2024*
