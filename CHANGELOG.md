@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [#](https://github.com/crypto-org-chain/cronos/pull/) Update ethermint to develop.
+- [#1336](https://github.com/crypto-org-chain/cronos/pull/1336) Update ethermint to develop.
 
 *February 28, 2024*
 
