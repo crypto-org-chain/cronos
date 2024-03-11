@@ -5,6 +5,7 @@
 - [#1241](https://github.com/crypto-org-chain/cronos/pull/1241) Improve parallelization of memiavl restoration.
 - [#1302](https://github.com/crypto-org-chain/cronos/pull/1302) Fix concurrent map access in rootmulti store.
 - [#1304](https://github.com/crypto-org-chain/cronos/pull/1304) Write versiondb with fsync, and relax the version requirement on startup.
+- [#1230](https://github.com/crypto-org-chain/cronos/pull/1230) Fix mem store in versiondb multistore.
 
 ### State Machine Breaking
 
