@@ -7,16 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
-func setupVersionDB(
+func (app *App) setupVersionDB(
 	homePath string,
-	app *baseapp.BaseApp,
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
 	memKeys map[string]*storetypes.MemoryStoreKey,
@@ -39,7 +37,7 @@ func setupVersionDB(
 	service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
 	app.SetStreamingService(service)
 
-	verDB := versiondb.NewMultiStore(versionDB, exposeStoreKeys)
+	verDB := versiondb.NewMultiStore(app.CommitMultiStore(), versionDB, exposeStoreKeys)
 	verDB.MountTransientStores(tkeys)
 	verDB.MountMemoryStores(memKeys)
 
