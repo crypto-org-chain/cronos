@@ -373,23 +373,6 @@ func New(
 
 	keys, memKeys, tkeys := StoreKeys(skipGravity)
 
-	// load state streaming if enabled
-	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
-		fmt.Printf("failed to load state streaming: %s", err)
-		os.Exit(1)
-	}
-
-	// wire up the versiondb's `StreamingService` and `MultiStore`.
-	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
-	var qms sdk.MultiStore
-	if slices.Contains(streamers, "versiondb") {
-		var err error
-		qms, err = setupVersionDB(homePath, bApp, keys, tkeys, memKeys)
-		if err != nil {
-			panic(err)
-		}
-	}
-
 	app := &App{
 		BaseApp:           bApp,
 		cdc:               cdc,
@@ -780,6 +763,23 @@ func New(
 	app.MountKVStores(keys)
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
+
+	// load state streaming if enabled
+	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, keys); err != nil {
+		fmt.Printf("failed to load state streaming: %s", err)
+		os.Exit(1)
+	}
+
+	// wire up the versiondb's `StreamingService` and `MultiStore`.
+	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
+	var qms sdk.MultiStore
+	if slices.Contains(streamers, "versiondb") {
+		var err error
+		qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
