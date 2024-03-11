@@ -7,7 +7,7 @@ require (
 	github.com/confio/ics23/go v0.9.0
 	github.com/cosmos/cosmos-sdk v0.46.14
 	github.com/cosmos/iavl v0.19.6
-	github.com/crypto-org-chain/cronos/memiavl v0.0.5
+	github.com/crypto-org-chain/cronos/memiavl v0.0.6
 	github.com/gogo/protobuf v1.3.2
 	github.com/spf13/cast v1.5.0
 	github.com/stretchr/testify v1.8.3
