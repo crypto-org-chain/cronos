@@ -11,7 +11,7 @@ require (
 	github.com/cosmos/gogoproto v1.4.8
 	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/crypto-org-chain/cronos/store v0.0.6
-	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
+	github.com/crypto-org-chain/cronos/versiondb v0.0.6
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/gogo/protobuf v1.3.3
