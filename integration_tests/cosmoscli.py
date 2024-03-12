@@ -706,6 +706,7 @@ class CosmosCLI:
 
     def gov_propose_legacy(self, proposer, kind, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", 300000)
         if kind == "software-upgrade":
             return json.loads(
                 self.raw(
@@ -782,7 +783,9 @@ class CosmosCLI:
             )
         )
 
-    def gov_deposit(self, depositor, proposal_id, amount):
+    def gov_deposit(self, depositor, proposal_id, amount, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", 300000)
         return json.loads(
             self.raw(
                 "tx",
@@ -796,6 +799,7 @@ class CosmosCLI:
                 node=self.node_rpc,
                 keyring_backend="test",
                 chain_id=self.chain_id,
+                **kwargs,
             )
         )
 
@@ -1452,3 +1456,7 @@ class CosmosCLI:
             "--move-files",
             **kwargs,
         ).decode()
+
+    def query_feemarket_params(self, **kwargs):
+        res = self.raw("q", "feemarket", "params", home=self.data_dir, **kwargs)
+        return json.loads(res)

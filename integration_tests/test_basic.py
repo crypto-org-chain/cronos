@@ -1,6 +1,7 @@
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
+    approve_proposal,
     build_batch_tx,
     contract_address,
     contract_path,
@@ -732,3 +734,29 @@ def test_replay_protection(cronos):
         match=r"only replay-protected \(EIP-155\) transactions allowed over RPC",
     ):
         w3.eth.send_raw_transaction(HexBytes(raw))
+
+
+def test_gov_min_gas_price(cronos):
+    cli = cronos.cosmos_cli()
+    orig = Decimal(cli.query_feemarket_params()["params"]["min_gas_price"])
+
+    rsp = cli.gov_propose_legacy(
+        "community",
+        "param-change",
+        {
+            "title": "Update MinGasPrice",
+            "description": "Update MinGasPrice",
+            "changes": [
+                {
+                    "subspace": "feemarket",
+                    "key": "MinGasPrice",
+                    "value": str(orig + Decimal("0.1")),
+                },
+            ],
+        },
+    )
+
+    approve_proposal(cronos, rsp)
+
+    new = Decimal(cli.query_feemarket_params()["params"]["min_gas_price"])
+    assert new == orig + Decimal("0.1")

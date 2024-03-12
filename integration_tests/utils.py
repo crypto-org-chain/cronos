@@ -9,6 +9,7 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import timedelta
 from pathlib import Path
 
 import bech32
@@ -524,3 +525,41 @@ def send_txs(w3, cli, to, keys, params):
     sended_hash_set = send_raw_transactions(w3, raw_transactions)
 
     return block_num_0, sended_hash_set
+
+
+def find_log_event_attrs(logs, ev_type, cond=None):
+    for ev in logs[0]["events"]:
+        if ev["type"] == ev_type:
+            attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
+            if cond is None or cond(attrs):
+                return attrs
+    return None
+
+
+def get_proposal_id(rsp, msg):
+    def cb(attrs):
+        return "proposal_id" in attrs
+
+    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
+    assert ev["proposal_messages"] == msg, rsp
+    return ev["proposal_id"]
+
+
+def approve_proposal(n, rsp):
+    # get proposal_id
+    proposal_id = get_proposal_id(rsp, ",/cosmos.gov.v1.MsgExecLegacyContent")
+    cli = n.cosmos_cli()
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_DEPOSIT_PERIOD", proposal
+    rsp = cli.gov_deposit("community", proposal_id, "1basetcro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_VOTING_PERIOD", proposal
+    for i in range(len(n.config["validators"])):
+        rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes")
+        assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_block_time(
+        cli, isoparse(proposal["voting_end_time"]) + timedelta(seconds=5)
+    )
+    proposal = cli.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
