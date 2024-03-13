@@ -763,8 +763,31 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def gov_deposit(self, depositor, proposal_id, amount):
+    def query_icacontroller_params(self):
+        kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
         return json.loads(
+            self.raw(
+                "q",
+                "interchain-accounts",
+                "controller",
+                "params",
+                **kwargs,
+            )
+        )
+
+    def gov_deposit(
+        self,
+        depositor,
+        proposal_id,
+        amount,
+        event_query_tx=True,
+        **kwargs,
+    ):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "gov",
@@ -777,8 +800,12 @@ class CosmosCLI:
                 node=self.node_rpc,
                 keyring_backend="test",
                 chain_id=self.chain_id,
+                **kwargs,
             )
         )
+        if rsp["code"] == 0 and event_query_tx:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def query_proposals(self, depositor=None, limit=None, status=None, voter=None):
         return json.loads(
