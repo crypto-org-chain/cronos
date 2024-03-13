@@ -2,10 +2,12 @@ import json
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 import web3
+from dateutil.parser import isoparse
 from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
@@ -30,9 +32,99 @@ from .utils import (
     send_txs,
     submit_any_proposal,
     wait_for_block,
+    wait_for_block_time,
     wait_for_new_blocks,
     wait_for_port,
 )
+
+
+def find_log_event_attrs(logs, ev_type, cond=None):
+    for ev in logs[0]["events"]:
+        if ev["type"] == ev_type:
+            attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
+            if cond is None or cond(attrs):
+                return attrs
+    return None
+
+
+def get_proposal_id(rsp):
+    def cb(attrs):
+        return "proposal_id" in attrs
+
+    msg = ",/cosmos.gov.v1.MsgExecLegacyContent"
+    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
+    assert ev["proposal_messages"] == msg, rsp
+    return ev["proposal_id"]
+
+
+def approve_proposal_legacy(
+    node,
+    rsp,
+    vote_option="yes",
+):
+    cluster = node.cosmos_cli()
+    proposal_id = get_proposal_id(rsp)
+    proposal = cluster.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_DEPOSIT_PERIOD", proposal
+    amount = cluster.balance(cluster.address("community"))
+    rsp = cluster.gov_deposit("community", proposal_id, "1basetcro")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    proposal = cluster.query_proposal(proposal_id)
+    assert proposal["status"] == "PROPOSAL_STATUS_VOTING_PERIOD", proposal
+
+    if vote_option is not None:
+        rsp = node.cosmos_cli(0).gov_vote("validator", proposal_id, vote_option)
+        assert rsp["code"] == 0, rsp["raw_log"]
+        rsp = node.cosmos_cli(1).gov_vote("validator", proposal_id, vote_option)
+        assert rsp["code"] == 0, rsp["raw_log"]
+        assert (
+            int(cluster.query_tally(proposal_id)[vote_option + "_count"])
+            == cluster.staking_pool()
+        ), "all voted"
+    else:
+        assert cluster.query_tally(proposal_id) == {
+            "yes_count": "0",
+            "no_count": "0",
+            "abstain_count": "0",
+            "no_with_veto_count": "0",
+        }
+
+    wait_for_block_time(
+        cluster, isoparse(proposal["voting_end_time"]) + timedelta(seconds=5)
+    )
+    proposal = cluster.query_proposal(proposal_id)
+    if vote_option == "yes":
+        assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+    else:
+        assert proposal["status"] == "PROPOSAL_STATUS_REJECTED", proposal
+    return amount
+
+
+def test_ica_enabled(cronos):
+    cli = cronos.cosmos_cli()
+    p = cli.query_host_params()
+    assert p["controller_enabled"]
+    rsp = cli.gov_propose_legacy(
+        "community",
+        "param-change",
+        {
+            "title": "Update icacontroller enabled",
+            "description": "ditto",
+            "changes": [
+                {
+                    "subspace": "icacontroller",
+                    "key": "ControllerEnabled",
+                    "value": False,
+                }
+            ],
+        },
+        mode="sync",
+    )
+    rsp = cli.event_query_tx_for(rsp["txhash"])
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal_legacy(cronos, rsp)
+    p = cli.query_host_params()
+    assert not p["controller_enabled"]
 
 
 def test_basic(cluster):
