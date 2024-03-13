@@ -763,21 +763,6 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def query_icacontroller_params(self):
-        kwargs = {
-            "node": self.node_rpc,
-            "output": "json",
-        }
-        return json.loads(
-            self.raw(
-                "q",
-                "interchain-accounts",
-                "controller",
-                "params",
-                **kwargs,
-            )
-        )
-
     def gov_deposit(
         self,
         depositor,
