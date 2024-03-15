@@ -11,9 +11,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, poetry2nix }:
     let
       rev = self.shortRev or "dirty";
       mkApp = drv: {
@@ -28,6 +33,7 @@
             inherit system;
             overlays = [
               (import ./nix/build_overlay.nix)
+              poetry2nix.overlays.default
               gomod2nix.overlays.default
               self.overlay
             ];
@@ -58,6 +64,14 @@
                 pkgs.rocksdb
               ];
             };
+            full = pkgs.mkShell {
+              buildInputs = [
+                defaultPackage.go
+                pkgs.gomod2nix
+                pkgs.rocksdb
+                pkgs.test-env
+              ];
+            };
           };
           legacyPackages = pkgs;
         }
@@ -65,6 +79,7 @@
     ) // {
       overlay = final: super: {
         go = super.go_1_22;
+        test-env = final.callPackage ./nix/testenv.nix { };
         bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
         # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
         # reset the ownership and permissions to make the extract result more normal.
