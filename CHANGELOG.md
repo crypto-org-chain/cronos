@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - [#1336](https://github.com/crypto-org-chain/cronos/pull/1336) Update ethermint to develop to fix feeHistory rpc api.
+- [#1353](https://github.com/crypto-org-chain/cronos/pull/1353) Fix issues when basefee overflows int64
 
 *February 28, 2024*
 
