@@ -31,7 +31,7 @@ def test_basefee_overflow(cronos):
     receipt = send_transaction(
         w3,
         tx,
-        KEYS["community"],
+        KEYS["validator"],
     )
     assert receipt.status == 1
     print("receipt", receipt)

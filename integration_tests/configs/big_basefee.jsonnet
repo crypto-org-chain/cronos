@@ -5,7 +5,7 @@ config {
     // provide gas prices for genesis txs
     validators: [validator {
       gas_prices: '1000000000000000000basetcro',
-      coins: '1000000000000000000stake,200000000000000000000000basetcro',
+      coins: '1000000000000000000stake,600000000000000000000000basetcro',
     } for validator in super.validators],
     genesis+: {
       app_state+: {
