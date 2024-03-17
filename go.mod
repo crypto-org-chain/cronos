@@ -254,6 +254,8 @@ replace (
 	// for go-ethereum
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230209160836-829675f94811
 	github.com/cometbft/cometbft-db => github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63
+	// https://github.com/cosmos/cosmos-db/pull/104
+	github.com/cosmos/cosmos-db => github.com/yihuang/cosmos-db v0.0.0-20240315085537-afdfa9c0f19d
 	github.com/cosmos/cosmos-sdk => github.com/mmsqe/cosmos-sdk v0.46.0-beta2.0.20240315010123-8531387f70f0
 	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
 	github.com/crypto-org-chain/cronos/store => ./store

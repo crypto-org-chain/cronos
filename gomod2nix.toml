@@ -158,8 +158,9 @@ schema = 3
     version = "v1.0.5"
     hash = "sha256-t572Sr5iiHcuMKLMWa2i+LBAt192oa+G1oA371tG/eI="
   [mod."github.com/cosmos/cosmos-db"]
-    version = "v1.0.2"
-    hash = "sha256-WjDoB2AGoIyEW30LlGcQX5JVACJbs0jWSY58IuJHz0M="
+    version = "v0.0.0-20240315085537-afdfa9c0f19d"
+    hash = "sha256-x4w4agRmh62wbaUVilSEMFNTLiwbrf/KNVv260jrIs0="
+    replaced = "github.com/yihuang/cosmos-db"
   [mod."github.com/cosmos/cosmos-proto"]
     version = "v1.0.0-beta.4"
     hash = "sha256-5Kn82nsZfiEtuwhhLZqmMxdAY1tX/Fi3HJ0/MEaRohw="
