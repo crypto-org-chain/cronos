@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/alitto/pond"
-	dbm "github.com/cometbft/cometbft-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
 	"github.com/golang/snappy"
 	"github.com/spf13/cast"

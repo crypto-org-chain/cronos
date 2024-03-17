@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 // BlockAddressesDecorator block addresses from sending transactions
@@ -19,10 +20,14 @@ func NewBlockAddressesDecorator(blacklist map[string]struct{}) BlockAddressesDec
 
 func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	if ctx.IsCheckTx() {
-		for _, msg := range tx.GetMsgs() {
-			for _, signer := range msg.GetSigners() {
+		if sigTx, ok := tx.(signing.SigVerifiableTx); ok {
+			signers, err := sigTx.GetSigners()
+			if err != nil {
+				return ctx, err
+			}
+			for _, signer := range signers {
 				if _, ok := bad.blockedMap[string(signer)]; ok {
-					return ctx, fmt.Errorf("signer is blocked: %s", signer.String())
+					return ctx, fmt.Errorf("signer is blocked: %s", sdk.AccAddress(signer).String())
 				}
 			}
 		}

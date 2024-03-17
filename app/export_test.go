@@ -27,7 +27,7 @@ func TestExportAppStateAndValidators(t *testing.T) {
 			privKey, err := ethsecp256k1.GenerateKey()
 			require.NoError(t, err)
 			address := sdk.AccAddress(privKey.PubKey().Address())
-			app := Setup(t, address.String(), true)
+			app := Setup(t, address.String())
 			app.Commit()
 			_, err = app.ExportAppStateAndValidators(tc.forZeroHeight, []string{}, []string{})
 			require.NoError(t, err, "ExportAppStateAndValidators should not have an error")

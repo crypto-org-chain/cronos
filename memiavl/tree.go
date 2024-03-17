@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/cosmos/iavl"
 	"github.com/cosmos/iavl/cache"
 )
 
@@ -116,7 +115,7 @@ func (t *Tree) Copy(cacheSize int) *Tree {
 }
 
 // ApplyChangeSet apply the change set of a whole version, and update hashes.
-func (t *Tree) ApplyChangeSet(changeSet iavl.ChangeSet) {
+func (t *Tree) ApplyChangeSet(changeSet ChangeSet) {
 	for _, pair := range changeSet.Pairs {
 		if pair.Delete {
 			t.remove(pair.Key)

@@ -3,7 +3,7 @@ package tsrocksdb
 import (
 	"bytes"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 	"github.com/linxGnu/grocksdb"
 )
 

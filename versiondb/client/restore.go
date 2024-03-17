@@ -11,9 +11,9 @@ import (
 	protoio "github.com/cosmos/gogoproto/io"
 	"github.com/spf13/cobra"
 
+	"cosmossdk.io/store/snapshots"
+	"cosmossdk.io/store/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/server"
-	"github.com/cosmos/cosmos-sdk/snapshots"
-	"github.com/cosmos/cosmos-sdk/snapshots/types"
 
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"

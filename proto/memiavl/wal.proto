@@ -4,12 +4,12 @@ package memiavl;
 option go_package = "github.com/crypto-org-chain/cronos/memiavl";
 
 import "gogoproto/gogo.proto";
-import "iavl/changeset.proto";
+import "memiavl/changeset.proto";
 import "memiavl/commit_info.proto";
 
 // NamedChangeSet combine a tree name with the changeset
 message NamedChangeSet {
-  iavl.ChangeSet changeset = 1 [(gogoproto.nullable) = false];
+  ChangeSet      changeset = 1 [(gogoproto.nullable) = false];
   string         name      = 2;
 }
 

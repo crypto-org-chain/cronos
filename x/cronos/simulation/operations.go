@@ -34,7 +34,7 @@ func WeightedOperations(
 ) simulation.WeightedOperations {
 	var weightMsgUpdateTokenMapping int
 
-	appParams.GetOrGenerate(cdc, OpWeightMsgUpdateTokenMapping, &weightMsgUpdateTokenMapping, nil,
+	appParams.GetOrGenerate(OpWeightMsgUpdateTokenMapping, &weightMsgUpdateTokenMapping, nil,
 		func(_ *rand.Rand) {
 			weightMsgUpdateTokenMapping = WeightMsgUpdateTokenMapping
 		},
@@ -81,7 +81,6 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 			TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
 			Cdc:             nil,
 			Msg:             msg,
-			MsgType:         msg.Type(),
 			Context:         ctx,
 			SimAccount:      simAccount,
 			AccountKeeper:   ak,

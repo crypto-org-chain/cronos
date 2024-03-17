@@ -57,27 +57,27 @@ func RandomizedGenState(simState *module.SimulationState) {
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, ibcCroDenomKey, &ibcCroDenom, simState.Rand,
+		ibcCroDenomKey, &ibcCroDenom, simState.Rand,
 		func(r *rand.Rand) { ibcCroDenom = GenIbcCroDenom(r) },
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, ibcTimeoutKey, &ibcTimeout, simState.Rand,
+		ibcTimeoutKey, &ibcTimeout, simState.Rand,
 		func(r *rand.Rand) { ibcTimeout = GenIbcTimeout(r) },
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, cronosAdminKey, &cronosAdmin, simState.Rand,
+		cronosAdminKey, &cronosAdmin, simState.Rand,
 		func(r *rand.Rand) { cronosAdmin = GenCronosAdmin(r, simState) },
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, enableAutoDeploymentKey, &enableAutoDeployment, simState.Rand,
+		enableAutoDeploymentKey, &enableAutoDeployment, simState.Rand,
 		func(r *rand.Rand) { enableAutoDeployment = GenEnableAutoDeployment(r) },
 	)
 
 	simState.AppParams.GetOrGenerate(
-		simState.Cdc, maxCallbackGasKey, &ibcTimeout, simState.Rand,
+		maxCallbackGasKey, &ibcTimeout, simState.Rand,
 		func(r *rand.Rand) { maxCallbackGas = GenIbcTimeout(r) },
 	)
 

@@ -4,12 +4,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
-	"github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/store/cachemulti"
+	"cosmossdk.io/store/types"
 )
 
-var _ sdk.MultiStore = (*MultiStore)(nil)
+var _ types.MultiStore = (*MultiStore)(nil)
 
 // MultiStore wraps `VersionStore` to implement `MultiStore` interface.
 type MultiStore struct {
@@ -38,7 +37,7 @@ func (s *MultiStore) GetStoreType() types.StoreType {
 }
 
 // cacheMultiStore branch out the multistore.
-func (s *MultiStore) cacheMultiStore(version *int64) sdk.CacheMultiStore {
+func (s *MultiStore) cacheMultiStore(version *int64) types.CacheMultiStore {
 	stores := make(map[types.StoreKey]types.CacheWrapper, len(s.transientStores)+len(s.storeKeys))
 	for k := range s.transientStores {
 		stores[k] = s.parent.GetKVStore(k).(types.CacheWrapper)
@@ -50,12 +49,12 @@ func (s *MultiStore) cacheMultiStore(version *int64) sdk.CacheMultiStore {
 }
 
 // CacheMultiStore implements `MultiStore` interface
-func (s *MultiStore) CacheMultiStore() sdk.CacheMultiStore {
+func (s *MultiStore) CacheMultiStore() types.CacheMultiStore {
 	return s.cacheMultiStore(nil)
 }
 
 // CacheMultiStoreWithVersion implements `MultiStore` interface
-func (s *MultiStore) CacheMultiStoreWithVersion(version int64) (sdk.CacheMultiStore, error) {
+func (s *MultiStore) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStore, error) {
 	return s.cacheMultiStore(&version), nil
 }
 
@@ -70,12 +69,12 @@ func (s *MultiStore) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types
 }
 
 // GetStore implements `MultiStore` interface
-func (s *MultiStore) GetStore(storeKey types.StoreKey) sdk.Store {
+func (s *MultiStore) GetStore(storeKey types.StoreKey) types.Store {
 	return s.GetKVStore(storeKey)
 }
 
 // GetKVStore implements `MultiStore` interface
-func (s *MultiStore) GetKVStore(storeKey types.StoreKey) sdk.KVStore {
+func (s *MultiStore) GetKVStore(storeKey types.StoreKey) types.KVStore {
 	if _, ok := s.transientStores[storeKey]; ok {
 		return s.parent.GetKVStore(storeKey)
 	}
