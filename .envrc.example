@@ -1,0 +1,5 @@
+# default: go, gomod2nix
+# rocksdb: go, gomod2nix, librocksdb
+# full:    go, gomod2nix, librocksdb, python env
+use flake .#full
+TMPDIR=/tmp
