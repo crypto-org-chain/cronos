@@ -8,6 +8,7 @@ from .ibc_utils import (
     deploy_contract,
     funds_ica,
     gen_send_msg,
+    ica_ctrl_send_tx,
     parse_events_rpc,
     prepare_network,
     register_acc,
@@ -45,39 +46,22 @@ def test_ica(ibc, tmp_path):
     denom = "basecro"
     jsonfile = CONTRACTS["TestICA"]
     tcontract = deploy_contract(ibc.cronos.w3, jsonfile)
-    memo = {"src_callback": {"address": tcontract.address}}
     timeout_in_ns = 6000000000
     seq = 1
-
-    def generated_tx_packet(msg_num):
-        # generate a transaction to send to host chain
-        m = gen_send_msg(ica_address, to, denom, amount)
-        msgs = []
-        for i in range(msg_num):
-            msgs.append(m)
-        data = json.dumps(msgs)
-        packet = cli_controller.ica_generate_packet_data(data, json.dumps(memo))
-        return packet
-
-    def send_tx(msg_num, gas="200000"):
-        num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
-        generated_tx = json.dumps(generated_tx_packet(msg_num))
-        # submit transaction on host chain on behalf of interchain account
-        rsp = cli_controller.ica_ctrl_send_tx(
-            connid,
-            generated_tx,
-            timeout_in_ns,
-            gas=gas,
-            from_="signer2",
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-        events = parse_events_rpc(rsp["events"])
-        assert int(events.get("send_packet")["packet_sequence"]) == seq
-        wait_for_check_tx(cli_host, ica_address, num_txs)
-
     msg_num = 10
     assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
-    send_tx(msg_num)
+    res = ica_ctrl_send_tx(
+        cli_host,
+        cli_controller,
+        connid,
+        ica_address,
+        msg_num,
+        to,
+        denom,
+        amount,
+        memo={"src_callback": {"address": tcontract.address}},
+    )
+    assert res == seq, res
     balance -= amount * msg_num
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_status_change(tcontract, channel_id, seq, timeout_in_ns / 1e9)

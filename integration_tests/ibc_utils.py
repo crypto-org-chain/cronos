@@ -729,6 +729,43 @@ def gen_send_msg(sender, receiver, denom, amount):
     }
 
 
+def ica_ctrl_send_tx(
+    cli_host,
+    cli_controller,
+    connid,
+    ica_address,
+    msg_num,
+    receiver,
+    denom,
+    amount,
+    memo=None,
+    incentivized_cb=None,
+    **kwargs,
+):
+    num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+    # generate a transaction to send to host chain
+    m = gen_send_msg(ica_address, receiver, denom, amount)
+    msgs = []
+    for i in range(msg_num):
+        msgs.append(m)
+    data = json.dumps(msgs)
+    packet = cli_controller.ica_generate_packet_data(data, json.dumps(memo))
+    # submit transaction on host chain on behalf of interchain account
+    rsp = cli_controller.ica_ctrl_send_tx(
+        connid,
+        json.dumps(packet),
+        from_="signer2",
+        **kwargs,
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    events = parse_events_rpc(rsp["events"])
+    seq = int(events.get("send_packet")["packet_sequence"])
+    if incentivized_cb:
+        incentivized_cb(seq)
+    wait_for_check_tx(cli_host, ica_address, num_txs)
+    return seq
+
+
 def log_gas_records(cli):
     criteria = "tx.height >= 0"
     txs = cli.tx_search_rpc(criteria)
