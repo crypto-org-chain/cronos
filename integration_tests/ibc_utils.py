@@ -478,16 +478,8 @@ def ibc_incentivized_transfer(ibc):
     ], actual
     path = f"transfer/{dst_channel}/{base_denom}"
     denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
-    assert json.loads(
-        chains[0].raw(
-            "query",
-            "ibc-transfer",
-            "denom-trace",
-            denom_hash,
-            node=ibc.chainmain.node_rpc(0),
-            output="json",
-        )
-    )["denom_trace"] == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
+    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
     current = get_balances(ibc.chainmain, receiver)
     assert current == [
         {"denom": "basecro", "amount": f"{old_amt_receiver_base}"},
