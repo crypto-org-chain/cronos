@@ -7,7 +7,14 @@ config {
     key_name: 'signer1',
     accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
       coins: super.coins + ',100000000000ibcfee',
-    }],
+    }] + [
+      {
+        name: 'user' + i,
+        coins: '30000000000000000000000basetcro',
+        mnemonic: '${USER' + i + '_MNEMONIC}',
+      }
+      for i in std.range(1, 20)
+    ],
     'app-config'+: {
       'index-events': super['index-events'] + ['message.action'],
     },
@@ -76,6 +83,13 @@ config {
         coins: '10000000000000cro',
         mnemonic: '${SIGNER2_MNEMONIC}',
       },
+    ] + [
+      {
+        name: 'user' + i,
+        coins: '10000000000000cro',
+        mnemonic: '${USER' + i + '_MNEMONIC}',
+      }
+      for i in std.range(1, 20)
     ],
     genesis: {
       app_state: {

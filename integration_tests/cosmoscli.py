@@ -838,12 +838,14 @@ class CosmosCLI:
         amount,
         channel,  # src channel
         target_version,  # chain version number of target chain
+        event_query_tx_for=False,
         **kwargs,
     ):
         default_kwargs = {
             "home": self.data_dir,
+            "broadcast_mode": "sync",
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc-transfer",
@@ -864,6 +866,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0 and event_query_tx_for:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def ibc_escrow_address(self, port, channel):
         res = self.raw(
@@ -876,6 +881,19 @@ class CosmosCLI:
             node=self.node_rpc,
         ).decode("utf-8")
         return re.sub(r"\n", "", res)
+
+    def ibc_denom_trace(self, path, node):
+        denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
+        return json.loads(
+            self.raw(
+                "query",
+                "ibc-transfer",
+                "denom-trace",
+                denom_hash,
+                node=node,
+                output="json",
+            )
+        )["denom_trace"]
 
     def export(self):
         return self.raw("export", home=self.data_dir)

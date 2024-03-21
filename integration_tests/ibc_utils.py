@@ -331,6 +331,83 @@ def get_balances(chain, addr):
     return chain.cosmos_cli().balances(addr)
 
 
+def ibc_multi_transfer(ibc):
+    chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
+    users = [f"user{i}" for i in range(1, 21)]
+    addrs0 = [chains[0].address(user) for user in users]
+    addrs1 = [chains[1].address(user) for user in users]
+    denom0 = "basetcro"
+    denom1 = "basecro"
+    channel0 = "channel-0"
+    channel1 = "channel-0"
+    old_balance0 = 30000000000000000000000
+    old_balance1 = 1000000000000000000000
+    path = f"transfer/{channel1}/{denom0}"
+    denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
+    amount = 1000
+    expected = [
+        {"denom": denom1, "amount": f"{old_balance1}"},
+        {"denom": f"ibc/{denom_hash}", "amount": f"{amount}"},
+    ]
+
+    for i, _ in enumerate(users):
+        rsp = chains[0].ibc_transfer(
+            addrs0[i],
+            addrs1[i],
+            f"{amount}{denom0}",
+            channel0,
+            1,
+            fees=f"1000{denom1}",
+            event_query_tx_for=True,
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        balance = chains[1].balance(addrs1[i], denom1)
+        assert balance == old_balance1, balance
+        balance = chains[0].balance(addrs0[i], denom0)
+        assert balance == old_balance0 - amount, balance
+
+    def assert_trace_balance(addr):
+        balance = chains[1].balances(addr)
+        if len(balance) > 1:
+            assert balance == expected, balance
+            return True
+        else:
+            return False
+
+    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
+    for i, _ in enumerate(users):
+        wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
+
+    # chainmain-1 -> cronos_777-1
+    amt = amount // 2
+
+    def assert_balance(addr):
+        balance = chains[0].balance(addr, denom0)
+        if balance > old_balance0 - amount:
+            assert balance == old_balance0 - amt, balance
+            return True
+        else:
+            return False
+
+    for _ in range(0, 2):
+        for i, _ in enumerate(users):
+            rsp = chains[1].ibc_transfer(
+                addrs1[i],
+                addrs0[i],
+                f"{amt}ibc/{denom_hash}",
+                channel1,
+                1,
+                fees=f"100000000{denom1}",
+            )
+            assert rsp["code"] == 0, rsp["raw_log"]
+
+        for i, _ in enumerate(users):
+            wait_for_fn("assert balance", lambda: assert_balance(addrs0[i]))
+
+        old_balance0 += amt
+
+
 def ibc_incentivized_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
     receiver = chains[1].address("signer2")
