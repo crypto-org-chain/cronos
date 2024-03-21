@@ -11,7 +11,6 @@ config {
       {
         name: 'user' + i,
         coins: '30000000000000000000000basetcro',
-        mnemonic: '${USER' + i + '_MNEMONIC}',
       }
       for i in std.range(1, 20)
     ],
@@ -87,7 +86,6 @@ config {
       {
         name: 'user' + i,
         coins: '10000000000000cro',
-        mnemonic: '${USER' + i + '_MNEMONIC}',
       }
       for i in std.range(1, 20)
     ],
