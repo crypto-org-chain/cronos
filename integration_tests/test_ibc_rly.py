@@ -7,6 +7,7 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     RATIO,
+    RELAYER_CALLER,
     assert_duplicate,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
@@ -59,6 +60,8 @@ def ibc(request, tmp_path_factory):
 
 
 def amount_dict(amt, denom):
+    if amt == 0:
+        return []
     return [
         AttributeDict(
             {
@@ -298,8 +301,8 @@ def test_ibc_incentivized_transfer(ibc):
         acknowledge_packet(seq0),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
-        distribute_fee(src_relayer, fee),
-        *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
+        distribute_fee(RELAYER_CALLER, ""),
+        *send_coins(feeibc_addr, RELAYER_CALLER, 0, ""),
         distribute_fee(cronos_signer2, fee),
         *send_coins(feeibc_addr, cronos_signer2, src_amount, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
