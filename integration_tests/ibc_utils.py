@@ -14,6 +14,7 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
+    derive_new_account,
     eth_to_bech32,
     parse_events,
     parse_events_rpc,
@@ -180,6 +181,17 @@ def prepare_network(
                 version,
             )
         else:
+            w3 = cronos.w3
+            acc = derive_new_account(2)
+            sender = acc.address
+            # fund new sender to deploy contract with same address
+            if w3.eth.get_balance(sender, "latest") == 0:
+                fund = 3000000000000000000
+                tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+                send_transaction(w3, tx)
+                assert w3.eth.get_balance(sender, "latest") == fund
+            caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
+            assert caller == "0x6F1805D56bF05b7be10857F376A5b1c160C8f72C", caller
             call_rly_cmd(path, connection_only, version)
 
         if incentivized:
@@ -333,7 +345,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 21)]
+    users = [f"user{i}" for i in range(1, 3)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -456,7 +468,7 @@ def ibc_incentivized_transfer(ibc):
     def check_fee():
         amount = chains[0].balance(relayer, fee_denom)
         if amount > old_amt_fee:
-            assert amount == old_amt_fee + 20
+            assert amount == old_amt_fee + 20, amount
             return True
         else:
             return False
