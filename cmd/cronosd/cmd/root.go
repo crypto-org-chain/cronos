@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 
-	"cosmossdk.io/simapp/params"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
@@ -56,7 +55,7 @@ const SkipGravity = true
 
 // NewRootCmd creates a new root command for simd. It is called once in the
 // main function.
-func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
+func NewRootCmd() (*cobra.Command, ethermint.EncodingConfig) {
 	// Set config for prefixes
 	app.SetConfig()
 
@@ -110,7 +109,7 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 	return rootCmd, encodingConfig
 }
 
-func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig) {
+func initRootCmd(rootCmd *cobra.Command, encodingConfig ethermint.EncodingConfig) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
@@ -235,7 +234,7 @@ func initAppConfig() (string, interface{}) {
 }
 
 type appCreator struct {
-	encCfg params.EncodingConfig
+	encCfg ethermint.EncodingConfig
 }
 
 // newApp is an AppCreator

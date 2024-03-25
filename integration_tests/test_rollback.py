@@ -52,7 +52,7 @@ def custom_cronos(tmp_path_factory):
     # init with genesis binary
     yield from setup_custom_cronos(
         path,
-        26400,
+        27100,
         Path(__file__).parent / "configs/rollback.jsonnet",
         post_init=post_init(broken_binary),
         wait_port=False,
