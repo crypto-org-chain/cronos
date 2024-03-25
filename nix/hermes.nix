@@ -21,9 +21,6 @@ rustPlatform.buildRustPackage rec {
   ];
   cargoLock = {
     lockFile = "${src}/Cargo.lock";
-    outputHashes = {
-      "ibc-proto-0.38.0" = "sha256-UhpWBzraC6fMPJ0BVK6CxdrywoEayNq0tBU0N3MxmB4=";
-    };
   };
   doCheck = false;
   RUSTFLAGS = "--cfg ossl111 --cfg ossl110 --cfg ossl101";
