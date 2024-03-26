@@ -1,5 +1,13 @@
 # Changelog
 
+*March 26, 2024*
+
+## v1.1.1
+
+### Improvements
+
+- [#1362](https://github.com/crypto-org-chain/cronos/pull/1362) Log blacklist addresses.
+
 *March 19, 2024*
 
 ## v1.1.0
