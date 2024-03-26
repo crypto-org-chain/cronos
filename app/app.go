@@ -1,13 +1,10 @@
 package app
 
 import (
-<<<<<<< HEAD
-	stderrors "errors"
-=======
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
->>>>>>> c007e115 (Problem: black list addresses are not logged (#1328))
+	stderrors "errors"
 	"fmt"
 	"io"
 	"io/fs"
