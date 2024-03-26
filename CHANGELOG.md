@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+- [#1363](https://github.com/crypto-org-chain/cronos/pull/1363) Update ethermint to fix a panic on overflow and patch gasUsed in the RPC API.
+
 *March 26, 2024*
 
 ## v1.1.1
@@ -7,10 +13,6 @@
 ### Improvements
 
 - [#1362](https://github.com/crypto-org-chain/cronos/pull/1362) Log blacklist addresses.
-
-### Bug Fixes
-
-- [#1363](https://github.com/crypto-org-chain/cronos/pull/1363) Update ethermint to fix a panic on overflow and patch gasUsed in the RPC API.
 
 *March 19, 2024*
 
