@@ -3,7 +3,6 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	stderrors "errors"
 	"fmt"
 	"io"
