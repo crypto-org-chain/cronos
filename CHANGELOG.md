@@ -6,7 +6,7 @@
 
 ### Improvements
 
-- [#]() Log blacklist addresses.
+- [#1362](https://github.com/crypto-org-chain/cronos/pull/1362) Log blacklist addresses.
 
 *March 19, 2024*
 
