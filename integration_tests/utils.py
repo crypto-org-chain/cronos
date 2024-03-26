@@ -59,6 +59,7 @@ TEST_CONTRACTS = {
     "CosmosERC20": "CosmosToken.sol",
     "TestBank": "TestBank.sol",
     "TestICA": "TestICA.sol",
+    "TestRelayer": "TestRelayer.sol",
 }
 
 
@@ -395,6 +396,13 @@ def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
     "return cronos address from mnemonics"
     acct = Account.from_mnemonic(mnemonics)
     return eth_to_bech32(acct.address, prefix)
+
+
+def derive_new_account(n=1):
+    # derive a new address
+    account_path = f"m/44'/60'/0'/0/{n}"
+    mnemonic = os.getenv("COMMUNITY_MNEMONIC")
+    return Account.from_mnemonic(mnemonic, account_path=account_path)
 
 
 def send_to_cosmos(gravity_contract, token_contract, w3, recipient, amount, key=None):

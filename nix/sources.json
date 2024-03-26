@@ -135,13 +135,13 @@
     "relayer": {
         "branch": "main",
         "description": "An IBC relayer for ibc-go",
-        "homepage": "https://github.com/crypto-org-chain/relayer",
+        "homepage": "https://github.com/mmsqe/relayer",
         "owner": "crypto-org-chain",
         "repo": "relayer",
-        "rev": "bd88a2cba9154450924837ecda915688ff8f9e04",
-        "sha256": "106mf4mc2ag4a5d21lcqpsq7ixvq70097jglw862jz4g9lbxyv8f",
+        "rev": "baa9a467d7d533eb65acbd91ca9e2cdfd22be15d",
+        "sha256": "0rzvr3px3adq6q9v4v4676jvlkz9zngxmzikpkli4p6sc62lxph3",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/relayer/archive/bd88a2cba9154450924837ecda915688ff8f9e04.tar.gz",
+        "url": "https://github.com/mmsqe/relayer/archive/baa9a467d7d533eb65acbd91ca9e2cdfd22be15d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

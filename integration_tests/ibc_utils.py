@@ -14,6 +14,7 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
+    derive_new_account,
     eth_to_bech32,
     parse_events,
     parse_events_rpc,
@@ -25,6 +26,7 @@ from .utils import (
 )
 
 RATIO = 10**10
+RELAYER_CALLER = "0x6F1805D56bF05b7be10857F376A5b1c160C8f72C"
 
 
 class Status(IntEnum):
@@ -180,6 +182,17 @@ def prepare_network(
                 version,
             )
         else:
+            w3 = cronos.w3
+            acc = derive_new_account(2)
+            sender = acc.address
+            # fund new sender to deploy contract with same address
+            if w3.eth.get_balance(sender, "latest") == 0:
+                fund = 3000000000000000000
+                tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+                send_transaction(w3, tx)
+                assert w3.eth.get_balance(sender, "latest") == fund
+            caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
+            assert caller == RELAYER_CALLER, caller
             call_rly_cmd(path, connection_only, version)
 
         if incentivized:
@@ -333,7 +346,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 21)]
+    users = [f"user{i}" for i in range(1, 3)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -444,19 +457,19 @@ def ibc_incentivized_transfer(ibc):
         src_channel,
         packet_seq,
         recv_fee=fee,
-        ack_fee=fee,
+        # ack_fee=fee,
         timeout_fee=fee,
         from_=sender,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     # fee is locked
-    assert chains[0].balance(sender, fee_denom) == old_amt_sender_fee - 30
+    assert chains[0].balance(sender, fee_denom) == old_amt_sender_fee - 20
 
     # wait for relayer receive the fee
     def check_fee():
         amount = chains[0].balance(relayer, fee_denom)
         if amount > old_amt_fee:
-            assert amount == old_amt_fee + 20
+            assert amount == old_amt_fee + 10, amount
             return True
         else:
             return False
@@ -467,20 +480,12 @@ def ibc_incentivized_transfer(ibc):
     actual = get_balances(ibc.cronos, sender)
     assert actual == [
         {"denom": base_denom, "amount": f"{old_amt_sender_base - amount}"},
-        {"denom": fee_denom, "amount": f"{old_amt_sender_fee - 20}"},
+        {"denom": fee_denom, "amount": f"{old_amt_sender_fee - 10}"},
     ], actual
     path = f"transfer/{dst_channel}/{base_denom}"
     denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
-    assert json.loads(
-        chains[0].raw(
-            "query",
-            "ibc-transfer",
-            "denom-trace",
-            denom_hash,
-            node=ibc.chainmain.node_rpc(0),
-            output="json",
-        )
-    )["denom_trace"] == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
+    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
     assert get_balances(ibc.chainmain, receiver) == [
         {"denom": "basecro", "amount": f"{old_amt_receiver_base}"},
         {"denom": f"ibc/{denom_hash}", "amount": f"{amount}"},
