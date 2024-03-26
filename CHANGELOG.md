@@ -1,5 +1,13 @@
 # Changelog
 
+*March 26, 2024*
+
+## v1.1.1
+
+### Improvements
+
+- [#]() Log blacklist addresses.
+
 *March 19, 2024*
 
 ## v1.1.0

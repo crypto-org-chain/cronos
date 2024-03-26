@@ -1,7 +1,13 @@
 package app
 
 import (
+<<<<<<< HEAD
 	stderrors "errors"
+=======
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+>>>>>>> c007e115 (Problem: black list addresses are not logged (#1328))
 	"fmt"
 	"io"
 	"io/fs"
@@ -9,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -918,6 +925,23 @@ func New(
 
 // use Ethermint's custom AnteHandler
 func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) error {
+	if len(blacklist) > 0 {
+		sort.Strings(blacklist)
+		// hash blacklist concatenated
+		h := sha256.New()
+		for _, addr := range blacklist {
+			_, err := h.Write([]byte(addr))
+			if err != nil {
+				panic(err)
+			}
+		}
+		app.Logger().Error("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
+		for _, addr := range blacklist {
+			app.Logger().Error("Blacklisted address", "address", addr)
+		}
+	} else {
+		app.Logger().Error("Setting ante handler without blacklist")
+	}
 	blockedMap := make(map[string]struct{}, len(blacklist))
 	for _, str := range blacklist {
 		addr, err := sdk.AccAddressFromBech32(str)
