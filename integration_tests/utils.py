@@ -59,6 +59,7 @@ TEST_CONTRACTS = {
     "CosmosERC20": "CosmosToken.sol",
     "TestBank": "TestBank.sol",
     "TestICA": "TestICA.sol",
+    "Random": "Random.sol",
 }
 
 
