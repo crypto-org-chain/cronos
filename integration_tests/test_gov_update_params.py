@@ -13,10 +13,8 @@ def test_evm_update_param(cronos, tmp_path):
         cronos.w3,
         CONTRACTS["Random"],
     )
-    with pytest.raises(ValueError) as e_info:
-        contract.caller.randomTokenId()
-    assert "invalid memory address or nil pointer dereference" in str(e_info.value)
-    deploy_contract(cronos.w3, CONTRACTS["Greeter"])
+    res = contract.caller.randomTokenId()
+    assert res > 0, res
     cli = cronos.cosmos_cli()
     p = cli.query_params("evm")["params"]
     del p["chain_config"]["merge_netsplit_block"]
