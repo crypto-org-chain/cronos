@@ -6,6 +6,11 @@
 
 - [#1363](https://github.com/crypto-org-chain/cronos/pull/1363) Update ethermint to fix a panic on overflow and patch gasUsed in the RPC API.
 
+### State Machine Breaking
+
+* [#1366](https://github.com/crypto-org-chain/ethermint/pull/1366) Keep behavior of random opcode as before.
+
+
 *March 26, 2024*
 
 ## v1.1.1
