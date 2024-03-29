@@ -19,6 +19,7 @@ def test_evm_update_param(cronos, tmp_path):
     deploy_contract(cronos.w3, CONTRACTS["Greeter"])
     cli = cronos.cosmos_cli()
     p = cli.query_params("evm")["params"]
+    del p["chain_config"]["merge_netsplit_block"]
     del p["chain_config"]["shanghai_time"]
     proposal = tmp_path / "proposal.json"
     # governance module account as signer
