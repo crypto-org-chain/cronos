@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*April 2, 2024*
+
+## v1.2.0
 
 ### Bug Fixes
 

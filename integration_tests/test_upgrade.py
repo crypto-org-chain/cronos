@@ -131,7 +131,7 @@ def exec(c, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v1.1"
+    plan_name = "v1.2"
     rsp = cli.gov_propose_legacy(
         "community",
         "software-upgrade",

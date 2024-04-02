@@ -9,7 +9,7 @@ import (
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
-	planName := "v1.1"
+	planName := "v1.2"
 	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx sdk.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.mm.RunMigrations(ctx, app.configurator, fromVM)
 		if err != nil {
