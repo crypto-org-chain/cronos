@@ -7,11 +7,11 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  # v1.0.12
-  released = (fetchFlake "crypto-org-chain/cronos" "a54d8a9659a98b917d3fc1ae39489fbc0699df60").default;
+  # v1.1.1
+  released = (fetchFlake "crypto-org-chain/cronos" "10b8eeb9052e3c52aa59dec15f5d3aca781d1271").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released; }
-  { name = "v1.1.0"; path = current; }
+  { name = "v1.2"; path = current; }
 ]

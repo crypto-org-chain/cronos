@@ -1,10 +1,53 @@
+import hashlib
 import json
 
 import pytest
 
-from .utils import approve_proposal
+from .utils import CONTRACTS, approve_proposal, deploy_contract, eth_to_bech32
 
 pytestmark = pytest.mark.gov
+
+
+def test_evm_update_param(cronos, tmp_path):
+    contract = deploy_contract(
+        cronos.w3,
+        CONTRACTS["Random"],
+    )
+    res = contract.caller.randomTokenId()
+    assert res > 0, res
+    cli = cronos.cosmos_cli()
+    p = cli.query_params("evm")["params"]
+    del p["chain_config"]["merge_netsplit_block"]
+    del p["chain_config"]["shanghai_time"]
+    proposal = tmp_path / "proposal.json"
+    # governance module account as signer
+    data = hashlib.sha256("gov".encode()).digest()[:20]
+    signer = eth_to_bech32(data)
+    proposal_src = {
+        "messages": [
+            {
+                "@type": "/ethermint.evm.v1.MsgUpdateParams",
+                "authority": signer,
+                "params": p,
+            }
+        ],
+        "deposit": "1basetcro",
+        "title": "title",
+        "summary": "summary",
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cli.submit_gov_proposal(proposal, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal(cronos, rsp)
+    print("check params have been updated now")
+    p = cli.query_params("evm")["params"]
+    invalid_msg = "invalid opcode: PUSH0"
+    with pytest.raises(ValueError) as e_info:
+        contract.caller.randomTokenId()
+    assert invalid_msg in str(e_info.value)
+    with pytest.raises(ValueError) as e_info:
+        deploy_contract(cronos.w3, CONTRACTS["Greeter"])
+    assert invalid_msg in str(e_info.value)
 
 
 def test_gov_update_params(cronos, tmp_path):
