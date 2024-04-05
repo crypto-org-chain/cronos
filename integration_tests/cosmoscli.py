@@ -1806,7 +1806,6 @@ class CosmosCLI:
                 "query",
                 "event-query-tx-for",
                 hash,
-                "-y",
                 home=self.data_dir,
                 stderr=subprocess.DEVNULL,
             )
