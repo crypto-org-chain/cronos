@@ -16,6 +16,7 @@ from .utils import (
     deploy_contract,
     edit_ini_sections,
     get_consensus_params,
+    get_send_enable,
     send_transaction,
     wait_for_block,
     wait_for_new_blocks,
@@ -97,22 +98,70 @@ def exec(c, tmp_path_factory):
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
     ]
-    p = cli.query_bank_send()
+    p = get_send_enable(port)
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
     # export genesis from old version
     c.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
     file_path0 = Path(migrate / "old.json")
-    cli.export(output_document=str(file_path0))
+    with open(file_path0, "w") as fp:
+        json.dump(json.loads(cli.export()), fp)
+        fp.flush()
 
     c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
     wait_for_new_blocks(cli, 1)
 
     height = cli.block_height()
-    target_height = height + 15
-    print("upgrade height", target_height)
+    target_height0 = height + 15
+    print("upgrade v1.1 height", target_height0)
+
+    def do_upgrade(plan_name, target, mode=None):
+        rsp = cli.gov_propose_legacy(
+            "community",
+            "software-upgrade",
+            {
+                "name": plan_name,
+                "title": "upgrade test",
+                "description": "ditto",
+                "upgrade-height": target,
+                "deposit": "10000basetcro",
+            },
+            mode=mode,
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        approve_proposal(c, rsp)
+
+        # update cli chain binary
+        c.chain_binary = (
+            Path(c.chain_binary).parent.parent.parent / f"{plan_name}/bin/cronosd"
+        )
+        # block should pass the target height
+        wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
+        wait_for_port(ports.rpc_port(c.base_port(0)))
+
+    do_upgrade("v1.1.0", target_height0, "block")
+    cli = c.cosmos_cli()
+
+    # test migrate keystore
+    cli.migrate_keystore()
+
+    # check basic tx works
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+    receipt = send_transaction(
+        c.w3,
+        {
+            "to": ADDRS["community"],
+            "value": 1000,
+            "maxFeePerGas": 10000000000000,
+            "maxPriorityFeePerGas": 10000,
+        },
+    )
+    assert receipt.status == 1
+    height = cli.block_height()
+    target_height1 = height + 15
+    print("upgrade v1.2 height", target_height1)
 
     w3 = c.w3
     random_contract = deploy_contract(
@@ -131,34 +180,7 @@ def exec(c, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    plan_name = "v1.2"
-    rsp = cli.gov_propose_legacy(
-        "community",
-        "software-upgrade",
-        {
-            "name": plan_name,
-            "title": "upgrade test",
-            "description": "ditto",
-            "upgrade-height": target_height,
-            "deposit": "10000basetcro",
-        },
-        mode=None,
-    )
-    assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(c, rsp, event_query_tx=True)
-
-    # update cli chain binary
-    c.chain_binary = (
-        Path(c.chain_binary).parent.parent.parent / f"{plan_name}/bin/cronosd"
-    )
-    cli = c.cosmos_cli()
-
-    # block should pass the target height
-    wait_for_block(cli, target_height + 2, timeout=480)
-    wait_for_port(ports.rpc_port(c.base_port(0)))
-
-    # test migrate keystore
-    cli.migrate_keystore()
+    do_upgrade("v1.2", target_height1)
 
     # check basic tx works
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
@@ -202,6 +224,11 @@ def exec(c, tmp_path_factory):
     assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
     max_callback_gas = cli.query_params()["max_callback_gas"]
     assert max_callback_gas == "50000", max_callback_gas
+
+    e = cli.query_params("evm", height=target_height0 - 1)["params"]["evm_denom"]
+    assert e == "basetcro", e
+    e = cli.query_params("evm", height=target_height1 - 1)["params"]["evm_denom"]
+    assert e == "basetcro", e
 
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)

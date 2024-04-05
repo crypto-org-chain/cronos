@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+* (rpc) [#1371](https://github.com/crypto-org-chain/cronos/pull/1371) Add param keytable in evm for old upgrade.
+
+
 *April 2, 2024*
 
 ## v1.2.0

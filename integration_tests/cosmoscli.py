@@ -1061,8 +1061,16 @@ class CosmosCLI:
     def query_gravity_params(self):
         return self.query_params("gravity")
 
-    def query_params(self, module="cronos"):
-        return json.loads(self.raw("query", module, "params", home=self.data_dir))
+    def query_params(self, module="cronos", **kwargs):
+        return json.loads(
+            self.raw(
+                "query",
+                module,
+                "params",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
 
     def query_signer_set_txs(self):
         return json.loads(
