@@ -41,6 +41,8 @@ def test_evm_update_param(cronos, tmp_path):
     approve_proposal(cronos, rsp)
     print("check params have been updated now")
     p = cli.query_params("evm")["params"]
+    assert not p["chain_config"]["merge_netsplit_block"]
+    assert not p["chain_config"]["shanghai_time"]
     invalid_msg = "invalid opcode: PUSH0"
     with pytest.raises(ValueError) as e_info:
         contract.caller.randomTokenId()
