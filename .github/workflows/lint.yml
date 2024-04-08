@@ -18,7 +18,7 @@ jobs:
   golangci:
     name: Run golangci-lint
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/setup-go@v3
         with:
