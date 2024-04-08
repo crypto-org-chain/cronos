@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+*April 8, 2024*
+
+## v1.2.0-rc1
 
 ### Bug Fixes
 
@@ -9,7 +11,7 @@
 
 *April 2, 2024*
 
-## v1.2.0
+## v1.2.0-rc0
 
 ### Bug Fixes
 
