@@ -142,7 +142,6 @@ import (
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	memiavlrootmulti "github.com/crypto-org-chain/cronos/store/rootmulti"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -369,6 +368,8 @@ type App struct {
 
 	// module configurator
 	configurator module.Configurator
+
+	qms storetypes.MultiStore
 }
 
 // New returns a reference to an initialized chain.
@@ -859,10 +860,9 @@ func New(
 
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
 	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
-	var qms sdk.MultiStore
 	if slices.Contains(streamers, "versiondb") {
 		var err error
-		qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
+		app.qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
 		if err != nil {
 			panic(err)
 		}
@@ -899,8 +899,8 @@ func New(
 			tmos.Exit(err.Error())
 		}
 
-		if qms != nil {
-			v1 := qms.LatestVersion()
+		if app.qms != nil {
+			v1 := app.qms.LatestVersion()
 			v2 := app.LastBlockHeight()
 			if v1 > 0 && v1 < v2 {
 				// try to prevent gap being created in versiondb
@@ -1196,11 +1196,19 @@ func VerifyAddressFormat(bz []byte) error {
 
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
-	err := app.BaseApp.Close()
+	errs := []error{app.BaseApp.Close()}
 
-	if cms, ok := app.CommitMultiStore().(*memiavlrootmulti.Store); ok {
-		return stderrors.Join(err, cms.Close())
+	// flush the versiondb
+	if closer, ok := app.qms.(io.Closer); ok {
+		errs = append(errs, closer.Close())
 	}
 
+	// mainly to flush memiavl
+	if closer, ok := app.CommitMultiStore().(io.Closer); ok {
+		errs = append(errs, closer.Close())
+	}
+
+	err := stderrors.Join(errs...)
+	app.Logger().Info("Application gracefully shutdown", "error", err)
 	return err
 }

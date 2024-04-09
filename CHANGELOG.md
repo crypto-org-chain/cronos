@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Improvements
+
+* (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
+
 ### Bug Fixes
 
 - [#1363](https://github.com/crypto-org-chain/cronos/pull/1363) Update ethermint to fix a panic on overflow and patch gasUsed in the RPC API.
