@@ -1,4 +1,6 @@
 import json
+import shutil
+import stat
 import subprocess
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -72,35 +74,29 @@ def setup_cronos_test(tmp_path_factory):
     port = 26200
     nix_name = "upgrade-test-package"
     cfg_name = "cosmovisor"
+    configdir = Path(__file__).parent
     cmd = [
         "nix-build",
-        Path(__file__).parent / f"configs/{nix_name}.nix",
-        "-o",
-        path / "upgrades.tar.gz",
+        configdir / f"configs/{nix_name}.nix",
     ]
     print(*cmd)
     subprocess.run(cmd, check=True)
 
-    # extract the tarball so the directory is writable.
-    (path / "upgrades").mkdir()
-    subprocess.run(
-        [
-            "tar",
-            "xfz",
-            path / "upgrades.tar.gz",
-            "-C",
-            path / "upgrades",
-        ],
-        check=True,
-    )
+    # copy the content so the new directory is writable.
+    upgrades = path / "upgrades"
+    shutil.copytree("./result", upgrades)
+    mod = stat.S_IRWXU
+    upgrades.chmod(mod)
+    for d in upgrades.iterdir():
+        d.chmod(mod)
 
     # init with genesis binary
     with contextmanager(setup_custom_cronos)(
         path,
         port,
-        Path(__file__).parent / f"configs/{cfg_name}.jsonnet",
+        configdir / f"configs/{cfg_name}.jsonnet",
         post_init=post_init,
-        chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
+        chain_binary=str(upgrades / "genesis/bin/cronosd"),
     ) as cronos:
         yield cronos
 
