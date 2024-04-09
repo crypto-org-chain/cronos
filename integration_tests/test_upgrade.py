@@ -56,8 +56,13 @@ def post_init(path, base_port, config):
         chain_id,
         data / SUPERVISOR_CONFIG_FILE,
         lambda i, _: {
-            "command": f"cosmovisor start --home %(here)s/node{i}",
-            "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
+            "command": f"cosmovisor run start --home %(here)s/node{i}",
+            "environment": (
+                "DAEMON_NAME=cronosd,"
+                "DAEMON_SHUTDOWN_GRACE=1m,"
+                "UNSAFE_SKIP_BACKUP=true,"
+                f"DAEMON_HOME=%(here)s/node{i}"
+            ),
         },
     )
 
@@ -71,10 +76,24 @@ def setup_cronos_test(tmp_path_factory):
         "nix-build",
         Path(__file__).parent / f"configs/{nix_name}.nix",
         "-o",
-        path / "upgrades",
+        path / "upgrades.tar.gz",
     ]
     print(*cmd)
     subprocess.run(cmd, check=True)
+
+    # extract the tarball so the directory is writable.
+    (path / "upgrades").mkdir()
+    subprocess.run(
+        [
+            "tar",
+            "xfz",
+            path / "upgrades.tar.gz",
+            "-C",
+            path / "upgrades",
+        ],
+        check=True,
+    )
+
     # init with genesis binary
     with contextmanager(setup_custom_cronos)(
         path,
