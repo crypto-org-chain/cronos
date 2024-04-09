@@ -16,8 +16,8 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  # v1.1.1
-  released = (fetchFlake "crypto-org-chain/cronos" "10b8eeb9052e3c52aa59dec15f5d3aca781d1271").default;
+  # v1.1.1, https://github.com/crypto-org-chain/cronos/pull/1382
+  released = (fetchFlake "yihuang/cronos" "88a1d987c48a884751c2f6d5584c766624592752").default;
   current = pkgs.callPackage ../../. { };
   farm = pkgs.linkFarm "upgrade-test-package" [
     { name = "genesis/bin"; path = "${released0}/bin"; }
