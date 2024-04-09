@@ -21,6 +21,10 @@ type VersionStore interface {
 
 	// Import the initial state of the store
 	Import(version int64, ch <-chan ImportEntry) error
+
+	// Flush wal logs, and make the changes persistent,
+	// mainly for rocksdb version upgrade, sometimes the wal format is not compatible.
+	Flush() error
 }
 
 type ImportEntry struct {

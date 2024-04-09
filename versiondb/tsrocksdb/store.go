@@ -205,6 +205,16 @@ func (s Store) Import(version int64, ch <-chan versiondb.ImportEntry) error {
 	return s.SetLatestVersion(version)
 }
 
+func (s Store) Flush() error {
+	opts := grocksdb.NewDefaultFlushOptions()
+	defer opts.Destroy()
+
+	return errors.Join(
+		s.db.Flush(opts),
+		s.db.FlushCF(s.cfHandle, opts),
+	)
+}
+
 func newTSReadOptions(version *int64) *grocksdb.ReadOptions {
 	var ver uint64
 	if version == nil {

@@ -1,4 +1,6 @@
 import json
+import shutil
+import stat
 import subprocess
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -56,8 +58,13 @@ def post_init(path, base_port, config):
         chain_id,
         data / SUPERVISOR_CONFIG_FILE,
         lambda i, _: {
-            "command": f"cosmovisor start --home %(here)s/node{i}",
-            "environment": f"DAEMON_NAME=cronosd,DAEMON_HOME=%(here)s/node{i}",
+            "command": f"cosmovisor run start --home %(here)s/node{i}",
+            "environment": (
+                "DAEMON_NAME=cronosd,"
+                "DAEMON_SHUTDOWN_GRACE=1m,"
+                "UNSAFE_SKIP_BACKUP=true,"
+                f"DAEMON_HOME=%(here)s/node{i}"
+            ),
         },
     )
 
@@ -67,21 +74,29 @@ def setup_cronos_test(tmp_path_factory):
     port = 26200
     nix_name = "upgrade-test-package"
     cfg_name = "cosmovisor"
+    configdir = Path(__file__).parent
     cmd = [
         "nix-build",
-        Path(__file__).parent / f"configs/{nix_name}.nix",
-        "-o",
-        path / "upgrades",
+        configdir / f"configs/{nix_name}.nix",
     ]
     print(*cmd)
     subprocess.run(cmd, check=True)
+
+    # copy the content so the new directory is writable.
+    upgrades = path / "upgrades"
+    shutil.copytree("./result", upgrades)
+    mod = stat.S_IRWXU
+    upgrades.chmod(mod)
+    for d in upgrades.iterdir():
+        d.chmod(mod)
+
     # init with genesis binary
     with contextmanager(setup_custom_cronos)(
         path,
         port,
-        Path(__file__).parent / f"configs/{cfg_name}.jsonnet",
+        configdir / f"configs/{cfg_name}.jsonnet",
         post_init=post_init,
-        chain_binary=str(path / "upgrades/genesis/bin/cronosd"),
+        chain_binary=str(upgrades / "genesis/bin/cronosd"),
     ) as cronos:
         yield cronos
 

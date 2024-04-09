@@ -145,3 +145,8 @@ func (s *MultiStore) LatestVersion() int64 {
 	}
 	return version
 }
+
+// Close will flush the versiondb
+func (s *MultiStore) Close() error {
+	return s.versionDB.Flush()
+}
