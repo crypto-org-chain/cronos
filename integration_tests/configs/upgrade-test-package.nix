@@ -19,10 +19,9 @@ let
   # v1.1.1
   released = (fetchFlake "crypto-org-chain/cronos" "10b8eeb9052e3c52aa59dec15f5d3aca781d1271").default;
   current = pkgs.callPackage ../../. { };
-  farm = pkgs.linkFarm "upgrade-test-package" [
-    { name = "genesis/bin"; path = "${released0}/bin"; }
-    { name = "v1.1.0/bin"; path = "${released}/bin"; }
-    { name = "v1.2/bin"; path = "${current}/bin"; }
-  ];
 in
-pkgs.make-tarball farm
+pkgs.linkFarm "upgrade-test-package" [
+  { name = "genesis"; path = released0; }
+  { name = "v1.1.0"; path = released; }
+  { name = "v1.2"; path = current; }
+]
