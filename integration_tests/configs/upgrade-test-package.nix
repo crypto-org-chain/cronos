@@ -16,8 +16,8 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  # v1.1.1
-  released = (fetchFlake "crypto-org-chain/cronos" "10b8eeb9052e3c52aa59dec15f5d3aca781d1271").default;
+  # release/v1.1.x
+  released = (fetchFlake "crypto-org-chain/cronos" "69a80154b6b24fca15f3562e2c4b312ee1092220").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [

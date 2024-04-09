@@ -50,9 +50,9 @@ jobs:
           cd versiondb
           golangci-lint run --out-format=github-actions --path-prefix=./versiondb --timeout 10m --build-tags $BUILD_TAGS
           cd ../memiavl
-          golangci-lint run --out-format=github-actions --path-prefix=./memiavl --timeout 10m --build-tags $BUILD_TAGS
+          golangci-lint run --out-format=github-actions --path-prefix=./memiavl --timeout 10m
           cd ../store
-          golangci-lint run --out-format=github-actions --path-prefix=./store --timeout 10m --build-tags $BUILD_TAGS
+          golangci-lint run --out-format=github-actions --path-prefix=./store --timeout 10m
         # Check only if there are differences in the source code
         if: steps.changed-files.outputs.any_changed == 'true'
 
