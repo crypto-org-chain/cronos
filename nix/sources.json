@@ -11,18 +11,6 @@
         "url": "https://github.com/crypto-org-chain/chain-main/archive/04e8e094b7d51a8cf92b74c789394b7b34987b10.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "cosmos-sdk": {
-        "branch": "v0.45.0",
-        "description": ":chains: A Framework for Building High Value Public Blockchains :sparkles:",
-        "homepage": "https://cosmos.network/",
-        "owner": "cosmos",
-        "repo": "cosmos-sdk",
-        "rev": "b6c77e6c819f8a51166649eaef125d1bfb276f04",
-        "sha256": "09ns4yfxyfi7c7n5g69zv32m1rdssdl48c1akmv1y2vz6ayz4v02",
-        "type": "tarball",
-        "url": "https://github.com/cosmos/cosmos-sdk/archive/b6c77e6c819f8a51166649eaef125d1bfb276f04.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "dapptools": {
         "branch": "master",
         "description": "Dapp, Seth, Hevm, and more",
