@@ -86,7 +86,7 @@ jobs:
             sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
           done
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt,./memiavl/coverage.txt,./store/coverage.txt,./versiondb/coverage.txt
