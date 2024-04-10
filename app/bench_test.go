@@ -60,6 +60,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	txsPerBlock := 5000
 	accounts := 100
 	gasPrice := big.NewInt(100000000000)
+	bigZero := big.NewInt(0)
 	var appOpts servertypes.AppOptions = EmptyAppOptions{}
 	if db == nil {
 		appOpts = AppOptionsMap(map[string]interface{}{
@@ -151,6 +152,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 	contractAddr, err := app.CronosKeeper.DeployModuleCRC21(ctx, "test")
 	require.NoError(b, err)
 
+	// mint to senders
 	amount := int64(100000000)
 	{
 		for _, acc := range testAccounts {
@@ -183,9 +185,9 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 				&contractAddr, // to
 				big.NewInt(0), // value
 				210000,        // gas limit
-				gasPrice,      // gas price
-				nil,           // gasFeeCap
-				nil,           // gasTipCap
+				nil,           // gas price
+				gasPrice,      // gasFeeCap
+				bigZero,       // gasTipCap
 				data,          // data
 				nil,           // access list
 			)
@@ -213,7 +215,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 			require.Equal(b, 0, int(res.Code), res.Log)
 		}
 
-		// check remaining balance
+		// check remaining balance, only check one account to avoid slow down benchmark itself
 		ctx := app.GetContextForDeliverTx(nil)
 		ret, err := app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
 		require.NoError(b, err)
