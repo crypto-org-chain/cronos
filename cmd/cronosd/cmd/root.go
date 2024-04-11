@@ -220,17 +220,19 @@ func initAppConfig() (string, interface{}) {
 	type CustomAppConfig struct {
 		servercfg.Config
 
-		MemIAVL memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
+		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
+		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
 	}
 
-	tpl, cfg := servercfg.AppConfig(ethermint.AttoPhoton)
+	tpl, cfg := servercfg.AppConfig("")
 
 	customAppConfig := CustomAppConfig{
-		Config:  cfg.(servercfg.Config),
-		MemIAVL: memiavlcfg.DefaultMemIAVLConfig(),
+		Config:    cfg.(servercfg.Config),
+		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
+		VersionDB: DefaultVersionDBConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
 }
 
 type appCreator struct {

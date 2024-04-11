@@ -7,6 +7,7 @@
 * (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
 * (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
 * (store) [#1378](https://github.com/crypto-org-chain/cronos/pull/1378) Upgrade rocksdb to `v8.11.3`.
+* (versiondb) [#1387](https://github.com/crypto-org-chain/cronos/pull/1387) Add dedicated config section for versiondb, prepare for sdk 0.50 integration.
 
 *April 8, 2024*
 

@@ -37,8 +37,8 @@
           'zero-copy': true,
           'snapshot-interval': 5,
         },
-        store: {
-          streamers: ['versiondb'],
+        versiondb: {
+          enable: true,
         },
       },
     }, {
