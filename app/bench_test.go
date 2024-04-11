@@ -6,8 +6,6 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
@@ -16,6 +14,10 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/require"
+
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -23,29 +25,31 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
-	"github.com/stretchr/testify/require"
+
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions
 func BenchmarkERC20Transfer(b *testing.B) {
 	b.Run("memdb", func(b *testing.B) {
 		db := dbm.NewMemDB()
-		benchmarkERC20Transfer(b, db)
+		benchmarkERC20Transfer(b, b.TempDir(), db, AppOptionsMap{})
 	})
 	b.Run("leveldb", func(b *testing.B) {
-		db, err := dbm.NewGoLevelDB("application", b.TempDir())
+		homePath := b.TempDir()
+		db, err := dbm.NewGoLevelDB("application", homePath)
 		require.NoError(b, err)
-		benchmarkERC20Transfer(b, db)
+		benchmarkERC20Transfer(b, homePath, db, AppOptionsMap{})
 	})
 	b.Run("memiavl", func(b *testing.B) {
-		benchmarkERC20Transfer(b, nil)
+		benchmarkERC20Transfer(b, b.TempDir(), nil, AppOptionsMap{
+			memiavlstore.FlagMemIAVL: true,
+		})
 	})
 }
 
@@ -56,20 +60,13 @@ type TestAccount struct {
 }
 
 // pass `nil` to db to use memiavl
-func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
+func benchmarkERC20Transfer(b *testing.B, homePath string, db dbm.DB, appOpts servertypes.AppOptions) {
 	txsPerBlock := 5000
 	accounts := 100
 	gasPrice := big.NewInt(100000000000)
 	bigZero := big.NewInt(0)
-	var appOpts servertypes.AppOptions = EmptyAppOptions{}
-	if db == nil {
-		appOpts = AppOptionsMap(map[string]interface{}{
-			memiavlstore.FlagMemIAVL: true,
-		})
-		require.NoError(b, os.RemoveAll(filepath.Join(DefaultNodeHome, "data/memiavl.db")))
-	}
 	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, DefaultNodeHome, 0, encodingConfig, appOpts, baseapp.SetChainID(TestAppChainID))
+	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, homePath, 0, encodingConfig, appOpts, baseapp.SetChainID(TestAppChainID))
 	defer app.Close()
 
 	chainID := big.NewInt(777)
@@ -154,18 +151,15 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 
 	// mint to senders
 	amount := int64(100000000)
-	{
-		for _, acc := range testAccounts {
-			_, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "mint_by_cronos_module", acc.Address, big.NewInt(amount))
-			require.NoError(b, err)
-		}
-
-		// check balance
-		ret, err := app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
+	for _, acc := range testAccounts {
+		_, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "mint_by_cronos_module", acc.Address, big.NewInt(amount))
 		require.NoError(b, err)
-		require.Equal(b, uint64(amount), binary.BigEndian.Uint64(ret[32-8:]))
 	}
+
+	// check balance
+	ret, err := app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
 	require.NoError(b, err)
+	require.Equal(b, uint64(amount), binary.BigEndian.Uint64(ret[32-8:]))
 
 	app.EndBlock(abci.RequestEndBlock{})
 	app.Commit()
@@ -179,6 +173,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 			recipient := common.BigToAddress(big.NewInt(int64(idx)))
 			data, err := types.ModuleCRC21Contract.ABI.Pack("transfer", recipient, big.NewInt(1))
 			require.NoError(b, err)
+
 			tx := evmtypes.NewTx(
 				chainID,
 				acct.Nonce,    // nonce
@@ -192,8 +187,10 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 				nil,           // access list
 			)
 			acct.Nonce++
+
 			bz, err := signTx(acct, tx)
 			require.NoError(b, err)
+
 			transferTxs = append(transferTxs, bz)
 		}
 	}
@@ -215,13 +212,16 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB) {
 			require.Equal(b, 0, int(res.Code), res.Log)
 		}
 
-		// check remaining balance, only check one account to avoid slow down benchmark itself
-		ctx := app.GetContextForDeliverTx(nil)
-		ret, err := app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
-		require.NoError(b, err)
-		require.Equal(b, uint64(amount)-testAccounts[0].Nonce, binary.BigEndian.Uint64(ret[32-8:]))
-
 		app.EndBlock(abci.RequestEndBlock{})
 		app.Commit()
 	}
+
+	// check remaining balance, only check one account to avoid slow down benchmark itself
+	ctx = app.NewContext(true, tmproto.Header{
+		ChainID:         TestAppChainID,
+		ProposerAddress: consAddress,
+	})
+	ret, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
+	require.NoError(b, err)
+	require.Equal(b, uint64(amount)-testAccounts[0].Nonce, binary.BigEndian.Uint64(ret[32-8:]))
 }
