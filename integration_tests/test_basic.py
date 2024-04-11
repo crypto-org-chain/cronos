@@ -405,8 +405,8 @@ def test_local_statesync(cronos, tmp_path_factory):
         Path(home) / "config/app.toml",
         base_port,
         {
-            "store": {
-                "streamers": ["versiondb"],
+            "versiondb": {
+                "enable": True,
             },
         },
     )

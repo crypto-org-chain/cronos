@@ -12,11 +12,11 @@ After versiondb is enabled, there's no point to keep the full the archived IAVL 
 
 ## Configuration
 
-To enable versiondb, add `versiondb` to the list of `store.streamers` in `app.toml` like this:
+To enable versiondb, set the `versiondb.enable` to `true` in `app.toml`:
 
 ```toml
-[store]
-streamers = ["versiondb"]
+[versiondb]
+enable = true
 ```
 
 On startup, the node will create a `StreamingService` to subscribe to latest state changes in realtime and save them to versiondb, the db instance is placed at `$NODE_HOME/data/versiondb` directory, there's no way to customize the db path currently. It'll also switch grpc query service's backing store to versiondb from IAVL tree, you should migrate the legacy states in advance to make the transition smooth, otherwise, the grpc queries can't see the legacy versions.

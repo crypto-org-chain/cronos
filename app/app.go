@@ -16,7 +16,6 @@ import (
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
-	"golang.org/x/exp/slices"
 
 	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -860,8 +859,7 @@ func New(
 	}
 
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
-	streamers := cast.ToStringSlice(appOpts.Get("store.streamers"))
-	if slices.Contains(streamers, "versiondb") {
+	if cast.ToBool(appOpts.Get("versiondb.enable")) {
 		var err error
 		app.qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys)
 		if err != nil {

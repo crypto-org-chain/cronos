@@ -7,6 +7,14 @@ config {
       'minimum-gas-prices': '100000000000basetcro',
       'iavl-lazy-loading':: super['iavl-lazy-loading'],
     },
+    validators: [super.validators[0] {
+      'app-config'+: {
+        versiondb:: super['versiondb'],
+        memiavl+: {
+          'snapshot-keep-recent': 1000,
+        },
+      },
+    }] + super.validators[1:],
     genesis+: {
       app_state+: {
         bank+: {
