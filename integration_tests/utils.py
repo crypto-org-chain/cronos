@@ -100,6 +100,10 @@ def wait_for_fn(name, fn, *, timeout=240, interval=1):
         raise TimeoutError(f"wait for {name} timeout")
 
 
+def get_sync_info(s):
+    return s.get("SyncInfo") or s.get("sync_info")
+
+
 def wait_for_block(cli, height, timeout=240):
     for i in range(timeout * 2):
         try:
@@ -107,7 +111,8 @@ def wait_for_block(cli, height, timeout=240):
         except AssertionError as e:
             print(f"get sync status failed: {e}", file=sys.stderr)
         else:
-            current_height = int(status["SyncInfo"]["latest_block_height"])
+            current_height = int(get_sync_info(status)["latest_block_height"])
+            print("debug current height", current_height)
             if current_height >= height:
                 break
             print("current block height", current_height)
@@ -117,38 +122,39 @@ def wait_for_block(cli, height, timeout=240):
 
 
 def wait_for_new_blocks(cli, n, sleep=0.5):
-    cur_height = begin_height = int((cli.status())["SyncInfo"]["latest_block_height"])
+    cur_height = begin_height = int(get_sync_info(cli.status())["latest_block_height"])
     while cur_height - begin_height < n:
         time.sleep(sleep)
-        cur_height = int((cli.status())["SyncInfo"]["latest_block_height"])
+        cur_height = int(get_sync_info(cli.status())["latest_block_height"])
     return cur_height
 
 
 def wait_for_block_time(cli, t):
     print("wait for block time", t)
     while True:
-        now = isoparse((cli.status())["SyncInfo"]["latest_block_time"])
+        now = isoparse(get_sync_info(cli.status())["latest_block_time"])
         print("block time now:", now)
         if now >= t:
             break
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp, event_query_tx=False):
+def approve_proposal(n, events, event_query_tx=False):
     cli = n.cosmos_cli()
 
-    def cb(attrs):
-        return "proposal_id" in attrs
-
-    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
     # get proposal_id
+    ev = find_log_event_attrs(
+        events, "submit_proposal", lambda attrs: "proposal_id" in attrs
+    )
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
         rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes", event_query_tx)
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
+    res = cli.query_tally(proposal_id)
+    res = res.get("tally") or res
     assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
+        int(res["yes_count"]) == cli.staking_pool()
     ), "all validators should have voted yes"
     print("wait for proposal to be activated")
     proposal = cli.query_proposal(proposal_id)
@@ -186,11 +192,11 @@ def wait_for_ipc(path, timeout=40.0):
 
 
 def w3_wait_for_block(w3, height, timeout=240):
-    for i in range(timeout * 2):
+    for _ in range(timeout * 2):
         try:
             current_height = w3.eth.block_number
-        except AssertionError as e:
-            print(f"get current block number failed: {e}", file=sys.stderr)
+        except Exception as e:
+            print(f"get json-rpc block number failed: {e}", file=sys.stderr)
         else:
             if current_height >= height:
                 break
@@ -213,15 +219,8 @@ def get_ledger():
     return ledger.Ledger()
 
 
-def parse_events(logs):
-    return {
-        ev["type"]: {attr["key"]: attr["value"] for attr in ev["attributes"]}
-        for ev in logs[0]["events"]
-    }
-
-
-def find_log_event_attrs(logs, ev_type, cond=None):
-    for ev in logs[0]["events"]:
+def find_log_event_attrs(events, ev_type, cond=None):
+    for ev in events:
         if ev["type"] == ev_type:
             attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
             if cond is None or cond(attrs):
@@ -682,7 +681,7 @@ def submit_any_proposal(cronos, tmp_path):
     proposal_file.write_text(json.dumps(proposal_json))
     rsp = cli.submit_gov_proposal(proposal_file, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp)
+    approve_proposal(cronos, rsp["events"])
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr

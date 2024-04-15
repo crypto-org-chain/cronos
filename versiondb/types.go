@@ -1,7 +1,7 @@
 package versiondb
 
 import (
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 )
 
 // VersionStore is a versioned storage of a flat key-value pairs.
@@ -17,7 +17,7 @@ type VersionStore interface {
 	// Persist the change set of a block,
 	// the `changeSet` should be ordered by (storeKey, key),
 	// the version should be latest version plus one.
-	PutAtVersion(version int64, changeSet []types.StoreKVPair) error
+	PutAtVersion(version int64, changeSet []*types.StoreKVPair) error
 
 	// Import the initial state of the store
 	Import(version int64, ch <-chan ImportEntry) error

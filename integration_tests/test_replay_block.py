@@ -27,6 +27,7 @@ def custom_cronos(tmp_path_factory):
     )
 
 
+@pytest.mark.skip(reason="block gas limit is disabled")
 def test_block_overflow(custom_cronos):
     w3: web3.Web3 = custom_cronos.w3
     contract = deploy_contract(
@@ -36,7 +37,7 @@ def test_block_overflow(custom_cronos):
     )
     iterations = 400
     gas_limit = 800000
-    gas_price = 100000000000
+    gas_price = 200000000000
     names = ["validator", "validator2"]
     addrs = [ADDRS[names[0]], ADDRS[names[1]]]
     keys = [KEYS[names[0]], KEYS[names[1]]]

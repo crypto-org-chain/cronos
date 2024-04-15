@@ -1,0 +1,18 @@
+syntax = "proto3";
+// vendored from cosmos.store.internal.kv.v1beta1;
+package memiavl;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/memiavl";
+
+// Pairs defines a repeated slice of Pair objects.
+message Pairs {
+  repeated Pair pairs = 1 [(gogoproto.nullable) = false];
+}
+
+// Pair defines a key/value bytes tuple.
+message Pair {
+  bytes key   = 1;
+  bytes value = 2;
+}

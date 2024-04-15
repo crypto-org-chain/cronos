@@ -59,6 +59,8 @@ def ibc(request, tmp_path_factory):
 
 
 def amount_dict(amt, denom):
+    if amt == 0:
+        return []
     return [
         AttributeDict(
             {
@@ -300,8 +302,8 @@ def test_ibc_incentivized_transfer(ibc):
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
-        distribute_fee(cronos_signer2, fee),
-        *send_coins(feeibc_addr, cronos_signer2, src_amount, fee_denom),
+        distribute_fee(cronos_signer2, ""),
+        *send_coins(feeibc_addr, cronos_signer2, 0, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
         recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, dst_denom),

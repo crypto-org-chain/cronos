@@ -3,30 +3,35 @@ package app
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
+	"path/filepath"
 	"testing"
 
+	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
-	dbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
-	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	srvflags "github.com/evmos/ethermint/server/flags"
 	"github.com/evmos/ethermint/tests"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -38,19 +43,35 @@ import (
 func BenchmarkERC20Transfer(b *testing.B) {
 	b.Run("memdb", func(b *testing.B) {
 		db := dbm.NewMemDB()
-		benchmarkERC20Transfer(b, b.TempDir(), db, AppOptionsMap{})
+		benchmarkERC20Transfer(b, db, AppOptionsMap{
+			flags.FlagHome: b.TempDir(),
+		})
 	})
 	b.Run("leveldb", func(b *testing.B) {
 		homePath := b.TempDir()
-		db, err := dbm.NewGoLevelDB("application", homePath)
+		db, err := dbm.NewDB("application", dbm.GoLevelDBBackend, filepath.Join(homePath, "data"))
 		require.NoError(b, err)
-		benchmarkERC20Transfer(b, homePath, db, AppOptionsMap{})
+		benchmarkERC20Transfer(b, db, AppOptionsMap{
+			flags.FlagHome: homePath,
+		})
 	})
 	b.Run("memiavl", func(b *testing.B) {
-		benchmarkERC20Transfer(b, b.TempDir(), nil, AppOptionsMap{
+		benchmarkERC20Transfer(b, nil, AppOptionsMap{
+			flags.FlagHome:           b.TempDir(),
 			memiavlstore.FlagMemIAVL: true,
 		})
 	})
+	for _, workers := range []int{1, 8, 16, 32} {
+		b.Run(fmt.Sprintf("memiavl-stm-%d", workers), func(b *testing.B) {
+			benchmarkERC20Transfer(b, nil, AppOptionsMap{
+				flags.FlagHome:              b.TempDir(),
+				memiavlstore.FlagMemIAVL:    true,
+				memiavlstore.FlagCacheSize:  0,
+				srvflags.EVMBlockExecutor:   "block-stm",
+				srvflags.EVMBlockSTMWorkers: workers,
+			})
+		})
+	}
 }
 
 type TestAccount struct {
@@ -60,36 +81,39 @@ type TestAccount struct {
 }
 
 // pass `nil` to db to use memiavl
-func benchmarkERC20Transfer(b *testing.B, homePath string, db dbm.DB, appOpts servertypes.AppOptions) {
+func benchmarkERC20Transfer(b *testing.B, db dbm.DB, appOpts servertypes.AppOptions) {
 	txsPerBlock := 5000
 	accounts := 100
 	gasPrice := big.NewInt(100000000000)
 	bigZero := big.NewInt(0)
-	encodingConfig := MakeEncodingConfig()
-	app := New(log.NewNopLogger(), db, nil, true, true, map[int64]bool{}, homePath, 0, encodingConfig, appOpts, baseapp.SetChainID(TestAppChainID))
+
+	app := New(log.NewNopLogger(), db, nil, true, appOpts, baseapp.SetChainID(TestAppChainID))
 	defer app.Close()
 
-	chainID := big.NewInt(777)
-	ethSigner := ethtypes.LatestSignerForChainID(chainID)
+	ethSigner := ethtypes.LatestSignerForChainID(TestEthChainID)
 
-	var testAccounts []TestAccount
+	testAccounts := make([]TestAccount, accounts)
+	addresses := make(map[common.Address]struct{}, accounts)
 	for i := 0; i < accounts; i++ {
 		priv, err := ethsecp256k1.GenerateKey()
 		require.NoError(b, err)
 		address := common.BytesToAddress(priv.PubKey().Address().Bytes())
-		testAccounts = append(testAccounts, TestAccount{Address: address, Priv: priv})
+		testAccounts[i] = TestAccount{Address: address, Priv: priv}
+		addresses[address] = struct{}{}
 	}
+	// make sure the addresses are unique
+	require.Equal(b, accounts, len(addresses))
 
 	signTx := func(acc *TestAccount, msg *evmtypes.MsgEthereumTx) ([]byte, error) {
 		msg.From = acc.Address.Bytes()
 		if err := msg.Sign(ethSigner, tests.NewSigner(acc.Priv)); err != nil {
 			return nil, err
 		}
-		tx, err := msg.BuildTx(encodingConfig.TxConfig.NewTxBuilder(), evmtypes.DefaultEVMDenom)
+		tx, err := msg.BuildTx(app.TxConfig().NewTxBuilder(), evmtypes.DefaultEVMDenom)
 		if err != nil {
 			return nil, err
 		}
-		return encodingConfig.TxConfig.TxEncoder()(tx)
+		return app.TxConfig().TxEncoder()(tx)
 	}
 
 	privVal := mock.NewPV()
@@ -112,57 +136,70 @@ func benchmarkERC20Transfer(b *testing.B, homePath string, db dbm.DB, appOpts se
 			Coins:   sdk.NewCoins(sdk.NewCoin(evmtypes.DefaultEVMDenom, sdkmath.NewIntWithDecimal(10000000, 18))),
 		})
 	}
-	genesisState := NewDefaultGenesisState(encodingConfig.Codec)
-	genesisState = genesisStateWithValSet(
-		b,
-		app,
-		genesisState,
+	genesisState, err := simtestutil.GenesisStateWithValSet(
+		app.AppCodec(),
+		app.DefaultGenesis(),
 		valSet,
 		accs,
 		balances...,
 	)
+	require.NoError(b, err)
 
 	appState, err := json.MarshalIndent(genesisState, "", "  ")
 	require.NoError(b, err)
 
-	blockParams := tmproto.BlockParams{
+	blockParams := cmtproto.BlockParams{
 		MaxBytes: math.MaxInt64,
 		MaxGas:   math.MaxInt64,
 	}
 	consensusParams := *DefaultConsensusParams
 	consensusParams.Block = &blockParams
-	app.InitChain(abci.RequestInitChain{
+	_, err = app.InitChain(&abci.RequestInitChain{
 		ChainId:         TestAppChainID,
 		AppStateBytes:   appState,
 		ConsensusParams: &consensusParams,
 	})
-	app.BeginBlock(abci.RequestBeginBlock{
-		Header: tmproto.Header{
-			Height:          1,
-			ChainID:         TestAppChainID,
-			ProposerAddress: consAddress,
-		},
-	})
-
-	// deploy contract
-	ctx := app.GetContextForDeliverTx(nil)
-	contractAddr, err := app.CronosKeeper.DeployModuleCRC21(ctx, "test")
 	require.NoError(b, err)
 
-	// mint to senders
+	// deploy contract
+	ctx := app.GetContextForFinalizeBlock(nil).WithBlockHeader(cmtproto.Header{
+		ChainID:         TestAppChainID,
+		Height:          1,
+		ProposerAddress: consAddress,
+	})
+
+	var contractAddr common.Address
 	amount := int64(100000000)
-	for _, acc := range testAccounts {
-		_, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "mint_by_cronos_module", acc.Address, big.NewInt(amount))
+
+	{
+		ctx, write := ctx.CacheContext()
+		contractAddr, err = app.CronosKeeper.DeployModuleCRC21(ctx, "test")
 		require.NoError(b, err)
+		for _, acc := range testAccounts {
+			_, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "mint_by_cronos_module", acc.Address, big.NewInt(amount))
+			require.NoError(b, err)
+		}
+		write()
 	}
 
-	// check balance
+	// do a dummy FinalizeBlock just to flush finalize state
+	_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(b, err)
+	_, err = app.Commit()
+	require.NoError(b, err)
+
+	// check remaining balance
+	ctx = app.GetContextForCheckTx(nil).WithBlockHeader(cmtproto.Header{ProposerAddress: consAddress})
 	ret, err := app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
 	require.NoError(b, err)
 	require.Equal(b, uint64(amount), binary.BigEndian.Uint64(ret[32-8:]))
 
-	app.EndBlock(abci.RequestEndBlock{})
-	app.Commit()
+	// check the code is deployed
+	codeRsp, err := app.EvmKeeper.Code(app.GetContextForCheckTx(nil), &evmtypes.QueryCodeRequest{
+		Address: contractAddr.Hex(),
+	})
+	require.NoError(b, err)
+	require.NotEmpty(b, codeRsp.Code)
 
 	// prepare transactions
 	var transferTxs [][]byte
@@ -175,7 +212,7 @@ func benchmarkERC20Transfer(b *testing.B, homePath string, db dbm.DB, appOpts se
 			require.NoError(b, err)
 
 			tx := evmtypes.NewTx(
-				chainID,
+				TestEthChainID,
 				acct.Nonce,    // nonce
 				&contractAddr, // to
 				big.NewInt(0), // value
@@ -197,30 +234,21 @@ func benchmarkERC20Transfer(b *testing.B, homePath string, db dbm.DB, appOpts se
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		app.BeginBlock(abci.RequestBeginBlock{
-			Header: tmproto.Header{
-				Height:          int64(i) + 2,
-				ChainID:         TestAppChainID,
-				ProposerAddress: consAddress,
-			},
+		rsp, err := app.FinalizeBlock(&abci.RequestFinalizeBlock{
+			Txs:             transferTxs[i*txsPerBlock : (i+1)*txsPerBlock],
+			Height:          int64(i) + 2,
+			ProposerAddress: consAddress,
 		})
-		for j := 0; j < txsPerBlock; j++ {
-			idx := i*txsPerBlock + j
-			res := app.DeliverTx(abci.RequestDeliverTx{
-				Tx: transferTxs[idx],
-			})
-			require.Equal(b, 0, int(res.Code), res.Log)
+		require.NoError(b, err)
+		for _, txResult := range rsp.TxResults {
+			require.Equal(b, abci.CodeTypeOK, txResult.Code, txResult.Log)
 		}
-
-		app.EndBlock(abci.RequestEndBlock{})
-		app.Commit()
+		_, err = app.Commit()
+		require.NoError(b, err)
 	}
 
-	// check remaining balance, only check one account to avoid slow down benchmark itself
-	ctx = app.NewContext(true, tmproto.Header{
-		ChainID:         TestAppChainID,
-		ProposerAddress: consAddress,
-	})
+	// check remaining balance
+	ctx = app.GetContextForCheckTx(nil).WithBlockHeader(cmtproto.Header{ProposerAddress: consAddress})
 	ret, err = app.CronosKeeper.CallModuleCRC21(ctx, contractAddr, "balanceOf", testAccounts[0].Address)
 	require.NoError(b, err)
 	require.Equal(b, uint64(amount)-testAccounts[0].Nonce, binary.BigEndian.Uint64(ret[32-8:]))

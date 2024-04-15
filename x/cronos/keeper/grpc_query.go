@@ -101,7 +101,7 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 		}
 		k.accountKeeper.SetAccount(ctx, acc)
 
-		rsp, err := k.evmKeeper.EthereumTx(sdk.WrapSDKContext(ctx), msg)
+		rsp, err := k.evmKeeper.EthereumTx(ctx, msg)
 		if err != nil {
 			return nil, err
 		}

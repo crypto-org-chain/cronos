@@ -117,17 +117,17 @@ def test_ibc_update_client_via_proposal(ibc):
         return status != "Active"
 
     wait_for_fn("status change", check_status)
-    rsp = cli.gov_propose_update_client_legacy(
+    rsp = cli.ibc_recover_client(
         {
             "subject_client_id": "07-tendermint-1",
             "substitute_client_id": "07-tendermint-2",
             "from": "validator",
             "title": "update-client-title",
-            "description": "update-client-description",
+            "summary": "summary",
             "deposit": "1basetcro",
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(ibc.cronos, rsp)
+    approve_proposal(ibc.cronos, rsp["events"])
     default_trust_period = "1209600s"
     assert_trust_period(default_trust_period)

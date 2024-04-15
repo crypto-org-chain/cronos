@@ -1,23 +1,23 @@
 package versiondb
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
-	"github.com/cosmos/cosmos-sdk/store/cachemulti"
-	"github.com/cosmos/cosmos-sdk/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"cosmossdk.io/store/cachemulti"
+	"cosmossdk.io/store/types"
 )
 
-var _ sdk.MultiStore = (*MultiStore)(nil)
+var _ types.RootMultiStore = (*MultiStore)(nil)
 
 // MultiStore wraps `VersionStore` to implement `MultiStore` interface.
 type MultiStore struct {
 	versionDB VersionStore
-	storeKeys []types.StoreKey
+	stores    map[types.StoreKey]types.KVStore
 
-	// transient or memory stores
-	transientStores map[types.StoreKey]struct{}
+	// transient/memory/object stores, they are delegated to the parent
+	delegatedStoreKeys map[types.StoreKey]struct{}
 
 	// proxy the calls for transient or mem stores to the parent
 	parent types.MultiStore
@@ -28,8 +28,22 @@ type MultiStore struct {
 }
 
 // NewMultiStore returns a new versiondb `MultiStore`.
-func NewMultiStore(parent types.MultiStore, versionDB VersionStore, storeKeys []types.StoreKey) *MultiStore {
-	return &MultiStore{versionDB: versionDB, storeKeys: storeKeys, parent: parent, transientStores: make(map[types.StoreKey]struct{})}
+func NewMultiStore(
+	parent types.MultiStore,
+	versionDB VersionStore,
+	storeKeys map[string]*types.KVStoreKey,
+	delegatedStoreKeys map[types.StoreKey]struct{},
+) *MultiStore {
+	stores := make(map[types.StoreKey]types.KVStore, len(storeKeys))
+	for _, k := range storeKeys {
+		stores[k] = NewKVStore(versionDB, k, nil)
+	}
+	return &MultiStore{
+		versionDB:          versionDB,
+		stores:             stores,
+		parent:             parent,
+		delegatedStoreKeys: delegatedStoreKeys,
+	}
 }
 
 // GetStoreType implements `MultiStore` interface.
@@ -38,24 +52,28 @@ func (s *MultiStore) GetStoreType() types.StoreType {
 }
 
 // cacheMultiStore branch out the multistore.
-func (s *MultiStore) cacheMultiStore(version *int64) sdk.CacheMultiStore {
-	stores := make(map[types.StoreKey]types.CacheWrapper, len(s.transientStores)+len(s.storeKeys))
-	for k := range s.transientStores {
-		stores[k] = s.parent.GetKVStore(k).(types.CacheWrapper)
+func (s *MultiStore) cacheMultiStore(version *int64) types.CacheMultiStore {
+	stores := make(map[types.StoreKey]types.CacheWrapper, len(s.delegatedStoreKeys)+len(s.stores))
+	for k := range s.delegatedStoreKeys {
+		stores[k] = types.CacheWrapper(s.parent.GetStore(k))
 	}
-	for _, k := range s.storeKeys {
-		stores[k] = NewKVStore(s.versionDB, k, version)
+	for k := range s.stores {
+		if version == nil {
+			stores[k] = s.stores[k]
+		} else {
+			stores[k] = NewKVStore(s.versionDB, k, version)
+		}
 	}
-	return cachemulti.NewStore(nil, stores, nil, s.traceWriter, s.getTracingContext())
+	return cachemulti.NewStore(stores, s.traceWriter, s.getTracingContext())
 }
 
 // CacheMultiStore implements `MultiStore` interface
-func (s *MultiStore) CacheMultiStore() sdk.CacheMultiStore {
+func (s *MultiStore) CacheMultiStore() types.CacheMultiStore {
 	return s.cacheMultiStore(nil)
 }
 
 // CacheMultiStoreWithVersion implements `MultiStore` interface
-func (s *MultiStore) CacheMultiStoreWithVersion(version int64) (sdk.CacheMultiStore, error) {
+func (s *MultiStore) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStore, error) {
 	return s.cacheMultiStore(&version), nil
 }
 
@@ -64,37 +82,26 @@ func (s *MultiStore) CacheWrap() types.CacheWrap {
 	return s.CacheMultiStore().(types.CacheWrap)
 }
 
-// CacheWrapWithTrace implements the CacheWrapper interface.
-func (s *MultiStore) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.CacheWrap {
-	return s.CacheWrap()
-}
-
 // GetStore implements `MultiStore` interface
-func (s *MultiStore) GetStore(storeKey types.StoreKey) sdk.Store {
-	return s.GetKVStore(storeKey)
+func (s *MultiStore) GetStore(storeKey types.StoreKey) types.Store {
+	if store, ok := s.stores[storeKey]; ok {
+		return store
+	}
+	if _, ok := s.delegatedStoreKeys[storeKey]; ok {
+		// delegate the transient/memory/object stores to real cms
+		return s.parent.GetStore(storeKey)
+	}
+	panic(fmt.Errorf("store key %s is not registered", storeKey.Name()))
 }
 
 // GetKVStore implements `MultiStore` interface
-func (s *MultiStore) GetKVStore(storeKey types.StoreKey) sdk.KVStore {
-	if _, ok := s.transientStores[storeKey]; ok {
-		return s.parent.GetKVStore(storeKey)
-	}
-	return NewKVStore(s.versionDB, storeKey, nil)
+func (s *MultiStore) GetKVStore(storeKey types.StoreKey) types.KVStore {
+	return s.GetStore(storeKey).(types.KVStore)
 }
 
-// MountTransientStores simlates the same behavior as sdk to support grpc query service.
-func (s *MultiStore) MountTransientStores(keys map[string]*types.TransientStoreKey) {
-	for _, key := range keys {
-		s.transientStores[key] = struct{}{}
-	}
-}
-
-// MountMemoryStores simlates the same behavior as sdk to support grpc query service,
-// it shares the existing mem store instance.
-func (s *MultiStore) MountMemoryStores(keys map[string]*types.MemoryStoreKey) {
-	for _, key := range keys {
-		s.transientStores[key] = struct{}{}
-	}
+// GetObjKVStore implements `MultiStore` interface
+func (s *MultiStore) GetObjKVStore(storeKey types.StoreKey) types.ObjKVStore {
+	return s.GetStore(storeKey).(types.ObjKVStore)
 }
 
 // SetTracer sets the tracer for the MultiStore that the underlying

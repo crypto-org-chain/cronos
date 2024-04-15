@@ -13,6 +13,8 @@ import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
+from .utils import get_sync_info
+
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
 DEFAULT_GAS = "250000"
@@ -172,15 +174,22 @@ class CosmosCLI:
         return json.loads(self.raw("status", node=self.node_rpc))
 
     def block_height(self):
-        return int(self.status()["SyncInfo"]["latest_block_height"])
+        return int(get_sync_info(self.status())["latest_block_height"])
 
     def block_time(self):
-        return isoparse(self.status()["SyncInfo"]["latest_block_time"])
+        return isoparse(get_sync_info(self.status())["latest_block_time"])
 
     def balances(self, addr, height=0):
         return json.loads(
             self.raw(
-                "query", "bank", "balances", addr, height=height, home=self.data_dir
+                "query",
+                "bank",
+                "balances",
+                addr,
+                height=height,
+                output="json",
+                home=self.data_dir,
+                node=self.node_rpc,
             )
         )["balances"]
 
@@ -219,7 +228,9 @@ class CosmosCLI:
     def tx_search(self, events: str):
         "/tx_search"
         return json.loads(
-            self.raw("query", "txs", events=events, output="json", node=self.node_rpc)
+            self.raw(
+                "query", "txs", query=f'"{events}"', output="json", node=self.node_rpc
+            )
         )
 
     def tx_search_rpc(self, criteria: str, order=None):
@@ -325,11 +336,10 @@ class CosmosCLI:
         )
 
     def staking_pool(self, bonded=True):
-        return int(
-            json.loads(
-                self.raw("query", "staking", "pool", output="json", node=self.node_rpc)
-            )["bonded_tokens" if bonded else "not_bonded_tokens"]
-        )
+        res = self.raw("query", "staking", "pool", output="json", node=self.node_rpc)
+        res = json.loads(res)
+        res = res.get("pool") or res
+        return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
 
     def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
@@ -808,7 +818,7 @@ class CosmosCLI:
         )
 
     def query_proposal(self, proposal_id):
-        return json.loads(
+        res = json.loads(
             self.raw(
                 "query",
                 "gov",
@@ -818,9 +828,10 @@ class CosmosCLI:
                 node=self.node_rpc,
             )
         )
+        return res.get("proposal") or res
 
     def query_tally(self, proposal_id):
-        return json.loads(
+        res = json.loads(
             self.raw(
                 "query",
                 "gov",
@@ -830,6 +841,7 @@ class CosmosCLI:
                 node=self.node_rpc,
             )
         )
+        return res.get("tally") or res
 
     def ibc_transfer(
         self,
@@ -1162,15 +1174,15 @@ class CosmosCLI:
             )
         )
 
-    def gov_propose_update_client_legacy(self, proposal, **kwargs):
+    def ibc_recover_client(self, proposal, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", 600000)
         rsp = json.loads(
             self.raw(
                 "tx",
-                "gov",
-                "submit-legacy-proposal",
-                "update-client",
+                "ibc",
+                "client",
+                "recover-client",
                 proposal.get("subject_client_id"),
                 proposal.get("substitute_client_id"),
                 "-y",
@@ -1178,8 +1190,8 @@ class CosmosCLI:
                 keyring_backend="test",
                 # content
                 title=proposal.get("title"),
-                description=proposal.get("description"),
                 deposit=proposal.get("deposit"),
+                summary=proposal.get("summary"),
                 chain_id=self.chain_id,
                 home=self.data_dir,
                 stderr=subprocess.DEVNULL,
@@ -1192,6 +1204,7 @@ class CosmosCLI:
 
     def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
+        kwargs.setdefault("broadcast_mode", "sync")
         rsp = json.loads(
             self.raw(
                 "tx",
@@ -1200,6 +1213,7 @@ class CosmosCLI:
                 proposal,
                 "-y",
                 home=self.data_dir,
+                node=self.node_rpc,
                 stderr=subprocess.DEVNULL,
                 **(default_kwargs | kwargs),
             )
@@ -1594,7 +1608,7 @@ class CosmosCLI:
 
     def query_grant(self, granter, grantee):
         "query grant details by granter and grantee addresses"
-        return json.loads(
+        res = json.loads(
             self.raw(
                 "query",
                 "feegrant",
@@ -1602,8 +1616,12 @@ class CosmosCLI:
                 granter,
                 grantee,
                 home=self.data_dir,
+                node=self.node_rpc,
+                output="json",
             )
         )
+        res = res.get("allowance") or res
+        return res
 
     def grant(self, granter, grantee, limit, **kwargs):
         default_kwargs = self.get_default_kwargs()
@@ -1811,6 +1829,14 @@ class CosmosCLI:
             )
         )
 
-    def query_bank_send(self):
-        res = json.loads(self.raw("q", "bank", "send-enabled", home=self.data_dir))
-        return res["send_enabled"]
+    def query_bank_send(self, *denoms):
+        return json.loads(
+            self.raw(
+                "q",
+                "bank",
+                "send-enabled",
+                *denoms,
+                home=self.data_dir,
+                output="json",
+            )
+        ).get("send_enabled", [])

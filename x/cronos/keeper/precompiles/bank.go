@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
+	storetypes "cosmossdk.io/store/types"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -158,7 +158,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		token := args[0].(common.Address)
 		addr := args[1].(common.Address)
 		// query from storage
-		balance := bc.bankKeeper.GetBalance(stateDB.CacheContext(), sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
+		balance := bc.bankKeeper.GetBalance(stateDB.Context(), sdk.AccAddress(addr.Bytes()), EVMDenom(token)).Amount.BigInt()
 		return method.Outputs.Pack(balance)
 	case TransferMethodName:
 		if readonly {

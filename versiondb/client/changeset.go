@@ -39,7 +39,7 @@ const (
 //
 // repeat with next version
 // ```
-func WriteChangeSet(writer io.Writer, version int64, cs iavl.ChangeSet) error {
+func WriteChangeSet(writer io.Writer, version int64, cs *iavl.ChangeSet) error {
 	var size int
 	items := make([][]byte, 0, len(cs.Pairs))
 	for _, pair := range cs.Pairs {

@@ -7,12 +7,13 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/x/evm/statedb"
 )
 
 type NativeMessage interface {
-	codec.ProtoMarshaler
+	proto.Message
 	GetSigners() []sdk.AccAddress
 }
 
@@ -30,7 +31,7 @@ type Executor struct {
 func exec[Req any, PReq interface {
 	*Req
 	NativeMessage
-}, Resp codec.ProtoMarshaler](
+}, Resp proto.Message](
 	e *Executor,
 	action func(context.Context, PReq) (Resp, error),
 ) ([]byte, error) {
@@ -69,13 +70,13 @@ func execMultipleWithHooks[Req any,
 		*Req
 		NativeMessage
 	},
-	Resp codec.ProtoMarshaler,
+	Resp proto.Message,
 	Req2 any,
 	PReq2 interface {
 		*Req2
 		NativeMessage
 	},
-	Resp2 codec.ProtoMarshaler,
+	Resp2 proto.Message,
 ](
 	e *Executor,
 	preAction func(sdk.Context, PReq, PReq2) error,
@@ -124,13 +125,13 @@ func execMultiple[Req any,
 		*Req
 		NativeMessage
 	},
-	Resp codec.ProtoMarshaler,
+	Resp proto.Message,
 	Req2 any,
 	PReq2 interface {
 		*Req2
 		NativeMessage
 	},
-	Resp2 codec.ProtoMarshaler,
+	Resp2 proto.Message,
 ](
 	e *Executor,
 	action func(context.Context, PReq) (Resp, error),

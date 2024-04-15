@@ -9,9 +9,8 @@ config {
     },
     validators: [super.validators[0] {
       'app-config'+: {
-        versiondb:: super['versiondb'],
-        memiavl+: {
-          'snapshot-keep-recent': 1000,
+        store: {
+          streamers: ['versiondb'],
         },
       },
     }] + super.validators[1:],

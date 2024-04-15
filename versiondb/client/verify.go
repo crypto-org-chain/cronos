@@ -16,8 +16,8 @@ import (
 	"github.com/cosmos/iavl"
 	"github.com/spf13/cobra"
 
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
-	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	storetypes "cosmossdk.io/store/types"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 )
@@ -218,7 +218,7 @@ func verifyOneStore(tree *memiavl.Tree, store, changeSetDir, saveSnapshot string
 				}
 
 				// no need to update hashes for intermediate versions.
-				tree.ApplyChangeSet(*changeSet)
+				tree.ApplyChangeSet(convertChangeSet(changeSet))
 				_, v, err := tree.SaveVersion(false)
 				if err != nil {
 					return false, err
@@ -297,5 +297,19 @@ func convertCommitInfo(commitInfo *storetypes.CommitInfo) *memiavl.CommitInfo {
 	return &memiavl.CommitInfo{
 		Version:    commitInfo.Version,
 		StoreInfos: storeInfos,
+	}
+}
+
+func convertChangeSet(cs *iavl.ChangeSet) memiavl.ChangeSet {
+	pairs := make([]*memiavl.KVPair, len(cs.Pairs))
+	for i, pair := range cs.Pairs {
+		pairs[i] = &memiavl.KVPair{
+			Delete: pair.Delete,
+			Key:    pair.Key,
+			Value:  pair.Value,
+		}
+	}
+	return memiavl.ChangeSet{
+		Pairs: pairs,
 	}
 }

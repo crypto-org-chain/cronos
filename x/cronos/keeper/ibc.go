@@ -6,14 +6,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/armon/go-metrics"
+	sdkmath "cosmossdk.io/math"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/hashicorp/go-metrics"
 
 	errorsmod "cosmossdk.io/errors"
-	ibctransfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types" //nolint: staticcheck
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
@@ -39,7 +40,7 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 			}
 			// Compute new amount, because basecro is a 8 decimals token, we need to multiply by 10^10 to make it
 			// a 18 decimals token
-			amount18dec := sdk.NewCoin(evmParams.EvmDenom, c.Amount.Mul(sdk.NewIntFromBigInt(types.TenPowTen)))
+			amount18dec := sdk.NewCoin(evmParams.EvmDenom, c.Amount.Mul(sdkmath.NewIntFromBigInt(types.TenPowTen)))
 
 			// Mint new evm tokens
 			if err := k.bankKeeper.MintCoins(
@@ -93,7 +94,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 		switch c.Denom {
 		case evmParams.EvmDenom:
 			// Compute the remainder, we won't transfer anything lower than 10^10
-			amount8decRem := c.Amount.Mod(sdk.NewIntFromBigInt(types.TenPowTen))
+			amount8decRem := c.Amount.Mod(sdkmath.NewIntFromBigInt(types.TenPowTen))
 			amountToBurn := c.Amount.Sub(amount8decRem)
 			if amountToBurn.IsZero() {
 				// Amount too small
@@ -114,7 +115,7 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 
 			// Transfer ibc tokens back to the user
 			// We divide by 10^10 to come back to an 8decimals token
-			amount8dec := c.Amount.Quo(sdk.NewIntFromBigInt(types.TenPowTen))
+			amount8dec := c.Amount.Quo(sdkmath.NewIntFromBigInt(types.TenPowTen))
 			ibcCoin := sdk.NewCoin(params.IbcCroDenom, amount8dec)
 			if err := k.bankKeeper.SendCoinsFromModuleToAccount(
 				ctx, types.ModuleName, acc, sdk.NewCoins(ibcCoin),

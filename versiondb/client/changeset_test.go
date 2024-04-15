@@ -12,18 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var ChangeSets []iavl.ChangeSet
+var ChangeSets []*iavl.ChangeSet
 
 func init() {
 	ChangeSets = append(ChangeSets,
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{
+		&iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello"), Value: []byte("world")},
 		}},
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{
+		&iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello"), Value: []byte("world1")},
 			{Key: []byte("hello1"), Value: []byte("world1")},
 		}},
-		iavl.ChangeSet{Pairs: []*iavl.KVPair{
+		&iavl.ChangeSet{Pairs: []*iavl.KVPair{
 			{Key: []byte("hello2"), Value: []byte("world1")},
 			{Key: []byte("hello3"), Value: []byte("world1")},
 		}},
@@ -34,8 +34,8 @@ func init() {
 		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Value: []byte("world1")})
 	}
 
-	ChangeSets = append(ChangeSets, changeSet)
-	ChangeSets = append(ChangeSets, iavl.ChangeSet{Pairs: []*iavl.KVPair{
+	ChangeSets = append(ChangeSets, &changeSet)
+	ChangeSets = append(ChangeSets, &iavl.ChangeSet{Pairs: []*iavl.KVPair{
 		{Key: []byte("hello"), Delete: true},
 		{Key: []byte("hello19"), Delete: true},
 	}})
@@ -44,7 +44,7 @@ func init() {
 	for i := 0; i < 21; i++ {
 		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("aello%02d", i)), Value: []byte("world1")})
 	}
-	ChangeSets = append(ChangeSets, changeSet)
+	ChangeSets = append(ChangeSets, &changeSet)
 
 	changeSet = iavl.ChangeSet{}
 	for i := 0; i < 21; i++ {
@@ -53,7 +53,7 @@ func init() {
 	for i := 0; i < 19; i++ {
 		changeSet.Pairs = append(changeSet.Pairs, &iavl.KVPair{Key: []byte(fmt.Sprintf("hello%02d", i)), Delete: true})
 	}
-	ChangeSets = append(ChangeSets, changeSet)
+	ChangeSets = append(ChangeSets, &changeSet)
 }
 
 func TestChangeSetEncoding(t *testing.T) {
@@ -65,7 +65,7 @@ func TestChangeSetEncoding(t *testing.T) {
 
 	bufLen := buf.Len()
 	offset, err := IterateChangeSets(&buf, func(version int64, changeSet *iavl.ChangeSet) (bool, error) {
-		require.Equal(t, ChangeSets[version-1], *changeSet)
+		require.Equal(t, ChangeSets[version-1], changeSet)
 		return true, nil
 	})
 	require.Equal(t, bufLen, int(offset))
@@ -138,13 +138,13 @@ func TestChangeSetRoundTrip(t *testing.T) {
 	testCases := []struct {
 		name      string
 		version   int64
-		changeSet iavl.ChangeSet
+		changeSet *iavl.ChangeSet
 		pass      bool
 	}{
 		{
 			"normal",
 			1,
-			iavl.ChangeSet{
+			&iavl.ChangeSet{
 				Pairs: []*iavl.KVPair{
 					{Key: []byte("hello"), Value: []byte("world")},
 					{Key: []byte("hello"), Value: []byte{}},
@@ -156,7 +156,7 @@ func TestChangeSetRoundTrip(t *testing.T) {
 		{
 			"uint16 key length don't overflow",
 			1,
-			iavl.ChangeSet{
+			&iavl.ChangeSet{
 				Pairs: []*iavl.KVPair{
 					{Key: []byte("hello"), Value: []byte{}},
 					{Key: []byte("hello"), Value: []byte{}},
@@ -177,7 +177,7 @@ func TestChangeSetRoundTrip(t *testing.T) {
 				version, offset, changeSet, err := ReadChangeSet(bytes.NewReader(encoded), true)
 				require.NoError(t, err)
 				require.Equal(t, tc.version, version)
-				require.Equal(t, tc.changeSet, *changeSet)
+				require.Equal(t, tc.changeSet, changeSet)
 				require.Equal(t, len(encoded), int(offset))
 			} else {
 				require.Error(t, err)

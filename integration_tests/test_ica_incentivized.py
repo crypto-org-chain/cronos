@@ -79,7 +79,8 @@ def test_incentivized(ibc):
     balance -= amount * msg_num
 
     # fee is locked
-    assert cli_controller.balance(sender, fee_denom) == old_amt_sender_fee - 30
+    # https://github.com/cosmos/ibc-go/pull/5571
+    assert cli_controller.balance(sender, fee_denom) == old_amt_sender_fee - 20
     # check if the funds are reduced in interchain account
     assert cli_host.balance(ica_address, denom=denom) == balance
 

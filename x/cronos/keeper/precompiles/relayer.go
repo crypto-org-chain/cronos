@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cometbft/cometbft/libs/log"
+	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -221,8 +221,6 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(e, bc.ibcKeeper.UpdateClient)
 	case UpgradeClient:
 		res, err = exec(e, bc.ibcKeeper.UpgradeClient)
-	case SubmitMisbehaviour:
-		res, err = exec(e, bc.ibcKeeper.SubmitMisbehaviour)
 	case ConnectionOpenInit:
 		res, err = exec(e, bc.ibcKeeper.ConnectionOpenInit)
 	case ConnectionOpenTry:

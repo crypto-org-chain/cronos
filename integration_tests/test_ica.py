@@ -68,7 +68,7 @@ def test_ica(ibc, tmp_path):
     assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
 
     def check_for_ack():
-        criteria = "message.action=/ibc.core.channel.v1.MsgAcknowledgement"
+        criteria = "message.action='/ibc.core.channel.v1.MsgAcknowledgement'"
         return cli_controller.tx_search(criteria)["txs"]
 
     txs = wait_for_fn("ack change", check_for_ack)

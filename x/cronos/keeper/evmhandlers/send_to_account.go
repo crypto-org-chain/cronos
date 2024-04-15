@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -78,7 +79,7 @@ func (h SendToAccountHandler) Handle(
 
 	contractAddr := sdk.AccAddress(contract.Bytes())
 	recipient := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
-	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewIntFromBigInt(unpacked[1].(*big.Int))))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(unpacked[1].(*big.Int))))
 	err = h.bankKeeper.SendCoins(ctx, contractAddr, recipient, coins)
 	if err != nil {
 		return err

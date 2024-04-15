@@ -10,7 +10,7 @@ from pystarport import cluster, ports
 from web3.middleware import geth_poa_middleware
 
 from .cosmoscli import CosmosCLI
-from .utils import supervisorctl, wait_for_port
+from .utils import supervisorctl, w3_wait_for_block, wait_for_port
 
 
 class Cronos:
@@ -186,7 +186,9 @@ def setup_custom_cronos(
         if wait_port:
             wait_for_port(ports.evmrpc_port(base_port))
             wait_for_port(ports.evmrpc_ws_port(base_port))
-        yield Cronos(path / "cronos_777-1", chain_binary=chain_binary or "cronosd")
+        c = Cronos(path / "cronos_777-1", chain_binary=chain_binary or "cronosd")
+        w3_wait_for_block(c.w3, 1)
+        yield c
     finally:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         # proc.terminate()

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	dbm "github.com/cometbft/cometbft-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/stretchr/testify/require"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 func SetupTestDB(t *testing.T, store VersionStore) {
-	changeSets := [][]types.StoreKVPair{
+	changeSets := [][]*types.StoreKVPair{
 		{
 			{StoreKey: "evm", Key: []byte("delete-in-block2"), Value: []byte("1")},
 			{StoreKey: "evm", Key: []byte("re-add-in-block3"), Value: []byte("1")},
@@ -57,7 +57,7 @@ func Run(t *testing.T, storeCreator func() VersionStore) {
 
 	// test delete in genesis, noop
 	store := storeCreator()
-	err := store.PutAtVersion(0, []types.StoreKVPair{
+	err := store.PutAtVersion(0, []*types.StoreKVPair{
 		{StoreKey: "evm", Key: []byte{1}, Delete: true},
 	})
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func testIterator(t *testing.T, store VersionStore) {
 	v = int64(len(expItems))
 	err = store.PutAtVersion(
 		v,
-		[]types.StoreKVPair{
+		[]*types.StoreKVPair{
 			{StoreKey: "evm", Key: []byte("z-genesis-only"), Delete: true},
 		},
 	)
