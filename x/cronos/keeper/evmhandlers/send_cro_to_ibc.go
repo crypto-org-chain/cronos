@@ -3,6 +3,7 @@ package evmhandler
 import (
 	"math/big"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -78,7 +79,7 @@ func (h SendCroToIbcHandler) Handle(
 	contractAddr := sdk.AccAddress(contract.Bytes())
 	sender := sdk.AccAddress(unpacked[0].(common.Address).Bytes())
 	recipient := unpacked[1].(string)
-	amount := sdk.NewIntFromBigInt(unpacked[2].(*big.Int))
+	amount := sdkmath.NewIntFromBigInt(unpacked[2].(*big.Int))
 	evmDenom := h.cronosKeeper.GetEvmParams(ctx).EvmDenom
 	coins := sdk.NewCoins(sdk.NewCoin(evmDenom, amount))
 	// First, transfer IBC coin to user so that he will be the refunded address if transfer fails

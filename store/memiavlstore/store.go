@@ -5,19 +5,16 @@ import (
 	"io"
 
 	"cosmossdk.io/errors"
-	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/cometbft/cometbft/libs/log"
-	tmcrypto "github.com/cometbft/cometbft/proto/tendermint/crypto"
-	ics23 "github.com/confio/ics23/go"
-	"github.com/cosmos/cosmos-sdk/store/tracekv"
+	"cosmossdk.io/log"
+	"cosmossdk.io/store/tracekv"
+	cmtprotocrypto "github.com/cometbft/cometbft/proto/tendermint/crypto"
+	ics23 "github.com/cosmos/ics23/go"
 	"github.com/crypto-org-chain/cronos/memiavl"
 
-	"github.com/cosmos/cosmos-sdk/store/cachekv"
-	pruningtypes "github.com/cosmos/cosmos-sdk/store/pruning/types"
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/cachekv"
+	pruningtypes "cosmossdk.io/store/pruning/types"
+	"cosmossdk.io/store/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/kv"
-	"github.com/cosmos/iavl"
 )
 
 var (
@@ -32,7 +29,7 @@ type Store struct {
 	tree   *memiavl.Tree
 	logger log.Logger
 
-	changeSet iavl.ChangeSet
+	changeSet memiavl.ChangeSet
 }
 
 func New(tree *memiavl.Tree, logger log.Logger) *Store {
@@ -85,7 +82,7 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 //
 // we assume Set is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Set(key, value []byte) {
-	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
+	st.changeSet.Pairs = append(st.changeSet.Pairs, &memiavl.KVPair{
 		Key: key, Value: value,
 	})
 }
@@ -104,7 +101,7 @@ func (st *Store) Has(key []byte) bool {
 //
 // we assume Delete is only called in `Commit`, so the written state is only visible after commit.
 func (st *Store) Delete(key []byte) {
-	st.changeSet.Pairs = append(st.changeSet.Pairs, &iavl.KVPair{
+	st.changeSet.Pairs = append(st.changeSet.Pairs, &memiavl.KVPair{
 		Key: key, Delete: true,
 	})
 }
@@ -125,18 +122,24 @@ func (st *Store) SetInitialVersion(version int64) {
 }
 
 // PopChangeSet returns the change set and clear it
-func (st *Store) PopChangeSet() iavl.ChangeSet {
+func (st *Store) PopChangeSet() memiavl.ChangeSet {
 	cs := st.changeSet
-	st.changeSet = iavl.ChangeSet{}
+	st.changeSet = memiavl.ChangeSet{}
 	return cs
 }
 
-func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
-	if req.Height > 0 && req.Height != st.tree.Version() {
-		return sdkerrors.QueryResult(errors.Wrap(sdkerrors.ErrInvalidHeight, "invalid height"), false)
+func (st *Store) Query(req *types.RequestQuery) (res *types.ResponseQuery, err error) {
+	if len(req.Data) == 0 {
+		return nil, errors.Wrap(types.ErrTxDecode, "query cannot be zero length")
 	}
 
-	res.Height = st.tree.Version()
+	if req.Height > 0 && req.Height != st.tree.Version() {
+		return nil, errors.Wrap(sdkerrors.ErrInvalidHeight, "invalid height")
+	}
+
+	res = &types.ResponseQuery{
+		Height: st.tree.Version(),
+	}
 
 	switch req.Path {
 	case "/key": // get by key
@@ -150,8 +153,8 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 		// get proof from tree and convert to merkle.Proof before adding to result
 		res.ProofOps = getProofFromTree(st.tree, req.Data, res.Value != nil)
 	case "/subspace":
-		pairs := kv.Pairs{
-			Pairs: make([]kv.Pair, 0),
+		pairs := memiavl.Pairs{
+			Pairs: make([]memiavl.Pair, 0),
 		}
 
 		subspace := req.Data
@@ -159,27 +162,31 @@ func (st *Store) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 
 		iterator := types.KVStorePrefixIterator(st, subspace)
 		for ; iterator.Valid(); iterator.Next() {
-			pairs.Pairs = append(pairs.Pairs, kv.Pair{Key: iterator.Key(), Value: iterator.Value()})
+			pairs.Pairs = append(pairs.Pairs, memiavl.Pair{Key: iterator.Key(), Value: iterator.Value()})
 		}
 		iterator.Close()
 
 		bz, err := pairs.Marshal()
 		if err != nil {
-			panic(fmt.Errorf("failed to marshal KV pairs: %w", err))
+			return nil, errors.Wrapf(err, "failed to marshal KV pairs")
 		}
 
 		res.Value = bz
 	default:
-		return sdkerrors.QueryResult(errors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path), false)
+		return nil, errors.Wrapf(sdkerrors.ErrUnknownRequest, "unexpected query path: %v", req.Path)
 	}
 
-	return res
+	return res, nil
+}
+
+func (st *Store) WorkingHash() []byte {
+	return st.tree.RootHash()
 }
 
 // Takes a MutableTree, a key, and a flag for creating existence or absence proof and returns the
 // appropriate merkle.Proof. Since this must be called after querying for the value, this function should never error
 // Thus, it will panic on error rather than returning it
-func getProofFromTree(tree *memiavl.Tree, key []byte, exists bool) *tmcrypto.ProofOps {
+func getProofFromTree(tree *memiavl.Tree, key []byte, exists bool) *cmtprotocrypto.ProofOps {
 	var (
 		commitmentProof *ics23.CommitmentProof
 		err             error
@@ -202,5 +209,5 @@ func getProofFromTree(tree *memiavl.Tree, key []byte, exists bool) *tmcrypto.Pro
 	}
 
 	op := types.NewIavlCommitmentOp(key, commitmentProof)
-	return &tmcrypto.ProofOps{Ops: []tmcrypto.ProofOp{op.ProofOp()}}
+	return &cmtprotocrypto.ProofOps{Ops: []cmtprotocrypto.ProofOp{op.ProofOp()}}
 }

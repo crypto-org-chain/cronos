@@ -36,4 +36,8 @@ message TraceConfig {
   bool enable_return_data = 12 [(gogoproto.jsontag) = "enableReturnData"];
   // tracer_json_config configures the tracer using a JSON string
   string tracer_json_config = 13 [(gogoproto.jsontag) = "tracerConfig"];
+  // temporary state modifications to Geth in order to simulate the effects of eth_call
+  bytes state_overrides = 14 [(gogoproto.jsontag) = "stateOverrides"];
+  // block overrides block context fields encoded as json
+  bytes block_overrides = 15 [(gogoproto.jsontag) = "blockOverrides"];
 }

@@ -11,6 +11,7 @@ deps:
   - buf.build/cosmos/gogo-proto:5e5b9fdd01804356895f8f79a6f1ddc1
   - buf.build/googleapis/googleapis:cc916c31859748a68fd229a3c8d7a2e8
   - buf.build/cosmos/ics23:b1abd8678aab07165efd453c96796a179eb3131f
+  - buf.build/crypto-org-chain/cronos-thirdparty
 breaking:
   use:
     - FILE

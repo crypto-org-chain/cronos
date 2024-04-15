@@ -11,7 +11,7 @@
     },
     'app-config': {
       chain_id: 'cronos_777-1',
-      'app-db-backend': 'pebbledb',
+      'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'iavl-lazy-loading': true,
@@ -22,6 +22,9 @@
         'feehistory-cap': 100,
         'block-range-cap': 10000,
         'logs-cap': 10000,
+      },
+      evm: {
+        'block-executor': 'block-stm',
       },
     },
     validators: [{
@@ -63,10 +66,12 @@
       mnemonic: '${SIGNER2_MNEMONIC}',
     }],
     genesis: {
-      consensus_params: {
-        block: {
-          max_bytes: '1048576',
-          max_gas: '81500000',
+      consensus: {
+        params: {
+          block: {
+            max_bytes: '1048576',
+            max_gas: '81500000',
+          },
         },
       },
       app_state: {
@@ -84,6 +89,7 @@
         },
         gov: {
           params: {
+            expedited_voting_period: '1s',
             voting_period: '10s',
             max_deposit_period: '10s',
             min_deposit: [

@@ -2,16 +2,14 @@ package cronos_test
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
-	errorsmod "cosmossdk.io/errors"
+	sdkmath "cosmossdk.io/math"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/v2/app"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
@@ -21,7 +19,6 @@ type CronosTestSuite struct {
 	suite.Suite
 
 	ctx     sdk.Context
-	handler sdk.Handler
 	app     *app.App
 	address sdk.AccAddress
 }
@@ -35,18 +32,8 @@ func (suite *CronosTestSuite) SetupTest() {
 	privKey, err := ethsecp256k1.GenerateKey()
 	suite.Require().NoError(err)
 	suite.address = sdk.AccAddress(privKey.PubKey().Address())
-	suite.app = app.Setup(suite.T(), suite.address.String(), true)
-	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
-	suite.handler = cronos.NewHandler(suite.app.CronosKeeper)
-}
-
-func (suite *CronosTestSuite) TestInvalidMsg() {
-	res, err := suite.handler(sdk.NewContext(nil, tmproto.Header{}, false, nil), testdata.NewTestMsg())
-	suite.Require().Error(err)
-	suite.Nil(res)
-
-	_, _, log := errorsmod.ABCIInfo(err, false)
-	suite.Require().True(strings.Contains(log, "unrecognized cronos message type"))
+	suite.app = app.Setup(suite.T(), suite.address.String())
+	suite.ctx = suite.app.NewContext(checkTx).WithBlockHeader(tmproto.Header{Height: 1, ChainID: app.TestAppChainID, Time: time.Now().UTC()})
 }
 
 func (suite *CronosTestSuite) TestMsgConvertVouchers() {
@@ -58,19 +45,19 @@ func (suite *CronosTestSuite) TestMsgConvertVouchers() {
 	}{
 		{
 			"Wrong address",
-			types.NewMsgConvertVouchers("test", sdk.NewCoins(sdk.NewCoin("aphoton", sdk.NewInt(1)))),
+			types.NewMsgConvertVouchers("test", sdk.NewCoins(sdk.NewCoin("aphoton", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("decoding bech32 failed: invalid bech32 string length 4"),
 		},
 		{
 			"Empty address",
-			types.NewMsgConvertVouchers("", sdk.NewCoins(sdk.NewCoin("aphoton", sdk.NewInt(1)))),
+			types.NewMsgConvertVouchers("", sdk.NewCoins(sdk.NewCoin("aphoton", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("empty address string is not allowed"),
 		},
 		{
 			"Correct address with non supported coin denom",
-			types.NewMsgConvertVouchers(suite.address.String(), sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
+			types.NewMsgConvertVouchers(suite.address.String(), sdk.NewCoins(sdk.NewCoin("fake", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("coin fake is not supported for conversion"),
 		},
@@ -78,8 +65,8 @@ func (suite *CronosTestSuite) TestMsgConvertVouchers() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			handler := cronos.NewHandler(suite.app.CronosKeeper)
-			_, err := handler(suite.ctx, tc.msg)
+			msgSrv := keeper.NewMsgServerImpl(suite.app.CronosKeeper)
+			_, err := msgSrv.ConvertVouchers(suite.ctx, tc.msg)
 			if tc.expectedError != nil {
 				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
@@ -98,33 +85,33 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 	}{
 		{
 			"Wrong from address",
-			types.NewMsgTransferTokens("test", "to", sdk.NewCoins(sdk.NewCoin("aphoton", sdk.NewInt(1)))),
+			types.NewMsgTransferTokens("test", "to", sdk.NewCoins(sdk.NewCoin("aphoton", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("decoding bech32 failed: invalid bech32 string length 4"),
 		},
 		{
 			"Empty from address",
-			types.NewMsgTransferTokens("", "to", sdk.NewCoins(sdk.NewCoin("aphoton", sdk.NewInt(1)))),
+			types.NewMsgTransferTokens("", "to", sdk.NewCoins(sdk.NewCoin("aphoton", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("empty address string is not allowed"),
 		},
 		{
 			"Empty to address",
-			types.NewMsgTransferTokens(suite.address.String(), "", sdk.NewCoins(sdk.NewCoin("aphoton", sdk.NewInt(1)))),
+			types.NewMsgTransferTokens(suite.address.String(), "", sdk.NewCoins(sdk.NewCoin("aphoton", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("to address cannot be empty"),
 		},
 		{
 			"Correct address with non supported coin denom",
-			types.NewMsgTransferTokens(suite.address.String(), "to", sdk.NewCoins(sdk.NewCoin("fake", sdk.NewInt(1)))),
+			types.NewMsgTransferTokens(suite.address.String(), "to", sdk.NewCoins(sdk.NewCoin("fake", sdkmath.NewInt(1)))),
 			func() {},
 			errors.New("the coin fake is neither an ibc voucher or a cronos token"),
 		},
 	}
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			handler := cronos.NewHandler(suite.app.CronosKeeper)
-			_, err := handler(suite.ctx, tc.msg)
+			msgSrv := keeper.NewMsgServerImpl(suite.app.CronosKeeper)
+			_, err := msgSrv.TransferTokens(suite.ctx, tc.msg)
 			if tc.expectedError != nil {
 				suite.Require().EqualError(err, tc.expectedError.Error())
 			} else {
@@ -141,8 +128,7 @@ func (suite *CronosTestSuite) TestUpdateTokenMapping() {
 	contract := "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2"
 
 	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract, "", 0)
-	handler := cronos.NewHandler(suite.app.CronosKeeper)
-	_, err := handler(suite.ctx, msg)
+	err := suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, msg)
 	suite.Require().NoError(err)
 
 	contractAddr, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, denom)

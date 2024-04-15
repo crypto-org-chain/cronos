@@ -1,0 +1,16 @@
+syntax = "proto3";
+package memiavl;
+
+option go_package = "github.com/crypto-org-chain/cronos/memiavl";
+
+// KVPair represents a key-value pair
+message KVPair {
+    bool delete = 1;
+    bytes key = 2;
+    bytes value = 3;
+}
+
+// ChangeSet represents a list of key-value pairs
+message ChangeSet {
+    repeated KVPair pairs = 1;
+}

@@ -4,7 +4,7 @@
 # This module represents the "proto" root found in
 # the previous configuration.
 version: v1
-name: buf.build/crypto-org-chain/cronos
+name: buf.build/crypto-org-chain/cronos-thirdparty
 deps:
   - buf.build/cosmos/cosmos-sdk:954f7b05f38440fc8250134b15adec47
   - buf.build/cosmos/cosmos-proto:1935555c206d4afb9e94615dfd0fad31
@@ -25,6 +25,3 @@ lint:
     - SERVICE_SUFFIX
     - PACKAGE_VERSION_SUFFIX
     - RPC_REQUEST_STANDARD_NAME
-  ignore:
-    - ethermint
-    - iavl

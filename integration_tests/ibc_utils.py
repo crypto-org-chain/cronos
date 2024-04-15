@@ -15,7 +15,7 @@ from .utils import (
     CONTRACTS,
     deploy_contract,
     eth_to_bech32,
-    parse_events,
+    find_log_event_attrs,
     parse_events_rpc,
     send_transaction,
     setup_token_mapping,
@@ -303,7 +303,7 @@ def ibc_transfer_with_hermes(ibc):
     assert old_dst_balance + dst_amount == new_dst_balance
     # assert that the relayer transactions do enables the dynamic fee extension option.
     cli = ibc.cronos.cosmos_cli()
-    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
+    criteria = "message.action='/ibc.core.channel.v1.MsgChannelOpenInit'"
     tx = cli.tx_search(criteria)["txs"][0]
     events = parse_events_rpc(tx["events"])
     fee = int(events["tx"]["fee"].removesuffix(dst_denom))
@@ -313,9 +313,9 @@ def ibc_transfer_with_hermes(ibc):
     assert fee == gas * 1000000
 
     # check duplicate OnRecvPacket events
-    criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
+    criteria = "message.action='/ibc.core.channel.v1.MsgRecvPacket'"
     tx = cli.tx_search(criteria)["txs"][0]
-    events = tx["logs"][1]["events"]
+    events = tx["events"]
     for event in events:
         dup = find_duplicate(event["attributes"])
         assert not dup, f"duplicate {dup} in {event['type']}"
@@ -435,7 +435,11 @@ def ibc_incentivized_transfer(ibc):
     assert rsp["code"] == 0, rsp["raw_log"]
     src_chain = ibc.cronos.cosmos_cli()
     rsp = src_chain.event_query_tx_for(rsp["txhash"])
-    evt = parse_events(rsp["logs"])["send_packet"]
+
+    def cb(attrs):
+        return "packet_sequence" in attrs
+
+    evt = find_log_event_attrs(rsp["events"], "send_packet", cb)
     print("packet event", evt)
     packet_seq = int(evt["packet_sequence"])
     fee = f"10{fee_denom}"
@@ -450,7 +454,9 @@ def ibc_incentivized_transfer(ibc):
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     # fee is locked
-    assert chains[0].balance(sender, fee_denom) == old_amt_sender_fee - 30
+    current = chains[0].balance(sender, fee_denom)
+    # https://github.com/cosmos/ibc-go/pull/5571
+    assert current == old_amt_sender_fee - 20, current
 
     # wait for relayer receive the fee
     def check_fee():
@@ -481,10 +487,11 @@ def ibc_incentivized_transfer(ibc):
             output="json",
         )
     )["denom_trace"] == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
-    assert get_balances(ibc.chainmain, receiver) == [
+    current = get_balances(ibc.chainmain, receiver)
+    assert current == [
         {"denom": "basecro", "amount": f"{old_amt_receiver_base}"},
         {"denom": f"ibc/{denom_hash}", "amount": f"{amount}"},
-    ]
+    ], current
     # transfer back
     fee_amount = 100000000
     rsp = chains[1].ibc_transfer(
@@ -503,7 +510,8 @@ def ibc_incentivized_transfer(ibc):
     wait_for_fn("balance change", check_balance_change)
     actual = chains[0].balance(sender, base_denom)
     assert actual == old_amt_sender_base, actual
-    assert chains[1].balance(receiver, "basecro") == old_amt_receiver_base - fee_amount
+    current = chains[1].balance(receiver, "basecro")
+    assert current == old_amt_receiver_base - fee_amount
     return amount, packet_seq
 
 
@@ -756,7 +764,8 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid):
     print("register ica account")
-    rsp = cli.icaauth_register_account(connid, from_="signer2", gas="400000")
+    v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
+    rsp = cli.icaauth_register_account(connid, from_="signer2", gas="400000", version=v)
     _, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
 

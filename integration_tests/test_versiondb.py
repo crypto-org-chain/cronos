@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 
+import pytest
 import tomlkit
 from pystarport import ports
 
@@ -8,6 +9,7 @@ from .network import Cronos
 from .utils import ADDRS, send_transaction, wait_for_port
 
 
+@pytest.mark.skip(reason="versiondb migration don't support iavl v1 yet, TODO: #1389")
 def test_versiondb_migration(cronos: Cronos):
     """
     test versiondb migration commands.

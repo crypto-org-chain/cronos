@@ -15,7 +15,7 @@ config {
       mnemonic: '${COMMUNITY_MNEMONIC}',
     }],
     genesis+: {
-      consensus_params:: super['consensus_params'],
+      consensus:: super['consensus'],
       app_state+: {
         evm+: {
           accounts: [

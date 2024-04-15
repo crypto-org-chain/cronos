@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"math/big"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -30,7 +31,7 @@ func (suite *KeeperTestSuite) TestTokenConversion() {
 
 	denom := "ibc/0000000000000000000000000000000000000000000000000000000000000000"
 	amount := big.NewInt(100)
-	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)))
 
 	// mint native tokens
 	err = suite.MintCoins(sdk.AccAddress(address.Bytes()), coins)
@@ -101,7 +102,7 @@ func (suite *KeeperTestSuite) TestSourceTokenConversion() {
 	suite.Require().NoError(err)
 
 	// Convert CRC21 to native
-	err = keeper.ConvertCoinFromCRC21ToNative(suite.ctx, contractAddress, address, sdk.NewIntFromBigInt(amount))
+	err = keeper.ConvertCoinFromCRC21ToNative(suite.ctx, contractAddress, address, sdkmath.NewIntFromBigInt(amount))
 	suite.Require().NoError(err)
 
 	// Check balance
@@ -109,7 +110,7 @@ func (suite *KeeperTestSuite) TestSourceTokenConversion() {
 	suite.Require().Equal(amount, coin.Amount.BigInt())
 
 	// Convert native to CRC21
-	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)))
+	coins := sdk.NewCoins(sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)))
 	err = keeper.ConvertCoinsFromNativeToCRC21(suite.ctx, address, coins, false)
 	suite.Require().NoError(err)
 

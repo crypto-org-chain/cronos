@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#1377](https://github.com/crypto-org-chain/cronos/pull/1377) Upgrade sdk to 0.50, and integrate block-stm parallel tx execution.
+
 ### Improvements
 
 * (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
@@ -17,7 +21,6 @@
 
 * (rpc) [#1371](https://github.com/crypto-org-chain/cronos/pull/1371) Add param keytable in evm for old upgrade.
 
-
 *April 2, 2024*
 
 ## v1.2.0-rc0
@@ -29,7 +32,6 @@
 ### State Machine Breaking
 
 * [#1366](https://github.com/crypto-org-chain/ethermint/pull/1366) Keep behavior of random opcode as before.
-
 
 *March 26, 2024*
 

@@ -10,7 +10,6 @@ import (
 	"sort"
 
 	"github.com/alitto/pond"
-	"github.com/cosmos/iavl"
 	"github.com/tidwall/wal"
 	"golang.org/x/exp/slices"
 )
@@ -243,7 +242,7 @@ func (t *MultiTree) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 }
 
 // ApplyChangeSet applies change set for a single tree.
-func (t *MultiTree) ApplyChangeSet(name string, changeSet iavl.ChangeSet) error {
+func (t *MultiTree) ApplyChangeSet(name string, changeSet ChangeSet) error {
 	i, found := t.treesByName[name]
 	if !found {
 		return fmt.Errorf("unknown tree name %s", name)

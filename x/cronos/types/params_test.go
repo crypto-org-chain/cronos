@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,7 @@ func Test_validateIsIbcDenomParam(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"invalid type", args{sdk.OneInt()}, true},
+		{"invalid type", args{sdkmath.OneInt()}, true},
 
 		{"wrong length", args{"ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD"}, true},
 		{"invalid denom", args{"aaa/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865"}, true},

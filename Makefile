@@ -270,7 +270,7 @@ endif
 ###############################################################################
 
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
-protoVer=0.11.6
+protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
 protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
 
@@ -286,7 +286,7 @@ proto-gen:
 
 proto-lint:
 	@echo "Linting Protobuf files"
-	@$(protoImage) buf lint --error-format=json
+	@$(protoImage) buf lint ./proto --error-format=json
 
 proto-swagger-gen:
 	@echo "Generating Protobuf Swagger"

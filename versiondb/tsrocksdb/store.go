@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"cosmossdk.io/store/types"
 	"github.com/cosmos/iavl"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
@@ -65,7 +65,7 @@ func (s Store) SetLatestVersion(version int64) error {
 }
 
 // PutAtVersion implements VersionStore interface
-func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error {
+func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error {
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 

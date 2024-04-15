@@ -31,7 +31,7 @@ def test_native_tx(cronos):
     sender = {
         "accountAddress": src_addr,
         "sequence": w3.eth.get_transaction_count(ADDRS[src]),
-        "accountNumber": int(src_account["base_account"]["account_number"]),
+        "accountNumber": int(src_account["account"]["value"]["account_number"]),
         "pubkey": json.loads(cli.address(src, "acc", "pubkey"))["key"],
     }
     denom = "basetcro"

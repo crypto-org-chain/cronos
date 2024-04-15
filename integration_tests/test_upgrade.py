@@ -146,7 +146,7 @@ def exec(c, tmp_path_factory):
             mode=mode,
         )
         assert rsp["code"] == 0, rsp["raw_log"]
-        approve_proposal(c, rsp)
+        approve_proposal(c, rsp["logs"][0]["events"])
 
         # update cli chain binary
         c.chain_binary = (
@@ -257,7 +257,11 @@ def exec(c, tmp_path_factory):
         file.write_text(json.dumps(genesis))
     c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
     wait_for_new_blocks(c.cosmos_cli(), 1)
-    c.supervisorctl("stop", "all")
+
+    height = cli.block_height()
+    target_height2 = height + 15
+    print("upgrade v1.3 height", target_height2)
+    do_upgrade("v1.3", target_height2)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

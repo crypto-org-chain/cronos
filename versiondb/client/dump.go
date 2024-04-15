@@ -13,8 +13,9 @@ import (
 	"sync"
 	"time"
 
+	log "cosmossdk.io/log"
 	"github.com/alitto/pond"
-	dbm "github.com/cometbft/cometbft-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
 	"github.com/golang/snappy"
 	"github.com/spf13/cast"
@@ -78,11 +79,8 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 			if endVersion == 0 {
 				// use the latest version of the first store for all stores
 				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, stores[0]))
-				tree, err := iavl.NewMutableTree(dbm.NewPrefixDB(db, prefix), 0, true)
-				if err != nil {
-					return err
-				}
-				latestVersion, err := tree.LazyLoadVersion(0)
+				tree := iavl.NewMutableTree(dbm.NewPrefixDB(db, prefix), 0, true, log.NewNopLogger())
+				latestVersion, err := tree.LoadVersion(0)
 				if err != nil {
 					return err
 				}
@@ -117,7 +115,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 				iavlTreePool := sync.Pool{
 					New: func() any {
 						// use separate prefixdb and iavl tree in each task to maximize concurrency performance
-						return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true)
+						return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true, log.NewNopLogger())
 					},
 				}
 
@@ -202,7 +200,7 @@ func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Ran
 	writer := snappy.NewBufferedWriter(fp)
 
 	if err := tree.TraverseStateChanges(blockRange.Start, blockRange.End, func(version int64, changeSet *iavl.ChangeSet) error {
-		return WriteChangeSet(writer, version, *changeSet)
+		return WriteChangeSet(writer, version, changeSet)
 	}); err != nil {
 		return err
 	}
