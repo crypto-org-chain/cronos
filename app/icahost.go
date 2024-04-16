@@ -8,7 +8,7 @@ import (
 )
 
 // ICAHostMockSubspace is a mock implementation to workaround the migration process, because we have nothing to migrate from,
-otherwise it'll panic, see: https://github.com/cosmos/ibc-go/pull/6167
+// otherwise it'll panic, see: https://github.com/cosmos/ibc-go/pull/6167
 type ICAHostMockSubspace struct {
 }
 
