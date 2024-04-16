@@ -5,6 +5,7 @@
 ### State Machine Breaking
 
 * [#1377](https://github.com/crypto-org-chain/cronos/pull/1377) Upgrade sdk to 0.50, and integrate block-stm parallel tx execution.
+* [#1394](https://github.com/crypto-org-chain/cronos/pull/1394) Add icahost wirings but disable in parameters.
 
 ### Improvements
 
