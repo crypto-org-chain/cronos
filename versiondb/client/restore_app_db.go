@@ -27,6 +27,7 @@ import (
 
 const (
 	int64Size = 8
+	int32Size = 4
 
 	storeKeyPrefix   = "s/k:%s/"
 	latestVersionKey = "s/latest"
@@ -41,8 +42,9 @@ const (
 )
 
 var (
-	nodeKeyFormat = keyformat.NewKeyFormat('n', memiavl.SizeHash) // n<hash>
-	rootKeyFormat = keyformat.NewKeyFormat('r', int64Size)        // r<version>
+	nodeKeyFormat   = keyformat.NewKeyFormat('n', memiavl.SizeHash)              // n<hash>
+	rootKeyFormat   = keyformat.NewKeyFormat('r', int64Size)                     // r<version>
+	nodeKeyV1Format = keyformat.NewFastPrefixFormatter('s', int64Size+int32Size) // s<version><nonce>
 )
 
 func RestoreAppDBCmd(opts Options) *cobra.Command {

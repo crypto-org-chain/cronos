@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/zlib"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -75,6 +76,10 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 			if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 				return err
 			}
+			iavlVersion, err := cmd.Flags().GetInt(flagIAVLVersion)
+			if err != nil {
+				return err
+			}
 
 			if endVersion == 0 {
 				// use the latest version of the first store for all stores
@@ -98,7 +103,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 
 				// find the first version in the db, reading raw db because no public api for it.
 				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, store))
-				storeStartVersion, err := getNextVersion(dbm.NewPrefixDB(db, prefix), 0)
+				storeStartVersion, err := getFirstVersion(dbm.NewPrefixDB(db, prefix), iavlVersion)
 				if err != nil {
 					return err
 				}
@@ -166,9 +171,11 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 	cmd.Flags().Int(flagChunkSize, DefaultChunkSize, "size of the block chunk")
 	cmd.Flags().Int(flagZlibLevel, 6, "level of zlib compression, 0: plain data, 1: fast, 9: best, default: 6, if not 0 the output file name will have .zz extension")
 	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
+	cmd.Flags().Int(flagIAVLVersion, IAVLV1, "IAVL version, 0: v0, 1: v1")
 	return cmd
 }
 
+// Range represents a range `[start, end)`
 type Range struct {
 	Start, End int64
 }
@@ -199,7 +206,8 @@ func dumpRangeBlocks(outputFile string, tree *iavl.ImmutableTree, blockRange Ran
 
 	writer := snappy.NewBufferedWriter(fp)
 
-	if err := tree.TraverseStateChanges(blockRange.Start, blockRange.End, func(version int64, changeSet *iavl.ChangeSet) error {
+	// TraverseStateChanges becomes inclusive on end since iavl `v1.x.x`, while the blockRange is exclusive on end
+	if err := tree.TraverseStateChanges(blockRange.Start, blockRange.End-1, func(version int64, changeSet *iavl.ChangeSet) error {
 		return WriteChangeSet(writer, version, changeSet)
 	}); err != nil {
 		return err
@@ -289,25 +297,45 @@ func createFile(name string) (*os.File, error) {
 	return os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 }
 
-func getNextVersion(db dbm.DB, version int64) (int64, error) {
+func getFirstVersion(db dbm.DB, iavlVersion int) (int64, error) {
+	if iavlVersion == IAVLV0 {
+		itr, err := db.Iterator(
+			rootKeyFormat.Key(uint64(1)),
+			rootKeyFormat.Key(uint64(math.MaxInt64)),
+		)
+		if err != nil {
+			return 0, err
+		}
+		defer itr.Close()
+
+		var version int64
+		for ; itr.Valid(); itr.Next() {
+			rootKeyFormat.Scan(itr.Key(), &version)
+			return version, nil
+		}
+
+		return 0, itr.Error()
+	}
+
 	itr, err := db.Iterator(
-		rootKeyFormat.Key(uint64(version+1)),
-		rootKeyFormat.Key(uint64(math.MaxInt64)),
+		nodeKeyV1Format.KeyInt64(1),
+		nodeKeyV1Format.KeyInt64(math.MaxInt64),
 	)
 	if err != nil {
 		return 0, err
 	}
 	defer itr.Close()
 
-	var nversion int64
 	for ; itr.Valid(); itr.Next() {
-		rootKeyFormat.Scan(itr.Key(), &nversion)
-		return nversion, nil
+		var nk []byte
+		nodeKeyV1Format.Scan(itr.Key(), &nk)
+		version := int64(binary.BigEndian.Uint64(nk))
+		nonce := binary.BigEndian.Uint32(nk[8:])
+		if nonce == 1 {
+			// root key is normal node key with nonce 1
+			return version, nil
+		}
 	}
 
-	if err := itr.Error(); err != nil {
-		return 0, err
-	}
-
-	return 0, nil
+	return 0, itr.Error()
 }
