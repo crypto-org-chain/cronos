@@ -272,13 +272,18 @@ endif
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
 protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
-protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --user root $(protoImageName)
+protoImageCi=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --user root $(protoImageName)
+protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
 
 # ------
 # NOTE: If you are experiencing problems running these commands, try deleting
 #       the docker images and execute the desired command again.
 #
 proto-all: proto-format proto-lint proto-gen
+
+proto-gen-ci:
+	@echo "Generating Protobuf files"
+	$(protoImageCi) sh ./scripts/protocgen.sh
 
 proto-gen:
 	@echo "Generating Protobuf files"
