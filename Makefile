@@ -272,7 +272,7 @@ endif
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
 protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
-protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName)
+protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --user root $(protoImageName)
 
 # ------
 # NOTE: If you are experiencing problems running these commands, try deleting
