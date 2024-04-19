@@ -256,7 +256,7 @@ func StoreKeys() (
 	keys := storetypes.NewKVStoreKeys(storeKeys...)
 	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := storetypes.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
-	okeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectStoreKey, feemarkettypes.ObjectStoreKey)
+	okeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectStoreKey)
 
 	return keys, memKeys, tkeys, okeys
 }
@@ -582,7 +582,7 @@ func New(
 	app.FeeMarketKeeper = feemarketkeeper.NewKeeper(
 		appCodec,
 		authtypes.NewModuleAddress(govtypes.ModuleName),
-		keys[feemarkettypes.StoreKey], okeys[feemarkettypes.ObjectStoreKey],
+		keys[feemarkettypes.StoreKey],
 		feeMarketS,
 	)
 	// Set authority to x/gov module account to only expect the module account to update params
