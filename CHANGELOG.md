@@ -7,6 +7,11 @@
 * (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
 * (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
 
+### Bug Fixes
+
+* (rpc) [#1397](https://github.com/crypto-org-chain/cronos/pull/1397) Avoid panic on invalid elasticity_multiplier.
+
+
 *April 8, 2024*
 
 ## v1.2.0-rc1
