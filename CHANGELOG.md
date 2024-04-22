@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*April 22, 2024*
+
+## v1.2.0-rc2
 
 ### Improvements
 
