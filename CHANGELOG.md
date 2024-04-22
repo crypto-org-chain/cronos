@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*April 22, 2024*
+
+## v1.2.1
 
 ### Improvements
 
@@ -11,9 +13,9 @@
 
 * (rpc) [#1397](https://github.com/crypto-org-chain/cronos/pull/1397) Avoid panic on invalid elasticity_multiplier.
 
-
 *April 8, 2024*
 
+## v1.2.0
 ## v1.2.0-rc1
 
 ### Bug Fixes
