@@ -128,10 +128,6 @@ def exec(c, tmp_path_factory):
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
     wait_for_new_blocks(cli, 1)
 
-    height = cli.block_height()
-    target_height0 = height + 15
-    print("upgrade v1.1 height", target_height0)
-
     def do_upgrade(plan_name, target, mode=None):
         rsp = cli.gov_propose_legacy(
             "community",
@@ -156,11 +152,14 @@ def exec(c, tmp_path_factory):
         wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
         wait_for_port(ports.rpc_port(c.base_port(0)))
 
-    do_upgrade("v1.1.0", target_height0, "block")
-    cli = c.cosmos_cli()
-
     # test migrate keystore
     cli.migrate_keystore()
+    height = cli.block_height()
+    target_height0 = height + 15
+    print("upgrade v1.1 height", target_height0)
+
+    do_upgrade("v1.1.0", target_height0, "block")
+    cli = c.cosmos_cli()
 
     # check basic tx works
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
@@ -196,6 +195,7 @@ def exec(c, tmp_path_factory):
     print("old values", old_height, old_balance, old_base_fee)
 
     do_upgrade("v1.2", target_height1)
+    cli = c.cosmos_cli()
 
     # check basic tx works
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
@@ -240,10 +240,11 @@ def exec(c, tmp_path_factory):
     max_callback_gas = cli.query_params()["max_callback_gas"]
     assert max_callback_gas == "50000", max_callback_gas
 
-    e = cli.query_params("evm", height=target_height0 - 1)["params"]["evm_denom"]
-    assert e == "basetcro", e
-    e = cli.query_params("evm", height=target_height1 - 1)["params"]["evm_denom"]
-    assert e == "basetcro", e
+    e0 = cli.query_params("evm", height=target_height0 - 1)["params"]
+    e1 = cli.query_params("evm", height=target_height1 - 1)["params"]
+    f0 = cli.query_params("feemarket", height=target_height0 - 1)["params"]
+    f1 = cli.query_params("feemarket", height=target_height1 - 1)["params"]
+    assert e0["evm_denom"] == e1["evm_denom"] == "basetcro"
 
     # update the genesis time = current time + 5 secs
     newtime = datetime.utcnow() + timedelta(seconds=5)
@@ -257,7 +258,11 @@ def exec(c, tmp_path_factory):
         file.write_text(json.dumps(genesis))
     c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
     wait_for_new_blocks(c.cosmos_cli(), 1)
-    c.supervisorctl("stop", "all")
+
+    assert e0 == cli.query_params("evm", height=target_height0 - 1)["params"]
+    assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
+    assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
+    assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
