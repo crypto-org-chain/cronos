@@ -174,8 +174,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 			} else {
 				status = hexutil.Uint(ethtypes.ReceiptStatusSuccessful)
 			}
-
-			from, err := ethMsg.GetSenderLegacy(api.chainIDEpoch)
+			from, err := ethMsg.GetSenderLegacy(ethtypes.LatestSignerForChainID(api.chainIDEpoch))
 			if err != nil {
 				return nil, err
 			}
@@ -313,7 +312,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 			status = hexutil.Uint(ethtypes.ReceiptStatusSuccessful)
 		}
 
-		from, err := ethMsg.GetSenderLegacy(api.chainIDEpoch)
+		from, err := ethMsg.GetSenderLegacy(ethtypes.LatestSignerForChainID(api.chainIDEpoch))
 		if err != nil {
 			return nil, err
 		}
