@@ -1,7 +1,6 @@
 syntax = "proto3";
 package e2ee;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";

@@ -2,7 +2,6 @@ syntax = "proto3";
 package e2ee;
 
 import "cosmos/msg/v1/msg.proto";
-import "gogoproto/gogo.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
 
