@@ -21,7 +21,7 @@
 
 ### Features
 
-- [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
+*  [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
 
 *April 8, 2024*
 
