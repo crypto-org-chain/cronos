@@ -189,6 +189,7 @@ func initRootCmd(
 		queryCommand(),
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
+		KeygenCommand(),
 		EncryptMsgCommand(),
 		DecryptMsgCommand(),
 	)
