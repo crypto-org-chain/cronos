@@ -23,6 +23,7 @@ var (
 	_ sdk.Msg = &MsgUpdateParams{}
 	_ sdk.Msg = &MsgTurnBridge{}
 	_ sdk.Msg = &MsgUpdatePermissions{}
+	_ sdk.Msg = &MsgStoreBlockList{}
 )
 
 func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
@@ -317,4 +318,28 @@ func (msg MsgUpdatePermissions) Type() string {
 func (msg *MsgUpdatePermissions) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
+}
+
+func NewMsgStoreBlockList(from string, blob []byte) *MsgStoreBlockList {
+	return &MsgStoreBlockList{
+		From: from,
+		Blob: blob,
+	}
+}
+
+func (msg *MsgStoreBlockList) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+	return nil
+}
+
+func (msg *MsgStoreBlockList) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		panic(err)
+	}
+
+	return []sdk.AccAddress{addr}
 }

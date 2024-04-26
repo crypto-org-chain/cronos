@@ -40,6 +40,9 @@ schema = 3
   [mod."cosmossdk.io/tools/rosetta"]
     version = "v0.2.1"
     hash = "sha256-TrkXwA1ZdwSyu3te0DLMBynCb7CGEtefo2wzFvxeyU8="
+  [mod."filippo.io/age"]
+    version = "v1.1.1"
+    hash = "sha256-LRxxJQLQkzoCNYGS/XBixVmYXoZ1mPHKvFicPGXYLcw="
   [mod."filippo.io/edwards25519"]
     version = "v1.0.0"
     hash = "sha256-APnPAcmItvtJ5Zsy863lzR2TjEBF9Y66TY1e4M1ap98="
@@ -216,8 +219,8 @@ schema = 3
     hash = "sha256-lDIqRLUrXYCb9mmFBY/+WW+ee69+IkxOgqjHVyo4ij0="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20240419022701-412115d02b10"
-    hash = "sha256-wuXg0oZlIHc+x9tSmxZxGNoBa521p+o/Nk4ynJHKlRU="
+    version = "v0.6.1-0.20240502043119-814fcacedf60"
+    hash = "sha256-dPO5F/J8XKGLUHiPTpSLBiZcYn42CNzRQ6Ntqcuc8kY="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.2"

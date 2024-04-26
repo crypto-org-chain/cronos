@@ -23,5 +23,5 @@ in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = released0; }
   { name = "v1.1.0"; path = released; }
-  { name = "v1.2"; path = current; }
+  { name = "v1.3"; path = current; }
 ]

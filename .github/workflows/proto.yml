@@ -40,10 +40,10 @@ jobs:
         with:
           PATTERNS: |
             **/**.proto
-      - name: proto-gen
+      - name: proto-gen-ci
         if: env.GIT_DIFF
         run: |
-          make proto-gen # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
+          make proto-gen-ci # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
           git checkout -- go.mod go.sum docs/api/proto-docs.md  # FIXME doc gen not reproducible in CI
       - name: check working directory is clean
         uses: numtide/clean-git-action@main

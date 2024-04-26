@@ -1,5 +1,16 @@
 # Changelog
 
+## UNRELEASED
+
+### State Machine Breaking
+
+* [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
+
+### Improvements
+
+* [#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
+* (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
+
 *April 22, 2024*
 
 ## v1.2.1
@@ -12,6 +23,11 @@
 ### Bug Fixes
 
 * (rpc) [#1397](https://github.com/crypto-org-chain/cronos/pull/1397) Avoid panic on invalid elasticity_multiplier.
+
+### Features
+
+* [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
+* [#1411](https://github.com/crypto-org-chain/cronos/pull/1411) Add encrypt and decrypt cmds for message.
 
 *April 8, 2024*
 

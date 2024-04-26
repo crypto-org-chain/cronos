@@ -1,6 +1,7 @@
 import binascii
 import enum
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -331,9 +332,18 @@ class CosmosCLI:
             )["bonded_tokens" if bonded else "not_bonded_tokens"]
         )
 
-    def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
+    def transfer(
+        self,
+        from_,
+        to,
+        coins,
+        generate_only=False,
+        event_query_tx=True,
+        fees=None,
+        **kwargs,
+    ):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "bank",
@@ -348,6 +358,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0 and event_query_tx:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def get_delegated_amount(self, which_addr):
         return json.loads(
@@ -1699,6 +1712,25 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
+    def store_blocklist(self, data, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "store-block-list",
+                data,
+                "-y",
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
 
@@ -1814,3 +1846,76 @@ class CosmosCLI:
     def query_bank_send(self):
         res = json.loads(self.raw("q", "bank", "send-enabled", home=self.data_dir))
         return res["send_enabled"]
+
+    def query_e2ee_key(self, address):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "key",
+                address,
+                home=self.data_dir,
+                output="json",
+            )
+        )["key"]
+
+    def query_e2ee_keys(self, *addresses):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "keys",
+                *addresses,
+                home=self.data_dir,
+                output="json",
+            )
+        )["keys"]
+
+    def register_e2ee_key(self, key, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "e2ee",
+                "register-encryption-key",
+                key,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
+    def keygen(self, **kwargs):
+        return self.raw("e2ee", "keygen", home=self.data_dir, **kwargs).strip().decode()
+
+    def encrypt(self, input, *recipients, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt",
+                input,
+                *itertools.chain.from_iterable(("-r", r) for r in recipients),
+                home=self.data_dir,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def decrypt(self, input, identity="e2ee-identity", **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "decrypt",
+                input,
+                home=self.data_dir,
+                identity=identity,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )

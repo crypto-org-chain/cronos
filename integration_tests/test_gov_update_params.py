@@ -2,8 +2,17 @@ import hashlib
 import json
 
 import pytest
+from pystarport import ports
 
-from .utils import CONTRACTS, approve_proposal, deploy_contract, eth_to_bech32
+from .utils import (
+    CONTRACTS,
+    approve_proposal,
+    deploy_contract,
+    eth_to_bech32,
+    prepare_cipherfile,
+    wait_for_new_blocks,
+    wait_for_port,
+)
 
 pytestmark = pytest.mark.gov
 
@@ -86,3 +95,19 @@ def test_gov_update_params(cronos, tmp_path):
     rsp = cli.query_params()
     print("params", rsp)
     assert rsp == params
+
+    # gen two keys for two accounts
+    name = "e2ee-identity"
+    cli1 = cronos.cosmos_cli(1)
+    addr = cli.address("user")
+    content = json.dumps({"addresses": [addr]})
+    cipherfile = prepare_cipherfile(cli, cli1, name, name, content)
+    cronos.supervisorctl("stop", "all")
+    cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+    rsp = cli.store_blocklist(cipherfile, from_="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    wait_for_new_blocks(cli, 2)
+    rsp = cli.transfer(addr, cli.address("validator"), "1basetcro")
+    assert rsp["code"] != 0
+    assert "signer is blocked" in rsp["raw_log"]

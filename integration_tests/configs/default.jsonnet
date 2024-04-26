@@ -61,6 +61,9 @@
       name: 'signer2',
       coins: '30000000000000000000000basetcro',
       mnemonic: '${SIGNER2_MNEMONIC}',
+    }, {
+      name: 'user',
+      coins: '10000000000000000000000basetcro',
     }],
     genesis: {
       consensus_params: {
@@ -81,6 +84,12 @@
             enable_auto_deployment: true,
             ibc_cro_denom: '${IBC_CRO_DENOM}',
           },
+        },
+        e2ee: {
+          keys: [{
+            address: 'crc16z0herz998946wr659lr84c8c556da55dc34hh',
+            key: std.base64('key'),
+          }],
         },
         gov: {
           params: {

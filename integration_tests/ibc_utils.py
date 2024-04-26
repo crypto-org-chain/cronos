@@ -774,7 +774,8 @@ def funds_ica(cli, adr):
     assert cli.balance(adr) == 0
 
     # send some funds to interchain account
-    rsp = cli.transfer("signer2", adr, "1cro", gas_prices="1000000basecro")
+    price = "1000000basecro"
+    rsp = cli.transfer("signer2", adr, "1cro", gas_prices=price, event_query_tx=False)
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     amt = 100000000

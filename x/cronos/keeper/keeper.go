@@ -360,3 +360,7 @@ func (k Keeper) IBCSendPacketCallback(
 ) error {
 	return nil
 }
+
+func (k Keeper) GetBlockList(ctx sdk.Context) []byte {
+	return ctx.KVStore(k.storeKey).Get(types.KeyPrefixBlockList)
+}
