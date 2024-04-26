@@ -11,7 +11,7 @@ const (
 	// StoreKey defines the primary module store key
 	StoreKey = ModuleName
 
-	// RouterKey is the message route for slashing
+	// RouterKey is the message route for e2ee
 	RouterKey = ModuleName
 )
 
