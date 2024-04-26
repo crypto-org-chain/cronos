@@ -15,6 +15,14 @@
       }
     },
     {
+      "url": "./tmp-swagger-gen/e2ee/query.swagger.json",
+      "operationIds": {
+        "rename": {
+          "Params": "Keys"
+        }
+      }
+    },
+    {
       "url": "./tmp-swagger-gen/ethermint/evm/v1/query.swagger.json",
       "operationIds": {
         "rename": {
