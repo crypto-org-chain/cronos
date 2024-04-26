@@ -1,0 +1,26 @@
+syntax = "proto3";
+package e2ee;
+
+import "cosmos/msg/v1/msg.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
+
+// Msg defines the e2ee Msg service
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // RegisterEncryptionKey registers a new encryption key to a specific account
+  rpc RegisterEncryptionKey(MsgRegisterEncryptionKey) returns (MsgRegisterEncryptionKeyResponse);
+}
+
+// MsgRegisterEncryptionKey defines the Msg/RegisterEncryptionKey request type
+message MsgRegisterEncryptionKey {
+  option (cosmos.msg.v1.signer) = "address";
+
+  string address = 1;
+  bytes key = 2;
+}
+
+// MsgRegisterEncryptionKeyResponse defines the Msg/RegisterEncryptionKey response type
+message MsgRegisterEncryptionKeyResponse {
+}

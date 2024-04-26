@@ -162,6 +162,10 @@ import (
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
+	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
+	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
+	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -250,6 +254,8 @@ func StoreKeys() (
 		icahosttypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
+		// e2ee keys
+		e2eetypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronostypes.StoreKey,
 	}
@@ -319,6 +325,9 @@ type App struct {
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
 	FeeMarketKeeper feemarketkeeper.Keeper
+
+	// e2ee keeper
+	E2EEKeeper e2eekeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
@@ -704,6 +713,8 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
+	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey], app.AccountKeeper.AddressCodec())
+
 	/****  Module Options ****/
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
@@ -754,6 +765,7 @@ func New(
 		// Ethermint app modules
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmS),
+		e2ee.NewAppModule(app.E2EEKeeper),
 
 		// Cronos app modules
 		cronosModule,
@@ -864,6 +876,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
 		crisistypes.ModuleName,
+		e2eetypes.ModuleName,
 	}
 
 	app.ModuleManager.SetOrderPreBlockers(
