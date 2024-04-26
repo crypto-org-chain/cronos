@@ -876,7 +876,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
 		crisistypes.ModuleName,
-		e2ee.ModuleName,
+		e2eetypes.ModuleName,
 	}
 
 	app.ModuleManager.SetOrderPreBlockers(
