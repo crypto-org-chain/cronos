@@ -884,6 +884,49 @@ paths:
           type: string
       tags:
         - Query
+  /e2ee/v1/key/{address}:
+    get:
+      summary: Key queries the encryption key of a given address
+      operationId: Key
+      responses:
+        '200':
+          description: A successful response.
+          schema:
+            type: object
+            properties:
+              key:
+                type: string
+                format: byte
+            description: KeyResponse is the response type for the Query/Key RPC method.
+        default:
+          description: An unexpected error response.
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type_url:
+                      type: string
+                    value:
+                      type: string
+                      format: byte
+      parameters:
+        - name: address
+          in: path
+          required: true
+          type: string
+      tags:
+        - Query
   /ethermint/evm/v1/account/{address}:
     get:
       summary: Account queries an Ethereum account.
@@ -45506,6 +45549,13 @@ definitions:
                   "@type": "type.googleapis.com/google.protobuf.Duration",
                   "value": "1.212s"
                 }
+  e2ee.KeyResponse:
+    type: object
+    properties:
+      key:
+        type: string
+        format: byte
+    description: KeyResponse is the response type for the Query/Key RPC method.
   ethermint.evm.v1.ChainConfig:
     type: object
     properties:

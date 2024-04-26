@@ -18,5 +18,18 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 				},
 			},
 		},
+		Tx: &autocliv1.ServiceCommandDescriptor{
+			Service: "e2ee.Msg",
+			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
+				{
+					RpcMethod: "RegisterEncryptionKey",
+					Use:       "set-encryption-key [key]",
+					Short:     "Set encryption key is stored associated with the user address.",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
+						{ProtoField: "key"},
+					},
+				},
+			},
+		},
 	}
 }

@@ -1,6 +1,8 @@
 package types
 
 import (
+	"errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -26,4 +28,15 @@ func KeyPrefix(addr sdk.AccAddress) []byte {
 	key[0] = prefixEncryptionKey
 	copy(key[1:], addr)
 	return key
+}
+
+// Validate checks for address and key correctness.
+func (e EncryptionKeyEntry) Validate() error {
+	if _, err := sdk.AccAddressFromBech32(e.Address); err != nil {
+		return err
+	}
+	if e.Key == nil {
+		return errors.New("key can't be nil")
+	}
+	return nil
 }

@@ -1840,3 +1840,33 @@ class CosmosCLI:
                 output="json",
             )
         ).get("send_enabled", [])
+
+    def query_e2ee_key(self, address):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "key",
+                address,
+                home=self.data_dir,
+                output="json",
+            )
+        )
+
+    def set_e2ee_key(self, key, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "e2ee",
+                "set-encryption-key",
+                key,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
