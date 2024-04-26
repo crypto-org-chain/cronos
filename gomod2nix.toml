@@ -64,6 +64,9 @@ schema = 3
   [mod."cosmossdk.io/x/upgrade"]
     version = "v0.1.1"
     hash = "sha256-bM9ybpaibMH7k4M6/QAXCZ3fJcADfJHxvMgp4AVUihs="
+  [mod."filippo.io/age"]
+    version = "v1.1.2-0.20240110114017-29b68c20fc24"
+    hash = "sha256-LZ6W2ZNQyA1s6SAY5rXOhztgF0pmCKQR7B+73V1tB4Q="
   [mod."filippo.io/edwards25519"]
     version = "v1.1.0"
     hash = "sha256-9ACANrgWZSd5HYPfDZHY8DVbPSC9LOMgy8deq3rDOoc="

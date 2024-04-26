@@ -189,6 +189,8 @@ func initRootCmd(
 		queryCommand(),
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
+		EncryptMsgCommand(),
+		DecryptMsgCommand(),
 	)
 
 	// add rosetta
