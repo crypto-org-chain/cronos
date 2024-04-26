@@ -1870,3 +1870,17 @@ class CosmosCLI:
         if rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
+
+    def keygen(self, **kwargs):
+        return self.raw("keygen", home=self.data_dir, **kwargs).strip().decode()
+
+    def encrypt(self, input, receipts, **kwargs):
+        return self.raw(
+            "encrypt",
+            input,
+            *[val for a in [["--r", val] for val in receipts] for val in a],
+            **kwargs,
+        )
+
+    def decrypt(self, input, **kwargs):
+        return self.raw("decrypt", input, home=self.data_dir, **kwargs).strip().decode()
