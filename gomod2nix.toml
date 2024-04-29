@@ -371,8 +371,8 @@ schema = 3
     version = "v0.5.2"
     hash = "sha256-N9GOKYo7tK6XQUFhvhImtL7PZW/mr4C4Manx/yPVvcQ="
   [mod."github.com/hashicorp/go-getter"]
-    version = "v1.7.3"
-    hash = "sha256-z3zrjcOsgJrZkGLwaKVauq/MFAPtulXatV/RrkKNJv4="
+    version = "v1.7.4"
+    hash = "sha256-GtJSwcS1WXLn9lFAuTRCseIQBXJOElAywEhTtYrsfbE="
   [mod."github.com/hashicorp/go-hclog"]
     version = "v1.5.0"
     hash = "sha256-u3Jqg7Qex11IZ7vbk4hRGgLy6e0cF70CCx7ERF0GUHo="
