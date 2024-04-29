@@ -20,5 +20,5 @@ message KeyRequest {
 
 // KeyResponse is the response type for the Query/Key RPC method.
 message KeyResponse {
-  bytes key = 1;
+  string key = 1;
 }

@@ -23,8 +23,8 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
 				{
 					RpcMethod: "RegisterEncryptionKey",
-					Use:       "set-encryption-key [key]",
-					Short:     "Set encryption key is stored associated with the user address.",
+					Use:       "register-encryption-key [key]",
+					Short:     "Register encryption key stores an public key for asymmetric encryption with the user address.",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
 						{ProtoField: "key"},
 					},

@@ -18,6 +18,10 @@ const (
 )
 
 const (
+	DefaultKeyringName = "e2ee-identity"
+)
+
+const (
 	prefixEncryptionKey = iota + 1
 )
 
@@ -35,7 +39,7 @@ func (e EncryptionKeyEntry) Validate() error {
 	if _, err := sdk.AccAddressFromBech32(e.Address); err != nil {
 		return err
 	}
-	if e.Key == nil {
+	if len(e.Key) == 0 {
 		return errors.New("key can't be nil")
 	}
 	return nil
