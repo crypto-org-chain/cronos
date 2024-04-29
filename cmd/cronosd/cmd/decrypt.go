@@ -30,7 +30,11 @@ func DecryptMsgCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer f.Close()
+				defer func() {
+					if err := f.Close(); err != nil {
+						fmt.Println("file close error", err)
+					}
+				}()
 				in = f
 			}
 			return decrypt(inputs, in, out)

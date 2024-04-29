@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"filippo.io/age"
 	"github.com/spf13/cobra"
@@ -26,7 +25,11 @@ func KeygenCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer f.Close()
+				defer func() {
+					if err := f.Close(); err != nil {
+						fmt.Println("file close error", err)
+					}
+				}()
 				out = f
 			}
 			return generate(out)
@@ -42,7 +45,6 @@ func generate(out *os.File) error {
 		return err
 	}
 	pubkey := k.Recipient()
-	fmt.Fprintf(out, "# created: %s\n", time.Now().Format(time.RFC3339))
 	fmt.Fprintf(out, "# public key: %s\n", pubkey)
 	fmt.Fprintf(out, "%s\n", k)
 	fmt.Println(pubkey)

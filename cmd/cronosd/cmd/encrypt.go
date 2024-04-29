@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -35,12 +36,20 @@ func EncryptMsgCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				defer f.Close()
+				defer func() {
+					if err := f.Close(); err != nil {
+						fmt.Println("file close error", err)
+					}
+				}()
 				in = f
 			}
 			if name := output; name != "" && name != "-" {
 				f := newLazyOpener(name)
-				defer f.Close()
+				defer func() {
+					if err := f.Close(); err != nil {
+						fmt.Println("file close error", err)
+					}
+				}()
 				out = f
 			}
 			return encrypt(recs, in, out)
@@ -48,7 +57,6 @@ func EncryptMsgCommand() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringArray(flagR, []string{}, "recipient (can be repeated)")
-	f.StringArray(flagI, []string{}, "identity (can be repeated)")
 	f.String(flagO, "", "output to `FILE`")
 	return cmd
 }
