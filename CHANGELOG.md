@@ -22,7 +22,8 @@
 
 ### Features
 
-*  [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
+* [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
+* [#1411](https://github.com/crypto-org-chain/cronos/pull/1411) Add encrypt and decrypt cmds for message.
 
 *April 8, 2024*
 

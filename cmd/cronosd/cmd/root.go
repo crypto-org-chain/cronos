@@ -48,6 +48,7 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	e2eecli "github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
 	// this line is used by starport scaffolding # stargate/root/import
 )
 
@@ -189,6 +190,7 @@ func initRootCmd(
 		queryCommand(),
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
+		e2eecli.E2EECommand(),
 	)
 
 	// add rosetta

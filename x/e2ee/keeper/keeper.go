@@ -37,7 +37,7 @@ func (k Keeper) RegisterEncryptionKey(
 		return nil, err
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	sdkCtx.KVStore(k.storeKey).Set(types.KeyPrefix(bz), req.Key)
+	sdkCtx.KVStore(k.storeKey).Set(types.KeyPrefix(bz), []byte(req.Key))
 	return &types.MsgRegisterEncryptionKeyResponse{}, nil
 }
 
@@ -70,7 +70,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error) 
 		key := iter.Value()
 		keys = append(keys, types.EncryptionKeyEntry{
 			Address: address,
-			Key:     key,
+			Key:     string(key),
 		})
 	}
 	return &types.GenesisState{Keys: keys}, nil
@@ -83,5 +83,5 @@ func (k Keeper) Key(ctx context.Context, req *types.KeyRequest) (*types.KeyRespo
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	value := sdkCtx.KVStore(k.storeKey).Get(types.KeyPrefix(bz))
-	return &types.KeyResponse{Key: value}, nil
+	return &types.KeyResponse{Key: string(value)}, nil
 }

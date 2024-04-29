@@ -18,7 +18,7 @@ message MsgRegisterEncryptionKey {
   option (cosmos.msg.v1.signer) = "address";
 
   string address = 1;
-  bytes key = 2;
+  string key = 2;
 }
 
 // MsgRegisterEncryptionKeyResponse defines the Msg/RegisterEncryptionKey response type

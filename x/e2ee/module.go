@@ -24,6 +24,7 @@ var (
 	_ module.AppModule        = AppModule{}
 	_ module.AppModuleBasic   = AppModuleBasic{}
 	_ module.HasGenesisBasics = AppModuleBasic{}
+	_ module.HasName          = AppModuleBasic{}
 	// this line is used by starport scaffolding # ibc/module/interface
 )
 
