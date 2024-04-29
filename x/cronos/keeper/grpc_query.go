@@ -75,16 +75,11 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	// we assume the message executions are successful, they are filtered in json-rpc api
 	for _, msg := range req.Msgs {
 		// deduct fee
-		txData, err := evmtypes.UnpackTxData(msg.Data)
-		if err != nil {
-			return nil, err
-		}
-
 		// populate the `From` field
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {
 			return nil, err
 		}
-		fees, err := evmkeeper.VerifyFee(txData, evmDenom, baseFee, homestead, istanbul, shanghai, ctx.IsCheckTx())
+		fees, err := evmkeeper.VerifyFee(msg, evmDenom, baseFee, homestead, istanbul, shanghai, ctx.IsCheckTx())
 		if err != nil {
 			return nil, errorsmod.Wrapf(err, "failed to verify the fees")
 		}
