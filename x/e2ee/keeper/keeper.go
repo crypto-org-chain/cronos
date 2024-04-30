@@ -85,3 +85,18 @@ func (k Keeper) Key(ctx context.Context, req *types.KeyRequest) (*types.KeyRespo
 	value := sdkCtx.KVStore(k.storeKey).Get(types.KeyPrefix(bz))
 	return &types.KeyResponse{Key: string(value)}, nil
 }
+
+func (k Keeper) Keys(ctx context.Context, requests *types.KeysRequest) (*types.KeysResponse, error) {
+	store := sdk.UnwrapSDKContext(ctx).KVStore(k.storeKey)
+	var rsp types.KeysResponse
+	for _, address := range requests.Addresses {
+		bz, err := k.addressCodec.StringToBytes(address)
+		if err != nil {
+			return nil, err
+		}
+		value := store.Get(types.KeyPrefix(bz))
+		rsp.Keys = append(rsp.Keys, string(value))
+	}
+
+	return &rsp, nil
+}

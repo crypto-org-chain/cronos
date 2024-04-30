@@ -7,7 +7,12 @@ def test_encrypt_decrypt(cronos):
     assert cli.query_e2ee_key(cli.address("validator")) == pubkey0
     pubkey1 = cli.keygen(keyring_name="key1")
     cli.register_e2ee_key(pubkey1, _from="community")
-    assert cli.query_e2ee_key(cli.address("community")) == pubkey1
+
+    # query in batch
+    assert cli.query_e2ee_keys(cli.address("validator"), cli.address("community")) == [
+        pubkey0,
+        pubkey1,
+    ]
 
     # prepare data file to encrypt
     content = "Hello World!"

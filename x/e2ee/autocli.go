@@ -16,6 +16,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:          "Query an encryption key by address",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "address"}},
 				},
+				{
+					RpcMethod:      "Keys",
+					Use:            "keys [addresses] ...",
+					Short:          "Query a batch of encryption key by addresses",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "addresses", Varargs: true}},
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{

@@ -11,6 +11,13 @@ service Query {
     rpc Key(KeyRequest) returns (KeyResponse) {
         option (google.api.http).get = "/e2ee/v1/key/{address}";
     }
+    // Keys queries the encryption keys for a batch of addresses
+    rpc Keys(KeysRequest) returns (KeysResponse) {
+        option (google.api.http) = {
+            post: "/e2ee/v1/keys"
+            body: "*"
+        };
+    }
 }
 
 // KeyRequest is the request type for the Query/Key RPC method.
@@ -21,4 +28,15 @@ message KeyRequest {
 // KeyResponse is the response type for the Query/Key RPC method.
 message KeyResponse {
   string key = 1;
+}
+
+
+// KeysRequest is the request type for the Query/Key RPC method.
+message KeysRequest {
+  repeated string addresses = 1;
+}
+
+// KeysResponse is the response type for the Query/Key RPC method.
+message KeysResponse {
+  repeated string keys = 1;
 }
