@@ -40,15 +40,16 @@ func EncryptCommand() *cobra.Command {
 
 			// query encryption key from chain state
 			client := types.NewQueryClient(clientCtx)
+			rsp, err := client.Keys(clientCtx.CmdContext, &types.KeysRequest{
+				Addresses: recs,
+			})
+			if err != nil {
+				return err
+			}
+
 			recipients := make([]age.Recipient, len(recs))
-			for i, rec := range recs {
-				rsp, err := client.Key(clientCtx.CmdContext, &types.KeyRequest{
-					Address: rec,
-				})
-				if err != nil {
-					return err
-				}
-				recipient, err := age.ParseX25519Recipient(rsp.Key)
+			for i, key := range rsp.Keys {
+				recipient, err := age.ParseX25519Recipient(key)
 				if err != nil {
 					return err
 				}
