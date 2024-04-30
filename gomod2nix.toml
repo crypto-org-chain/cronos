@@ -64,6 +64,9 @@ schema = 3
   [mod."cosmossdk.io/x/upgrade"]
     version = "v0.1.1"
     hash = "sha256-bM9ybpaibMH7k4M6/QAXCZ3fJcADfJHxvMgp4AVUihs="
+  [mod."filippo.io/age"]
+    version = "v1.1.1"
+    hash = "sha256-LRxxJQLQkzoCNYGS/XBixVmYXoZ1mPHKvFicPGXYLcw="
   [mod."filippo.io/edwards25519"]
     version = "v1.1.0"
     hash = "sha256-9ACANrgWZSd5HYPfDZHY8DVbPSC9LOMgy8deq3rDOoc="
@@ -575,6 +578,9 @@ schema = 3
   [mod."github.com/tendermint/go-amino"]
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
+  [mod."github.com/test-go/testify"]
+    version = "v1.1.4"
+    hash = "sha256-8xygO1Rd4eTrmRe/g7zaifpNkeb6EmjNfUvTWbjDtPg="
   [mod."github.com/tidwall/btree"]
     version = "v0.0.0-20240406140148-2687063b042c"
     hash = "sha256-8eDLGHhw4qXG6MEa7w5Q9KLwOobXr8Vn5qqyQhuipQw="

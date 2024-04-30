@@ -1,6 +1,7 @@
 import binascii
 import enum
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -1851,16 +1852,28 @@ class CosmosCLI:
                 home=self.data_dir,
                 output="json",
             )
-        )
+        )["key"]
 
-    def set_e2ee_key(self, key, **kwargs):
+    def query_e2ee_keys(self, *addresses):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "keys",
+                *addresses,
+                home=self.data_dir,
+                output="json",
+            )
+        )["keys"]
+
+    def register_e2ee_key(self, key, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
         rsp = json.loads(
             self.raw(
                 "tx",
                 "e2ee",
-                "set-encryption-key",
+                "register-encryption-key",
                 key,
                 "-y",
                 home=self.data_dir,
@@ -1870,3 +1883,34 @@ class CosmosCLI:
         if rsp["code"] == 0:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
+
+    def keygen(self, **kwargs):
+        return self.raw("e2ee", "keygen", home=self.data_dir, **kwargs).strip().decode()
+
+    def encrypt(self, input, *recipients, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt",
+                input,
+                *itertools.chain.from_iterable(("-r", r) for r in recipients),
+                home=self.data_dir,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def decrypt(self, input, identity="e2ee-identity", **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "decrypt",
+                input,
+                home=self.data_dir,
+                identity=identity,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )

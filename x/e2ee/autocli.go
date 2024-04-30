@@ -16,6 +16,12 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 					Short:          "Query an encryption key by address",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "address"}},
 				},
+				{
+					RpcMethod:      "Keys",
+					Use:            "keys [addresses] ...",
+					Short:          "Query a batch of encryption key by addresses",
+					PositionalArgs: []*autocliv1.PositionalArgDescriptor{{ProtoField: "addresses", Varargs: true}},
+				},
 			},
 		},
 		Tx: &autocliv1.ServiceCommandDescriptor{
@@ -23,8 +29,8 @@ func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions {
 			RpcCommandOptions: []*autocliv1.RpcCommandOptions{
 				{
 					RpcMethod: "RegisterEncryptionKey",
-					Use:       "set-encryption-key [key]",
-					Short:     "Set encryption key is stored associated with the user address.",
+					Use:       "register-encryption-key [key]",
+					Short:     "Register encryption key stores an public key for asymmetric encryption with the user address.",
 					PositionalArgs: []*autocliv1.PositionalArgDescriptor{
 						{ProtoField: "key"},
 					},
