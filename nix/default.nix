@@ -47,7 +47,7 @@ import sources.nixpkgs {
       cosmovisor = pkgs.callPackage ./cosmovisor.nix { };
     })
     (_: pkgs: {
-      rly = pkgs.buildGo120Module rec {
+      rly = pkgs.buildGo121Module rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
