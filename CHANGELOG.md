@@ -1,5 +1,12 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+* (rpc) [#](https://github.com/crypto-org-chain/cronos/pull/) Fix parsed logs from old events.
+
+
 *April 22, 2024*
 
 ## v1.2.1
