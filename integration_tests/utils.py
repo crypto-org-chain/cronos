@@ -147,9 +147,9 @@ def approve_proposal(n, rsp, event_query_tx=False):
         rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes", event_query_tx)
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
-    assert (
-        int(cli.query_tally(proposal_id)["yes_count"]) == cli.staking_pool()
-    ), "all validators should have voted yes"
+    res = cli.query_tally(proposal_id)
+    count = res.get("yes") or res.get("yes_count")
+    assert int(count) == cli.staking_pool(), "all validators should have voted yes"
     print("wait for proposal to be activated")
     proposal = cli.query_proposal(proposal_id)
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))

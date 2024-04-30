@@ -180,7 +180,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, err
 			}
 
-			logs, err := evmtypes.DecodeMsgLogsFromEvents(txResult.Data, parsedTx.MsgIndex, uint64(blockRes.Height))
+			logs, err := evmtypes.DecodeMsgLogsFromEvents(txResult.Data, txResult.Events, parsedTx.MsgIndex, uint64(blockRes.Height))
 			if err != nil {
 				api.logger.Debug("failed to parse logs", "block", resBlock.Block.Height, "txIndex", txIndex, "msgIndex", msgIndex, "error", err.Error())
 			}
