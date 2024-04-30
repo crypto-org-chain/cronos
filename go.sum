@@ -433,8 +433,8 @@ github.com/crypto-org-chain/ethermint v0.6.1-0.20240429025959-aa05efccfeee h1:5e
 github.com/crypto-org-chain/ethermint v0.6.1-0.20240429025959-aa05efccfeee/go.mod h1:9MVSajfKloRP8h2chP78LhCKx5u9O2pCMBvxrmx6+0s=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240408011717-9f11af197bde h1:sQIHTJfVt5VTrF7po9eZiFkZiPjlHbFvnXtGCOoBjNM=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240408011717-9f11af197bde/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
-github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e h1:vnyepPQ/m25+19xcTuBUdRxmltZ/EjVWNqEjhg7Ummk=
-github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e/go.mod h1:+a8pUj1tOyJ2RinsNQD4326YS+leSoKGiG/uVVb0x6Y=
+github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7 h1:V43F3JFcqG4MUThf9W/DytnPblpR6CcaLBw2Wx6zTgE=
+github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7/go.mod h1:+a8pUj1tOyJ2RinsNQD4326YS+leSoKGiG/uVVb0x6Y=
 github.com/danieljoos/wincred v1.2.0 h1:ozqKHaLK0W/ii4KVbbvluM91W2H3Sh0BncbUNPS7jLE=
 github.com/danieljoos/wincred v1.2.0/go.mod h1:FzQLLMKBFdvu+osBrnFODiv32YGwCfx0SkRa/eYHgec=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
