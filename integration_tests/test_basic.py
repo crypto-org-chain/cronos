@@ -156,7 +156,7 @@ def test_native_call(cronos):
     """
     test contract native call on cronos network
     - deploy test contract
-    - run native call, expect failure, becuase no native fund in contract
+    - run native call, expect failure, because no native fund in contract
     - send native tokens to contract account
     - run again, expect success and check balance
     """
@@ -252,7 +252,7 @@ def test_statesync(cronos):
     # check query chain state works
     assert not get_sync_info(clustercli.status(i))["catching_up"]
 
-    # check query old transaction does't work
+    # check query old transaction doesn't work
     # Get we3 provider
     base_port = ports.evmrpc_port(clustercli.base_port(i))
     print("json-rpc port:", base_port)
