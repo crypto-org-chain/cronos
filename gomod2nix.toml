@@ -20,7 +20,7 @@ schema = 3
     version = "v0.7.3"
     hash = "sha256-G72m5tUKLrpl89YKM/S7J/e8rYkqctuDOqHbqxyzTBI="
   [mod."cosmossdk.io/client/v2"]
-    version = "v2.0.0-20240415105151-0108877a3201"
+    version = "v2.0.0-20240603035522-8d30134159e0"
     hash = "sha256-4RYdjGJDIKLHfRE3LHwKmAE1C/JZPHtLMl3Sne7i//g="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/client/v2"
   [mod."cosmossdk.io/collections"]
@@ -45,7 +45,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20240415105151-0108877a3201"
+    version = "v0.0.0-20240603035522-8d30134159e0"
     hash = "sha256-5fFhveNdA4rEwtTVNE4MIzK7udgNF80q9fkiDcw7T/Q="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -58,7 +58,7 @@ schema = 3
     version = "v0.1.0"
     hash = "sha256-/gWvrqvy6bW90+NU66T+9QysYgvG1VbwfYJZ8tkqpeA="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20240415105151-0108877a3201"
+    version = "v0.0.0-20240603035522-8d30134159e0"
     hash = "sha256-jhCBzToU7KglOA4CuY16ogOA0dZ4ESX2HWshhgYUjvE="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -170,8 +170,8 @@ schema = 3
     version = "v1.0.0-beta.4"
     hash = "sha256-5Kn82nsZfiEtuwhhLZqmMxdAY1tX/Fi3HJ0/MEaRohw="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.0.0-20240415105151-0108877a3201"
-    hash = "sha256-qgfVUWIH2nX4l339+e1SVQ1iVQkv8Ew4Aj6zcHH2tPg="
+    version = "v0.0.0-20240603035522-8d30134159e0"
+    hash = "sha256-Mdw7biEUIzKFD6WQr607ZOoklWJkvR/ZLBN3jexhppA="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -578,9 +578,6 @@ schema = 3
   [mod."github.com/tendermint/go-amino"]
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
-  [mod."github.com/test-go/testify"]
-    version = "v1.1.4"
-    hash = "sha256-8xygO1Rd4eTrmRe/g7zaifpNkeb6EmjNfUvTWbjDtPg="
   [mod."github.com/tidwall/btree"]
     version = "v0.0.0-20240406140148-2687063b042c"
     hash = "sha256-8eDLGHhw4qXG6MEa7w5Q9KLwOobXr8Vn5qqyQhuipQw="

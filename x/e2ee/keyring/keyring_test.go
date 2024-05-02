@@ -1,4 +1,4 @@
-package keyring
+package keyring_test
 
 import (
 	"bytes"
@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"filippo.io/age"
-	"github.com/test-go/testify/require"
-
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
+	"github.com/stretchr/testify/require"
 )
 
 func TestKeyring(t *testing.T) {
-	kr, err := New("cronosd", keyring.BackendTest, t.TempDir(), nil)
+	kr, err := keyring.New("cronosd", sdkkeyring.BackendTest, t.TempDir(), nil)
 	require.NoError(t, err)
 
 	identity, err := age.GenerateX25519Identity()
