@@ -1063,7 +1063,7 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 }
 
 func (app *App) RefreshBlockList(ctx sdk.Context) error {
-	if app.blockProposalHandler.Identity == nil {
+	if app.blockProposalHandler == nil || app.blockProposalHandler.Identity == nil {
 		return nil
 	}
 

@@ -33,6 +33,7 @@ func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *Proposa
 }
 
 func (h *ProposalHandler) SetBlockList(blob []byte) error {
+	fmt.Println("SetBlockList")
 	if h.Identity == nil {
 		return nil
 	}
@@ -41,6 +42,11 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 		return nil
 	}
 	h.LastBlockList = blob
+
+	if len(blob) == 0 {
+		h.Blocklist = make(map[string]struct{})
+		return nil
+	}
 
 	reader, err := age.Decrypt(bytes.NewBuffer(blob), h.Identity)
 	if err != nil {

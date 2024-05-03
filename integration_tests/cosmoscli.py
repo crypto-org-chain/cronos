@@ -1919,3 +1919,16 @@ class CosmosCLI:
             .strip()
             .decode()
         )
+
+    def encrypt_to_validators(self, input, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt-to-validators",
+                input,
+                home=self.data_dir,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
