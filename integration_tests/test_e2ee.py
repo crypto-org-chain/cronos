@@ -6,6 +6,14 @@ from .network import Cronos
 from .utils import wait_for_new_blocks
 
 
+def test_register(cronos: Cronos):
+    cli = cronos.cosmos_cli()
+    pubkey0 = cli.keygen(keyring_name="key0")
+    rsp = cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
+    assert not rsp["code"]
+    assert not cli.query_e2ee_key(cli.address("validator"))
+
+
 def gen_validator_identity(cronos: Cronos):
     for i in range(len(cronos.config["validators"])):
         cli = cronos.cosmos_cli(i)
