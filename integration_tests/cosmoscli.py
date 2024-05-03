@@ -1790,9 +1790,14 @@ class CosmosCLI:
             **kwargs,
         ).decode()
 
-    def restore_versiondb(self, height, format=3):
+    def restore_versiondb(self, height, format=3, **kwargs):
         return self.raw(
-            "changeset", "restore-versiondb", height, format, home=self.data_dir
+            "changeset",
+            "restore-versiondb",
+            height,
+            format,
+            home=self.data_dir,
+            **kwargs,
         )
 
     def dump_snapshot(self, height, tarball, format=3):
@@ -1826,24 +1831,26 @@ class CosmosCLI:
             items.append(SnapshotItem(int(parts[1]), int(parts[3]), int(parts[5])))
         return items
 
-    def export_snapshot(self, height):
+    def export_snapshot(self, height, **kwargs):
         return self.raw(
             "snapshots",
             "export",
             height=height,
             home=self.data_dir,
+            **kwargs,
         ).decode()
 
-    def restore_snapshot(self, height, format=3):
+    def restore_snapshot(self, height, format=3, **kwargs):
         return self.raw(
             "snapshots",
             "restore",
             height,
             format,
             home=self.data_dir,
+            **kwargs,
         ).decode()
 
-    def bootstrap_state(self, height=None):
+    def bootstrap_state(self, height=None, **kwargs):
         """
         bootstrap cometbft state for local state sync
         """
@@ -1852,6 +1859,7 @@ class CosmosCLI:
             "bootstrap-state",
             height=height,
             home=self.data_dir,
+            **kwargs,
         )
 
     def event_query_tx_for(self, hash):

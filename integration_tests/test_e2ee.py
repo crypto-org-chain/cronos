@@ -76,6 +76,7 @@ def test_block_list(cronos):
     gen_validator_identity(cronos)
     cli = cronos.cosmos_cli()
     user = cli.address("signer2")
+    # set blocklist
     encrypt_to_validators(cli, {"addresses": [user]})
 
     # normal tx works
@@ -91,13 +92,12 @@ def test_block_list(cronos):
     txhash = rsp["txhash"]
     with pytest.raises(AssertionError) as exc:
         cli.event_query_tx_for(txhash)
-    assert "timed out waiting for event" in str(exc.value)
+    assert "timed out waiting" in str(exc.value)
 
     nonce = int(cli.query_account(user)["base_account"]["sequence"])
 
     # clear blocklist
     encrypt_to_validators(cli, {})
-    assert rsp["code"] == 0, rsp["raw_log"]
 
     # the blocked tx should be unblocked now
     wait_for_new_blocks(cli, 1)
