@@ -32,9 +32,6 @@ func (k Keeper) RegisterEncryptionKey(
 	ctx context.Context,
 	req *types.MsgRegisterEncryptionKey,
 ) (*types.MsgRegisterEncryptionKeyResponse, error) {
-	if err := req.ValidateBasic(); err != nil {
-		return nil, err
-	}
 	bz, err := k.addressCodec.StringToBytes(req.Address)
 	if err != nil {
 		return nil, err
@@ -49,10 +46,14 @@ func (k Keeper) InitGenesis(
 	state *types.GenesisState,
 ) error {
 	for _, key := range state.Keys {
-		if _, err := k.RegisterEncryptionKey(ctx, &types.MsgRegisterEncryptionKey{
+		m := types.MsgRegisterEncryptionKey{
 			Address: key.Address,
 			Key:     key.Key,
-		}); err != nil {
+		}
+		if err := m.ValidateBasic(); err != nil {
+			return err
+		}
+		if _, err := k.RegisterEncryptionKey(ctx, &m); err != nil {
 			return err
 		}
 	}
