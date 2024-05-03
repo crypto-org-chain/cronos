@@ -1,3 +1,10 @@
+def test_register(cronos):
+    cli = cronos.cosmos_cli()
+    pubkey0 = cli.keygen(keyring_name="key0")
+    cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
+    assert not cli.query_e2ee_key(cli.address("validator"))
+
+
 def test_encrypt_decrypt(cronos):
     cli = cronos.cosmos_cli()
 
