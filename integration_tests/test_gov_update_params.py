@@ -2,16 +2,8 @@ import hashlib
 import json
 
 import pytest
-from pystarport import ports
 
-from .utils import (
-    CONTRACTS,
-    approve_proposal,
-    deploy_contract,
-    eth_to_bech32,
-    wait_for_new_blocks,
-    wait_for_port,
-)
+from .utils import CONTRACTS, approve_proposal, deploy_contract, eth_to_bech32
 
 pytestmark = pytest.mark.gov
 
