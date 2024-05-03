@@ -9,7 +9,6 @@ from .utils import (
     approve_proposal,
     deploy_contract,
     eth_to_bech32,
-    prepare_cipherfile,
     wait_for_new_blocks,
     wait_for_port,
 )
