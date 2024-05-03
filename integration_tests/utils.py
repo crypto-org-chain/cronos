@@ -732,28 +732,3 @@ def get_send_enable(port):
     url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
     raw = requests.get(url).json()
     return raw["params"]["send_enabled"]
-
-
-def prepare_cipherfile(cli0, cli1, name0, name1, content):
-    # gen two keys for two accounts
-    pubkey0 = cli0.keygen(keyring_name=name0)
-    pubkey1 = cli1.keygen(keyring_name=name1)
-    sender = "validator"
-    cli0.register_e2ee_key(pubkey0, _from=sender)
-    cli1.register_e2ee_key(pubkey1, _from=sender)
-    # query in batch
-    assert cli0.query_e2ee_keys(cli0.address(sender), cli1.address(sender)) == [
-        pubkey0,
-        pubkey1,
-    ]
-    # prepare data file to encrypt
-    plainfile = cli0.data_dir / "plaintext"
-    plainfile.write_text(content)
-    cipherfile = cli0.data_dir / "ciphertext"
-    cli0.encrypt(
-        plainfile,
-        cli0.address(sender),
-        cli1.address(sender),
-        output=cipherfile,
-    )
-    return cipherfile

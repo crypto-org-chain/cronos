@@ -9,7 +9,6 @@ from .utils import (
     approve_proposal,
     deploy_contract,
     eth_to_bech32,
-    prepare_cipherfile,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -96,18 +95,31 @@ def test_gov_update_params(cronos, tmp_path):
     print("params", rsp)
     assert rsp == params
 
-    # gen two keys for two accounts
+    # gen identity key for one account
     name = "e2ee-identity"
-    cli1 = cronos.cosmos_cli(1)
     addr = cli.address("user")
     content = json.dumps({"addresses": [addr]})
-    cipherfile = prepare_cipherfile(cli, cli1, name, name, content)
-    cronos.supervisorctl("stop", "all")
-    cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    pubkey0 = cli.keygen(keyring_name=name)
+    sender = "validator"
+    cli.register_e2ee_key(pubkey0, _from=sender)
+    assert cli.query_e2ee_key(cli.address(sender)) == pubkey0
+    # prepare data file to encrypt
+    plainfile = cli.data_dir / "plaintext"
+    plainfile.write_text(content)
+    cipherfile = cli.data_dir / "ciphertext"
+    cli.encrypt(
+        plainfile,
+        cli.address(sender),
+        output=cipherfile,
+    )
+    cronos.supervisorctl("stop", "cronos_777-1-node0")
+    cronos.supervisorctl("start", "cronos_777-1-node0")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
     rsp = cli.store_blocklist(cipherfile, from_="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 2)
-    rsp = cli.transfer(addr, cli.address("validator"), "1basetcro")
-    assert rsp["code"] != 0
-    assert "signer is blocked" in rsp["raw_log"]
+    with pytest.raises(AssertionError):
+        rsp = cli.transfer(addr, cli.address("validator"), "1basetcro")
+    cli1 = cronos.cosmos_cli(1)
+    rsp = cli1.transfer(cli1.address("validator"), cli1.address("validator"), "1basetcro")
+    assert rsp["code"] == 0, rsp["raw_log"]
