@@ -32,6 +32,9 @@ func (k Keeper) RegisterEncryptionKey(
 	ctx context.Context,
 	req *types.MsgRegisterEncryptionKey,
 ) (*types.MsgRegisterEncryptionKeyResponse, error) {
+	if err := req.ValidateBasic(); err != nil {
+		return nil, err
+	}
 	bz, err := k.addressCodec.StringToBytes(req.Address)
 	if err != nil {
 		return nil, err

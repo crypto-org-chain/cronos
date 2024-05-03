@@ -1852,7 +1852,7 @@ class CosmosCLI:
                 home=self.data_dir,
                 output="json",
             )
-        )["key"]
+        ).get("key")
 
     def query_e2ee_keys(self, *addresses):
         return json.loads(
@@ -1864,7 +1864,7 @@ class CosmosCLI:
                 home=self.data_dir,
                 output="json",
             )
-        )["keys"]
+        ).get("keys")
 
     def register_e2ee_key(self, key, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
