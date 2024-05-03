@@ -14,12 +14,14 @@ from .network import Cronos, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
+    KEYS,
     approve_proposal,
     deploy_contract,
     edit_ini_sections,
     get_consensus_params,
     get_send_enable,
     send_transaction,
+    sign_transaction,
     wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
@@ -109,13 +111,27 @@ def exec(c, tmp_path_factory):
     """
     cli = c.cosmos_cli()
     port = ports.api_port(c.base_port(0))
+    w3 = c.w3
+    erc20 = deploy_contract(
+        w3,
+        CONTRACTS["TestERC20A"],
+        key=KEYS["validator"],
+    )
+    tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    signed = sign_transaction(w3, tx, KEYS["validator"])
+    txhash0 = w3.eth.send_raw_transaction(signed.rawTransaction)
+    receipt0 = w3.eth.wait_for_transaction_receipt(txhash0)
+    block0 = hex(receipt0["blockNumber"])
+    logs0 = w3.eth.get_logs({"fromBlock": block0, "toBlock": block0})
+
     send_enable = [
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
     ]
     p = get_send_enable(port)
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
-
     # export genesis from old version
     c.supervisorctl("stop", "all")
     migrate = tmp_path_factory.mktemp("migrate")
@@ -128,7 +144,7 @@ def exec(c, tmp_path_factory):
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
     wait_for_new_blocks(cli, 1)
 
-    def do_upgrade(plan_name, target, mode=None):
+    def do_upgrade(plan_name, target, mode=None, method="submit-legacy-proposal"):
         rsp = cli.gov_propose_legacy(
             "community",
             "software-upgrade",
@@ -140,6 +156,7 @@ def exec(c, tmp_path_factory):
                 "deposit": "10000basetcro",
             },
             mode=mode,
+            method=method,
         )
         assert rsp["code"] == 0, rsp["raw_log"]
         approve_proposal(c, rsp)
@@ -151,6 +168,24 @@ def exec(c, tmp_path_factory):
         # block should pass the target height
         wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
         wait_for_port(ports.rpc_port(c.base_port(0)))
+
+    target_height00 = cli.block_height() + 15
+    print("upgrade v1.0 height", target_height00)
+    do_upgrade("v1.0.0", target_height00, "block", method="submit-proposal")
+    cli = c.cosmos_cli()
+
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+
+    receipt = send_transaction(
+        c.w3,
+        {
+            "to": ADDRS["community"],
+            "value": 1000,
+            "maxFeePerGas": 10000000000000,
+            "maxPriorityFeePerGas": 10000,
+        },
+    )
+    assert receipt.status == 1
 
     # test migrate keystore
     cli.migrate_keystore()
@@ -263,6 +298,9 @@ def exec(c, tmp_path_factory):
     assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
     assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
     assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
+
+    assert w3.eth.wait_for_transaction_receipt(txhash0)["logs"] == receipt0["logs"]
+    assert w3.eth.get_logs({"fromBlock": block0, "toBlock": block0}) == logs0
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
