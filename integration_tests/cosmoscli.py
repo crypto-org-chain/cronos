@@ -1753,8 +1753,8 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def rollback(self):
-        self.raw("rollback", home=self.data_dir)
+    def rollback(self, **kwargs):
+        self.raw("rollback", home=self.data_dir, **kwargs)
 
     def changeset_dump(self, changeset_dir, **kwargs):
         default_kwargs = {

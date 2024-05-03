@@ -84,7 +84,7 @@ def test_rollback(custom_cronos):
     supervisorctl(custom_cronos.base_dir / "../tasks.ini", "stop", "cronos_777-1-node2")
 
     print("do rollback on node2")
-    cli2.rollback()
+    cli2.rollback(keyring_backend="test")
 
     print("switch to normal binary")
     update_node2_cmd(custom_cronos.base_dir, "cronosd", 2)
