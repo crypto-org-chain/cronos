@@ -91,7 +91,7 @@ def test_block_list(cronos):
         cli.event_query_tx_for(txhash)
     assert "timed out waiting for event" in str(exc.value)
 
-    nonce = cli.query_account(user)["base_account"]["sequence"]
+    nonce = int(cli.query_account(user)["base_account"]["sequence"])
 
     # clear blocklist
     cipherfile.write_text("{}")
@@ -100,4 +100,4 @@ def test_block_list(cronos):
 
     # the blocked tx should be unblocked now
     wait_for_new_blocks(cli, 1)
-    assert nonce + 1 == cli.query_account(user)["base_account"]["sequence"]
+    assert nonce + 1 == int(cli.query_account(user)["base_account"]["sequence"])
