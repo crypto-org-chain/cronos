@@ -79,15 +79,25 @@ def test_block_list(cronos):
     # normal tx works
     cli.transfer(cli.address("validator"), user, "1basetcro")
 
-    # blocked tx don't work
+    # blocked tx can be included into mempool
+    rsp = cli.transfer(
+        user, cli.address("validator"), "1basetcro", event_query_tx=False
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    # but won't be included into block
+    txhash = rsp["txhash"]
     with pytest.raises(AssertionError) as exc:
-        cli.transfer(user, cli.address("validator"), "1basetcro")
+        cli.event_query_tx_for(txhash)
     assert "timed out waiting for event" in str(exc.value)
+
+    nonce = cli.query_account(user)["base_account"]["sequence"]
 
     # clear blocklist
     cipherfile.write_text("{}")
     rsp = cli.store_blocklist(cipherfile, _from="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    rsp = cli.transfer(user, cli.address("validator"), "1basetcro")
-    assert rsp["code"] == 0, rsp["raw_log"]
+    # the blocked tx should be unblocked now
+    wait_for_new_blocks(cli, 1)
+    assert nonce + 1 == cli.query_account(user)["base_account"]["sequence"]
