@@ -1,8 +1,6 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -11,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
@@ -178,8 +175,6 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
-
-	FlagBlockedAddresses = "blocked-addresses"
 )
 
 var Forks = []Fork{}
@@ -923,7 +918,6 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 	if err := app.setAnteHandler(encodingConfig.TxConfig,
 		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
-		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
 	}
@@ -971,34 +965,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) error {
-	if len(blacklist) > 0 {
-		sort.Strings(blacklist)
-		// hash blacklist concatenated
-		h := sha256.New()
-		for _, addr := range blacklist {
-			_, err := h.Write([]byte(addr))
-			if err != nil {
-				panic(err)
-			}
-		}
-		app.Logger().Error("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
-		for _, addr := range blacklist {
-			app.Logger().Error("Blacklisted address", "address", addr)
-		}
-	} else {
-		app.Logger().Error("Setting ante handler without blacklist")
-	}
-	blockedMap := make(map[string]struct{}, len(blacklist))
-	for _, str := range blacklist {
-		addr, err := sdk.AccAddressFromBech32(str)
-		if err != nil {
-			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
-		}
-
-		blockedMap[string(addr)] = struct{}{}
-	}
-	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
+func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) error {
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -1015,7 +982,6 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
 		},
-		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
