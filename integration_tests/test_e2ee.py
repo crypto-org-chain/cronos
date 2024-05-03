@@ -9,8 +9,9 @@ from .utils import wait_for_new_blocks
 def test_register(cronos: Cronos):
     cli = cronos.cosmos_cli()
     pubkey0 = cli.keygen(keyring_name="key0")
-    rsp = cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
-    assert not rsp["code"]
+    with pytest.raises(AssertionError) as exc:
+        cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
+    assert "malformed recipient" in str(exc.value)
     assert not cli.query_e2ee_key(cli.address("validator"))
 
 
@@ -81,7 +82,6 @@ def test_block_list(cronos):
     # blocked tx don't work
     with pytest.raises(AssertionError) as exc:
         cli.transfer(user, cli.address("validator"), "1basetcro")
-
     assert "timed out waiting for event" in str(exc.value)
 
     # clear blocklist
