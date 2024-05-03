@@ -75,3 +75,10 @@ def test_block_list(cronos):
         cli.transfer(user, cli.address("validator"), "1basetcro")
 
     assert "timed out waiting for event" in str(exc.value)
+
+    # empty string can clear all blocklist
+    cipherfile.write_text("")
+    rsp = cli.store_blocklist(cipherfile, _from="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    cli.transfer(user, cli.address("validator"), "1basetcro")
