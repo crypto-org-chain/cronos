@@ -33,7 +33,6 @@ func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *Proposa
 }
 
 func (h *ProposalHandler) SetBlockList(blob []byte) error {
-	fmt.Println("SetBlockList")
 	if h.Identity == nil {
 		return nil
 	}

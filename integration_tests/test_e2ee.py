@@ -1,40 +1,77 @@
+import json
+
+import pytest
+
+from .network import Cronos
+from .utils import wait_for_new_blocks
+
+
+def gen_validator_identity(cronos: Cronos):
+    for i in range(len(cronos.config["validators"])):
+        cli = cronos.cosmos_cli(i)
+        if cli.query_e2ee_key(cli.address("validator")):
+            return
+        pubkey = cli.keygen()
+        cli.register_e2ee_key(pubkey, _from="validator")
+        assert cli.query_e2ee_key(cli.address("validator")) == pubkey
+
+        cronos.supervisorctl("restart", f"cronos_777-1-node{i}")
+
+    wait_for_new_blocks(cronos.cosmos_cli(), 1)
+
+
 def test_encrypt_decrypt(cronos):
+    gen_validator_identity(cronos)
+
     cli0 = cronos.cosmos_cli()
     cli1 = cronos.cosmos_cli(1)
 
-    # gen two keys for two accounts
-    name0 = "key0"
-    name1 = "key1"
-    pubkey0 = cli0.keygen(keyring_name=name0)
-    pubkey1 = cli1.keygen(keyring_name=name1)
-    sender = "validator"
-    cli0.register_e2ee_key(pubkey0, _from=sender)
-    cli1.register_e2ee_key(pubkey1, _from=sender)
     # query in batch
-    assert cli0.query_e2ee_keys(cli0.address(sender), cli1.address(sender)) == [
-        pubkey0,
-        pubkey1,
-    ]
+    assert (
+        len(
+            cli0.query_e2ee_keys(
+                cli0.address("validator"),
+                cli1.address("validator"),
+            )
+        )
+        == 2
+    )
+
     # prepare data file to encrypt
     content = "Hello World!"
+    plainfile = cli0.data_dir / "plaintext"
+    plainfile.write_text(content)
+    cipherfile = cli0.data_dir / "ciphertext"
+    cli0.encrypt(
+        plainfile,
+        cli0.address("validator"),
+        cli1.address("validator"),
+        output=cipherfile,
+    )
+
+    assert cli0.decrypt(cipherfile) == content
+    assert cli1.decrypt(cipherfile) == content
+
+
 def test_block_list(cronos):
-    cli0 = cronos.cosmos_cli()
-    cli1 = cronos.cosmos_cli(1)
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
 
-    # prepare encryption keys for validators
-    cli0.register_e2ee_key(cli0.keygen(), _from="validator")
-    cli1.register_e2ee_key(cli1.keygen(), _from="validator")
-
-    user = cli0.address("user")
+    user = cli.address("user")
 
     blocklist = json.dumps({"addresses": [user]})
-    plainfile = cli0.data_dir / "plaintext"
+    plainfile = cli.data_dir / "plaintext"
     plainfile.write_text(blocklist)
-    cipherfile = cli0.data_dir / "ciphertext"
-    cli0.encrypt_to_validators(plainfile, output=cipherfile)
-    rsp = cli0.store_blocklist(cipherfile, _from="validator")
+    cipherfile = cli.data_dir / "ciphertext"
+    cli.encrypt_to_validators(plainfile, output=cipherfile)
+    rsp = cli.store_blocklist(cipherfile, _from="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    wait_for_new_blocks(cli0, 2)
-    rsp = cli0.transfer(user, cli0.address("validator"), "1basetcro")
-    assert rsp["code"] != 0
+    # normal tx works
+    cli.transfer(cli.address("validator"), user, "1basetcro")
+
+    # blocked tx don't work
+    with pytest.raises(AssertionError) as exc:
+        cli.transfer(user, cli.address("validator"), "1basetcro")
+
+    assert "timed out waiting for event" in str(exc.value)
