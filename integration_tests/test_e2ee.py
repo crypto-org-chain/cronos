@@ -62,19 +62,21 @@ def test_encrypt_decrypt(cronos):
     assert cli1.decrypt(cipherfile) == content
 
 
-def test_block_list(cronos):
-    gen_validator_identity(cronos)
-    cli = cronos.cosmos_cli()
-
-    user = cli.address("signer2")
-
-    blocklist = json.dumps({"addresses": [user]})
+def encrypt_to_validators(cli, content):
+    blocklist = json.dumps(content)
     plainfile = cli.data_dir / "plaintext"
     plainfile.write_text(blocklist)
     cipherfile = cli.data_dir / "ciphertext"
     cli.encrypt_to_validators(plainfile, output=cipherfile)
     rsp = cli.store_blocklist(cipherfile, _from="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
+
+
+def test_block_list(cronos):
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
+    user = cli.address("signer2")
+    encrypt_to_validators(cli, {"addresses": [user]})
 
     # normal tx works
     cli.transfer(cli.address("validator"), user, "1basetcro")
@@ -94,8 +96,7 @@ def test_block_list(cronos):
     nonce = int(cli.query_account(user)["base_account"]["sequence"])
 
     # clear blocklist
-    cipherfile.write_text("{}")
-    rsp = cli.store_blocklist(cipherfile, _from="validator")
+    encrypt_to_validators(cli, {})
     assert rsp["code"] == 0, rsp["raw_log"]
 
     # the blocked tx should be unblocked now
