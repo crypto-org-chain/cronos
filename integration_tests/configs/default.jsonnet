@@ -61,9 +61,6 @@
       name: 'signer2',
       coins: '30000000000000000000000basetcro',
       mnemonic: '${SIGNER2_MNEMONIC}',
-    }, {
-      name: 'user',
-      coins: '10000000000000000000000basetcro',
     }],
     genesis: {
       consensus_params: {

@@ -65,7 +65,7 @@ def test_block_list(cronos):
     gen_validator_identity(cronos)
     cli = cronos.cosmos_cli()
 
-    user = cli.address("user")
+    user = cli.address("signer2")
 
     blocklist = json.dumps({"addresses": [user]})
     plainfile = cli.data_dir / "plaintext"
@@ -89,4 +89,5 @@ def test_block_list(cronos):
     rsp = cli.store_blocklist(cipherfile, _from="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    cli.transfer(user, cli.address("validator"), "1basetcro")
+    rsp = cli.transfer(user, cli.address("validator"), "1basetcro")
+    assert rsp["code"] == 0, rsp["raw_log"]
