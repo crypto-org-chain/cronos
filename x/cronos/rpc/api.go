@@ -159,12 +159,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, fmt.Errorf("invalid tx type: %T", msg)
 			}
 
-			txData, err := evmtypes.UnpackTxData(ethMsg.Data)
-			if err != nil {
-				api.logger.Error("failed to unpack tx data", "error", err.Error())
-				return nil, err
-			}
-
+			txData := ethMsg.AsTransaction()
 			parsedTx := parsedTxs.GetTxByMsgIndex(msgIndex)
 
 			// Get the transaction result from the log
@@ -179,7 +174,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				return nil, err
 			}
 
-			logs, err := evmtypes.DecodeMsgLogsFromEvents(txResult.Data, parsedTx.MsgIndex, uint64(blockRes.Height))
+			logs, err := evmtypes.DecodeMsgLogsFromEvents(txResult.Data, txResult.Events, parsedTx.MsgIndex, uint64(blockRes.Height))
 			if err != nil {
 				api.logger.Debug("failed to parse logs", "block", resBlock.Block.Height, "txIndex", txIndex, "msgIndex", msgIndex, "error", err.Error())
 			}
@@ -197,7 +192,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 
 				// Implementation fields: These fields are added by geth when processing a transaction.
 				// They are stored in the chain database.
-				"transactionHash": ethMsg.Hash,
+				"transactionHash": txData.Hash(),
 				"contractAddress": nil,
 				"gasUsed":         hexutil.Uint64(parsedTx.GasUsed),
 
@@ -209,21 +204,18 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 
 				// sender and receiver (contract or EOA) addreses
 				"from": from,
-				"to":   txData.GetTo(),
-				"type": hexutil.Uint(ethMsg.AsTransaction().Type()),
+				"to":   txData.To(),
+				"type": hexutil.Uint(txData.Type()),
 			}
 
 			// If the to is empty, assume it is a contract creation
-			if txData.GetTo() == nil {
-				receipt["contractAddress"] = crypto.CreateAddress(from, txData.GetNonce())
+			if txData.To() == nil {
+				receipt["contractAddress"] = crypto.CreateAddress(from, txData.Nonce())
 			}
-
-			if dynamicTx, ok := txData.(*evmtypes.DynamicFeeTx); ok {
-				receipt["effectiveGasPrice"] = hexutil.Big(*dynamicTx.EffectiveGasPrice(baseFee))
+			if txData.Type() == ethtypes.DynamicFeeTxType {
+				receipt["effectiveGasPrice"] = hexutil.Big(*ethMsg.GetEffectiveGasPrice(baseFee))
 			}
-
 			receipts = append(receipts, receipt)
-
 			txIndex++
 		}
 		cumulativeGasUsed += msgCumulativeGasUsed

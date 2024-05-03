@@ -7,6 +7,7 @@
 * [#1377](https://github.com/crypto-org-chain/cronos/pull/1377) Upgrade sdk to 0.50, and integrate block-stm parallel tx execution.
 * [#1394](https://github.com/crypto-org-chain/cronos/pull/1394) Add icahost wirings but disable in parameters.
 * [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
+* [#1414](https://github.com/crypto-org-chain/cronos/pull/1414) Integrate new evm tx format.
 
 ### Improvements
 
