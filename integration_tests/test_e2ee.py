@@ -102,3 +102,12 @@ def test_block_list(cronos):
     # the blocked tx should be unblocked now
     wait_for_new_blocks(cli, 1)
     assert nonce + 1 == int(cli.query_account(user)["base_account"]["sequence"])
+
+
+def test_invalid_block_list(cronos):
+    cli = cronos.cosmos_cli()
+    cipherfile = cli.data_dir / "ciphertext"
+    cipherfile.write_text("{}")
+    with pytest.raises(AssertionError) as exc:
+        cli.store_blocklist(cipherfile, _from="validator")
+    assert "failed to read header" in str(exc.value)

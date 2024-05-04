@@ -1745,7 +1745,6 @@ class CosmosCLI:
                 data,
                 "-y",
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
                 **kwargs,
             )
         )
