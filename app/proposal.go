@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 
 	"filippo.io/age"
 
@@ -20,30 +21,33 @@ type BlockList struct {
 type ProposalHandler struct {
 	TxDecoder     sdk.TxDecoder
 	Identity      age.Identity
-	Blocklist     map[string]struct{}
-	LastBlockList []byte
+	blocklist     map[string]struct{}
+	lastBlockList []byte
+	blockLock     sync.RWMutex
 }
 
 func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
 	return &ProposalHandler{
 		TxDecoder: txDecoder,
 		Identity:  identity,
-		Blocklist: make(map[string]struct{}),
+		blocklist: make(map[string]struct{}),
 	}
 }
 
 func (h *ProposalHandler) SetBlockList(blob []byte) error {
+	h.blockLock.Lock()
+	defer h.blockLock.Unlock()
+
 	if h.Identity == nil {
 		return nil
 	}
-
-	if bytes.Equal(h.LastBlockList, blob) {
+	if bytes.Equal(h.lastBlockList, blob) {
 		return nil
 	}
-	h.LastBlockList = blob
+	h.lastBlockList = blob
 
 	if len(blob) == 0 {
-		h.Blocklist = make(map[string]struct{})
+		h.blocklist = make(map[string]struct{})
 		return nil
 	}
 
@@ -72,7 +76,7 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 		m[addr.String()] = struct{}{}
 	}
 
-	h.Blocklist = m
+	h.blocklist = m
 	return nil
 }
 
@@ -87,8 +91,10 @@ func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
 		return fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
 	}
 
+	h.blockLock.RLock()
+	defer h.blockLock.RUnlock()
 	for _, signer := range sigTx.GetSigners() {
-		if _, ok := h.Blocklist[signer.String()]; ok {
+		if _, ok := h.blocklist[signer.String()]; ok {
 			return fmt.Errorf("signer is blocked: %s", signer.String())
 		}
 	}
