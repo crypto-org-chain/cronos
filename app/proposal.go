@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync"
 
 	"filippo.io/age"
 
@@ -23,7 +22,6 @@ type ProposalHandler struct {
 	Identity      age.Identity
 	blocklist     map[string]struct{}
 	lastBlockList []byte
-	blockLock     sync.RWMutex
 }
 
 func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
@@ -35,12 +33,10 @@ func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *Proposa
 }
 
 func (h *ProposalHandler) SetBlockList(blob []byte) error {
-	h.blockLock.Lock()
-	defer h.blockLock.Unlock()
-
 	if h.Identity == nil {
 		return nil
 	}
+
 	if bytes.Equal(h.lastBlockList, blob) {
 		return nil
 	}
@@ -92,8 +88,6 @@ func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
 		return fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
 	}
 
-	h.blockLock.RLock()
-	defer h.blockLock.RUnlock()
 	for _, signer := range sigTx.GetSigners() {
 		if _, ok := h.blocklist[signer.String()]; ok {
 			return fmt.Errorf("signer is blocked: %s", signer.String())
