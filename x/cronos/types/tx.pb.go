@@ -800,6 +800,7 @@ type MsgClient interface {
 	UpdateParams(ctx context.Context, in *MsgUpdateParams, opts ...grpc.CallOption) (*MsgUpdateParamsResponse, error)
 	// UpdatePermissions defines a method to update cronos admins permissions
 	UpdatePermissions(ctx context.Context, in *MsgUpdatePermissions, opts ...grpc.CallOption) (*MsgUpdatePermissionsResponse, error)
+	// StoreBlockList
 	StoreBlockList(ctx context.Context, in *MsgStoreBlockList, opts ...grpc.CallOption) (*MsgStoreBlockListResponse, error)
 }
 
@@ -890,6 +891,7 @@ type MsgServer interface {
 	UpdateParams(context.Context, *MsgUpdateParams) (*MsgUpdateParamsResponse, error)
 	// UpdatePermissions defines a method to update cronos admins permissions
 	UpdatePermissions(context.Context, *MsgUpdatePermissions) (*MsgUpdatePermissionsResponse, error)
+	// StoreBlockList
 	StoreBlockList(context.Context, *MsgStoreBlockList) (*MsgStoreBlockListResponse, error)
 }
 
