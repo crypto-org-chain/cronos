@@ -16,15 +16,19 @@ import (
 )
 
 type contractMigration struct {
-	Contract string
+	Contract common.Address
 	Slot     common.Hash
-	Value    string
+	Value    common.Hash
 }
 
 // ContractMigrations records the list of contract migrations, chain-id -> migrations
 var ContractMigrations = map[string][]contractMigration{
 	"cronostestnet_338-3": []contractMigration{
-		{Contract: "0x6265bf2371ccf45767184c8bd77b5c52e752c2bb", Slot: common.BigToHash(big.NewInt(0)), Value: "0x730CbB94480d50788481373B43d83133e171367e"},
+		{
+			Contract: common.HexToAddress("0x6265bf2371ccf45767184c8bd77b5c52e752c2bb"),
+			Slot:     common.BigToHash(big.NewInt(0)),
+			Value:    common.HexToHash("0x730CbB94480d50788481373B43d83133e171367e"),
+		},
 	},
 }
 
@@ -39,9 +43,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 		// migrate contract
 		if migrations, ok := ContractMigrations[ctx.ChainID()]; ok {
 			for _, migration := range migrations {
-				contract := common.HexToAddress(migration.Contract)
-				value := common.HexToHash(migration.Value)
-				app.EvmKeeper.SetState(ctx, contract, migration.Slot, value.Bytes())
+				app.EvmKeeper.SetState(ctx, migration.Contract, migration.Slot, migration.Value.Bytes())
 			}
 		}
 
