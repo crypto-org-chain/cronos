@@ -40,11 +40,9 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			return m, err
 		}
 
-		// migrate contract
-		if migrations, ok := ContractMigrations[ctx.ChainID()]; ok {
-			for _, migration := range migrations {
-				app.EvmKeeper.SetState(ctx, migration.Contract, migration.Slot, migration.Value.Bytes())
-			}
+		// migrate contract states
+		for _, migration := range ContractMigrations[ctx.ChainID()] {
+			app.EvmKeeper.SetState(ctx, migration.Contract, migration.Slot, migration.Value.Bytes())
 		}
 
 		return m, nil
