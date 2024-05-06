@@ -692,7 +692,7 @@ func New(
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
-	// Add ontroller & ica auth modules to IBC router
+	// Add controller & ica auth modules to IBC router
 	ibcRouter.
 		AddRoute(icaauthtypes.ModuleName, icaControllerStack).
 		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
