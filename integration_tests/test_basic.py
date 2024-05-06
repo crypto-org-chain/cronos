@@ -353,7 +353,7 @@ def test_local_statesync(cronos, tmp_path_factory):
     height -= height % 5
 
     if height not in set(item.height for item in cli0.list_snapshot()):
-        cli0.export_snapshot(height)
+        cli0.export_snapshot(height, keyring_backend="test")
 
     cli0.dump_snapshot(height, tarball)
     cronos.supervisorctl("start", "cronos_777-1-node0")
@@ -414,12 +414,12 @@ def test_local_statesync(cronos, tmp_path_factory):
     # restore the states
     cli.load_snapshot(tarball)
     print(cli.list_snapshot())
-    cli.restore_snapshot(height)
-    cli.bootstrap_state()
-    cli.restore_versiondb(height)
+    cli.restore_snapshot(height, keyring_backend="test")
+    cli.bootstrap_state(keyring_backend="test")
+    cli.restore_versiondb(height, keyring_backend="test")
 
     with subprocess.Popen(
-        [cronos.chain_binary, "start", "--home", home],
+        [cronos.chain_binary, "start", "--home", home, "--keyring-backend", "test"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     ):

@@ -5,8 +5,18 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
-    accounts: super.accounts[:std.length(super.accounts) - 1] + [super.accounts[std.length(super.accounts) - 1] {
-      coins: super.coins + ',100000000000ibcfee',
+    accounts: [{
+      name: 'community',
+      coins: '10000000000000000000000basetcro',
+      mnemonic: '${COMMUNITY_MNEMONIC}',
+    }, {
+      name: 'signer1',
+      coins: '20000000000000000000000basetcro',
+      mnemonic: '${SIGNER1_MNEMONIC}',
+    }, {
+      name: 'signer2',
+      coins: '30000000000000000000000basetcro,100000000000ibcfee',
+      mnemonic: '${SIGNER2_MNEMONIC}',
     }] + [
       {
         name: 'user' + i,

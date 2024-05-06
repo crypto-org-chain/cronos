@@ -1,8 +1,6 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -11,10 +9,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
+	"filippo.io/age"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
 	"golang.org/x/exp/slices"
 
@@ -23,6 +21,7 @@ import (
 	tmjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/libs/log"
 	tmos "github.com/cometbft/cometbft/libs/os"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/gorilla/mux"
@@ -123,6 +122,7 @@ import (
 	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
+	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
@@ -159,6 +159,11 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	ethparams "github.com/ethereum/go-ethereum/params"
 
+	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
+	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
+	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
+	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 )
@@ -170,8 +175,6 @@ const (
 	//
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
-
-	FlagBlockedAddresses = "blocked-addresses"
 )
 
 var Forks = []Fork{}
@@ -260,6 +263,7 @@ func GenModuleBasics() module.BasicManager {
 		ibcfee.AppModuleBasic{},
 		evm.AppModuleBasic{},
 		feemarket.AppModuleBasic{},
+		e2ee.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 		gravity.AppModuleBasic{},
 		cronos.AppModuleBasic{},
@@ -286,6 +290,8 @@ func StoreKeys(skipGravity bool) (
 		icaauthtypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
+		// e2ee keys
+		e2eetypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronostypes.StoreKey,
 	}
@@ -357,6 +363,9 @@ type App struct {
 	// Gravity module
 	GravityKeeper gravitykeeper.Keeper
 
+	// e2ee keeper
+	E2EEKeeper e2eekeeper.Keeper
+
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	CronosKeeper cronoskeeper.Keeper
@@ -371,6 +380,8 @@ type App struct {
 	configurator module.Configurator
 
 	qms storetypes.MultiStore
+
+	blockProposalHandler *ProposalHandler
 }
 
 // New returns a reference to an initialized chain.
@@ -385,15 +396,37 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
+	var identity age.Identity
+	{
+		if cast.ToString(appOpts.Get("mode")) == "validator" {
+			krBackend := cast.ToString(appOpts.Get(clientflags.FlagKeyringBackend))
+			kr, err := e2eekeyring.New("cronosd", krBackend, homePath, os.Stdin)
+			if err != nil {
+				panic(err)
+			}
+			bz, err := kr.Get(e2eetypes.DefaultKeyringName)
+			if err != nil {
+				logger.Error("e2ee identity for validator not found", "error", err)
+			} else {
+				identity, err = age.ParseX25519Identity(string(bz))
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
+
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+
+	blockProposalHandler := NewProposalHandler(encodingConfig.TxConfig.TxDecoder(), identity)
+
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	// Setup Mempool and Proposal Handlers
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		mempool := mempool.NoOpMempool{}
 		app.SetMempool(mempool)
-		handler := baseapp.NewDefaultProposalHandler(mempool, app)
-		app.SetPrepareProposal(handler.PrepareProposalHandler())
-		app.SetProcessProposal(handler.ProcessProposalHandler())
+		app.SetPrepareProposal(blockProposalHandler.PrepareProposalHandler())
+		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 	})
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 
@@ -404,14 +437,15 @@ func New(
 	keys, memKeys, tkeys := StoreKeys(skipGravity)
 
 	app := &App{
-		BaseApp:           bApp,
-		cdc:               cdc,
-		appCodec:          appCodec,
-		interfaceRegistry: interfaceRegistry,
-		invCheckPeriod:    invCheckPeriod,
-		keys:              keys,
-		tkeys:             tkeys,
-		memKeys:           memKeys,
+		BaseApp:              bApp,
+		cdc:                  cdc,
+		appCodec:             appCodec,
+		interfaceRegistry:    interfaceRegistry,
+		invCheckPeriod:       invCheckPeriod,
+		keys:                 keys,
+		tkeys:                tkeys,
+		memKeys:              memKeys,
+		blockProposalHandler: blockProposalHandler,
 	}
 
 	// init params keeper and subspaces
@@ -666,6 +700,8 @@ func New(
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
+	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey])
+
 	/****  Module Options ****/
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
@@ -709,6 +745,9 @@ func New(
 		feeModule,
 		feemarket.NewAppModule(app.FeeMarketKeeper, feeMarketS),
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmS),
+		e2ee.NewAppModule(app.E2EEKeeper),
+
+		// Cronos app modules
 		cronosModule,
 	}
 
@@ -737,6 +776,7 @@ func New(
 		vestingtypes.ModuleName,
 		cronostypes.ModuleName,
 		consensusparamtypes.ModuleName,
+		e2eetypes.ModuleName,
 	}
 	endBlockersOrder := []string{
 		crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName,
@@ -760,6 +800,7 @@ func New(
 		vestingtypes.ModuleName,
 		cronostypes.ModuleName,
 		consensusparamtypes.ModuleName,
+		e2eetypes.ModuleName,
 	}
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
@@ -795,6 +836,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		// NOTE: crisis module must go at the end to check for invariants on each module
 		crisistypes.ModuleName,
+		e2eetypes.ModuleName,
 	}
 
 	if !skipGravity {
@@ -876,7 +918,6 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 	if err := app.setAnteHandler(encodingConfig.TxConfig,
 		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
-		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
 	}
@@ -908,6 +949,10 @@ func New(
 				tmos.Exit(fmt.Sprintf("versiondb version %d lag behind iavl version %d", v1, v2))
 			}
 		}
+
+		if err := app.RefreshBlockList(app.NewUncachedContext(false, tmproto.Header{})); err != nil {
+			panic(err)
+		}
 	}
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
@@ -920,34 +965,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) error {
-	if len(blacklist) > 0 {
-		sort.Strings(blacklist)
-		// hash blacklist concatenated
-		h := sha256.New()
-		for _, addr := range blacklist {
-			_, err := h.Write([]byte(addr))
-			if err != nil {
-				panic(err)
-			}
-		}
-		app.Logger().Error("Setting ante handler with blacklist", "size", len(blacklist), "hash", hex.EncodeToString(h.Sum(nil)))
-		for _, addr := range blacklist {
-			app.Logger().Error("Blacklisted address", "address", addr)
-		}
-	} else {
-		app.Logger().Error("Setting ante handler without blacklist")
-	}
-	blockedMap := make(map[string]struct{}, len(blacklist))
-	for _, str := range blacklist {
-		addr, err := sdk.AccAddressFromBech32(str)
-		if err != nil {
-			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
-		}
-
-		blockedMap[string(addr)] = struct{}{}
-	}
-	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
+func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) error {
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -964,7 +982,6 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
 		},
-		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
@@ -1002,7 +1019,22 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	rsp := app.mm.EndBlock(ctx, req)
+
+	if err := app.RefreshBlockList(ctx); err != nil {
+		app.Logger().Error("failed to update blocklist", "error", err)
+	}
+
+	return rsp
+}
+
+func (app *App) RefreshBlockList(ctx sdk.Context) error {
+	if app.blockProposalHandler == nil || app.blockProposalHandler.Identity == nil {
+		return nil
+	}
+
+	// refresh blocklist
+	return app.blockProposalHandler.SetBlockList(app.CronosKeeper.GetBlockList(ctx))
 }
 
 // InitChainer application update at chain initialization

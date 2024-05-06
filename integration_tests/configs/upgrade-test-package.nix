@@ -19,5 +19,5 @@ pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = releasedGenesis; }
   { name = "v1.0.0"; path = released1_1; }
   { name = "v1.1.0"; path = released1_2; }
-  { name = "v1.2"; path = current; }
+  { name = "v1.3"; path = current; }
 ]

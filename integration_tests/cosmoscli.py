@@ -1,6 +1,7 @@
 import binascii
 import enum
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -236,6 +237,18 @@ class CosmosCLI:
         assert "error" not in rsp, rsp["error"]
         return rsp["result"]["txs"]
 
+    def query_account(self, addr, **kwargs):
+        return json.loads(
+            self.raw(
+                "query",
+                "auth",
+                "account",
+                addr,
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
     def distribution_commission(self, addr):
         coin = json.loads(
             self.raw(
@@ -331,9 +344,18 @@ class CosmosCLI:
             )["bonded_tokens" if bonded else "not_bonded_tokens"]
         )
 
-    def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
+    def transfer(
+        self,
+        from_,
+        to,
+        coins,
+        generate_only=False,
+        event_query_tx=True,
+        fees=None,
+        **kwargs,
+    ):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "bank",
@@ -348,6 +370,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0 and event_query_tx:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def get_delegated_amount(self, which_addr):
         return json.loads(
@@ -1709,8 +1734,26 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def rollback(self):
-        self.raw("rollback", home=self.data_dir)
+    def store_blocklist(self, data, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "store-block-list",
+                data,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
+    def rollback(self, **kwargs):
+        self.raw("rollback", home=self.data_dir, **kwargs)
 
     def changeset_dump(self, changeset_dir, **kwargs):
         default_kwargs = {
@@ -1746,9 +1789,14 @@ class CosmosCLI:
             **kwargs,
         ).decode()
 
-    def restore_versiondb(self, height, format=3):
+    def restore_versiondb(self, height, format=3, **kwargs):
         return self.raw(
-            "changeset", "restore-versiondb", height, format, home=self.data_dir
+            "changeset",
+            "restore-versiondb",
+            height,
+            format,
+            home=self.data_dir,
+            **kwargs,
         )
 
     def dump_snapshot(self, height, tarball, format=3):
@@ -1782,24 +1830,26 @@ class CosmosCLI:
             items.append(SnapshotItem(int(parts[1]), int(parts[3]), int(parts[5])))
         return items
 
-    def export_snapshot(self, height):
+    def export_snapshot(self, height, **kwargs):
         return self.raw(
             "snapshots",
             "export",
             height=height,
             home=self.data_dir,
+            **kwargs,
         ).decode()
 
-    def restore_snapshot(self, height, format=3):
+    def restore_snapshot(self, height, format=3, **kwargs):
         return self.raw(
             "snapshots",
             "restore",
             height,
             format,
             home=self.data_dir,
+            **kwargs,
         ).decode()
 
-    def bootstrap_state(self, height=None):
+    def bootstrap_state(self, height=None, **kwargs):
         """
         bootstrap cometbft state for local state sync
         """
@@ -1808,6 +1858,7 @@ class CosmosCLI:
             "bootstrap-state",
             height=height,
             home=self.data_dir,
+            **kwargs,
         )
 
     def event_query_tx_for(self, hash):
@@ -1817,10 +1868,95 @@ class CosmosCLI:
                 "event-query-tx-for",
                 hash,
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
             )
         )
 
     def query_bank_send(self):
         res = json.loads(self.raw("q", "bank", "send-enabled", home=self.data_dir))
         return res["send_enabled"]
+
+    def query_e2ee_key(self, address):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "key",
+                address,
+                home=self.data_dir,
+                output="json",
+            )
+        ).get("key")
+
+    def query_e2ee_keys(self, *addresses):
+        return json.loads(
+            self.raw(
+                "q",
+                "e2ee",
+                "keys",
+                *addresses,
+                home=self.data_dir,
+                output="json",
+            )
+        ).get("keys")
+
+    def register_e2ee_key(self, key, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "e2ee",
+                "register-encryption-key",
+                key,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
+    def keygen(self, **kwargs):
+        return self.raw("e2ee", "keygen", home=self.data_dir, **kwargs).strip().decode()
+
+    def encrypt(self, input, *recipients, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt",
+                input,
+                *itertools.chain.from_iterable(("-r", r) for r in recipients),
+                home=self.data_dir,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def decrypt(self, input, identity="e2ee-identity", **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "decrypt",
+                input,
+                home=self.data_dir,
+                identity=identity,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def encrypt_to_validators(self, input, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt-to-validators",
+                input,
+                home=self.data_dir,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )

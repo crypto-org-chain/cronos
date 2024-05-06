@@ -229,7 +229,7 @@ def exec(c, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    do_upgrade("v1.2", target_height1)
+    do_upgrade("v1.3", target_height1)
     cli = c.cosmos_cli()
 
     # check basic tx works

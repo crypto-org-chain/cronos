@@ -82,6 +82,12 @@
             ibc_cro_denom: '${IBC_CRO_DENOM}',
           },
         },
+        e2ee: {
+          keys: [{
+            address: 'crc16z0herz998946wr659lr84c8c556da55dc34hh',
+            key: 'age1k3mpspxytgvx6e0jja0xgrtzz7vw2p00c2a3xmq5ygfzhwh4wg0s35z4c8',
+          }],
+        },
         gov: {
           params: {
             voting_period: '10s',
