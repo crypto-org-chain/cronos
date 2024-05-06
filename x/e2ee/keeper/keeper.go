@@ -28,16 +28,26 @@ func NewKeeper(storeKey storetypes.StoreKey, addressCodec address.Codec) Keeper 
 	}
 }
 
+func (k Keeper) registerEncryptionKey(
+	ctx context.Context,
+	address string,
+	key []byte,
+) error {
+	bz, err := k.addressCodec.StringToBytes(address)
+	if err != nil {
+		return err
+	}
+	sdk.UnwrapSDKContext(ctx).KVStore(k.storeKey).Set(types.KeyPrefix(bz), key)
+	return nil
+}
+
 func (k Keeper) RegisterEncryptionKey(
 	ctx context.Context,
 	req *types.MsgRegisterEncryptionKey,
 ) (*types.MsgRegisterEncryptionKeyResponse, error) {
-	bz, err := k.addressCodec.StringToBytes(req.Address)
-	if err != nil {
+	if err := k.registerEncryptionKey(ctx, req.Address, []byte(req.Key)); err != nil {
 		return nil, err
 	}
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	sdkCtx.KVStore(k.storeKey).Set(types.KeyPrefix(bz), []byte(req.Key))
 	return &types.MsgRegisterEncryptionKeyResponse{}, nil
 }
 
@@ -46,10 +56,7 @@ func (k Keeper) InitGenesis(
 	state *types.GenesisState,
 ) error {
 	for _, key := range state.Keys {
-		if _, err := k.RegisterEncryptionKey(ctx, &types.MsgRegisterEncryptionKey{
-			Address: key.Address,
-			Key:     key.Key,
-		}); err != nil {
+		if err := k.registerEncryptionKey(ctx, key.Address, []byte(key.Key)); err != nil {
 			return err
 		}
 	}

@@ -6,7 +6,6 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,7 +41,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
+				err := suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 			},
 		},
@@ -64,7 +63,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().Error(err)
 			},
 		},
@@ -94,7 +93,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				suite.Require().NoError(err)
 
 				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -144,7 +143,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				receipt := &ethtypes.Receipt{
 					Logs: logs,
 				}
-				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, core.Message{}, receipt)
+				err = suite.app.EvmKeeper.PostTxProcessing(suite.ctx, nil, receipt)
 				// should fail, because of not ibc denom name
 				suite.Require().Error(err)
 			},

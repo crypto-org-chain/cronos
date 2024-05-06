@@ -26,7 +26,7 @@ func NewLogProcessEvmHook(handlers ...types.EvmLogHandler) *LogProcessEvmHook {
 }
 
 // PostTxProcessing implements EvmHook interface
-func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
+func (h LogProcessEvmHook) PostTxProcessing(ctx sdk.Context, _ *core.Message, receipt *ethtypes.Receipt) error {
 	addLogToReceiptFunc := newFuncAddLogToReceipt(receipt)
 	for _, log := range receipt.Logs {
 		if len(log.Topics) == 0 {

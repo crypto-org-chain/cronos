@@ -47,11 +47,11 @@ import sources.nixpkgs {
       cosmovisor = pkgs.callPackage ./cosmovisor.nix { };
     })
     (_: pkgs: {
-      rly = pkgs.buildGo120Module rec {
+      rly = pkgs.buildGo121Module rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorHash = "sha256-5s5URiAZk59mOfZdUcqYAB/IvzFuBiQH5jDBuh6huTE=";
+        vendorHash = "sha256-dwKZZu9wKOo2u1/8AAWFx89iC9pWZbCxAERMMAOFsts=";
         doCheck = false;
         GOWORK = "off";
         postInstall = ''

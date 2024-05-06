@@ -1,8 +1,6 @@
 package types
 
 import (
-	"errors"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -39,8 +37,5 @@ func (e EncryptionKeyEntry) Validate() error {
 	if _, err := sdk.AccAddressFromBech32(e.Address); err != nil {
 		return err
 	}
-	if len(e.Key) == 0 {
-		return errors.New("key can't be nil")
-	}
-	return nil
+	return ValidateRecipientKey(e.Key)
 }
