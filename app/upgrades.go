@@ -27,7 +27,7 @@ var ContractMigrations = map[string][]contractMigration{
 		{
 			Contract: common.HexToAddress("0x6265bf2371ccf45767184c8bd77b5c52e752c2bb"),
 			Slot:     common.BigToHash(big.NewInt(0)),
-			Value:    common.HexToHash("0x730CbB94480d50788481373B43d83133e171367e"),
+			Value:    common.HexToHash("0x000000000000000000000000730CbB94480d50788481373B43d83133e171367e"),
 		},
 	},
 }
