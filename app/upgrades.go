@@ -23,7 +23,7 @@ type contractMigration struct {
 
 // ContractMigrations records the list of contract migrations, chain-id -> migrations
 var ContractMigrations = map[string][]contractMigration{
-	"cronostestnet_338-3": []contractMigration{
+	"cronostestnet_338-3": {
 		{
 			Contract: common.HexToAddress("0x6265bf2371ccf45767184c8bd77b5c52e752c2bb"),
 			Slot:     common.BigToHash(big.NewInt(0)),
