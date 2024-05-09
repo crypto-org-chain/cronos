@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "benchmark"
+version = "0.1.0"
+description = ""
+authors = ["huangyi <huang@crypto.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+influxdb-client = "^1"
+pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
+websocket-client = "^1"
+netifaces = "^0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+benchmark = "benchmark.main:main"
