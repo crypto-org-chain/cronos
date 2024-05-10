@@ -76,3 +76,10 @@ def test_mempool(cronos_mempool):
             break
         wait_for_new_blocks(cli, 1, sleep=0.1)
     assert len(sended_hash_set) == 0
+
+
+def test_blocked_address(cronos_mempool):
+    cli = cronos_mempool.cosmos_cli(0)
+    rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
+    assert rsp["code"] != 0
+    assert "signer is blocked" in rsp["raw_log"]
