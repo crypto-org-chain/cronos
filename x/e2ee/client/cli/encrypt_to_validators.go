@@ -71,7 +71,8 @@ func EncryptToValidatorsCommand() *cobra.Command {
 
 				recipient, err := age.ParseX25519Recipient(key)
 				if err != nil {
-					return err
+					fmt.Fprintf(os.Stderr, "invalid encryption key for validator %s, %v\n", recs[i], err)
+					continue
 				}
 				recipients[i] = recipient
 			}
