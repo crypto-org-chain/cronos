@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
@@ -65,7 +66,8 @@ func EncryptToValidatorsCommand() *cobra.Command {
 			for i, key := range rsp.Keys {
 				recipient, err := age.ParseX25519Recipient(key)
 				if err != nil {
-					return err
+					fmt.Fprintf(os.Stderr, "failed to parse recipient key: %v\n", err)
+					continue
 				}
 				recipients[i] = recipient
 			}
