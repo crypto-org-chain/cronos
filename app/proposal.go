@@ -9,6 +9,7 @@ import (
 	"filippo.io/age"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
@@ -18,17 +19,20 @@ type BlockList struct {
 }
 
 type ProposalHandler struct {
-	TxDecoder     sdk.TxDecoder
-	Identity      age.Identity
+	TxDecoder  sdk.TxDecoder
+	Identity   age.Identity
+	TxSelector baseapp.TxSelector
+
 	blocklist     map[string]struct{}
 	lastBlockList []byte
 }
 
 func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
 	return &ProposalHandler{
-		TxDecoder: txDecoder,
-		Identity:  identity,
-		blocklist: make(map[string]struct{}),
+		TxDecoder:  txDecoder,
+		Identity:   identity,
+		blocklist:  make(map[string]struct{}),
+		TxSelector: baseapp.NewDefaultTxSelector(),
 	}
 }
 
@@ -77,12 +81,7 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	return nil
 }
 
-func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
-	tx, err := h.TxDecoder(txBz)
-	if err != nil {
-		return err
-	}
-
+func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
 	sigTx, ok := tx.(signing.SigVerifiableTx)
 	if !ok {
 		return fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
@@ -98,22 +97,42 @@ func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
 
 func (h *ProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-		txs := make([][]byte, 0, len(req.Txs))
-		for _, txBz := range req.Txs {
-			if err := h.ValidateTransaction(txBz); err != nil {
-				continue
-			}
-			txs = append(txs, txBz)
+		var maxBlockGas uint64
+		if b := ctx.ConsensusParams().Block; b != nil {
+			maxBlockGas = uint64(b.MaxGas)
 		}
 
-		return abci.ResponsePrepareProposal{Txs: txs}
+		defer h.TxSelector.Clear()
+
+		for _, txBz := range req.Txs {
+			memTx, err := h.TxDecoder(txBz)
+			if err != nil {
+				continue
+			}
+
+			if err := h.ValidateTransaction(memTx); err != nil {
+				continue
+			}
+
+			stop := h.TxSelector.SelectTxForProposal(uint64(req.MaxTxBytes), maxBlockGas, memTx, txBz)
+			if stop {
+				break
+			}
+		}
+
+		return abci.ResponsePrepareProposal{Txs: h.TxSelector.SelectedTxs()}
 	}
 }
 
 func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 		for _, txBz := range req.Txs {
-			if err := h.ValidateTransaction(txBz); err != nil {
+			memTx, err := h.TxDecoder(txBz)
+			if err != nil {
+				continue
+			}
+
+			if err := h.ValidateTransaction(memTx); err != nil {
 				return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}
 			}
 		}
