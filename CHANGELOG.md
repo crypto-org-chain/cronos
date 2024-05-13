@@ -11,7 +11,7 @@
 * [#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
 * (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
-* [#]() Update cometbft and cosmos-sdk dependencies.
+* [#1437](https://github.com/crypto-org-chain/cronos/pull/1437) Update cometbft and cosmos-sdk dependencies.
 
 *May 3, 2024*
 
