@@ -1,7 +1,9 @@
 def test_register(cronos):
     cli = cronos.cosmos_cli()
     pubkey0 = cli.keygen(keyring_name="key0")
-    cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
+    rsp = cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
+    assert rsp["code"] != 0
+    assert "malformed recipient" in rsp["raw_log"]
     assert not cli.query_e2ee_key(cli.address("validator"))
 
 

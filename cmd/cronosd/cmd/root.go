@@ -42,6 +42,7 @@ import (
 	"github.com/evmos/ethermint/crypto/hd"
 	ethermintserver "github.com/evmos/ethermint/server"
 	servercfg "github.com/evmos/ethermint/server/config"
+	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
@@ -193,6 +194,10 @@ func initRootCmd(
 		e2eecli.E2EECommand(),
 	)
 
+	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
+	if err != nil {
+		panic(err)
+	}
 	// add rosetta
 	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
 }
