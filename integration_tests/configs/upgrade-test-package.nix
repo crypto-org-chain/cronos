@@ -8,7 +8,7 @@ let
     };
   }).defaultNix;
   # v0.6.10
-  releasedGenesis = (fetchFlake "crypto-org-chain/cronos" "47c90c67c08600528eebc9e073931d01fdd4be9c").default;
+  releasedGenesis = import (builtins.fetchTarball "https://github.com/crypto-org-chain/cronos/archive/v0.6.10.tar.gz") { };
   # v0.7.0
   released_0 = (fetchFlake "crypto-org-chain/cronos" "799ac47e293403bd57580d2ff96bb8d9851c3cde").default;
   # v0.8.0
