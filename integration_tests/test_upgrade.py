@@ -198,7 +198,6 @@ def exec(c, tmp_path_factory):
     target0 = cli.block_height() + 15
     print("upgrade v0.7.0 height", target0)
     do_upgrade("v0.7.0", target0, "block", method="submit-proposal")
-    return
     cli = c.cosmos_cli()
 
     target1 = cli.block_height() + 15
