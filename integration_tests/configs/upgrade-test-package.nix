@@ -22,7 +22,7 @@ in
 pkgs.linkFarm "upgrade-test-package" [
   { name = "genesis"; path = releasedGenesis; }
   { name = "v0.7.0"; path = released_0; }
-  { name = "v0.8.0"; path = released_1; }
+  { name = "v0.7.0-hotfix"; path = released_1; }
   { name = "v1.0.0"; path = released_2; }
   { name = "v1.1.0"; path = released_3; }
   { name = "v1.2"; path = current; }
