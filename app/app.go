@@ -422,15 +422,15 @@ func New(
 	}
 
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+	mempool := mempool.NoOpMempool{}
 
-	blockProposalHandler := NewProposalHandler(encodingConfig.TxConfig.TxDecoder(), identity)
+	blockProposalHandler := NewProposalHandler(encodingConfig.TxConfig.TxDecoder(), identity, mempool)
 
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	// Setup Mempool and Proposal Handlers
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		mempool := mempool.NoOpMempool{}
 		app.SetMempool(mempool)
-		app.SetPrepareProposal(blockProposalHandler.PrepareProposalHandler())
+		app.SetPrepareProposal(blockProposalHandler.PrepareProposalHandler(app))
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 	})
 	bApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)

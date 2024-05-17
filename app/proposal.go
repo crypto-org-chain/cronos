@@ -11,6 +11,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -18,21 +19,37 @@ type BlockList struct {
 	Addresses []string `mapstructure:"addresses"`
 }
 
+type txSelector struct {
+	baseapp.TxSelector
+	handler *ProposalHandler
+}
+
+func (ts *txSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+	tx, err := ts.handler.TxDecoder(txBz)
+	if err != nil {
+		return false
+	}
+	if err = ts.handler.ValidateTransaction(tx); err != nil {
+		return false
+	}
+	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
+}
+
 type ProposalHandler struct {
-	TxDecoder  sdk.TxDecoder
-	Identity   age.Identity
-	TxSelector baseapp.TxSelector
+	TxDecoder sdk.TxDecoder
+	Identity  age.Identity
 
 	blocklist     map[string]struct{}
 	lastBlockList []byte
+	mempool       mempool.Mempool
 }
 
-func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
+func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity, mempool mempool.Mempool) *ProposalHandler {
 	return &ProposalHandler{
-		TxDecoder:  txDecoder,
-		Identity:   identity,
-		blocklist:  make(map[string]struct{}),
-		TxSelector: baseapp.NewDefaultTxSelector(),
+		TxDecoder: txDecoder,
+		Identity:  identity,
+		blocklist: make(map[string]struct{}),
+		mempool:   mempool,
 	}
 }
 
@@ -95,33 +112,13 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
 	return nil
 }
 
-func (h *ProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
-	return func(ctx sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-		var maxBlockGas uint64
-		if b := ctx.ConsensusParams().Block; b != nil {
-			maxBlockGas = uint64(b.MaxGas)
-		}
-
-		defer h.TxSelector.Clear()
-
-		for _, txBz := range req.Txs {
-			memTx, err := h.TxDecoder(txBz)
-			if err != nil {
-				continue
-			}
-
-			if err := h.ValidateTransaction(memTx); err != nil {
-				continue
-			}
-
-			stop := h.TxSelector.SelectTxForProposal(uint64(req.MaxTxBytes), maxBlockGas, memTx, txBz)
-			if stop {
-				break
-			}
-		}
-
-		return abci.ResponsePrepareProposal{Txs: h.TxSelector.SelectedTxs()}
-	}
+func (h *ProposalHandler) PrepareProposalHandler(txVerifier baseapp.ProposalTxVerifier) sdk.PrepareProposalHandler {
+	defaultHandler := baseapp.NewDefaultProposalHandler(h.mempool, txVerifier)
+	defaultHandler.SetTxSelector(&txSelector{
+		TxSelector: baseapp.NewDefaultTxSelector(),
+		handler:    h,
+	})
+	return defaultHandler.PrepareProposalHandler()
 }
 
 func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
