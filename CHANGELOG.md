@@ -12,6 +12,10 @@
 * (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
 
+### Bug Fixes
+
+* (rpc) [#1444](https://github.com/crypto-org-chain/cronos/pull/1444) Avoid nil pointer error when query blocks before feemarket module gets enabled.
+
 *May 3, 2024*
 
 ## v1.2.2

@@ -704,8 +704,10 @@ class CosmosCLI:
         method="submit-legacy-proposal",
         **kwargs,
     ):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        kwargs.setdefault("gas", DEFAULT_GAS)
+        default_kwargs = {
+            "gas_prices": DEFAULT_GAS_PRICE,
+            "gas": DEFAULT_GAS,
+        }
         if mode:
             kwargs.setdefault("broadcast_mode", mode)
         if kind == "software-upgrade":
@@ -728,7 +730,7 @@ class CosmosCLI:
                     deposit=proposal.get("deposit"),
                     # basic
                     home=self.data_dir,
-                    **kwargs,
+                    **(default_kwargs | kwargs),
                 )
             )
             if rsp["code"] == 0 and mode is None:
@@ -749,7 +751,7 @@ class CosmosCLI:
                     deposit=proposal.get("deposit"),
                     # basic
                     home=self.data_dir,
-                    **kwargs,
+                    **(default_kwargs | kwargs),
                 )
             )
             if rsp["code"] == 0:
@@ -770,7 +772,7 @@ class CosmosCLI:
                         from_=proposer,
                         # basic
                         home=self.data_dir,
-                        **kwargs,
+                        **(default_kwargs | kwargs),
                     )
                 )
                 if rsp["code"] == 0:
@@ -778,7 +780,10 @@ class CosmosCLI:
                 return rsp
 
     def gov_vote(self, voter, proposal_id, option, event_query_tx=True, **kwargs):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        default_kwargs = {
+            "gas_prices": DEFAULT_GAS_PRICE,
+            "gas": DEFAULT_GAS,
+        }
         raw = self.raw(
             "tx",
             "gov",
@@ -788,7 +793,7 @@ class CosmosCLI:
             "-y",
             from_=voter,
             home=self.data_dir,
-            **kwargs,
+            **(default_kwargs | kwargs),
         )
         # skip success log info that breaks json.loads
         brace_index = raw.index(b"{")
