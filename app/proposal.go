@@ -11,7 +11,6 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -19,20 +18,34 @@ type BlockList struct {
 	Addresses []string `mapstructure:"addresses"`
 }
 
-type txSelector struct {
-	baseapp.TxSelector
-	handler *ProposalHandler
+var _ baseapp.TxSelector = &ExtTxSelector{}
+
+// ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
+type ExtTxSelector struct {
+	Parent     baseapp.TxSelector
+	ValidateTx func(sdk.Tx) error
 }
 
-func (ts *txSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
-	tx, err := ts.handler.TxDecoder(txBz)
-	if err != nil {
+func NewExtTxSelector(parent baseapp.TxSelector, validateTx func(sdk.Tx) error) *ExtTxSelector {
+	return &ExtTxSelector{
+		Parent:     parent,
+		ValidateTx: validateTx,
+	}
+}
+
+func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+	if err := ts.ValidateTx(memTx); err != nil {
 		return false
 	}
-	if err = ts.handler.ValidateTransaction(tx); err != nil {
-		return false
-	}
-	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
+	return ts.Parent.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
+}
+
+func (ts *ExtTxSelector) SelectedTxs() [][]byte {
+	return ts.Parent.SelectedTxs()
+}
+
+func (ts *ExtTxSelector) Clear() {
+	ts.Parent.Clear()
 }
 
 type ProposalHandler struct {
@@ -41,15 +54,13 @@ type ProposalHandler struct {
 
 	blocklist     map[string]struct{}
 	lastBlockList []byte
-	mempool       mempool.Mempool
 }
 
-func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity, mempool mempool.Mempool) *ProposalHandler {
+func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
 	return &ProposalHandler{
 		TxDecoder: txDecoder,
 		Identity:  identity,
 		blocklist: make(map[string]struct{}),
-		mempool:   mempool,
 	}
 }
 
@@ -110,15 +121,6 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
 		}
 	}
 	return nil
-}
-
-func (h *ProposalHandler) PrepareProposalHandler(txVerifier baseapp.ProposalTxVerifier) sdk.PrepareProposalHandler {
-	defaultHandler := baseapp.NewDefaultProposalHandler(h.mempool, txVerifier)
-	defaultHandler.SetTxSelector(&txSelector{
-		TxSelector: baseapp.NewDefaultTxSelector(),
-		handler:    h,
-	})
-	return defaultHandler.PrepareProposalHandler()
 }
 
 func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
