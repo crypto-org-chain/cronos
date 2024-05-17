@@ -49,9 +49,8 @@ func (ts *ExtTxSelector) Clear() {
 }
 
 type ProposalHandler struct {
-	TxDecoder sdk.TxDecoder
-	Identity  age.Identity
-
+	TxDecoder     sdk.TxDecoder
+	Identity      age.Identity
 	blocklist     map[string]struct{}
 	lastBlockList []byte
 }
