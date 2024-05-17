@@ -22,19 +22,24 @@ var _ baseapp.TxSelector = &ExtTxSelector{}
 
 // ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
 type ExtTxSelector struct {
-	Parent     baseapp.TxSelector
-	ValidateTx func(sdk.Tx) error
+	Parent  baseapp.TxSelector
+	handler *ProposalHandler
 }
 
-func NewExtTxSelector(parent baseapp.TxSelector, validateTx func(sdk.Tx) error) *ExtTxSelector {
+func NewExtTxSelector(parent baseapp.TxSelector, handler *ProposalHandler) *ExtTxSelector {
 	return &ExtTxSelector{
-		Parent:     parent,
-		ValidateTx: validateTx,
+		Parent:  parent,
+		handler: handler,
 	}
 }
 
 func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
-	if err := ts.ValidateTx(memTx); err != nil {
+	tx, err := ts.handler.TxDecoder(txBz)
+	if err != nil {
+		return false
+	}
+
+	if err := ts.handler.ValidateTransaction(tx); err != nil {
 		return false
 	}
 	return ts.Parent.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)

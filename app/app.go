@@ -435,7 +435,7 @@ func New(
 		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mempool, app)
 		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
 			baseapp.NewDefaultTxSelector(),
-			blockProposalHandler.ValidateTransaction,
+			blockProposalHandler,
 		))
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 
