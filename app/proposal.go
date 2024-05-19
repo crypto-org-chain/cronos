@@ -48,7 +48,9 @@ func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, mem
 		return false
 	}
 
-	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
+	// don't pass `memTx` to parent selector so it don't check tx gas wanted against block gas limit,
+	// it conflicts with the max-tx-gas-wanted logic.
+	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, nil, txBz)
 }
 
 type ProposalHandler struct {
