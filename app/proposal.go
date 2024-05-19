@@ -22,35 +22,33 @@ var _ baseapp.TxSelector = &ExtTxSelector{}
 
 // ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
 type ExtTxSelector struct {
-	Parent  baseapp.TxSelector
-	handler *ProposalHandler
+	baseapp.TxSelector
+	TxDecoder  sdk.TxDecoder
+	ValidateTx func(sdk.Tx) error
 }
 
-func NewExtTxSelector(parent baseapp.TxSelector, handler *ProposalHandler) *ExtTxSelector {
+func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx) error) *ExtTxSelector {
 	return &ExtTxSelector{
-		Parent:  parent,
-		handler: handler,
+		TxSelector: parent,
+		TxDecoder:  txDecoder,
+		ValidateTx: validateTx,
 	}
 }
 
 func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
-	tx, err := ts.handler.TxDecoder(txBz)
-	if err != nil {
+	var err error
+	if memTx == nil {
+		memTx, err = ts.TxDecoder(txBz)
+		if err != nil {
+			return false
+		}
+	}
+
+	if err := ts.ValidateTx(memTx); err != nil {
 		return false
 	}
 
-	if err := ts.handler.ValidateTransaction(tx); err != nil {
-		return false
-	}
-	return ts.Parent.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
-}
-
-func (ts *ExtTxSelector) SelectedTxs() [][]byte {
-	return ts.Parent.SelectedTxs()
-}
-
-func (ts *ExtTxSelector) Clear() {
-	ts.Parent.Clear()
+	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, memTx, txBz)
 }
 
 type ProposalHandler struct {
@@ -132,7 +130,7 @@ func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		for _, txBz := range req.Txs {
 			memTx, err := h.TxDecoder(txBz)
 			if err != nil {
-				continue
+				return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}
 			}
 
 			if err := h.ValidateTransaction(memTx); err != nil {

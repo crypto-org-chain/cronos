@@ -400,6 +400,7 @@ func New(
 	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
+	txDecoder := encodingConfig.TxConfig.TxDecoder()
 
 	var identity age.Identity
 	{
@@ -423,7 +424,7 @@ func New(
 
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
 
-	blockProposalHandler := NewProposalHandler(encodingConfig.TxConfig.TxDecoder(), identity)
+	blockProposalHandler := NewProposalHandler(txDecoder, identity)
 
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	// Setup Mempool and Proposal Handlers
@@ -435,7 +436,8 @@ func New(
 		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mempool, app)
 		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
 			baseapp.NewDefaultTxSelector(),
-			blockProposalHandler,
+			txDecoder,
+			blockProposalHandler.ValidateTransaction,
 		))
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 
