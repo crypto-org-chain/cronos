@@ -179,7 +179,8 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
-	FlagBlockedAddresses = "blocked-addresses"
+	FlagBlockedAddresses             = "blocked-addresses"
+	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 )
 
 var Forks = []Fork{}
@@ -413,10 +414,12 @@ func New(
 			bz, err := kr.Get(e2eetypes.DefaultKeyringName)
 			if err != nil {
 				logger.Error("e2ee identity for validator not found", "error", err)
+				identity = noneIdentity{}
 			} else {
 				identity, err = age.ParseX25519Identity(string(bz))
 				if err != nil {
-					panic(err)
+					logger.Error("e2ee identity for validator is invalid", "error", err)
+					identity = noneIdentity{}
 				}
 			}
 		}
@@ -969,7 +972,12 @@ func New(
 		}
 
 		if err := app.RefreshBlockList(app.NewUncachedContext(false, tmproto.Header{})); err != nil {
-			panic(err)
+			if !cast.ToBool(appOpts.Get(FlagUnsafeIgnoreBlockListFailure)) {
+				panic(err)
+			}
+
+			// otherwise, just emit error log
+			app.Logger().Error("failed to update blocklist", "error", err)
 		}
 	}
 
@@ -1076,10 +1084,6 @@ func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Respo
 }
 
 func (app *App) RefreshBlockList(ctx sdk.Context) error {
-	if app.blockProposalHandler == nil || app.blockProposalHandler.Identity == nil {
-		return nil
-	}
-
 	// refresh blocklist
 	return app.blockProposalHandler.SetBlockList(app.CronosKeeper.GetBlockList(ctx))
 }

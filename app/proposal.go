@@ -54,7 +54,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, mem
 }
 
 type ProposalHandler struct {
-	TxDecoder     sdk.TxDecoder
+	TxDecoder sdk.TxDecoder
+	// Identity is nil if it's not a validator node
 	Identity      age.Identity
 	blocklist     map[string]struct{}
 	lastBlockList []byte
@@ -68,6 +69,7 @@ func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *Proposa
 	}
 }
 
+// SetBlockList don't fail if the identity is not set or the block list is empty.
 func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	if h.Identity == nil {
 		return nil
@@ -142,4 +144,13 @@ func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 
 		return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}
 	}
+}
+
+// noneIdentity is a dummy identity which postpone the failure to the decryption time
+type noneIdentity struct{}
+
+var _ age.Identity = noneIdentity{}
+
+func (noneIdentity) Unwrap([]*age.Stanza) ([]byte, error) {
+	return nil, age.ErrIncorrectIdentity
 }
