@@ -9,12 +9,48 @@ import (
 	"filippo.io/age"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 type BlockList struct {
 	Addresses []string `mapstructure:"addresses"`
+}
+
+var _ baseapp.TxSelector = &ExtTxSelector{}
+
+// ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
+type ExtTxSelector struct {
+	baseapp.TxSelector
+	TxDecoder  sdk.TxDecoder
+	ValidateTx func(sdk.Tx) error
+}
+
+func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx) error) *ExtTxSelector {
+	return &ExtTxSelector{
+		TxSelector: parent,
+		TxDecoder:  txDecoder,
+		ValidateTx: validateTx,
+	}
+}
+
+func (ts *ExtTxSelector) SelectTxForProposal(maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+	var err error
+	if memTx == nil {
+		memTx, err = ts.TxDecoder(txBz)
+		if err != nil {
+			return false
+		}
+	}
+
+	if err := ts.ValidateTx(memTx); err != nil {
+		return false
+	}
+
+	// don't pass `memTx` to parent selector so it don't check tx gas wanted against block gas limit,
+	// it conflicts with the max-tx-gas-wanted logic.
+	return ts.TxSelector.SelectTxForProposal(maxTxBytes, maxBlockGas, nil, txBz)
 }
 
 type ProposalHandler struct {
@@ -77,12 +113,7 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	return nil
 }
 
-func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
-	tx, err := h.TxDecoder(txBz)
-	if err != nil {
-		return err
-	}
-
+func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
 	sigTx, ok := tx.(signing.SigVerifiableTx)
 	if !ok {
 		return fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
@@ -96,24 +127,15 @@ func (h *ProposalHandler) ValidateTransaction(txBz []byte) error {
 	return nil
 }
 
-func (h *ProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
-	return func(ctx sdk.Context, req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-		txs := make([][]byte, 0, len(req.Txs))
-		for _, txBz := range req.Txs {
-			if err := h.ValidateTransaction(txBz); err != nil {
-				continue
-			}
-			txs = append(txs, txBz)
-		}
-
-		return abci.ResponsePrepareProposal{Txs: txs}
-	}
-}
-
 func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 		for _, txBz := range req.Txs {
-			if err := h.ValidateTransaction(txBz); err != nil {
+			memTx, err := h.TxDecoder(txBz)
+			if err != nil {
+				return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}
+			}
+
+			if err := h.ValidateTransaction(memTx); err != nil {
 				return abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}
 			}
 		}

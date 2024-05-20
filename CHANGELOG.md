@@ -13,6 +13,10 @@
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
 * [#1437](https://github.com/crypto-org-chain/cronos/pull/1437) Update cometbft and cosmos-sdk dependencies.
 
+### Bug Fixes
+
+* [#1439](https://github.com/crypto-org-chain/cronos/pull/1439) Add back default prepare proposal logic.
+
 *May 3, 2024*
 
 ## v1.2.2
