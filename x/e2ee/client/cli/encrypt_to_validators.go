@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 
@@ -63,9 +64,15 @@ func EncryptToValidatorsCommand() *cobra.Command {
 
 			recipients := make([]age.Recipient, len(recs))
 			for i, key := range rsp.Keys {
+				if len(key) == 0 {
+					fmt.Fprintf(os.Stderr, "missing encryption key for validator %s\n", recs[i])
+					continue
+				}
+
 				recipient, err := age.ParseX25519Recipient(key)
 				if err != nil {
-					return err
+					fmt.Fprintf(os.Stderr, "invalid encryption key for validator %s, %v\n", recs[i], err)
+					continue
 				}
 				recipients[i] = recipient
 			}
