@@ -30,6 +30,8 @@ from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 from web3.datastructures import AttributeDict
 
+from .cosmoscli import DEFAULT_GAS_PRICE
+
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
 ACCOUNTS = {
@@ -134,7 +136,12 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def approve_proposal(n, rsp, event_query_tx=False):
+def approve_proposal(
+    n,
+    rsp,
+    event_query_tx=False,
+    gas_prices=DEFAULT_GAS_PRICE,
+):
     cli = n.cosmos_cli()
 
     def cb(attrs):
@@ -144,7 +151,13 @@ def approve_proposal(n, rsp, event_query_tx=False):
     # get proposal_id
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
-        rsp = n.cosmos_cli(i).gov_vote("validator", proposal_id, "yes", event_query_tx)
+        rsp = n.cosmos_cli(i).gov_vote(
+            "validator",
+            proposal_id,
+            "yes",
+            event_query_tx,
+            gas_prices=gas_prices,
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     res = cli.query_tally(proposal_id)
@@ -346,7 +359,14 @@ def supervisorctl(inipath, *args):
     ).decode()
 
 
-def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"], exp_gas_used=None):
+def deploy_contract(
+    w3,
+    jsonfile,
+    args=(),
+    key=KEYS["validator"],
+    exp_gas_used=None,
+    gas_price=None,
+):
     """
     deploy contract and return the deployed contract instance
     """
@@ -358,7 +378,10 @@ def deploy_contract(w3, jsonfile, args=(), key=KEYS["validator"], exp_gas_used=N
     if "byte" in info:
         bytecode = info["byte"]
     contract = w3.eth.contract(abi=info["abi"], bytecode=bytecode)
-    tx = contract.constructor(*args).build_transaction({"from": acct.address})
+    data = {"from": acct.address}
+    if gas_price:
+        data["gasPrice"] = gas_price
+    tx = contract.constructor(*args).build_transaction(data)
     txreceipt = send_transaction(w3, tx, key)
     assert txreceipt.status == 1
     if exp_gas_used is not None:

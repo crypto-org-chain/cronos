@@ -13,7 +13,8 @@ require (
 	filippo.io/age v1.1.1
 	github.com/99designs/keyring v1.2.1
 	github.com/armon/go-metrics v0.4.1
-	github.com/cometbft/cometbft v0.37.7-0.20240508173623-b934738b2289
+	// v0.37.x
+	github.com/cometbft/cometbft v0.37.7-0.20240515092623-8a0f4814d1dc
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.47.8
@@ -137,6 +138,7 @@ require (
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
@@ -256,7 +258,6 @@ replace (
 	github.com/linxGnu/grocksdb => github.com/linxGnu/grocksdb v1.8.0
 	github.com/peggyjv/gravity-bridge/module/v2 => github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-
 	// stick with compatible version or x/exp in v0.47.x line
 	golang.org/x/exp => golang.org/x/exp v0.0.0-20230711153332-06a737ee72cb
 )

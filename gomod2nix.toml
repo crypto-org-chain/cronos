@@ -126,8 +126,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.37.7-0.20240508173623-b934738b2289"
-    hash = "sha256-BidKnajKjeXLXFGacJ2oJTG+DNZasaGa5NDPuRwU1h8="
+    version = "v0.37.7-0.20240515092623-8a0f4814d1dc"
+    hash = "sha256-e5IRb9X+IfkcNlG/95JTuv31R7uafdWpP1wWRvg7uSM="
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.0.0-20231011055109-57922ac52a63"
     hash = "sha256-iLs/FN1be3AcoyhKj2+b5Msqeat9j2ja4acyOs+w+Uk="
@@ -348,6 +348,9 @@ schema = 3
   [mod."github.com/hashicorp/golang-lru"]
     version = "v0.5.5-0.20210104140557-80c98217689d"
     hash = "sha256-w5utLMR7p5pF9xX+mI3N9NyfQ8ixNXNTgfXDu8fudmc="
+  [mod."github.com/hashicorp/golang-lru/v2"]
+    version = "v2.0.7"
+    hash = "sha256-t1bcXLgrQNOYUVyYEZ0knxcXpsTk4IuJZDjKvyJX75g="
   [mod."github.com/hashicorp/hcl"]
     version = "v1.0.0"
     hash = "sha256-xsRCmYyBfglMxeWUvTZqkaRLSW+V2FvNodEDjTGg1WA="
