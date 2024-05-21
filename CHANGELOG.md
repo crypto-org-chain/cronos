@@ -18,6 +18,7 @@
 * (e2ee)[#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
 * (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
+* (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
 
 ### Bug Fixes
 
@@ -27,7 +28,6 @@
 
 * [#1406](https://github.com/crypto-org-chain/cronos/pull/1406) Add set-encryption-key for encryption module.
 * [#1411](https://github.com/crypto-org-chain/cronos/pull/1411) Add encrypt and decrypt cmds for message.
-* (store) [#1378](https://github.com/crypto-org-chain/cronos/pull/1378) Upgrade rocksdb to `v8.11.3`.
 
 *April 8, 2024*
 
