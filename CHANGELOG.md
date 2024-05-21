@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+* (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
+
+*Jul 7, 2024*
+
+## v1.3.0
+
 ### Improvements
 
 * (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
