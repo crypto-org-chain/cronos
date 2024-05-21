@@ -17,7 +17,7 @@ def test_versiondb_migration(cronos: Cronos):
     - verify change set and save snapshot
     - restore pruned application.db from the snapshot
     - replace node1's application.db with the restored one
-    - build versiondb for node0
+    - rebuild versiondb for node0
     - start the nodes, now check:
       - the network can grow
       - node0 do support historical queries
@@ -60,6 +60,8 @@ def test_versiondb_migration(cronos: Cronos):
     print("restore versiondb for node0")
     sst_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print(cli0.changeset_build_versiondb_sst(changeset_dir, sst_dir))
+    # ingest-versiondb-sst expects an empty database
+    shutil.rmtree(cli0.data_dir / "data/versiondb")
     print(
         cli0.changeset_ingest_versiondb_sst(
             cli0.data_dir / "data/versiondb", sst_dir, maximum_version=latest_version

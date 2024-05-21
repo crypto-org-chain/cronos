@@ -50,7 +50,7 @@
           };
           defaultPackage = packages.cronosd;
           defaultApp = apps.cronosd;
-          devShells = {
+          devShells = rec {
             default = pkgs.mkShell {
               buildInputs = [
                 defaultPackage.go
@@ -58,17 +58,13 @@
               ];
             };
             rocksdb = pkgs.mkShell {
-              buildInputs = [
-                defaultPackage.go
-                pkgs.gomod2nix
+              buildInputs = default.buildInputs ++ [
                 pkgs.rocksdb
+                pkgs.rocksdb.tools
               ];
             };
             full = pkgs.mkShell {
-              buildInputs = [
-                defaultPackage.go
-                pkgs.gomod2nix
-                pkgs.rocksdb
+              buildInputs = rocksdb.buildInputs ++ [
                 pkgs.test-env
               ];
             };
