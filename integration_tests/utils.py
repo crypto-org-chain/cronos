@@ -383,7 +383,6 @@ def sign_transaction(w3, tx, key=KEYS["validator"]):
     tx["from"] = acct.address
     tx = fill_transaction_defaults(w3, tx)
     tx = fill_nonce(w3, tx)
-    print('fill nonce', tx['nonce'])
     return acct.sign_transaction(tx)
 
 

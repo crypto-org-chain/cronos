@@ -39,7 +39,6 @@
           enable: true,
           'zero-copy': true,
           'snapshot-interval': 5,
-          'snapshot-keep-recent': 1000,
         },
         versiondb: {
           enable: true,
