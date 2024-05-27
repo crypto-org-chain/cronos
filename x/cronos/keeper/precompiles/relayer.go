@@ -13,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -58,6 +60,9 @@ const (
 	UpdateClientAndAcknowledgement       = "updateClientAndAcknowledgement"
 	UpdateClientAndTimeout               = "updateClientAndTimeout"
 	UpdateClientAndTimeoutOnClose        = "updateClientAndTimeoutOnClose"
+
+	GasWhenReceiverChainIsSource    = 51705
+	GasWhenReceiverChainIsNotSource = 144025
 )
 
 func init() {
@@ -93,7 +98,7 @@ func init() {
 		case ChannelCloseConfirm:
 			relayerGasRequiredByMethod[methodID] = 31199
 		case RecvPacket:
-			relayerGasRequiredByMethod[methodID] = 144025
+			relayerGasRequiredByMethod[methodID] = GasWhenReceiverChainIsNotSource
 		case Acknowledgement:
 			relayerGasRequiredByMethod[methodID] = 61781
 		case Timeout:
@@ -165,6 +170,28 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	var methodID [4]byte
 	copy(methodID[:], input[:4])
 	requiredGas, ok := relayerGasRequiredByMethod[methodID]
+	method, err := irelayerABI.MethodById(methodID[:])
+	if err != nil {
+		panic(err)
+	}
+	if method.Name == RecvPacket {
+		args, err := method.Inputs.Unpack(input[4:])
+		if err != nil {
+			panic(err)
+		}
+		i := args[0].([]byte)
+		var msg channeltypes.MsgRecvPacket
+		if err = bc.cdc.Unmarshal(i, &msg); err != nil {
+			panic(err)
+		}
+		var data ibctransfertypes.FungibleTokenPacketData
+		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
+			panic(err)
+		}
+		if ibctransfertypes.ReceiverChainIsSource(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel(), data.Denom) {
+			requiredGas = GasWhenReceiverChainIsSource
+		}
+	}
 	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
