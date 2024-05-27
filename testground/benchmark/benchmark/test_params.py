@@ -1,7 +1,10 @@
 import ipaddress
 from datetime import datetime
 
-from .params import RunParams, run_params
+import pytest
+from pydantic import ValidationError
+
+from .params import RunParams, parse_dict, run_params
 
 
 def test_params():
@@ -10,7 +13,7 @@ def test_params():
         test_group_id="single",
         test_group_instance_count=2,
         test_instance_count=2,
-        test_instance_params=(
+        test_instance_params=parse_dict(
             "latency=0|timeout=21m|bandwidth=420Mib|chain_id=testground"
         ),
         test_outputs_path="/outputs",
@@ -45,3 +48,10 @@ def test_params():
         }
     )
     assert exp == actual
+
+
+def test_params_bool():
+    assert RunParams(test_sidecar=True) == run_params({"TEST_SIDECAR": "true"})
+    assert RunParams(test_sidecar=False) == run_params({"TEST_SIDECAR": "false"})
+    with pytest.raises(ValidationError):
+        run_params({"TEST_SIDECAR": "fse"})

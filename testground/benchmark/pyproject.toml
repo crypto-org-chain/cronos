@@ -10,6 +10,7 @@ influxdb-client = "^1"
 pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 websocket-client = "^1"
 netifaces = "^0"
+pydantic = "^2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"

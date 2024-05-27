@@ -1,32 +1,39 @@
 import ipaddress
 import os
-from dataclasses import dataclass, fields
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
+
+from pydantic import BaseModel, validator
 
 VALIDATOR_GROUP_ID = "validators"
 
 
-@dataclass
-class RunParams:
-    test_branch: str = ""
-    test_case: str = ""
-    test_group_id: str = ""
-    test_group_instance_count: int = 0
-    test_instance_count: int = 0
-    test_instance_params: dict = None
-    test_instance_role: str = ""
-    test_outputs_path: str = ""
-    test_plan: str = ""
-    test_repo: str = ""
-    test_run: str = ""
-    test_sidecar: bool = False
-    test_start_time: datetime = None
-    test_subnet: ipaddress.IPv4Network = None
-    test_tag: str = ""
-    test_capture_profiles: str = ""
-    test_temp_path: str = ""
-    log_level: str = ""
+class RunParams(BaseModel):
+    test_branch: Optional[str] = ""
+    test_case: Optional[str] = ""
+    test_group_id: Optional[str] = ""
+    test_group_instance_count: Optional[int] = 0
+    test_instance_count: Optional[int] = 0
+    test_instance_params: Optional[dict] = None
+    test_instance_role: Optional[str] = ""
+    test_outputs_path: Optional[str] = ""
+    test_plan: Optional[str] = ""
+    test_repo: Optional[str] = ""
+    test_run: Optional[str] = ""
+    test_sidecar: Optional[bool] = False
+    test_start_time: Optional[datetime] = None
+    test_subnet: Optional[ipaddress.IPv4Network] = None
+    test_tag: Optional[str] = ""
+    test_capture_profiles: Optional[str] = ""
+    test_temp_path: Optional[str] = ""
+    log_level: Optional[str] = ""
+
+    @validator("test_instance_params", pre=True)
+    @classmethod
+    def validate_test_instance_params(cls, s):
+        if isinstance(s, str):
+            return parse_dict(s)
+        return s
 
     def events_key(self):
         return (
@@ -95,21 +102,11 @@ class RunParams:
 def run_params(env=None) -> RunParams:
     if env is None:
         env = os.environ
-    p = RunParams()
-    for f in fields(RunParams):
-        value = env.get(f.name.upper())
-        if value is None:
-            continue
-        if f.type == bool:
-            value = parse_bool(value)
-        elif f.type == datetime:
-            value = datetime.fromisoformat(value)
-        elif f.type == dict:
-            value = parse_dict(value)
-        else:
-            value = f.type(value)
-        setattr(p, f.name, value)
-    return p
+
+    d = {
+        name: env[name.upper()] for name in RunParams.__fields__ if name.upper() in env
+    }
+    return RunParams(**d)
 
 
 def parse_bool(s: str) -> bool:
