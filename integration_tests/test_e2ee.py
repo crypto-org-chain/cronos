@@ -1,9 +1,7 @@
-import json
-
 import pytest
 
 from .network import Cronos
-from .utils import wait_for_new_blocks
+from .utils import encrypt_to_validators, gen_validator_identity, wait_for_new_blocks
 
 
 def test_register(cronos: Cronos):
@@ -13,20 +11,6 @@ def test_register(cronos: Cronos):
         cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
     assert "malformed recipient" in str(exc.value)
     assert not cli.query_e2ee_key(cli.address("validator"))
-
-
-def gen_validator_identity(cronos: Cronos):
-    for i in range(len(cronos.config["validators"])):
-        cli = cronos.cosmos_cli(i)
-        if cli.query_e2ee_key(cli.address("validator")):
-            return
-        pubkey = cli.keygen()
-        cli.register_e2ee_key(pubkey, _from="validator")
-        assert cli.query_e2ee_key(cli.address("validator")) == pubkey
-
-        cronos.supervisorctl("restart", f"cronos_777-1-node{i}")
-
-    wait_for_new_blocks(cronos.cosmos_cli(), 1)
 
 
 def test_encrypt_decrypt(cronos):
@@ -60,16 +44,6 @@ def test_encrypt_decrypt(cronos):
 
     assert cli0.decrypt(cipherfile) == content
     assert cli1.decrypt(cipherfile) == content
-
-
-def encrypt_to_validators(cli, content):
-    blocklist = json.dumps(content)
-    plainfile = cli.data_dir / "plaintext"
-    plainfile.write_text(blocklist)
-    cipherfile = cli.data_dir / "ciphertext"
-    cli.encrypt_to_validators(plainfile, output=cipherfile)
-    rsp = cli.store_blocklist(cipherfile, _from="validator")
-    assert rsp["code"] == 0, rsp["raw_log"]
 
 
 def test_block_list(cronos):

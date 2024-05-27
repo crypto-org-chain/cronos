@@ -755,3 +755,33 @@ def get_send_enable(port):
     url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
     raw = requests.get(url).json()
     return raw["params"]["send_enabled"]
+
+
+def gen_validator_identity(cronos):
+    for i in range(len(cronos.config["validators"])):
+        cli = cronos.cosmos_cli(i)
+        if cli.query_e2ee_key(cli.address("validator")):
+            return
+        pubkey = cli.keygen()
+        cli.register_e2ee_key(pubkey, _from="validator")
+        assert cli.query_e2ee_key(cli.address("validator")) == pubkey
+
+        cronos.supervisorctl("restart", f"cronos_777-1-node{i}")
+
+    wait_for_new_blocks(cronos.cosmos_cli(), 1)
+
+
+def encrypt_to_validators(cli, content):
+    blocklist = json.dumps(content)
+    plainfile = cli.data_dir / "plaintext"
+    plainfile.write_text(blocklist)
+    cipherfile = cli.data_dir / "ciphertext"
+    cli.encrypt_to_validators(plainfile, output=cipherfile)
+    rsp = cli.store_blocklist(cipherfile, _from="validator")
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+
+def get_unconfirmed_txs(port):
+    url = f"http://127.0.0.1:{port}/unconfirmed_txs"
+    raw = requests.get(url).json()
+    return raw["result"]["txs"]
