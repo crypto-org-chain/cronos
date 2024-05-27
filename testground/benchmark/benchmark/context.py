@@ -4,6 +4,8 @@ import socket
 from .params import RunParams, run_params
 from .sync import SyncService
 
+LEADER_GLOBAL_SEQUENCE = 1
+
 
 class Context:
     def __init__(self, params: RunParams = None):
@@ -92,6 +94,14 @@ class Context:
                 }
             }
         )
+
+    @property
+    def is_leader(self) -> bool:
+        return self.global_seq == LEADER_GLOBAL_SEQUENCE
+
+    @property
+    def is_validator(self) -> bool:
+        return self.params.is_validator()
 
     def __enter__(self):
         return self

@@ -7,16 +7,7 @@ runner = "local:docker"
 [builders."docker:nix"]
 enabled = true
 
-[builders."docker:go"]
-enabled = true
-
-[builders."exec:go"]
-enabled = true
-
 [runners."local:docker"]
-enabled = true
-
-[runners."local:exec"]
 enabled = true
 
 [runners."cluster:k8s"]
@@ -27,4 +18,4 @@ name= "entrypoint"
 instances = { min = 1, max = 200, default = 1 }
 
 [testcases.params]
-chain_id = { type = "string", default = "testground" }
+chain_id = { type = "string", default = "cronos_777-1" }

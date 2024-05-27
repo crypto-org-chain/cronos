@@ -2,6 +2,9 @@ import ipaddress
 import os
 from dataclasses import dataclass, fields
 from datetime import datetime
+from typing import Dict
+
+VALIDATOR_GROUP_ID = "validators"
 
 
 @dataclass
@@ -11,7 +14,7 @@ class RunParams:
     test_group_id: str = ""
     test_group_instance_count: int = 0
     test_instance_count: int = 0
-    test_instance_params: str = ""
+    test_instance_params: dict = None
     test_instance_role: str = ""
     test_outputs_path: str = ""
     test_plan: str = ""
@@ -84,6 +87,10 @@ class RunParams:
             "routing_policy": "allow_all",
         }
 
+    @property
+    def is_validator(self) -> bool:
+        return self.test_group_id == VALIDATOR_GROUP_ID
+
 
 def run_params(env=None) -> RunParams:
     if env is None:
@@ -94,14 +101,20 @@ def run_params(env=None) -> RunParams:
         if value is None:
             continue
         if f.type == bool:
-            value = convert_bool(value)
+            value = parse_bool(value)
         elif f.type == datetime:
             value = datetime.fromisoformat(value)
+        elif f.type == dict:
+            value = parse_dict(value)
         else:
             value = f.type(value)
         setattr(p, f.name, value)
     return p
 
 
-def convert_bool(s: str) -> bool:
+def parse_bool(s: str) -> bool:
     return s == "true"
+
+
+def parse_dict(s: str) -> Dict[str, str]:
+    return dict(part.split("=") for part in s.split("|"))

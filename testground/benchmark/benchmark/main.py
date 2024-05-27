@@ -1,5 +1,4 @@
 import os
-import queue
 
 from pystarport.cosmoscli import ChainCommand
 
@@ -14,6 +13,7 @@ def influxdb_url():
 def entrypoint(ctx: Context):
     ctx.init_common()
 
+    print("params", ctx.params)
     print("global_seq:", ctx.global_seq, "group_seq:", ctx.group_seq)
 
     # broadcast the peer addresses

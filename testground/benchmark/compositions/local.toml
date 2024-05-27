@@ -1,0 +1,26 @@
+[metadata]
+name = "standard"
+author = "core-app"
+
+[global]
+plan = "benchmark"
+case = "entrypoint"
+total_instances = 10
+builder = "docker:nix"
+runner = "local:docker"
+disable_metrics = false
+
+[global.run.test_params]
+chain_id = "cronos_777-1"
+
+[[groups]]
+id = "validators"
+builder = "docker:nix"
+[groups.instances]
+percentage = 0.5
+
+[[groups]]
+id = "fullnodes"
+builder = "docker:nix"
+[groups.instances]
+percentage = 0.5
