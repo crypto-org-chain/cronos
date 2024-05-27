@@ -1,6 +1,8 @@
 import os
 import queue
 
+from pystarport.cosmoscli import ChainCommand
+
 from .context import Context
 from .network import get_data_ip
 
@@ -25,6 +27,9 @@ def entrypoint(ctx: Context):
         return
 
     print("peers", peers)
+
+    cmd = ChainCommand("/bin/cronosd")
+    print(cmd("version", "--long").decode())
 
     ctx.record_success()
 

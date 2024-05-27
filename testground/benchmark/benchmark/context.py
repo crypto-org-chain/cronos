@@ -1,3 +1,4 @@
+import os
 import socket
 
 from .params import RunParams, run_params
@@ -24,6 +25,8 @@ class Context:
 
         print("start initializing network address")
         self.config_network(self.params.network_config(self.global_seq))
+
+        os.environ["TMPDIR"] = self.params.test_temp_path
 
     def wait_network_ready(self):
         self.record_stage_start("network-initialized")
