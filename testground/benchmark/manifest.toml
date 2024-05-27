@@ -28,6 +28,3 @@ instances = { min = 1, max = 200, default = 1 }
 
 [testcases.params]
 chain_id = { type = "string", default = "testground" }
-timeout = { type = "string", default = "21m" }
-bandwidth = { type = "string", default = "420Mib" }
-latency = { type = "int", default = 0 }
