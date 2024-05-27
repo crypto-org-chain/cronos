@@ -87,7 +87,7 @@ class SyncService:
         "send one request, recv multiple responses"
 
         def on_recv(msg):
-            callback(msg["subscribe"] if msg is not None else None)
+            callback(json.loads(msg["subscribe"]) if msg is not None else None)
 
         id = self.next_id()
         self._handlers[id] = on_recv
