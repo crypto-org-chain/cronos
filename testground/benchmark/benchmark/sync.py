@@ -4,6 +4,7 @@ client for sync service
 
 import json
 import os
+import queue
 import threading
 
 import websocket
@@ -127,6 +128,14 @@ class SyncService:
     def subscribe(self, topic, callback):
         return self._subscribe(self._params.topic_key(topic), callback)
 
+    def subscribe_simple(self, topic, n):
+        """
+        subscribe_simple wait for exactly n messages on the topic and return them
+        """
+        q = queue.Queue()
+        self.subscribe(topic, q.put)
+        return [q.get() for _ in range(n)]
+
     def _send(self, payload):
         self.ws.send(json.dumps(payload))
 
@@ -152,6 +161,10 @@ class SyncService:
         seq = self.publish(topic, payload)
         self.subscribe(topic, callback)
         return seq
+
+    def publish_subscribe_simple(self, topic, payload, n):
+        self.publish(topic, payload)
+        return self.subscribe_simple(topic, n)
 
     def signal_and_wait(self, state, target):
         seq = self.signal_entry(state)

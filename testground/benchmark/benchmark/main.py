@@ -16,16 +16,11 @@ def entrypoint(ctx: Context):
 
     print("global_seq:", ctx.global_seq, "group_seq:", ctx.group_seq)
 
-    # share the peer addresses
-    q = queue.Queue()
+    # broadcast the peer addresses
     addr = get_data_ip(ctx.params)
-    ctx.sync.publish_subscribe("peers", str(addr), q.put)
-    peers = {q.get() for i in range(ctx.params.test_instance_count)}
-    if len(peers) != ctx.params.test_instance_count:
-        ctx.record_failure("peer addresses are not unique")
-        ctx.sync.signal_and_wait("failed", ctx.params.test_instance_count)
-        return
-
+    peers = ctx.sync.publish_subscribe_simple(
+        "peers", str(addr), ctx.params.test_instance_count
+    )
     print("peers", peers)
 
     cmd = ChainCommand("/bin/cronosd")
