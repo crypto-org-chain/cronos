@@ -98,6 +98,10 @@ class RunParams(BaseModel):
     def is_validator(self) -> bool:
         return self.test_group_id == VALIDATOR_GROUP_ID
 
+    @property
+    def chain_id(self) -> str:
+        return self.test_instance_params["chain_id"]
+
 
 def run_params(env=None) -> RunParams:
     if env is None:

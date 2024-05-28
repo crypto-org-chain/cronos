@@ -3,7 +3,7 @@ import os
 from pystarport.cosmoscli import ChainCommand
 
 from .context import Context
-from .network import get_data_ip
+from .peer import bootstrap
 
 
 def influxdb_url():
@@ -16,15 +16,10 @@ def entrypoint(ctx: Context):
     print("params", ctx.params)
     print("global_seq:", ctx.global_seq, "group_seq:", ctx.group_seq)
 
-    # broadcast the peer addresses
-    addr = get_data_ip(ctx.params)
-    peers = ctx.sync.publish_subscribe_simple(
-        "peers", str(addr), ctx.params.test_instance_count
-    )
-    print("peers", peers)
-
-    cmd = ChainCommand("/bin/cronosd")
-    print(cmd("version", "--long").decode())
+    # broadcast the peer information
+    cli = ChainCommand("/bin/cronosd")
+    peers, genesis = bootstrap(ctx, cli)
+    print("peers", len(peers))
 
     ctx.record_success()
 

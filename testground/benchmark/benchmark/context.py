@@ -101,7 +101,7 @@ class Context:
 
     @property
     def is_validator(self) -> bool:
-        return self.params.is_validator()
+        return self.params.is_validator
 
     def __enter__(self):
         return self
