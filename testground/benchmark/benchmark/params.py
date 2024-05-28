@@ -106,6 +106,10 @@ class RunParams(BaseModel):
     def chain_id(self) -> str:
         return self.test_instance_params["chain_id"]
 
+    @property
+    def halt_height(self) -> int:
+        return int(self.test_instance_params["halt_height"])
+
 
 def run_params(env=None) -> RunParams:
     if env is None:

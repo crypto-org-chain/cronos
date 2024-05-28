@@ -12,6 +12,7 @@ disable_metrics = false
 
 [global.run.test_params]
 chain_id = "cronos_777-1"
+halt_height = "10"
 
 [[groups]]
 id = "validators"
