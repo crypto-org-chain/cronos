@@ -57,9 +57,9 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
                     # added in gentx
                     continue
                 cli("genesis", "add-genesis-account", account.address, account.balance)
-        genesis = collect_gen_tx(cli, peers)
+        collect_gen_tx(cli, peers)
         cli("genesis", "validate")
-        ctx.sync.publish("genesis", genesis)
+        ctx.sync.publish("genesis", (config_path / "genesis.json").read_text())
     else:
         genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
         genesis_file = config_path / "genesis.json"
@@ -113,8 +113,7 @@ def collect_gen_tx(cli, peers):
         for i, peer in enumerate(peers):
             if peer.gentx is not None:
                 (tmpdir / f"gentx-{i}.json").write_text(json.dumps(peer.gentx))
-        stdout = cli("genesis", "collect-gentxs", gentx_dir=str(tmpdir))
-        return json.loads(stdout.decode())
+        cli("genesis", "collect-gentxs", gentx_dir=str(tmpdir))
 
 
 def get_node_id(cli):
