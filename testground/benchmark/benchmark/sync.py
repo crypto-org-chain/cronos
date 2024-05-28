@@ -189,6 +189,8 @@ class Condition:
 
     def wait(self):
         with self._cond:
+            if self._value is not None:
+                return self._value
             self._cond.wait()
             return self._value
 
