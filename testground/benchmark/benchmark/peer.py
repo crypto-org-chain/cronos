@@ -7,7 +7,7 @@ from .context import Context
 from .network import get_data_ip
 from .topology import connect_all
 from .types import GenesisAccount, PeerPacket
-from .utils import patch_toml
+from .utils import patch_json, patch_toml
 
 INITIAL_AMOUNT = "10000000basecro"
 STAKED_AMOUNT = "10000000basecro"
@@ -59,7 +59,14 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
                 cli("genesis", "add-genesis-account", account.address, account.balance)
         collect_gen_tx(cli, peers)
         cli("genesis", "validate")
-        ctx.sync.publish("genesis", (config_path / "genesis.json").read_text())
+        patch_json(
+            config_path / "genesis.json",
+            {
+                "consensus.params.block.max_gas": "81500000",
+            },
+        )
+        genesis = json.loads((config_path / "genesis.json").read_text())
+        ctx.sync.publish("genesis", genesis)
     else:
         genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
         genesis_file = config_path / "genesis.json"
