@@ -36,10 +36,11 @@ Import the test plan before the first run:
 $ TESTGROUND_HOME=$PWD/data testground plan import --from /path/to/cronos/testground/benchmark
 ```
 
-Run the benchmark test plan locally:
+Run the benchmark test plan in local docker environment:
 
 ```
-$ testground run single --plan=benchmark --instances=2 --testcase=entrypoint --builder=docker:generic --runner=local:docker --wait
+$ cd /path/to/cronos/testground/benchmark
+$ testground run composition -f compositions/local.toml --wait
 ```
 
 ### macOS
