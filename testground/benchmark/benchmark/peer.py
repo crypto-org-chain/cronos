@@ -1,29 +1,16 @@
 import json
-import pathlib
 import tempfile
 from pathlib import Path
-from typing import List, Optional
-
-from pydantic import BaseModel
+from typing import List
 
 from .context import Context
 from .network import get_data_ip
+from .topology import connect_all
+from .types import GenesisAccount, PeerPacket
+from .utils import patch_toml
 
 INITIAL_AMOUNT = "10000000basecro"
 STAKED_AMOUNT = "10000000basecro"
-
-
-class GenesisAccount(BaseModel):
-    address: str
-    balance: str
-
-
-class PeerPacket(BaseModel):
-    ip: str
-    node_id: str
-    peer_id: str
-    accounts: List[GenesisAccount]
-    gentx: Optional[dict] = None
 
 
 def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
@@ -32,6 +19,7 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         "init",
         f"node{ctx.global_seq}",
         chain_id=ctx.params.chain_id,
+        default_denom="basecro",
     )
     cli("keys", "add", "validator", keyring_backend="test")
 
@@ -57,8 +45,9 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
     data = ctx.sync.publish_subscribe_simple(
         "peers", peer.dict(), ctx.params.test_instance_count
     )
-    peers: List[PeerPacket] = list(map(PeerPacket.model_validate, data))
+    peers: List[PeerPacket] = [PeerPacket.model_validate(item) for item in data]
 
+    config_path = Path.home() / ".cronos" / "config"
     if ctx.is_leader:
         # prepare genesis file and publish
         for peer in peers:
@@ -73,11 +62,23 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         ctx.sync.publish("genesis", genesis)
     else:
         genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
-        (pathlib.Path.home() / ".cronos" / "config" / "genesis.json").write_text(
-            json.dumps(genesis)
-        )
+        genesis_file = config_path / "genesis.json"
+        genesis_file.write_text(json.dumps(genesis))
+        cli("genesis", "validate")
 
-    return peers, genesis
+    # update persistent_peers in config.toml
+    patch_toml(
+        config_path / "config.toml",
+        {
+            "p2p.persistent_peers": connect_all(peer, peers),
+        },
+    )
+    patch_toml(
+        config_path / "app.toml",
+        {
+            "minimum-gas-prices": "0basecro",
+        },
+    )
 
 
 def gentx(cli, chain_id):

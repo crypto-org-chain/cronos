@@ -1,9 +1,12 @@
 import os
+import subprocess
 
 from pystarport.cosmoscli import ChainCommand
 
 from .context import Context
 from .peer import bootstrap
+
+CRONOSD_PATH = "/bin/cronosd"
 
 
 def influxdb_url():
@@ -17,9 +20,12 @@ def entrypoint(ctx: Context):
     print("global_seq:", ctx.global_seq, "group_seq:", ctx.group_seq)
 
     # broadcast the peer information
-    cli = ChainCommand("/bin/cronosd")
-    peers, genesis = bootstrap(ctx, cli)
-    print("peers", len(peers))
+    cli = ChainCommand(CRONOSD_PATH)
+    bootstrap(ctx, cli)
+
+    # start the node
+    with subprocess.Popen([CRONOSD_PATH, "start", "--halt-height", "100"]) as proc:
+        proc.wait()
 
     ctx.record_success()
 
