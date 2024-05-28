@@ -173,6 +173,17 @@ def prepare_network(
 
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
         path = cronos.base_dir.parent / "relayer"
+        w3 = cronos.w3
+        acc = derive_new_account(2)
+        sender = acc.address
+        # fund new sender to deploy contract with same address
+        if w3.eth.get_balance(sender, "latest") == 0:
+            fund = 3000000000000000000
+            tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+            send_transaction(w3, tx)
+            assert w3.eth.get_balance(sender, "latest") == fund
+        caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
+        assert caller == RELAYER_CALLER, caller
         if is_hermes:
             hermes = Hermes(path.with_suffix(".toml"))
             call_hermes_cmd(
@@ -182,17 +193,6 @@ def prepare_network(
                 version,
             )
         else:
-            w3 = cronos.w3
-            acc = derive_new_account(2)
-            sender = acc.address
-            # fund new sender to deploy contract with same address
-            if w3.eth.get_balance(sender, "latest") == 0:
-                fund = 3000000000000000000
-                tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
-                send_transaction(w3, tx)
-                assert w3.eth.get_balance(sender, "latest") == fund
-            caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
-            assert caller == RELAYER_CALLER, caller
             call_rly_cmd(path, connection_only, version)
 
         if incentivized:
@@ -347,7 +347,7 @@ def get_balances(chain, addr):
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
     # FIXME: more users after batch fix
-    users = [f"user{i}" for i in range(1, 2)]
+    users = [f"user{i}" for i in range(1, 51)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
