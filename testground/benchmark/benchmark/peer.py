@@ -23,7 +23,9 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
     )
     cli("keys", "add", "validator", keyring_backend="test")
 
-    validator_addr = show_address(cli, "validator")
+    validator_addr = cli(
+        "keys", "show", "validator", "--address", keyring_backend="test"
+    )
     accounts = [
         GenesisAccount(
             address=validator_addr,
@@ -31,7 +33,7 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         )
     ]
 
-    node_id = get_node_id(cli)
+    node_id = cli("comet", "show-node-id")
     peer_id = f"{node_id}@{ip}:26656"
     peer = PeerPacket(
         ip=str(ip),
@@ -121,13 +123,3 @@ def collect_gen_tx(cli, peers):
             if peer.gentx is not None:
                 (tmpdir / f"gentx-{i}.json").write_text(json.dumps(peer.gentx))
         cli("genesis", "collect-gentxs", gentx_dir=str(tmpdir))
-
-
-def get_node_id(cli):
-    return cli("comet", "show-node-id").decode().strip()
-
-
-def show_address(cli, name):
-    return (
-        cli("keys", "show", name, "--address", keyring_backend="test").decode().strip()
-    )

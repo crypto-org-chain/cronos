@@ -3,9 +3,20 @@ import os
 from datetime import datetime
 from typing import Dict, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
+from pydantic.functional_validators import BeforeValidator
+from typing_extensions import Annotated
 
 VALIDATOR_GROUP_ID = "validators"
+
+
+def parse_dict(s: any) -> Dict[str, str]:
+    if isinstance(s, str):
+        return dict(part.split("=") for part in s.split("|"))
+    return s
+
+
+Params = Annotated[dict, BeforeValidator(parse_dict)]
 
 
 class RunParams(BaseModel):
@@ -14,7 +25,7 @@ class RunParams(BaseModel):
     test_group_id: Optional[str] = ""
     test_group_instance_count: Optional[int] = 0
     test_instance_count: Optional[int] = 0
-    test_instance_params: Optional[dict] = None
+    test_instance_params: Optional[Params] = None
     test_instance_role: Optional[str] = ""
     test_outputs_path: Optional[str] = ""
     test_plan: Optional[str] = ""
@@ -27,13 +38,6 @@ class RunParams(BaseModel):
     test_capture_profiles: Optional[str] = ""
     test_temp_path: Optional[str] = ""
     log_level: Optional[str] = ""
-
-    @validator("test_instance_params", pre=True)
-    @classmethod
-    def validate_test_instance_params(cls, s):
-        if isinstance(s, str):
-            return parse_dict(s)
-        return s
 
     def events_key(self):
         return (
@@ -108,14 +112,8 @@ def run_params(env=None) -> RunParams:
         env = os.environ
 
     d = {
-        name: env[name.upper()] for name in RunParams.__fields__ if name.upper() in env
+        name: env[name.upper()]
+        for name in RunParams.model_fields
+        if name.upper() in env
     }
     return RunParams(**d)
-
-
-def parse_bool(s: str) -> bool:
-    return s == "true"
-
-
-def parse_dict(s: str) -> Dict[str, str]:
-    return dict(part.split("=") for part in s.split("|"))

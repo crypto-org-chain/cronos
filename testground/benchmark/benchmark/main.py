@@ -1,8 +1,7 @@
 import os
 import subprocess
 
-from pystarport.cosmoscli import ChainCommand
-
+from .cli import ChainCommand
 from .context import Context
 from .peer import bootstrap
 
@@ -16,15 +15,13 @@ def influxdb_url():
 def entrypoint(ctx: Context):
     ctx.init_common()
 
-    print("params", ctx.params)
-    print("global_seq:", ctx.global_seq, "group_seq:", ctx.group_seq)
-
-    # broadcast the peer information
     cli = ChainCommand(CRONOSD_PATH)
+
+    # build the genesis file collectively, and setup the network topology
     bootstrap(ctx, cli)
 
     # start the node
-    with subprocess.Popen([CRONOSD_PATH, "start", "--halt-height", "100"]) as proc:
+    with subprocess.Popen([CRONOSD_PATH, "start", "--halt-height", "10"]) as proc:
         proc.wait()
 
     ctx.record_success()
