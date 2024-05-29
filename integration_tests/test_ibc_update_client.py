@@ -55,7 +55,7 @@ def test_ibc_update_client_via_proposal(ibc):
         "--reference-chain",
         "chainmain-1",
     ]
-    trust_period = "30s"
+    trust_period = "45s"
     subprocess.check_call(cmd + ["--trusting-period", trust_period])
     # create new connection with new client
     cmd = cmd0 + [
