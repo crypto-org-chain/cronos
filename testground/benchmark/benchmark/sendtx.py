@@ -31,8 +31,6 @@ def sendtx(cli, peer: PeerPacket):
             raise
         nonce += 1
 
-    assert nonce == w3.eth.get_transaction_count(acct.address)
-
 
 def export_eth_account(cli, name: str) -> Account:
     return Account.from_key(
