@@ -12,16 +12,16 @@ disable_metrics = false
 
 [global.run.test_params]
 chain_id = "cronos_777-1"
-halt_height = "10"
+halt_height = "5"
 
 [[groups]]
 id = "validators"
 builder = "docker:nix"
 [groups.instances]
-percentage = 0.5
+count = 1
 
 [[groups]]
 id = "fullnodes"
 builder = "docker:nix"
 [groups.instances]
-percentage = 0.5
+count = 9

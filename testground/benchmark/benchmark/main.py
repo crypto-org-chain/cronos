@@ -1,11 +1,11 @@
-import json
 import os
 import subprocess
 
 from .cli import ChainCommand
 from .context import Context
 from .peer import bootstrap
-from .utils import wait_for_port
+from .sendtx import sendtx
+from .utils import wait_for_block, wait_for_port
 
 CRONOSD_PATH = "/bin/cronosd"
 
@@ -20,25 +20,29 @@ def entrypoint(ctx: Context):
     cli = ChainCommand(CRONOSD_PATH)
 
     # build the genesis file collectively, and setup the network topology
-    bootstrap(ctx, cli)
+    peer = bootstrap(ctx, cli)
 
     # start the node
-    proc = subprocess.Popen([CRONOSD_PATH, "start"])
+    kwargs = {"stdout": subprocess.DEVNULL}
+    if ctx.is_leader:
+        del kwargs["stdout"]
+    proc = subprocess.Popen([CRONOSD_PATH, "start"], **kwargs)
 
-    # wait until halt-height
     wait_for_port(26657)
-    while True:
-        status = json.loads(cli("status", output="json"))
-        height = int(status["sync_info"]["latest_block_height"])
+    wait_for_port(8545)
+    wait_for_block(cli, 1)
 
-        if height >= ctx.params.halt_height:
-            break
+    if not ctx.is_validator:
+        sendtx(cli, peer)
 
-    # halt together
+    # halt after all tasks are done
     ctx.sync.signal_and_wait("halt", ctx.params.test_instance_count)
 
-    proc.terminate()
-    proc.wait(5)
+    proc.kill()
+    try:
+        proc.wait(5)
+    except subprocess.TimeoutExpired:
+        pass
     ctx.record_success()
 
 

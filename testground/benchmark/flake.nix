@@ -6,6 +6,7 @@
       url = "github:crypto-org-chain/cronos/main";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
+      inputs.poetry2nix.url = "github:nix-community/poetry2nix";
     };
   };
 
@@ -19,6 +20,7 @@
               durations = [ "setuptools" ];
               multitail2 = [ "setuptools" ];
               docker = [ "hatchling" "hatch-vcs" ];
+              pyunormalize = [ "setuptools" ];
             };
           in
           lib.mapAttrs

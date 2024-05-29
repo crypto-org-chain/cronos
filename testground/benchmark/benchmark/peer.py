@@ -9,11 +9,12 @@ from .topology import connect_all
 from .types import GenesisAccount, PeerPacket
 from .utils import patch_json, patch_toml
 
-INITIAL_AMOUNT = "10000000basecro"
-STAKED_AMOUNT = "10000000basecro"
+VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
+VAL_STAKED_AMOUNT = "10000000000000000000basecro"
+ACC_INITIAL_AMOUNT = "100000000000000000000basecro"
 
 
-def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
+def bootstrap(ctx: Context, cli) -> PeerPacket:
     ip = get_data_ip(ctx.params)
     cli(
         "init",
@@ -21,16 +22,22 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         chain_id=ctx.params.chain_id,
         default_denom="basecro",
     )
-    cli("keys", "add", "validator", keyring_backend="test")
 
+    cli("keys", "add", "validator", keyring_backend="test")
+    cli("keys", "add", "account", keyring_backend="test")
     validator_addr = cli(
         "keys", "show", "validator", "--address", keyring_backend="test"
     )
+    account_addr = cli("keys", "show", "account", "--address", keyring_backend="test")
     accounts = [
         GenesisAccount(
             address=validator_addr,
-            balance=INITIAL_AMOUNT,
-        )
+            balance=VAL_INITIAL_AMOUNT,
+        ),
+        GenesisAccount(
+            address=account_addr,
+            balance=ACC_INITIAL_AMOUNT,
+        ),
     ]
 
     node_id = cli("comet", "show-node-id")
@@ -41,6 +48,7 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         peer_id=peer_id,
         accounts=accounts,
     )
+
     if ctx.is_validator:
         peer.gentx = gentx(cli, ctx.params.chain_id)
 
@@ -61,13 +69,13 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
                 cli("genesis", "add-genesis-account", account.address, account.balance)
         collect_gen_tx(cli, peers)
         cli("genesis", "validate")
-        patch_json(
+        genesis = patch_json(
             config_path / "genesis.json",
             {
                 "consensus.params.block.max_gas": "81500000",
+                "app_state.evm.params.evm_denom": "basecro",
             },
         )
-        genesis = json.loads((config_path / "genesis.json").read_text())
         ctx.sync.publish("genesis", genesis)
     else:
         genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
@@ -80,6 +88,7 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         config_path / "config.toml",
         {
             "p2p.persistent_peers": connect_all(peer, peers),
+            "mempool.recheck": "false",
         },
     )
     patch_toml(
@@ -89,13 +98,15 @@ def bootstrap(ctx: Context, cli) -> List[PeerPacket]:
         },
     )
 
+    return peer
+
 
 def gentx(cli, chain_id):
     cli(
         "genesis",
         "add-genesis-account",
         "validator",
-        INITIAL_AMOUNT,
+        VAL_INITIAL_AMOUNT,
         keyring_backend="test",
     )
     output = Path("gentx.json")
@@ -103,7 +114,7 @@ def gentx(cli, chain_id):
         "genesis",
         "gentx",
         "validator",
-        STAKED_AMOUNT,
+        VAL_STAKED_AMOUNT,
         min_self_delegation=1,
         chain_id=chain_id,
         output_document=output,
