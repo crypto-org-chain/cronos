@@ -18,10 +18,10 @@ halt_height = "5"
 id = "validators"
 builder = "docker:nix"
 [groups.instances]
-count = 1
+count = 3
 
 [[groups]]
 id = "fullnodes"
 builder = "docker:nix"
 [groups.instances]
-count = 9
+count = 7
