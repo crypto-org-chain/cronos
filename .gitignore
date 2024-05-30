@@ -8,7 +8,7 @@ go.work
 go.work.sum
 
 # nix
-/result
+result
 
 # pystarport
 /data
