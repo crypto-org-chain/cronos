@@ -38,9 +38,8 @@ $ TESTGROUND_HOME=$PWD/data testground plan import --from /path/to/cronos/testgr
 
 Run the benchmark test plan in local docker environment:
 
-```
-$ cd /path/to/cronos/testground/benchmark
-$ testground run composition -f compositions/local.toml --wait
+```bash
+$ testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
 ```
 
 ### macOS
@@ -48,10 +47,10 @@ $ testground run composition -f compositions/local.toml --wait
 If you use `colima` as docker runtime on macOS, create the symbolic link `/var/run/docker.sock`:
 
 ```bash
-$ sudo ln -s /Users/huangyi/.colima/docker.sock /var/run/docker.sock
+$ sudo ln -s $HOME/.colima/docker.sock /var/run/docker.sock
 ```
 
-And mount the directories into the virtual machine:
+And mount the related directories into the virtual machine:
 
 ```toml
 mounts:
