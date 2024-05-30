@@ -14,8 +14,6 @@ tomlkit = "^0"
 web3 = "^6"
 hexbytes = "^0"
 bech32 = "^1"
-# pin to older version to avoid building ckzg dependency with nix
-eth-account = "=0.11.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"
