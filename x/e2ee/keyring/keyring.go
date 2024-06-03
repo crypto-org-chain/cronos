@@ -1,26 +1,18 @@
 package keyring
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
+	"reflect"
+	"unsafe"
 
 	"github.com/99designs/keyring"
-	"golang.org/x/crypto/bcrypt"
 
-	errorsmod "cosmossdk.io/errors"
-	"github.com/cosmos/cosmos-sdk/client/input"
 	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
-const (
-	keyringFileDirName         = "e2ee-keyring-file"
-	keyringTestDirName         = "e2ee-keyring-test"
-	passKeyringPrefix          = "e2ee-keyring-%s" //nolint: gosec
-	maxPassphraseEntryAttempts = 3
-)
+const keyringDirPrefix = "e2ee-keyring-%s"
 
 type Keyring interface {
 	Get(string) ([]byte, error)
@@ -30,60 +22,31 @@ type Keyring interface {
 func New(
 	appName, backend, rootDir string, userInput io.Reader,
 ) (Keyring, error) {
-	var (
-		db  keyring.Keyring
-		err error
-	)
 	serviceName := appName + "-e2ee"
-	switch backend {
-	case sdkkeyring.BackendMemory:
-		return newKeystore(keyring.NewArrayKeyring(nil), sdkkeyring.BackendMemory), nil
-	case sdkkeyring.BackendTest:
-		db, err = keyring.Open(keyring.Config{
-			AllowedBackends: []keyring.BackendType{keyring.FileBackend},
-			ServiceName:     serviceName,
-			FileDir:         filepath.Join(rootDir, keyringTestDirName),
-			FilePasswordFunc: func(_ string) (string, error) {
-				return "test", nil
-			},
-		})
-	case sdkkeyring.BackendFile:
-		fileDir := filepath.Join(rootDir, keyringFileDirName)
-		db, err = keyring.Open(keyring.Config{
-			AllowedBackends:  []keyring.BackendType{keyring.FileBackend},
-			ServiceName:      serviceName,
-			FileDir:          fileDir,
-			FilePasswordFunc: newRealPrompt(fileDir, userInput),
-		})
-	case sdkkeyring.BackendOS:
-		db, err = keyring.Open(keyring.Config{
-			ServiceName:              serviceName,
-			FileDir:                  rootDir,
-			KeychainTrustApplication: true,
-			FilePasswordFunc:         newRealPrompt(rootDir, userInput),
-		})
-	case sdkkeyring.BackendKWallet:
-		db, err = keyring.Open(keyring.Config{
-			AllowedBackends: []keyring.BackendType{keyring.KWalletBackend},
-			ServiceName:     "kdewallet",
-			KWalletAppID:    serviceName,
-			KWalletFolder:   "",
-		})
-	case sdkkeyring.BackendPass:
-		prefix := fmt.Sprintf(passKeyringPrefix, serviceName)
-		db, err = keyring.Open(keyring.Config{
-			AllowedBackends: []keyring.BackendType{keyring.PassBackend},
-			ServiceName:     serviceName,
-			PassPrefix:      prefix,
-		})
-	default:
-		return nil, errorsmod.Wrap(sdkkeyring.ErrUnknownBacked, backend)
+	var db keyring.Keyring
+	if backend == sdkkeyring.BackendMemory {
+		db = keyring.NewArrayKeyring(nil)
+	} else {
+		kr, err := sdkkeyring.New(serviceName, backend, rootDir, userInput, nil)
+		if err != nil {
+			return nil, err
+		}
+		db = kr.DB()
+		switch backend {
+		case sdkkeyring.BackendTest, sdkkeyring.BackendFile:
+			fileDir := filepath.Join(rootDir, fmt.Sprintf(keyringDirPrefix, backend))
+			el := reflect.ValueOf(db).Elem()
+			if f := el.FieldByName("dir"); f.IsValid() {
+				reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().SetString(fileDir)
+			}
+		case sdkkeyring.BackendPass:
+			prefix := fmt.Sprintf(keyringDirPrefix, serviceName)
+			el := reflect.ValueOf(db).Elem()
+			if f := el.FieldByName("prefix"); f.IsValid() {
+				reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().SetString(prefix)
+			}
+		}
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
 	return newKeystore(db, backend), nil
 }
 
@@ -116,87 +79,4 @@ func (ks keystore) Set(name string, secret []byte) error {
 		Data:  secret,
 		Label: name,
 	})
-}
-
-func newRealPrompt(dir string, buf io.Reader) func(string) (string, error) {
-	return func(prompt string) (string, error) {
-		keyhashStored := false
-		keyhashFilePath := filepath.Join(dir, "keyhash")
-
-		var keyhash []byte
-
-		_, err := os.Stat(keyhashFilePath)
-
-		switch {
-		case err == nil:
-			keyhash, err = os.ReadFile(keyhashFilePath)
-			if err != nil {
-				return "", errorsmod.Wrap(err, fmt.Sprintf("failed to read %s", keyhashFilePath))
-			}
-
-			keyhashStored = true
-
-		case os.IsNotExist(err):
-			keyhashStored = false
-
-		default:
-			return "", errorsmod.Wrap(err, fmt.Sprintf("failed to open %s", keyhashFilePath))
-		}
-
-		failureCounter := 0
-
-		for {
-			failureCounter++
-			if failureCounter > maxPassphraseEntryAttempts {
-				return "", sdkkeyring.ErrMaxPassPhraseAttempts
-			}
-
-			buf := bufio.NewReader(buf)
-			pass, err := input.GetPassword(fmt.Sprintf("Enter keyring passphrase (attempt %d/%d):", failureCounter, maxPassphraseEntryAttempts), buf)
-			if err != nil {
-				// NOTE: LGTM.io reports a false positive alert that states we are printing the password,
-				// but we only log the error.
-				//
-				// lgtm [go/clear-text-logging]
-				fmt.Fprintln(os.Stderr, err)
-				continue
-			}
-
-			if keyhashStored {
-				if err := bcrypt.CompareHashAndPassword(keyhash, []byte(pass)); err != nil {
-					fmt.Fprintln(os.Stderr, "incorrect passphrase")
-					continue
-				}
-
-				return pass, nil
-			}
-
-			reEnteredPass, err := input.GetPassword("Re-enter keyring passphrase:", buf)
-			if err != nil {
-				// NOTE: LGTM.io reports a false positive alert that states we are printing the password,
-				// but we only log the error.
-				//
-				// lgtm [go/clear-text-logging]
-				fmt.Fprintln(os.Stderr, err)
-				continue
-			}
-
-			if pass != reEnteredPass {
-				fmt.Fprintln(os.Stderr, "passphrase do not match")
-				continue
-			}
-
-			passwordHash, err := bcrypt.GenerateFromPassword([]byte(pass), 2)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				continue
-			}
-
-			if err := os.WriteFile(keyhashFilePath, passwordHash, 0o600); err != nil {
-				return "", err
-			}
-
-			return pass, nil
-		}
-	}
 }
