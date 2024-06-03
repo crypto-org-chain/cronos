@@ -1,12 +1,18 @@
 package keyring
 
 import (
+	"fmt"
 	"io"
+	"path/filepath"
+	"reflect"
+	"unsafe"
 
 	"github.com/99designs/keyring"
 
 	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
+
+const keyringDirPrefix = "e2ee-keyring-%s"
 
 type Keyring interface {
 	Get(string) ([]byte, error)
@@ -26,6 +32,20 @@ func New(
 			return nil, err
 		}
 		db = kr.DB()
+		switch backend {
+		case sdkkeyring.BackendTest, sdkkeyring.BackendFile:
+			fileDir := filepath.Join(rootDir, fmt.Sprintf(keyringDirPrefix, backend))
+			el := reflect.ValueOf(db).Elem()
+			if f := el.FieldByName("dir"); f.IsValid() {
+				reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().SetString(fileDir)
+			}
+		case sdkkeyring.BackendPass:
+			prefix := fmt.Sprintf(keyringDirPrefix, serviceName)
+			el := reflect.ValueOf(db).Elem()
+			if f := el.FieldByName("prefix"); f.IsValid() {
+				reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().SetString(prefix)
+			}
+		}
 	}
 	return newKeystore(db, backend), nil
 }
