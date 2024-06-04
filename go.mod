@@ -5,24 +5,24 @@ go 1.22
 toolchain go1.22.0
 
 require (
-	cosmossdk.io/api v0.7.3
+	cosmossdk.io/api v0.7.5
 	cosmossdk.io/client/v2 v2.0.0-beta.2
 	cosmossdk.io/core v0.11.0
 	cosmossdk.io/errors v1.0.1
 	cosmossdk.io/log v1.3.1
 	cosmossdk.io/math v1.3.0
 	cosmossdk.io/simapp v0.0.0-20230608160436-666c345ad23d
-	cosmossdk.io/store v1.0.2
+	cosmossdk.io/store v1.1.0
 	cosmossdk.io/tools/confix v0.1.1
 	cosmossdk.io/x/evidence v0.1.0
 	cosmossdk.io/x/feegrant v0.1.0
 	cosmossdk.io/x/upgrade v0.1.1
 	filippo.io/age v1.1.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.38.7-0.20240412124004-1f67e396cf45
+	github.com/cometbft/cometbft v0.38.7
 	github.com/cosmos/cosmos-db v1.0.3-0.20240408151834-e75f6e4b28d8
-	github.com/cosmos/cosmos-proto v1.0.0-beta.4
-	github.com/cosmos/cosmos-sdk v0.50.5
+	github.com/cosmos/cosmos-proto v1.0.0-beta.5
+	github.com/cosmos/cosmos-sdk v0.50.6
 	github.com/cosmos/gogoproto v1.4.12
 	github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240410121711-d89cb0895b1e
 	github.com/cosmos/ibc-go/modules/capability v1.0.0
@@ -43,7 +43,7 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
 	github.com/test-go/testify v1.1.4
-	golang.org/x/crypto v0.21.0
+	golang.org/x/crypto v0.22.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
@@ -58,7 +58,7 @@ require (
 	cloud.google.com/go/storage v1.36.0 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/depinject v1.0.0-alpha.4 // indirect
-	cosmossdk.io/x/tx v0.13.1 // indirect
+	cosmossdk.io/x/tx v0.13.3 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
@@ -78,7 +78,7 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
 	github.com/cockroachdb/errors v1.11.1 // indirect
@@ -90,7 +90,7 @@ require (
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/iavl v1.0.3 // indirect
+	github.com/cosmos/iavl v1.1.2 // indirect
 	github.com/cosmos/ics23/go v0.10.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.3 // indirect
 	github.com/cosmos/rosetta-sdk-go v0.10.0 // indirect
@@ -188,10 +188,10 @@ require (
 	github.com/petermattis/goid v0.0.0-20231207134359-e60b3f734c67 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.18.0 // indirect
-	github.com/prometheus/client_model v0.6.0 // indirect
-	github.com/prometheus/common v0.47.0 // indirect
-	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/prometheus/client_golang v1.19.0 // indirect
+	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/common v0.52.2 // indirect
+	github.com/prometheus/procfs v0.13.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
@@ -228,20 +228,20 @@ require (
 	go.opentelemetry.io/otel/metric v1.22.0 // indirect
 	go.opentelemetry.io/otel/trace v1.22.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/mod v0.15.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/oauth2 v0.17.0 // indirect
-	golang.org/x/sync v0.6.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/term v0.18.0 // indirect
+	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/oauth2 v0.18.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/tools v0.20.0 // indirect
 	google.golang.org/api v0.162.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -253,10 +253,10 @@ require (
 
 // release/v0.50.x
 replace (
-	cosmossdk.io/client/v2 => github.com/crypto-org-chain/cosmos-sdk/client/v2 v2.0.0-20240415105151-0108877a3201
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240415105151-0108877a3201
-	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240415105151-0108877a3201
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20240415105151-0108877a3201
+	cosmossdk.io/client/v2 => github.com/crypto-org-chain/cosmos-sdk/client/v2 v2.0.0-20240604100318-cf12e5ad62e4
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240604100318-cf12e5ad62e4
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240604100318-cf12e5ad62e4
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20240604100318-cf12e5ad62e4
 )
 
 replace (

@@ -272,7 +272,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )["pool"][0]
-        return float(coin["amount"])
+        return coin
 
     def distribution_reward(self, delegator_addr, **kwargs):
         coin = json.loads(
