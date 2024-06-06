@@ -288,6 +288,8 @@ type App struct {
 
 	invCheckPeriod uint
 
+	pendingTxListeners []evmapp.PendingTxListener
+
 	// keys to access the substores
 	keys    map[string]*storetypes.KVStoreKey
 	tkeys   map[string]*storetypes.TransientStoreKey
@@ -1279,6 +1281,21 @@ func (app *App) AutoCliOpts() autocli.AppOptions {
 		ValidatorAddressCodec: authcodec.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		ConsensusAddressCodec: authcodec.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
 	}
+}
+
+// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions in CheckTx.
+func (app *App) RegisterPendingTxListener(listener evmapp.PendingTxListener) {
+	app.pendingTxListeners = append(app.pendingTxListeners, listener)
+}
+
+func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	res, err := app.BaseApp.CheckTx(req)
+	if err == nil && res.Code == 0 && req.Type == abci.CheckTxType_New {
+		for _, listener := range app.pendingTxListeners {
+			listener(req.Tx)
+		}
+	}
+	return res, err
 }
 
 // RegisterSwaggerAPI registers swagger route with API Server
