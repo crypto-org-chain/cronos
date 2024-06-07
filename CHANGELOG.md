@@ -21,6 +21,7 @@
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
 * (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
 * [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
+* [#1464](https://github.com/crypto-org-chain/cronos/pull/1464) Update cosmos-sdk to `v0.50.7`.
 
 ### Bug Fixes
 

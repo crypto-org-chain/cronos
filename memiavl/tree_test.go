@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/store/wrapper"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
@@ -59,7 +60,7 @@ func init() {
 	ChangeSets = append(ChangeSets, changes)
 
 	// generate ref hashes with ref impl
-	d := db.NewMemDB()
+	d := wrapper.NewDBWrapper(db.NewMemDB())
 	refTree := iavl.NewMutableTree(d, 0, true, log.NewNopLogger())
 	for _, changes := range ChangeSets {
 		if err := applyChangeSetRef(refTree, changes); err != nil {
