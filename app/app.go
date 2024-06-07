@@ -126,6 +126,7 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
+	evmapp "github.com/evmos/ethermint/app"
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
@@ -329,6 +330,8 @@ type App struct {
 	interfaceRegistry types.InterfaceRegistry
 
 	invCheckPeriod uint
+
+	pendingTxListeners []evmapp.PendingTxListener
 
 	// keys to access the substores
 	keys    map[string]*storetypes.KVStoreKey
@@ -1210,6 +1213,21 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 		app.interfaceRegistry,
 		app.Query,
 	)
+}
+
+// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions in CheckTx.
+func (app *App) RegisterPendingTxListener(listener evmapp.PendingTxListener) {
+	app.pendingTxListeners = append(app.pendingTxListeners, listener)
+}
+
+func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
+	res := app.BaseApp.CheckTx(req)
+	if res.Code == 0 && req.Type == abci.CheckTxType_New {
+		for _, listener := range app.pendingTxListeners {
+			listener(req.Tx)
+		}
+	}
+	return res
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {
