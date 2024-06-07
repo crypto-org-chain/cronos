@@ -18,6 +18,7 @@
 
 * (rpc) [#1444](https://github.com/crypto-org-chain/cronos/pull/1444) Avoid nil pointer error when query blocks before feemarket module gets enabled.
 * [#1439](https://github.com/crypto-org-chain/cronos/pull/1439) Add back default prepare proposal logic.
+* [#1466](https://github.com/crypto-org-chain/cronos/pull/1466) Fix handling of pending transactions related APIs.
 
 *May 3, 2024*
 
