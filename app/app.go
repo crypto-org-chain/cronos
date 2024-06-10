@@ -165,6 +165,7 @@ import (
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
 	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
@@ -288,7 +289,7 @@ type App struct {
 
 	invCheckPeriod uint
 
-	pendingTxListeners []evmapp.PendingTxListener
+	pendingTxListeners []evmante.PendingTxListener
 
 	// keys to access the substores
 	keys    map[string]*storetypes.KVStoreKey
@@ -1053,7 +1054,8 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
 		},
-		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
+		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
+		PendingTxListener: app.onPendingTx,
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
@@ -1283,19 +1285,15 @@ func (app *App) AutoCliOpts() autocli.AppOptions {
 	}
 }
 
-// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions in CheckTx.
-func (app *App) RegisterPendingTxListener(listener evmapp.PendingTxListener) {
+// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions callback.
+func (app *App) RegisterPendingTxListener(listener evmante.PendingTxListener) {
 	app.pendingTxListeners = append(app.pendingTxListeners, listener)
 }
 
-func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	res, err := app.BaseApp.CheckTx(req)
-	if err == nil && res.Code == 0 && req.Type == abci.CheckTxType_New {
-		for _, listener := range app.pendingTxListeners {
-			listener(req.Tx)
-		}
+func (app *App) onPendingTx(hash common.Hash) {
+	for _, listener := range app.pendingTxListeners {
+		listener(hash)
 	}
-	return res, err
 }
 
 // RegisterSwaggerAPI registers swagger route with API Server
