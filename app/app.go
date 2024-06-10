@@ -126,7 +126,6 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/evmos/ethermint/app/ante"
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
@@ -1218,7 +1217,7 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 }
 
 // RegisterPendingTxListener is used by json-rpc server to listen to pending transactions callback.
-func (app *App) RegisterPendingTxListener(listener ante.PendingTxListener) {
+func (app *App) RegisterPendingTxListener(listener evmante.PendingTxListener) {
 	app.pendingTxListeners = append(app.pendingTxListeners, listener)
 }
 
