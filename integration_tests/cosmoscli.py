@@ -344,7 +344,7 @@ class CosmosCLI:
 
     def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "bank",
@@ -359,6 +359,9 @@ class CosmosCLI:
                 **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def get_delegated_amount(self, which_addr):
         return json.loads(
@@ -1555,7 +1558,7 @@ class CosmosCLI:
         default_kwargs = {
             "home": self.data_dir,
         }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc-fee",
@@ -1568,6 +1571,9 @@ class CosmosCLI:
                 **(default_kwargs | kwargs),
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def register_payee(self, port_id, channel_id, relayer, payee, **kwargs):
         default_kwargs = {

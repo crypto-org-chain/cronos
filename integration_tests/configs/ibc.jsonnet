@@ -51,18 +51,12 @@ config {
         coins: '2234240000000000000cro',
         staked: '10000000000000cro',
         mnemonic: '${VALIDATOR1_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'block',
-        },
         base_port: 26800,
       },
       {
         coins: '987870000000000000cro',
         staked: '20000000000000cro',
         mnemonic: '${VALIDATOR2_MNEMONIC}',
-        client_config: {
-          'broadcast-mode': 'block',
-        },
         base_port: 26810,
       },
     ],

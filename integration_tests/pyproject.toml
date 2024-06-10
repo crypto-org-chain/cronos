@@ -26,6 +26,7 @@ cprotobuf = "^0.1.11"
 flaky = "^3.7"
 eth-bloom = "^3.0"
 eth-hash = "^0"
+pyyaml = { git = "https://github.com/nitzmahone/pyyaml.git", branch = "cython3test" }
 
 [tool.poetry.dev-dependencies]
 

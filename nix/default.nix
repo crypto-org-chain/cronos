@@ -8,7 +8,7 @@ import sources.nixpkgs {
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo120Module;
+        buildGoModule = pkgs.buildGo121Module;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
