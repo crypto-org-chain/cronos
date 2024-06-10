@@ -126,7 +126,6 @@ import (
 	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
 	clientflags "github.com/cosmos/cosmos-sdk/client/flags"
-	evmapp "github.com/evmos/ethermint/app"
 	evmante "github.com/evmos/ethermint/app/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
@@ -158,6 +157,7 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
 
 	// Force-load the tracer engines to trigger registration
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
@@ -331,7 +331,7 @@ type App struct {
 
 	invCheckPeriod uint
 
-	pendingTxListeners []evmapp.PendingTxListener
+	pendingTxListeners []evmante.PendingTxListener
 
 	// keys to access the substores
 	keys    map[string]*storetypes.KVStoreKey
@@ -1039,7 +1039,8 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
 		},
-		ExtraDecorators: []sdk.AnteDecorator{blockAddressDecorator},
+		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
+		PendingTxListener: app.onPendingTx,
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
@@ -1215,19 +1216,15 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	)
 }
 
-// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions in CheckTx.
-func (app *App) RegisterPendingTxListener(listener evmapp.PendingTxListener) {
+// RegisterPendingTxListener is used by json-rpc server to listen to pending transactions callback.
+func (app *App) RegisterPendingTxListener(listener evmante.PendingTxListener) {
 	app.pendingTxListeners = append(app.pendingTxListeners, listener)
 }
 
-func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
-	res := app.BaseApp.CheckTx(req)
-	if res.Code == 0 && req.Type == abci.CheckTxType_New {
-		for _, listener := range app.pendingTxListeners {
-			listener(req.Tx)
-		}
+func (app *App) onPendingTx(hash common.Hash) {
+	for _, listener := range app.pendingTxListeners {
+		listener(hash)
 	}
-	return res
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context) {
