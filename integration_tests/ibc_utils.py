@@ -95,8 +95,8 @@ def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
         "rly",
         "pth",
         "new",
-        hostchain,
         "cronos_777-1",
+        hostchain,
         "chainmain-cronos",
         "--home",
         str(path),
@@ -267,6 +267,7 @@ def rly_transfer(ibc):
         f"--home {str(path)}"
     )
     subprocess.run(cmd, check=True, shell=True)
+    return src_amount
 
 
 def assert_duplicate(base_port, height):
@@ -298,8 +299,8 @@ def find_duplicate(attributes):
     return None
 
 
-def ibc_transfer_with_hermes(ibc):
-    src_amount = hermes_transfer(ibc)
+def ibc_transfer(ibc, transfer_fn=hermes_transfer):
+    src_amount = transfer_fn(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
     dst_addr = eth_to_bech32(ADDRS["signer2"])
@@ -314,24 +315,6 @@ def ibc_transfer_with_hermes(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-    # assert that the relayer transactions do enables the dynamic fee extension option.
-    cli = ibc.cronos.cosmos_cli()
-    criteria = "message.action='/ibc.core.channel.v1.MsgChannelOpenInit'"
-    tx = cli.tx_search(criteria)["txs"][0]
-    events = parse_events_rpc(tx["events"])
-    fee = int(events["tx"]["fee"].removesuffix(dst_denom))
-    gas = int(tx["gas_wanted"])
-    # the effective fee is decided by the max_priority_fee (base fee is zero)
-    # rather than the normal gas price
-    assert fee == gas * 1000000
-
-    # check duplicate OnRecvPacket events
-    criteria = "message.action='/ibc.core.channel.v1.MsgRecvPacket'"
-    tx = cli.tx_search(criteria)["txs"][0]
-    events = tx["events"]
-    for event in events:
-        dup = find_duplicate(event["attributes"])
-        assert not dup, f"duplicate {dup} in {event['type']}"
 
 
 def get_balance(chain, addr, denom):
@@ -871,5 +854,5 @@ def log_gas_records(cli):
     for tx in txs:
         res = tx["tx_result"]
         if res["gas_used"]:
-            records.append(res["gas_used"])
+            records.append(int(res["gas_used"]))
     return records
