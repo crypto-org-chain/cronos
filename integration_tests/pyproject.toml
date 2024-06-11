@@ -26,6 +26,7 @@ cprotobuf = "^0.1.11"
 flaky = "^3.7"
 eth-bloom = "^3.0"
 eth-hash = "^0"
+pyyaml = "^6.0.2rc1"
 
 [tool.poetry.dev-dependencies]
 

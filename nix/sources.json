@@ -5,10 +5,10 @@
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "04e8e094b7d51a8cf92b74c789394b7b34987b10",
-        "sha256": "1yqd2i8dwphjhdsvl3v7l8gvrjjl6i6pj4nq58lwcf3s6nhwy6d5",
+        "rev": "76ae54b533c0c419799d23508dc4362f5ea26d22",
+        "sha256": "0jdmxiv3zhkapr51hl9fqqw0qwsz0632ydhk2cyfamknjny81kk9",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/04e8e094b7d51a8cf92b74c789394b7b34987b10.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/76ae54b533c0c419799d23508dc4362f5ea26d22.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
@@ -54,10 +54,10 @@
         "homepage": null,
         "owner": "nix-community",
         "repo": "gomod2nix",
-        "rev": "30e3c3a9ec4ac8453282ca7f67fca9e1da12c3e6",
-        "sha256": "1m0q0p1xidsp61xfrbj8ld1dqk3fhyrfifxj2ks36yjbnzmi1x69",
+        "rev": "31b6d2e40b36456e792cd6cf50d5a8ddd2fa59a1",
+        "sha256": "0b8cmc8dk34pgcac5s1jvryfcn8kyhbzhh1i22rzv5kf00f09lhb",
         "type": "tarball",
-        "url": "https://github.com/nix-community/gomod2nix/archive/30e3c3a9ec4ac8453282ca7f67fca9e1da12c3e6.tar.gz",
+        "url": "https://github.com/nix-community/gomod2nix/archive/31b6d2e40b36456e792cd6cf50d5a8ddd2fa59a1.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
@@ -78,10 +78,10 @@
         "homepage": "",
         "owner": "informalsystems",
         "repo": "ibc-rs",
-        "rev": "1d2aa0c7108dc278e00731cc91bc366a418e2543",
-        "sha256": "08i1w1lcdwlpa70vzw305g0hh23q0mkby8fvf693zxq430y55gjs",
+        "rev": "a026d661a74b93ffdefdc9f431007b1a6b4e95d0",
+        "sha256": "134h0s80laifd0ln1lx9ljcmq8pxpi5s7xmf1q5bz1mrrwmpmk9q",
         "type": "tarball",
-        "url": "https://github.com/informalsystems/hermes/archive/1d2aa0c7108dc278e00731cc91bc366a418e2543.tar.gz",
+        "url": "https://github.com/informalsystems/hermes/archive/a026d661a74b93ffdefdc9f431007b1a6b4e95d0.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -102,10 +102,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "86ef6bd96b6279e1a4a53236d341f5df1ede3803",
-        "sha256": "0mmgk3bg8rqs4mlsaxr5hyvzqn3sg53pqqm1aiwq00kmcnhds7nx",
+        "rev": "63dacb46bf939521bdc93981b4cbb7ecb58427a0",
+        "sha256": "1lr1h35prqkd1mkmzriwlpvxcb34kmhc9dnr48gkm8hh089hifmx",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/86ef6bd96b6279e1a4a53236d341f5df1ede3803.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/63dacb46bf939521bdc93981b4cbb7ecb58427a0.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
