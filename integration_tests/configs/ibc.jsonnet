@@ -22,7 +22,7 @@ config {
         name: 'user' + i,
         coins: '30000000000000000000000basetcro',
       }
-      for i in std.range(1, 20)
+      for i in std.range(1, 50)
     ],
     'app-config'+: {
       'index-events': super['index-events'] + ['message.action'],
@@ -97,7 +97,7 @@ config {
         name: 'user' + i,
         coins: '10000000000000cro',
       }
-      for i in std.range(1, 20)
+      for i in std.range(1, 50)
     ],
     genesis: {
       app_state: {
@@ -165,7 +165,7 @@ config {
     chains: [
       {
         id: 'cronos_777-1',
-        max_gas: 1000000,
+        max_gas: 2500000,
         gas_multiplier: 1.1,
         address_type: {
           derivation: 'ethermint',
@@ -174,7 +174,7 @@ config {
           },
         },
         gas_price: {
-          price: 10000000000000000,
+          price: 10000000,
           denom: 'basetcro',
         },
         event_source: {
