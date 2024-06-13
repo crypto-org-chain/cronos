@@ -60,7 +60,8 @@ func New(
 			ServiceName:              serviceName,
 			FileDir:                  rootDir,
 			KeychainTrustApplication: true,
-			FilePasswordFunc:         newRealPrompt(rootDir, userInput),
+			KeychainName:             serviceName,
+			KeychainPasswordFunc:     newRealPrompt(rootDir, userInput),
 		})
 	case sdkkeyring.BackendKWallet:
 		db, err = keyring.Open(keyring.Config{
