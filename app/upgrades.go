@@ -30,6 +30,13 @@ var ContractMigrations = map[string][]contractMigration{
 			Value:    common.HexToHash("0x000000000000000000000000730CbB94480d50788481373B43d83133e171367e"),
 		},
 	},
+	"cronosmainnet_25-1": {
+		{
+			Contract: common.HexToAddress("0x4a91fe94870Ce48fC0bCb7c51d94677E61783401"),
+			Slot:     common.BigToHash(big.NewInt(0)),
+			Value:    common.HexToHash("0x0000000000000000000000005BD628a417a65DF2320C7a663ccCF38c5d368f38"),
+		},
+	},
 }
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
