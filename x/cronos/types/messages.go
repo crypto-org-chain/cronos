@@ -20,6 +20,7 @@ const (
 	TypeMsgUpdateParams       = "UpdateParams"
 	TypeMsgTurnBridge         = "TurnBridge"
 	TypeMsgUpdatePermissions  = "UpdatePermissions"
+	TypeMsgStoreBlockList     = "StoreBlockList"
 )
 
 var (
@@ -376,5 +377,5 @@ func (msg MsgStoreBlockList) Route() string {
 
 // Type ...
 func (msg MsgStoreBlockList) Type() string {
-	return TypeMsgUpdatePermissions
+	return TypeMsgStoreBlockList
 }
