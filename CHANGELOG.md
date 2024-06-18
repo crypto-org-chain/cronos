@@ -5,7 +5,6 @@
 ### State Machine Breaking
 
 * [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
-* [#1458](https://github.com/crypto-org-chain/cronos/pull/1458) Adjust require gas for recvPacket when ReceiverChainIsSource.
 
 ### Improvements
 
