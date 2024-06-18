@@ -9,6 +9,7 @@ import (
 	"filippo.io/age"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -19,16 +20,17 @@ const (
 	TypeMsgUpdateParams       = "UpdateParams"
 	TypeMsgTurnBridge         = "TurnBridge"
 	TypeMsgUpdatePermissions  = "UpdatePermissions"
+	TypeMsgStoreBlockList     = "StoreBlockList"
 )
 
 var (
-	_ sdk.Msg = &MsgConvertVouchers{}
-	_ sdk.Msg = &MsgTransferTokens{}
-	_ sdk.Msg = &MsgUpdateTokenMapping{}
-	_ sdk.Msg = &MsgUpdateParams{}
-	_ sdk.Msg = &MsgTurnBridge{}
-	_ sdk.Msg = &MsgUpdatePermissions{}
-	_ sdk.Msg = &MsgStoreBlockList{}
+	_ legacytx.LegacyMsg = &MsgConvertVouchers{}
+	_ legacytx.LegacyMsg = &MsgTransferTokens{}
+	_ legacytx.LegacyMsg = &MsgUpdateTokenMapping{}
+	_ legacytx.LegacyMsg = &MsgUpdateParams{}
+	_ legacytx.LegacyMsg = &MsgTurnBridge{}
+	_ legacytx.LegacyMsg = &MsgUpdatePermissions{}
+	_ legacytx.LegacyMsg = &MsgStoreBlockList{}
 )
 
 func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
@@ -360,4 +362,20 @@ func (msg *MsgStoreBlockList) GetSigners() []sdk.AccAddress {
 	}
 
 	return []sdk.AccAddress{addr}
+}
+
+// GetSignBytes ...
+func (msg *MsgStoreBlockList) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
+}
+
+// Route ...
+func (msg MsgStoreBlockList) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgStoreBlockList) Type() string {
+	return TypeMsgStoreBlockList
 }
