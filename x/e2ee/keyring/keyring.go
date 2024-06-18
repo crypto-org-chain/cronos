@@ -60,6 +60,7 @@ func New(
 			ServiceName:              serviceName,
 			FileDir:                  rootDir,
 			KeychainTrustApplication: true,
+			FilePasswordFunc:         newRealPrompt(rootDir, userInput),
 			KeychainName:             serviceName,
 			KeychainPasswordFunc:     newRealPrompt(rootDir, userInput),
 		})
