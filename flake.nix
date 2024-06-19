@@ -31,13 +31,15 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = self.overlays.default;
+            overlays = self.overlays.default ++ [
+              (import ./testground/benchmark/overlay.nix)
+            ];
             config = { };
           };
         in
         rec {
           packages = pkgs.cronos-matrix // {
-            inherit (pkgs) rocksdb;
+            inherit (pkgs) rocksdb testground-image;
           };
           apps = {
             cronosd = mkApp packages.cronosd;
