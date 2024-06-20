@@ -23,4 +23,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-benchmark = "benchmark.main:main"
+testground-testcase = "benchmark.main:main"
