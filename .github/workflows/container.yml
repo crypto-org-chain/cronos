@@ -47,5 +47,6 @@ jobs:
           echo "BUILD_TAG: $BUILD_TAG"
 
           docker load -i "$(nix build --no-link --print-out-paths .#testground-image)"
+          docker run --rm -e TEST_CASE=info $IMAGE_NAME:$BUILD_TAG
           docker tag $IMAGE_NAME:$BUILD_TAG $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
