@@ -1,9 +1,8 @@
-{ dockerTools, cronos-matrix, test-env, testground-testcase }:
+{ dockerTools, cronos-matrix, testground-testcase }:
 dockerTools.buildLayeredImage {
   name = "cronos-testground";
   contents = [
     testground-testcase
-    test-env
     cronos-matrix.cronosd
   ];
   config = {
