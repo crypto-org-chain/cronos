@@ -41,6 +41,5 @@ let
 in
 {
   testground-testcase = final.callPackage benchmark { };
-  testground-image = final.callPackage ../../nix/testground-image.nix { };
   testground-testcase-env = final.callPackage benchmark-env { };
 }

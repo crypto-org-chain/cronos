@@ -31,9 +31,7 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = self.overlays.default ++ [
-              (import ./testground/benchmark/overlay.nix)
-            ];
+            overlays = self.overlays.default;
             config = { };
           };
         in
@@ -74,12 +72,14 @@
         (import ./nix/build_overlay.nix)
         poetry2nix.overlays.default
         gomod2nix.overlays.default
+        (import ./testground/benchmark/overlay.nix)
         (final: super: {
           go = super.go_1_22;
           test-env = final.callPackage ./nix/testenv.nix { };
           cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
             bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
           };
+          testground-image = final.callPackage ./nix/testground-image.nix { };
         })
       ];
     };
