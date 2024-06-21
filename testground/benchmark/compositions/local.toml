@@ -6,7 +6,6 @@ author = "core-app"
 plan = "benchmark"
 case = "entrypoint"
 total_instances = 10
-builder = "docker:nix"
 runner = "local:docker"
 disable_metrics = false
 
@@ -16,12 +15,14 @@ halt_height = "5"
 
 [[groups]]
 id = "validators"
-builder = "docker:nix"
 [groups.instances]
 count = 3
+[groups.run]
+artifact = "ghcr.io/crypto-org-chain/cronos-testground:latest"
 
 [[groups]]
 id = "fullnodes"
-builder = "docker:nix"
 [groups.instances]
 count = 7
+[groups.run]
+artifact = "ghcr.io/crypto-org-chain/cronos-testground:latest"

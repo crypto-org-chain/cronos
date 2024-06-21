@@ -1,13 +1,21 @@
-# Guide
-
 [Testground documentation](https://docs.testground.ai/)
 
-## Getting started
+## Build Image
 
-### Prerequisites
+>  Prerequisites: nix, linux remote builder for macOS
 
-- docker
-- go 1.22, or higher
+You can test with the prebuilt images in github registry, to build the images locally for yourself:
+
+```bash
+$ nix build .#testground-image
+# for mac: nix build .#legacyPackages.aarch64-linux.testground-image
+$ docker load < ./result
+Loaded image: cronos-testground:<imageID>
+```
+
+Then use the image `cronos-testground:<imageID>` in the test directly.
+
+## Run Test
 
 ### Install Testground
 
@@ -20,7 +28,7 @@ $ make install
 
 It'll install the `testground` binary in your `$GOPATH/bin` directory, and build several docker images.
 
-### Running Testground
+### Run Testground Daemon
 
 ```bash
 $ TESTGROUND_HOME=$PWD/data testground daemon
@@ -28,7 +36,7 @@ $ TESTGROUND_HOME=$PWD/data testground daemon
 
 Keep the daemon process running during the test.
 
-### Running Test Plan
+### Run Test Plan
 
 Import the test plan before the first run:
 
