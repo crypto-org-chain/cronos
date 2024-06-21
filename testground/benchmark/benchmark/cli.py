@@ -25,12 +25,12 @@ class ChainCommand:
         return self.raw(*args, **kwargs).decode().strip()
 
 
-def interact(cmd, ignore_error=False, input=None, **kwargs):
-    kwargs.setdefault("stderr", subprocess.STDOUT)
+def interact(cmd, ignore_error=False, input=None, stderr=subprocess.STDOUT, **kwargs):
     proc = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
+        stderr=stderr,
         shell=True,
         **kwargs,
     )
