@@ -4,7 +4,7 @@
 
 >  Prerequisites: nix, linux remote builder for macOS
 
-You can test with the prebuilt images in github registry, to build the images locally for yourself:
+You can test with the prebuilt images in [github registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground), or build the image locally:
 
 ```bash
 $ nix build .#testground-image
