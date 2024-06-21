@@ -6,6 +6,7 @@ author = "core-app"
 plan = "benchmark"
 case = "entrypoint"
 total_instances = 10
+builder = "docker:go" # not used
 runner = "local:docker"
 disable_metrics = false
 

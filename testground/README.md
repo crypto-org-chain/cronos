@@ -11,9 +11,8 @@ $ nix build .#testground-image
 # for mac: nix build .#legacyPackages.aarch64-linux.testground-image
 $ docker load < ./result
 Loaded image: cronos-testground:<imageID>
+$ docker tag cronos-testground:<imageID> ghcr.io/crypto-org-chain/cronos-testground:latest
 ```
-
-Then use the image `cronos-testground:<imageID>` in the test directly.
 
 ## Run Test
 
