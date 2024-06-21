@@ -46,7 +46,7 @@ $ TESTGROUND_HOME=$PWD/data testground plan import --from /path/to/cronos/testgr
 Run the benchmark test plan in local docker environment:
 
 ```bash
-$ testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
+$ TESTGROUND_HOME=$PWD/data testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
 ```
 
 ### macOS
