@@ -1,7 +1,7 @@
 name = "benchmark"
 
 [defaults]
-builder = "local:docker"
+builder = "docker:go"
 runner = "local:docker"
 
 [runners."local:docker"]
