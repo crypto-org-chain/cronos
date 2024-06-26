@@ -1,6 +1,7 @@
 { dockerTools, cronos-matrix, testground-testcase }:
 dockerTools.buildLayeredImage {
   name = "cronos-testground";
+  created = "now";
   contents = [
     testground-testcase
     cronos-matrix.cronosd
