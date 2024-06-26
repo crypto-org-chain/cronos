@@ -94,7 +94,7 @@ def test_block_overflow(custom_cronos):
     else:
         assert False, "timeout"
 
-    # the first tx succeds.
+    # the first tx succeeds.
     assert success.status == 1
     assert success.gasUsed < gas_limits[success["from"]]
     assert success.cumulativeGasUsed == success.gasUsed
