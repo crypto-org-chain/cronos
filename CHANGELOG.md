@@ -23,6 +23,7 @@
 * [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
 * [#1464](https://github.com/crypto-org-chain/cronos/pull/1464) Update cosmos-sdk to `v0.50.7`.
 * (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
+* [#1484](https://github.com/crypto-org-chain/cronos/pull/1484) Respect gas wanted returned by ante handler.
 
 ### Bug Fixes
 

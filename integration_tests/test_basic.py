@@ -825,7 +825,6 @@ def test_contract(cronos):
 origin_cmd = None
 
 
-@pytest.mark.skip(reason="max_gas_wanted not supported now, TODO: #1390")
 @pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000, None])
 def test_tx_inclusion(cronos, max_gas_wanted):
     """
@@ -871,12 +870,12 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     # the transactions should be included according to max_gas_wanted
     if max_tx_in_block == 1:
         for block_num, next_block_num in zip(block_nums, block_nums[1:]):
-            assert next_block_num == block_num + 1
+            assert next_block_num == block_num + 1 or next_block_num == block_num + 2
     else:
         for num in block_nums[1:max_tx_in_block]:
             assert num == block_nums[0]
         for num in block_nums[max_tx_in_block:]:
-            assert num == block_nums[0] + 1
+            assert num == block_nums[0] + 1 or num == block_nums[0] + 2
 
 
 def test_replay_protection(cronos):

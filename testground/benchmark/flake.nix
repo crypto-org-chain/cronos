@@ -2,15 +2,14 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    cronos = {
-      url = "github:crypto-org-chain/cronos/main";
+    poetry2nix = {
+      url = "github:nix-community/poetry2nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
-      inputs.poetry2nix.url = "github:nix-community/poetry2nix";
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, cronos }:
+  outputs = { self, nixpkgs, flake-utils, poetry2nix }:
     let
       overrides = { lib, poetry2nix }: poetry2nix.overrides.withDefaults
         (self: super:
@@ -50,42 +49,27 @@
         overrides = overrides { inherit lib poetry2nix; };
       };
 
-      image = { dockerTools, cronos-matrix, test-env, benchmark }:
-        dockerTools.buildLayeredImage {
-          name = "cronos-testground";
-          contents = [
-            benchmark
-            test-env
-            cronos-matrix.cronosd
-          ];
-          config = {
-            Expose = [ 9090 26657 26656 1317 26658 26660 26659 30000 ];
-            Cmd = [ "/bin/benchmark" ];
-            Env = [
-              "PYTHONUNBUFFERED=1"
-            ];
-          };
-        };
     in
     (flake-utils.lib.eachDefaultSystem
       (system:
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = cronos.overlays.default ++ [
-              (final: _: {
-                benchmark = final.callPackage benchmark { };
-                benchmark-env = final.callPackage benchmark-env { };
-                benchmark-image = final.callPackage image { };
-              })
+            overlays = [
+              poetry2nix.overlays.default
+              (import ./overlay.nix)
             ];
             config = { };
           };
         in
         rec {
-          packages.default = pkgs.benchmark-image;
+          packages.default = pkgs.testground-testcase;
+          apps.default = {
+            type = "app";
+            program = "${pkgs.testground-testcase}/bin/testground-testcase";
+          };
           devShells.default = pkgs.mkShell {
-            buildInputs = [ pkgs.benchmark-env ];
+            buildInputs = [ pkgs.testground-testcase-env ];
           };
           legacyPackages = pkgs;
         })

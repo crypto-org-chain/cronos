@@ -46,8 +46,16 @@ def entrypoint(ctx: Context):
     ctx.record_success()
 
 
+def info(ctx: Context):
+    """
+    Print the runtime configuration, mainly to check if the image is built successfully.
+    """
+    print(ctx.params)
+
+
 TEST_CASES = {
     "entrypoint": entrypoint,
+    "info": info,
 }
 
 

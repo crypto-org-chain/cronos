@@ -1,13 +1,20 @@
-# Guide
-
 [Testground documentation](https://docs.testground.ai/)
 
-## Getting started
+## Build Image
 
-### Prerequisites
+>  Prerequisites: nix, for macOS also need [linux remote builder](https://nix.dev/manual/nix/2.22/advanced-topics/distributed-builds.html)
 
-- docker
-- go 1.22, or higher
+You can test with the prebuilt images in [github registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground), or build the image locally:
+
+```bash
+$ nix build .#testground-image
+# for mac: nix build .#legacyPackages.aarch64-linux.testground-image
+$ docker load < ./result
+Loaded image: cronos-testground:<imageID>
+$ docker tag cronos-testground:<imageID> ghcr.io/crypto-org-chain/cronos-testground:latest
+```
+
+## Run Test
 
 ### Install Testground
 
@@ -20,7 +27,7 @@ $ make install
 
 It'll install the `testground` binary in your `$GOPATH/bin` directory, and build several docker images.
 
-### Running Testground
+### Run Testground Daemon
 
 ```bash
 $ TESTGROUND_HOME=$PWD/data testground daemon
@@ -28,7 +35,7 @@ $ TESTGROUND_HOME=$PWD/data testground daemon
 
 Keep the daemon process running during the test.
 
-### Running Test Plan
+### Run Test Plan
 
 Import the test plan before the first run:
 
@@ -39,7 +46,7 @@ $ TESTGROUND_HOME=$PWD/data testground plan import --from /path/to/cronos/testgr
 Run the benchmark test plan in local docker environment:
 
 ```bash
-$ testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
+$ TESTGROUND_HOME=$PWD/data testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
 ```
 
 ### macOS

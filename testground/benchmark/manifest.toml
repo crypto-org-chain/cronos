@@ -1,11 +1,8 @@
 name = "benchmark"
 
 [defaults]
-builder = "docker:nix"
+builder = "docker:go"
 runner = "local:docker"
-
-[builders."docker:nix"]
-enabled = true
 
 [runners."local:docker"]
 enabled = true
