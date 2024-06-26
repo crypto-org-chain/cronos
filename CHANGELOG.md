@@ -24,7 +24,7 @@
 * [#1464](https://github.com/crypto-org-chain/cronos/pull/1464) Update cosmos-sdk to `v0.50.7`.
 * (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
 * [#1484](https://github.com/crypto-org-chain/cronos/pull/1484) Respect gas wanted returned by ante handler.
-* [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Enable optimistic execution.
+* [#1488](https://github.com/crypto-org-chain/cronos/pull/1488) Enable optimistic execution.
 
 ### Bug Fixes
 
