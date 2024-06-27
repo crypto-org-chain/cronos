@@ -151,6 +151,7 @@ config {
         id: 'cronos_777-1',
         max_gas: 2500000,
         gas_multiplier: 1.1,
+        max_msg_num: 5,
         address_type: {
           derivation: 'ethermint',
           proto_type: {
