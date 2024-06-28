@@ -4,7 +4,7 @@ import socket
 from .params import RunParams, run_params
 from .sync import SyncService
 
-LEADER_GLOBAL_SEQUENCE = 1
+LEADER_SEQUENCE = 1
 
 
 class Context:
@@ -103,11 +103,23 @@ class Context:
 
     @property
     def is_leader(self) -> bool:
-        return self.global_seq == LEADER_GLOBAL_SEQUENCE
+        return self.global_seq == LEADER_SEQUENCE
+
+    @property
+    def is_fullnode_leader(self) -> bool:
+        return not self.is_validator and self.group_seq == LEADER_SEQUENCE
+
+    @property
+    def is_validator_leader(self) -> bool:
+        return self.is_validator and self.group_seq == LEADER_SEQUENCE
 
     @property
     def is_validator(self) -> bool:
         return self.params.is_validator
+
+    @property
+    def is_fullnode(self) -> bool:
+        return not self.params.is_validator
 
     def __enter__(self):
         return self

@@ -70,6 +70,9 @@ class SyncService:
         )
 
         rsp = cond.wait()
+        if rsp is None:
+            # connection closed
+            return
         del self._handlers[id]
         assert not rsp.get("error"), rsp
         return rsp
