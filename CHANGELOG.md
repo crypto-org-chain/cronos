@@ -26,6 +26,7 @@
 * [#1484](https://github.com/crypto-org-chain/cronos/pull/1484), [#1487](https://github.com/crypto-org-chain/cronos/pull/1487) Respect gas that is wanted to be returned by the ante handler.
 * [#1488](https://github.com/crypto-org-chain/cronos/pull/1488) Enable optimistic execution.
 * [#1490](https://github.com/crypto-org-chain/cronos/pull/1490) Update cometbft to v0.38.8.
+* [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
 
 ### Bug Fixes
 
