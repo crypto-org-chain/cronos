@@ -1,7 +1,7 @@
 { dockerTools, cronos-matrix, testground-testcase }:
 let
   patched-cronosd = cronos-matrix.cronosd.overrideAttrs (oldAttrs: {
-    patches = oldAttrs.patches ++ [
+    patches = oldAttrs.patches or [ ] ++ [
       ./testground-cronosd.patch
     ];
   });
