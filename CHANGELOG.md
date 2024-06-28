@@ -5,6 +5,7 @@
 ### Improvements
 
 * (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
+* (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
 
 ### Bug Fixes
 

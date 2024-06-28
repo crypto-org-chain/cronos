@@ -108,6 +108,7 @@ func (s Store) HasAtVersion(storeKey string, key []byte, version *int64) (bool, 
 	if err != nil {
 		return false, err
 	}
+	defer slice.Free()
 	return slice.Exists(), nil
 }
 
