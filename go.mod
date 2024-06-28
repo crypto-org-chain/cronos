@@ -13,8 +13,7 @@ require (
 	filippo.io/age v1.1.1
 	github.com/99designs/keyring v1.2.1
 	github.com/armon/go-metrics v0.4.1
-	// v0.37.x
-	github.com/cometbft/cometbft v0.37.7-0.20240515092623-8a0f4814d1dc
+	github.com/cometbft/cometbft v0.37.7
 	github.com/cometbft/cometbft-db v0.8.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.47.8
