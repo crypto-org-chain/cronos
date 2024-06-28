@@ -25,7 +25,7 @@
 * (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
 * [#1484](https://github.com/crypto-org-chain/cronos/pull/1484), [#1487](https://github.com/crypto-org-chain/cronos/pull/1487) Respect gas that is wanted to be returned by the ante handler.
 * [#1488](https://github.com/crypto-org-chain/cronos/pull/1488) Enable optimistic execution.
-* [#]() Update cometbft to v0.38.8.
+* [#1490](https://github.com/crypto-org-chain/cronos/pull/1490) Update cometbft to v0.38.8.
 
 ### Bug Fixes
 
