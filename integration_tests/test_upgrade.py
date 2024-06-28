@@ -195,11 +195,6 @@ def exec(c, tmp_path_factory):
         wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
         wait_for_port(ports.rpc_port(c.base_port(0)))
 
-    target0 = cli.block_height() + 15
-    print("upgrade v0.7.0 height", target0)
-    do_upgrade("v0.7.0", target0, "block", method="submit-proposal")
-    cli = c.cosmos_cli()
-
     target1 = cli.block_height() + 15
     print("upgrade v0.8.0 height", target1)
     gas_prices = "5000000000000basetcro"
