@@ -7,8 +7,6 @@ let
       shortRev = builtins.substring 0 7 rev;
     };
   }).defaultNix;
-  # v0.6.10
-  releasedGenesis = import (builtins.fetchTarball "https://github.com/crypto-org-chain/cronos/archive/v0.6.10.tar.gz") { };
   # v0.7.0
   released_0 = (fetchFlake "crypto-org-chain/cronos" "799ac47e293403bd57580d2ff96bb8d9851c3cde").default;
   # v0.8.0
@@ -20,8 +18,7 @@ let
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
-  { name = "genesis"; path = releasedGenesis; }
-  { name = "v0.7.0"; path = released_0; }
+  { name = "genesis"; path = released_0; }
   { name = "v0.7.0-hotfix"; path = released_1; }
   { name = "v1.0.0"; path = released_2; }
   { name = "v1.1.0"; path = released_3; }
