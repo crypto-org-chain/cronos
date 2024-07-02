@@ -23,7 +23,7 @@ func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, is
 		} else {
 			source.Seek(end)
 			if source.Valid() {
-				eoakey := moveSliceToBytes(source.Key()) // end or after key
+				eoakey := extractSliceBytes(source.Key()) // end or after key
 				if bytes.Compare(end, eoakey) <= 0 {
 					source.Prev()
 				}
@@ -75,7 +75,7 @@ func (itr *rocksDBIterator) Valid() bool {
 	// If key is end or past it, invalid.
 	start := itr.start
 	end := itr.end
-	key := moveSliceToBytes(itr.source.Key())
+	key := extractSliceBytes(itr.source.Key())
 	if itr.isReverse {
 		if start != nil && bytes.Compare(key, start) < 0 {
 			itr.isInvalid = true
@@ -142,4 +142,14 @@ func moveSliceToBytes(s *grocksdb.Slice) []byte {
 	v := make([]byte, len(s.Data()))
 	copy(v, s.Data())
 	return v
+}
+
+// extractSliceBytes returns the underlying []byte from the given *Slice
+// without copying the data. Use this function with caution as the *Slice
+// should not be used after calling this function, as it is not marked as freed.
+func extractSliceBytes(s *grocksdb.Slice) []byte {
+	if !s.Exists() {
+		return nil
+	}
+	return s.Data()
 }
