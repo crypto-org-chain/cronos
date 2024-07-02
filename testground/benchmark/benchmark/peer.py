@@ -88,6 +88,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         "minimum-gas-prices": "0basecro",
         "index-events": ["ethereum_tx.ethereumTxHash"],
         "memiavl.enable": True,
+        "mempool.max-txs": 25000,
     }
 
     patch_toml(config_path / "config.toml", config_patch)
