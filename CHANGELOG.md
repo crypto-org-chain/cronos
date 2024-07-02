@@ -21,7 +21,7 @@
 * [#1490](https://github.com/crypto-org-chain/cronos/pull/1490) Update cometbft to v0.38.8.
 * (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
 * (versiondb) [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Reduce scope of copying slice data in iterator.
-* [#1500](https://github.com/crypto-org-chain/cronos/pull/1500), [#1501](https://github.com/crypto-org-chain/cronos/pull/1501) Set mempool MaxTx from config (with a default value of `3000`).
+* [#1500](https://github.com/crypto-org-chain/cronos/pull/1500), [#1503](https://github.com/crypto-org-chain/cronos/pull/1503) Set mempool MaxTx from config (with a default value of `3000`).
 
 
 *Jun 18, 2024*
