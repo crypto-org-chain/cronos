@@ -6,33 +6,75 @@
 
 * [#1377](https://github.com/crypto-org-chain/cronos/pull/1377) Upgrade sdk to 0.50, and integrate block-stm parallel tx execution.
 * [#1394](https://github.com/crypto-org-chain/cronos/pull/1394) Add icahost wirings but disable in parameters.
-* [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
 * [#1414](https://github.com/crypto-org-chain/cronos/pull/1414) Integrate new evm tx format.
 * [#1458](https://github.com/crypto-org-chain/cronos/pull/1458) Adjust require gas for recvPacket when ReceiverChainIsSource.
 
 ### Improvements
 
-* (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
-* (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
 * (store) [#1378](https://github.com/crypto-org-chain/cronos/pull/1378) Upgrade rocksdb to `v8.11.3`.
 * (versiondb) [#1387](https://github.com/crypto-org-chain/cronos/pull/1387) Add dedicated config section for versiondb, prepare for sdk 0.50 integration.
-* (e2ee)[#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
-* (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
-* (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
 * (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
 * [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
 * [#1464](https://github.com/crypto-org-chain/cronos/pull/1464) Update cosmos-sdk to `v0.50.7`.
-* (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
 * [#1484](https://github.com/crypto-org-chain/cronos/pull/1484), [#1487](https://github.com/crypto-org-chain/cronos/pull/1487) Respect gas that is wanted to be returned by the ante handler.
 * [#1488](https://github.com/crypto-org-chain/cronos/pull/1488) Enable optimistic execution.
 * [#1490](https://github.com/crypto-org-chain/cronos/pull/1490) Update cometbft to v0.38.8.
-* [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
-* [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Check validity with extractSliceBytes to avoid copying slice data.
+* (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
+* (versiondb) [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Check validity with extractSliceBytes to avoid copying slice data.
+
+
+*Jun 18, 2024*
+
+## v1.3.0-rc2
+
+### Improvements
+
+* (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
+
+### Bug Fixes
+
+* [#1466](https://github.com/crypto-org-chain/cronos/pull/1466) Fix handling of pending transactions related APIs.
+
+*May 21, 2024*
+
+## v1.3.0-rc1
+
+### State Machine Breaking
+
+* [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
+
+### Improvements
+
+* [#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
+* (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
+* (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
+* [#1437](https://github.com/crypto-org-chain/cronos/pull/1437) Update cometbft and cosmos-sdk dependencies.
+
+### Bug Fixes
+
+* (rpc) [#1444](https://github.com/crypto-org-chain/cronos/pull/1444) Avoid nil pointer error when query blocks before feemarket module gets enabled.
+* [#1439](https://github.com/crypto-org-chain/cronos/pull/1439) Add back default prepare proposal logic.
+
+*May 3, 2024*
+
+## v1.2.2
+
+### Bug Fixes
+
+* (rpc) [#1416](https://github.com/crypto-org-chain/cronos/pull/1416) Fix parsed logs from old events.
+
+*April 22, 2024*
+
+## v1.2.1
+
+### Improvements
+
+* (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
+* (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
 
 ### Bug Fixes
 
 * (rpc) [#1397](https://github.com/crypto-org-chain/cronos/pull/1397) Avoid panic on invalid elasticity_multiplier.
-* (rpc) [#1466](https://github.com/crypto-org-chain/cronos/pull/1466) Fix handling of pending transactions related APIs.
 
 ### Features
 
@@ -41,6 +83,7 @@
 
 *April 8, 2024*
 
+## v1.2.0
 ## v1.2.0-rc1
 
 ### Bug Fixes
