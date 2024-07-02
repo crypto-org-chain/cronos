@@ -23,8 +23,11 @@ func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, is
 		} else {
 			source.Seek(end)
 			if source.Valid() {
-				eoakey := extractSliceBytes(source.Key()) // end or after key
-				if bytes.Compare(end, eoakey) <= 0 {
+				key := source.Key()
+				eoakey := extractSliceBytes(key) // end or after key
+				diff := bytes.Compare(end, eoakey)
+				key.Free()
+				if diff <= 0 {
 					source.Prev()
 				}
 			} else {
@@ -75,7 +78,9 @@ func (itr *rocksDBIterator) Valid() bool {
 	// If key is end or past it, invalid.
 	start := itr.start
 	end := itr.end
-	key := extractSliceBytes(itr.source.Key())
+	srcKey := itr.source.Key()
+	key := extractSliceBytes(srcKey)
+	defer srcKey.Free()
 	if itr.isReverse {
 		if start != nil && bytes.Compare(key, start) < 0 {
 			itr.isInvalid = true
@@ -87,7 +92,6 @@ func (itr *rocksDBIterator) Valid() bool {
 			return false
 		}
 	}
-
 	// It's valid.
 	return true
 }
