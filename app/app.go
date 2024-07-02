@@ -374,6 +374,7 @@ func New(
 		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			MaxTx:           cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)),
 		})
 		handler := baseapp.NewDefaultProposalHandler(mempool, app)
 

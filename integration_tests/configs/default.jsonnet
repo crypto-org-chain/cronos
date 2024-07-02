@@ -23,6 +23,9 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
+      mempool: {
+        'max-txs': 1000,
+      },
       evm: {
         'block-executor': 'block-stm',
       },
