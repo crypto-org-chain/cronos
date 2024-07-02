@@ -29,7 +29,7 @@ def entrypoint(ctx: Context):
     # start the node
     logfile = Path(ctx.params.test_outputs_path) / "node.log"
     proc = subprocess.Popen(
-        [CRONOSD_PATH, "start"],
+        [CRONOSD_PATH, "start", "--mempool.max-txs", "25000"],
         stdout=open(logfile, "ab", buffering=0),
     )
 
