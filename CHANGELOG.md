@@ -6,6 +6,7 @@
 
 * (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
 * [#1489](https://github.com/crypto-org-chain/cronos/pull/1489) Update cometbft to v0.37.7.
+* (versiondb) [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Reduce scope of copying slice data in iterator.
 
 *Jun 18, 2024*
 
@@ -33,7 +34,6 @@
 * (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
 * (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
 * [#1437](https://github.com/crypto-org-chain/cronos/pull/1437) Update cometbft and cosmos-sdk dependencies.
-* (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
 
 ### Bug Fixes
 
