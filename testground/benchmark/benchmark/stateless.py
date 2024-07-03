@@ -8,8 +8,14 @@ from typing import List
 import fire
 
 from .cli import ChainCommand
-from .peer import (CONTAINER_CRONOSD_PATH, FULLNODE_GROUP, VALIDATOR_GROUP,
-                   gen_genesis, init_node, patch_configs)
+from .peer import (
+    CONTAINER_CRONOSD_PATH,
+    FULLNODE_GROUP,
+    VALIDATOR_GROUP,
+    gen_genesis,
+    init_node,
+    patch_configs,
+)
 from .topology import connect_all
 from .types import PeerPacket
 from .utils import wait_for_block, wait_for_port
