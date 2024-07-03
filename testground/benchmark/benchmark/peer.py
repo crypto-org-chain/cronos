@@ -12,6 +12,7 @@ from .utils import patch_json, patch_toml
 VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
 VAL_STAKED_AMOUNT = "10000000000000000000basecro"
 ACC_INITIAL_AMOUNT = "100000000000000000000basecro"
+MEMPOOL_SIZE = 50000
 
 
 def bootstrap(ctx: Context, cli) -> PeerPacket:
@@ -78,7 +79,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
     config_patch = {
         "p2p.persistent_peers": connect_all(current, peers),
         "mempool.recheck": "false",
-        "mempool.size": 50000,
+        "mempool.size": MEMPOOL_SIZE,
         "consensus.timeout_commit": "2s",
     }
     if ctx.is_validator:
@@ -88,6 +89,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         "minimum-gas-prices": "0basecro",
         "index-events": ["ethereum_tx.ethereumTxHash"],
         "memiavl.enable": True,
+        "mempool.max-txs": MEMPOOL_SIZE,
     }
 
     patch_toml(config_path / "config.toml", config_patch)

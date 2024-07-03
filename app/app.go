@@ -137,6 +137,7 @@ import (
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
+	servercfg "github.com/evmos/ethermint/server/config"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -182,8 +183,6 @@ const (
 	AddrLen = 20
 
 	FlagBlockedAddresses = "blocked-addresses"
-
-	DefaultMaxTxs = 1000
 )
 
 var Forks = []Fork{}
@@ -375,7 +374,7 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 		if maxTxs <= 0 {
-			maxTxs = DefaultMaxTxs
+			maxTxs = servercfg.DefaultMaxTxs
 		}
 		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
