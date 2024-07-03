@@ -1,0 +1,9 @@
+version: '3'
+services:
+  testplan:
+    image: ghcr.io/crypto-org-chain/cronos-testground:latest
+    command: stateless-testcase run /data "${VALIDATORS}"
+    volumes:
+      - benchmark-volume:/data
+    deploy:
+      replicas: 10

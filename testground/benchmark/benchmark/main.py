@@ -7,11 +7,9 @@ import web3
 
 from .cli import ChainCommand
 from .context import Context
-from .peer import bootstrap
+from .peer import CONTAINER_CRONOSD_PATH, bootstrap
 from .sendtx import fund_test_accounts, sendtx
 from .utils import export_eth_account, wait_for_block, wait_for_port
-
-CRONOSD_PATH = "/bin/cronosd"
 
 
 def influxdb_url():
@@ -21,7 +19,7 @@ def influxdb_url():
 def entrypoint(ctx: Context):
     ctx.init_common()
 
-    cli = ChainCommand(CRONOSD_PATH)
+    cli = ChainCommand(CONTAINER_CRONOSD_PATH)
 
     # build the genesis file collectively, and setup the network topology
     bootstrap(ctx, cli)
@@ -29,7 +27,7 @@ def entrypoint(ctx: Context):
     # start the node
     logfile = Path(ctx.params.test_outputs_path) / "node.log"
     proc = subprocess.Popen(
-        [CRONOSD_PATH, "start"],
+        [CONTAINER_CRONOSD_PATH, "start"],
         stdout=open(logfile, "ab", buffering=0),
     )
 
