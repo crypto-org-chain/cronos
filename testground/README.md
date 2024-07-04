@@ -1,3 +1,5 @@
+# Testground
+
 [Testground documentation](https://docs.testground.ai/)
 
 ## Build Image
@@ -67,3 +69,28 @@ mounts:
     writable: true
 ```
 
+
+
+# Stateless Mode
+
+To simplify cluster setup, we introduce a stateless mode.
+
+## Generate Data Files Locally
+
+You need to have a `cronosd` in `PATH`.
+
+```bash
+$ nix run github:crypto-org-chain/cronos#stateless-testcase gen /tmp/data/out 3 7
+```
+
+## Run In Local Docker
+
+```bash
+$ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet | docker-compose -f /dev/stdin up
+```
+
+It'll mount the data files to all the containers.
+
+## Run In Cluster
+
+TODO
