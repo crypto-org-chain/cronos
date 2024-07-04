@@ -120,6 +120,7 @@ def patch_configs(home: Path, group: str, peers: str):
     # update persistent_peers and other configs in config.toml
     config_patch = {
         "p2p.persistent_peers": peers,
+        "p2p.addr_book_strict": False,
         "mempool.recheck": "false",
         "mempool.size": MEMPOOL_SIZE,
         "consensus.timeout_commit": "2s",
