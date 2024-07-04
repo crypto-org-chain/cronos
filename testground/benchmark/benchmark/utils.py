@@ -93,7 +93,8 @@ def send_transaction(w3, tx, acct, wait=True):
     return txhash
 
 
-def export_eth_account(cli, name: str) -> Account:
+def export_eth_account(cli, name: str, **kwargs) -> Account:
+    kwargs.setdefault("keyring_backend", "test")
     return Account.from_key(
-        cli("keys", "unsafe-export-eth-key", name, keyring_backend="test")
+        cli("keys", "unsafe-export-eth-key", name, **kwargs)
     )

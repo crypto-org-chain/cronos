@@ -2,20 +2,16 @@ import json
 import os
 import socket
 import subprocess
+import time
 from pathlib import Path
 from typing import List
 
 import fire
 
 from .cli import ChainCommand
-from .peer import (
-    CONTAINER_CRONOSD_PATH,
-    FULLNODE_GROUP,
-    VALIDATOR_GROUP,
-    gen_genesis,
-    init_node,
-    patch_configs,
-)
+from .peer import (CONTAINER_CRONOSD_PATH, FULLNODE_GROUP, VALIDATOR_GROUP,
+                   gen_genesis, init_node, patch_configs)
+from .sendtx import generate_load
 from .topology import connect_all
 from .types import PeerPacket
 from .utils import wait_for_block, wait_for_port
@@ -64,6 +60,8 @@ class CLI:
         validators: int,
         cronosd=CONTAINER_CRONOSD_PATH,
         global_seq=None,
+        num_accounts=10,
+        num_txs=1000,
     ):
         outdir = Path(outdir)
         if global_seq is None:
@@ -84,13 +82,20 @@ class CLI:
         cli = ChainCommand(cronosd)
         wait_for_port(26657)
         wait_for_port(8545)
+        wait_for_port(9090)
         wait_for_block(cli, 1)
 
-        proc.kill()
-        try:
-            proc.wait(5)
-        except subprocess.TimeoutExpired:
-            pass
+        if group == VALIDATOR_GROUP:
+            # validators don't quit
+            proc.wait()
+        else:
+            generate_load(cli, num_accounts, num_txs, home=home)
+
+            proc.kill()
+            try:
+                proc.wait()
+            except subprocess.TimeoutExpired:
+                pass
 
 
 def init_node_local(
