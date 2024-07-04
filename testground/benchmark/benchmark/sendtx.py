@@ -69,3 +69,11 @@ def generate_load(cli, num_accounts, num_txs, **kwargs):
                 fut.result()
             except Exception as e:
                 print("test task failed", e)
+
+
+def collect_output():
+    # collect output
+    w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+    for i in range(w3.eth.block_number):
+        blk = w3.eth.get_block(i)
+        print(i, len(blk.transactions), blk.timestamp)
