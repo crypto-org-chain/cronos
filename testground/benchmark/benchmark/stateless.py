@@ -2,15 +2,20 @@ import json
 import os
 import socket
 import subprocess
-import time
 from pathlib import Path
 from typing import List
 
 import fire
 
 from .cli import ChainCommand
-from .peer import (CONTAINER_CRONOSD_PATH, FULLNODE_GROUP, VALIDATOR_GROUP,
-                   gen_genesis, init_node, patch_configs)
+from .peer import (
+    CONTAINER_CRONOSD_PATH,
+    FULLNODE_GROUP,
+    VALIDATOR_GROUP,
+    gen_genesis,
+    init_node,
+    patch_configs,
+)
 from .sendtx import generate_load
 from .topology import connect_all
 from .types import PeerPacket

@@ -26,3 +26,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 testground-testcase = "benchmark.main:main"
 stateless-testcase = "benchmark.stateless:main"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"

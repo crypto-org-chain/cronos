@@ -95,6 +95,4 @@ def send_transaction(w3, tx, acct, wait=True):
 
 def export_eth_account(cli, name: str, **kwargs) -> Account:
     kwargs.setdefault("keyring_backend", "test")
-    return Account.from_key(
-        cli("keys", "unsafe-export-eth-key", name, **kwargs)
-    )
+    return Account.from_key(cli("keys", "unsafe-export-eth-key", name, **kwargs))
