@@ -1,0 +1,8 @@
+version: '3'
+services:
+  testplan-template:
+    image: ghcr.io/crypto-org-chain/cronos-testground:latest
+    command: stateless-testcase run /data "${VALIDATORS}"
+    volumes:
+      - ${DATADIR:-"/tmp/data/out"}:/data
+      - /tmp:/tmp

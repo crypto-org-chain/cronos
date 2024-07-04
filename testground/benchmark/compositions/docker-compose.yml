@@ -1,9 +1,36 @@
 version: '3'
 services:
-  testplan:
-    image: ghcr.io/crypto-org-chain/cronos-testground:latest
-    command: stateless-testcase run /data "${VALIDATORS}"
-    volumes:
-      - benchmark-volume:/data
-    deploy:
-      replicas: 10
+  testplan-0:
+    extends:
+      file: template.yml
+      service: testplan-template
+    environment:
+      JOB_COMPLETION_INDEX: 0
+
+  testplan-1:
+    extends:
+      file: template.yml
+      service: testplan-template
+    environment:
+      JOB_COMPLETION_INDEX: 1
+
+  testplan-2:
+    extends:
+      file: template.yml
+      service: testplan-template
+    environment:
+      JOB_COMPLETION_INDEX: 2
+
+  testplan-3:
+    extends:
+      file: template.yml
+      service: testplan-template
+    environment:
+      JOB_COMPLETION_INDEX: 3
+
+  testplan-4:
+    extends:
+      file: template.yml
+      service: testplan-template
+    environment:
+      JOB_COMPLETION_INDEX: 4
