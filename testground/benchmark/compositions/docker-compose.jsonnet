@@ -12,6 +12,6 @@ std.manifestYamlDoc({
         JOB_COMPLETION_INDEX: i,
       },
     }
-    for i in std.range(0, 10)
+    for i in std.range(0, 9)
   },
 })
