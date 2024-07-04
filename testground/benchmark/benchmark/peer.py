@@ -30,7 +30,6 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         ctx.params.chain_id,
         ctx.params.test_group_id,
         ctx.group_seq,
-        ctx.global_seq,
     )
 
     data = ctx.sync.publish_subscribe_simple(
@@ -59,7 +58,6 @@ def init_node(
     chain_id: str,
     group: str,
     group_seq: int,
-    global_seq: int,
 ) -> PeerPacket:
     default_kwargs = {
         "home": home,

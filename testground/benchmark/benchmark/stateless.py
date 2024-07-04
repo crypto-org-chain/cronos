@@ -103,7 +103,6 @@ def init_node_local(
         DEFAULT_CHAIN_ID,
         group,
         group_seq,
-        global_seq,
     )
 
 
