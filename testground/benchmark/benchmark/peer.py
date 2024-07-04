@@ -81,7 +81,7 @@ def init_node(
         GenesisAccount(address=account_addr, balance=ACC_INITIAL_AMOUNT),
     ]
 
-    node_id = cli("comet", "show-node-id")
+    node_id = cli("comet", "show-node-id", **default_kwargs)
     peer_id = f"{node_id}@{ip}:26656"
     peer = PeerPacket(
         ip=str(ip),
