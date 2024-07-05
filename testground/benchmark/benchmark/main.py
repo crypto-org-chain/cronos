@@ -2,10 +2,12 @@ import os
 import subprocess
 from pathlib import Path
 
+import web3
+
 from .cli import ChainCommand
 from .context import Context
 from .peer import CONTAINER_CRONOSD_PATH, bootstrap
-from .sendtx import collect_output, generate_load
+from .sendtx import generate_load
 from .utils import wait_for_block, wait_for_port
 
 
@@ -41,7 +43,11 @@ def entrypoint(ctx: Context):
         )
 
     if ctx.is_fullnode_leader:
-        collect_output()
+        # collect output
+        w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+        for i in range(w3.eth.block_number):
+            blk = w3.eth.get_block(i)
+            print(i, len(blk.transactions), blk.timestamp)
 
     # halt after all tasks are done
     ctx.sync.signal_and_wait("halt", ctx.params.test_instance_count)

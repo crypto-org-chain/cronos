@@ -16,7 +16,7 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .sendtx import collect_output, generate_load
+from .sendtx import generate_load
 from .topology import connect_all
 from .types import PeerPacket
 from .utils import wait_for_block, wait_for_port
@@ -95,7 +95,7 @@ class CLI:
             proc.wait()
         else:
             generate_load(cli, num_accounts, num_txs, home=home)
-            collect_output()
+
             proc.kill()
             try:
                 proc.wait()
