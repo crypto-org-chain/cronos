@@ -97,10 +97,6 @@ class CLI:
             generate_load(cli, num_accounts, num_txs, home=home)
 
             proc.kill()
-            try:
-                proc.wait()
-            except subprocess.TimeoutExpired:
-                pass
 
 
 def init_node_local(
