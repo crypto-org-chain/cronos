@@ -73,7 +73,7 @@ mounts:
 
 # Stateless Mode
 
-To simplify cluster setup, we introduce a stateless mode.
+To simplify cluster setup, we are introducing a stateless mode.
 
 ## Generate Data Files Locally
 
