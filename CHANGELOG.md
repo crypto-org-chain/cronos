@@ -7,6 +7,7 @@
 * (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
 * [#1489](https://github.com/crypto-org-chain/cronos/pull/1489) Update cometbft to v0.37.7.
 * (versiondb) [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Reduce scope of copying slice data in iterator.
+* [#1506](https://github.com/crypto-org-chain/cronos/pull/1506) Update cometbft to latest v0.37.x.
 
 *Jun 18, 2024*
 
