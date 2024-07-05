@@ -64,9 +64,15 @@
         in
         rec {
           packages.default = pkgs.testground-testcase;
-          apps.default = {
-            type = "app";
-            program = "${pkgs.testground-testcase}/bin/testground-testcase";
+          apps = {
+            default = {
+              type = "app";
+              program = "${pkgs.testground-testcase}/bin/testground-testcase";
+            };
+            stateless-testcase = {
+              type = "app";
+              program = "${pkgs.testground-testcase}/bin/stateless-testcase";
+            };
           };
           devShells.default = pkgs.mkShell {
             buildInputs = [ pkgs.testground-testcase-env ];
