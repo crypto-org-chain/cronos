@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 * (store) [#1510](https://github.com/crypto-org-chain/cronos/pull/1510) Upgrade rocksdb to `v9.1.1`.
+* (store) [#1511](https://github.com/crypto-org-chain/cronos/pull/1511) Upgrade rocksdb to `v9.2.1`.
 
 *Jul 7, 2024*
 
