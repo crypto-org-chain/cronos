@@ -1,9 +1,10 @@
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import web3
 from eth_account import Account
 
-from .utils import send_transaction
+from .utils import export_eth_account, send_transaction
 
 TEST_AMOUNT = 1000000000000000000
 GAS_PRICE = 1000000000
@@ -54,3 +55,17 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
 
         if nonce % 100 == 0:
             print(f"{acct.address} sent {nonce} transactions")
+
+
+def generate_load(cli, num_accounts, num_txs, **kwargs):
+    w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+    assert w3.eth.chain_id == 777
+    genesis_account = export_eth_account(cli, "account", **kwargs)
+    accounts = fund_test_accounts(w3, genesis_account, num_accounts)
+    with ThreadPoolExecutor(max_workers=num_accounts) as executor:
+        futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as e:
+                print("test task failed", e)

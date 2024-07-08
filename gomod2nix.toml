@@ -530,8 +530,8 @@ schema = 3
     version = "v1.12.0"
     hash = "sha256-qvDNCe3l84/LgrA8X4O15e1FeDcazyX91m9LmXGXX6M="
   [mod."github.com/rs/cors"]
-    version = "v1.10.1"
-    hash = "sha256-um4INJM5/675MLK42npIsDbSQ1/Iy5ZiUNuAFReUfeM="
+    version = "v1.11.0"
+    hash = "sha256-hF25bVehtWCQsxiOfLuL4Hv8NKVunEqLPk/Vcuheha0="
   [mod."github.com/rs/zerolog"]
     version = "v1.32.0"
     hash = "sha256-9dZjtsES+wLp1cFiSVMuEUbdeXVFcgT0dgg5ACZkILk="
