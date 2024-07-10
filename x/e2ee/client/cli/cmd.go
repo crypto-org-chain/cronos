@@ -13,6 +13,7 @@ func E2EECommand() *cobra.Command {
 		EncryptCommand(),
 		DecryptCommand(),
 		EncryptToValidatorsCommand(),
+		PubKeyCommand(),
 	)
 
 	return cmd
