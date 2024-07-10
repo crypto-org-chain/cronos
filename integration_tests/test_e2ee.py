@@ -11,7 +11,7 @@ from .utils import ADDRS, bech32_to_eth, wait_for_new_blocks, wait_for_port
 
 def test_register(cronos: Cronos):
     cli = cronos.cosmos_cli()
-    pubkey0 = cli.keygen(keyring_name="key0")
+    pubkey0 = cli.e2ee_keygen(keyring_name="key0")
     with pytest.raises(AssertionError) as exc:
         cli.register_e2ee_key(pubkey0 + "malformed", _from="validator")
     assert "malformed recipient" in str(exc.value)
@@ -23,7 +23,8 @@ def gen_validator_identity(cronos: Cronos):
         cli = cronos.cosmos_cli(i)
         if cli.query_e2ee_key(cli.address("validator")):
             return
-        pubkey = cli.keygen()
+        pubkey = cli.e2ee_keygen()
+        assert cli.e2ee_pubkey() == pubkey
         cli.register_e2ee_key(pubkey, _from="validator")
         assert cli.query_e2ee_key(cli.address("validator")) == pubkey
 
@@ -54,15 +55,15 @@ def test_encrypt_decrypt(cronos):
     plainfile = cli0.data_dir / "plaintext"
     plainfile.write_text(content)
     cipherfile = cli0.data_dir / "ciphertext"
-    cli0.encrypt(
+    cli0.e2ee_encrypt(
         plainfile,
         cli0.address("validator"),
         cli1.address("validator"),
         output=cipherfile,
     )
 
-    assert cli0.decrypt(cipherfile) == content
-    assert cli1.decrypt(cipherfile) == content
+    assert cli0.e2ee_decrypt(cipherfile) == content
+    assert cli1.e2ee_decrypt(cipherfile) == content
 
 
 def encrypt_to_validators(cli, content):
@@ -70,7 +71,7 @@ def encrypt_to_validators(cli, content):
     plainfile = cli.data_dir / "plaintext"
     plainfile.write_text(blocklist)
     cipherfile = cli.data_dir / "ciphertext"
-    cli.encrypt_to_validators(plainfile, output=cipherfile)
+    cli.e2ee_encrypt_to_validators(plainfile, output=cipherfile)
     rsp = cli.store_blocklist(cipherfile, _from="validator")
     assert rsp["code"] == 0, rsp["raw_log"]
 
