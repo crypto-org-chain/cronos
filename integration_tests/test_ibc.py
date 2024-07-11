@@ -5,12 +5,20 @@ from .ibc_utils import (
     assert_ready,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
+    find_duplicate,
     get_balance,
     ibc_incentivized_transfer,
-    ibc_transfer_with_hermes,
+    ibc_transfer,
     prepare_network,
 )
-from .utils import ADDRS, CONTRACTS, deploy_contract, send_transaction, wait_for_fn
+from .utils import (
+    ADDRS,
+    CONTRACTS,
+    deploy_contract,
+    parse_events_rpc,
+    send_transaction,
+    wait_for_fn,
+)
 
 pytestmark = pytest.mark.ibc
 
@@ -28,7 +36,26 @@ def test_ibc_transfer_with_hermes(ibc):
     """
     test ibc transfer tokens with hermes cli
     """
-    ibc_transfer_with_hermes(ibc)
+    ibc_transfer(ibc)
+    dst_denom = "basetcro"
+    # assert that the relayer transactions do enables the dynamic fee extension option.
+    cli = ibc.cronos.cosmos_cli()
+    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = parse_events_rpc(tx["events"])
+    fee = int(events["tx"]["fee"].removesuffix(dst_denom))
+    gas = int(tx["gas_wanted"])
+    # the effective fee is decided by the max_priority_fee (base fee is zero)
+    # rather than the normal gas price
+    assert fee == gas * 1000000
+
+    # check duplicate OnRecvPacket events
+    criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
+    tx = cli.tx_search(criteria)["txs"][0]
+    events = tx["logs"][1]["events"]
+    for event in events:
+        dup = find_duplicate(event["attributes"])
+        assert not dup, f"duplicate {dup} in {event['type']}"
 
 
 def test_ibc_incentivized_transfer(ibc):
