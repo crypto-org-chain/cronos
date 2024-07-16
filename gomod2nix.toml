@@ -170,9 +170,9 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.46.0-beta2.0.20240715072401-d2de62e1575e"
-    hash = "sha256-B1+kqJ72qrA34TCfxoazHTZwI2jI6VZn1WnFpyBIu18="
-    replaced = "github.com/mmsqe/cosmos-sdk"
+    version = "v0.50.6-0.20240716063309-c47504d189d4"
+    hash = "sha256-ukD0WZAMJ9hdwzBXzc6a60VOopZ6u+pdf67iq/1Tfa4="
+    replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -454,9 +454,6 @@ schema = 3
   [mod."github.com/lib/pq"]
     version = "v1.10.7"
     hash = "sha256-YPUv1VBZNFVUjFxQKdYd0Djje6KYYE99Hz6FnTfrmMw="
-  [mod."github.com/libp2p/go-buffer-pool"]
-    version = "v0.1.0"
-    hash = "sha256-wQqGTtRWsfR9n0O/SXHVgECebbnNmHddxJIbG63OJBQ="
   [mod."github.com/linxGnu/grocksdb"]
     version = "v1.9.2"
     hash = "sha256-ThXtaXx6LvRIFW4xLHsMrVWdsN2qobLPA0InLmlADOM="
