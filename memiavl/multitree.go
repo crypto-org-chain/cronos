@@ -279,7 +279,7 @@ func (t *MultiTree) SaveVersion(updateCommitInfo bool) (int64, error) {
 	if updateCommitInfo {
 		t.UpdateCommitInfo()
 	} else {
-		// clear the dirty informaton
+		// clear the dirty information
 		t.lastCommitInfo.StoreInfos = []StoreInfo{}
 	}
 

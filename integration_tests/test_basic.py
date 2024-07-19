@@ -283,7 +283,7 @@ def test_statesync(cronos):
         == initial_balance + tx_value + tx_value
     )
 
-    print("succesfully syncing")
+    print("successfully syncing")
     clustercli.supervisor.stopProcess(f"{clustercli.chain_id}-node{i}")
 
 
@@ -572,7 +572,7 @@ def test_exception(cluster):
     receipt = send_transaction(
         w3, contract.functions.transfer(5 * (10**18)).build_transaction()
     )
-    assert receipt.status == 1, "should be succesfully"
+    assert receipt.status == 1, "should be successfully"
     assert 5 * (10**18) == contract.caller.query()
 
 
