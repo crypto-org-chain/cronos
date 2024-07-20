@@ -1514,15 +1514,14 @@ python-dateutil = "^2.8"
 python-dotenv = "^1.0"
 pyyaml = "^6.0"
 pyyaml-include = "^1.3"
-rpds-py = "^0.17.0"
 supervisor = "^4.2"
 tomlkit = "^0"
 
 [package.source]
 type = "git"
-url = "https://github.com/crypto-com/pystarport.git"
-reference = "main"
-resolved_reference = "4704c4a27b159eaa4d434ef44b9bf1046e81da1b"
+url = "https://github.com/mmsqe/pystarport.git"
+reference = "packed_batch"
+resolved_reference = "b61a1c8a42d1bc09d42574f0d3a9f9e4fb03df20"
 
 [[package]]
 name = "pytest"
@@ -2317,4 +2316,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "f4a81d2f69d093b02c4861288d41ab79aa75959de1e69043566ef4cdbb6bd3de"
+content-hash = "967cdab01630c35c1f904a71ac456594ebcc430e28d06806c9e1ca811e8933c8"

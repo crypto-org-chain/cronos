@@ -123,120 +123,161 @@ func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
 }
 
+func unpackInput(input []byte) ([][]byte, abi.Type, error) {
+	t, err := abi.NewType("bytes[]", "", nil)
+	if err != nil {
+		return nil, t, err
+	}
+	var inputs [][]byte
+	args, err := abi.Arguments{{
+		Type: t,
+	}}.Unpack(input)
+	if err != nil {
+		inputs = [][]byte{input}
+	} else {
+		inputs = append(inputs, args[0].([][]byte)...)
+	}
+	return inputs, t, nil
+}
+
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
-func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
-	// base cost to prevent large input size
-	inputLen := len(input)
-	baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte
-	var methodID [4]byte
-	copy(methodID[:], input[:4])
-	requiredGas, ok := relayerGasRequiredByMethod[methodID]
-	method, err := irelayerABI.MethodById(methodID[:])
+func (bc *RelayerContract) RequiredGas(input []byte) (finalGas uint64) {
+	inputs, _, err := unpackInput(input)
 	if err != nil {
 		panic(err)
 	}
-	if method.Name == RecvPacket {
-		args, err := method.Inputs.Unpack(input[4:])
+
+	for _, input := range inputs {
+		// base cost to prevent large input size
+		inputLen := len(input)
+		baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte
+		var methodID [4]byte
+		copy(methodID[:], input[:4])
+		requiredGas, ok := relayerGasRequiredByMethod[methodID]
+		method, err := irelayerABI.MethodById(methodID[:])
 		if err != nil {
 			panic(err)
 		}
-		i := args[0].([]byte)
-		var msg channeltypes.MsgRecvPacket
-		if err = bc.cdc.Unmarshal(i, &msg); err != nil {
-			panic(err)
+		if method.Name == RecvPacket {
+			args, err := method.Inputs.Unpack(input[4:])
+			if err != nil {
+				panic(err)
+			}
+			i := args[0].([]byte)
+			var msg channeltypes.MsgRecvPacket
+			if err = bc.cdc.Unmarshal(i, &msg); err != nil {
+				panic(err)
+			}
+			var data ibctransfertypes.FungibleTokenPacketData
+			if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
+				panic(err)
+			}
+			if ibctransfertypes.ReceiverChainIsSource(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel(), data.Denom) {
+				requiredGas = GasWhenReceiverChainIsSource
+			}
 		}
-		var data ibctransfertypes.FungibleTokenPacketData
-		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
-			panic(err)
+		intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
+		if !ok {
+			requiredGas = 0
 		}
-		if ibctransfertypes.ReceiverChainIsSource(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel(), data.Denom) {
-			requiredGas = GasWhenReceiverChainIsSource
+		gas := requiredGas + baseCost
+		if gas < intrinsicGas {
+			gas = 0
+		} else {
+			gas -= intrinsicGas
+			finalGas += gas
 		}
-	}
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
-	defer func() {
+
 		methodName := relayerMethodNamedByMethod[methodID]
+		fmt.Println("mm-required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
-	}()
-	if !ok {
-		requiredGas = 0
 	}
-	total := requiredGas + baseCost
-	if total < intrinsicGas {
-		return 0
-	}
-	return total - intrinsicGas
+	return finalGas
 }
 
 func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	if readonly {
 		return nil, errors.New("the method is not readonly")
 	}
-	if len(contract.Input) < 4 {
-		return nil, errors.New("input too short")
-	}
-	// parse input
-	methodID := contract.Input[:4]
-	method, err := irelayerABI.MethodById(methodID)
+	inputs, t, err := unpackInput(contract.Input)
 	if err != nil {
 		return nil, err
 	}
-	stateDB := evm.StateDB.(ExtStateDB)
 
-	var res []byte
-	precompileAddr := bc.Address()
-	args, err := method.Inputs.Unpack(contract.Input[4:])
-	if err != nil {
-		return nil, errors.New("fail to unpack input arguments")
+	var responses [][]byte
+	for _, input := range inputs {
+		if len(input) < 4 {
+			return nil, errors.New("input too short")
+		}
+		// parse input
+		methodID := input[:4]
+		method, err := irelayerABI.MethodById(methodID)
+		if err != nil {
+			return nil, err
+		}
+		stateDB := evm.StateDB.(ExtStateDB)
+
+		var res []byte
+		precompileAddr := bc.Address()
+		args, err := method.Inputs.Unpack(input[4:])
+		if err != nil {
+			return nil, errors.New("fail to unpack input arguments")
+		}
+		input := args[0].([]byte)
+		converter := cronosevents.RelayerConvertEvent
+		e := &Executor{
+			cdc:       bc.cdc,
+			stateDB:   stateDB,
+			caller:    contract.CallerAddress,
+			contract:  precompileAddr,
+			input:     input,
+			converter: converter,
+		}
+		switch method.Name {
+		case CreateClient:
+			res, err = exec(e, bc.ibcKeeper.CreateClient)
+		case UpdateClient:
+			res, err = exec(e, bc.ibcKeeper.UpdateClient)
+		case UpgradeClient:
+			res, err = exec(e, bc.ibcKeeper.UpgradeClient)
+		case ConnectionOpenInit:
+			res, err = exec(e, bc.ibcKeeper.ConnectionOpenInit)
+		case ConnectionOpenTry:
+			res, err = exec(e, bc.ibcKeeper.ConnectionOpenTry)
+		case ConnectionOpenAck:
+			res, err = exec(e, bc.ibcKeeper.ConnectionOpenAck)
+		case ConnectionOpenConfirm:
+			res, err = exec(e, bc.ibcKeeper.ConnectionOpenConfirm)
+		case ChannelOpenInit:
+			res, err = exec(e, bc.ibcKeeper.ChannelOpenInit)
+		case ChannelOpenTry:
+			res, err = exec(e, bc.ibcKeeper.ChannelOpenTry)
+		case ChannelOpenAck:
+			res, err = exec(e, bc.ibcKeeper.ChannelOpenAck)
+		case ChannelOpenConfirm:
+			res, err = exec(e, bc.ibcKeeper.ChannelOpenConfirm)
+		case ChannelCloseInit:
+			res, err = exec(e, bc.ibcKeeper.ChannelCloseInit)
+		case ChannelCloseConfirm:
+			res, err = exec(e, bc.ibcKeeper.ChannelCloseConfirm)
+		case RecvPacket:
+			res, err = exec(e, bc.ibcKeeper.RecvPacket)
+		case Acknowledgement:
+			res, err = exec(e, bc.ibcKeeper.Acknowledgement)
+		case Timeout:
+			res, err = exec(e, bc.ibcKeeper.Timeout)
+		case TimeoutOnClose:
+			res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
+		default:
+			return nil, fmt.Errorf("unknown method: %s", method.Name)
+		}
+		if err != nil {
+			return nil, err
+		}
+		responses = append(responses, res)
 	}
-	input := args[0].([]byte)
-	converter := cronosevents.RelayerConvertEvent
-	e := &Executor{
-		cdc:       bc.cdc,
-		stateDB:   stateDB,
-		caller:    contract.CallerAddress,
-		contract:  precompileAddr,
-		input:     input,
-		converter: converter,
-	}
-	switch method.Name {
-	case CreateClient:
-		res, err = exec(e, bc.ibcKeeper.CreateClient)
-	case UpdateClient:
-		res, err = exec(e, bc.ibcKeeper.UpdateClient)
-	case UpgradeClient:
-		res, err = exec(e, bc.ibcKeeper.UpgradeClient)
-	case ConnectionOpenInit:
-		res, err = exec(e, bc.ibcKeeper.ConnectionOpenInit)
-	case ConnectionOpenTry:
-		res, err = exec(e, bc.ibcKeeper.ConnectionOpenTry)
-	case ConnectionOpenAck:
-		res, err = exec(e, bc.ibcKeeper.ConnectionOpenAck)
-	case ConnectionOpenConfirm:
-		res, err = exec(e, bc.ibcKeeper.ConnectionOpenConfirm)
-	case ChannelOpenInit:
-		res, err = exec(e, bc.ibcKeeper.ChannelOpenInit)
-	case ChannelOpenTry:
-		res, err = exec(e, bc.ibcKeeper.ChannelOpenTry)
-	case ChannelOpenAck:
-		res, err = exec(e, bc.ibcKeeper.ChannelOpenAck)
-	case ChannelOpenConfirm:
-		res, err = exec(e, bc.ibcKeeper.ChannelOpenConfirm)
-	case ChannelCloseInit:
-		res, err = exec(e, bc.ibcKeeper.ChannelCloseInit)
-	case ChannelCloseConfirm:
-		res, err = exec(e, bc.ibcKeeper.ChannelCloseConfirm)
-	case RecvPacket:
-		res, err = exec(e, bc.ibcKeeper.RecvPacket)
-	case Acknowledgement:
-		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
-	case Timeout:
-		res, err = exec(e, bc.ibcKeeper.Timeout)
-	case TimeoutOnClose:
-		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
-	default:
-		return nil, fmt.Errorf("unknown method: %s", method.Name)
-	}
-	return res, err
+	return abi.Arguments{{
+		Type: t,
+	}}.Pack(responses)
 }
