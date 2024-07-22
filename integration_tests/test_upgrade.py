@@ -277,11 +277,19 @@ def exec(c, tmp_path_factory):
     do_upgrade("v1.3", target_height2)
     assert txs == get_txs(base_port, height)
 
+    height = cli.block_height()
+    target_height3 = height + 15
+    print("upgrade v1.4 height", target_height2)
+    do_upgrade("v1.4", target_height3)
+
     cli = c.cosmos_cli()
     assert e0 == cli.query_params("evm", height=target_height0 - 1)["params"]
     assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
     assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
     assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
+
+    with pytest.raises(AssertionError):
+        cli.query_params("icaauth")
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
