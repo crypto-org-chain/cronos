@@ -8,7 +8,7 @@ from .ibc_utils import (
     deploy_contract,
     funds_ica,
     gen_send_msg,
-    ica_ctrl_send_tx,
+    ica_send_tx,
     parse_events_rpc,
     prepare_network,
     register_acc,
@@ -50,7 +50,7 @@ def test_ica(ibc, tmp_path):
     seq = 1
     msg_num = 10
     assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
-    res = ica_ctrl_send_tx(
+    res = ica_send_tx(
         cli_host,
         cli_controller,
         connid,
@@ -76,30 +76,22 @@ def test_ica(ibc, tmp_path):
     err = events.get("ibc_src_callback")["callback_error"]
     assert "sender is not authenticated" in err, err
 
-    def generated_tx_txt(msg_num):
-        # generate a transaction to send to host chain
-        generated_tx = tmp_path / "generated_tx.txt"
-        m = gen_send_msg(ica_address, to, denom, amount)
-        msgs = []
-        for i in range(msg_num):
-            msgs.append(m)
-        generated_tx_msg = {
-            "body": {
-                "messages": msgs,
-            },
-        }
-        generated_tx.write_text(json.dumps(generated_tx_msg))
-        return generated_tx
-
     no_timeout = 60
 
     def submit_msgs(msg_num, timeout_in_s=no_timeout, gas="200000"):
         num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+        # generate a transaction to send to host chain
+        m = gen_send_msg(ica_address, to, denom, amount)
+        msgs = []
+        for i in range(msg_num):
+            msgs.append(m)
+        data = json.dumps(msgs)
+        packet = cli_controller.ica_generate_packet_data(data)
         # submit transaction on host chain on behalf of interchain account
-        rsp = cli_controller.icaauth_submit_tx(
+        rsp = cli_controller.ica_send_tx(
             connid,
-            generated_tx_txt(msg_num),
-            timeout_duration=f"{timeout_in_s}s",
+            json.dumps(packet),
+            timeout_in_ns=int(timeout_in_s * 1e9),
             gas=gas,
             from_="signer2",
         )

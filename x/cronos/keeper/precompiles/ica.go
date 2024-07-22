@@ -138,12 +138,14 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		version := args[1].(string)
+		ordering := args[2].(int32)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			msgServer := icacontrollerkeeper.NewMsgServerImpl(&ic.controllerKeeper)
 			_, err := msgServer.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
+				Ordering:     channeltypes.Order(ordering),
 			})
 			return err
 		})

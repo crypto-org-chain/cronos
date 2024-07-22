@@ -31,7 +31,7 @@ var (
 
 // ICAModuleMetaData contains all meta data concerning the ICAModule contract.
 var ICAModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"seq\",\"type\":\"uint64\"}],\"name\":\"SubmitMsgsResult\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"queryAccount\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"version\",\"type\":\"string\"},{\"internalType\":\"int32\",\"name\":\"ordering\",\"type\":\"int32\"}],\"name\":\"registerAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"connectionID\",\"type\":\"string\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"timeout\",\"type\":\"uint256\"}],\"name\":\"submitMsgs\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"\",\"type\":\"uint64\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ICAModuleABI is the input ABI used to generate the binding from.
@@ -211,25 +211,25 @@ func (_ICAModule *ICAModuleCallerSession) QueryAccount(connectionID string, addr
 	return _ICAModule.Contract.QueryAccount(&_ICAModule.CallOpts, connectionID, addr)
 }
 
-// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+// RegisterAccount is a paid mutator transaction binding the contract method 0x9a20d545.
 //
-// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
-func (_ICAModule *ICAModuleTransactor) RegisterAccount(opts *bind.TransactOpts, connectionID string, version string) (*types.Transaction, error) {
-	return _ICAModule.contract.Transact(opts, "registerAccount", connectionID, version)
+// Solidity: function registerAccount(string connectionID, string version, int32 ordering) payable returns(bool)
+func (_ICAModule *ICAModuleTransactor) RegisterAccount(opts *bind.TransactOpts, connectionID string, version string, ordering int32) (*types.Transaction, error) {
+	return _ICAModule.contract.Transact(opts, "registerAccount", connectionID, version, ordering)
 }
 
-// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+// RegisterAccount is a paid mutator transaction binding the contract method 0x9a20d545.
 //
-// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
-func (_ICAModule *ICAModuleSession) RegisterAccount(connectionID string, version string) (*types.Transaction, error) {
-	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version)
+// Solidity: function registerAccount(string connectionID, string version, int32 ordering) payable returns(bool)
+func (_ICAModule *ICAModuleSession) RegisterAccount(connectionID string, version string, ordering int32) (*types.Transaction, error) {
+	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version, ordering)
 }
 
-// RegisterAccount is a paid mutator transaction binding the contract method 0xddc7b6a7.
+// RegisterAccount is a paid mutator transaction binding the contract method 0x9a20d545.
 //
-// Solidity: function registerAccount(string connectionID, string version) payable returns(bool)
-func (_ICAModule *ICAModuleTransactorSession) RegisterAccount(connectionID string, version string) (*types.Transaction, error) {
-	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version)
+// Solidity: function registerAccount(string connectionID, string version, int32 ordering) payable returns(bool)
+func (_ICAModule *ICAModuleTransactorSession) RegisterAccount(connectionID string, version string, ordering int32) (*types.Transaction, error) {
+	return _ICAModule.Contract.RegisterAccount(&_ICAModule.TransactOpts, connectionID, version, ordering)
 }
 
 // SubmitMsgs is a paid mutator transaction binding the contract method 0x697bfa34.

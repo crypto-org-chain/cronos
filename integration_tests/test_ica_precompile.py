@@ -1,5 +1,6 @@
 import base64
 import json
+from enum import Enum
 
 import pytest
 from eth_utils import keccak
@@ -38,6 +39,12 @@ validator = "validator"
 amt = 1000
 
 
+class Ordering(Enum):
+    NONE = 0
+    UNORDERED = 1
+    ORDERED = 2
+
+
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
@@ -54,13 +61,13 @@ def ibc(request, tmp_path_factory):
 
 def register_acc(cli, w3, register, query, data, addr, channel_id):
     print(f"register ica account with {channel_id}")
-    tx = register(connid, "").build_transaction(data)
+    tx = register(connid, "", Ordering.ORDERED.value).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
     assert receipt.status == 1
     owner = eth_to_bech32(addr)
     wait_for_check_channel_ready(cli, connid, channel_id)
     res = cli.ica_query_account(connid, owner)
-    ica_address = res["interchain_account_address"]
+    ica_address = res["address"]
     print("query ica account", ica_address)
     res = query(connid, addr).call()
     assert ica_address == res, res
@@ -233,7 +240,11 @@ def test_sc_call(ibc):
     name = "signer1"
     data = {"from": ADDRS[name], "gas": default_gas}
     version = ""
-    tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
+    tx = tcontract.functions.callRegister(
+        connid,
+        version,
+        Ordering.ORDERED.value,
+    ).build_transaction(data)
     res = send_transaction(w3, tx, KEYS[name])
     assert res.status == 0
     assert tcontract.caller.getAccount() == signer
@@ -243,7 +254,7 @@ def test_sc_call(ibc):
 
     # readonly call should fail
     def register_ro(func):
-        tx = func(connid, version).build_transaction(data)
+        tx = func(connid, version, Ordering.ORDERED.value).build_transaction(data)
         assert send_transaction(w3, tx, keys).status == 0
 
     register_ro(tcontract.functions.delegateRegister)

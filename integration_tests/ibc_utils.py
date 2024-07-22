@@ -760,7 +760,13 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 def register_acc(cli, connid):
     print("register ica account")
     v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
-    rsp = cli.icaauth_register_account(connid, from_="signer2", gas="400000", version=v)
+    rsp = cli.ica_register_account(
+        connid,
+        from_="signer2",
+        gas="400000",
+        version=v,
+        ordering="ORDER_ORDERED",
+    )
     _, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
 
@@ -768,7 +774,7 @@ def register_acc(cli, connid):
     ica_address = cli.ica_query_account(
         connid,
         cli.address("signer2"),
-    )["interchain_account_address"]
+    )["address"]
     print("ica address", ica_address, "channel_id", channel_id)
     return ica_address, channel_id
 
@@ -810,7 +816,7 @@ def gen_send_msg(sender, receiver, denom, amount):
     }
 
 
-def ica_ctrl_send_tx(
+def ica_send_tx(
     cli_host,
     cli_controller,
     connid,
@@ -832,7 +838,7 @@ def ica_ctrl_send_tx(
     data = json.dumps(msgs)
     packet = cli_controller.ica_generate_packet_data(data, json.dumps(memo))
     # submit transaction on host chain on behalf of interchain account
-    rsp = cli_controller.ica_ctrl_send_tx(
+    rsp = cli_controller.ica_send_tx(
         connid,
         json.dumps(packet),
         from_="signer2",

@@ -40,7 +40,7 @@ from .utils import (
 
 def test_ica_enabled(cronos, tmp_path):
     cli = cronos.cosmos_cli()
-    p = cli.query_icacontroller_params()
+    p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
     proposal = tmp_path / "proposal.json"
@@ -65,7 +65,7 @@ def test_ica_enabled(cronos, tmp_path):
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
-    p = cli.query_icacontroller_params()
+    p = cli.query_ica_params()
     assert not p["controller_enabled"]
 
 
