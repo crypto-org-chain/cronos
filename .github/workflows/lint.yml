@@ -44,7 +44,7 @@ jobs:
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           golangci-lint version
 
-          BUILD_TAGS=rocksdb,grocksdb_clean_link
+          BUILD_TAGS=rocksdb,grocksdb_clean_link,objstore
           go build -tags $BUILD_TAGS ./cmd/cronosd
           golangci-lint run --out-format=github-actions --path-prefix=./ --timeout 10m --build-tags $BUILD_TAGS
           cd versiondb
