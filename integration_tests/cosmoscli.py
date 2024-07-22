@@ -1296,8 +1296,8 @@ class CosmosCLI:
         rsp = json.loads(
             self.raw(
                 "tx",
-                "icaauth",
-                "register-account",
+                "interchain-accounts", "controller",
+                "register",
                 connid,
                 "-y",
                 **(default_kwargs | kwargs),
@@ -1317,8 +1317,8 @@ class CosmosCLI:
         rsp = json.loads(
             self.raw(
                 "tx",
-                "icaauth",
-                "submit-tx",
+                "interchain-accounts", "controller",
+                "send-tx",
                 connid,
                 tx,
                 "--timeout-duration" if timeout_duration else None,
@@ -1364,8 +1364,8 @@ class CosmosCLI:
         return json.loads(
             self.raw(
                 "q",
-                "icaauth",
-                "interchain-account-address",
+                "interchain-accounts", "controller",
+                "interchain-account",
                 connid,
                 owner,
                 **(default_kwargs | kwargs),
@@ -1484,20 +1484,6 @@ class CosmosCLI:
                 "-y",
                 home=self.data_dir,
                 **kwargs,
-            )
-        )
-
-    def query_icaauth_params(self, **kwargs):
-        default_kwargs = {
-            "node": self.node_rpc,
-            "output": "json",
-        }
-        return json.loads(
-            self.raw(
-                "q",
-                "icaauth",
-                "params",
-                **(default_kwargs | kwargs),
             )
         )
 
