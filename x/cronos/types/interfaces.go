@@ -3,15 +3,12 @@ package types
 import (
 	context "context"
 	"math/big"
-	time "time"
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -70,13 +67,6 @@ type EvmKeeper interface {
 	GetBaseFee(ctx sdk.Context, ethCfg *params.ChainConfig) *big.Int
 	DeductTxCostsFromUserBalance(ctx sdk.Context, fees sdk.Coins, from common.Address) error
 	ChainID() *big.Int
-}
-
-// Icaauthkeeper defines the interface for icaauth keeper
-type Icaauthkeeper interface {
-	RegisterAccount(goCtx context.Context, msg *icaauthtypes.MsgRegisterAccount) (*icaauthtypes.MsgRegisterAccountResponse, error)
-	InterchainAccountAddress(goCtx context.Context, req *icaauthtypes.QueryInterchainAccountAddressRequest) (*icaauthtypes.QueryInterchainAccountAddressResponse, error)
-	SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (string, *icaauthtypes.MsgSubmitTxResponse, error)
 }
 
 // CronosKeeper defines the interface for cronos keeper

@@ -16,3 +16,7 @@ var _ icatypes.ParamSubspace = ICAHostMockSubspace{}
 func (ICAHostMockSubspace) GetParamSet(ctx sdk.Context, ps paramtypes.ParamSet) {
 	*(ps.(*icahosttypes.Params)) = icahosttypes.DefaultParams()
 }
+
+func (ICAHostMockSubspace) GetParamSetIfExists(ctx sdk.Context, ps paramtypes.ParamSet) {
+	return
+}
