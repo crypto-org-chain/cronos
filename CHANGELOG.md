@@ -9,6 +9,7 @@
 * [#1414](https://github.com/crypto-org-chain/cronos/pull/1414) Integrate new evm tx format.
 * [#1458](https://github.com/crypto-org-chain/cronos/pull/1458) Adjust require gas for recvPacket when ReceiverChainIsSource.
 * [#1519](https://github.com/crypto-org-chain/cronos/pull/1519) Upgrade ibc-go to 8.3 and remove icaauth module.
+* [#1518](https://github.com/crypto-org-chain/cronos/pull/1518) Keep versiondb/memiavl compatible with upstream sdk, stop supporting other streaming service.
 
 ### Improvements
 
