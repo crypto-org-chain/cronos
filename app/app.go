@@ -941,12 +941,6 @@ func New(
 	app.MountMemoryStores(memKeys)
 	app.MountObjectStores(okeys)
 
-	// load state streaming if enabled
-	if err := app.RegisterStreamingServices(appOpts, keys); err != nil {
-		fmt.Printf("failed to load state streaming: %s", err)
-		os.Exit(1)
-	}
-
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
 	if cast.ToBool(appOpts.Get("versiondb.enable")) {
 		var err error

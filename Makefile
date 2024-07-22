@@ -15,7 +15,7 @@ COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 
 # process build tags
-build_tags = netgo
+build_tags = netgo objstore
 ifeq ($(NETWORK),mainnet)
     build_tags += mainnet
 else ifeq ($(NETWORK),testnet)
@@ -99,9 +99,9 @@ install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/cronosd
 
 test:
-	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
-	@cd memiavl; go test -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
-	@cd store; go test -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
+	@cd memiavl; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+	@cd store; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
 
 test-versiondb:
 	@cd versiondb; go test -tags rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
