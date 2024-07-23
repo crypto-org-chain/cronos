@@ -31,7 +31,7 @@ def ibc(request, tmp_path_factory):
         name,
         incentivized=False,
         connection_only=True,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
     )
 
 
@@ -101,7 +101,7 @@ def test_ica(ibc, tmp_path):
 
     # submit large txs to trigger timeout
     msg_num = 140
-    submit_msgs(msg_num, 5, "600000")
+    submit_msgs(msg_num, 0.005, "600000")
     assert cli_host.balance(ica_address, denom=denom) == balance
     wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
     # reopen ica account after channel get closed
