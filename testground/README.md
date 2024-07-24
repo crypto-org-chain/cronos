@@ -75,12 +75,20 @@ mounts:
 
 To simplify cluster setup, we are introducing a stateless mode.
 
-## Generate Data Files Locally
+## Generate data files locally
 
-You need to have a `cronosd` in `PATH`.
+You need to have the `cronosd` in `PATH`.
 
 ```bash
 $ nix run github:crypto-org-chain/cronos#stateless-testcase gen /tmp/data/out 3 7
+```
+
+## Embed the data directory
+
+Patch the image to embed the data directory, it produce a local image:
+
+```bash
+$ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-testground:latest /tmp/data/out
 ```
 
 ## Run In Local Docker

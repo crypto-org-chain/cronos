@@ -1,7 +1,9 @@
 import json
 import os
+import shutil
 import socket
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import List
 
@@ -26,11 +28,17 @@ LOCAL_CRONOSD_PATH = "cronosd"
 DEFAULT_CHAIN_ID = "cronos_777-1"
 DEFAULT_DENOM = "basecro"
 # the container must be deployed with the prefixed name
-CONTAINER_PREFIX = "testplan-"
+HOSTNAME_TEMPLATE = "testplan-{index}"
 
 
 class CLI:
-    def gen(self, outdir: str, validators: int, fullnodes: int):
+    def gen(
+        self,
+        outdir: str,
+        validators: int,
+        fullnodes: int,
+        hostname_template=HOSTNAME_TEMPLATE,
+    ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
@@ -39,12 +47,12 @@ class CLI:
         peers = []
         for i in range(validators):
             print("init validator", i)
-            peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, i))
+            ip = hostname_template.format(index=i)
+            peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
         for i in range(fullnodes):
             print("init fullnode", i)
-            peers.append(
-                init_node_local(cli, outdir, FULLNODE_GROUP, i, i + validators)
-            )
+            ip = hostname_template.format(index=i + validators)
+            peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
 
         print("prepare genesis")
         # use a full node directory to prepare the genesis file
@@ -58,6 +66,26 @@ class CLI:
             patch_configs_local(
                 peers, genesis, outdir, FULLNODE_GROUP, i, i + validators
             )
+
+    def patchimage(
+        self,
+        toimage,
+        src,
+        dst="/data",
+        fromimage="ghcr.io/crypto-org-chain/cronos-testground:latest",
+    ):
+        """
+        combine data directory with an exiting image to produce a new image
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            shutil.copytree(src, tmpdir / "out")
+            content = f"""FROM {fromimage}
+ADD ./out {dst}
+"""
+            print(content)
+            (tmpdir / "Dockerfile").write_text(content)
+            subprocess.run(["docker", "build", "-t", toimage, tmpdir])
 
     def run(
         self,
@@ -100,12 +128,12 @@ class CLI:
 
 
 def init_node_local(
-    cli: ChainCommand, outdir: Path, group: str, group_seq: int, global_seq: int
+    cli: ChainCommand, outdir: Path, group: str, group_seq: int, ip: str
 ) -> PeerPacket:
     return init_node(
         cli,
         outdir / group / str(group_seq),
-        CONTAINER_PREFIX + str(global_seq),
+        ip,
         DEFAULT_CHAIN_ID,
         group,
         group_seq,
