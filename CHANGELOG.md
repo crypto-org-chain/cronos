@@ -26,6 +26,10 @@
 * (store) [#1511](https://github.com/crypto-org-chain/cronos/pull/1511) Upgrade rocksdb to `v9.2.1`.
 * (block-stm) [#1515](https://github.com/crypto-org-chain/cronos/pull/1515) Improve performance by cache signature verification result between incarnations of same tx.
 
+### Bug Fixes
+
+* [#1520](https://github.com/crypto-org-chain/cronos/pull/1520) Avoid invalid chain id for signer error when rpc call before chain id set in BeginBlock.
+
 *Jun 18, 2024*
 
 ## v1.3.0-rc2

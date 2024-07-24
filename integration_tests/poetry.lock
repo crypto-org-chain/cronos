@@ -1514,7 +1514,6 @@ python-dateutil = "^2.8"
 python-dotenv = "^1.0"
 pyyaml = "^6.0"
 pyyaml-include = "^1.3"
-rpds-py = "^0.17.0"
 supervisor = "^4.2"
 tomlkit = "^0"
 
@@ -1522,7 +1521,7 @@ tomlkit = "^0"
 type = "git"
 url = "https://github.com/crypto-com/pystarport.git"
 reference = "main"
-resolved_reference = "4704c4a27b159eaa4d434ef44b9bf1046e81da1b"
+resolved_reference = "ef603d05ccd6fd66459c9879d5c1be21d2665844"
 
 [[package]]
 name = "pytest"
