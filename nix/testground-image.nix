@@ -6,16 +6,19 @@ let
     ];
   });
 in
+let
+  tmpDir = runCommandLocal "tmp" { } ''
+    mkdir -p $out/tmp/
+  '';
+in
 dockerTools.buildLayeredImage {
   name = "cronos-testground";
   created = "now";
   contents = [
     testground-testcase
     patched-cronosd
+    tmpDir
   ];
-  copyToRoot = runCommandLocal "tmp" { } ''
-    mkdir -p $out/tmp/
-  '';
   config = {
     Expose = [ 9090 26657 26656 1317 26658 26660 26659 30000 ];
     Cmd = [ "/bin/testground-testcase" ];
