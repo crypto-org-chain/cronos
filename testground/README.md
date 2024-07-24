@@ -99,6 +99,6 @@ $ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet | docker-c
 
 It'll mount the data files to all the containers.
 
-* Run In Cluster
+## Run In Cluster
 
 TODO
