@@ -6,7 +6,6 @@ std.manifestYamlDoc({
       container_name: 'testplan-' + i,
       volumes: [
         @'${DATADIR:-/tmp/data/out}:/data',
-        '/tmp:/tmp',
       ],
       environment: {
         JOB_COMPLETION_INDEX: i,
