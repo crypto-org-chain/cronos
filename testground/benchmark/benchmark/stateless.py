@@ -32,7 +32,13 @@ HOSTNAME_TEMPLATE = "testplan-{index}"
 
 
 class CLI:
-    def gen(self, outdir: str, validators: int, fullnodes: int, hostname_template=HOSTNAME_TEMPLATE):
+    def gen(
+        self,
+        outdir: str,
+        validators: int,
+        fullnodes: int,
+        hostname_template=HOSTNAME_TEMPLATE,
+    ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
@@ -45,7 +51,7 @@ class CLI:
             peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
         for i in range(fullnodes):
             print("init fullnode", i)
-            ip = hostname_template.format(index=i+validators)
+            ip = hostname_template.format(index=i + validators)
             peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
 
         print("prepare genesis")
@@ -61,16 +67,22 @@ class CLI:
                 peers, genesis, outdir, FULLNODE_GROUP, i, i + validators
             )
 
-    def patchimage(self, toimage, src, dst="/data", fromimage="ghcr.io/crypto-org-chain/cronos-testground:latest"):
-        '''
+    def patchimage(
+        self,
+        toimage,
+        src,
+        dst="/data",
+        fromimage="ghcr.io/crypto-org-chain/cronos-testground:latest",
+    ):
+        """
         combine data directory with an exiting image to produce a new image
-        '''
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
             shutil.copytree(src, tmpdir / "out")
-            content = f'''FROM {fromimage}
+            content = f"""FROM {fromimage}
 ADD ./out {dst}
-'''
+"""
             print(content)
             (tmpdir / "Dockerfile").write_text(content)
             subprocess.run(["docker", "build", "-t", toimage, tmpdir])
