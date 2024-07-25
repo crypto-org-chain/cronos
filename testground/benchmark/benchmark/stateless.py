@@ -1,7 +1,10 @@
 import json
 import os
+import shutil
 import socket
 import subprocess
+import tarfile
+import tempfile
 from pathlib import Path
 from typing import List
 
@@ -26,11 +29,19 @@ LOCAL_CRONOSD_PATH = "cronosd"
 DEFAULT_CHAIN_ID = "cronos_777-1"
 DEFAULT_DENOM = "basecro"
 # the container must be deployed with the prefixed name
-CONTAINER_PREFIX = "testplan-"
+HOSTNAME_TEMPLATE = "testplan-{index}"
 
 
 class CLI:
-    def gen(self, outdir: str, validators: int, fullnodes: int):
+    def gen(
+        self,
+        outdir: str,
+        validators: int,
+        fullnodes: int,
+        hostname_template=HOSTNAME_TEMPLATE,
+        num_accounts=10,
+        num_txs=1000,
+    ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
@@ -39,12 +50,12 @@ class CLI:
         peers = []
         for i in range(validators):
             print("init validator", i)
-            peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, i))
+            ip = hostname_template.format(index=i)
+            peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
         for i in range(fullnodes):
             print("init fullnode", i)
-            peers.append(
-                init_node_local(cli, outdir, FULLNODE_GROUP, i, i + validators)
-            )
+            ip = hostname_template.format(index=i + validators)
+            peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
 
         print("prepare genesis")
         # use a full node directory to prepare the genesis file
@@ -59,23 +70,55 @@ class CLI:
                 peers, genesis, outdir, FULLNODE_GROUP, i, i + validators
             )
 
+        print("write config")
+        cfg = {
+            "validators": validators,
+            "fullnodes": fullnodes,
+            "num_accounts": num_accounts,
+            "num_txs": num_txs,
+        }
+        (outdir / "config.json").write_text(json.dumps(cfg))
+
+    def patchimage(
+        self,
+        toimage,
+        src,
+        dst="/data",
+        fromimage="ghcr.io/crypto-org-chain/cronos-testground:latest",
+    ):
+        """
+        combine data directory with an exiting image to produce a new image
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+            shutil.copytree(src, tmpdir / "out")
+            content = f"""FROM {fromimage}
+ADD ./out {dst}
+"""
+            print(content)
+            (tmpdir / "Dockerfile").write_text(content)
+            subprocess.run(["docker", "build", "-t", toimage, tmpdir])
+
     def run(
         self,
-        outdir: str,
-        validators: int,
+        outdir: str = "/outputs",
+        datadir: str = "/data",
         cronosd=CONTAINER_CRONOSD_PATH,
         global_seq=None,
-        num_accounts=10,
-        num_txs=1000,
     ):
-        outdir = Path(outdir)
+        datadir = Path(datadir)
+
+        cfg = json.loads((datadir / "config.json").read_text())
+
         if global_seq is None:
             global_seq = node_index()
+
+        validators = cfg["validators"]
         group = VALIDATOR_GROUP if global_seq < validators else FULLNODE_GROUP
         group_seq = global_seq if group == VALIDATOR_GROUP else global_seq - validators
         print("node role", global_seq, group, group_seq)
 
-        home = outdir / group / str(group_seq)
+        home = datadir / group / str(group_seq)
 
         # start the node
         logfile = home / "node.log"
@@ -94,18 +137,26 @@ class CLI:
             # validators don't quit
             proc.wait()
         else:
-            generate_load(cli, num_accounts, num_txs, home=home)
-
+            generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
             proc.kill()
+            proc.wait()
+
+            # collect outputs
+            outdir = Path(outdir)
+            if outdir.exists():
+                with tarfile.open(
+                    outdir / f"{group}_{group_seq}.tar.bz2", "x:bz2"
+                ) as tar:
+                    tar.add(home, arcname="data")
 
 
 def init_node_local(
-    cli: ChainCommand, outdir: Path, group: str, group_seq: int, global_seq: int
+    cli: ChainCommand, outdir: Path, group: str, group_seq: int, ip: str
 ) -> PeerPacket:
     return init_node(
         cli,
         outdir / group / str(group_seq),
-        CONTAINER_PREFIX + str(global_seq),
+        ip,
         DEFAULT_CHAIN_ID,
         group,
         group_seq,

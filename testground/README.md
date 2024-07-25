@@ -75,21 +75,40 @@ mounts:
 
 To simplify cluster setup, we are introducing a stateless mode.
 
-## Generate Data Files Locally
+## Generate data files locally
 
-You need to have a `cronosd` in `PATH`.
+You need to have the `cronosd` in `PATH`.
 
 ```bash
-$ nix run github:crypto-org-chain/cronos#stateless-testcase gen /tmp/data/out 3 7
+$ nix run github:crypto-org-chain/cronos#stateless-testcase -- gen /tmp/data/out \
+  --validators 3 \
+  --fullnodes 7 \
+  --hostname_template "testplan-{index}" \
+  --num_accounts 10 \
+  --num_txs 1000
+```
+
+* `validators`/`fullnodes` is the number of validators/full nodes.
+* `hostname_template` is the hostname of each node that can communicate.
+* `num_accounts` is the number of test accounts for each full node.
+* `num_txs` is the number of test transactions to be sent for each test account.
+
+## Embed the data directory
+
+Embed the data directory into the image, it produce a new image:
+
+```bash
+$ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-testground:latest /tmp/data/out
 ```
 
 ## Run In Local Docker
 
 ```bash
+$ mkdir /tmp/outputs
 $ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet | docker-compose -f /dev/stdin up
 ```
 
-It'll mount the data files to all the containers.
+It'll collect the node data files to the `/tmp/outputs` directory.
 
 ## Run In Cluster
 
