@@ -2,7 +2,7 @@ import hashlib
 import json
 import subprocess
 from contextlib import contextmanager
-from enum import IntEnum
+from enum import Enum, IntEnum
 from pathlib import Path
 from typing import NamedTuple
 
@@ -31,6 +31,11 @@ RELAYER_CALLER = "0x6F1805D56bF05b7be10857F376A5b1c160C8f72C"
 
 class Status(IntEnum):
     PENDING, SUCCESS, FAIL = range(3)
+
+
+class ChannelOrder(Enum):
+    ORDERED = "ORDER_ORDERED"
+    UNORDERED = "ORDER_UNORDERED"
 
 
 class IBCNetwork(NamedTuple):
@@ -757,15 +762,15 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
         assert raised
 
 
-def register_acc(cli, connid):
+def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signer2"):
     print("register ica account")
     v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
     rsp = cli.ica_register_account(
         connid,
-        from_="signer2",
+        from_=signer,
         gas="400000",
         version=v,
-        ordering="ORDER_ORDERED",
+        ordering=ordering,
     )
     _, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
@@ -773,18 +778,18 @@ def register_acc(cli, connid):
     print("query ica account")
     ica_address = cli.ica_query_account(
         connid,
-        cli.address("signer2"),
+        cli.address(signer),
     )["address"]
     print("ica address", ica_address, "channel_id", channel_id)
     return ica_address, channel_id
 
 
-def funds_ica(cli, adr):
+def funds_ica(cli, adr, signer="signer2"):
     # initial balance of interchain account should be zero
     assert cli.balance(adr) == 0
 
     # send some funds to interchain account
-    rsp = cli.transfer("signer2", adr, "1cro", gas_prices="1000000basecro")
+    rsp = cli.transfer(signer, adr, "1cro", gas_prices="1000000basecro")
     assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
     amt = 100000000
@@ -827,6 +832,7 @@ def ica_send_tx(
     amount,
     memo=None,
     incentivized_cb=None,
+    signer="signer2",
     **kwargs,
 ):
     num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
@@ -841,7 +847,7 @@ def ica_send_tx(
     rsp = cli_controller.ica_send_tx(
         connid,
         json.dumps(packet),
-        from_="signer2",
+        from_=signer,
         **kwargs,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
