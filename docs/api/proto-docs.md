@@ -32,28 +32,6 @@
   
     - [Msg](#cronos.Msg)
   
-- [icaauth/v1/params.proto](#icaauth/v1/params.proto)
-    - [Params](#cronos.icaauth.v1.Params)
-  
-- [icaauth/v1/genesis.proto](#icaauth/v1/genesis.proto)
-    - [GenesisState](#cronos.icaauth.v1.GenesisState)
-  
-- [icaauth/v1/query.proto](#icaauth/v1/query.proto)
-    - [QueryInterchainAccountAddressRequest](#cronos.icaauth.v1.QueryInterchainAccountAddressRequest)
-    - [QueryInterchainAccountAddressResponse](#cronos.icaauth.v1.QueryInterchainAccountAddressResponse)
-    - [QueryParamsRequest](#cronos.icaauth.v1.QueryParamsRequest)
-    - [QueryParamsResponse](#cronos.icaauth.v1.QueryParamsResponse)
-  
-    - [Query](#cronos.icaauth.v1.Query)
-  
-- [icaauth/v1/tx.proto](#icaauth/v1/tx.proto)
-    - [MsgRegisterAccount](#cronos.icaauth.v1.MsgRegisterAccount)
-    - [MsgRegisterAccountResponse](#cronos.icaauth.v1.MsgRegisterAccountResponse)
-    - [MsgSubmitTx](#cronos.icaauth.v1.MsgSubmitTx)
-    - [MsgSubmitTxResponse](#cronos.icaauth.v1.MsgSubmitTxResponse)
-  
-    - [Msg](#cronos.icaauth.v1.Msg)
-  
 - [Scalar Value Types](#scalar-value-types)
 
 

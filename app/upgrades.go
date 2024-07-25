@@ -11,7 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	clientkeeper "github.com/cosmos/ibc-go/v8/modules/core/02-client/keeper"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
@@ -41,9 +40,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 				Added: []string{
 					icahosttypes.StoreKey,
 				},
-				Deleted: []string{
-					icaauthtypes.StoreKey,
-				},
+				Deleted: []string{"icaauth"},
 			}))
 		}
 	}

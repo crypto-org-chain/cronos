@@ -174,14 +174,6 @@
           "Params": "InterchainAccountsControllerParams"
         }
       }
-    },
-    {
-      "url": "./tmp-swagger-gen/icaauth/v1/query.swagger.json",
-      "operationIds": {
-        "rename": {
-          "Params": "IcaauthParams"
-        }
-      }
     }
   ]
 }
