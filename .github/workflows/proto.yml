@@ -44,6 +44,6 @@ jobs:
         if: env.GIT_DIFF
         run: |
           make proto-gen-ci # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
-          git checkout -- go.mod go.sum docs/api/proto-docs.md  # FIXME doc gen not reproducible in CI
+          git checkout -- go.mod go.sum # FIXME doc gen not reproducible in CI
       - name: check working directory is clean
         uses: numtide/clean-git-action@main
