@@ -80,7 +80,7 @@ To simplify cluster setup, we are introducing a stateless mode.
 You need to have the `cronosd` in `PATH`.
 
 ```bash
-$ nix run github:crypto-org-chain/cronos#stateless-testcase gen /tmp/data/out \
+$ nix run github:crypto-org-chain/cronos#stateless-testcase -- gen /tmp/data/out \
   --validators 3 \
   --fullnodes 7 \
   --hostname_template "testplan-{index}" \
