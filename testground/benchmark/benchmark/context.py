@@ -4,7 +4,7 @@ import socket
 from .params import RunParams, run_params
 from .sync import SyncService
 
-LEADER_GLOBAL_SEQUENCE = 1
+LEADER_SEQUENCE = 1
 
 
 class Context:
@@ -12,7 +12,13 @@ class Context:
         if params is None:
             params = run_params()
         self.params = params
-        self.sync = SyncService(params)
+        self._sync = None
+
+    @property
+    def sync(self) -> SyncService:
+        if self._sync is None:
+            self._sync = SyncService(self.params)
+        return self._sync
 
     def init_common(self):
         self.wait_network_ready()
@@ -97,14 +103,27 @@ class Context:
 
     @property
     def is_leader(self) -> bool:
-        return self.global_seq == LEADER_GLOBAL_SEQUENCE
+        return self.global_seq == LEADER_SEQUENCE
+
+    @property
+    def is_fullnode_leader(self) -> bool:
+        return not self.is_validator and self.group_seq == LEADER_SEQUENCE
+
+    @property
+    def is_validator_leader(self) -> bool:
+        return self.is_validator and self.group_seq == LEADER_SEQUENCE
 
     @property
     def is_validator(self) -> bool:
         return self.params.is_validator
 
+    @property
+    def is_fullnode(self) -> bool:
+        return not self.params.is_validator
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.sync.close()
+        if self._sync is not None:
+            self._sync.close()

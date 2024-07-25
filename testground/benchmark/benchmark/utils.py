@@ -5,6 +5,7 @@ from pathlib import Path
 
 import bech32
 import tomlkit
+from eth_account import Account
 from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
@@ -90,3 +91,8 @@ def send_transaction(w3, tx, acct, wait=True):
     if wait:
         return w3.eth.wait_for_transaction_receipt(txhash)
     return txhash
+
+
+def export_eth_account(cli, name: str, **kwargs) -> Account:
+    kwargs.setdefault("keyring_backend", "test")
+    return Account.from_key(cli("keys", "unsafe-export-eth-key", name, **kwargs))

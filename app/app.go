@@ -137,6 +137,7 @@ import (
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
+	servercfg "github.com/evmos/ethermint/server/config"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -371,9 +372,14 @@ func New(
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	// Setup Mempool and Proposal Handlers
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+		if maxTxs <= 0 {
+			maxTxs = servercfg.DefaultMaxTxs
+		}
 		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			MaxTx:           maxTxs,
 		})
 		handler := baseapp.NewDefaultProposalHandler(mempool, app)
 
@@ -384,6 +390,10 @@ func New(
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+
+	// enable optimistic execution
+	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	bApp := baseapp.NewBaseApp(Name, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 
@@ -931,12 +941,6 @@ func New(
 	app.MountMemoryStores(memKeys)
 	app.MountObjectStores(okeys)
 
-	// load state streaming if enabled
-	if err := app.RegisterStreamingServices(appOpts, keys); err != nil {
-		fmt.Printf("failed to load state streaming: %s", err)
-		os.Exit(1)
-	}
-
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
 	if cast.ToBool(appOpts.Get("versiondb.enable")) {
 		var err error
@@ -1221,6 +1225,7 @@ func (app *App) SimulationManager() *module.SimulationManager {
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	clientCtx := apiSvr.ClientCtx
+	app.EvmKeeper.WithChainIDString(clientCtx.ChainID)
 	// Register new tx routes from grpc-gateway.
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register new tendermint queries routes from grpc-gateway.

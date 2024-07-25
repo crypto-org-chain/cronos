@@ -6,22 +6,27 @@ author = "core-app"
 plan = "benchmark"
 case = "entrypoint"
 total_instances = 10
-builder = "docker:nix"
+builder = "docker:go" # not used
 runner = "local:docker"
 disable_metrics = false
 
 [global.run.test_params]
 chain_id = "cronos_777-1"
-halt_height = "5"
+# number of test accounts for each full node
+num_accounts = "10"
+# number of test transactions to be sent for each test account
+num_txs = "1000"
 
 [[groups]]
 id = "validators"
-builder = "docker:nix"
 [groups.instances]
 count = 3
+[groups.run]
+artifact = "ghcr.io/crypto-org-chain/cronos-testground:latest"
 
 [[groups]]
 id = "fullnodes"
-builder = "docker:nix"
 [groups.instances]
 count = 7
+[groups.run]
+artifact = "ghcr.io/crypto-org-chain/cronos-testground:latest"

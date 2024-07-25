@@ -118,7 +118,7 @@ IAVL snapshot is composed by four files:
 
 #### Compression
 
-The items in snapshot reference with each other by file offsets, we can apply some block compression techniques to compress keys and values files while maintain random accessbility by uncompressed file offset, for example zstd's experimental seekable format[^1].
+The items in snapshot reference with each other by file offsets, we can apply some block compression techniques to compress keys and values files while maintain random accessibility by uncompressed file offset, for example zstd's experimental seekable format[^1].
 
 ### VersionDB
 
