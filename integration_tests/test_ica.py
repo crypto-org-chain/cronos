@@ -113,7 +113,7 @@ def test_ica(ibc, order):
     assert cli_host.balance(ica_address, denom=denom) == balance
     if order == ChannelOrder.UNORDERED.value:
         with pytest.raises(AssertionError) as exc:
-            ica_address2, channel_id2 = register_acc(cli_controller, connid)
+            register_acc(cli_controller, connid)
         assert "existing active channel" in str(exc.value)
     else:
         wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
