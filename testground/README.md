@@ -81,10 +81,10 @@ You need to have the `cronosd` in `PATH`.
 
 ```bash
 $ nix run github:crypto-org-chain/cronos#stateless-testcase gen /tmp/data/out \
-  --validators 3
-  --fullnodes 7
-  --hostname_template "testplan-{index}"
-  --num_accounts 10
+  --validators 3 \
+  --fullnodes 7 \
+  --hostname_template "testplan-{index}" \
+  --num_accounts 10 \
   --num_txs 1000
 ```
 
