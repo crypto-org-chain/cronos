@@ -143,7 +143,7 @@ ADD ./out {dst}
 
             # collect outputs
             outdir = Path(outdir)
-            if outdir.is_dir():
+            if outdir.exists():
                 with tarfile.open(
                     outdir / f"{group}_{group_seq}.tar.bz2", "x:bz2"
                 ) as tar:
