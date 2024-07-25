@@ -145,7 +145,7 @@ ADD ./out {dst}
             outdir = Path(outdir)
             if outdir.is_dir():
                 with tarfile.open(
-                    outdir / f"{group}_{group_seq}.tar.gz", "x:bz2"
+                    outdir / f"{group}_{group_seq}.tar.bz2", "x:bz2"
                 ) as tar:
                     tar.add(home, arcname="data")
 
