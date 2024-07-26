@@ -30,8 +30,6 @@ from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 from web3.datastructures import AttributeDict
 
-from .cosmoscli import DEFAULT_GAS_PRICE
-
 load_dotenv(Path(__file__).parent.parent / "scripts/.env")
 Account.enable_unaudited_hdwallet_features()
 ACCOUNTS = {
@@ -138,17 +136,15 @@ def wait_for_block_time(cli, t):
 
 def approve_proposal(
     n,
-    rsp,
+    events,
     event_query_tx=False,
-    gas_prices=DEFAULT_GAS_PRICE,
 ):
     cli = n.cosmos_cli()
 
-    def cb(attrs):
-        return "proposal_id" in attrs
-
-    ev = find_log_event_attrs(rsp["logs"], "submit_proposal", cb)
     # get proposal_id
+    ev = find_log_event_attrs(
+        events, "submit_proposal", lambda attrs: "proposal_id" in attrs
+    )
     proposal_id = ev["proposal_id"]
     for i in range(len(n.config["validators"])):
         rsp = n.cosmos_cli(i).gov_vote(
@@ -156,7 +152,6 @@ def approve_proposal(
             proposal_id,
             "yes",
             event_query_tx,
-            gas_prices=gas_prices,
         )
         assert rsp["code"] == 0, rsp["raw_log"]
     wait_for_new_blocks(cli, 1)
@@ -233,8 +228,8 @@ def parse_events(logs):
     }
 
 
-def find_log_event_attrs(logs, ev_type, cond=None):
-    for ev in logs[0]["events"]:
+def find_log_event_attrs(events, ev_type, cond=None):
+    for ev in events:
         if ev["type"] == ev_type:
             attrs = {attr["key"]: attr["value"] for attr in ev["attributes"]}
             if cond is None or cond(attrs):

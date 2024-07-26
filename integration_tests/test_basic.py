@@ -974,7 +974,7 @@ def test_submit_send_enabled(cronos, tmp_path):
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp)
+    approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
     p = cli.query_bank_send()
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
