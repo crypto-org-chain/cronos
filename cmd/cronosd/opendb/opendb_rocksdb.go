@@ -13,7 +13,8 @@ import (
 	"github.com/linxGnu/grocksdb"
 )
 
-const BlockCacheSize = 1 << 30
+// 3G block cache
+const BlockCacheSize = 3 << 30
 
 func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
@@ -98,7 +99,6 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
 
-	// 1G block cache
 	bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
 
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
