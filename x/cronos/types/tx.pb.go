@@ -389,7 +389,7 @@ func (m *MsgTurnBridge) GetEnable() bool {
 	return false
 }
 
-// MsgTurnBridgegResponse defines the response type
+// MsgTurnBridgeResponse defines the response type
 type MsgTurnBridgeResponse struct {
 }
 
