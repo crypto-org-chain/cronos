@@ -6,6 +6,7 @@
 * (store) [#1511](https://github.com/crypto-org-chain/cronos/pull/1511) Upgrade rocksdb to `v9.2.1`.
 * (e2ee) [#1513](https://github.com/crypto-org-chain/cronos/pull/1513) Add pubkey subcommand to e2ee cli.
 * (store) [#1526](https://github.com/crypto-org-chain/cronos/pull/1526) Cache index/filters in rocksdb application.db to reduce ram usage.
+* (store) [#1529](https://github.com/crypto-org-chain/cronos/pull/1529) Enable pinL0FilterAndIndexBlocksInCache.
 
 *Jul 7, 2024*
 
