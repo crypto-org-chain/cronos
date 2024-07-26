@@ -38,7 +38,7 @@ def test_evm_update_param(cronos, tmp_path):
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
+    approve_proposal(cronos, rsp)
     print("check params have been updated now")
     p = cli.query_params("evm")["params"]
     assert not p["chain_config"]["merge_netsplit_block"]
@@ -81,7 +81,7 @@ def test_gov_update_params(cronos, tmp_path):
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
+    approve_proposal(cronos, rsp)
     print("check params have been updated now")
     rsp = cli.query_params()
     print("params", rsp)
