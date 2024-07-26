@@ -113,6 +113,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// reduce memory usage
 	bbto.SetCacheIndexAndFilterBlocks(true)
 	bbto.SetPinTopLevelIndexAndFilter(true)
+	bbto.SetPinL0FilterAndIndexBlocksInCache(true)
 
 	// hash index is better for iavl tree which mostly do point lookup.
 	bbto.SetDataBlockIndexType(grocksdb.KDataBlockIndexTypeBinarySearchAndHash)
