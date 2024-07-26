@@ -700,7 +700,7 @@ def submit_any_proposal(cronos, tmp_path):
     proposal_file.write_text(json.dumps(proposal_json))
     rsp = cli.submit_gov_proposal(proposal_file, from_="community")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
+    approve_proposal(cronos, rsp)
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr
