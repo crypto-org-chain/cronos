@@ -24,7 +24,7 @@ from .peer import (
 from .sendtx import generate_load
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import wait_for_block, wait_for_port
+from .utils import wait_for_block, wait_for_port, wait_for_w3
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
@@ -133,13 +133,13 @@ ADD ./out {dst}
         cli = ChainCommand(cronosd)
         wait_for_port(26657)
         wait_for_port(8545)
-        wait_for_port(9090)
-        wait_for_block(cli, 1)
+        wait_for_block(cli, 3)
 
         if group == VALIDATOR_GROUP:
             # validators quit when the chain is idle for a while
             detect_idle(20, 20)
         else:
+            wait_for_w3()
             generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
 
         proc.kill()
@@ -148,7 +148,9 @@ ADD ./out {dst}
         # collect outputs
         outdir = Path(outdir)
         if outdir.exists():
-            with tarfile.open(outdir / f"{group}_{group_seq}.tar.bz2", "x:bz2") as tar:
+            filename = outdir / f"{group}_{group_seq}.tar.bz2"
+            filename.unlink(missing_ok=True)
+            with tarfile.open(filename, "x:bz2") as tar:
                 tar.add(home, arcname="data")
 
 
