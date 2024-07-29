@@ -5,6 +5,7 @@ from pathlib import Path
 
 import bech32
 import tomlkit
+import web3
 from eth_account import Account
 from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
@@ -66,6 +67,20 @@ def wait_for_block(cli, target: int, timeout=40):
         )
 
     return height
+
+
+def wait_for_w3(timeout=40):
+    for i in range(timeout):
+        try:
+            w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+            w3.eth.get_balance("0x0000000000000000000000000000000000000001")
+        except:  # noqa
+            time.sleep(1)
+            continue
+
+        break
+    else:
+        raise TimeoutError("Waited too long for web3 json-rpc to be ready.")
 
 
 def decode_bech32(addr):
