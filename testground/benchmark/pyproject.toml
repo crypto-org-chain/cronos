@@ -15,6 +15,7 @@ web3 = "^6"
 hexbytes = "^0"
 bech32 = "^1"
 fire = "^0"
+requests = "^2.32"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"

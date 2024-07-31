@@ -26,6 +26,8 @@
 * [#1500](https://github.com/crypto-org-chain/cronos/pull/1500), [#1503](https://github.com/crypto-org-chain/cronos/pull/1503) Set mempool MaxTx from config (with a default value of `3000`).
 * (store) [#1511](https://github.com/crypto-org-chain/cronos/pull/1511) Upgrade rocksdb to `v9.2.1`.
 * (block-stm) [#1515](https://github.com/crypto-org-chain/cronos/pull/1515) Improve performance by cache signature verification result between incarnations of same tx.
+* (store) [#1526](https://github.com/crypto-org-chain/cronos/pull/1526) Cache index/filters in rocksdb application.db to reduce ram usage.
+* (store)[#1529](https://github.com/crypto-org-chain/cronos/pull/1529) Enable pinL0FilterAndIndexBlocksInCache.
 
 ### Bug Fixes
 
