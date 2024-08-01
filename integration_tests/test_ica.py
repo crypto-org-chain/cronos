@@ -4,11 +4,12 @@ import pytest
 from pystarport import cluster
 
 from .ibc_utils import (
+    ChannelOrder,
     Status,
     deploy_contract,
     funds_ica,
     gen_send_msg,
-    ica_ctrl_send_tx,
+    ica_send_tx,
     parse_events_rpc,
     prepare_network,
     register_acc,
@@ -31,17 +32,23 @@ def ibc(request, tmp_path_factory):
         name,
         incentivized=False,
         connection_only=True,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
     )
 
 
-def test_ica(ibc, tmp_path):
+@pytest.mark.parametrize(
+    "order", [ChannelOrder.ORDERED.value, ChannelOrder.UNORDERED.value]
+)
+def test_ica(ibc, order):
+    signer = "signer2" if order == ChannelOrder.ORDERED.value else "community"
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
-    ica_address, channel_id = register_acc(cli_controller, connid)
-    balance = funds_ica(cli_host, ica_address)
-    to = cli_host.address("signer2")
+    ica_address, channel_id = register_acc(
+        cli_controller, connid, ordering=order, signer=signer
+    )
+    balance = funds_ica(cli_host, ica_address, signer=signer)
+    to = cli_host.address(signer)
     amount = 1000
     denom = "basecro"
     jsonfile = CONTRACTS["TestICA"]
@@ -50,7 +57,7 @@ def test_ica(ibc, tmp_path):
     seq = 1
     msg_num = 10
     assert tcontract.caller.getStatus(channel_id, seq) == Status.PENDING
-    res = ica_ctrl_send_tx(
+    res = ica_send_tx(
         cli_host,
         cli_controller,
         connid,
@@ -60,6 +67,7 @@ def test_ica(ibc, tmp_path):
         denom,
         amount,
         memo={"src_callback": {"address": tcontract.address}},
+        signer=signer,
     )
     assert res == seq, res
     balance -= amount * msg_num
@@ -76,46 +84,43 @@ def test_ica(ibc, tmp_path):
     err = events.get("ibc_src_callback")["callback_error"]
     assert "sender is not authenticated" in err, err
 
-    def generated_tx_txt(msg_num):
-        # generate a transaction to send to host chain
-        generated_tx = tmp_path / "generated_tx.txt"
-        m = gen_send_msg(ica_address, to, denom, amount)
-        msgs = []
-        for i in range(msg_num):
-            msgs.append(m)
-        generated_tx_msg = {
-            "body": {
-                "messages": msgs,
-            },
-        }
-        generated_tx.write_text(json.dumps(generated_tx_msg))
-        return generated_tx
-
     no_timeout = 60
 
     def submit_msgs(msg_num, timeout_in_s=no_timeout, gas="200000"):
         num_txs = len(cli_host.query_all_txs(ica_address)["txs"])
+        # generate a transaction to send to host chain
+        m = gen_send_msg(ica_address, to, denom, amount)
+        msgs = []
+        for i in range(msg_num):
+            msgs.append(m)
+        data = json.dumps(msgs)
+        packet = cli_controller.ica_generate_packet_data(data)
         # submit transaction on host chain on behalf of interchain account
-        rsp = cli_controller.icaauth_submit_tx(
+        rsp = cli_controller.ica_send_tx(
             connid,
-            generated_tx_txt(msg_num),
-            timeout_duration=f"{timeout_in_s}s",
+            json.dumps(packet),
+            timeout_in_ns=int(timeout_in_s * 1e9),
             gas=gas,
-            from_="signer2",
+            from_=signer,
         )
         assert rsp["code"] == 0, rsp["raw_log"]
         timeout = timeout_in_s + 3 if timeout_in_s < no_timeout else None
         wait_for_check_tx(cli_host, ica_address, num_txs, timeout)
 
-    # submit large txs to trigger timeout
+    # submit large txs to trigger close channel with small timeout for order channel
     msg_num = 140
-    submit_msgs(msg_num, 5, "600000")
+    submit_msgs(msg_num, 0.005, "600000")
     assert cli_host.balance(ica_address, denom=denom) == balance
-    wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
-    # reopen ica account after channel get closed
-    ica_address2, channel_id2 = register_acc(cli_controller, connid)
-    assert ica_address2 == ica_address, ica_address2
-    assert channel_id2 != channel_id, channel_id2
+    if order == ChannelOrder.UNORDERED.value:
+        with pytest.raises(AssertionError) as exc:
+            register_acc(cli_controller, connid)
+        assert "existing active channel" in str(exc.value)
+    else:
+        wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
+        # reopen ica account after channel get closed
+        ica_address2, channel_id2 = register_acc(cli_controller, connid)
+        assert ica_address2 == ica_address, ica_address2
+        assert channel_id2 != channel_id, channel_id2
     # submit normal txs should work
     msg_num = 2
     submit_msgs(msg_num)

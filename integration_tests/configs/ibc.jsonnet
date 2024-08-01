@@ -30,11 +30,6 @@ config {
             base_fee: '0',
           },
         },
-        icaauth: {
-          params: {
-            min_timeout_duration: '1ms',
-          },
-        },
       },
     },
   },
