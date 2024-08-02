@@ -44,6 +44,7 @@ class CLI:
         hostname_template=HOSTNAME_TEMPLATE,
         num_accounts=10,
         num_txs=1000,
+        block_executor="block-stm",  # or "sequential"
     ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
@@ -67,10 +68,18 @@ class CLI:
         print("patch genesis")
         # write genesis file and patch config files
         for i in range(validators):
-            patch_configs_local(peers, genesis, outdir, VALIDATOR_GROUP, i, i)
+            patch_configs_local(
+                peers, genesis, outdir, VALIDATOR_GROUP, i, i, block_executor
+            )
         for i in range(fullnodes):
             patch_configs_local(
-                peers, genesis, outdir, FULLNODE_GROUP, i, i + validators
+                peers,
+                genesis,
+                outdir,
+                FULLNODE_GROUP,
+                i,
+                i + validators,
+                block_executor,
             )
 
         print("write config")
@@ -208,11 +217,12 @@ def patch_configs_local(
     group: str,
     i: int,
     group_seq: int,
+    block_executor: str,
 ):
     home = outdir / group / str(i)
     (home / "config" / "genesis.json").write_text(json.dumps(genesis))
     p2p_peers = connect_all(peers[i], peers)
-    patch_configs(home, group, p2p_peers)
+    patch_configs(home, group, p2p_peers, block_executor)
 
 
 def node_index() -> int:
