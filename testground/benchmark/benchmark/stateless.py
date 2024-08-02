@@ -151,7 +151,8 @@ ADD ./out {dst}
             tar.add(home, arcname="data")
         outdir = Path(outdir)
         if outdir.exists():
-            filename = outdir
+            assert outdir.is_dir()
+            filename = outdir / f"{group}_{group_seq}.tar.bz2"
             filename.unlink(missing_ok=True)
             shutil.copy(output, filename)
 
