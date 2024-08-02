@@ -146,12 +146,14 @@ ADD ./out {dst}
         proc.wait()
 
         # collect outputs
+        output = Path("/data.tar.bz2")
+        with tarfile.open(output, "x:bz2") as tar:
+            tar.add(home, arcname="data")
         outdir = Path(outdir)
         if outdir.exists():
-            filename = outdir / f"{group}_{group_seq}.tar.bz2"
+            filename = outdir
             filename.unlink(missing_ok=True)
-            with tarfile.open(filename, "x:bz2") as tar:
-                tar.add(home, arcname="data")
+            shutil.copy(output, filename)
 
 
 def detect_idle(idle_blocks: int, interval: int):
