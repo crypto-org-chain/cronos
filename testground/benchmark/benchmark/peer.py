@@ -47,7 +47,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         cli("genesis", "validate", home=home)
 
     p2p_peers = connect_all(peer, peers)
-    patch_configs(home, ctx.params.test_group_id, p2p_peers, "sequential")
+    patch_configs(home, ctx.params.test_group_id, p2p_peers, "block-stm")
     return peer
 
 
