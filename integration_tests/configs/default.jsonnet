@@ -45,6 +45,7 @@
         },
         evm: {
           'block-executor': 'block-stm',
+          'block-stm-workers': 16,
         },
       },
     }, {
