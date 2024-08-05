@@ -55,6 +55,9 @@
       client_config: {
         'broadcast-mode': 'sync',
       },
+      evm: {
+        'block-executor': 'sequential',
+      },
     }],
     accounts: [{
       name: 'community',
