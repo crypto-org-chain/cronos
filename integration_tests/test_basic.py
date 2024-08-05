@@ -968,4 +968,4 @@ def test_app_hash_mismatch(cronos):
     for txhash in txhashes[0 : total - 1]:
         res = w3.eth.wait_for_transaction_receipt(txhash)
         assert res.status == 1
-    wait_for_new_blocks(cli, 3)
+    w3_wait_for_block(w3, w3.eth.block_number + 3, timeout=30)
