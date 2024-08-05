@@ -23,6 +23,9 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
+      evm: {
+        'block-executor': 'sequential',
+      },
       mempool: {
         'max-txs': 1000,
       },
@@ -54,9 +57,6 @@
       mnemonic: '${VALIDATOR2_MNEMONIC}',
       client_config: {
         'broadcast-mode': 'sync',
-      },
-      evm: {
-        'block-executor': 'sequential',
       },
     }],
     accounts: [{
