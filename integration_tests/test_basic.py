@@ -25,12 +25,14 @@ from .utils import (
     contract_address,
     contract_path,
     deploy_contract,
+    derive_new_account,
     eth_to_bech32,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
     send_transaction,
     send_txs,
+    sign_transaction,
     submit_any_proposal,
     wait_for_block,
     wait_for_new_blocks,
@@ -934,3 +936,36 @@ def test_submit_send_enabled(cronos, tmp_path):
     approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
     assert cli.query_bank_send(*denoms) == send_enable
+
+
+def test_app_hash_mismatch(cronos):
+    w3 = cronos.w3
+    cli = cronos.cosmos_cli()
+    acc = derive_new_account(3)
+    sender = acc.address
+
+    # fund new sender
+    fund = 3000000000000000000
+    tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+    send_transaction(w3, tx)
+    assert w3.eth.get_balance(sender, "latest") == fund
+    nonce = w3.eth.get_transaction_count(sender)
+    wait_for_new_blocks(cli, 1)
+    txhashes = []
+    total = 3
+    for n in range(total):
+        tx = {
+            "to": "0x2956c404227Cc544Ea6c3f4a36702D0FD73d20A2",
+            "value": fund // total,
+            "gas": 21000,
+            "maxFeePerGas": 6556868066901,
+            "maxPriorityFeePerGas": 1500000000,
+            "nonce": nonce + n,
+        }
+        signed = sign_transaction(w3, tx, acc.key)
+        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhashes.append(txhash)
+    for txhash in txhashes[0 : total - 1]:
+        res = w3.eth.wait_for_transaction_receipt(txhash)
+        assert res.status == 1
+    wait_for_new_blocks(cli, 3)
