@@ -34,6 +34,7 @@ from .utils import (
     send_txs,
     sign_transaction,
     submit_any_proposal,
+    w3_wait_for_block,
     wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
