@@ -26,7 +26,6 @@
       mempool: {
         'max-txs': 1000,
       },
-
     },
     validators: [{
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
