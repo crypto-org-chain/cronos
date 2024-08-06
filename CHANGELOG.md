@@ -32,6 +32,7 @@
 ### Bug Fixes
 
 * [#1520](https://github.com/crypto-org-chain/cronos/pull/1520) Avoid invalid chain id for signer error when rpc call before chain id set in BeginBlock.
+* [#1539](https://github.com/crypto-org-chain/cronos/pull/1539) Fix go-block-stm bug that causes app hash mismatch.
 
 *Jun 18, 2024*
 
