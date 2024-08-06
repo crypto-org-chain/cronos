@@ -23,11 +23,6 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
-      memiavl: {
-        enable: true,
-        'zero-copy': true,
-        'snapshot-interval': 5,
-      },
       evm: {
         'block-executor': 'sequential',
       },
@@ -43,6 +38,11 @@
         'broadcast-mode': 'sync',
       },
       'app-config': {
+        memiavl: {
+          enable: true,
+          'zero-copy': true,
+          'snapshot-interval': 5,
+        },
         versiondb: {
           enable: true,
         },
