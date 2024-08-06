@@ -939,7 +939,11 @@ def test_submit_send_enabled(cronos, tmp_path):
     assert cli.query_bank_send(*denoms) == send_enable
 
 
-def test_app_hash_mismatch(cronos):
+def test_block_stm_delete(cronos):
+    """
+    this test case revealed a bug in block-stm,
+    see: https://github.com/crypto-org-chain/go-block-stm/pull/11
+    """
     w3 = cronos.w3
     cli = cronos.cosmos_cli()
     acc = derive_new_account(3)
