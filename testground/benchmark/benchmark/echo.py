@@ -4,10 +4,9 @@ import threading
 
 async def handle_echo(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     data = await reader.read(1024)
-    writer.write(data)
-    await writer.drain()
-
-    print("Close the connection")
+    if data:
+        writer.write(data)
+        await writer.drain()
     writer.close()
     await writer.wait_closed()
 
