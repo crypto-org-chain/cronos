@@ -39,7 +39,8 @@ def wait_for_port(port, host="127.0.0.1", timeout=40.0):
     start_time = time.perf_counter()
     while True:
         try:
-            with socket.create_connection((host, port), timeout=timeout):
+            with socket.create_connection((host, port), timeout=timeout) as sock:
+                sock.close()
                 break
         except OSError as ex:
             time.sleep(0.1)
