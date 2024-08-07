@@ -158,6 +158,8 @@ ADD ./out {dst}
             wait_for_w3()
             generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
 
+        dump_block_stats()
+
         proc.kill()
         proc.wait()
 
@@ -199,9 +201,12 @@ def block_height():
     return int(rsp["result"]["sync_info"]["latest_block_height"])
 
 
+def block(height):
+    return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
+
+
 def block_txs(height):
-    rsp = requests.get(f"{LOCAL_RPC}/block?height={height}").json()
-    return rsp["result"]["block"]["data"]["txs"]
+    return block(height)["result"]["block"]["data"]["txs"]
 
 
 def init_node_local(
@@ -252,6 +257,17 @@ def wait_for_peers(home: Path):
         host = peer.split("@", 1)[1].split(":", 1)[0]
         print("wait for peer to be ready:", host)
         wait_for_port(ECHO_SERVER_PORT, host=host)
+
+
+def dump_block_stats(rpc):
+    """
+    dump simple statistics for blocks for analysis
+    """
+    for i in range(1, block_height() + 1):
+        blk = block(i)
+        timestamp = blk["result"]["block"]["header"]["time"]
+        txs = len(blk["result"]["block"]["data"]["txs"])
+        print("block", i, txs, timestamp)
 
 
 def main():
