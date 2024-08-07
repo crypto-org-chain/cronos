@@ -259,7 +259,7 @@ def wait_for_peers(home: Path):
         wait_for_port(ECHO_SERVER_PORT, host=host)
 
 
-def dump_block_stats(rpc):
+def dump_block_stats():
     """
     dump simple statistics for blocks for analysis
     """
