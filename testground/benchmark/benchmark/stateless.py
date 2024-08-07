@@ -139,7 +139,7 @@ ADD ./out {dst}
         # wait for persistent peers to be ready
         wait_for_peers(home)
 
-        # start the node
+        print("start node")
         logfile = home / "node.log"
         proc = subprocess.Popen(
             [cronosd, "start", "--home", str(home)],
