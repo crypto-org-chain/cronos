@@ -10,6 +10,7 @@
 * [#1458](https://github.com/crypto-org-chain/cronos/pull/1458) Adjust require gas for recvPacket when ReceiverChainIsSource.
 * [#1519](https://github.com/crypto-org-chain/cronos/pull/1519) Upgrade ibc-go to 8.3 and remove icaauth module.
 * [#1518](https://github.com/crypto-org-chain/cronos/pull/1518) Keep versiondb/memiavl compatible with upstream sdk, stop supporting other streaming service.
+* [#1541](https://github.com/crypto-org-chain/cronos/pull/1541) Disable MsgCreatePermanentLockedAccount and MsgCreatePeriodicVestingAccount messages.
 
 ### Improvements
 

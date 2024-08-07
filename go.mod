@@ -19,7 +19,7 @@ require (
 	cosmossdk.io/x/upgrade v0.1.1
 	filippo.io/age v1.1.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.38.10-0.20240709120009-0792c8bdda44
+	github.com/cometbft/cometbft v0.38.10
 	github.com/cosmos/cosmos-db v1.0.3-0.20240408151834-e75f6e4b28d8
 	github.com/cosmos/cosmos-sdk v0.50.7
 	github.com/cosmos/gogoproto v1.4.12
@@ -276,7 +276,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7
 	// block-stm branch
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20240729070824-350955227f14
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20240802052216-0e0baa4ea540
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
