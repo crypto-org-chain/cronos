@@ -140,10 +140,10 @@ ADD ./out {dst}
         wait_for_peers(home)
 
         print("start node")
-        logfile = home / "node.log"
+        logfile = open(home / "node.log", "ab", buffering=0)
         proc = subprocess.Popen(
             [cronosd, "start", "--home", str(home)],
-            stdout=open(logfile, "ab", buffering=0),
+            stdout=logfile,
         )
 
         cli = ChainCommand(cronosd)
@@ -158,7 +158,8 @@ ADD ./out {dst}
             wait_for_w3()
             generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
 
-        dump_block_stats()
+        with (home / "block_stats.log").open("w") as logfile:
+            dump_block_stats(logfile)
 
         proc.kill()
 
@@ -258,7 +259,7 @@ def wait_for_peers(home: Path):
         wait_for_port(ECHO_SERVER_PORT, host=host)
 
 
-def dump_block_stats():
+def dump_block_stats(fp):
     """
     dump simple statistics for blocks for analysis
     """
@@ -266,7 +267,7 @@ def dump_block_stats():
         blk = block(i)
         timestamp = blk["result"]["block"]["header"]["time"]
         txs = len(blk["result"]["block"]["data"]["txs"])
-        print("block", i, txs, timestamp)
+        print("block", i, txs, timestamp, file=fp)
 
 
 def main():
