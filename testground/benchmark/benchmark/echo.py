@@ -21,4 +21,4 @@ def run_echo_server(port: int):
     """
     run async echo server in a thread.
     """
-    threading.Thread(target=asyncio.run, args=(echo_server(port),)).start()
+    threading.Thread(target=asyncio.run, args=(echo_server(port),), daemon=True).start()
