@@ -11,8 +11,10 @@ from typing import List
 
 import fire
 import requests
+import tomlkit
 
 from .cli import ChainCommand
+from .echo import run_echo_server
 from .peer import (
     CONTAINER_CRONOSD_PATH,
     FULLNODE_GROUP,
@@ -33,6 +35,7 @@ DEFAULT_DENOM = "basecro"
 # the container must be deployed with the prefixed name
 HOSTNAME_TEMPLATE = "testplan-{index}"
 LOCAL_RPC = "http://localhost:26657"
+ECHO_SERVER_PORT = 26659
 
 
 class CLI:
@@ -118,8 +121,9 @@ ADD ./out {dst}
         cronosd=CONTAINER_CRONOSD_PATH,
         global_seq=None,
     ):
-        datadir = Path(datadir)
+        run_echo_server(ECHO_SERVER_PORT)
 
+        datadir = Path(datadir)
         cfg = json.loads((datadir / "config.json").read_text())
 
         if global_seq is None:
@@ -132,11 +136,14 @@ ADD ./out {dst}
 
         home = datadir / group / str(group_seq)
 
-        # start the node
-        logfile = home / "node.log"
+        # wait for persistent peers to be ready
+        wait_for_peers(home)
+
+        print("start node")
+        logfile = open(home / "node.log", "ab", buffering=0)
         proc = subprocess.Popen(
             [cronosd, "start", "--home", str(home)],
-            stdout=open(logfile, "ab", buffering=0),
+            stdout=logfile,
         )
 
         cli = ChainCommand(cronosd)
@@ -151,8 +158,11 @@ ADD ./out {dst}
             wait_for_w3()
             generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
 
+        with (home / "block_stats.log").open("w") as logfile:
+            dump_block_stats(logfile)
+
         proc.kill()
-        proc.wait()
+        proc.wait(20)
 
         # collect outputs
         output = Path("/data.tar.bz2")
@@ -192,9 +202,12 @@ def block_height():
     return int(rsp["result"]["sync_info"]["latest_block_height"])
 
 
+def block(height):
+    return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
+
+
 def block_txs(height):
-    rsp = requests.get(f"{LOCAL_RPC}/block?height={height}").json()
-    return rsp["result"]["block"]["data"]["txs"]
+    return block(height)["result"]["block"]["data"]["txs"]
 
 
 def init_node_local(
@@ -236,6 +249,26 @@ def node_index() -> int:
         return int(i)
     hostname = socket.gethostname()
     return int(hostname.rsplit("-", 1)[-1])
+
+
+def wait_for_peers(home: Path):
+    cfg = tomlkit.parse((home / "config" / "config.toml").read_text())
+    peers = cfg["p2p"]["persistent_peers"]
+    for peer in peers.split(","):
+        host = peer.split("@", 1)[1].split(":", 1)[0]
+        print("wait for peer to be ready:", host)
+        wait_for_port(ECHO_SERVER_PORT, host=host, timeout=600)
+
+
+def dump_block_stats(fp):
+    """
+    dump simple statistics for blocks for analysis
+    """
+    for i in range(1, block_height() + 1):
+        blk = block(i)
+        timestamp = blk["result"]["block"]["header"]["time"]
+        txs = len(blk["result"]["block"]["data"]["txs"])
+        print("block", i, txs, timestamp, file=fp)
 
 
 def main():
