@@ -161,7 +161,6 @@ ADD ./out {dst}
         dump_block_stats()
 
         proc.kill()
-        proc.wait()
 
         # collect outputs
         output = Path("/data.tar.bz2")
