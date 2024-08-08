@@ -256,7 +256,7 @@ def wait_for_peers(home: Path):
     for peer in peers.split(","):
         host = peer.split("@", 1)[1].split(":", 1)[0]
         print("wait for peer to be ready:", host)
-        wait_for_port(ECHO_SERVER_PORT, host=host)
+        wait_for_port(ECHO_SERVER_PORT, host=host, timeout=120)
 
 
 def dump_block_stats(fp):
