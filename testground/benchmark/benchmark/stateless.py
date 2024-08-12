@@ -167,13 +167,38 @@ ADD ./out {dst}
         # collect outputs
         output = Path("/data.tar.bz2")
         with tarfile.open(output, "x:bz2") as tar:
-            tar.add(home, arcname="data")
+            tar.add(home, arcname="data", filter=output_filter(group, group_seq))
         outdir = Path(outdir)
         if outdir.exists():
             assert outdir.is_dir()
             filename = outdir / f"{group}_{group_seq}.tar.bz2"
             filename.unlink(missing_ok=True)
             shutil.copy(output, filename)
+
+
+def output_filter(group, group_seq: int):
+    """
+    filter out some big and useless paths to reduce size of output artifacts
+    """
+
+    is_validator_leader = group == VALIDATOR_GROUP and group_seq == 0
+    is_fullnode_leader = group == FULLNODE_GROUP and group_seq == 0
+
+    def inner(info: tarfile.TarInfo):
+        # only keep one copy
+        if not is_validator_leader and info.name in (
+            "data/data/cs.wal",
+            "data/data/blockstore.db",
+            "data/data/application.db",
+            "data/data/memiavl.db",
+            "data/data/state.db",
+        ):
+            return None
+        if not is_fullnode_leader and info.name == "data/data/tx_index.db":
+            return None
+        return info
+
+    return inner
 
 
 def detect_idle(idle_blocks: int, interval: int):
