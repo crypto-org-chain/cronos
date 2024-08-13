@@ -422,8 +422,7 @@ func New(
 
 	app.SetDisableBlockGasMeter(true)
 
-	executor := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor))
-	if executor == "block-stm" {
+	if blockSTMEnabled {
 		sdk.SetAddrCacheEnabled(false)
 		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
 		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers))
