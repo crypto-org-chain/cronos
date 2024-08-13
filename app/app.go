@@ -180,7 +180,6 @@ const (
 	AddrLen = 20
 
 	FlagBlockedAddresses = "blocked-addresses"
-	FlagCacheSize        = "memiavl.cache-size"
 )
 
 var Forks = []Fork{}
@@ -389,7 +388,7 @@ func New(
 	var cacheSize int
 	if !blockSTMEnabled {
 		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
-		cacheSize = cast.ToInt(appOpts.Get(FlagCacheSize))
+		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	}
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 

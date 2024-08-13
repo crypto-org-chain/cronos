@@ -20,6 +20,7 @@ const (
 	FlagZeroCopy            = "memiavl.zero-copy"
 	FlagSnapshotKeepRecent  = "memiavl.snapshot-keep-recent"
 	FlagSnapshotInterval    = "memiavl.snapshot-interval"
+	FlagCacheSize           = "memiavl.cache-size"
 	FlagSnapshotWriterLimit = "memiavl.snapshot-writer-limit"
 )
 
