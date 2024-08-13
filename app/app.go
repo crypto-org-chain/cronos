@@ -180,6 +180,7 @@ const (
 	AddrLen = 20
 
 	FlagBlockedAddresses = "blocked-addresses"
+	FlagCacheSize        = "memiavl.cache-size"
 )
 
 var Forks = []Fork{}
@@ -382,8 +383,15 @@ func New(
 		app.SetProcessProposal(handler.ProcessProposalHandler())
 	})
 
+	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
+
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+	var cacheSize int
+	if !blockSTMEnabled {
+		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
+		cacheSize = cast.ToInt(appOpts.Get(FlagCacheSize))
+	}
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
