@@ -66,7 +66,7 @@ func BenchmarkERC20Transfer(b *testing.B) {
 			benchmarkERC20Transfer(b, nil, AppOptionsMap{
 				flags.FlagHome:              b.TempDir(),
 				memiavlstore.FlagMemIAVL:    true,
-				memiavlstore.FlagCacheSize:  0,
+				FlagCacheSize:               0,
 				srvflags.EVMBlockExecutor:   "block-stm",
 				srvflags.EVMBlockSTMWorkers: workers,
 			})
