@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"sort"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -424,6 +425,10 @@ func New(
 	if blockSTMEnabled {
 		sdk.SetAddrCacheEnabled(false)
 		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
+		if workers == 0 {
+			workers = stdruntime.NumCPU()
+		}
+		logger.Info("block-stm executor enabled", "workers", workers)
 		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers))
 	} else {
 		app.SetTxExecutor(evmapp.DefaultTxExecutor)
