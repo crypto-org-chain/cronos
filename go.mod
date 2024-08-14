@@ -19,7 +19,7 @@ require (
 	cosmossdk.io/x/upgrade v0.1.1
 	filippo.io/age v1.1.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.38.10
+	github.com/cometbft/cometbft v0.38.11
 	github.com/cosmos/cosmos-db v1.0.3-0.20240408151834-e75f6e4b28d8
 	github.com/cosmos/cosmos-sdk v0.50.7
 	github.com/cosmos/gogoproto v1.4.12

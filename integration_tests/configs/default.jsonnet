@@ -42,6 +42,7 @@
           enable: true,
           'zero-copy': true,
           'snapshot-interval': 5,
+          'cache-size': 0,
         },
         versiondb: {
           enable: true,
