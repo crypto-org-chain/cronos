@@ -135,6 +135,8 @@ def patch_configs(home: Path, group: str, peers: str, block_executor: str):
         "mempool.max-txs": MEMPOOL_SIZE,
         "evm.block-executor": block_executor,
     }
+    if block_executor == "block-stm":
+        app_patch["memiavl.cache-size"] = 0
 
     patch_toml(home / "config" / "config.toml", config_patch)
     patch_toml(home / "config" / "app.toml", app_patch)
