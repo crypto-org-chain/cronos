@@ -154,8 +154,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.38.10-0.20240709120009-0792c8bdda44"
-    hash = "sha256-ZKAAgJ78Z1Mgww2D8BZz9Qug/m3CXWa9MKM8W4CTbGI="
+    version = "v0.38.11"
+    hash = "sha256-FMAGFFBlCl5/x9l2rF8gmOy1GmhVxYEmJzTjKfYuGUQ="
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.0.0-20231011055109-57922ac52a63"
     hash = "sha256-iLs/FN1be3AcoyhKj2+b5Msqeat9j2ja4acyOs+w+Uk="
@@ -213,8 +213,8 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/go-block-stm"]
-    version = "v0.0.0-20240408011717-9f11af197bde"
-    hash = "sha256-+UTSUoh4DxkWPQEc/j0atak1Oxq3tdP8r6ZMmB0k5KE="
+    version = "v0.0.0-20240806075927-09a64748f883"
+    hash = "sha256-DuqcnTqpUVRxV+I+CaBuDg/1CLmMeXdw4VEFeuCsUbU="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.0"
     hash = "sha256-LHcvTJCc8++bFndbd8ZgMSTe4L5h2C4rN+cSWHCz54Y="
@@ -262,8 +262,8 @@ schema = 3
     hash = "sha256-lE4G5FaRb3MVi9FFVn+WlwsSTOB4SbjmVboKyQ5yB0A="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20240729070824-350955227f14"
-    hash = "sha256-aZ9Kq7PujK4alMXp1kk7LF7PTap8UdJbt+gK2ljvwyw="
+    version = "v0.6.1-0.20240802052216-0e0baa4ea540"
+    hash = "sha256-qGQPxKz2nWEj8saqR5lU38j0ToV2oIRR7Bhhin5iIfg="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.16.0"

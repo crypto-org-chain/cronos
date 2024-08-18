@@ -366,8 +366,8 @@ github.com/cockroachdb/redact v1.1.5/go.mod h1:BVNblN9mBWFyMyqK1k3AAiSxhvhfK2oOZ
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/coinbase/rosetta-sdk-go/types v1.0.0 h1:jpVIwLcPoOeCR6o1tU+Xv7r5bMONNbHU7MuEHboiFuA=
 github.com/coinbase/rosetta-sdk-go/types v1.0.0/go.mod h1:eq7W2TMRH22GTW0N0beDnN931DW0/WOI1R2sdHNHG4c=
-github.com/cometbft/cometbft v0.38.10-0.20240709120009-0792c8bdda44 h1:Tm6SG54Tj/bGVEZUyFPs2UyG0BYvCO3oqvWNyw99bi4=
-github.com/cometbft/cometbft v0.38.10-0.20240709120009-0792c8bdda44/go.mod h1:jHPx9vQpWzPHEAiYI/7EDKaB1NXhK6o3SArrrY8ExKc=
+github.com/cometbft/cometbft v0.38.11 h1:6bNDUB8/xq4uYonYwIfGc9OqK1ZH4NkdaMmR1LZIJqk=
+github.com/cometbft/cometbft v0.38.11/go.mod h1:jHPx9vQpWzPHEAiYI/7EDKaB1NXhK6o3SArrrY8ExKc=
 github.com/containerd/continuity v0.3.0 h1:nisirsYROK15TAMVukJOUyGJjz4BNQJBVsNvAXZJ/eg=
 github.com/containerd/continuity v0.3.0/go.mod h1:wJEAIwKOm/pBZuBd0JmeTvnLquTB1Ag8espWhkykbPM=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
@@ -430,10 +430,10 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240722033504-50f1fa0c49d1 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240722033504-50f1fa0c49d1/go.mod h1:gjE3DZe4t/+VeIk6CmrouyqiuDbZ7QOVDDq3nLqBTpg=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240722033504-50f1fa0c49d1 h1:r0ALP31Wnw19FqEmqzsK2SFNqdMetHshnM/X/FeJRIo=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240722033504-50f1fa0c49d1/go.mod h1:RTiTs4hkXG6IvYGknvB8p79YgjYJdcbzLUOGJChsPnY=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20240729070824-350955227f14 h1:ZVIlVCtx5X6sckKyMhc8nPBjXvr+/CzmXYqh7e/287I=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20240729070824-350955227f14/go.mod h1:Xap56y3WoiP7DyNammmB6N7P+Y83QQd6363RHGuaYV0=
-github.com/crypto-org-chain/go-block-stm v0.0.0-20240408011717-9f11af197bde h1:sQIHTJfVt5VTrF7po9eZiFkZiPjlHbFvnXtGCOoBjNM=
-github.com/crypto-org-chain/go-block-stm v0.0.0-20240408011717-9f11af197bde/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20240802052216-0e0baa4ea540 h1:werx5A5sAiqxHy95ARhXGSRRVkedS5y6s0m7oQTASes=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20240802052216-0e0baa4ea540/go.mod h1:soxGcxnn/3k0LO9r0IY5CyfKqBK0rRO/HrYcQLFEg3s=
+github.com/crypto-org-chain/go-block-stm v0.0.0-20240806075927-09a64748f883 h1:Oj7VvlK8iXRaugnpGA8CBXGrgkyigji+Ae5weSRD85I=
+github.com/crypto-org-chain/go-block-stm v0.0.0-20240806075927-09a64748f883/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7 h1:V43F3JFcqG4MUThf9W/DytnPblpR6CcaLBw2Wx6zTgE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7/go.mod h1:+a8pUj1tOyJ2RinsNQD4326YS+leSoKGiG/uVVb0x6Y=
 github.com/danieljoos/wincred v1.2.0 h1:ozqKHaLK0W/ii4KVbbvluM91W2H3Sh0BncbUNPS7jLE=

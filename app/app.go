@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"sort"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -382,8 +383,15 @@ func New(
 		app.SetProcessProposal(handler.ProcessProposalHandler())
 	})
 
+	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
+
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+	var cacheSize int
+	if !blockSTMEnabled {
+		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
+		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
+	}
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
@@ -414,10 +422,13 @@ func New(
 
 	app.SetDisableBlockGasMeter(true)
 
-	executor := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor))
-	if executor == "block-stm" {
+	if blockSTMEnabled {
 		sdk.SetAddrCacheEnabled(false)
 		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
+		if workers == 0 {
+			workers = stdruntime.NumCPU()
+		}
+		logger.Info("block-stm executor enabled", "workers", workers)
 		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers))
 	} else {
 		app.SetTxExecutor(evmapp.DefaultTxExecutor)
@@ -1040,6 +1051,8 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		DisabledAuthzMsgs: []string{
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
+			sdk.MsgTypeURL(&vestingtypes.MsgCreatePermanentLockedAccount{}),
+			sdk.MsgTypeURL(&vestingtypes.MsgCreatePeriodicVestingAccount{}),
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
