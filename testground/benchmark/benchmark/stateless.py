@@ -156,7 +156,9 @@ ADD ./out {dst}
             detect_idle(20, 20)
         else:
             wait_for_w3()
-            generate_load(cli, cfg["num_accounts"], cfg["num_txs"], home=home)
+            generate_load(
+                cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
+            )
 
         with (home / "block_stats.log").open("w") as logfile:
             dump_block_stats(logfile)
@@ -282,7 +284,7 @@ def wait_for_peers(home: Path):
     for peer in peers.split(","):
         host = peer.split("@", 1)[1].split(":", 1)[0]
         print("wait for peer to be ready:", host)
-        wait_for_port(ECHO_SERVER_PORT, host=host, timeout=600)
+        wait_for_port(ECHO_SERVER_PORT, host=host, timeout=2400)
 
 
 def dump_block_stats(fp):

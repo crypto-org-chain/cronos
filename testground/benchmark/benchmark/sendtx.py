@@ -4,14 +4,22 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import web3
 from eth_account import Account
 
-from .utils import export_eth_account, send_transaction
+from .utils import (
+    broadcast_tx_json,
+    build_batch_tx,
+    export_eth_account,
+    send_transaction,
+)
 
 TEST_AMOUNT = 1000000000000000000
 GAS_PRICE = 1000000000
 
 
-def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
+def fund_test_accounts(cli, w3, from_account, num_accounts, **kwargs) -> [Account]:
     accounts = []
+    sender = from_account.address
+    nonce = w3.eth.get_transaction_count(sender)
+    txs = []
     for i in range(num_accounts):
         acct = Account.create()
         tx = {
@@ -19,11 +27,13 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
             "value": TEST_AMOUNT,
             "gas": 21000,
             "gasPrice": GAS_PRICE,
+            "nonce": nonce + i,
         }
-        receipt = send_transaction(w3, tx, from_account, wait=True)
-        assert receipt.status == 1
-        print("fund test account", acct.address, "balance", TEST_AMOUNT)
+        txs.append(tx)
         accounts.append(acct)
+    cosmos_tx, _ = build_batch_tx(w3, cli, txs, from_account, **kwargs)
+    rsp = broadcast_tx_json(cli, cosmos_tx, **kwargs)
+    assert rsp["code"] == 0, rsp["raw_log"]
     return accounts
 
 
@@ -77,7 +87,7 @@ def generate_load(cli, num_accounts, num_txs, **kwargs):
     w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     assert w3.eth.chain_id == 777
     genesis_account = export_eth_account(cli, "account", **kwargs)
-    accounts = fund_test_accounts(w3, genesis_account, num_accounts)
+    accounts = fund_test_accounts(cli, w3, genesis_account, num_accounts, **kwargs)
     with ThreadPoolExecutor(max_workers=num_accounts) as executor:
         futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
         for fut in as_completed(futs):
