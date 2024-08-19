@@ -353,7 +353,7 @@ def test_gravity_detect_malicious_supply(gravity):
         # Wait enough for orchestrator to relay the event
         wait_for_new_blocks(cli, 30)
 
-        # check that the bridge has not been desactivated
+        # check that the bridge has not been deactivated
         activate = cli.query_gravity_params()["params"]["bridge_active"]
         assert activate is True
 

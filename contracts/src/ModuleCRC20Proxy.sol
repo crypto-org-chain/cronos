@@ -84,7 +84,7 @@ contract ModuleCRC20Proxy is DSMath {
         emit __CronosSendToIbc(msg.sender, channel_id, recipient, amount, extraData);
     }
 
-    // cancel a send to chain transaction considering if it hasnt been batched yet.
+    // cancel a send to chain transaction considering if it hasn't been batched yet.
     function cancel_send_to_evm_chain(uint256 id) external {
         emit __CronosCancelSendToEvmChain(msg.sender, id);
     }
