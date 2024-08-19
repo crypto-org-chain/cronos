@@ -34,7 +34,7 @@ func (d ValueDecoders) GetDecoder(name string) (ValueDecoder, bool) {
 const (
 	// intBase is the base `int`s are parsed in, 10.
 	intBase = 10
-	// int64Bits is the number of bits stored in a variabe of `int64` type.
+	// int64Bits is the number of bits stored in a variable of `int64` type.
 	int64Bits = 64
 )
 
