@@ -11,6 +11,7 @@
 * [#1519](https://github.com/crypto-org-chain/cronos/pull/1519) Upgrade ibc-go to 8.3 and remove icaauth module.
 * [#1518](https://github.com/crypto-org-chain/cronos/pull/1518) Keep versiondb/memiavl compatible with upstream sdk, stop supporting other streaming service.
 * [#1541](https://github.com/crypto-org-chain/cronos/pull/1541) Disable MsgCreatePermanentLockedAccount and MsgCreatePeriodicVestingAccount messages.
+* [#1552](https://github.com/crypto-org-chain/cronos/pull/1552) Avoid unnecessary GetAccount in ante handlers.
 
 ### Improvements
 
