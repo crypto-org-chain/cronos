@@ -119,6 +119,7 @@ def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
 def patch_configs(home: Path, group: str, peers: str, block_executor: str):
     # update persistent_peers and other configs in config.toml
     config_patch = {
+        "db_backend": "rocksdb",
         "p2p.persistent_peers": peers,
         "p2p.addr_book_strict": False,
         "mempool.recheck": "false",
