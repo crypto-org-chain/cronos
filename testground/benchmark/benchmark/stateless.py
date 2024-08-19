@@ -150,15 +150,13 @@ ADD ./out {dst}
         wait_for_port(26657)
         wait_for_port(8545)
         wait_for_block(cli, 3)
-
+        wait_for_w3()
+        generate_load(
+            cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
+        )
         if group == VALIDATOR_GROUP:
             # validators quit when the chain is idle for a while
             detect_idle(20, 20)
-        else:
-            wait_for_w3()
-            generate_load(
-                cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
-            )
 
         with (home / "block_stats.log").open("w") as logfile:
             dump_block_stats(logfile)
