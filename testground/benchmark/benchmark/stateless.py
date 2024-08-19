@@ -12,6 +12,7 @@ from typing import List
 import fire
 import requests
 import tomlkit
+import web3
 
 from .cli import ChainCommand
 from .echo import run_echo_server
@@ -289,11 +290,13 @@ def dump_block_stats(fp):
     """
     dump simple statistics for blocks for analysis
     """
+    w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     for i in range(1, block_height() + 1):
         blk = block(i)
         timestamp = blk["result"]["block"]["header"]["time"]
         txs = len(blk["result"]["block"]["data"]["txs"])
-        print("block", i, txs, timestamp, file=fp)
+        blk = w3.eth.get_block(i)
+        print("block", i, len(blk.transactions), txs, timestamp, file=fp)
 
 
 def main():
