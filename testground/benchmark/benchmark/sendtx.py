@@ -31,7 +31,8 @@ def fund_test_accounts(cli, w3, from_account, num_accounts, **kwargs) -> [Accoun
         }
         txs.append(tx)
         accounts.append(acct)
-    cosmos_tx, _ = build_batch_tx(w3, cli, txs, from_account, **kwargs)
+    cosmos_tx, hashes = build_batch_tx(w3, cli, txs, from_account, **kwargs)
+    print("batch size", len(hashes))
     rsp = broadcast_tx_json(cli, cosmos_tx, **kwargs)
     assert rsp["code"] == 0, rsp["raw_log"]
     return accounts
