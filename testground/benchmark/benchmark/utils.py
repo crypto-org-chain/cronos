@@ -177,6 +177,7 @@ def broadcast_tx_json(cli, tx, **kwargs):
                     "event-query-tx-for",
                     rsp["txhash"],
                     stderr=subprocess.DEVNULL,
+                    timeout="120s",
                     **kwargs,
                 )
             )
