@@ -13,7 +13,7 @@ from .utils import patch_json, patch_toml
 VAL_ACCOUNT = "validator"
 VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
 VAL_STAKED_AMOUNT = "10000000000000000000basecro"
-ACC_INITIAL_AMOUNT = "100000000000000000000000basecro"
+ACC_INITIAL_AMOUNT = "10000000000000000000000000basecro"
 MEMPOOL_SIZE = 50000
 DEFAULT_DENOM = "basecro"
 VALIDATOR_GROUP = "validators"
@@ -119,6 +119,7 @@ def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
 def patch_configs(home: Path, group: str, peers: str, block_executor: str):
     # update persistent_peers and other configs in config.toml
     config_patch = {
+        "db_backend": "rocksdb",
         "p2p.persistent_peers": peers,
         "p2p.addr_book_strict": False,
         "mempool.recheck": "false",
