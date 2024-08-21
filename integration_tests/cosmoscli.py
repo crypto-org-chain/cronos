@@ -1795,6 +1795,7 @@ class CosmosCLI:
                 "event-query-tx-for",
                 hash,
                 home=self.data_dir,
+                timeout="120s",
                 stderr=subprocess.DEVNULL,
             )
         )
