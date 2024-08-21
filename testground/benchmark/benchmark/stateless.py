@@ -204,10 +204,12 @@ def output_filter(group, group_seq: int):
     return inner
 
 
-def detect_idle(idle_blocks: int, interval: int):
+def detect_idle(idle_blocks: int, interval: int, max_wait_time=120):
     """
     returns if the chain is empty for consecutive idle_blocks
     """
+    start_time = time.time()
+
     while True:
         latest = block_height()
         for i in range(idle_blocks):
@@ -220,9 +222,11 @@ def detect_idle(idle_blocks: int, interval: int):
             # normal quit means idle
             return
 
-        # break early means not idle
+        if time.time() - start_time > max_wait_time:
+            print("max wait time exceeded, exiting idle detection")
+            return
+
         time.sleep(interval)
-        continue
 
 
 def block_height():
