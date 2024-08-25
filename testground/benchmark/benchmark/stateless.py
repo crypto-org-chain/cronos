@@ -209,9 +209,18 @@ def detect_idle(idle_blocks: int, interval: int, max_wait_time=120):
     returns if the chain is empty for consecutive idle_blocks
     """
     start_time = time.time()
+    prev_height = 0
 
     while True:
         latest = block_height()
+        if latest == prev_height:
+            if time.time() - start_time >= max_wait_time:
+                print("max wait time exceeded, exiting idle detection")
+                return
+        else:
+            prev_height = latest
+            start_time = time.time()
+        print("current block", latest)
         for i in range(idle_blocks):
             height = latest - i
             if height <= 0:
@@ -222,11 +231,9 @@ def detect_idle(idle_blocks: int, interval: int, max_wait_time=120):
             # normal quit means idle
             return
 
-        if time.time() - start_time > max_wait_time:
-            print("max wait time exceeded, exiting idle detection")
-            return
-
+        # break early means not idle
         time.sleep(interval)
+        continue
 
 
 def block_height():
