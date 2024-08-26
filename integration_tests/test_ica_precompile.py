@@ -1,5 +1,6 @@
 import base64
 import json
+from enum import Enum
 
 import pytest
 from eth_utils import keccak
@@ -33,9 +34,14 @@ CONTRACT = "0x0000000000000000000000000000000000000066"
 connid = "connection-0"
 no_timeout = 300000000000
 denom = "basecro"
-keys = KEYS["signer2"]
 validator = "validator"
 amt = 1000
+
+
+class Ordering(Enum):
+    NONE = 0
+    UNORDERED = 1
+    ORDERED = 2
 
 
 @pytest.fixture(scope="module")
@@ -52,15 +58,29 @@ def ibc(request, tmp_path_factory):
     )
 
 
-def register_acc(cli, w3, register, query, data, addr, channel_id):
+def register_acc(
+    cli,
+    w3,
+    register,
+    query,
+    data,
+    channel_id,
+    order,
+    signer="signer2",
+    expect_status=1,
+    contract_addr=None,
+):
+    addr = contract_addr if contract_addr else ADDRS[signer]
+    keys = KEYS[signer]
     print(f"register ica account with {channel_id}")
-    tx = register(connid, "").build_transaction(data)
+    tx = register(connid, "", order).build_transaction(data)
     receipt = send_transaction(w3, tx, keys)
-    assert receipt.status == 1
+    assert receipt.status == expect_status
     owner = eth_to_bech32(addr)
-    wait_for_check_channel_ready(cli, connid, channel_id)
+    if expect_status == 1:
+        wait_for_check_channel_ready(cli, connid, channel_id)
     res = cli.ica_query_account(connid, owner)
-    ica_address = res["interchain_account_address"]
+    ica_address = res["address"]
     print("query ica account", ica_address)
     res = query(connid, addr).call()
     assert ica_address == res, res
@@ -81,6 +101,7 @@ def submit_msgs(
     need_wait=True,
     msg_num=2,
     with_channel_id=True,
+    signer="signer2",
 ):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
@@ -114,7 +135,7 @@ def submit_msgs(
         tx = func(connid, channel_id, str, timeout).build_transaction(data)
     else:
         tx = func(connid, str, timeout).build_transaction(data)
-    receipt = send_transaction(w3, tx, keys)
+    receipt = send_transaction(w3, tx, KEYS[signer])
     assert receipt.status == 1
     if timeout < no_timeout:
         timeout_in_s = timeout / 1e9 + 1
@@ -134,15 +155,15 @@ def submit_msgs(
     return str, diff_amt
 
 
-def test_call(ibc):
+@pytest.mark.parametrize("order", [Ordering.ORDERED.value, Ordering.UNORDERED.value])
+def test_call(ibc, order):
+    signer = "signer2" if order == Ordering.ORDERED.value else "community"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
-    name = "signer2"
-    addr = ADDRS[name]
     contract_info = json.loads(CONTRACT_ABIS["IICAModule"].read_text())
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
-    data = {"from": ADDRS[name]}
+    data = {"from": ADDRS[signer]}
     channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
@@ -150,10 +171,11 @@ def test_call(ibc):
         contract.functions.registerAccount,
         contract.functions.queryAccount,
         data,
-        addr,
         channel_id,
+        order,
+        signer=signer,
     )
-    balance = funds_ica(cli_host, ica_address)
+    balance = funds_ica(cli_host, ica_address, signer=signer)
     expected_seq = 1
     _, diff = submit_msgs(
         ibc,
@@ -165,6 +187,7 @@ def test_call(ibc):
         contract.events.SubmitMsgsResult,
         channel_id,
         with_channel_id=False,
+        signer=signer,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -179,6 +202,7 @@ def test_call(ibc):
         contract.events.SubmitMsgsResult,
         channel_id,
         with_channel_id=False,
+        signer=signer,
     )
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
@@ -201,7 +225,8 @@ def wait_for_packet_log(start, event, channel_id, seq, status):
     wait_for_fn("packet log", check_log)
 
 
-def test_sc_call(ibc):
+@pytest.mark.parametrize("order", [Ordering.ORDERED.value, Ordering.UNORDERED.value])
+def test_sc_call(ibc, order):
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
     w3 = ibc.cronos.w3
@@ -209,12 +234,12 @@ def test_sc_call(ibc):
     contract = w3.eth.contract(address=CONTRACT, abi=contract_info)
     jsonfile = CONTRACTS["TestICA"]
     tcontract = deploy_contract(w3, jsonfile)
-    addr = tcontract.address
-    name = "signer2"
-    signer = ADDRS[name]
-    keys = KEYS[name]
+    contract_addr = tcontract.address
+    signer = "signer2" if order == Ordering.ORDERED.value else "community"
+    addr = ADDRS[signer]
+    keys = KEYS[signer]
     default_gas = 500000
-    data = {"from": signer, "gas": default_gas}
+    data = {"from": addr, "gas": default_gas}
     channel_id = get_next_channel(cli_controller, connid)
     ica_address = register_acc(
         cli_controller,
@@ -222,28 +247,43 @@ def test_sc_call(ibc):
         tcontract.functions.callRegister,
         contract.functions.queryAccount,
         data,
-        addr,
         channel_id,
+        order,
+        signer=signer,
+        contract_addr=contract_addr,
     )
-    balance = funds_ica(cli_host, ica_address)
-    assert tcontract.caller.getAccount() == signer
-    assert tcontract.functions.callQueryAccount(connid, addr).call() == ica_address
+    balance = funds_ica(cli_host, ica_address, signer=signer)
+    assert tcontract.caller.getAccount() == addr
+    assert (
+        tcontract.functions.callQueryAccount(connid, contract_addr).call()
+        == ica_address
+    )
 
     # register from another user should fail
-    name = "signer1"
-    data = {"from": ADDRS[name], "gas": default_gas}
+    signer1 = "signer1"
+    data = {"from": ADDRS[signer1], "gas": default_gas}
     version = ""
-    tx = tcontract.functions.callRegister(connid, version).build_transaction(data)
-    res = send_transaction(w3, tx, KEYS[name])
+    tx = tcontract.functions.callRegister(
+        connid,
+        version,
+        order,
+    ).build_transaction(data)
+    res = send_transaction(w3, tx, KEYS[signer1])
     assert res.status == 0
-    assert tcontract.caller.getAccount() == signer
+    assert tcontract.caller.getAccount() == addr
 
-    assert tcontract.functions.delegateQueryAccount(connid, addr).call() == ica_address
-    assert tcontract.functions.staticQueryAccount(connid, addr).call() == ica_address
+    assert (
+        tcontract.functions.delegateQueryAccount(connid, contract_addr).call()
+        == ica_address
+    )
+    assert (
+        tcontract.functions.staticQueryAccount(connid, contract_addr).call()
+        == ica_address
+    )
 
     # readonly call should fail
     def register_ro(func):
-        tx = func(connid, version).build_transaction(data)
+        tx = func(connid, version, order).build_transaction(data)
         assert send_transaction(w3, tx, keys).status == 0
 
     register_ro(tcontract.functions.delegateRegister)
@@ -266,6 +306,7 @@ def test_sc_call(ibc):
         expected_seq,
         contract.events.SubmitMsgsResult,
         channel_id,
+        signer=signer,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -289,6 +330,7 @@ def test_sc_call(ibc):
         expected_seq,
         contract.events.SubmitMsgsResult,
         channel_id,
+        signer=signer,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
@@ -315,6 +357,7 @@ def test_sc_call(ibc):
         channel_id,
         amount=100000001,
         need_wait=False,
+        signer=signer,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -340,6 +383,7 @@ def test_sc_call(ibc):
         channel_id,
         timeout,
         msg_num=100,
+        signer=signer,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
@@ -348,21 +392,41 @@ def test_sc_call(ibc):
     assert status == Status.FAIL
     wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
     assert cli_host.balance(ica_address, denom=denom) == balance
-    wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
-    data["gas"] = default_gas
-    channel_id2 = get_next_channel(cli_controller, connid)
-    ica_address2 = register_acc(
-        cli_controller,
-        w3,
-        tcontract.functions.callRegister,
-        contract.functions.queryAccount,
-        data,
-        addr,
-        channel_id2,
-    )
-    assert channel_id2 != channel_id, channel_id2
-    assert ica_address2 == ica_address, ica_address2
-    expected_seq = 1
+
+    if order == Ordering.UNORDERED.value:
+        channel_id2 = get_next_channel(cli_controller, connid)
+        register_acc(
+            cli_controller,
+            w3,
+            tcontract.functions.callRegister,
+            contract.functions.queryAccount,
+            data,
+            channel_id2,
+            order,
+            expect_status=0,
+            signer=signer,
+            contract_addr=contract_addr,
+        )
+        channel_id2 = channel_id
+        expected_seq += 1
+    else:
+        wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
+        data["gas"] = default_gas
+        channel_id2 = get_next_channel(cli_controller, connid)
+        ica_address2 = register_acc(
+            cli_controller,
+            w3,
+            tcontract.functions.callRegister,
+            contract.functions.queryAccount,
+            data,
+            channel_id2,
+            order,
+            signer=signer,
+            contract_addr=contract_addr,
+        )
+        assert channel_id2 != channel_id, channel_id2
+        assert ica_address2 == ica_address, ica_address2
+        expected_seq = 1
     start = w3.eth.get_block_number()
     str, diff = submit_msgs(
         ibc,
@@ -373,6 +437,7 @@ def test_sc_call(ibc):
         expected_seq,
         contract.events.SubmitMsgsResult,
         channel_id2,
+        signer=signer,
     )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id2, last_seq)

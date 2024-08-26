@@ -5,7 +5,7 @@ import pytest
 from .ibc_utils import (
     funds_ica,
     get_balance,
-    ica_ctrl_send_tx,
+    ica_send_tx,
     prepare_network,
     register_acc,
 )
@@ -64,7 +64,7 @@ def test_incentivized(ibc):
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
-    ica_ctrl_send_tx(
+    ica_send_tx(
         cli_host,
         cli_controller,
         connid,

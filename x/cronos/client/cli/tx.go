@@ -23,7 +23,6 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 )
@@ -347,10 +346,6 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltyp
 	// Add interchainaccounts with default genesis.
 	if appState[icatypes.ModuleName] == nil {
 		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
-	}
-	// Add icaauth with default genesis.
-	if appState[icaauthtypes.ModuleName] == nil {
-		appState[icaauthtypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icaauthtypes.DefaultGenesis())
 	}
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)

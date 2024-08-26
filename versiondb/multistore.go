@@ -9,7 +9,7 @@ import (
 	"cosmossdk.io/store/types"
 )
 
-var _ types.RootMultiStore = (*MultiStore)(nil)
+var _ types.MultiStore = (*MultiStore)(nil)
 
 // MultiStore wraps `VersionStore` to implement `MultiStore` interface.
 type MultiStore struct {
@@ -64,7 +64,7 @@ func (s *MultiStore) cacheMultiStore(version *int64) types.CacheMultiStore {
 			stores[k] = NewKVStore(s.versionDB, k, version)
 		}
 	}
-	return cachemulti.NewStore(stores, s.traceWriter, s.getTracingContext())
+	return cachemulti.NewStore(nil, stores, nil, s.traceWriter, s.getTracingContext())
 }
 
 // CacheMultiStore implements `MultiStore` interface
@@ -97,11 +97,6 @@ func (s *MultiStore) GetStore(storeKey types.StoreKey) types.Store {
 // GetKVStore implements `MultiStore` interface
 func (s *MultiStore) GetKVStore(storeKey types.StoreKey) types.KVStore {
 	return s.GetStore(storeKey).(types.KVStore)
-}
-
-// GetObjKVStore implements `MultiStore` interface
-func (s *MultiStore) GetObjKVStore(storeKey types.StoreKey) types.ObjKVStore {
-	return s.GetStore(storeKey).(types.ObjKVStore)
 }
 
 // SetTracer sets the tracer for the MultiStore that the underlying
@@ -156,4 +151,9 @@ func (s *MultiStore) LatestVersion() int64 {
 // Close will flush the versiondb
 func (s *MultiStore) Close() error {
 	return s.versionDB.Flush()
+}
+
+// CacheWrapWithTrace is kept to build with upstream sdk.
+func (s *MultiStore) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.CacheWrap {
+	panic("not implemented")
 }

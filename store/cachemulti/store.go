@@ -29,7 +29,7 @@ func NewStore(
 	if closer == nil {
 		closer = NoopCloser
 	}
-	store := cachemulti.NewStore(stores, traceWriter, traceContext)
+	store := cachemulti.NewStore(nil, stores, nil, traceWriter, traceContext)
 	return Store{
 		Store:  store,
 		Closer: closer,

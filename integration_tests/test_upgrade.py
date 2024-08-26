@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+import requests
 from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
@@ -31,6 +32,15 @@ pytestmark = pytest.mark.upgrade
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
     yield from setup_cronos_test(tmp_path_factory)
+
+
+def get_txs(base_port, end):
+    port = ports.rpc_port(base_port)
+    res = []
+    for h in range(1, end):
+        url = f"http://127.0.0.1:{port}/block_results?height={h}"
+        res.append(requests.get(url).json().get("result")["txs_results"])
+    return res
 
 
 def init_cosmovisor(home):
@@ -108,7 +118,8 @@ def exec(c, tmp_path_factory):
     - it should work transparently
     """
     cli = c.cosmos_cli()
-    port = ports.api_port(c.base_port(0))
+    base_port = c.base_port(0)
+    port = ports.api_port(base_port)
     send_enable = [
         {"denom": "basetcro", "enabled": False},
         {"denom": "stake", "enabled": True},
@@ -125,7 +136,7 @@ def exec(c, tmp_path_factory):
         fp.flush()
 
     c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
-    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+    wait_for_port(ports.evmrpc_port(base_port))
     wait_for_new_blocks(cli, 1)
 
     def do_upgrade(plan_name, target, mode=None):
@@ -150,7 +161,7 @@ def exec(c, tmp_path_factory):
         )
         # block should pass the target height
         wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
-        wait_for_port(ports.rpc_port(c.base_port(0)))
+        wait_for_port(ports.rpc_port(base_port))
 
     # test migrate keystore
     cli.migrate_keystore()
@@ -162,7 +173,7 @@ def exec(c, tmp_path_factory):
     cli = c.cosmos_cli()
 
     # check basic tx works
-    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+    wait_for_port(ports.evmrpc_port(base_port))
     receipt = send_transaction(
         c.w3,
         {
@@ -198,7 +209,7 @@ def exec(c, tmp_path_factory):
     cli = c.cosmos_cli()
 
     # check basic tx works
-    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+    wait_for_port(ports.evmrpc_port(base_port))
     receipt = send_transaction(
         c.w3,
         {
@@ -227,7 +238,7 @@ def exec(c, tmp_path_factory):
         ADDRS["validator"]
     )
     # check consensus params
-    port = ports.rpc_port(c.base_port(0))
+    port = ports.rpc_port(base_port)
     res = get_consensus_params(port, w3.eth.get_block_number())
     assert res["block"]["max_gas"] == "60000000"
 
@@ -262,13 +273,23 @@ def exec(c, tmp_path_factory):
     height = cli.block_height()
     target_height2 = height + 15
     print("upgrade v1.3 height", target_height2)
+    txs = get_txs(base_port, height)
     do_upgrade("v1.3", target_height2)
+    assert txs == get_txs(base_port, height)
+
+    height = cli.block_height()
+    target_height3 = height + 15
+    print("upgrade v1.4 height", target_height2)
+    do_upgrade("v1.4", target_height3)
 
     cli = c.cosmos_cli()
     assert e0 == cli.query_params("evm", height=target_height0 - 1)["params"]
     assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
     assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
     assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
+
+    with pytest.raises(AssertionError):
+        cli.query_params("icaauth")
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

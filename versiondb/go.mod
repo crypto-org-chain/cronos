@@ -9,7 +9,7 @@ require (
 	cosmossdk.io/log v1.3.1
 	cosmossdk.io/store v1.1.0
 	github.com/alitto/pond v1.8.3
-	github.com/cometbft/cometbft v0.38.7
+	github.com/cometbft/cometbft v0.38.11
 	github.com/cosmos/cosmos-db v1.0.2
 	github.com/cosmos/cosmos-sdk v0.50.4
 	github.com/cosmos/gogoproto v1.4.12
@@ -17,7 +17,7 @@ require (
 	github.com/cosmos/ibc-go/modules/capability v1.0.0
 	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/golang/snappy v0.0.4
-	github.com/linxGnu/grocksdb v1.9.1
+	github.com/linxGnu/grocksdb v1.9.2
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
@@ -89,6 +89,7 @@ require (
 	github.com/hashicorp/go-metrics v0.5.3 // indirect
 	github.com/hashicorp/go-plugin v1.5.2 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/hdevalence/ed25519consensus v0.1.0 // indirect
@@ -102,7 +103,6 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263 // indirect
 	github.com/lib/pq v1.10.7 // indirect
-	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -167,8 +167,8 @@ require (
 
 replace (
 	// release/v0.50.x
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240604100318-cf12e5ad62e4
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240722033504-50f1fa0c49d1
 	// release/v0.50.x
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20240604100318-cf12e5ad62e4
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20240722033504-50f1fa0c49d1
 	github.com/crypto-org-chain/cronos/memiavl => ../memiavl
 )

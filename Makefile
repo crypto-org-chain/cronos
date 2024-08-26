@@ -15,7 +15,7 @@ COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 
 # process build tags
-build_tags = netgo
+build_tags = netgo objstore
 ifeq ($(NETWORK),mainnet)
     build_tags += mainnet
 else ifeq ($(NETWORK),testnet)
@@ -99,9 +99,9 @@ install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/cronosd
 
 test:
-	@go test -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
-	@cd memiavl; go test -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
-	@cd store; go test -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
+	@cd memiavl; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+	@cd store; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
 
 test-versiondb:
 	@cd versiondb; go test -tags rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
@@ -158,38 +158,43 @@ $(BINDIR)/runsim:
 
 test-sim-nondeterminism:
 	@echo "Running non-determinism test..."
-	@go test -mod=readonly $(SIMAPP) -run TestAppStateDeterminism -Enabled=true \
+	@go test -tags=objstore -mod=readonly $(SIMAPP) -run TestAppStateDeterminism -Enabled=true \
 		-NumBlocks=100 -BlockSize=200 -Commit=true -Period=0 -v -timeout 24h
 
 test-sim-random-genesis-fast:
 	@echo "Running random genesis simulation..."
-	@go test -mod=readonly $(SIMAPP) -run TestFullAppSimulation \
+	@go test -tags=objstore -mod=readonly $(SIMAPP) -run TestFullAppSimulation \
 		-Enabled=true -NumBlocks=100 -BlockSize=200 -Commit=true -Seed=99 -Period=5 -v -timeout 24h
 
+test-sim-import-export: export GOFLAGS=-tags=objstore
 test-sim-import-export: runsim
 	@echo "Running application import/export simulation. This may take several minutes..."
 	@$(BINDIR)/runsim -Jobs=4 -SimAppPkg=$(SIMAPP) -ExitOnFail 50 5 TestAppImportExport
 
+test-sim-after-import: export GOFLAGS=-tags=objstore
 test-sim-after-import: runsim
 	@echo "Running application simulation-after-import. This may take several minutes..."
 	@$(BINDIR)/runsim -Jobs=4 -SimAppPkg=$(SIMAPP) -ExitOnFail 50 5 TestAppSimulationAfterImport
 
+test-sim-custom-genesis-multi-seed: export GOFLAGS=-tags=objstore
 test-sim-custom-genesis-multi-seed: runsim
 	@echo "Running multi-seed custom genesis simulation..."
 	@echo "By default, ${HOME}/.cronosd/config/genesis.json will be used."
 	@$(BINDIR)/runsim -Genesis=${HOME}/.cronosd/config/genesis.json -SimAppPkg=$(SIMAPP) -ExitOnFail 400 5 TestFullAppSimulation
 
+test-sim-multi-seed-long: export GOFLAGS=-tags=objstore
 test-sim-multi-seed-long: runsim
 	@echo "Running long multi-seed application simulation. This may take awhile!"
 	@$(BINDIR)/runsim -Jobs=4 -SimAppPkg=$(SIMAPP) -ExitOnFail 500 50 TestFullAppSimulation
 
+test-sim-multi-seed-short: export GOFLAGS=-tags=objstore
 test-sim-multi-seed-short: runsim
 	@echo "Running short multi-seed application simulation. This may take awhile!"
 	@$(BINDIR)/runsim -Jobs=4 -SimAppPkg=$(SIMAPP) -ExitOnFail 50 10 TestFullAppSimulation
 
 test-sim-benchmark-invariants:
 	@echo "Running simulation invariant benchmarks..."
-	@go test -mod=readonly $(SIMAPP) -benchmem -bench=BenchmarkInvariants -run=^$ \
+	@go test -tags=objstore -mod=readonly $(SIMAPP) -benchmem -bench=BenchmarkInvariants -run=^$ \
 	-Enabled=true -NumBlocks=1000 -BlockSize=200 \
 	-Period=1 -Commit=true -Seed=57 -v -timeout 24h
 
@@ -209,12 +214,12 @@ SIM_COMMIT ?= true
 
 test-sim-benchmark:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@go test -mod=readonly -benchmem -run=^$$ $(SIMAPP) -bench ^BenchmarkFullAppSimulation$$  \
+	@go test -tags=objstore -mod=readonly -benchmem -run=^$$ $(SIMAPP) -bench ^BenchmarkFullAppSimulation$$  \
 		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h
 
 test-sim-profile:
 	@echo "Running application benchmark for numBlocks=$(SIM_NUM_BLOCKS), blockSize=$(SIM_BLOCK_SIZE). This may take awhile!"
-	@go test -mod=readonly -benchmem -run=^$$ $(SIMAPP) -bench ^BenchmarkFullAppSimulation$$ \
+	@go test -tags=objstore -mod=readonly -benchmem -run=^$$ $(SIMAPP) -bench ^BenchmarkFullAppSimulation$$ \
 		-Enabled=true -NumBlocks=$(SIM_NUM_BLOCKS) -BlockSize=$(SIM_BLOCK_SIZE) -Commit=$(SIM_COMMIT) -timeout 24h -cpuprofile cpu.out -memprofile mem.out
 
 .PHONY: test-sim-profile test-sim-benchmark

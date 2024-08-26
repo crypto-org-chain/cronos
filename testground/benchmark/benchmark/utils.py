@@ -1,10 +1,14 @@
 import json
 import socket
+import subprocess
+import tempfile
 import time
 from pathlib import Path
 
 import bech32
 import tomlkit
+import web3
+from eth_account import Account
 from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
@@ -67,6 +71,20 @@ def wait_for_block(cli, target: int, timeout=40):
     return height
 
 
+def wait_for_w3(timeout=40):
+    for i in range(timeout):
+        try:
+            w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+            w3.eth.get_balance("0x0000000000000000000000000000000000000001")
+        except:  # noqa
+            time.sleep(1)
+            continue
+
+        break
+    else:
+        raise TimeoutError("Waited too long for web3 json-rpc to be ready.")
+
+
 def decode_bech32(addr):
     _, bz = bech32.bech32_decode(addr)
     return HexBytes(bytes(bech32.convertbits(bz, 5, 8)))
@@ -90,3 +108,77 @@ def send_transaction(w3, tx, acct, wait=True):
     if wait:
         return w3.eth.wait_for_transaction_receipt(txhash)
     return txhash
+
+
+def export_eth_account(cli, name: str, **kwargs) -> Account:
+    kwargs.setdefault("keyring_backend", "test")
+    return Account.from_key(cli("keys", "unsafe-export-eth-key", name, **kwargs))
+
+
+def build_batch_tx(w3, cli, txs, acct, **kwargs):
+    "return cosmos batch tx and eth tx hashes"
+    signed_txs = [sign_transaction(w3, tx, acct) for tx in txs]
+    tmp_txs = [
+        json.loads(
+            cli(
+                "tx",
+                "evm",
+                "raw",
+                signed.rawTransaction.hex(),
+                "-y",
+                "--generate-only",
+                **kwargs,
+            )
+        )
+        for signed in signed_txs
+    ]
+
+    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
+    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
+    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
+
+    tx_hashes = [signed.hash for signed in signed_txs]
+
+    # build batch cosmos tx
+    return {
+        "body": {
+            "messages": msgs,
+            "memo": "",
+            "timeout_height": "0",
+            "extension_options": [
+                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
+            ],
+            "non_critical_extension_options": [],
+        },
+        "auth_info": {
+            "signer_infos": [],
+            "fee": {
+                "amount": [{"denom": "basecro", "amount": str(fee)}],
+                "gas_limit": str(gas_limit),
+                "payer": "",
+                "granter": "",
+            },
+        },
+        "signatures": [],
+    }, tx_hashes
+
+
+def broadcast_tx_json(cli, tx, **kwargs):
+    with tempfile.NamedTemporaryFile("w") as fp:
+        json.dump(tx, fp)
+        fp.flush()
+        rsp = json.loads(
+            cli("tx", "broadcast", fp.name, node="tcp://127.0.0.1:26657", **kwargs)
+        )
+        if rsp["code"] == 0:
+            rsp = json.loads(
+                cli(
+                    "query",
+                    "event-query-tx-for",
+                    rsp["txhash"],
+                    stderr=subprocess.DEVNULL,
+                    timeout="120s",
+                    **kwargs,
+                )
+            )
+        return rsp

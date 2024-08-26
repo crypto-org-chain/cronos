@@ -247,15 +247,6 @@ func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 }
 
 // Implements interface MultiStore
-func (rs *Store) GetObjKVStore(key types.StoreKey) types.ObjKVStore {
-	s, ok := rs.stores[key].(types.ObjKVStore)
-	if !ok {
-		panic(fmt.Sprintf("store with key %v is not ObjKVStore", key))
-	}
-	return s
-}
-
-// Implements interface MultiStore
 func (rs *Store) TracingEnabled() bool {
 	return false
 }
@@ -426,15 +417,8 @@ func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, p
 
 		return mem.NewStore(), nil
 
-	case types.StoreTypeObject:
-		if _, ok := key.(*types.ObjectStoreKey); !ok {
-			return nil, fmt.Errorf("unexpected key type for a ObjectStoreKey; got: %s, %T", key.String(), key)
-		}
-
-		return transient.NewObjStore(), nil
-
 	default:
-		panic(fmt.Sprintf("unrecognized store type %v", params.typ))
+		return rs.loadExtraStore(db, key, params)
 	}
 }
 

@@ -107,8 +107,12 @@ class RunParams(BaseModel):
         return self.test_instance_params["chain_id"]
 
     @property
-    def halt_height(self) -> int:
-        return int(self.test_instance_params["halt_height"])
+    def num_accounts(self) -> int:
+        return int(self.test_instance_params["num_accounts"])
+
+    @property
+    def num_txs(self) -> int:
+        return int(self.test_instance_params["num_txs"])
 
 
 def run_params(env=None) -> RunParams:

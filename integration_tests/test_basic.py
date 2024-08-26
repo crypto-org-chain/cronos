@@ -25,13 +25,16 @@ from .utils import (
     contract_address,
     contract_path,
     deploy_contract,
+    derive_new_account,
     eth_to_bech32,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
     send_transaction,
     send_txs,
+    sign_transaction,
     submit_any_proposal,
+    w3_wait_for_block,
     wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
@@ -40,7 +43,7 @@ from .utils import (
 
 def test_ica_enabled(cronos, tmp_path):
     cli = cronos.cosmos_cli()
-    p = cli.query_icacontroller_params()
+    p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
     proposal = tmp_path / "proposal.json"
@@ -65,7 +68,7 @@ def test_ica_enabled(cronos, tmp_path):
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
-    p = cli.query_icacontroller_params()
+    p = cli.query_ica_params()
     assert not p["controller_enabled"]
 
 
@@ -306,7 +309,7 @@ def test_local_statesync(cronos, tmp_path_factory):
     cronos.supervisorctl("stop", "cronos_777-1-node0")
     tarball = cli0.data_dir / "snapshot.tar.gz"
     height = int(sync_info["latest_block_height"])
-    # round down to multplies of memiavl.snapshot-interval
+    # round down to multiples of memiavl.snapshot-interval
     height -= height % 5
 
     if height not in set(item.height for item in cli0.list_snapshot()):
@@ -825,6 +828,7 @@ def test_contract(cronos):
 origin_cmd = None
 
 
+@pytest.mark.unmarked
 @pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000, None])
 def test_tx_inclusion(cronos, max_gas_wanted):
     """
@@ -933,3 +937,40 @@ def test_submit_send_enabled(cronos, tmp_path):
     approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
     assert cli.query_bank_send(*denoms) == send_enable
+
+
+def test_block_stm_delete(cronos):
+    """
+    this test case revealed a bug in block-stm,
+    see: https://github.com/crypto-org-chain/go-block-stm/pull/11
+    """
+    w3 = cronos.w3
+    cli = cronos.cosmos_cli()
+    acc = derive_new_account(3)
+    sender = acc.address
+
+    # fund new sender
+    fund = 3000000000000000000
+    tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+    send_transaction(w3, tx)
+    assert w3.eth.get_balance(sender, "latest") == fund
+    nonce = w3.eth.get_transaction_count(sender)
+    wait_for_new_blocks(cli, 1)
+    txhashes = []
+    total = 3
+    for n in range(total):
+        tx = {
+            "to": "0x2956c404227Cc544Ea6c3f4a36702D0FD73d20A2",
+            "value": fund // total,
+            "gas": 21000,
+            "maxFeePerGas": 6556868066901,
+            "maxPriorityFeePerGas": 1500000000,
+            "nonce": nonce + n,
+        }
+        signed = sign_transaction(w3, tx, acc.key)
+        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhashes.append(txhash)
+    for txhash in txhashes[0 : total - 1]:
+        res = w3.eth.wait_for_transaction_receipt(txhash)
+        assert res.status == 1
+    w3_wait_for_block(w3, w3.eth.block_number + 3, timeout=30)

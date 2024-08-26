@@ -5,10 +5,10 @@
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "76ae54b533c0c419799d23508dc4362f5ea26d22",
-        "sha256": "0jdmxiv3zhkapr51hl9fqqw0qwsz0632ydhk2cyfamknjny81kk9",
+        "rev": "1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3",
+        "sha256": "01cg1jfg4l2d6g2spxf3c2375zj0siv8wg1lssafv7ry51f3zyqz",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/76ae54b533c0c419799d23508dc4362f5ea26d22.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {

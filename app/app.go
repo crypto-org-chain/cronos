@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"sort"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -137,6 +138,7 @@ import (
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
+	servercfg "github.com/evmos/ethermint/server/config"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -158,9 +160,6 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	icaauth "github.com/crypto-org-chain/cronos/v2/x/icaauth"
-	icaauthkeeper "github.com/crypto-org-chain/cronos/v2/x/icaauth/keeper"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
 	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
@@ -251,7 +250,6 @@ func StoreKeys() (
 		ibcfeetypes.StoreKey,
 		// ica keys
 		icacontrollertypes.StoreKey,
-		icaauthtypes.StoreKey,
 		icahosttypes.StoreKey,
 		// ethermint keys
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
@@ -313,7 +311,6 @@ type App struct {
 	IBCFeeKeeper          ibcfeekeeper.Keeper
 	ICAControllerKeeper   icacontrollerkeeper.Keeper
 	ICAHostKeeper         icahostkeeper.Keeper
-	ICAAuthKeeper         icaauthkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	TransferKeeper        ibctransferkeeper.Keeper
 	FeeGrantKeeper        feegrantkeeper.Keeper
@@ -323,7 +320,6 @@ type App struct {
 	ScopedIBCKeeper           capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper      capabilitykeeper.ScopedKeeper
 	ScopedICAControllerKeeper capabilitykeeper.ScopedKeeper
-	ScopedICAAuthKeeper       capabilitykeeper.ScopedKeeper
 
 	// Ethermint keepers
 	EvmKeeper       *evmkeeper.Keeper
@@ -371,9 +367,14 @@ func New(
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	// Setup Mempool and Proposal Handlers
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+		if maxTxs <= 0 {
+			maxTxs = servercfg.DefaultMaxTxs
+		}
 		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			MaxTx:           maxTxs,
 		})
 		handler := baseapp.NewDefaultProposalHandler(mempool, app)
 
@@ -382,8 +383,19 @@ func New(
 		app.SetProcessProposal(handler.ProcessProposalHandler())
 	})
 
+	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
+
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, baseAppOptions)
+	var cacheSize int
+	if !blockSTMEnabled {
+		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
+		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
+	}
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
+
+	// enable optimistic execution
+	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	bApp := baseapp.NewBaseApp(Name, logger, db, txConfig.TxDecoder(), baseAppOptions...)
 
@@ -410,10 +422,13 @@ func New(
 
 	app.SetDisableBlockGasMeter(true)
 
-	executor := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor))
-	if executor == "block-stm" {
+	if blockSTMEnabled {
 		sdk.SetAddrCacheEnabled(false)
 		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
+		if workers == 0 {
+			workers = stdruntime.NumCPU()
+		}
+		logger.Info("block-stm executor enabled", "workers", workers)
 		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers))
 	} else {
 		app.SetTxExecutor(evmapp.DefaultTxExecutor)
@@ -442,7 +457,6 @@ func New(
 	scopedTransferKeeper := app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
 	scopedICAControllerKeeper := app.CapabilityKeeper.ScopeToModule(icacontrollertypes.SubModuleName)
 	scopedICAHostKeeper := app.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
-	scopedICAAuthKeeper := app.CapabilityKeeper.ScopeToModule(icaauthtypes.ModuleName)
 
 	// Applications that wish to enforce statically created ScopedKeepers should call `Seal` after creating
 	// their scoped modules in `NewApp` with `ScopeToModule`
@@ -569,12 +583,13 @@ func New(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 	app.ICAHostKeeper = icahostkeeper.NewKeeper(
-		appCodec, keys[icahosttypes.StoreKey], ICAHostMockSubspace{},
+		appCodec, keys[icahosttypes.StoreKey], nil,
 		app.IBCFeeKeeper, // ISC4 Wrapper: fee IBC middleware
 		app.IBCKeeper.ChannelKeeper, app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, scopedICAHostKeeper, app.MsgServiceRouter(),
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
+	app.ICAHostKeeper.WithQueryRouter(app.GRPCQueryRouter())
 	icaModule := ica.NewAppModule(&app.ICAControllerKeeper, &app.ICAHostKeeper)
 
 	// Create Transfer Keepers
@@ -612,7 +627,7 @@ func New(
 				return cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, rules, app.Logger())
 			},
 			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
-				return cronosprecompiles.NewIcaContract(ctx, &app.ICAAuthKeeper, &app.CronosKeeper, appCodec, gasConfig)
+				return cronosprecompiles.NewIcaContract(ctx, app.ICAControllerKeeper, &app.CronosKeeper, appCodec, gasConfig)
 			},
 		},
 	)
@@ -675,17 +690,12 @@ func New(
 		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
-	app.ICAAuthKeeper = *icaauthkeeper.NewKeeper(appCodec, keys[icaauthtypes.StoreKey], keys[icaauthtypes.MemStoreKey], app.ICAControllerKeeper, scopedICAAuthKeeper, scopedICAControllerKeeper)
-	icaAuthIBCModule := icaauth.NewIBCModule(app.ICAAuthKeeper)
-
 	var icaControllerStack porttypes.IBCModule
-	icaControllerStack = icacontroller.NewIBCMiddleware(icaAuthIBCModule, app.ICAControllerKeeper)
+	icaControllerStack = icacontroller.NewIBCMiddleware(nil, app.ICAControllerKeeper)
 	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
 	ics4Wrapper := icaControllerStack.(porttypes.Middleware)
 	app.ICAControllerKeeper.WithICS4Wrapper(ics4Wrapper)
-	app.ICAAuthKeeper.WithICS4Wrapper(ics4Wrapper)
-	icaAuthModule := icaauth.NewAppModule(appCodec, app.ICAAuthKeeper, ics4Wrapper)
 	// we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
 	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper, app.CronosKeeper, math.MaxUint64)
 
@@ -697,7 +707,6 @@ func New(
 	ibcRouter := porttypes.NewRouter()
 	// Add controller & ica auth modules to IBC router
 	ibcRouter.
-		AddRoute(icaauthtypes.ModuleName, icaControllerStack).
 		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
 		AddRoute(icahosttypes.SubModuleName, icaHostStack).
 		AddRoute(ibctransfertypes.ModuleName, transferStack)
@@ -762,7 +771,6 @@ func New(
 		ibctm.AppModule{},
 		transferModule,
 		icaModule,
-		icaAuthModule,
 		feeModule,
 
 		// Ethermint app modules
@@ -805,7 +813,6 @@ func New(
 		ibctransfertypes.ModuleName,
 		ibcfeetypes.ModuleName,
 		icatypes.ModuleName,
-		icaauthtypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		govtypes.ModuleName,
@@ -827,7 +834,6 @@ func New(
 		ibctransfertypes.ModuleName,
 		ibcfeetypes.ModuleName,
 		icatypes.ModuleName,
-		icaauthtypes.ModuleName,
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
@@ -870,7 +876,6 @@ func New(
 		ibctransfertypes.ModuleName,
 		ibcfeetypes.ModuleName,
 		icatypes.ModuleName,
-		icaauthtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
@@ -930,12 +935,6 @@ func New(
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
 	app.MountObjectStores(okeys)
-
-	// load state streaming if enabled
-	if err := app.RegisterStreamingServices(appOpts, keys); err != nil {
-		fmt.Printf("failed to load state streaming: %s", err)
-		os.Exit(1)
-	}
 
 	// wire up the versiondb's `StreamingService` and `MultiStore`.
 	if cast.ToBool(appOpts.Get("versiondb.enable")) {
@@ -1003,7 +1002,6 @@ func New(
 	app.ScopedIBCKeeper = scopedIBCKeeper
 	app.ScopedTransferKeeper = scopedTransferKeeper
 	app.ScopedICAControllerKeeper = scopedICAControllerKeeper
-	app.ScopedICAAuthKeeper = scopedICAAuthKeeper
 	// this line is used by starport scaffolding # stargate/app/beforeInitReturn
 
 	return app
@@ -1053,6 +1051,8 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		DisabledAuthzMsgs: []string{
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&vestingtypes.MsgCreateVestingAccount{}),
+			sdk.MsgTypeURL(&vestingtypes.MsgCreatePermanentLockedAccount{}),
+			sdk.MsgTypeURL(&vestingtypes.MsgCreatePeriodicVestingAccount{}),
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
@@ -1221,6 +1221,7 @@ func (app *App) SimulationManager() *module.SimulationManager {
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	clientCtx := apiSvr.ClientCtx
+	app.EvmKeeper.WithChainIDString(clientCtx.ChainID)
 	// Register new tx routes from grpc-gateway.
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register new tendermint queries routes from grpc-gateway.
@@ -1335,7 +1336,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibcexported.ModuleName).WithKeyTable(keyTable)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName).WithKeyTable(ibctransfertypes.ParamKeyTable())
 	paramsKeeper.Subspace(icacontrollertypes.SubModuleName).WithKeyTable(icacontrollertypes.ParamKeyTable())
-	paramsKeeper.Subspace(icaauthtypes.ModuleName)
 	paramsKeeper.Subspace(evmtypes.ModuleName).WithKeyTable(v0evmtypes.ParamKeyTable()) //nolint: staticcheck
 	paramsKeeper.Subspace(feemarkettypes.ModuleName).WithKeyTable(feemarkettypes.ParamKeyTable())
 	// this line is used by starport scaffolding # stargate/app/paramSubspace

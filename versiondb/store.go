@@ -1,6 +1,7 @@
 package versiondb
 
 import (
+	"io"
 	"time"
 
 	"cosmossdk.io/store/cachekv"
@@ -80,4 +81,8 @@ func (st *Store) Set(key, value []byte) {
 // Implements types.KVStore.
 func (st *Store) Delete(key []byte) {
 	panic("write operation is not supported")
+}
+
+func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.CacheWrap {
+	panic("not implemented")
 }
