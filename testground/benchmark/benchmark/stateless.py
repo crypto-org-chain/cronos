@@ -155,8 +155,8 @@ ADD ./out {dst}
             cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
         )
 
-        # node quit when the chain is idle for a while
-        detect_idle(20, 20)
+        # node quit when the chain is idle or halted for a while
+        detect_idle_halted(20, 20)
 
         with (home / "block_stats.log").open("w") as logfile:
             dump_block_stats(logfile)
@@ -201,10 +201,9 @@ def output_filter(group, group_seq: int):
     return inner
 
 
-def detect_idle(idle_blocks: int, interval: int, chain_halt_interval=120):
+def detect_idle_halted(idle_blocks: int, interval: int, chain_halt_interval=120):
     """
-    returns if the chain is empty for consecutive idle_blocks,
-    raise error if chain halt is detected.
+    returns if the chain is empty for consecutive idle_blocks, or halted.
 
     idle_blocks: the number of consecutive empty blocks to check
     interval: poll interval
@@ -237,9 +236,8 @@ def detect_idle(idle_blocks: int, interval: int, chain_halt_interval=120):
         else:
             # detect chain halt if no progress
             if time.time() - last_time >= chain_halt_interval:
-                raise Exception(
-                    f"chain didn't make progress for {chain_halt_interval} seconds"
-                )
+                print(f"chain didn't make progress for {chain_halt_interval} seconds")
+                return
 
 
 def block_height():
