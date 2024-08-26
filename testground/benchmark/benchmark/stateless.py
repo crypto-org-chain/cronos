@@ -154,12 +154,9 @@ ADD ./out {dst}
         generate_load(
             cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
         )
-        if group == VALIDATOR_GROUP:
-            # validators quit when the chain is idle for a while
-            detect_idle(20, 20)
-        else:
-            # wait more blocks to finish all tasks
-            detect_idle(4, 4)
+
+        # node quit when the chain is idle for a while
+        detect_idle(20, 20)
 
         with (home / "block_stats.log").open("w") as logfile:
             dump_block_stats(logfile)
@@ -204,36 +201,45 @@ def output_filter(group, group_seq: int):
     return inner
 
 
-def detect_idle(idle_blocks: int, interval: int, max_wait_time=120):
+def detect_idle(idle_blocks: int, interval: int, chain_halt_interval=120):
     """
-    returns if the chain is empty for consecutive idle_blocks
+    returns if the chain is empty for consecutive idle_blocks,
+    raise error if chain halt is detected.
+
+    idle_blocks: the number of consecutive empty blocks to check
+    interval: poll interval
+    chain_halt_interval: the chain is considered halted if no new block for this time
     """
-    start_time = time.time()
+    last_time = time.time()
     prev_height = 0
 
     while True:
         latest = block_height()
-        if latest == prev_height:
-            if time.time() - start_time >= max_wait_time:
-                print("max wait time exceeded, exiting idle detection")
-                return
-        else:
+        if latest > prev_height:
             prev_height = latest
-            start_time = time.time()
-        print("current block", latest)
-        for i in range(idle_blocks):
-            height = latest - i
-            if height <= 0:
-                break
-            if len(block_txs(height)) > 0:
-                break
-        else:
-            # normal quit means idle
-            return
+            last_time = time.time()
 
-        # break early means not idle
-        time.sleep(interval)
-        continue
+            # detect chain idle if made progress
+            print("current block", latest)
+            for i in range(idle_blocks):
+                height = latest - i
+                if height <= 0:
+                    break
+                if len(block_txs(height)) > 0:
+                    break
+            else:
+                # normal quit means idle
+                return
+
+            # break early means not idle
+            time.sleep(interval)
+            continue
+        else:
+            # detect chain halt if no progress
+            if time.time() - last_time >= chain_halt_interval:
+                raise Exception(
+                    f"chain didn't make progress for {chain_halt_interval} seconds"
+                )
 
 
 def block_height():
