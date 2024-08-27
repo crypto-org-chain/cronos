@@ -110,75 +110,19 @@ def send_transaction(w3, tx, acct, wait=True):
     return txhash
 
 
+def send_transactions(w3, txs, acct, wait=True):
+    """
+    send a batch of transactions from same account
+    """
+    signed_txs = [sign_transaction(w3, tx, acct) for tx in txs]
+    txhashes = [
+        w3.eth.send_raw_transaction(signed.rawTransaction) for signed in signed_txs
+    ]
+    if wait:
+        return [w3.eth.wait_for_transaction_receipt(txhash) for txhash in txhashes]
+    return txhashes
+
+
 def export_eth_account(cli, name: str, **kwargs) -> Account:
     kwargs.setdefault("keyring_backend", "test")
     return Account.from_key(cli("keys", "unsafe-export-eth-key", name, **kwargs))
-
-
-def build_batch_tx(w3, cli, txs, acct, **kwargs):
-    "return cosmos batch tx and eth tx hashes"
-    signed_txs = [sign_transaction(w3, tx, acct) for tx in txs]
-    tmp_txs = [
-        json.loads(
-            cli(
-                "tx",
-                "evm",
-                "raw",
-                signed.rawTransaction.hex(),
-                "-y",
-                "--generate-only",
-                **kwargs,
-            )
-        )
-        for signed in signed_txs
-    ]
-
-    msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
-    fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
-    gas_limit = sum(int(tx["auth_info"]["fee"]["gas_limit"]) for tx in tmp_txs)
-
-    tx_hashes = [signed.hash for signed in signed_txs]
-
-    # build batch cosmos tx
-    return {
-        "body": {
-            "messages": msgs,
-            "memo": "",
-            "timeout_height": "0",
-            "extension_options": [
-                {"@type": "/ethermint.evm.v1.ExtensionOptionsEthereumTx"}
-            ],
-            "non_critical_extension_options": [],
-        },
-        "auth_info": {
-            "signer_infos": [],
-            "fee": {
-                "amount": [{"denom": "basecro", "amount": str(fee)}],
-                "gas_limit": str(gas_limit),
-                "payer": "",
-                "granter": "",
-            },
-        },
-        "signatures": [],
-    }, tx_hashes
-
-
-def broadcast_tx_json(cli, tx, **kwargs):
-    with tempfile.NamedTemporaryFile("w") as fp:
-        json.dump(tx, fp)
-        fp.flush()
-        rsp = json.loads(
-            cli("tx", "broadcast", fp.name, node="tcp://127.0.0.1:26657", **kwargs)
-        )
-        if rsp["code"] == 0:
-            rsp = json.loads(
-                cli(
-                    "query",
-                    "event-query-tx-for",
-                    rsp["txhash"],
-                    stderr=subprocess.DEVNULL,
-                    timeout="120s",
-                    **kwargs,
-                )
-            )
-        return rsp
