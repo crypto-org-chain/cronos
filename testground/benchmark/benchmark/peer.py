@@ -14,7 +14,7 @@ VAL_ACCOUNT = "validator"
 VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
 VAL_STAKED_AMOUNT = "10000000000000000000basecro"
 ACC_INITIAL_AMOUNT = "10000000000000000000000000basecro"
-MEMPOOL_SIZE = 50000
+MEMPOOL_SIZE = 10000
 DEFAULT_DENOM = "basecro"
 VALIDATOR_GROUP = "validators"
 FULLNODE_GROUP = "fullnodes"
@@ -124,10 +124,9 @@ def patch_configs(home: Path, group: str, peers: str, block_executor: str):
         "p2p.addr_book_strict": False,
         "mempool.recheck": "false",
         "mempool.size": MEMPOOL_SIZE,
-        "consensus.timeout_commit": "2s",
+        "consensus.timeout_commit": "1s",
+        "tx_index.indexer": "null",
     }
-    if group == VALIDATOR_GROUP:
-        config_patch["tx_index.indexer"] = "null"
 
     app_patch = {
         "minimum-gas-prices": "0basecro",
@@ -135,6 +134,7 @@ def patch_configs(home: Path, group: str, peers: str, block_executor: str):
         "memiavl.enable": True,
         "mempool.max-txs": MEMPOOL_SIZE,
         "evm.block-executor": block_executor,
+        "json-rpc.enable-indexer": True,
     }
     if block_executor == "block-stm":
         app_patch["memiavl.cache-size"] = 0
