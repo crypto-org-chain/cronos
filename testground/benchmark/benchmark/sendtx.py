@@ -35,6 +35,9 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
 
 
 def start_tx_sending_workers(workers=TX_SENDING_WORKERS):
+    '''
+    TODO: use asyncio instead of threading
+    '''
     q = queue.Queue()
 
     def worker():
