@@ -1,13 +1,16 @@
+import queue
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import web3
 from eth_account import Account
 
-from .utils import export_eth_account, send_transaction, send_transactions
+from .utils import export_eth_account, send_transactions, sign_transaction
 
 TEST_AMOUNT = 1000000000000000000
 GAS_PRICE = 1000000000
+TX_SENDING_WORKERS = 1000
 
 
 def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
@@ -31,7 +34,29 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
     return accounts
 
 
-def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
+def start_tx_sending_workers(workers=TX_SENDING_WORKERS):
+    q = queue.Queue()
+
+    def worker():
+        w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+        while True:
+            raw = q.get()
+            if raw is None:
+                break
+            try:
+                w3.eth.send_raw_transaction(raw)
+            except Exception as e:
+                print("send tx failed", e)
+            finally:
+                q.task_done()
+
+    for _ in range(workers):
+        threading.Thread(target=worker, daemon=True).start()
+
+    return q
+
+
+def sendtx(w3: web3.Web3, acct: Account, tx_amount: int, put_tx: callable):
     initial_nonce = w3.eth.get_transaction_count(acct.address)
     print(
         "test begin, address:",
@@ -42,8 +67,7 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
         initial_nonce,
     )
 
-    nonce = initial_nonce
-    while nonce < initial_nonce + tx_amount:
+    for nonce in range(initial_nonce, initial_nonce + tx_amount):
         tx = {
             "to": "0x0000000000000000000000000000000000000000",
             "value": 1,
@@ -51,18 +75,7 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
             "gas": 21000,
             "gasPrice": GAS_PRICE,
         }
-        try:
-            send_transaction(w3, tx, acct, wait=False)
-        except ValueError as e:
-            msg = str(e)
-            if "invalid nonce" in msg:
-                print("invalid nonce and retry", nonce)
-                time.sleep(1)
-                continue
-            if "tx already in mempool" not in msg:
-                raise
-
-        nonce += 1
+        put_tx(sign_transaction(w3, tx, acct))
 
         if nonce % 100 == 0:
             print(f"{acct.address} sent {nonce} transactions")
@@ -82,10 +95,12 @@ def generate_load(cli, num_accounts, num_txs, **kwargs):
     assert w3.eth.chain_id == 777
     genesis_account = export_eth_account(cli, "account", **kwargs)
     accounts = fund_test_accounts(w3, genesis_account, num_accounts)
+    q = start_tx_sending_workers()
     with ThreadPoolExecutor(max_workers=num_accounts) as executor:
-        futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
+        futs = (executor.submit(sendtx, w3, acct, num_txs, q.put) for acct in accounts)
         for fut in as_completed(futs):
             try:
                 fut.result()
             except Exception as e:
                 print("test task failed", e)
+    q.join()
