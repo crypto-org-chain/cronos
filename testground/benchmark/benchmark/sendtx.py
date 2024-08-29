@@ -1,6 +1,5 @@
 import queue
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import web3
@@ -35,9 +34,9 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
 
 
 def start_tx_sending_workers(workers=TX_SENDING_WORKERS):
-    '''
+    """
     TODO: use asyncio instead of threading
-    '''
+    """
     q = queue.Queue()
 
     def worker():
@@ -78,7 +77,7 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int, put_tx: callable):
             "gas": 21000,
             "gasPrice": GAS_PRICE,
         }
-        put_tx(sign_transaction(w3, tx, acct))
+        put_tx(sign_transaction(w3, tx, acct).rawTransaction)
 
         if nonce % 100 == 0:
             print(f"{acct.address} sent {nonce} transactions")
