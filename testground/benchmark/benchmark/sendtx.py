@@ -31,7 +31,7 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
     return accounts
 
 
-def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
+def sendtx(acct: Account, tx_amount: int):
     w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     chain_id = w3.eth.chain_id
     initial_nonce = w3.eth.get_transaction_count(acct.address)
@@ -54,19 +54,8 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
             "gasPrice": GAS_PRICE,
             "chainId": chain_id,
         }
-        try:
-            send_transaction(w3, tx, acct, wait=False)
-        except ValueError as e:
-            msg = str(e)
-            if "invalid nonce" in msg:
-                print("invalid nonce and retry", nonce)
-                time.sleep(1)
-                continue
-            if "tx already in mempool" not in msg:
-                raise
-
+        send_transaction(w3, tx, acct, wait=False)
         nonce += 1
-
         if nonce % 100 == 0:
             print(f"{acct.address} sent {nonce} transactions")
 
@@ -86,7 +75,7 @@ def generate_load(cli, num_accounts, num_txs, **kwargs):
     genesis_account = export_eth_account(cli, "account", **kwargs)
     accounts = fund_test_accounts(w3, genesis_account, num_accounts)
     with ThreadPoolExecutor(max_workers=num_accounts) as executor:
-        futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
+        futs = (executor.submit(sendtx, acct, num_txs) for acct in accounts)
         for fut in as_completed(futs):
             try:
                 fut.result()
