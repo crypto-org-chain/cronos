@@ -32,6 +32,8 @@ def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
 
 
 def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
+    w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+    chain_id = w3.eth.chain_id
     initial_nonce = w3.eth.get_transaction_count(acct.address)
     print(
         "test begin, address:",
@@ -50,6 +52,7 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
             "nonce": nonce,
             "gas": 21000,
             "gasPrice": GAS_PRICE,
+            "chainId": chain_id,
         }
         try:
             send_transaction(w3, tx, acct, wait=False)
