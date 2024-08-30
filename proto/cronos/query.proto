@@ -12,9 +12,9 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // ContractByDenom queries contract addresses by native denom
+  // ContractByDenom queries contract addresses by native denom from a query string.
   rpc ContractByDenom(ContractByDenomRequest) returns (ContractByDenomResponse) {
-    option (google.api.http).get = "/cronos/v1/contract_by_denom/{denom}";
+    option (google.api.http).get = "/cronos/v1/contract_by_denom";
   }
 
   // DenomByContract queries native denom by contract address

@@ -4,9 +4,11 @@ info:
   description: A REST interface for state queries
   version: 1.0.0
 paths:
-  /cronos/v1/contract_by_denom/{denom}:
+  /cronos/v1/contract_by_denom:
     get:
-      summary: ContractByDenom queries contract addresses by native denom
+      summary: >-
+        ContractByDenom queries contract addresses by native denom from a query
+        string.
       operationId: ContractByDenom
       responses:
         '200':
@@ -217,8 +219,8 @@ paths:
                         }
       parameters:
         - name: denom
-          in: path
-          required: true
+          in: query
+          required: false
           type: string
       tags:
         - Query
