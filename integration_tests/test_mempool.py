@@ -80,3 +80,37 @@ def test_blocked_address(cronos_mempool):
     rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
     assert rsp["code"] != 0
     assert "signer is blocked" in rsp["raw_log"]
+
+
+@pytest.mark.flaky(max_runs=5)
+def test_tx_replacement(cronos_mempool):
+    w3: Web3 = cronos_mempool.w3
+    account = "community"
+    nonce = w3.eth.get_transaction_count(ADDRS[account])
+    gas_price = w3.eth.gas_price
+    reduction = 1000000
+    # the second tx should replace the first tx with higher priority,
+    # but the third one shouldn't replace the second one.
+    prices = [
+        gas_price,
+        gas_price + 2 * reduction,
+        gas_price + reduction,
+    ]
+    txs = [
+        sign_transaction(
+            w3,
+            {
+                "to": ADDRS[account],
+                "value": 1,
+                "gas": 21000,
+                "gasPrice": price,
+                "nonce": nonce,
+            },
+            KEYS[account],
+        )
+        for price in prices
+    ]
+
+    txhashes = [w3.eth.send_raw_transaction(tx.rawTransaction) for tx in txs]
+    receipt = w3.eth.wait_for_transaction_receipt(txhashes[1])
+    assert receipt.status == 1
