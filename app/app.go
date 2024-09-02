@@ -375,6 +375,10 @@ func New(
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
+			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
+				// tx is only replaced if new priority is higher than old priority
+				return np > op
+			},
 		})
 		handler := baseapp.NewDefaultProposalHandler(mempool, app)
 
