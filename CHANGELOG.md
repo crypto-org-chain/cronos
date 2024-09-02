@@ -31,6 +31,7 @@
 * (store) [#1526](https://github.com/crypto-org-chain/cronos/pull/1526) Cache index/filters in rocksdb application.db to reduce ram usage.
 * (store)[#1529](https://github.com/crypto-org-chain/cronos/pull/1529) Enable pinL0FilterAndIndexBlocksInCache.
 * (store)[#1547](https://github.com/crypto-org-chain/cronos/pull/1547) Disable memiavl cache if block-stm is enabled.
+* (app)[#]() Fix mempool data race.
 
 ### Bug Fixes
 
