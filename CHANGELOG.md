@@ -32,7 +32,7 @@
 * (store)[#1529](https://github.com/crypto-org-chain/cronos/pull/1529) Enable pinL0FilterAndIndexBlocksInCache.
 * (store)[#1547](https://github.com/crypto-org-chain/cronos/pull/1547) Disable memiavl cache if block-stm is enabled.
 * (app)[#1564](https://github.com/crypto-org-chain/cronos/pull/1564) Fix mempool data race.
-* [#]() Update cometbft to 0.38.12.
+* [#1568](https://github.com/crypto-org-chain/cronos/pull/1568) Update cometbft to 0.38.12.
 
 ### Bug Fixes
 
