@@ -17,7 +17,7 @@ schema = 3
     version = "v0.7.5"
     hash = "sha256-Nuw697sJr56kU3EU7DV1eYNkyI76psznIVqYAV6RfbQ="
   [mod."cosmossdk.io/client/v2"]
-    version = "v2.0.0-20240902025731-535413db1bf4"
+    version = "v2.0.0-20240911084450-6870ba130be2"
     hash = "sha256-60hmufv3Ml4Pv3zNwgn8eeqlEINOR6n9MKr2QHddoxo="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/client/v2"
   [mod."cosmossdk.io/collections"]
@@ -42,7 +42,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20240902025731-535413db1bf4"
+    version = "v0.0.0-20240911084450-6870ba130be2"
     hash = "sha256-Dm3sSZNJBcnBF33PULoTpK4rkNQbsZl0DfTqH1GPCQM="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -55,7 +55,7 @@ schema = 3
     version = "v0.1.0"
     hash = "sha256-/gWvrqvy6bW90+NU66T+9QysYgvG1VbwfYJZ8tkqpeA="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20240902025731-535413db1bf4"
+    version = "v0.0.0-20240911084450-6870ba130be2"
     hash = "sha256-xT5IdapEx1h46ofBpxcBQfzGF2EntmC8xZl7aym/6xE="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -167,8 +167,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20240902025731-535413db1bf4"
-    hash = "sha256-7l0kxNsrW2TAuiOpDgy88L4WMibzPGbBNRpSUvayL1U="
+    version = "v0.50.6-0.20240911084450-6870ba130be2"
+    hash = "sha256-kl2sLe8vITIguRGtdeviDeP3R5JIbRg+eDsheGd4PqM="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -210,8 +210,8 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/go-block-stm"]
-    version = "v0.0.0-20240806075927-09a64748f883"
-    hash = "sha256-DuqcnTqpUVRxV+I+CaBuDg/1CLmMeXdw4VEFeuCsUbU="
+    version = "v0.0.0-20240911081142-92839e79a3ae"
+    hash = "sha256-8MhSeC5BB5BwOet3k3Rfua0TBeBATtLSwaW6s5WpYCM="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.0"
     hash = "sha256-LHcvTJCc8++bFndbd8ZgMSTe4L5h2C4rN+cSWHCz54Y="
@@ -259,8 +259,8 @@ schema = 3
     hash = "sha256-lE4G5FaRb3MVi9FFVn+WlwsSTOB4SbjmVboKyQ5yB0A="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20240911060243-3fabdbeba4e0"
-    hash = "sha256-1noRWV/3BxUQnxajaSePh5Ti+uyumuLZSeuQEpvNans="
+    version = "v0.6.1-0.20240911093556-79bb39ed91e4"
+    hash = "sha256-pImZqrOysiMTCgzdWyVttLeTEiszjA1KBVTnzDU0vRg="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.16.0"

@@ -39,6 +39,8 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
+const BlockSTMPreEstimate = false
+
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions
 func BenchmarkERC20Transfer(b *testing.B) {
 	b.Run("memdb", func(b *testing.B) {
@@ -64,11 +66,12 @@ func BenchmarkERC20Transfer(b *testing.B) {
 	for _, workers := range []int{1, 8, 16, 32} {
 		b.Run(fmt.Sprintf("memiavl-stm-%d", workers), func(b *testing.B) {
 			benchmarkERC20Transfer(b, nil, AppOptionsMap{
-				flags.FlagHome:              b.TempDir(),
-				memiavlstore.FlagMemIAVL:    true,
-				memiavlstore.FlagCacheSize:  0,
-				srvflags.EVMBlockExecutor:   "block-stm",
-				srvflags.EVMBlockSTMWorkers: workers,
+				flags.FlagHome:                  b.TempDir(),
+				memiavlstore.FlagMemIAVL:        true,
+				memiavlstore.FlagCacheSize:      0,
+				srvflags.EVMBlockExecutor:       "block-stm",
+				srvflags.EVMBlockSTMWorkers:     workers,
+				srvflags.EVMBlockSTMPreEstimate: BlockSTMPreEstimate,
 			})
 		})
 	}
