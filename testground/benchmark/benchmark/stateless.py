@@ -55,9 +55,6 @@ class CLI:
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
         (outdir / FULLNODE_GROUP).mkdir(parents=True, exist_ok=True)
 
-        config_patch = json.loads(config_patch)
-        app_patch = json.loads(app_patch)
-
         peers = []
         for i in range(validators):
             print("init validator", i)
