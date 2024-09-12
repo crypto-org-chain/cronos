@@ -18,7 +18,6 @@ from .echo import run_echo_server
 from .peer import (
     CONTAINER_CRONOSD_PATH,
     FULLNODE_GROUP,
-    MEMPOOL_SIZE,
     VALIDATOR_GROUP,
     gen_genesis,
     init_node,
