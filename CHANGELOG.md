@@ -34,6 +34,7 @@
 * (app)[#1564](https://github.com/crypto-org-chain/cronos/pull/1564) Fix mempool data race.
 * [#1568](https://github.com/crypto-org-chain/cronos/pull/1568) Update cometbft to 0.38.12.
 * [#1570](https://github.com/crypto-org-chain/cronos/pull/1570) Integrate pre-estimate block-stm option to improve worst case performance.
+* [#1572](https://github.com/crypto-org-chain/cronos/pull/1572) Allow disable sdk mempool by setting mempool.max-txs to `-1`.
 
 ### Bug Fixes
 
