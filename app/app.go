@@ -138,7 +138,6 @@ import (
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
-	servercfg "github.com/evmos/ethermint/server/config"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -364,24 +363,16 @@ func New(
 
 	eip712.SetEncodingConfig(encodingConfig)
 
-	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
-	// Setup Mempool and Proposal Handlers
-	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
-		maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
-		if maxTxs <= 0 {
-			maxTxs = servercfg.DefaultMaxTxs
-		}
+	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
+		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
+		// Setup Mempool and Proposal Handlers
 		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
-		handler := baseapp.NewDefaultProposalHandler(mempool, app)
-
-		app.SetMempool(mempool)
-		app.SetPrepareProposal(handler.PrepareProposalHandler())
-		app.SetProcessProposal(handler.ProcessProposalHandler())
-	})
+		baseAppOptions = append(baseAppOptions, baseapp.SetMempool(mempool))
+	}
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
 
