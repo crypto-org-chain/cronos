@@ -39,7 +39,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
 
     if ctx.is_fullnode_leader:
         # prepare genesis file and publish
-        genesis = gen_genesis(cli, home, peers)
+        genesis = gen_genesis(cli, home, peers, {})
         ctx.sync.publish("genesis", genesis)
     else:
         genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
@@ -94,7 +94,9 @@ def init_node(
     return peer
 
 
-def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
+def gen_genesis(
+    cli: ChainCommand, leader_home: Path, peers: List[PeerPacket], genesis_patch: dict
+):
     for peer in peers:
         for account in peer.accounts:
             cli(
@@ -109,9 +111,10 @@ def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
     return patch_json(
         leader_home / "config" / "genesis.json",
         {
-            "consensus.params.block.max_gas": "81500000",
+            "consensus.params.block.max_gas": "163000000",
             "app_state.evm.params.evm_denom": "basecro",
             "app_state.feemarket.params.no_base_fee": True,
+            **genesis_patch,
         },
     )
 

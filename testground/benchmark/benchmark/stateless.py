@@ -49,6 +49,7 @@ class CLI:
         num_txs=1000,
         config_patch={},
         app_patch={},
+        genesis_patch={},
     ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
@@ -67,7 +68,7 @@ class CLI:
 
         print("prepare genesis")
         # use a full node directory to prepare the genesis file
-        genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers)
+        genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers, genesis_patch)
 
         print("patch genesis")
         # write genesis file and patch config files
