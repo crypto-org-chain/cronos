@@ -51,26 +51,6 @@ class CLI:
         config_patch={},
         app_patch={},
     ):
-        default_config_patch = {
-            "db_backend": "rocksdb",
-            "p2p.addr_book_strict": False,
-            "mempool.recheck": False,
-            "mempool.size": MEMPOOL_SIZE,
-            "consensus.timeout_commit": "1s",
-            "tx_index.indexer": "null",
-        }
-        default_app_patch = {
-            "minimum-gas-prices": "0basecro",
-            "index-events": ["ethereum_tx.ethereumTxHash"],
-            "memiavl.enable": True,
-            "mempool.max-txs": MEMPOOL_SIZE,
-            "evm.block-executor": "block-stm",  # or "sequential"
-            "evm.block-stm-workers": 0,
-            "evm.block-stm-pre-estimate": False,
-            "json-rpc.enable-indexer": True,
-        }
-        config_patch = {**default_config_patch, **config_patch}
-        app_patch = {**default_app_patch, **app_patch}
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
