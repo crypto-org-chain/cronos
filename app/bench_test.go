@@ -39,7 +39,7 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
-const BlockSTMPreEstimate = false
+const BlockSTMPreEstimate = true
 
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions
 func BenchmarkERC20Transfer(b *testing.B) {

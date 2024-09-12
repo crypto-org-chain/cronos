@@ -96,7 +96,7 @@ require (
 	github.com/creachadair/atomicfile v0.3.1 // indirect
 	github.com/creachadair/tomledit v0.0.24 // indirect
 	github.com/crypto-org-chain/cronos/memiavl v0.0.4 // indirect
-	github.com/crypto-org-chain/go-block-stm v0.0.0-20240911081142-92839e79a3ae // indirect
+	github.com/crypto-org-chain/go-block-stm v0.0.0-20240912024944-1cd89976aa5e // indirect
 	github.com/danieljoos/wincred v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
@@ -275,7 +275,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240425065928-ebb09502e7a7
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20240911093556-79bb39ed91e4
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20240912060135-56f8a5be75ec
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
