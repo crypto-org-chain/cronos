@@ -47,7 +47,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         cli("genesis", "validate", home=home)
 
     p2p_peers = connect_all(peer, peers)
-    patch_configs(home, ctx.params.test_group_id, p2p_peers, "block-stm")
+    patch_configs(home, p2p_peers, {}, {})
     return peer
 
 
@@ -116,30 +116,32 @@ def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
     )
 
 
-def patch_configs(home: Path, group: str, peers: str, block_executor: str):
-    # update persistent_peers and other configs in config.toml
-    config_patch = {
+def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
+    default_config_patch = {
         "db_backend": "rocksdb",
-        "p2p.persistent_peers": peers,
         "p2p.addr_book_strict": False,
-        "mempool.recheck": "false",
+        "mempool.recheck": False,
         "mempool.size": MEMPOOL_SIZE,
         "consensus.timeout_commit": "1s",
         "tx_index.indexer": "null",
     }
-
-    app_patch = {
+    default_app_patch = {
         "minimum-gas-prices": "0basecro",
         "index-events": ["ethereum_tx.ethereumTxHash"],
         "memiavl.enable": True,
         "mempool.max-txs": MEMPOOL_SIZE,
-        "evm.block-executor": block_executor,
+        "evm.block-executor": "block-stm",  # or "sequential"
+        "evm.block-stm-workers": 0,
         "evm.block-stm-pre-estimate": True,
         "json-rpc.enable-indexer": True,
     }
-    if block_executor == "block-stm":
-        app_patch["memiavl.cache-size"] = 0
-
+    # update persistent_peers and other configs in config.toml
+    config_patch = {
+        **default_config_patch,
+        **config_patch,
+        "p2p.persistent_peers": peers,
+    }
+    app_patch = {**default_app_patch, **app_patch}
     patch_toml(home / "config" / "config.toml", config_patch)
     patch_toml(home / "config" / "app.toml", app_patch)
 
