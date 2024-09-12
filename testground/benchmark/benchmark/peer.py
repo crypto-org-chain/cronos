@@ -139,7 +139,7 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
         "mempool.max-txs": MEMPOOL_SIZE,
         "evm.block-executor": "block-stm",  # or "sequential"
         "evm.block-stm-workers": 0,
-        "evm.block-stm-pre-estimate": False,
+        "evm.block-stm-pre-estimate": True,
         "json-rpc.enable-indexer": True,
     }
     # update persistent_peers and other configs in config.toml

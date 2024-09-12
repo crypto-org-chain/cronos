@@ -47,13 +47,16 @@ class CLI:
         hostname_template=HOSTNAME_TEMPLATE,
         num_accounts=10,
         num_txs=1000,
-        config_patch={},
-        app_patch={},
+        config_patch="{}",
+        app_patch="{}",
     ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
         (outdir / FULLNODE_GROUP).mkdir(parents=True, exist_ok=True)
+
+        config_patch = json.loads(config_patch)
+        app_patch = json.loads(app_patch)
 
         peers = []
         for i in range(validators):
