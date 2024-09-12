@@ -47,14 +47,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         cli("genesis", "validate", home=home)
 
     p2p_peers = connect_all(peer, peers)
-    patch_configs(
-        home,
-        p2p_peers,
-        {
-            "evm.block-executor": "block-stm",
-        },
-        {},
-    )
+    patch_configs(home, p2p_peers, {}, {})
     return peer
 
 
