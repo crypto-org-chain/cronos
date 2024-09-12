@@ -134,6 +134,7 @@ def patch_configs(home: Path, group: str, peers: str, block_executor: str):
         "memiavl.enable": True,
         "mempool.max-txs": MEMPOOL_SIZE,
         "evm.block-executor": block_executor,
+        "evm.block-stm-pre-estimate": True,
         "json-rpc.enable-indexer": True,
     }
     if block_executor == "block-stm":
