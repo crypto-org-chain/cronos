@@ -47,10 +47,11 @@ class CLI:
         hostname_template=HOSTNAME_TEMPLATE,
         num_accounts=10,
         num_txs=1000,
-        config_patch={},
-        app_patch={},
-        genesis_patch={},
+        patch={},
     ):
+        config_patch = patch.get("config", {})
+        app_patch = patch.get("app", {})
+        genesis_patch = patch.get("genesis", {})
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
