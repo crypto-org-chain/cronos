@@ -116,29 +116,9 @@ def gen_genesis(cli: ChainCommand, leader_home: Path, peers: List[PeerPacket]):
     )
 
 
-def patch_configs(home: Path, group: str, peers: str, block_executor: str):
+def patch_configs(home: Path, peers: str, config_patch, app_patch):
     # update persistent_peers and other configs in config.toml
-    config_patch = {
-        "db_backend": "rocksdb",
-        "p2p.persistent_peers": peers,
-        "p2p.addr_book_strict": False,
-        "mempool.recheck": "false",
-        "mempool.size": MEMPOOL_SIZE,
-        "consensus.timeout_commit": "1s",
-        "tx_index.indexer": "null",
-    }
-
-    app_patch = {
-        "minimum-gas-prices": "0basecro",
-        "index-events": ["ethereum_tx.ethereumTxHash"],
-        "memiavl.enable": True,
-        "mempool.max-txs": MEMPOOL_SIZE,
-        "evm.block-executor": block_executor,
-        "json-rpc.enable-indexer": True,
-    }
-    if block_executor == "block-stm":
-        app_patch["memiavl.cache-size"] = 0
-
+    config_patch["p2p.persistent_peers"] = peers
     patch_toml(home / "config" / "config.toml", config_patch)
     patch_toml(home / "config" / "app.toml", app_patch)
 

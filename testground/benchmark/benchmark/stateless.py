@@ -18,6 +18,7 @@ from .echo import run_echo_server
 from .peer import (
     CONTAINER_CRONOSD_PATH,
     FULLNODE_GROUP,
+    MEMPOOL_SIZE,
     VALIDATOR_GROUP,
     gen_genesis,
     init_node,
@@ -47,7 +48,24 @@ class CLI:
         hostname_template=HOSTNAME_TEMPLATE,
         num_accounts=10,
         num_txs=1000,
-        block_executor="block-stm",  # or "sequential"
+        config_patch={
+            "db_backend": "rocksdb",
+            "p2p.addr_book_strict": False,
+            "mempool.recheck": False,
+            "mempool.size": MEMPOOL_SIZE,
+            "consensus.timeout_commit": "1s",
+            "tx_index.indexer": "null",
+        },
+        app_patch={
+            "minimum-gas-prices": "0basecro",
+            "index-events": ["ethereum_tx.ethereumTxHash"],
+            "memiavl.enable": True,
+            "mempool.max-txs": MEMPOOL_SIZE,
+            "evm.block-executor": "block-stm",  # or "sequential"
+            "evm.block-stm-workers": 0,
+            "evm.block-stm-pre-estimate": False,
+            "json-rpc.enable-indexer": True,
+        },
     ):
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
@@ -72,7 +90,7 @@ class CLI:
         # write genesis file and patch config files
         for i in range(validators):
             patch_configs_local(
-                peers, genesis, outdir, VALIDATOR_GROUP, i, i, block_executor
+                peers, genesis, outdir, VALIDATOR_GROUP, i, config_patch, app_patch
             )
         for i in range(fullnodes):
             patch_configs_local(
@@ -81,8 +99,8 @@ class CLI:
                 outdir,
                 FULLNODE_GROUP,
                 i,
-                i + validators,
-                block_executor,
+                config_patch,
+                app_patch,
             )
 
         print("write config")
@@ -272,13 +290,13 @@ def patch_configs_local(
     outdir: Path,
     group: str,
     i: int,
-    group_seq: int,
-    block_executor: str,
+    config_patch,
+    app_patch,
 ):
     home = outdir / group / str(i)
     (home / "config" / "genesis.json").write_text(json.dumps(genesis))
     p2p_peers = connect_all(peers[i], peers)
-    patch_configs(home, group, p2p_peers, block_executor)
+    patch_configs(home, p2p_peers, config_patch, app_patch)
 
 
 def node_index() -> int:
