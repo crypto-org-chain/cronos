@@ -422,18 +422,6 @@ func New(
 
 	app.SetDisableBlockGasMeter(true)
 
-	if blockSTMEnabled {
-		sdk.SetAddrCacheEnabled(false)
-		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
-		if workers == 0 {
-			workers = stdruntime.NumCPU()
-		}
-		logger.Info("block-stm executor enabled", "workers", workers)
-		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers))
-	} else {
-		app.SetTxExecutor(evmapp.DefaultTxExecutor)
-	}
-
 	// init params keeper and subspaces
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
@@ -1003,6 +991,19 @@ func New(
 	app.ScopedTransferKeeper = scopedTransferKeeper
 	app.ScopedICAControllerKeeper = scopedICAControllerKeeper
 	// this line is used by starport scaffolding # stargate/app/beforeInitReturn
+
+	if blockSTMEnabled {
+		sdk.SetAddrCacheEnabled(false)
+		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
+		if workers == 0 {
+			workers = stdruntime.NumCPU()
+		}
+		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
+		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
+		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
+	} else {
+		app.SetTxExecutor(evmapp.DefaultTxExecutor)
+	}
 
 	return app
 }
