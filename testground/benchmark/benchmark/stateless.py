@@ -46,8 +46,8 @@ class CLI:
         options={},
     ):
         print("options", options)
-        validators = options.get("validators")
-        fullnodes = options.get("fullnodes")
+        validators = options.get("validators", 3)
+        fullnodes = options.get("fullnodes", 7)
         num_accounts = options.get("num_accounts", 10)
         num_txs = options.get("num_txs", 1000)
         config_patch = options.get("config", {})
