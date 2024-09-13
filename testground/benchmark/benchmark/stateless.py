@@ -45,6 +45,8 @@ class CLI:
         hostname_template=HOSTNAME_TEMPLATE,
         options={},
     ):
+        if isinstance(options, str):
+            options = json.loads(options)
         print("options", options)
         validators = options.get("validators", 3)
         fullnodes = options.get("fullnodes", 7)
