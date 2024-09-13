@@ -81,17 +81,30 @@ You need to have the `cronosd` in `PATH`.
 
 ```bash
 $ nix run github:crypto-org-chain/cronos#stateless-testcase -- gen /tmp/data/out \
-  --validators 3 \
-  --fullnodes 7 \
   --hostname_template "testplan-{index}" \
-  --num_accounts 10 \
-  --num_txs 1000
+  --options '{
+    "validators": 3,
+    "fullnodes": 7,
+    "num_accounts": 10,
+    "num_txs": 1000,
+    "config": {
+      "mempool.size": 10000
+    },
+    "app": {
+      "evm.block-stm-pre-estimate": true
+    },
+    "genesis": {
+      "consensus.params.block.max_gas": 163000000
+    }
+  }'
 ```
 
-* `validators`/`fullnodes` is the number of validators/full nodes.
 * `hostname_template` is the hostname of each node that can communicate.
+* `validators`/`fullnodes` is the number of validators/full nodes.
 * `num_accounts` is the number of test accounts for each full node.
 * `num_txs` is the number of test transactions to be sent for each test account.
+* `config`/`app` is the config patch for config/app.toml.
+* `genesis` is the patch for genesis.json.
 
 ## Embed the data directory
 

@@ -42,16 +42,17 @@ class CLI:
     def gen(
         self,
         outdir: str,
-        validators: int,
-        fullnodes: int,
         hostname_template=HOSTNAME_TEMPLATE,
-        num_accounts=10,
-        num_txs=1000,
-        patch={},
+        options={},
     ):
-        config_patch = patch.get("config", {})
-        app_patch = patch.get("app", {})
-        genesis_patch = patch.get("genesis", {})
+        print("options", options)
+        validators = options.get("validators")
+        fullnodes = options.get("fullnodes")
+        num_accounts = options.get("num_accounts", 10)
+        num_txs = options.get("num_txs", 1000)
+        config_patch = options.get("config", {})
+        app_patch = options.get("app", {})
+        genesis_patch = options.get("genesis", {})
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
