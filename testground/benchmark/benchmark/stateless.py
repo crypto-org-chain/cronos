@@ -42,14 +42,17 @@ class CLI:
     def gen(
         self,
         outdir: str,
-        validators: int,
-        fullnodes: int,
         hostname_template=HOSTNAME_TEMPLATE,
-        num_accounts=10,
-        num_txs=1000,
-        config_patch={},
-        app_patch={},
+        options={},
     ):
+        print("options", options)
+        validators = options.get("validators", 3)
+        fullnodes = options.get("fullnodes", 7)
+        num_accounts = options.get("num_accounts", 10)
+        num_txs = options.get("num_txs", 1000)
+        config_patch = options.get("config", {})
+        app_patch = options.get("app", {})
+        genesis_patch = options.get("genesis", {})
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
@@ -67,7 +70,7 @@ class CLI:
 
         print("prepare genesis")
         # use a full node directory to prepare the genesis file
-        genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers)
+        genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers, genesis_patch)
 
         print("patch genesis")
         # write genesis file and patch config files
