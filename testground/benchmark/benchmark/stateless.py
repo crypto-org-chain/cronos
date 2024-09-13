@@ -95,6 +95,7 @@ class CLI:
             "fullnodes": fullnodes,
             "num_accounts": num_accounts,
             "num_txs": num_txs,
+            "validator-generate-load": options.get("validator-generate-load", False),
         }
         (outdir / "config.json").write_text(json.dumps(cfg))
 
@@ -154,10 +155,12 @@ ADD ./out {dst}
         wait_for_port(26657)
         wait_for_port(8545)
         wait_for_block(cli, 3)
-        wait_for_w3()
-        generate_load(
-            cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
-        )
+
+        if group == FULLNODE_GROUP or cfg.get("validator-generate-load", False):
+            wait_for_w3()
+            generate_load(
+                cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
+            )
 
         # node quit when the chain is idle or halted for a while
         detect_idle_halted(20, 20)
