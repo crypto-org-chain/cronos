@@ -95,7 +95,7 @@ class CLI:
             "fullnodes": fullnodes,
             "num_accounts": num_accounts,
             "num_txs": num_txs,
-            "validator-generate-load": options.get("validator-generate-load", False),
+            "validator-generate-load": options.get("validator-generate-load", True),
         }
         (outdir / "config.json").write_text(json.dumps(cfg))
 
@@ -156,7 +156,7 @@ ADD ./out {dst}
         wait_for_port(8545)
         wait_for_block(cli, 3)
 
-        if group == FULLNODE_GROUP or cfg.get("validator-generate-load", False):
+        if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
             wait_for_w3()
             generate_load(
                 cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
