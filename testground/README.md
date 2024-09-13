@@ -94,7 +94,7 @@ $ nix run github:crypto-org-chain/cronos#stateless-testcase -- gen /tmp/data/out
       "evm.block-stm-pre-estimate": true
     },
     "genesis": {
-      "consensus.params.block.max_gas": 163000000
+      "consensus.params.block.max_gas": "163000000"
     }
   }'
 ```
