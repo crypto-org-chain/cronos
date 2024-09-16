@@ -14,8 +14,8 @@ tomlkit = "^0"
 web3 = "^6"
 hexbytes = "^0"
 bech32 = "^1"
-fire = "^0"
 requests = "^2.32"
+click = "^8.1.7"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"
@@ -26,7 +26,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 testground-testcase = "benchmark.main:main"
-stateless-testcase = "benchmark.stateless:main"
+stateless-testcase = "benchmark.stateless:cli"
 
 [tool.black]
 line-length = 88
