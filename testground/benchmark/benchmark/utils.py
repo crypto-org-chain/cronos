@@ -95,7 +95,7 @@ def bech32_to_eth(addr):
 
 
 def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
-    bz = bech32.convertbits(addr, 8, 5)
+    bz = bech32.convertbits(HexBytes(addr), 8, 5)
     return bech32.bech32_encode(prefix, bz)
 
 
@@ -138,4 +138,4 @@ def gen_account(global_seq: int, index: int) -> Account:
     deterministically generate test private keys,
     index 0 is reserved for validator account.
     """
-    return Account.from_key((global_seq << 32 | index).to_bytes(32))
+    return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))

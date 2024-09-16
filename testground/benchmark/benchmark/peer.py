@@ -75,7 +75,14 @@ def init_node(
     )
 
     val_acct = gen_account(global_seq, 0)
-    cli("keys", "unsafe-import-eth-key", VAL_ACCOUNT, val_acct.key, **default_kwargs)
+    cli(
+        "keys",
+        "unsafe-import-eth-key",
+        VAL_ACCOUNT,
+        val_acct.key.hex(),
+        stdin=b"00000000\n",
+        **default_kwargs,
+    )
     accounts = [
         GenesisAccount(
             address=eth_to_bech32(val_acct.address), balance=VAL_INITIAL_AMOUNT
@@ -108,7 +115,7 @@ def gen_genesis(
 ):
     for peer in peers:
         with tempfile.NamedTemporaryFile() as fp:
-            fp.write(json.dumps(peer.accounts).encode())
+            fp.write(json.dumps(peer.bulk_genesis_accounts()).encode())
             fp.flush()
             cli(
                 "genesis",
