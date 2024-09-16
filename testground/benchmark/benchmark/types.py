@@ -5,9 +5,17 @@ from pydantic import BaseModel
 from .utils import bech32_to_eth
 
 
+class Balance(BaseModel):
+    amount: str
+    denom: str
+
+    def __str__(self):
+        return f"{self.amount}{self.denom}"
+
+
 class GenesisAccount(BaseModel):
     address: str
-    balance: str
+    coins: List[Balance]
 
     @property
     def eth_address(self) -> str:

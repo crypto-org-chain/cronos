@@ -31,7 +31,6 @@ from .utils import wait_for_block, wait_for_port, wait_for_w3
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
 DEFAULT_CHAIN_ID = "cronos_777-1"
-DEFAULT_DENOM = "basecro"
 # the container must be deployed with the prefixed name
 HOSTNAME_TEMPLATE = "testplan-{index}"
 LOCAL_RPC = "http://localhost:26657"
@@ -103,12 +102,22 @@ def _gen(
     peers = []
     for i in range(validators):
         print("init validator", i)
-        ip = hostname_template.format(index=i)
-        peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
+        global_seq = i
+        ip = hostname_template.format(index=global_seq)
+        peers.append(
+            init_node_local(
+                cli, outdir, VALIDATOR_GROUP, i, global_seq, ip, num_accounts
+            )
+        )
     for i in range(fullnodes):
         print("init fullnode", i)
-        ip = hostname_template.format(index=i + validators)
-        peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
+        global_seq = i + validators
+        ip = hostname_template.format(index=global_seq)
+        peers.append(
+            init_node_local(
+                cli, outdir, FULLNODE_GROUP, i, global_seq, ip, num_accounts
+            )
+        )
 
     print("prepare genesis")
     # use a full node directory to prepare the genesis file
@@ -183,7 +192,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
     home = datadir / group / str(group_seq)
 
     try:
-        return do_run(home, cronosd, group, cfg)
+        return do_run(home, cronosd, group, global_seq, cfg)
     finally:
         # collect outputs
         output = Path("/data.tar.bz2")
@@ -197,7 +206,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
             shutil.copy(output, filename)
 
 
-def do_run(home: str, cronosd: str, group: str, cfg: dict):
+def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
     run_echo_server(ECHO_SERVER_PORT)
 
     # wait for persistent peers to be ready
@@ -218,7 +227,12 @@ def do_run(home: str, cronosd: str, group: str, cfg: dict):
     if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
         wait_for_w3()
         generate_load(
-            cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
+            cli,
+            cfg["num_accounts"],
+            cfg["num_txs"],
+            global_seq,
+            home=home,
+            output="json",
         )
 
     # node quit when the chain is idle or halted for a while
@@ -309,7 +323,13 @@ def block_txs(height):
 
 
 def init_node_local(
-    cli: ChainCommand, outdir: Path, group: str, group_seq: int, ip: str
+    cli: ChainCommand,
+    outdir: Path,
+    group: str,
+    group_seq: int,
+    global_seq: int,
+    ip: str,
+    num_accounts: int,
 ) -> PeerPacket:
     return init_node(
         cli,
@@ -318,6 +338,8 @@ def init_node_local(
         DEFAULT_CHAIN_ID,
         group,
         group_seq,
+        global_seq,
+        num_accounts=num_accounts,
     )
 
 
