@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import List
 
-import fire
+import click
 import requests
 import tomlkit
 
@@ -38,149 +38,193 @@ LOCAL_RPC = "http://localhost:26657"
 ECHO_SERVER_PORT = 26659
 
 
-class CLI:
-    def gen(
-        self,
-        outdir: str,
-        hostname_template=HOSTNAME_TEMPLATE,
-        options={},
-    ):
-        print("options", options)
-        validators = options.get("validators", 3)
-        fullnodes = options.get("fullnodes", 7)
-        num_accounts = options.get("num_accounts", 10)
-        num_txs = options.get("num_txs", 1000)
-        config_patch = options.get("config", {})
-        app_patch = options.get("app", {})
-        genesis_patch = options.get("genesis", {})
-        outdir = Path(outdir)
-        cli = ChainCommand(LOCAL_CRONOSD_PATH)
-        (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
-        (outdir / FULLNODE_GROUP).mkdir(parents=True, exist_ok=True)
+@click.group()
+def cli():
+    pass
 
-        peers = []
-        for i in range(validators):
-            print("init validator", i)
-            ip = hostname_template.format(index=i)
-            peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
-        for i in range(fullnodes):
-            print("init fullnode", i)
-            ip = hostname_template.format(index=i + validators)
-            peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
 
-        print("prepare genesis")
-        # use a full node directory to prepare the genesis file
-        genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers, genesis_patch)
+def validate_json(ctx, param, value):
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        raise click.BadParameter("must be a valid JSON string")
 
-        print("patch genesis")
-        # write genesis file and patch config files
-        for i in range(validators):
-            patch_configs_local(
-                peers, genesis, outdir, VALIDATOR_GROUP, i, config_patch, app_patch
-            )
-        for i in range(fullnodes):
-            patch_configs_local(
-                peers,
-                genesis,
-                outdir,
-                FULLNODE_GROUP,
-                i,
-                config_patch,
-                app_patch,
-            )
 
-        print("write config")
-        cfg = {
-            "validators": validators,
-            "fullnodes": fullnodes,
-            "num_accounts": num_accounts,
-            "num_txs": num_txs,
-            "validator-generate-load": options.get("validator-generate-load", True),
-        }
-        (outdir / "config.json").write_text(json.dumps(cfg))
+@cli.command()
+@click.argument("outdir")
+@click.option("--hostname-template", default=HOSTNAME_TEMPLATE)
+@click.option("--validators", default=3)
+@click.option("--fullnodes", default=7)
+@click.option("--num-accounts", default=10)
+@click.option("--num-txs", default=1000)
+@click.option("--config-patch", default="{}", callback=validate_json)
+@click.option("--app-patch", default="{}", callback=validate_json)
+@click.option("--genesis-patch", default="{}", callback=validate_json)
+@click.option("--validator-generate-load/--no-validator-generate-load", default=True)
+def gen(**kwargs):
+    return _gen(**kwargs)
 
-    def patchimage(
-        self,
-        toimage,
-        src,
-        dst="/data",
-        fromimage="ghcr.io/crypto-org-chain/cronos-testground:latest",
-    ):
-        """
-        combine data directory with an exiting image to produce a new image
-        """
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpdir = Path(tmpdir)
-            shutil.copytree(src, tmpdir / "out")
-            content = f"""FROM {fromimage}
-ADD ./out {dst}
-"""
-            print(content)
-            (tmpdir / "Dockerfile").write_text(content)
-            subprocess.run(["docker", "build", "-t", toimage, tmpdir])
 
-    def run(
-        self,
-        outdir: str = "/outputs",
-        datadir: str = "/data",
-        cronosd=CONTAINER_CRONOSD_PATH,
-        global_seq=None,
-    ):
-        run_echo_server(ECHO_SERVER_PORT)
+@cli.command()
+@click.argument("options", callback=validate_json)
+def generic_gen(options: dict):
+    return _gen(**options)
 
-        datadir = Path(datadir)
-        cfg = json.loads((datadir / "config.json").read_text())
 
-        if global_seq is None:
-            global_seq = node_index()
+def _gen(
+    outdir: str,
+    hostname_template: str = HOSTNAME_TEMPLATE,
+    validators: int = 3,
+    fullnodes: int = 7,
+    num_accounts: int = 10,
+    num_txs: int = 1000,
+    validator_generate_load: bool = True,
+    config_patch: dict = None,
+    app_patch: dict = None,
+    genesis_patch: dict = None,
+):
+    config_patch = config_patch or {}
+    app_patch = app_patch or {}
+    genesis_patch = genesis_patch or {}
 
-        validators = cfg["validators"]
-        group = VALIDATOR_GROUP if global_seq < validators else FULLNODE_GROUP
-        group_seq = global_seq if group == VALIDATOR_GROUP else global_seq - validators
-        print("node role", global_seq, group, group_seq)
+    outdir = Path(outdir)
+    cli = ChainCommand(LOCAL_CRONOSD_PATH)
+    (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
+    (outdir / FULLNODE_GROUP).mkdir(parents=True, exist_ok=True)
 
-        home = datadir / group / str(group_seq)
+    config_patch = (
+        json.loads(config_patch) if isinstance(config_patch, str) else config_patch
+    )
+    app_patch = json.loads(app_patch) if isinstance(app_patch, str) else app_patch
+    genesis_patch = (
+        json.loads(genesis_patch) if isinstance(genesis_patch, str) else genesis_patch
+    )
 
-        # wait for persistent peers to be ready
-        wait_for_peers(home)
+    peers = []
+    for i in range(validators):
+        print("init validator", i)
+        ip = hostname_template.format(index=i)
+        peers.append(init_node_local(cli, outdir, VALIDATOR_GROUP, i, ip))
+    for i in range(fullnodes):
+        print("init fullnode", i)
+        ip = hostname_template.format(index=i + validators)
+        peers.append(init_node_local(cli, outdir, FULLNODE_GROUP, i, ip))
 
-        print("start node")
-        logfile = open(home / "node.log", "ab", buffering=0)
-        proc = subprocess.Popen(
-            [cronosd, "start", "--home", str(home)],
-            stdout=logfile,
+    print("prepare genesis")
+    # use a full node directory to prepare the genesis file
+    genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers, genesis_patch)
+
+    print("patch genesis")
+    # write genesis file and patch config files
+    for i in range(validators):
+        patch_configs_local(
+            peers, genesis, outdir, VALIDATOR_GROUP, i, config_patch, app_patch
+        )
+    for i in range(fullnodes):
+        patch_configs_local(
+            peers,
+            genesis,
+            outdir,
+            FULLNODE_GROUP,
+            i,
+            config_patch,
+            app_patch,
         )
 
-        cli = ChainCommand(cronosd)
-        wait_for_port(26657)
-        wait_for_port(8545)
-        wait_for_block(cli, 3)
+    print("write config")
+    cfg = {
+        "validators": validators,
+        "fullnodes": fullnodes,
+        "num_accounts": num_accounts,
+        "num_txs": num_txs,
+        "validator-generate-load": validator_generate_load,
+    }
+    (outdir / "config.json").write_text(json.dumps(cfg))
 
-        if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
-            wait_for_w3()
-            generate_load(
-                cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
-            )
 
-        # node quit when the chain is idle or halted for a while
-        detect_idle_halted(20, 20)
+@cli.command()
+@click.argument("toimage")
+@click.argument("src")
+@click.option("--dst", default="/data")
+@click.option(
+    "--fromimage", default="ghcr.io/crypto-org-chain/cronos-testground:latest"
+)
+def patchimage(toimage, src, dst, fromimage):
+    """
+    combine data directory with an exiting image to produce a new image
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        shutil.copytree(src, tmpdir / "out")
+        content = f"""FROM {fromimage}
+ADD ./out {dst}
+"""
+        print(content)
+        (tmpdir / "Dockerfile").write_text(content)
+        subprocess.run(["docker", "build", "-t", toimage, tmpdir])
 
-        with (home / "block_stats.log").open("w") as logfile:
-            dump_block_stats(logfile)
 
-        proc.kill()
-        proc.wait(20)
+@cli.command()
+@click.option("--outdir", default="/outputs")
+@click.option("--datadir", default="/data")
+@click.option("--cronosd", default=CONTAINER_CRONOSD_PATH)
+@click.option("--global-seq", default=None)
+def run(outdir: str, datadir: str, cronosd, global_seq):
+    run_echo_server(ECHO_SERVER_PORT)
 
-        # collect outputs
-        output = Path("/data.tar.bz2")
-        with tarfile.open(output, "x:bz2") as tar:
-            tar.add(home, arcname="data", filter=output_filter(group, group_seq))
-        outdir = Path(outdir)
-        if outdir.exists():
-            assert outdir.is_dir()
-            filename = outdir / f"{group}_{group_seq}.tar.bz2"
-            filename.unlink(missing_ok=True)
-            shutil.copy(output, filename)
+    datadir = Path(datadir)
+    cfg = json.loads((datadir / "config.json").read_text())
+
+    if global_seq is None:
+        global_seq = node_index()
+
+    validators = cfg["validators"]
+    group = VALIDATOR_GROUP if global_seq < validators else FULLNODE_GROUP
+    group_seq = global_seq if group == VALIDATOR_GROUP else global_seq - validators
+    print("node role", global_seq, group, group_seq)
+
+    home = datadir / group / str(group_seq)
+
+    # wait for persistent peers to be ready
+    wait_for_peers(home)
+
+    print("start node")
+    logfile = open(home / "node.log", "ab", buffering=0)
+    proc = subprocess.Popen(
+        [cronosd, "start", "--home", str(home)],
+        stdout=logfile,
+    )
+
+    cli = ChainCommand(cronosd)
+    wait_for_port(26657)
+    wait_for_port(8545)
+    wait_for_block(cli, 3)
+
+    if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
+        wait_for_w3()
+        generate_load(
+            cli, cfg["num_accounts"], cfg["num_txs"], home=home, output="json"
+        )
+
+    # node quit when the chain is idle or halted for a while
+    detect_idle_halted(20, 20)
+
+    with (home / "block_stats.log").open("w") as logfile:
+        dump_block_stats(logfile)
+
+    proc.kill()
+    proc.wait(20)
+
+    # collect outputs
+    output = Path("/data.tar.bz2")
+    with tarfile.open(output, "x:bz2") as tar:
+        tar.add(home, arcname="data", filter=output_filter(group, group_seq))
+    outdir = Path(outdir)
+    if outdir.exists():
+        assert outdir.is_dir()
+        filename = outdir / f"{group}_{group_seq}.tar.bz2"
+        filename.unlink(missing_ok=True)
+        shutil.copy(output, filename)
 
 
 def output_filter(group, group_seq: int):
@@ -321,9 +365,5 @@ def dump_block_stats(fp):
         print("block", i, txs, timestamp, file=fp)
 
 
-def main():
-    fire.Fire(CLI)
-
-
 if __name__ == "__main__":
-    main()
+    cli()
