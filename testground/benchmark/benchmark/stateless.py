@@ -192,7 +192,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
     home = datadir / group / str(group_seq)
 
     try:
-        return do_run(home, cronosd, group, cfg)
+        return do_run(home, cronosd, group, global_seq, cfg)
     finally:
         # collect outputs
         output = Path("/data.tar.bz2")
@@ -206,7 +206,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
             shutil.copy(output, filename)
 
 
-def do_run(home: str, cronosd: str, group: str, cfg: dict):
+def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
     run_echo_server(ECHO_SERVER_PORT)
 
     # wait for persistent peers to be ready
