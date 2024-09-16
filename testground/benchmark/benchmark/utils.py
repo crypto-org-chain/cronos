@@ -145,7 +145,7 @@ def gen_account(global_seq: int, index: int) -> Account:
 def parse_coins(s: str) -> dict:
     """
     split denom from coins string.
-    for example: `"1000basecro"` to `(1000, "basecro")`
+    for example: `"1000basecro"` to `("1000", "basecro")`
     """
     num = "".join(takewhile(str.isdigit, s))
     return {
