@@ -1,7 +1,7 @@
 import json
 import socket
 import time
-from itertools import takewhile
+from itertools import dropwhile, takewhile
 from pathlib import Path
 
 import bech32
@@ -145,10 +145,16 @@ def gen_account(global_seq: int, index: int) -> Account:
 def parse_coins(s: str) -> dict:
     """
     split denom from coins string.
-    for example: `"1000basecro"` to `("1000", "basecro")`
+    for example: `"1000.0stake,1000basetcro"` to
+    `[{'amount': '1000.0', 'denom': 'stake'}, {'amount': '1000', 'denom': 'basetcro'}]`
     """
-    num = "".join(takewhile(str.isdigit, s))
-    return {
-        "amount": num,
-        "denom": s[len(num) :],
-    }
+    coins = []
+    for coin in s.split(","):
+        amount = "".join(takewhile(is_float, coin))
+        denom = "".join(dropwhile(is_float, coin))
+        coins.append({"amount": amount, "denom": denom.strip()})
+    return coins
+
+
+def is_float(s):
+    return str.isdigit(s) or s == "."
