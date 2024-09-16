@@ -2,14 +2,20 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from .utils import bech32_to_eth, parse_coins
+from .utils import bech32_to_eth
 
-DEFAULT_DENOM = "basecro"
+
+class Balance(BaseModel):
+    amount: str
+    denom: str
+
+    def __str__(self):
+        return f"{self.amount}{self.denom}"
 
 
 class GenesisAccount(BaseModel):
     address: str
-    balance: str
+    coins: List[Balance]
 
     @property
     def eth_address(self) -> str:
@@ -22,15 +28,3 @@ class PeerPacket(BaseModel):
     peer_id: str
     accounts: List[GenesisAccount]
     gentx: Optional[dict] = None
-
-    def bulk_genesis_accounts(self):
-        """
-        convert accounts to the format required in `bulk-add-genesis-account` command
-        """
-        return [
-            {
-                "address": acct.address,
-                "coins": [parse_coins(acct.balance)],
-            }
-            for acct in self.accounts
-        ]

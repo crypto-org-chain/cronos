@@ -3,19 +3,21 @@ import tempfile
 from pathlib import Path
 from typing import List
 
+from pydantic.json import pydantic_encoder
+
 from .cli import ChainCommand
 from .context import Context
 from .network import get_data_ip
 from .topology import connect_all
-from .types import GenesisAccount, PeerPacket
+from .types import Balance, GenesisAccount, PeerPacket
 from .utils import eth_to_bech32, gen_account, patch_json, patch_toml
 
-VAL_ACCOUNT = "validator"
-VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
-VAL_STAKED_AMOUNT = "10000000000000000000basecro"
-ACC_INITIAL_AMOUNT = "10000000000000000000000000basecro"
-MEMPOOL_SIZE = 10000
 DEFAULT_DENOM = "basecro"
+VAL_ACCOUNT = "validator"
+VAL_INITIAL_AMOUNT = Balance(amount="100000000000000000000", denom=DEFAULT_DENOM)
+VAL_STAKED_AMOUNT = Balance(amount="10000000000000000000", denom=DEFAULT_DENOM)
+ACC_INITIAL_AMOUNT = Balance(amount="10000000000000000000000000", denom=DEFAULT_DENOM)
+MEMPOOL_SIZE = 10000
 VALIDATOR_GROUP = "validators"
 FULLNODE_GROUP = "fullnodes"
 CONTAINER_CRONOSD_PATH = "/bin/cronosd"
@@ -85,12 +87,13 @@ def init_node(
     )
     accounts = [
         GenesisAccount(
-            address=eth_to_bech32(val_acct.address), balance=VAL_INITIAL_AMOUNT
+            address=eth_to_bech32(val_acct.address),
+            coins=[VAL_INITIAL_AMOUNT],
         ),
     ] + [
         GenesisAccount(
             address=eth_to_bech32(gen_account(global_seq, i + 1).address),
-            balance=ACC_INITIAL_AMOUNT,
+            coins=[ACC_INITIAL_AMOUNT],
         )
         for i in range(num_accounts)
     ]
@@ -115,7 +118,7 @@ def gen_genesis(
 ):
     for peer in peers:
         with tempfile.NamedTemporaryFile() as fp:
-            fp.write(json.dumps(peer.bulk_genesis_accounts()).encode())
+            fp.write(json.dumps(peer.accounts, default=pydantic_encoder).encode())
             fp.flush()
             cli(
                 "genesis",
@@ -171,7 +174,7 @@ def gentx(cli, **kwargs):
         "genesis",
         "add-genesis-account",
         VAL_ACCOUNT,
-        VAL_INITIAL_AMOUNT,
+        str(VAL_INITIAL_AMOUNT),
         **kwargs,
     )
     with tempfile.TemporaryDirectory() as tmp:

@@ -140,21 +140,3 @@ def gen_account(global_seq: int, index: int) -> Account:
     index 0 is reserved for validator account.
     """
     return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))
-
-
-def parse_coins(s: str) -> dict:
-    """
-    split denom from coins string.
-    for example: `"1000.0stake,1000basetcro"` to
-    `[{'amount': '1000.0', 'denom': 'stake'}, {'amount': '1000', 'denom': 'basetcro'}]`
-    """
-    coins = []
-    for coin in s.split(","):
-        amount = "".join(takewhile(is_float, coin))
-        denom = "".join(dropwhile(is_float, coin))
-        coins.append({"amount": amount, "denom": denom.strip()})
-    return coins
-
-
-def is_float(s):
-    return str.isdigit(s) or s == "."
