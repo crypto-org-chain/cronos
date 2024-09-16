@@ -1,7 +1,6 @@
 import json
 import socket
 import time
-from itertools import dropwhile, takewhile
 from pathlib import Path
 
 import bech32
