@@ -10,6 +10,8 @@ from eth_account import Account
 from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
+CRONOS_ADDRESS_PREFIX = "crc"
+
 
 def patch_dict(doc, kwargs):
     for k, v in kwargs.items():
@@ -92,6 +94,11 @@ def bech32_to_eth(addr):
     return decode_bech32(addr).hex()
 
 
+def eth_to_bech32(addr, prefix=CRONOS_ADDRESS_PREFIX):
+    bz = bech32.convertbits(addr, 8, 5)
+    return bech32.bech32_encode(prefix, bz)
+
+
 def sign_transaction(w3, tx, acct):
     "fill default fields and sign"
     tx["from"] = acct.address
@@ -124,3 +131,11 @@ def send_transactions(w3, txs, acct, wait=True):
 def export_eth_account(cli, name: str, **kwargs) -> Account:
     kwargs.setdefault("keyring_backend", "test")
     return Account.from_key(cli("keys", "unsafe-export-eth-key", name, **kwargs))
+
+
+def gen_account(global_seq: int, index: int) -> Account:
+    """
+    deterministically generate test private keys,
+    index 0 is reserved for validator account.
+    """
+    return Account.from_key((global_seq << 32 | index).to_bytes(32))

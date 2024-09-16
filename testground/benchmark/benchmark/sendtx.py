@@ -4,31 +4,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import web3
 from eth_account import Account
 
-from .utils import export_eth_account, send_transaction, send_transactions
+from .utils import gen_account, send_transaction
 
-TEST_AMOUNT = 1000000000000000000
 GAS_PRICE = 1000000000
-
-
-def fund_test_accounts(w3, from_account, num_accounts) -> [Account]:
-    accounts = []
-    nonce = w3.eth.get_transaction_count(from_account.address)
-    txs = []
-    for i in range(num_accounts):
-        acct = Account.create()
-        tx = {
-            "to": acct.address,
-            "value": TEST_AMOUNT,
-            "gas": 21000,
-            "gasPrice": GAS_PRICE,
-            "nonce": nonce + i,
-        }
-        txs.append(tx)
-        accounts.append(acct)
-    receipts = send_transactions(w3, txs, from_account)
-    for receipt in receipts:
-        assert receipt["status"] == 1
-    return accounts
 
 
 def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
@@ -77,11 +55,10 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
     )
 
 
-def generate_load(cli, num_accounts, num_txs, **kwargs):
+def generate_load(cli, num_accounts, num_txs, global_seq, **kwargs):
     w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
     assert w3.eth.chain_id == 777
-    genesis_account = export_eth_account(cli, "account", **kwargs)
-    accounts = fund_test_accounts(w3, genesis_account, num_accounts)
+    accounts = [gen_account(global_seq, i + 1) for i in range(num_accounts)]
     with ThreadPoolExecutor(max_workers=num_accounts) as executor:
         futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
         for fut in as_completed(futs):

@@ -8,7 +8,7 @@ from .context import Context
 from .network import get_data_ip
 from .topology import connect_all
 from .types import GenesisAccount, PeerPacket
-from .utils import patch_json, patch_toml
+from .utils import eth_to_bech32, gen_account, patch_json, patch_toml
 
 VAL_ACCOUNT = "validator"
 VAL_INITIAL_AMOUNT = "100000000000000000000basecro"
@@ -30,6 +30,7 @@ def bootstrap(ctx: Context, cli) -> PeerPacket:
         ctx.params.chain_id,
         ctx.params.test_group_id,
         ctx.group_seq,
+        ctx.global_seq,
     )
 
     data = ctx.sync.publish_subscribe_simple(
@@ -58,6 +59,8 @@ def init_node(
     chain_id: str,
     group: str,
     group_seq: int,
+    global_seq: int,
+    num_accounts: int = 1,
 ) -> PeerPacket:
     default_kwargs = {
         "home": home,
@@ -70,13 +73,19 @@ def init_node(
         default_denom=DEFAULT_DENOM,
         **default_kwargs,
     )
-    cli("keys", "add", VAL_ACCOUNT, **default_kwargs)
-    cli("keys", "add", "account", **default_kwargs)
-    validator_addr = cli("keys", "show", VAL_ACCOUNT, "--address", **default_kwargs)
-    account_addr = cli("keys", "show", "account", "--address", **default_kwargs)
+
+    val_acct = gen_account(global_seq, 0)
+    cli("keys", "unsafe-import-eth-key", VAL_ACCOUNT, val_acct.key, **default_kwargs)
     accounts = [
-        GenesisAccount(address=validator_addr, balance=VAL_INITIAL_AMOUNT),
-        GenesisAccount(address=account_addr, balance=ACC_INITIAL_AMOUNT),
+        GenesisAccount(
+            address=eth_to_bech32(val_acct.address), balance=VAL_INITIAL_AMOUNT
+        ),
+    ] + [
+        GenesisAccount(
+            address=eth_to_bech32(gen_account(global_seq, i + 1).address),
+            balance=ACC_INITIAL_AMOUNT,
+        )
+        for i in range(num_accounts)
     ]
 
     node_id = cli("comet", "show-node-id", **default_kwargs)
@@ -98,12 +107,13 @@ def gen_genesis(
     cli: ChainCommand, leader_home: Path, peers: List[PeerPacket], genesis_patch: dict
 ):
     for peer in peers:
-        for account in peer.accounts:
+        with tempfile.NamedTemporaryFile() as fp:
+            fp.write(json.dumps(peer.accounts).encode())
+            fp.flush()
             cli(
                 "genesis",
-                "add-genesis-account",
-                account.address,
-                account.balance,
+                "bulk-add-genesis-account",
+                fp.name,
                 home=leader_home,
             )
     collect_gen_tx(cli, peers, home=leader_home)
