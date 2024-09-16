@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from .utils import bech32_to_eth
+from .utils import bech32_to_eth, parse_coins
 
 DEFAULT_DENOM = "basecro"
 
@@ -30,7 +30,7 @@ class PeerPacket(BaseModel):
         return [
             {
                 "address": acct.address,
-                "coins": [{"denom": "basecro", "amount": acct.balance}],
+                "coins": [parse_coins(acct.balance)],
             }
             for acct in self.accounts
         ]

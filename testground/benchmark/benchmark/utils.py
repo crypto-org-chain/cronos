@@ -1,6 +1,7 @@
 import json
 import socket
 import time
+from itertools import takewhile
 from pathlib import Path
 
 import bech32
@@ -139,3 +140,15 @@ def gen_account(global_seq: int, index: int) -> Account:
     index 0 is reserved for validator account.
     """
     return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))
+
+
+def parse_coins(s: str) -> dict:
+    """
+    split denom from coins string.
+    for example: `"1000basecro"` to `(1000, "basecro")`
+    """
+    num = "".join(takewhile(str.isdigit, s))
+    return {
+        "amount": num,
+        "denom": s[len(num) :],
+    }
