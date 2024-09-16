@@ -53,6 +53,18 @@ class CLI:
         config_patch = options.get("config", {})
         app_patch = options.get("app", {})
         genesis_patch = options.get("genesis", {})
+        validator_generate_load = options.get("validator-generate-load", "true")
+        if isinstance(validator_generate_load, str):
+            if (
+                validator_generate_load.lower() == "true"
+                or validator_generate_load == ""
+            ):
+                validator_generate_load = True
+            else:
+                validator_generate_load = False
+        else:
+            validator_generate_load = bool(validator_generate_load)
+        print("validator_generate_load", validator_generate_load)
         outdir = Path(outdir)
         cli = ChainCommand(LOCAL_CRONOSD_PATH)
         (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
@@ -95,7 +107,7 @@ class CLI:
             "fullnodes": fullnodes,
             "num_accounts": num_accounts,
             "num_txs": num_txs,
-            "validator-generate-load": options.get("validator-generate-load", True),
+            "validator-generate-load": validator_generate_load,
         }
         (outdir / "config.json").write_text(json.dumps(cfg))
 
