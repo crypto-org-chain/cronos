@@ -170,8 +170,6 @@ ADD ./out {dst}
 @click.option("--cronosd", default=CONTAINER_CRONOSD_PATH)
 @click.option("--global-seq", default=None)
 def run(outdir: str, datadir: str, cronosd, global_seq):
-    run_echo_server(ECHO_SERVER_PORT)
-
     datadir = Path(datadir)
     cfg = json.loads((datadir / "config.json").read_text())
 
@@ -182,8 +180,25 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
     group = VALIDATOR_GROUP if global_seq < validators else FULLNODE_GROUP
     group_seq = global_seq if group == VALIDATOR_GROUP else global_seq - validators
     print("node role", global_seq, group, group_seq)
-
     home = datadir / group / str(group_seq)
+
+    try:
+        return do_run(home, cronosd, group, cfg)
+    finally:
+        # collect outputs
+        output = Path("/data.tar.bz2")
+        with tarfile.open(output, "x:bz2") as tar:
+            tar.add(home, arcname="data", filter=output_filter(group, group_seq))
+        outdir = Path(outdir)
+        if outdir.exists():
+            assert outdir.is_dir()
+            filename = outdir / f"{group}_{group_seq}.tar.bz2"
+            filename.unlink(missing_ok=True)
+            shutil.copy(output, filename)
+
+
+def do_run(home: str, cronosd: str, group: str, cfg: dict):
+    run_echo_server(ECHO_SERVER_PORT)
 
     # wait for persistent peers to be ready
     wait_for_peers(home)
@@ -214,17 +229,6 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 
     proc.kill()
     proc.wait(20)
-
-    # collect outputs
-    output = Path("/data.tar.bz2")
-    with tarfile.open(output, "x:bz2") as tar:
-        tar.add(home, arcname="data", filter=output_filter(group, group_seq))
-    outdir = Path(outdir)
-    if outdir.exists():
-        assert outdir.is_dir()
-        filename = outdir / f"{group}_{group_seq}.tar.bz2"
-        filename.unlink(missing_ok=True)
-        shutil.copy(output, filename)
 
 
 def output_filter(group, group_seq: int):
