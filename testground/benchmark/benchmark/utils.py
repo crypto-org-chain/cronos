@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import bech32
+import requests
 import tomlkit
 import web3
 from eth_account import Account
@@ -11,6 +12,7 @@ from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 CRONOS_ADDRESS_PREFIX = "crc"
+LOCAL_RPC = "http://localhost:26657"
 
 
 def patch_dict(doc, kwargs):
@@ -139,3 +141,16 @@ def gen_account(global_seq: int, index: int) -> Account:
     index 0 is reserved for validator account.
     """
     return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))
+
+
+def block_height():
+    rsp = requests.get(f"{LOCAL_RPC}/status").json()
+    return int(rsp["result"]["sync_info"]["latest_block_height"])
+
+
+def block(height):
+    return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
+
+
+def block_txs(height):
+    return block(height)["result"]["block"]["data"]["txs"]

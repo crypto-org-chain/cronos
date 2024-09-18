@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List
 
 import click
-import requests
 import tomlkit
 
 from .cli import ChainCommand
@@ -24,16 +23,16 @@ from .peer import (
     patch_configs,
 )
 from .sendtx import generate_load
+from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import wait_for_block, wait_for_port, wait_for_w3
+from .utils import block_height, block_txs, wait_for_block, wait_for_port, wait_for_w3
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
 DEFAULT_CHAIN_ID = "cronos_777-1"
 # the container must be deployed with the prefixed name
 HOSTNAME_TEMPLATE = "testplan-{index}"
-LOCAL_RPC = "http://localhost:26657"
 ECHO_SERVER_PORT = 26659
 
 
@@ -309,19 +308,6 @@ def detect_idle_halted(idle_blocks: int, interval: int, chain_halt_interval=120)
                 return
 
 
-def block_height():
-    rsp = requests.get(f"{LOCAL_RPC}/status").json()
-    return int(rsp["result"]["sync_info"]["latest_block_height"])
-
-
-def block(height):
-    return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
-
-
-def block_txs(height):
-    return block(height)["result"]["block"]["data"]["txs"]
-
-
 def init_node_local(
     cli: ChainCommand,
     outdir: Path,
@@ -378,17 +364,6 @@ def wait_for_peers(home: Path):
         host = peer.split("@", 1)[1].split(":", 1)[0]
         print("wait for peer to be ready:", host)
         wait_for_port(ECHO_SERVER_PORT, host=host, timeout=2400)
-
-
-def dump_block_stats(fp):
-    """
-    dump simple statistics for blocks for analysis
-    """
-    for i in range(1, block_height() + 1):
-        blk = block(i)
-        timestamp = blk["result"]["block"]["header"]["time"]
-        txs = len(blk["result"]["block"]["data"]["txs"])
-        print("block", i, txs, timestamp, file=fp)
 
 
 if __name__ == "__main__":
