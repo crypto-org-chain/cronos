@@ -12,6 +12,7 @@ from .utils import gen_account, send_transaction
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
 LOCAL_JSON_RPC = "http://localhost:8545"
+CONNECTION_POOL_SIZE = 1024
 
 
 def test_tx(nonce: int):
@@ -90,7 +91,7 @@ def prepare_txs(global_seq, num_accounts, num_txs):
 
 
 async def send_txs(txs):
-    connector = aiohttp.TCPConnector(limit=None)
+    connector = aiohttp.TCPConnector(limit=1024)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
