@@ -90,23 +90,25 @@ def prepare_txs(global_seq, num_accounts, num_txs):
     return txs
 
 
+async def async_sendtx(session, raw):
+    async with session.post(
+        LOCAL_JSON_RPC,
+        json={
+            "jsonrpc": "2.0",
+            "method": "eth_sendRawTransaction",
+            "params": [raw],
+            "id": 1,
+        },
+    ) as rsp:
+        data = await rsp.json()
+        if "error" in data:
+            print("send tx error", data["error"])
+
+
 async def send_txs(txs):
     connector = aiohttp.TCPConnector(limit=1024)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
-        tasks = [
-            asyncio.ensure_future(
-                session.post(
-                    LOCAL_JSON_RPC,
-                    json={
-                        "jsonrpc": "2.0",
-                        "method": "eth_sendRawTransaction",
-                        "params": [raw],
-                        "id": 1,
-                    },
-                )
-            )
-            for raw in txs
-        ]
+        tasks = [asyncio.ensure_future(async_sendtx(session, raw)) for raw in txs]
         await asyncio.gather(*tasks)
