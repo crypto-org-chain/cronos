@@ -82,15 +82,7 @@ def prepare_txs(global_seq, num_accounts, num_txs):
     txs = []
     for i in range(num_txs):
         for acct in accounts:
-            tx = {
-                "to": "0x0000000000000000000000000000000000000000",
-                "value": 1,
-                "nonce": i,
-                "gas": 21000,
-                "gasPrice": GAS_PRICE,
-                "chainId": CHAIN_ID,
-            }
-            txs.append(acct.sign_transaction(tx).rawTransaction.hex())
+            txs.append(acct.sign_transaction(test_tx(i)).rawTransaction.hex())
     return txs
 
 
