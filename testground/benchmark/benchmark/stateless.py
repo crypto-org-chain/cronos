@@ -208,6 +208,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 
 def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
     if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
+        print("preparing", cfg["num_accounts"] * cfg["num_txs"], "txs")
         txs = prepare_txs(global_seq, cfg["num_accounts"], cfg["num_txs"])
     else:
         txs = []

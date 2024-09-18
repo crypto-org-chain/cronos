@@ -83,6 +83,9 @@ def prepare_txs(global_seq, num_accounts, num_txs):
     for i in range(num_txs):
         for acct in accounts:
             txs.append(acct.sign_transaction(test_tx(i)).rawTransaction.hex())
+            if len(txs) % 1000 == 0:
+                print("prepared", len(txs), "txs")
+
     return txs
 
 
