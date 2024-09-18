@@ -6,19 +6,6 @@ from .utils import block, block_height
 TPS_WINDOW = 10
 
 
-def truncate_fractional_seconds(timestamp):
-    (
-        date_time_part,
-        _,
-        _,
-    ) = timestamp.partition("Z")
-    if "." in date_time_part:
-        date_time_part, fractional_part = date_time_part.split(".")
-        fractional_part = fractional_part[:6]
-        return f"{date_time_part}.{fractional_part}Z"
-    return timestamp
-
-
 def calculate_tps(blocks):
     if len(blocks) < 2:
         return 0
