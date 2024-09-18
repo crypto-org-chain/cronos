@@ -13,7 +13,10 @@ def calculate_tps(blocks):
     txs = sum(n for n, _ in blocks)
     _, t1 = blocks[0]
     _, t2 = blocks[-1]
-    return txs / (t2 - t1).total_seconds()
+    time_diff = (t2 - t1).total_seconds()
+    if time_diff == 0:
+        return 0
+    return txs / time_diff
 
 
 def dump_block_stats(fp):
