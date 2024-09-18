@@ -117,7 +117,7 @@ def init_node(
 def gen_genesis(
     cli: ChainCommand, leader_home: Path, peers: List[PeerPacket], genesis_patch: dict
 ):
-    accounts = itertools.chain(peer.accounts for peer in peers)
+    accounts = list(itertools.chain(*(peer.accounts for peer in peers)))
     print("adding genesis accounts", len(accounts))
     with tempfile.NamedTemporaryFile() as fp:
         fp.write(json.dumps(accounts, default=pydantic_encoder).encode())
