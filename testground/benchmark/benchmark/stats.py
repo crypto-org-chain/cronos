@@ -26,7 +26,8 @@ def dump_block_stats(fp):
     tps_list = []
     current = block_height()
     blocks = []
-    for i in range(1, current + 1):
+    # skip block 1 whose timestamp is not accurate
+    for i in range(2, current + 1):
         blk = block(i)
         timestamp = datetime.fromisoformat(blk["result"]["block"]["header"]["time"])
         txs = len(blk["result"]["block"]["data"]["txs"])
