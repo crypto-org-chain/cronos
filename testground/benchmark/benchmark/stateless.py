@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import shutil
@@ -22,11 +23,11 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .sendtx import generate_load
+from .sendtx import prepare_txs, send_txs
 from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import block_height, block_txs, wait_for_block, wait_for_port, wait_for_w3
+from .utils import block_height, block_txs, wait_for_block, wait_for_port
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
@@ -206,9 +207,13 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 
 
 def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
-    run_echo_server(ECHO_SERVER_PORT)
+    if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
+        txs = prepare_txs(global_seq, cfg["num_accounts"], cfg["num_txs"])
+    else:
+        txs = []
 
     # wait for persistent peers to be ready
+    run_echo_server(ECHO_SERVER_PORT)
     wait_for_peers(home)
 
     print("start node")
@@ -223,16 +228,8 @@ def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
     wait_for_port(8545)
     wait_for_block(cli, 3)
 
-    if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
-        wait_for_w3()
-        generate_load(
-            cli,
-            cfg["num_accounts"],
-            cfg["num_txs"],
-            global_seq,
-            home=home,
-            output="json",
-        )
+    if txs:
+        asyncio.run(send_txs(txs))
 
     # node quit when the chain is idle or halted for a while
     detect_idle_halted(20, 20)

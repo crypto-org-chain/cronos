@@ -36,7 +36,7 @@ def entrypoint(ctx: Context):
 
     test_finish_entry = f"finish-test-{ctx.params.test_group_id}"
     if not ctx.is_validator:
-        generate_load(cli, ctx.params.num_accounts, ctx.params.num_txs, ctx.global_seq)
+        generate_load(ctx.params.num_accounts, ctx.params.num_txs, ctx.global_seq)
         print("finish test", ctx.group_seq)
         ctx.sync.signal_and_wait(
             test_finish_entry, ctx.params.test_group_instance_count

@@ -1,3 +1,4 @@
+import itertools
 import json
 import tempfile
 from pathlib import Path
@@ -116,16 +117,16 @@ def init_node(
 def gen_genesis(
     cli: ChainCommand, leader_home: Path, peers: List[PeerPacket], genesis_patch: dict
 ):
-    for peer in peers:
-        with tempfile.NamedTemporaryFile() as fp:
-            fp.write(json.dumps(peer.accounts, default=pydantic_encoder).encode())
-            fp.flush()
-            cli(
-                "genesis",
-                "bulk-add-genesis-account",
-                fp.name,
-                home=leader_home,
-            )
+    accounts = itertools.chain(peer.accounts for peer in peers)
+    with tempfile.NamedTemporaryFile() as fp:
+        fp.write(json.dumps(accounts, default=pydantic_encoder).encode())
+        fp.flush()
+        cli(
+            "genesis",
+            "bulk-add-genesis-account",
+            fp.name,
+            home=leader_home,
+        )
     collect_gen_tx(cli, peers, home=leader_home)
     cli("genesis", "validate", home=leader_home)
     return patch_json(
