@@ -39,7 +39,7 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
     nonce = initial_nonce
     while nonce < initial_nonce + tx_amount:
         try:
-            send_transaction(test_tx(nonce))
+            send_transaction(w3, test_tx(nonce), acct, wait=False)
         except ValueError as e:
             msg = str(e)
             if "invalid nonce" in msg:
