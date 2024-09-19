@@ -216,8 +216,8 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/go-block-stm"]
-    version = "v0.0.0-20240912024944-1cd89976aa5e"
-    hash = "sha256-rY8W4dSciOXT29MCySbH5sw0Fp15IQVgBK9QlMX0JeU="
+    version = "v0.0.0-20240919080136-6c49aef68716"
+    hash = "sha256-krCdJz96mpIgmpmRI64W2+W1ycNg+EdLaqeVtAuaW4A="
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.0"
     hash = "sha256-LHcvTJCc8++bFndbd8ZgMSTe4L5h2C4rN+cSWHCz54Y="

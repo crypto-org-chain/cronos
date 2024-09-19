@@ -987,7 +987,7 @@ func New(
 		sdk.SetAddrCacheEnabled(false)
 		workers := cast.ToInt(appOpts.Get(srvflags.EVMBlockSTMWorkers))
 		if workers == 0 {
-			workers = stdruntime.NumCPU()
+			workers = maxParallelism()
 		}
 		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
@@ -1368,4 +1368,8 @@ func (app *App) Close() error {
 	err := stderrors.Join(errs...)
 	app.Logger().Info("Application gracefully shutdown", "error", err)
 	return err
+}
+
+func maxParallelism() int {
+	return min(stdruntime.GOMAXPROCS(0), stdruntime.NumCPU())
 }
