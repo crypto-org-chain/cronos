@@ -134,12 +134,16 @@ def gen_genesis(
     print("genesis validated")
     return patch_json(
         leader_home / "config" / "genesis.json",
-        {
-            "consensus.params.block.max_gas": "163000000",
-            "app_state.evm.params.evm_denom": "basecro",
-            "app_state.feemarket.params.no_base_fee": True,
-            **genesis_patch,
-        },
+        jsonmerge.merge(
+            {
+                "consensus": {"params": {"block": {"max_gas": "163000000"}}},
+                "app_state": {
+                    "evm": {"params": {"evm_denom": "basecro"}},
+                    "feemarket": {"params": {"no_base_fee": True}},
+                },
+            },
+            genesis_patch,
+        ),
     )
 
 
