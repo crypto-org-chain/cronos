@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#]() Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
+
 *Sep 13, 2024*
 
 ## v1.4.0-rc0
