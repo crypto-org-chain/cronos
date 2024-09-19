@@ -27,7 +27,6 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-testground-testcase = "benchmark.main:main"
 stateless-testcase = "benchmark.stateless:cli"
 
 [tool.black]
