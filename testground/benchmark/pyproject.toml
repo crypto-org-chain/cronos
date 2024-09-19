@@ -16,6 +16,7 @@ hexbytes = "^0"
 bech32 = "^1"
 requests = "^2.32"
 click = "^8.1.7"
+ujson = "^5.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"

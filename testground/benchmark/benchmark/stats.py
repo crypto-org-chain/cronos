@@ -3,14 +3,14 @@ from datetime import datetime
 from .utils import block, block_height
 
 # the tps calculation use the average of the last 10 blocks
-TPS_WINDOW = 10
+TPS_WINDOW = 5
 
 
 def calculate_tps(blocks):
     if len(blocks) < 2:
         return 0
 
-    txs = sum(n for n, _ in blocks)
+    txs = sum(n for n, _ in blocks[1:])
     _, t1 = blocks[0]
     _, t2 = blocks[-1]
     time_diff = (t2 - t1).total_seconds()
