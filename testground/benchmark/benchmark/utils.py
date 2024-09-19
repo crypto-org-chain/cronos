@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import bech32
+import jsonmerge
 import requests
 import tomlkit
 import web3
@@ -15,26 +16,24 @@ CRONOS_ADDRESS_PREFIX = "crc"
 LOCAL_RPC = "http://localhost:26657"
 
 
-def patch_dict(doc, kwargs):
-    for k, v in kwargs.items():
-        keys = k.split(".")
-        assert len(keys) > 0
-        cur = doc
-        for section in keys[:-1]:
-            cur = cur[section]
-        cur[keys[-1]] = v
+def patch_toml_doc(doc, patch):
+    for k, v in patch.items():
+        if isinstance(v, dict):
+            patch_toml_doc(doc.setdefault(k, {}), v)
+        else:
+            doc[k] = v
 
 
-def patch_toml(path: Path, kwargs):
+def patch_toml(path: Path, patch):
     doc = tomlkit.parse(path.read_text())
-    patch_dict(doc, kwargs)
+    patch_toml_doc(doc, patch)
     path.write_text(tomlkit.dumps(doc))
     return doc
 
 
-def patch_json(path: Path, kwargs):
+def patch_json(path: Path, patch):
     doc = json.loads(path.read_text())
-    patch_dict(doc, kwargs)
+    doc = jsonmerge.merge(doc, patch)
     path.write_text(json.dumps(doc))
     return doc
 
