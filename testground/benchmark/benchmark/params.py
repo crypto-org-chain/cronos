@@ -67,37 +67,6 @@ class RunParams(BaseModel):
         # add 256 to avoid conflict with system services
         return self.test_subnet.network_address + (seq + 256)
 
-    def network_config(
-        self, global_seq: int, callback_state="network-configured"
-    ) -> dict:
-        """
-        config ip address based on global seq
-        """
-        return {
-            "network": "default",
-            "enable": True,
-            # using the assigned `GlobalSequencer` id per each of instance
-            # to fill in the last 2 octets of the new IP address for the instance
-            "IPv4": str(self.ipaddress(global_seq)) + "/16",
-            "IPv6": None,
-            "rules": None,
-            "default": {
-                "latency": 0,
-                "jitter": 0,
-                "bandwidth": 0,
-                "filter": 0,
-                "loss": 0,
-                "corrupt": 0,
-                "corrupt_corr": 0,
-                "reorder": 0,
-                "reorder_corr": 0,
-                "duplicate": 0,
-                "duplicate_corr": 0,
-            },
-            "callback_state": callback_state,
-            "routing_policy": "allow_all",
-        }
-
     @property
     def is_validator(self) -> bool:
         return self.test_group_id == VALIDATOR_GROUP_ID
