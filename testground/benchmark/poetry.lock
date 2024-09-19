@@ -966,6 +966,20 @@ files = [
 ]
 
 [[package]]
+name = "jsonmerge"
+version = "1.9.2"
+description = "Merge a series of JSON documents."
+optional = false
+python-versions = "*"
+files = [
+    {file = "jsonmerge-1.9.2-py3-none-any.whl", hash = "sha256:cab93ee7763fb51a4a09bbdab2eacf499ffb208ab94247ae86acea3e0e823b05"},
+    {file = "jsonmerge-1.9.2.tar.gz", hash = "sha256:c43757e0180b0e19b7ae4c130ad42a07cc580c31912f61f4823e8eaf2fa394a3"},
+]
+
+[package.dependencies]
+jsonschema = ">2.4.0"
+
+[[package]]
 name = "jsonschema"
 version = "4.22.0"
 description = "An implementation of JSON Schema validation for Python"
@@ -2188,4 +2202,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "f95059b65ce788a6cef6d06ec8d9dd9e65a819502003b2c3fa269647c0bc299d"
+content-hash = "0fb7ea7cb80f99d281286bd73bc04631c191c6b75b7375fa98cc9e590ff65074"

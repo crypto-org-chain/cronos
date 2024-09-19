@@ -91,14 +91,6 @@ def _gen(
     (outdir / VALIDATOR_GROUP).mkdir(parents=True, exist_ok=True)
     (outdir / FULLNODE_GROUP).mkdir(parents=True, exist_ok=True)
 
-    config_patch = (
-        json.loads(config_patch) if isinstance(config_patch, str) else config_patch
-    )
-    app_patch = json.loads(app_patch) if isinstance(app_patch, str) else app_patch
-    genesis_patch = (
-        json.loads(genesis_patch) if isinstance(genesis_patch, str) else genesis_patch
-    )
-
     peers = []
     for i in range(validators):
         print("init validator", i)

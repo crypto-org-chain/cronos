@@ -17,6 +17,7 @@ bech32 = "^1"
 requests = "^2.32"
 click = "^8.1.7"
 ujson = "^5.10.0"
+jsonmerge = "^1.9.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"

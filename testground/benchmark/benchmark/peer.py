@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 from typing import List
 
+import jsonmerge
 from pydantic.json import pydantic_encoder
 
 from .cli import ChainCommand
@@ -145,29 +146,38 @@ def gen_genesis(
 def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
     default_config_patch = {
         "db_backend": "rocksdb",
-        "p2p.addr_book_strict": False,
-        "mempool.recheck": False,
-        "mempool.size": MEMPOOL_SIZE,
-        "consensus.timeout_commit": "1s",
-        "tx_index.indexer": "null",
+        "p2p": {"addr_book_strict": False},
+        "mempool": {
+            "recheck": False,
+            "size": MEMPOOL_SIZE,
+        },
+        "consensus": {"timeout_commit": "1s"},
+        "tx_index": {"indexer": "null"},
     }
     default_app_patch = {
         "minimum-gas-prices": "0basecro",
         "index-events": ["ethereum_tx.ethereumTxHash"],
-        "memiavl.enable": True,
-        "mempool.max-txs": MEMPOOL_SIZE,
-        "evm.block-executor": "block-stm",  # or "sequential"
-        "evm.block-stm-workers": 0,
-        "evm.block-stm-pre-estimate": True,
-        "json-rpc.enable-indexer": True,
+        "memiavl": {
+            "enable": True,
+            "cache-size": 0,
+        },
+        "mempool": {"max-txs": MEMPOOL_SIZE},
+        "evm": {
+            "block-executor": "block-stm",  # or "sequential"
+            "block-stm-workers": 0,
+            "block-stm-pre-estimate": True,
+        },
+        "json-rpc": {"enable-indexer": True},
     }
     # update persistent_peers and other configs in config.toml
-    config_patch = {
-        **default_config_patch,
-        **config_patch,
-        "p2p.persistent_peers": peers,
-    }
-    app_patch = {**default_app_patch, **app_patch}
+    config_patch = jsonmerge.merge(
+        default_config_patch,
+        jsonmerge.merge(
+            config_patch,
+            {"p2p": {"persistent_peers": peers}},
+        ),
+    )
+    app_patch = jsonmerge.merge(default_app_patch, app_patch)
     patch_toml(home / "config" / "config.toml", config_patch)
     patch_toml(home / "config" / "app.toml", app_patch)
 
