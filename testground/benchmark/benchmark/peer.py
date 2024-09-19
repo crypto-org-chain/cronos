@@ -8,9 +8,6 @@ import jsonmerge
 from pydantic.json import pydantic_encoder
 
 from .cli import ChainCommand
-from .context import Context
-from .network import get_data_ip
-from .topology import connect_all
 from .types import Balance, GenesisAccount, PeerPacket
 from .utils import eth_to_bech32, gen_account, patch_json, patch_toml
 
@@ -23,37 +20,6 @@ MEMPOOL_SIZE = 10000
 VALIDATOR_GROUP = "validators"
 FULLNODE_GROUP = "fullnodes"
 CONTAINER_CRONOSD_PATH = "/bin/cronosd"
-
-
-def bootstrap(ctx: Context, cli) -> PeerPacket:
-    home = Path.home() / ".cronos"
-    peer = init_node(
-        cli,
-        home,
-        get_data_ip(ctx.params),
-        ctx.params.chain_id,
-        ctx.params.test_group_id,
-        ctx.group_seq,
-        ctx.global_seq,
-    )
-
-    data = ctx.sync.publish_subscribe_simple(
-        "peers", peer.dict(), ctx.params.test_instance_count
-    )
-    peers: List[PeerPacket] = [PeerPacket.model_validate(item) for item in data]
-
-    if ctx.is_fullnode_leader:
-        # prepare genesis file and publish
-        genesis = gen_genesis(cli, home, peers, {})
-        ctx.sync.publish("genesis", genesis)
-    else:
-        genesis = ctx.sync.subscribe_simple("genesis", 1)[0]
-        (home / "config" / "genesis.json").write_text(json.dumps(genesis))
-        cli("genesis", "validate", home=home)
-
-    p2p_peers = connect_all(peer, peers)
-    patch_configs(home, p2p_peers, {}, {})
-    return peer
 
 
 def init_node(
