@@ -56,6 +56,7 @@ def validate_json(ctx, param, value):
 @click.option("--fullnodes", default=7)
 @click.option("--num-accounts", default=10)
 @click.option("--num-txs", default=1000)
+@click.option("--tx-type", default="simple-transfer")
 @click.option("--config-patch", default="{}", callback=validate_json)
 @click.option("--app-patch", default="{}", callback=validate_json)
 @click.option("--genesis-patch", default="{}", callback=validate_json)
@@ -77,6 +78,7 @@ def _gen(
     fullnodes: int = 7,
     num_accounts: int = 10,
     num_txs: int = 1000,
+    tx_type: str = "simple-transfer",
     validator_generate_load: bool = True,
     config_patch: dict = None,
     app_patch: dict = None,
@@ -138,6 +140,7 @@ def _gen(
         "fullnodes": fullnodes,
         "num_accounts": num_accounts,
         "num_txs": num_txs,
+        "tx_type": tx_type,
         "validator-generate-load": validator_generate_load,
     }
     (outdir / "config.json").write_text(json.dumps(cfg))
@@ -203,6 +206,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 @click.option("--nodes", default=10)
 @click.option("--num-accounts", default=10)
 @click.option("--num-txs", default=1000)
+@click.option("--tx-type", default="simple-transfer")
 @click.option("--node", type=int)
 def gen_txs(**kwargs):
     return _gen_txs(**kwargs)
@@ -219,13 +223,14 @@ def _gen_txs(
     nodes: int = 10,
     num_accounts: int = 10,
     num_txs: int = 1000,
+    tx_type: str = "simple-transfer",
     node: Optional[int] = None,
 ):
     outdir = Path(outdir)
 
     def job(global_seq):
         print("generating", num_accounts * num_txs, "txs for node", global_seq)
-        txs = transaction.gen(global_seq, num_accounts, num_txs)
+        txs = transaction.gen(global_seq, num_accounts, num_txs, tx_type)
         transaction.save(txs, outdir, global_seq)
         print("saved", len(txs), "txs for node", global_seq)
 
@@ -245,7 +250,9 @@ def do_run(
             print("loaded", len(txs), "txs")
         else:
             print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
-            txs = transaction.gen(global_seq, cfg["num_accounts"], cfg["num_txs"])
+            txs = transaction.gen(
+                global_seq, cfg["num_accounts"], cfg["num_txs"], cfg["tx_type"]
+            )
     else:
         txs = []
 
