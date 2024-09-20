@@ -39,7 +39,8 @@ def gen(global_seq, num_accounts, num_txs) -> [str]:
 def save(txs: [str], datadir: Path, global_seq: int):
     d = datadir / TXS_DIR
     d.mkdir(parents=True, exist_ok=True)
-    with (d / f"{global_seq}.json").open("w") as f:
+    path = d / f"{global_seq}.json"
+    with path.open("w") as f:
         ujson.dump(txs, f)
 
 

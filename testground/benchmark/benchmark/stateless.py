@@ -221,7 +221,7 @@ def _gen_txs(
 ):
     outdir = Path(outdir)
     for global_seq in range(nodes):
-        txs = transaction.gen(outdir, global_seq, num_accounts, num_txs)
+        txs = transaction.gen(global_seq, num_accounts, num_txs)
         transaction.save(txs, outdir, global_seq)
         print("generated", len(txs), "txs for node", global_seq)
 
