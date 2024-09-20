@@ -262,7 +262,7 @@ def do_run(
     wait_for_block(cli, 3)
 
     if txs:
-        asyncio.run(transaction.send_txs(txs))
+        asyncio.run(transaction.send(txs))
 
     # node quit when the chain is idle or halted for a while
     detect_idle_halted(20, 20)
