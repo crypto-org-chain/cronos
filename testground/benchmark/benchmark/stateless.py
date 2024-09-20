@@ -113,7 +113,7 @@ def _gen(
 
     print("prepare genesis")
     # use a full node directory to prepare the genesis file
-    genesis = gen_genesis(cli, outdir / FULLNODE_GROUP / "0", peers, genesis_patch)
+    genesis = gen_genesis(cli, outdir / VALIDATOR_GROUP / "0", peers, genesis_patch)
 
     print("patch genesis")
     # write genesis file and patch config files

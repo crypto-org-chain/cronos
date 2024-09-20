@@ -86,6 +86,11 @@ def gen_genesis(
 ):
     accounts = list(itertools.chain(*(peer.accounts for peer in peers)))
     print("adding genesis accounts", len(accounts))
+
+    # skip the validator account of the first node, because we use that node's home,
+    # and it's already added
+    accounts = accounts[1:]
+
     with tempfile.NamedTemporaryFile() as fp:
         fp.write(json.dumps(accounts, default=pydantic_encoder).encode())
         fp.flush()
