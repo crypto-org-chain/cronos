@@ -170,7 +170,8 @@ ADD ./out {dst}
 @click.option("--datadir", default="/data")
 @click.option("--cronosd", default=CONTAINER_CRONOSD_PATH)
 @click.option("--global-seq", default=None)
-def run(outdir: str, datadir: str, cronosd, global_seq):
+@click.option("--exit-on-finish/--no-exit-on-finish", default=False)
+def run(outdir: str, datadir: str, cronosd, global_seq, exit_on_finish):
     datadir = Path(datadir)
     cfg = json.loads((datadir / "config.json").read_text())
 
@@ -184,8 +185,10 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
     home = datadir / group / str(group_seq)
 
     try:
-        return do_run(home, cronosd, group, global_seq, cfg)
+        return do_run(home, cronosd, group, global_seq, cfg, exit_on_finish)
     finally:
+        if group == FULLNODE_GROUP and exit_on_finish:
+            return
         # collect outputs
         output = Path("/data.tar.bz2")
         with tarfile.open(output, "x:bz2") as tar:
@@ -198,7 +201,14 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
             shutil.copy(output, filename)
 
 
-def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
+def do_run(
+    home: str,
+    cronosd: str,
+    group: str,
+    global_seq: int,
+    cfg: dict,
+    exit_on_finish: bool,
+):
     if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
         print("preparing", cfg["num_accounts"] * cfg["num_txs"], "txs")
         txs = prepare_txs(global_seq, cfg["num_accounts"], cfg["num_txs"])
@@ -225,7 +235,8 @@ def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
         asyncio.run(send_txs(txs))
 
     # node quit when the chain is idle or halted for a while
-    detect_idle_halted(20, 20)
+    if group == VALIDATOR_GROUP or (group == FULLNODE_GROUP and not exit_on_finish):
+        detect_idle_halted(20, 20)
 
     with (home / "block_stats.log").open("w") as logfile:
         dump_block_stats(logfile)
