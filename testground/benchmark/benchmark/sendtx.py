@@ -1,6 +1,5 @@
 import asyncio
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import aiohttp
 import ujson
@@ -63,19 +62,6 @@ def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
         "nonce:",
         w3.eth.get_transaction_count(acct.address),
     )
-
-
-def generate_load(num_accounts, num_txs, global_seq, **kwargs):
-    w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
-    assert w3.eth.chain_id == CHAIN_ID
-    accounts = [gen_account(global_seq, i + 1) for i in range(num_accounts)]
-    with ThreadPoolExecutor(max_workers=num_accounts) as executor:
-        futs = (executor.submit(sendtx, w3, acct, num_txs) for acct in accounts)
-        for fut in as_completed(futs):
-            try:
-                fut.result()
-            except Exception as e:
-                print("test task failed", e)
 
 
 def prepare_txs(global_seq, num_accounts, num_txs):
