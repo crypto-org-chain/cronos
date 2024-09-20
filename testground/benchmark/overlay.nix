@@ -40,6 +40,6 @@ let
 
 in
 {
-  testground-testcase = final.callPackage benchmark { };
-  testground-testcase-env = final.callPackage benchmark-env { };
+  benchmark-testcase = final.callPackage benchmark { };
+  benchmark-testcase-env = final.callPackage benchmark-env { };
 }
