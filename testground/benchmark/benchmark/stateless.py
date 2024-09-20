@@ -13,6 +13,7 @@ from typing import List
 import click
 import tomlkit
 
+from . import transaction
 from .cli import ChainCommand
 from .echo import run_echo_server
 from .peer import (
@@ -23,7 +24,6 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .sendtx import prepare_txs, send_txs
 from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
@@ -184,7 +184,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
     home = datadir / group / str(group_seq)
 
     try:
-        return do_run(home, cronosd, group, global_seq, cfg)
+        return do_run(datadir, home, cronosd, group, global_seq, cfg)
     finally:
         # collect outputs
         output = Path("/data.tar.bz2")
@@ -198,10 +198,45 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
             shutil.copy(output, filename)
 
 
-def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
+@cli.command()
+@click.argument("outdir")
+@click.option("--nodes", default=10)
+@click.option("--num-accounts", default=10)
+@click.option("--num-txs", default=1000)
+def gen_txs(**kwargs):
+    return _gen_txs(**kwargs)
+
+
+@cli.command()
+@click.argument("options", callback=validate_json)
+def generic_gen_txs(options: dict):
+    return _gen_txs(**options)
+
+
+def _gen_txs(
+    outdir: str,
+    nodes: int = 10,
+    num_accounts: int = 10,
+    num_txs: int = 1000,
+):
+    outdir = Path(outdir)
+    for global_seq in range(nodes):
+        print("generating", num_accounts * num_txs, "txs for node", global_seq)
+        txs = transaction.gen(global_seq, num_accounts, num_txs)
+        transaction.save(txs, outdir, global_seq)
+        print("saved", len(txs), "txs for node", global_seq)
+
+
+def do_run(
+    datadir: Path, home: Path, cronosd: str, group: str, global_seq: int, cfg: dict
+):
     if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
-        print("preparing", cfg["num_accounts"] * cfg["num_txs"], "txs")
-        txs = prepare_txs(global_seq, cfg["num_accounts"], cfg["num_txs"])
+        txs = transaction.load(datadir, global_seq)
+        if txs:
+            print("loaded", len(txs), "txs")
+        else:
+            print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
+            txs = transaction.gen(global_seq, cfg["num_accounts"], cfg["num_txs"])
     else:
         txs = []
 
@@ -222,7 +257,8 @@ def do_run(home: str, cronosd: str, group: str, global_seq: int, cfg: dict):
     wait_for_block(cli, 3)
 
     if txs:
-        asyncio.run(send_txs(txs))
+        asyncio.run(transaction.send(txs))
+        print("sent", len(txs), "txs")
 
     # node quit when the chain is idle or halted for a while
     detect_idle_halted(20, 20)

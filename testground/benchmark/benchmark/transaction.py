@@ -1,17 +1,16 @@
 import asyncio
-import time
+from pathlib import Path
 
 import aiohttp
 import ujson
-import web3
-from eth_account import Account
 
-from .utils import gen_account, send_transaction
+from .utils import gen_account
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
 LOCAL_JSON_RPC = "http://localhost:8545"
 CONNECTION_POOL_SIZE = 1024
+TXS_DIR = "txs"
 
 
 def test_tx(nonce: int):
@@ -25,55 +24,33 @@ def test_tx(nonce: int):
     }
 
 
-def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
-    initial_nonce = w3.eth.get_transaction_count(acct.address)
-    print(
-        "test begin, address:",
-        acct.address,
-        "balance:",
-        w3.eth.get_balance(acct.address),
-        "nonce:",
-        initial_nonce,
-    )
-
-    nonce = initial_nonce
-    while nonce < initial_nonce + tx_amount:
-        try:
-            send_transaction(w3, test_tx(nonce), acct, wait=False)
-        except ValueError as e:
-            msg = str(e)
-            if "invalid nonce" in msg:
-                print("invalid nonce and retry", nonce)
-                time.sleep(1)
-                continue
-            if "tx already in mempool" not in msg:
-                raise
-
-        nonce += 1
-
-        if nonce % 100 == 0:
-            print(f"{acct.address} sent {nonce} transactions")
-
-    print(
-        "test end, address:",
-        acct.address,
-        "balance:",
-        w3.eth.get_balance(acct.address),
-        "nonce:",
-        w3.eth.get_transaction_count(acct.address),
-    )
-
-
-def prepare_txs(global_seq, num_accounts, num_txs):
+def gen(global_seq, num_accounts, num_txs) -> [str]:
     accounts = [gen_account(global_seq, i + 1) for i in range(num_accounts)]
     txs = []
     for i in range(num_txs):
         for acct in accounts:
             txs.append(acct.sign_transaction(test_tx(i)).rawTransaction.hex())
             if len(txs) % 1000 == 0:
-                print("prepared", len(txs), "txs")
+                print("generated", len(txs), "txs for node", global_seq)
 
     return txs
+
+
+def save(txs: [str], datadir: Path, global_seq: int):
+    d = datadir / TXS_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{global_seq}.json"
+    with path.open("w") as f:
+        ujson.dump(txs, f)
+
+
+def load(datadir: Path, global_seq: int) -> [str]:
+    path = datadir / TXS_DIR / f"{global_seq}.json"
+    if not path.exists():
+        return
+
+    with path.open("r") as f:
+        return ujson.load(f)
 
 
 async def async_sendtx(session, raw):
@@ -91,7 +68,7 @@ async def async_sendtx(session, raw):
             print("send tx error", data["error"])
 
 
-async def send_txs(txs):
+async def send(txs):
     connector = aiohttp.TCPConnector(limit=1024)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
