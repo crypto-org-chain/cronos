@@ -221,6 +221,7 @@ def _gen_txs(
 ):
     outdir = Path(outdir)
     for global_seq in range(nodes):
+        print("generating", num_accounts * num_txs, "txs for node", global_seq)
         txs = transaction.gen(global_seq, num_accounts, num_txs)
         transaction.save(txs, outdir, global_seq)
         print("generated", len(txs), "txs for node", global_seq)
@@ -234,7 +235,12 @@ def do_run(
         if txs:
             print("loaded", len(txs), "txs")
         else:
-            print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
+            print(
+                "generating",
+                cfg["num_accounts"] * cfg["num_txs"],
+                "txs for node",
+                global_seq,
+            )
             txs = transaction.gen(global_seq, cfg["num_accounts"], cfg["num_txs"])
     else:
         txs = []
