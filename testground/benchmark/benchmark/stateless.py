@@ -224,7 +224,7 @@ def _gen_txs(
         print("generating", num_accounts * num_txs, "txs for node", global_seq)
         txs = transaction.gen(global_seq, num_accounts, num_txs)
         transaction.save(txs, outdir, global_seq)
-        print("generated", len(txs), "txs for node", global_seq)
+        print("saved", len(txs), "txs for node", global_seq)
 
 
 def do_run(
