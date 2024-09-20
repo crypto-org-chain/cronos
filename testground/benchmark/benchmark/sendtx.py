@@ -1,12 +1,9 @@
 import asyncio
-import time
 
 import aiohttp
 import ujson
-import web3
-from eth_account import Account
 
-from .utils import gen_account, send_transaction
+from .utils import gen_account
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
@@ -23,45 +20,6 @@ def test_tx(nonce: int):
         "gasPrice": GAS_PRICE,
         "chainId": CHAIN_ID,
     }
-
-
-def sendtx(w3: web3.Web3, acct: Account, tx_amount: int):
-    initial_nonce = w3.eth.get_transaction_count(acct.address)
-    print(
-        "test begin, address:",
-        acct.address,
-        "balance:",
-        w3.eth.get_balance(acct.address),
-        "nonce:",
-        initial_nonce,
-    )
-
-    nonce = initial_nonce
-    while nonce < initial_nonce + tx_amount:
-        try:
-            send_transaction(w3, test_tx(nonce), acct, wait=False)
-        except ValueError as e:
-            msg = str(e)
-            if "invalid nonce" in msg:
-                print("invalid nonce and retry", nonce)
-                time.sleep(1)
-                continue
-            if "tx already in mempool" not in msg:
-                raise
-
-        nonce += 1
-
-        if nonce % 100 == 0:
-            print(f"{acct.address} sent {nonce} transactions")
-
-    print(
-        "test end, address:",
-        acct.address,
-        "balance:",
-        w3.eth.get_balance(acct.address),
-        "nonce:",
-        w3.eth.get_transaction_count(acct.address),
-    )
 
 
 def prepare_txs(global_seq, num_accounts, num_txs):
