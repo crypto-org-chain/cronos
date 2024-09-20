@@ -31,7 +31,7 @@ def gen(global_seq, num_accounts, num_txs) -> [str]:
         for acct in accounts:
             txs.append(acct.sign_transaction(test_tx(i)).rawTransaction.hex())
             if len(txs) % 1000 == 0:
-                print("generated", len(txs), "txs")
+                print("generated", len(txs), "txs for node", global_seq)
 
     return txs
 

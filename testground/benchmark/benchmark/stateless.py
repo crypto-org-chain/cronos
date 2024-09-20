@@ -235,12 +235,7 @@ def do_run(
         if txs:
             print("loaded", len(txs), "txs")
         else:
-            print(
-                "generating",
-                cfg["num_accounts"] * cfg["num_txs"],
-                "txs for node",
-                global_seq,
-            )
+            print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
             txs = transaction.gen(global_seq, cfg["num_accounts"], cfg["num_txs"])
     else:
         txs = []
