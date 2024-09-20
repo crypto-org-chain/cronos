@@ -37,14 +37,14 @@ def gen(global_seq, num_accounts, num_txs) -> [str]:
 
 
 def save(txs: [str], datadir: Path, global_seq: int):
-    d = datadir / "txs"
+    d = datadir / TXS_DIR
     d.mkdir(parents=True, exist_ok=True)
     with (d / f"{global_seq}.json").open("w") as f:
         ujson.dump(txs, f)
 
 
 def load(datadir: Path, global_seq: int) -> [str]:
-    path = datadir / "txs" / f"{global_seq}.json"
+    path = datadir / TXS_DIR / f"{global_seq}.json"
     if not path.exists():
         return
 
