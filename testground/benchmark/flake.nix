@@ -63,19 +63,19 @@
           };
         in
         rec {
-          packages.default = pkgs.testground-testcase;
+          packages.default = pkgs.benchmark-testcase;
           apps = {
             default = {
               type = "app";
-              program = "${pkgs.testground-testcase}/bin/testground-testcase";
+              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
             };
             stateless-testcase = {
               type = "app";
-              program = "${pkgs.testground-testcase}/bin/stateless-testcase";
+              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
             };
           };
           devShells.default = pkgs.mkShell {
-            buildInputs = [ pkgs.testground-testcase-env ];
+            buildInputs = [ pkgs.benchmark-testcase-env ];
           };
           legacyPackages = pkgs;
         })

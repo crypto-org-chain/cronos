@@ -44,7 +44,7 @@
             cronosd-testnet = mkApp packages.cronosd-testnet;
             stateless-testcase = {
               type = "app";
-              program = "${pkgs.testground-testcase}/bin/stateless-testcase";
+              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
             };
           };
           defaultPackage = packages.cronosd;
