@@ -5,6 +5,7 @@
 ### Improvements
 
 * [#1592](https://github.com/crypto-org-chain/cronos/pull/1592) Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
+* [#1600](https://github.com/crypto-org-chain/cronos/pull/1600) Update ethermint to avoid unnecessary block result in header related api call.
 
 *Sep 13, 2024*
 
