@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 * [#1584](https://github.com/crypto-org-chain/cronos/pull/1584) Update ethermint to fix of mismatch tx hash in newHeads.
+* [#]() Fix trace block inconsistency with state machine.
 
 *Jul 26, 2024*
 
