@@ -8,7 +8,7 @@ import tarfile
 import tempfile
 import time
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import click
 import tomlkit
@@ -203,6 +203,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 @click.option("--nodes", default=10)
 @click.option("--num-accounts", default=10)
 @click.option("--num-txs", default=1000)
+@click.option("--node", type=int)
 def gen_txs(**kwargs):
     return _gen_txs(**kwargs)
 
@@ -218,13 +219,21 @@ def _gen_txs(
     nodes: int = 10,
     num_accounts: int = 10,
     num_txs: int = 1000,
+    node: Optional[int] = None,
 ):
     outdir = Path(outdir)
-    for global_seq in range(nodes):
+
+    def job(global_seq):
         print("generating", num_accounts * num_txs, "txs for node", global_seq)
         txs = transaction.gen(global_seq, num_accounts, num_txs)
         transaction.save(txs, outdir, global_seq)
         print("saved", len(txs), "txs for node", global_seq)
+
+    if node is not None:
+        job(node)
+    else:
+        for global_seq in range(nodes):
+            job(global_seq)
 
 
 def do_run(
