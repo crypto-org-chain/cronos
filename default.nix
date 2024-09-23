@@ -11,7 +11,7 @@
 , nativeByteOrder ? true # nativeByteOrder mode will panic on big endian machines
 }:
 let
-  version = "v1.3.1";
+  version = "v1.3.2";
   pname = "cronosd";
   tags = [ "ledger" "netgo" network "rocksdb" "grocksdb_no_link" ] ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
   ldflags = lib.concatStringsSep "\n" ([
