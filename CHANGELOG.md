@@ -1,12 +1,13 @@
 # Changelog
 
-*Sep 23, 2024*
+*Sep 24, 2024*
 
 ## v1.3.2
 
 ### Bug Fixes
 
 * [#1584](https://github.com/crypto-org-chain/cronos/pull/1584) Update ethermint to fix of mismatch tx hash in newHeads.
+* [#1603](https://github.com/crypto-org-chain/cronos/pull/1603) Fix trace block inconsistency with state machine.
 
 *Jul 26, 2024*
 
