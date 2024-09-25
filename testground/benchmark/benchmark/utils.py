@@ -31,9 +31,27 @@ def patch_toml(path: Path, patch):
     return doc
 
 
-def patch_json(path: Path, patch):
+_merger = jsonmerge.Merger(
+    {
+        "properties": {
+            "app_state": {
+                "properties": {
+                    "auth": {"properties": {"accounts": {"mergeStrategy": "append"}}},
+                    "evm": {"properties": {"accounts": {"mergeStrategy": "append"}}},
+                }
+            }
+        }
+    }
+)
+
+
+def merge_genesis(base, head):
+    return _merger.merge(base, head)
+
+
+def patch_genesis(path: Path, patch):
     doc = json.loads(path.read_text())
-    doc = jsonmerge.merge(doc, patch)
+    doc = merge_genesis(doc, patch)
     path.write_text(json.dumps(doc))
     return doc
 

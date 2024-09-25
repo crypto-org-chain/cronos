@@ -2,8 +2,10 @@ import asyncio
 from pathlib import Path
 
 import aiohttp
+import eth_abi
 import ujson
 
+from .erc20 import CONTRACT_ADDRESS
 from .utils import gen_account
 
 GAS_PRICE = 1000000000
@@ -11,11 +13,12 @@ CHAIN_ID = 777
 LOCAL_JSON_RPC = "http://localhost:8545"
 CONNECTION_POOL_SIZE = 1024
 TXS_DIR = "txs"
+RECIPIENT = "0x1" + "0" * 39
 
 
-def test_tx(nonce: int):
+def simple_transfer_tx(nonce: int):
     return {
-        "to": "0x0000000000000000000000000000000000000000",
+        "to": RECIPIENT,
         "value": 1,
         "nonce": nonce,
         "gas": 21000,
@@ -24,12 +27,33 @@ def test_tx(nonce: int):
     }
 
 
-def gen(global_seq, num_accounts, num_txs) -> [str]:
+def erc20_transfer_tx(nonce: int):
+    # data is erc20 transfer function call
+    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [RECIPIENT, 1]).hex()
+    return {
+        "to": CONTRACT_ADDRESS,
+        "value": 0,
+        "nonce": nonce,
+        "gas": 51630,
+        "gasPrice": GAS_PRICE,
+        "chainId": CHAIN_ID,
+        "data": data,
+    }
+
+
+TX_TYPES = {
+    "simple-transfer": simple_transfer_tx,
+    "erc20-transfer": erc20_transfer_tx,
+}
+
+
+def gen(global_seq, num_accounts, num_txs, tx_type: str) -> [str]:
     accounts = [gen_account(global_seq, i + 1) for i in range(num_accounts)]
     txs = []
+    create_tx = TX_TYPES[tx_type]
     for i in range(num_txs):
         for acct in accounts:
-            txs.append(acct.sign_transaction(test_tx(i)).rawTransaction.hex())
+            txs.append(acct.sign_transaction(create_tx(i)).rawTransaction.hex())
             if len(txs) % 1000 == 0:
                 print("generated", len(txs), "txs for node", global_seq)
 

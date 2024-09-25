@@ -7,9 +7,17 @@ from typing import List
 import jsonmerge
 from pydantic.json import pydantic_encoder
 
+from . import erc20
 from .cli import ChainCommand
 from .types import Balance, GenesisAccount, PeerPacket
-from .utils import eth_to_bech32, gen_account, patch_json, patch_toml
+from .utils import (
+    bech32_to_eth,
+    eth_to_bech32,
+    gen_account,
+    merge_genesis,
+    patch_genesis,
+    patch_toml,
+)
 
 DEFAULT_DENOM = "basecro"
 VAL_ACCOUNT = "validator"
@@ -103,13 +111,21 @@ def gen_genesis(
     collect_gen_tx(cli, peers, home=leader_home)
     cli("genesis", "validate", home=leader_home)
     print("genesis validated")
-    return patch_json(
+
+    evm_accounts, auth_accounts = erc20.genesis_accounts(
+        erc20.CONTRACT_ADDRESS, [bech32_to_eth(acct.address) for acct in accounts]
+    )
+    return patch_genesis(
         leader_home / "config" / "genesis.json",
-        jsonmerge.merge(
+        merge_genesis(
             {
                 "consensus": {"params": {"block": {"max_gas": "163000000"}}},
                 "app_state": {
-                    "evm": {"params": {"evm_denom": "basecro"}},
+                    "evm": {
+                        "params": {"evm_denom": DEFAULT_DENOM},
+                        "accounts": evm_accounts,
+                    },
+                    "auth": {"accounts": auth_accounts},
                     "feemarket": {"params": {"no_base_fee": True}},
                 },
             },

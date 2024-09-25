@@ -1490,6 +1490,20 @@ pluggy = ">=1.5,<2.0"
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-github-actions-annotate-failures"
+version = "0.2.0"
+description = "pytest plugin to annotate failed tests with a workflow command for GitHub Actions"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pytest-github-actions-annotate-failures-0.2.0.tar.gz", hash = "sha256:844ab626d389496e44f960b42f0a72cce29ae06d363426d17ea9ae1b4bef2288"},
+    {file = "pytest_github_actions_annotate_failures-0.2.0-py3-none-any.whl", hash = "sha256:8bcef65fed503faaa0524b59cfeccc8995130972dd7b008d64193cc41b9cde85"},
+]
+
+[package.dependencies]
+pytest = ">=4.0.0"
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -2202,4 +2216,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "0fb7ea7cb80f99d281286bd73bc04631c191c6b75b7375fa98cc9e590ff65074"
+content-hash = "d3ec463f4fb25df15b04f1f22110475db33719e5e9de2c821b9e4bf2eb857fc5"
