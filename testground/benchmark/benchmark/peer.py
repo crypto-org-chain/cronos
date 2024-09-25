@@ -122,7 +122,7 @@ def gen_genesis(
                 "consensus": {"params": {"block": {"max_gas": "163000000"}}},
                 "app_state": {
                     "evm": {
-                        "params": {"evm_denom": "basecro"},
+                        "params": {"evm_denom": DEFAULT_DENOM},
                         "accounts": evm_accounts,
                     },
                     "auth": {"accounts": auth_accounts},

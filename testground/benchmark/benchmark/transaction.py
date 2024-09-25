@@ -13,12 +13,12 @@ CHAIN_ID = 777
 LOCAL_JSON_RPC = "http://localhost:8545"
 CONNECTION_POOL_SIZE = 1024
 TXS_DIR = "txs"
-RECIPENT = "0x1" + "0" * 39
+RECIPIENT = "0x1" + "0" * 39
 
 
 def simple_transfer_tx(nonce: int):
     return {
-        "to": RECIPENT,
+        "to": RECIPIENT,
         "value": 1,
         "nonce": nonce,
         "gas": 21000,
@@ -29,7 +29,7 @@ def simple_transfer_tx(nonce: int):
 
 def erc20_transfer_tx(nonce: int):
     # data is erc20 transfer function call
-    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [RECIPENT, 1]).hex()
+    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [RECIPIENT, 1]).hex()
     return {
         "to": CONTRACT_ADDRESS,
         "value": 0,
