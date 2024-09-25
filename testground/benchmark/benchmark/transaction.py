@@ -34,7 +34,7 @@ def erc20_transfer_tx(nonce: int):
         "to": CONTRACT_ADDRESS,
         "value": 0,
         "nonce": nonce,
-        "gas": 60000,
+        "gas": 51630,
         "gasPrice": GAS_PRICE,
         "chainId": CHAIN_ID,
         "data": data,
