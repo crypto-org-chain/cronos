@@ -81,6 +81,7 @@
           go = super.go_1_22;
           test-env = final.callPackage ./nix/testenv.nix { };
           cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
+            inherit rev;
             bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
           };
           testground-image = final.callPackage ./nix/testground-image.nix { };
