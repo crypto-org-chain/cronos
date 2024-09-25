@@ -28,7 +28,7 @@ build() {
         fi
     fi
     echo "building $FLAKE"
-    nix build -L "$FLAKE"
+    nix build --no-update-lock-file -L "$FLAKE"
     cp result "cronos_${ref_name_clean:1}${network}_${name}.tar.gz"
 }
 
