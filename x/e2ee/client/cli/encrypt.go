@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"io"
 	"os"
@@ -41,7 +40,7 @@ func EncryptCommand() *cobra.Command {
 
 			// query encryption key from chain state
 			client := types.NewQueryClient(clientCtx)
-			rsp, err := client.Keys(context.Background(), &types.KeysRequest{
+			rsp, err := client.Keys(clientCtx.CmdContext, &types.KeysRequest{
 				Addresses: recs,
 			})
 			if err != nil {
