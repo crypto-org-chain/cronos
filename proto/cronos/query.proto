@@ -36,6 +36,11 @@ service Query {
     option (google.api.http).get = "/cronos/v1/permissions";
   }
 
+  // BlockList
+  rpc BlockList(QueryBlockListRequest) returns (QueryBlockListResponse) {
+    option (google.api.http).get = "/cronos/v1/blocklist";
+  }
+
   // this line is used by starport scaffolding # 2
 }
 
@@ -105,4 +110,10 @@ message QueryPermissionsResponse {
   bool can_turn_bridge          = 2;
 }
 
-// this line is used by starport scaffolding # 3
+// QueryBlockListRequest
+message QueryBlockListRequest { }
+
+// QueryBlockListResponse
+message QueryBlockListResponse {
+  bytes blob = 1;
+}
