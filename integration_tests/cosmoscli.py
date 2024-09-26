@@ -1687,6 +1687,24 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
+    def store_blocklist(self, data, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "store-block-list",
+                data,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
 
