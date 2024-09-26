@@ -318,6 +318,18 @@ class CosmosCLI:
             )
         )
 
+    def account_by_num(self, num):
+        return json.loads(
+            self.raw(
+                "q",
+                "auth",
+                "address-by-acc-num",
+                num,
+                output="json",
+                node=self.node_rpc,
+            )
+        )
+
     def total_supply(self):
         return json.loads(
             self.raw("query", "bank", "total", output="json", node=self.node_rpc)

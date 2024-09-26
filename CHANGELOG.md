@@ -9,6 +9,10 @@
 * [#1606](https://github.com/crypto-org-chain/cronos/pull/1606) Fix pebbledb support.
 * [#1610](https://github.com/crypto-org-chain/cronos/pull/1610) Sync e2ee module with v1.3.x branch.
 
+### Bug Fixes
+
+* [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
+
 *Sep 13, 2024*
 
 ## v1.4.0-rc0
