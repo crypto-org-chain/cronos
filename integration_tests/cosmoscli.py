@@ -1811,7 +1811,7 @@ class CosmosCLI:
             )
         ).get("send_enabled", [])
 
-        def query_e2ee_key(self, address):
+    def query_e2ee_key(self, address):
         return json.loads(
             self.raw(
                 "q",
