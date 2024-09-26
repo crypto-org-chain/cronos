@@ -59,6 +59,12 @@
       client_config: {
         'broadcast-mode': 'sync',
       },
+      config: {
+        db_backend: 'pebbledb',
+      },
+      'app-config': {
+        'app-db-backend': 'pebbledb',
+      },
     }],
     accounts: [{
       name: 'community',

@@ -15,7 +15,7 @@ COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 
 # process build tags
-build_tags = netgo objstore
+build_tags = netgo objstore pebbledb
 ifeq ($(NETWORK),mainnet)
     build_tags += mainnet
 else ifeq ($(NETWORK),testnet)
