@@ -247,6 +247,18 @@ class CosmosCLI:
         assert "error" not in rsp, rsp["error"]
         return rsp["result"]["txs"]
 
+    def query_account(self, addr, **kwargs):
+        return json.loads(
+            self.raw(
+                "query",
+                "auth",
+                "account",
+                addr,
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
     def distribution_commission(self, addr):
         coin = json.loads(
             self.raw(
