@@ -15,6 +15,8 @@ import (
 	stdruntime "runtime"
 	"sort"
 
+	"filippo.io/age"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmos "github.com/cometbft/cometbft/libs/os"
 	dbm "github.com/cosmos/cosmos-db"
@@ -159,6 +161,7 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
 	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
@@ -360,23 +363,57 @@ func New(
 	cdc := encodingConfig.Amino
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
-
+	txDecoder := txConfig.TxDecoder()
 	eip712.SetEncodingConfig(encodingConfig)
 
+	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	var identity age.Identity
+	{
+		if cast.ToString(appOpts.Get("mode")) == "validator" {
+			krBackend := cast.ToString(appOpts.Get(flags.FlagKeyringBackend))
+			kr, err := e2eekeyring.New("cronosd", krBackend, homePath, os.Stdin)
+			if err != nil {
+				panic(err)
+			}
+			bz, err := kr.Get(e2eetypes.DefaultKeyringName)
+			if err != nil {
+				logger.Error("e2ee identity for validator not found", "error", err)
+			} else {
+				identity, err = age.ParseX25519Identity(string(bz))
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+	}
+
+	var mpool mempool.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
-		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
-		baseAppOptions = append(baseAppOptions, baseapp.SetMempool(mempool))
+	} else {
+		mpool = mempool.NoOpMempool{}
 	}
+	blockProposalHandler := NewProposalHandler(txDecoder, identity)
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(mpool)
+
+		// Re-use the default prepare proposal handler, extend the transaction validation logic
+		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+			baseapp.NewDefaultTxSelector(),
+			txDecoder,
+			blockProposalHandler.ValidateTransaction,
+		))
+	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
 
-	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	var cacheSize int
 	if !blockSTMEnabled {
 		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
