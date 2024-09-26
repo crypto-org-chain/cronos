@@ -365,7 +365,16 @@ class CosmosCLI:
         res = res.get("pool") or res
         return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
 
-    def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
+    def transfer(
+        self,
+        from_,
+        to,
+        coins,
+        generate_only=False,
+        event_query_tx=True,
+        fees=None,
+        **kwargs,
+    ):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         rsp = json.loads(
             self.raw(
@@ -382,7 +391,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )
-        if rsp["code"] == 0:
+        if rsp["code"] == 0 and event_query_tx:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
@@ -1837,7 +1846,6 @@ class CosmosCLI:
                 "event-query-tx-for",
                 hash,
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
             )
         )
 
