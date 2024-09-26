@@ -64,11 +64,12 @@ type ProposalHandler struct {
 	addressCodec  address.Codec
 }
 
-func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity) *ProposalHandler {
+func NewProposalHandler(txDecoder sdk.TxDecoder, identity age.Identity, addressCodec address.Codec) *ProposalHandler {
 	return &ProposalHandler{
-		TxDecoder: txDecoder,
-		Identity:  identity,
-		blocklist: make(map[string]struct{}),
+		TxDecoder:    txDecoder,
+		Identity:     identity,
+		blocklist:    make(map[string]struct{}),
+		addressCodec: addressCodec,
 	}
 }
 

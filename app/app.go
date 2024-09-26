@@ -387,6 +387,8 @@ func New(
 		}
 	}
 
+	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+
 	var mpool mempool.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
@@ -399,7 +401,7 @@ func New(
 	} else {
 		mpool = mempool.NoOpMempool{}
 	}
-	blockProposalHandler := NewProposalHandler(txDecoder, identity)
+	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -486,7 +488,7 @@ func New(
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		ethermint.ProtoAccount,
 		maccPerms,
-		authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix()),
+		addressCodec,
 		sdk.GetConfig().GetBech32AccountAddrPrefix(),
 		authAddr,
 	)
