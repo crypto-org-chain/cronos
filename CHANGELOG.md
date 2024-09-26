@@ -8,6 +8,10 @@
 * [#1600](https://github.com/crypto-org-chain/cronos/pull/1600) Update ethermint to avoid unnecessary block result in header related api call.
 * [#1606](https://github.com/crypto-org-chain/cronos/pull/1606) Fix pebbledb support.
 
+### Bug Fixes
+
+* [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
+
 *Sep 13, 2024*
 
 ## v1.4.0-rc0
