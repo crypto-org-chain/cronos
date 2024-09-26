@@ -16,15 +16,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	"github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
 	"github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
 	"github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 )
 
 var (
-	_ module.AppModule        = AppModule{}
-	_ module.AppModuleBasic   = AppModuleBasic{}
-	_ module.HasGenesisBasics = AppModuleBasic{}
-	_ module.HasName          = AppModuleBasic{}
+	_ module.AppModule      = AppModule{}
+	_ module.AppModuleBasic = AppModuleBasic{}
 	// this line is used by starport scaffolding # ibc/module/interface
 )
 
@@ -80,6 +79,16 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
 		panic(err)
 	}
+}
+
+// GetTxCmd returns the capability module's root tx command.
+func (a AppModuleBasic) GetTxCmd() *cobra.Command {
+	return cli.GetTxCmd()
+}
+
+// GetQueryCmd returns the capability module's root query command.
+func (AppModuleBasic) GetQueryCmd() *cobra.Command {
+	return cli.GetQueryCmd(types.StoreKey)
 }
 
 // ----------------------------------------------------------------------------

@@ -77,7 +77,7 @@ func New(
 			PassPrefix:      prefix,
 		})
 	default:
-		return nil, errorsmod.Wrap(sdkkeyring.ErrUnknownBacked, backend)
+		return nil, fmt.Errorf("unknown keyring backend %v", backend)
 	}
 
 	if err != nil {
@@ -148,7 +148,7 @@ func newRealPrompt(dir string, buf io.Reader) func(string) (string, error) {
 		for {
 			failureCounter++
 			if failureCounter > maxPassphraseEntryAttempts {
-				return "", sdkkeyring.ErrMaxPassPhraseAttempts
+				return "", fmt.Errorf("too many failed passphrase attempts")
 			}
 
 			buf := bufio.NewReader(buf)

@@ -2,25 +2,23 @@ package cli
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"os"
 
 	"filippo.io/age"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/spf13/cobra"
 
 	"github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 )
 
-const (
-	FlagRecipient = "recipient"
-)
-
-func EncryptCommand() *cobra.Command {
+func EncryptToValidatorsCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "encrypt [input-file]",
+		Use:   "encrypt-to-validators [input-file]",
 		Short: "Encrypt input file to one or multiple recipients",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -34,9 +32,25 @@ func EncryptCommand() *cobra.Command {
 				return err
 			}
 
-			recs, err := cmd.Flags().GetStringArray(FlagRecipient)
+			ctx := context.Background()
+
+			// get validator list
+			stakingClient := stakingtypes.NewQueryClient(clientCtx)
+			valsRsp, err := stakingClient.Validators(ctx, &stakingtypes.QueryValidatorsRequest{
+				Status: stakingtypes.BondStatusBonded,
+			})
 			if err != nil {
 				return err
+			}
+
+			recs := make([]string, len(valsRsp.Validators))
+			for i, val := range valsRsp.Validators {
+				bz, err := sdk.ValAddressFromBech32(val.OperatorAddress)
+				if err != nil {
+					return err
+				}
+				// convert to account address
+				recs[i] = sdk.AccAddress(bz).String()
 			}
 
 			// query encryption key from chain state
@@ -50,9 +64,15 @@ func EncryptCommand() *cobra.Command {
 
 			recipients := make([]age.Recipient, len(recs))
 			for i, key := range rsp.Keys {
+				if len(key) == 0 {
+					fmt.Fprintf(os.Stderr, "missing encryption key for validator %s\n", recs[i])
+					continue
+				}
+
 				recipient, err := age.ParseX25519Recipient(key)
 				if err != nil {
-					return err
+					fmt.Fprintf(os.Stderr, "invalid encryption key for validator %s, %v\n", recs[i], err)
+					continue
 				}
 				recipients[i] = recipient
 			}
@@ -85,22 +105,6 @@ func EncryptCommand() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringArrayP(FlagRecipient, "r", []string{}, "recipients")
 	f.StringP(flags.FlagOutput, "o", "-", "output file (default stdout)")
 	return cmd
-}
-
-func encrypt(recipients []age.Recipient, in io.Reader, out io.Writer) (err error) {
-	var w io.WriteCloser
-	w, err = age.Encrypt(out, recipients...)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		err = errors.Join(err, w.Close())
-	}()
-
-	_, err = io.Copy(w, in)
-	return
 }

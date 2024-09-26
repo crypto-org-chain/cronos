@@ -1811,7 +1811,7 @@ class CosmosCLI:
             )
         ).get("send_enabled", [])
 
-    def query_e2ee_key(self, address):
+        def query_e2ee_key(self, address):
         return json.loads(
             self.raw(
                 "q",
@@ -1853,10 +1853,13 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def keygen(self, **kwargs):
+    def e2ee_keygen(self, **kwargs):
         return self.raw("e2ee", "keygen", home=self.data_dir, **kwargs).strip().decode()
 
-    def encrypt(self, input, *recipients, **kwargs):
+    def e2ee_pubkey(self, **kwargs):
+        return self.raw("e2ee", "pubkey", home=self.data_dir, **kwargs).strip().decode()
+
+    def e2ee_encrypt(self, input, *recipients, **kwargs):
         return (
             self.raw(
                 "e2ee",
@@ -1870,7 +1873,7 @@ class CosmosCLI:
             .decode()
         )
 
-    def decrypt(self, input, identity="e2ee-identity", **kwargs):
+    def e2ee_decrypt(self, input, identity="e2ee-identity", **kwargs):
         return (
             self.raw(
                 "e2ee",
@@ -1878,6 +1881,19 @@ class CosmosCLI:
                 input,
                 home=self.data_dir,
                 identity=identity,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def e2ee_encrypt_to_validators(self, input, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt-to-validators",
+                input,
+                home=self.data_dir,
                 **kwargs,
             )
             .strip()
