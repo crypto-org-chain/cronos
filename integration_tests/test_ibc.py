@@ -1,5 +1,8 @@
+import json
+
 import pytest
 
+from .cosmoscli import module_address
 from .ibc_utils import (
     RATIO,
     assert_ready,
@@ -10,10 +13,13 @@ from .ibc_utils import (
     ibc_incentivized_transfer,
     ibc_transfer,
     prepare_network,
+    register_fee_payee,
+    wait_for_check_channel_ready,
 )
 from .utils import (
     ADDRS,
     CONTRACTS,
+    approve_proposal,
     deploy_contract,
     parse_events_rpc,
     send_transaction,
@@ -58,10 +64,39 @@ def test_ibc_transfer(ibc):
         assert not dup, f"duplicate {dup} in {event['type']}"
 
 
-def test_ibc_incentivized_transfer(ibc):
+def test_ibc_incentivized_transfer(ibc, tmp_path):
     if not ibc.incentivized:
-        # this test case only works for incentivized channel.
-        return
+        # upgrade to incentivized
+        src_chain = ibc.cronos.cosmos_cli()
+        dst_chain = ibc.chainmain.cosmos_cli()
+        version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+        community = "community"
+        authority = module_address("gov")
+        connid = "connection-0"
+        channel_id = "channel-0"
+        deposit = "1basetcro"
+        proposal_src = src_chain.ibc_upgrade_channels(
+            version,
+            community,
+            deposit=deposit,
+            title="channel-upgrade-title",
+            summary="summary",
+            port_pattern="transfer",
+            channel_ids=channel_id,
+        )
+        proposal_src["deposit"] = deposit
+        proposal_src["proposer"] = authority
+        proposal_src["messages"][0]["signer"] = authority
+        proposal = tmp_path / "proposal.json"
+        proposal.write_text(json.dumps(proposal_src))
+        rsp = src_chain.submit_gov_proposal(proposal, from_=community)
+        assert rsp["code"] == 0, rsp["raw_log"]
+        approve_proposal(ibc.cronos, rsp["events"])
+        wait_for_check_channel_ready(
+            src_chain, connid, channel_id, "STATE_FLUSHCOMPLETE"
+        )
+        wait_for_check_channel_ready(src_chain, connid, channel_id)
+        register_fee_payee(src_chain, dst_chain)
     ibc_incentivized_transfer(ibc)
 
 
