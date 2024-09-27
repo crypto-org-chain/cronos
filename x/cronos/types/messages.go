@@ -1,7 +1,12 @@
 package types
 
 import (
+	"bytes"
+
+	stderrors "errors"
+
 	"cosmossdk.io/errors"
+	"filippo.io/age"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,6 +19,7 @@ const (
 	TypeMsgUpdateParams       = "UpdateParams"
 	TypeMsgTurnBridge         = "TurnBridge"
 	TypeMsgUpdatePermissions  = "UpdatePermissions"
+	TypeMsgStoreBlockList     = "StoreBlockList"
 )
 
 var (
@@ -23,6 +29,7 @@ var (
 	_ sdk.Msg = &MsgUpdateParams{}
 	_ sdk.Msg = &MsgTurnBridge{}
 	_ sdk.Msg = &MsgUpdatePermissions{}
+	_ sdk.Msg = &MsgStoreBlockList{}
 )
 
 func NewMsgConvertVouchers(address string, coins sdk.Coins) *MsgConvertVouchers {
@@ -317,4 +324,57 @@ func (msg MsgUpdatePermissions) Type() string {
 func (msg *MsgUpdatePermissions) GetSignBytes() []byte {
 	bz := ModuleCdc.MustMarshalJSON(msg)
 	return sdk.MustSortJSON(bz)
+}
+
+func NewMsgStoreBlockList(from string, blob []byte) *MsgStoreBlockList {
+	return &MsgStoreBlockList{
+		From: from,
+		Blob: blob,
+	}
+}
+
+var errDummyIdentity = stderrors.New("dummy")
+
+type dummyIdentity struct{}
+
+func (i *dummyIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
+	return nil, errDummyIdentity
+}
+
+func (msg *MsgStoreBlockList) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
+	}
+
+	_, err = age.Decrypt(bytes.NewBuffer(msg.Blob), new(dummyIdentity))
+	if err != nil && err != errDummyIdentity {
+		return err
+	}
+	return nil
+}
+
+func (msg *MsgStoreBlockList) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.From)
+	if err != nil {
+		panic(err)
+	}
+
+	return []sdk.AccAddress{addr}
+}
+
+// GetSignBytes ...
+func (msg *MsgStoreBlockList) GetSignBytes() []byte {
+	bz := ModuleCdc.MustMarshalJSON(msg)
+	return sdk.MustSortJSON(bz)
+}
+
+// Route ...
+func (msg MsgStoreBlockList) Route() string {
+	return RouterKey
+}
+
+// Type ...
+func (msg MsgStoreBlockList) Type() string {
+	return TypeMsgStoreBlockList
 }

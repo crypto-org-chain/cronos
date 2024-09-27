@@ -7,6 +7,7 @@
 * [#1592](https://github.com/crypto-org-chain/cronos/pull/1592) Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
 * [#1600](https://github.com/crypto-org-chain/cronos/pull/1600) Update ethermint to avoid unnecessary block result in header related api call.
 * [#1606](https://github.com/crypto-org-chain/cronos/pull/1606) Fix pebbledb support.
+* [#1610](https://github.com/crypto-org-chain/cronos/pull/1610) Sync e2ee module with v1.3.x branch.
 
 ### Bug Fixes
 
