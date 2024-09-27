@@ -1,8 +1,8 @@
 diff --git a/app/app.go b/app/app.go
-index c5190b3..1aaa765 100644
+index 6e9d3a80..83b83274 100644
 --- a/app/app.go
 +++ b/app/app.go
-@@ -1057,6 +1057,11 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
+@@ -1144,6 +1144,10 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
  
  // EndBlocker application updates every end block
  func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
@@ -10,7 +10,6 @@ index c5190b3..1aaa765 100644
 +		store := ctx.KVStore(app.keys["cronos"])
 +		store.Set([]byte("hello"), []byte("world"))
 +	}
-+
- 	return app.ModuleManager.EndBlock(ctx)
- }
- 
+ 	rsp, err := app.ModuleManager.EndBlock(ctx)
+ 	if err := app.RefreshBlockList(ctx); err != nil {
+ 		app.Logger().Error("failed to update blocklist", "error", err)
