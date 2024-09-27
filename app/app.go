@@ -382,10 +382,12 @@ func New(
 			bz, err := kr.Get(e2eetypes.DefaultKeyringName)
 			if err != nil {
 				logger.Error("e2ee identity for validator not found", "error", err)
+				identity = noneIdentity{}
 			} else {
 				identity, err = age.ParseX25519Identity(string(bz))
 				if err != nil {
-					panic(err)
+					logger.Error("e2ee identity for validator is invalid", "error", err)
+					identity = noneIdentity{}
 				}
 			}
 		}
