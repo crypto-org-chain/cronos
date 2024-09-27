@@ -3,6 +3,7 @@ import json
 import pytest
 from pystarport import cluster
 
+from .cosmoscli import module_address
 from .ibc_utils import (
     ChannelOrder,
     Status,
@@ -17,7 +18,7 @@ from .ibc_utils import (
     wait_for_check_tx,
     wait_for_status_change,
 )
-from .utils import CONTRACTS, wait_for_fn
+from .utils import CONTRACTS, approve_proposal, wait_for_fn
 
 pytestmark = pytest.mark.ica
 
@@ -39,12 +40,12 @@ def ibc(request, tmp_path_factory):
 @pytest.mark.parametrize(
     "order", [ChannelOrder.ORDERED.value, ChannelOrder.UNORDERED.value]
 )
-def test_ica(ibc, order):
+def test_ica(ibc, order, tmp_path):
     signer = "signer2" if order == ChannelOrder.ORDERED.value else "community"
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
-    ica_address, channel_id = register_acc(
+    ica_address, _, channel_id = register_acc(
         cli_controller, connid, ordering=order, signer=signer
     )
     balance = funds_ica(cli_host, ica_address, signer=signer)
@@ -118,9 +119,45 @@ def test_ica(ibc, order):
     else:
         wait_for_check_channel_ready(cli_controller, connid, channel_id, "STATE_CLOSED")
         # reopen ica account after channel get closed
-        ica_address2, channel_id2 = register_acc(cli_controller, connid)
+        ica_address2, port_id2, channel_id2 = register_acc(cli_controller, connid)
         assert ica_address2 == ica_address, ica_address2
         assert channel_id2 != channel_id, channel_id2
+        # upgrade to unordered channel
+        channel = cli_controller.ibc_query_channel(port_id2, channel_id2)
+        version_data = json.loads(channel["channel"]["version"])
+        community = "community"
+        authority = module_address("gov")
+        deposit = "1basetcro"
+        proposal_src = cli_controller.ibc_upgrade_channels(
+            json.loads(version_data["app_version"]),
+            community,
+            deposit=deposit,
+            title="channel-upgrade-title",
+            summary="summary",
+            port_pattern=port_id2,
+            channel_ids=channel_id2,
+        )
+        proposal_src["deposit"] = deposit
+        proposal_src["proposer"] = authority
+        proposal_src["messages"][0]["signer"] = authority
+        proposal_src["messages"][0]["fields"]["ordering"] = ChannelOrder.UNORDERED.value
+        proposal = tmp_path / "proposal.json"
+        proposal.write_text(json.dumps(proposal_src))
+        rsp = cli_controller.submit_gov_proposal(proposal, from_=community)
+        assert rsp["code"] == 0, rsp["raw_log"]
+        approve_proposal(ibc.cronos, rsp["events"])
+        wait_for_check_channel_ready(
+            cli_controller, connid, channel_id2, "STATE_FLUSHCOMPLETE"
+        )
+        wait_for_check_channel_ready(cli_controller, connid, channel_id2)
+        # submit large txs to trigger close channel with small timeout for order channel
+        msg_num = 140
+        submit_msgs(msg_num, 0.005, "600000")
+        assert cli_host.balance(ica_address, denom=denom) == balance
+        with pytest.raises(AssertionError) as exc:
+            register_acc(cli_controller, connid)
+        assert "existing active channel" in str(exc.value)
+
     # submit normal txs should work
     msg_num = 2
     submit_msgs(msg_num)

@@ -773,7 +773,7 @@ def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signe
         version=v,
         ordering=ordering,
     )
-    _, channel_id = assert_channel_open_init(rsp)
+    port_id, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
 
     print("query ica account")
@@ -782,7 +782,7 @@ def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signe
         cli.address(signer),
     )["address"]
     print("ica address", ica_address, "channel_id", channel_id)
-    return ica_address, channel_id
+    return ica_address, port_id, channel_id
 
 
 def funds_ica(cli, adr, signer="signer2"):
