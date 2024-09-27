@@ -76,6 +76,11 @@ def encrypt_to_validators(cli, content):
     assert rsp["code"] == 0, rsp["raw_log"]
 
 
+def get_nonce(cli, user):
+    acc = cli.query_account(user)["account"]["value"]
+    return int(acc.get("sequence", 0))
+
+
 def test_block_list(cronos):
     gen_validator_identity(cronos)
     cli = cronos.cosmos_cli()
@@ -97,14 +102,14 @@ def test_block_list(cronos):
     with pytest.raises(AssertionError) as exc:
         cli.event_query_tx_for(txhash)
     assert "timed out waiting" in str(exc.value)
-    nonce = int(cli.query_account(user)["account"]["value"]["sequence"])
+    nonce = get_nonce(cli, user)
 
     # clear blocklist
     encrypt_to_validators(cli, {})
 
     # the blocked tx should be unblocked now
     wait_for_new_blocks(cli, 1)
-    assert nonce + 1 == int(cli.query_account(user)["account"]["value"]["sequence"])
+    assert nonce + 1 == get_nonce(cli, user)
 
 
 def test_block_list_evm(cronos):
@@ -125,7 +130,7 @@ def test_block_list_evm(cronos):
     assert flt.get_new_entries() == []
 
     txhash = w3.eth.send_transaction(tx).hex()
-    nonce = int(cli.query_account(user)["account"]["value"]["sequence"])
+    nonce = get_nonce(cli, user)
     # check tx in mempool
     assert HexBytes(txhash) in w3.eth.get_filter_changes(flt.filter_id)
 
@@ -134,7 +139,7 @@ def test_block_list_evm(cronos):
 
     # the blocked tx should be unblocked now
     wait_for_new_blocks(cli, 1)
-    assert nonce + 1 == int(cli.query_account(user)["account"]["value"]["sequence"])
+    assert nonce + 1 == get_nonce(cli, user)
     assert w3.eth.get_filter_changes(flt.filter_id) == []
 
 

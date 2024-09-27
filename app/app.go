@@ -19,6 +19,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmos "github.com/cometbft/cometbft/libs/os"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/gorilla/mux"
@@ -182,7 +183,8 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
-	FlagBlockedAddresses = "blocked-addresses"
+	FlagBlockedAddresses             = "blocked-addresses"
+	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 )
 
 var Forks = []Fork{}
@@ -345,6 +347,8 @@ type App struct {
 	configurator module.Configurator
 
 	qms storetypes.RootMultiStore
+
+	blockProposalHandler *ProposalHandler
 }
 
 // New returns a reference to an initialized chain.
@@ -412,6 +416,12 @@ func New(
 			txDecoder,
 			blockProposalHandler.ValidateTransaction,
 		))
+
+		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+
+		// The default process proposal handler do nothing when the mempool is noop,
+		// so we just implement a new one.
+		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
@@ -438,16 +448,17 @@ func New(
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
 	app := &App{
-		BaseApp:           bApp,
-		cdc:               cdc,
-		txConfig:          txConfig,
-		appCodec:          appCodec,
-		interfaceRegistry: interfaceRegistry,
-		invCheckPeriod:    invCheckPeriod,
-		keys:              keys,
-		tkeys:             tkeys,
-		okeys:             okeys,
-		memKeys:           memKeys,
+		BaseApp:              bApp,
+		cdc:                  cdc,
+		txConfig:             txConfig,
+		appCodec:             appCodec,
+		interfaceRegistry:    interfaceRegistry,
+		invCheckPeriod:       invCheckPeriod,
+		keys:                 keys,
+		tkeys:                tkeys,
+		okeys:                okeys,
+		memKeys:              memKeys,
+		blockProposalHandler: blockProposalHandler,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -1015,6 +1026,15 @@ func New(
 				tmos.Exit(fmt.Sprintf("versiondb version %d lag behind iavl version %d", v1, v2))
 			}
 		}
+
+		if err := app.RefreshBlockList(app.NewUncachedContext(false, cmtproto.Header{})); err != nil {
+			if !cast.ToBool(appOpts.Get(FlagUnsafeIgnoreBlockListFailure)) {
+				panic(err)
+			}
+
+			// otherwise, just emit error log
+			app.Logger().Error("failed to update blocklist", "error", err)
+		}
 	}
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
@@ -1064,7 +1084,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
 		}
 
-		blockedMap[string(addr)] = struct{}{}
+		blockedMap[addr.String()] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
 	options := evmante.HandlerOptions{
@@ -1124,7 +1144,16 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
-	return app.ModuleManager.EndBlock(ctx)
+	rsp, err := app.ModuleManager.EndBlock(ctx)
+	if err := app.RefreshBlockList(ctx); err != nil {
+		app.Logger().Error("failed to update blocklist", "error", err)
+	}
+	return rsp, err
+}
+
+func (app *App) RefreshBlockList(ctx sdk.Context) error {
+	// refresh blocklist
+	return app.blockProposalHandler.SetBlockList(app.CronosKeeper.GetBlockList(ctx))
 }
 
 // InitChainer application update at chain initialization
