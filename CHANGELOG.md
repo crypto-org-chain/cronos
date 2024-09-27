@@ -11,6 +11,7 @@
 ### Bug Fixes
 
 * [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
+* [#1611](https://github.com/crypto-org-chain/cronos/pull/1611) Fix multisig account failed on threshold encode after send tx.
 
 *Sep 13, 2024*
 
