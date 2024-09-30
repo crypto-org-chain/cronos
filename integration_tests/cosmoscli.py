@@ -247,6 +247,18 @@ class CosmosCLI:
         assert "error" not in rsp, rsp["error"]
         return rsp["result"]["txs"]
 
+    def query_account(self, addr, **kwargs):
+        return json.loads(
+            self.raw(
+                "query",
+                "auth",
+                "account",
+                addr,
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+
     def distribution_commission(self, addr):
         coin = json.loads(
             self.raw(
@@ -353,7 +365,16 @@ class CosmosCLI:
         res = res.get("pool") or res
         return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
 
-    def transfer(self, from_, to, coins, generate_only=False, fees=None, **kwargs):
+    def transfer(
+        self,
+        from_,
+        to,
+        coins,
+        generate_only=False,
+        event_query_tx=True,
+        fees=None,
+        **kwargs,
+    ):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         rsp = json.loads(
             self.raw(
@@ -370,7 +391,7 @@ class CosmosCLI:
                 **kwargs,
             )
         )
-        if rsp["code"] == 0:
+        if rsp["code"] == 0 and event_query_tx:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
@@ -1737,6 +1758,24 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
+    def store_blocklist(self, data, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "cronos",
+                "store-block-list",
+                data,
+                "-y",
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def rollback(self):
         self.raw("rollback", home=self.data_dir)
 
@@ -1845,7 +1884,6 @@ class CosmosCLI:
                 "event-query-tx-for",
                 hash,
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
             )
         )
 
@@ -1903,10 +1941,13 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
-    def keygen(self, **kwargs):
+    def e2ee_keygen(self, **kwargs):
         return self.raw("e2ee", "keygen", home=self.data_dir, **kwargs).strip().decode()
 
-    def encrypt(self, input, *recipients, **kwargs):
+    def e2ee_pubkey(self, **kwargs):
+        return self.raw("e2ee", "pubkey", home=self.data_dir, **kwargs).strip().decode()
+
+    def e2ee_encrypt(self, input, *recipients, **kwargs):
         return (
             self.raw(
                 "e2ee",
@@ -1920,7 +1961,7 @@ class CosmosCLI:
             .decode()
         )
 
-    def decrypt(self, input, identity="e2ee-identity", **kwargs):
+    def e2ee_decrypt(self, input, identity="e2ee-identity", **kwargs):
         return (
             self.raw(
                 "e2ee",
@@ -1928,6 +1969,19 @@ class CosmosCLI:
                 input,
                 home=self.data_dir,
                 identity=identity,
+                **kwargs,
+            )
+            .strip()
+            .decode()
+        )
+
+    def e2ee_encrypt_to_validators(self, input, **kwargs):
+        return (
+            self.raw(
+                "e2ee",
+                "encrypt-to-validators",
+                input,
+                home=self.data_dir,
                 **kwargs,
             )
             .strip()

@@ -15,8 +15,11 @@ import (
 	stdruntime "runtime"
 	"sort"
 
+	"filippo.io/age"
+
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmos "github.com/cometbft/cometbft/libs/os"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/gorilla/mux"
@@ -159,6 +162,7 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
 	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
@@ -179,7 +183,8 @@ const (
 	// NOTE: In the SDK, the default value is 255.
 	AddrLen = 20
 
-	FlagBlockedAddresses = "blocked-addresses"
+	FlagBlockedAddresses             = "blocked-addresses"
+	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 )
 
 var Forks = []Fork{}
@@ -342,6 +347,8 @@ type App struct {
 	configurator module.Configurator
 
 	qms storetypes.RootMultiStore
+
+	blockProposalHandler *ProposalHandler
 }
 
 // New returns a reference to an initialized chain.
@@ -360,23 +367,67 @@ func New(
 	cdc := encodingConfig.Amino
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
-
+	txDecoder := txConfig.TxDecoder()
 	eip712.SetEncodingConfig(encodingConfig)
 
+	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
+	var identity age.Identity
+	{
+		if cast.ToString(appOpts.Get("mode")) == "validator" {
+			krBackend := cast.ToString(appOpts.Get(flags.FlagKeyringBackend))
+			kr, err := e2eekeyring.New("cronosd", krBackend, homePath, os.Stdin)
+			if err != nil {
+				panic(err)
+			}
+			bz, err := kr.Get(e2eetypes.DefaultKeyringName)
+			if err != nil {
+				logger.Error("e2ee identity for validator not found", "error", err)
+				identity = noneIdentity{}
+			} else {
+				identity, err = age.ParseX25519Identity(string(bz))
+				if err != nil {
+					logger.Error("e2ee identity for validator is invalid", "error", err)
+					identity = noneIdentity{}
+				}
+			}
+		}
+	}
+
+	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
+
+	var mpool mempool.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
-		mempool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
-		baseAppOptions = append(baseAppOptions, baseapp.SetMempool(mempool))
+	} else {
+		mpool = mempool.NoOpMempool{}
 	}
+	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
+	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
+		app.SetMempool(mpool)
+
+		// Re-use the default prepare proposal handler, extend the transaction validation logic
+		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+			baseapp.NewDefaultTxSelector(),
+			txDecoder,
+			blockProposalHandler.ValidateTransaction,
+		))
+
+		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+
+		// The default process proposal handler do nothing when the mempool is noop,
+		// so we just implement a new one.
+		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
+	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
 
-	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
 	var cacheSize int
 	if !blockSTMEnabled {
 		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
@@ -399,16 +450,17 @@ func New(
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
 	app := &App{
-		BaseApp:           bApp,
-		cdc:               cdc,
-		txConfig:          txConfig,
-		appCodec:          appCodec,
-		interfaceRegistry: interfaceRegistry,
-		invCheckPeriod:    invCheckPeriod,
-		keys:              keys,
-		tkeys:             tkeys,
-		okeys:             okeys,
-		memKeys:           memKeys,
+		BaseApp:              bApp,
+		cdc:                  cdc,
+		txConfig:             txConfig,
+		appCodec:             appCodec,
+		interfaceRegistry:    interfaceRegistry,
+		invCheckPeriod:       invCheckPeriod,
+		keys:                 keys,
+		tkeys:                tkeys,
+		okeys:                okeys,
+		memKeys:              memKeys,
+		blockProposalHandler: blockProposalHandler,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -449,7 +501,7 @@ func New(
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		ethermint.ProtoAccount,
 		maccPerms,
-		authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix()),
+		addressCodec,
 		sdk.GetConfig().GetBech32AccountAddrPrefix(),
 		authAddr,
 	)
@@ -976,6 +1028,15 @@ func New(
 				tmos.Exit(fmt.Sprintf("versiondb version %d lag behind iavl version %d", v1, v2))
 			}
 		}
+
+		if err := app.RefreshBlockList(app.NewUncachedContext(false, cmtproto.Header{})); err != nil {
+			if !cast.ToBool(appOpts.Get(FlagUnsafeIgnoreBlockListFailure)) {
+				panic(err)
+			}
+
+			// otherwise, just emit error log
+			app.Logger().Error("failed to update blocklist", "error", err)
+		}
 	}
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
@@ -1025,7 +1086,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
 		}
 
-		blockedMap[string(addr)] = struct{}{}
+		blockedMap[addr.String()] = struct{}{}
 	}
 	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
 	options := evmante.HandlerOptions{
@@ -1085,7 +1146,16 @@ func (app *App) BeginBlocker(ctx sdk.Context) (sdk.BeginBlock, error) {
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
-	return app.ModuleManager.EndBlock(ctx)
+	rsp, err := app.ModuleManager.EndBlock(ctx)
+	if err := app.RefreshBlockList(ctx); err != nil {
+		app.Logger().Error("failed to update blocklist", "error", err)
+	}
+	return rsp, err
+}
+
+func (app *App) RefreshBlockList(ctx sdk.Context) error {
+	// refresh blocklist
+	return app.blockProposalHandler.SetBlockList(app.CronosKeeper.GetBlockList(ctx))
 }
 
 // InitChainer application update at chain initialization

@@ -26,7 +26,7 @@ func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 				return ctx, err
 			}
 			for _, signer := range signers {
-				if _, ok := bad.blockedMap[string(signer)]; ok {
+				if _, ok := bad.blockedMap[sdk.AccAddress(signer).String()]; ok {
 					return ctx, fmt.Errorf("signer is blocked: %s", sdk.AccAddress(signer).String())
 				}
 			}

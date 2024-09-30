@@ -112,3 +112,13 @@ func (k msgServer) UpdatePermissions(goCtx context.Context, msg *types.MsgUpdate
 
 	return &types.MsgUpdatePermissionsResponse{}, nil
 }
+
+func (k msgServer) StoreBlockList(goCtx context.Context, msg *types.MsgStoreBlockList) (*types.MsgStoreBlockListResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	admin := k.Keeper.GetParams(ctx).CronosAdmin
+	if admin != msg.From {
+		return nil, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+	}
+	ctx.KVStore(k.storeKey).Set(types.KeyPrefixBlockList, msg.Blob)
+	return &types.MsgStoreBlockListResponse{}, nil
+}

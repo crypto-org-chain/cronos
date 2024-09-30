@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -44,6 +46,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdUpdateTokenMapping())
 	cmd.AddCommand(CmdTurnBridge())
 	cmd.AddCommand(CmdUpdatePermissions())
+	cmd.AddCommand(CmdStoreBlockList())
 	cmd.AddCommand(MigrateGenesisCmd())
 	return cmd
 }
@@ -309,6 +312,43 @@ func CmdUpdatePermissions() *cobra.Command {
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdStoreBlockList returns a CLI command handler for updating cronos permissions
+func CmdStoreBlockList() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "store-block-list [encrypted-block-list-file]",
+		Short: "Store encrypted block list",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			fp, err := os.Open(args[0])
+			if err != nil {
+				return err
+			}
+			defer fp.Close()
+
+			// Read the file
+			blob, err := io.ReadAll(fp)
+			if err != nil {
+				return err
+			}
+
+			msg := types.NewMsgStoreBlockList(clientCtx.GetFromAddress().String(), blob)
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
