@@ -5,14 +5,14 @@ go 1.22.2
 toolchain go1.22.3
 
 require (
-	cosmossdk.io/api v0.7.5
-	cosmossdk.io/client/v2 v2.0.0-beta.3
+	cosmossdk.io/api v0.7.6
+	cosmossdk.io/client/v2 v2.0.0-beta.5
 	cosmossdk.io/core v0.11.1
 	cosmossdk.io/errors v1.0.1
-	cosmossdk.io/log v1.4.0
+	cosmossdk.io/log v1.4.1
 	cosmossdk.io/math v1.3.0
 	cosmossdk.io/simapp v0.0.0-20230608160436-666c345ad23d
-	cosmossdk.io/store v1.1.0
+	cosmossdk.io/store v1.1.1
 	cosmossdk.io/tools/confix v0.1.2
 	cosmossdk.io/x/evidence v0.1.1
 	cosmossdk.io/x/feegrant v0.1.1
@@ -57,7 +57,7 @@ require (
 	cloud.google.com/go/storage v1.41.0 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/depinject v1.0.0 // indirect
-	cosmossdk.io/x/tx v0.13.4 // indirect
+	cosmossdk.io/x/tx v0.13.5 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
@@ -91,7 +91,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/iavl v1.1.2 // indirect
+	github.com/cosmos/iavl v1.2.0 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.3 // indirect
 	github.com/cosmos/rosetta-sdk-go v0.10.0 // indirect
@@ -254,10 +254,9 @@ require (
 
 // release/v0.50.x
 replace (
-	cosmossdk.io/client/v2 => github.com/crypto-org-chain/cosmos-sdk/client/v2 v2.0.0-20240927054437-c2a1e0678f4b
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240927054437-c2a1e0678f4b
-	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240927054437-c2a1e0678f4b
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20240927054437-c2a1e0678f4b
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20240930015419-f4ea363b3fdf
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20240930015419-f4ea363b3fdf
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20240930015419-f4ea363b3fdf
 )
 
 replace (
