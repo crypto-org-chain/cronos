@@ -14,7 +14,7 @@ import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-from .utils import get_sync_info
+from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info
 
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
@@ -34,14 +34,14 @@ class ModuleAccount(enum.Enum):
 @format_doc_string(
     options=",".join(v.value for v in ModuleAccount.__members__.values())
 )
-def module_address(name):
+def module_address(name, prefix=CRONOS_ADDRESS_PREFIX):
     """
     get address of module accounts
 
     :param name: name of module account, values: {options}
     """
     data = hashlib.sha256(ModuleAccount(name).value.encode()).digest()[:20]
-    return bech32.bech32_encode("cro", bech32.convertbits(data, 8, 5))
+    return bech32.bech32_encode(prefix, bech32.convertbits(data, 8, 5))
 
 
 class ChainCommand:
@@ -1238,6 +1238,27 @@ class CosmosCLI:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
+    def ibc_upgrade_channels(self, version, from_addr, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", 600000)
+        return json.loads(
+            self.raw(
+                "tx",
+                "ibc",
+                "channel",
+                "upgrade-channels",
+                json.dumps(version),
+                "-y",
+                "--json",
+                from_=from_addr,
+                keyring_backend="test",
+                chain_id=self.chain_id,
+                home=self.data_dir,
+                stderr=subprocess.DEVNULL,
+                **kwargs,
+            )
+        )
+
     def submit_gov_proposal(self, proposal, **kwargs):
         default_kwargs = self.get_default_kwargs()
         kwargs.setdefault("broadcast_mode", "sync")
@@ -1424,6 +1445,23 @@ class CosmosCLI:
                 "channel",
                 "connections",
                 connid,
+                **(default_kwargs | kwargs),
+            )
+        )
+
+    def ibc_query_channel(self, port_id, channel_id, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        return json.loads(
+            self.raw(
+                "q",
+                "ibc",
+                "channel",
+                "end",
+                port_id,
+                channel_id,
                 **(default_kwargs | kwargs),
             )
         )

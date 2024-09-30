@@ -201,18 +201,7 @@ def prepare_network(
             call_rly_cmd(path, connection_only, version)
 
         if incentivized:
-            # register fee payee
-            src_chain = cronos.cosmos_cli()
-            dst_chain = chainmain.cosmos_cli()
-            rsp = dst_chain.register_counterparty_payee(
-                "transfer",
-                "channel-0",
-                dst_chain.address("relayer"),
-                src_chain.address("signer1"),
-                from_="relayer",
-                fees="100000000basecro",
-            )
-            assert rsp["code"] == 0, rsp["raw_log"]
+            register_fee_payee(cronos.cosmos_cli(), chainmain.cosmos_cli())
 
         port = None
         if is_relay:
@@ -224,6 +213,18 @@ def prepare_network(
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
+
+
+def register_fee_payee(src_chain, dst_chain):
+    rsp = dst_chain.register_counterparty_payee(
+        "transfer",
+        "channel-0",
+        dst_chain.address("relayer"),
+        src_chain.address("signer1"),
+        from_="relayer",
+        fees="100000000basecro",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
 
 
 def assert_ready(ibc):
@@ -772,7 +773,7 @@ def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signe
         version=v,
         ordering=ordering,
     )
-    _, channel_id = assert_channel_open_init(rsp)
+    port_id, channel_id = assert_channel_open_init(rsp)
     wait_for_check_channel_ready(cli, connid, channel_id)
 
     print("query ica account")
@@ -781,7 +782,7 @@ def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signe
         cli.address(signer),
     )["address"]
     print("ica address", ica_address, "channel_id", channel_id)
-    return ica_address, channel_id
+    return ica_address, port_id, channel_id
 
 
 def funds_ica(cli, adr, signer="signer2"):
