@@ -268,6 +268,7 @@ replace (
 replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	// FIXME: address the replacement when bump v1.2.0 to that triggers app hash mismatch in upgrade test
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.1.2
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
