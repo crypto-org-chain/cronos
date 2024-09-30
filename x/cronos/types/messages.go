@@ -335,6 +335,8 @@ func NewMsgStoreBlockList(from string, blob []byte) *MsgStoreBlockList {
 
 var errDummyIdentity = stderrors.New("dummy")
 
+const MaximumBlobLength = 20480
+
 type dummyIdentity struct{}
 
 func (i *dummyIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
@@ -342,11 +344,16 @@ func (i *dummyIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
 }
 
 func (msg *MsgStoreBlockList) ValidateBasic() error {
+	length := len(msg.Blob)
+	if length > MaximumBlobLength {
+		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "block length %d must not exceed %d", length, MaximumBlobLength)
+	}
 	_, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
 	}
-
+	// skip heavy operation in Decrypt by early return with errDummyIdentity in
+	// https://github.com/FiloSottile/age/blob/v1.1.1/age.go#L197
 	_, err = age.Decrypt(bytes.NewBuffer(msg.Blob), new(dummyIdentity))
 	if err != nil && err != errDummyIdentity {
 		return err
