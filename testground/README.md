@@ -64,10 +64,10 @@ $ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-te
 
 ```bash
 $ mkdir /tmp/outputs
-$ jsonnet testground/benchmark/compositions/docker-compose.jsonnet \
+$ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
   --ext-str outputs=/tmp/outputs \
   --ext-code nodes=3 \
-  | docker-compose -f /dev/stdin up
+  | docker-compose -f /dev/stdin up --remove-orphans --force-recreate
 ```
 
 It'll collect the node data files to the `/tmp/outputs` directory.
