@@ -93,15 +93,25 @@ func (t *Tree) IsEmpty() bool {
 }
 
 func (t *Tree) SetInitialVersion(initialVersion int64) error {
-	switch {
-	case initialVersion >= math.MaxUint32:
+	if initialVersion >= math.MaxUint32 {
 		return fmt.Errorf("version overflows uint32: %d", initialVersion)
-	case initialVersion < 1:
+	}
+
+	t.setInitialVersion(uint32(initialVersion))
+	return nil
+}
+
+func (t *Tree) setInitialVersion(initialVersion uint32) {
+	if t.version > 0 {
+		// initial version has no effect if the tree is already initialized
+		return
+	}
+
+	if initialVersion < 1 {
 		t.version = 0
-	default:
+	} else {
 		t.version = uint32(initialVersion - 1)
 	}
-	return nil
 }
 
 // Copy returns a snapshot of the tree which won't be modified by further modifications on the main tree,

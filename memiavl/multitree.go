@@ -146,7 +146,7 @@ func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	t.initialVersion = uint32(initialVersion)
 	if t.initialVersion > 1 {
 		for _, entry := range t.trees {
-			entry.Tree.version = t.initialVersion - 1
+			entry.setInitialVersion(t.initialVersion)
 		}
 	}
 }
