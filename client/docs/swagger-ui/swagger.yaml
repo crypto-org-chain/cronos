@@ -3044,6 +3044,10 @@ paths:
                       EIP155
 
                       signed) transactions can be executed on the state machine.
+                  header_hash_num:
+                    type: string
+                    format: uint64
+                    description: header_hash_num is the number of header hash to persist.
                 title: Params defines the EVM module parameters
             description: >-
               QueryParamsResponse defines the response type for querying x/evm
@@ -48880,6 +48884,10 @@ definitions:
         description: |-
           allow_unprotected_txs defines if replay-protected (i.e non EIP155
           signed) transactions can be executed on the state machine.
+      header_hash_num:
+        type: string
+        format: uint64
+        description: header_hash_num is the number of header hash to persist.
     title: Params defines the EVM module parameters
   ethermint.evm.v1.QueryAccountResponse:
     type: object
@@ -49076,6 +49084,10 @@ definitions:
             description: |-
               allow_unprotected_txs defines if replay-protected (i.e non EIP155
               signed) transactions can be executed on the state machine.
+          header_hash_num:
+            type: string
+            format: uint64
+            description: header_hash_num is the number of header hash to persist.
         title: Params defines the EVM module parameters
     description: >-
       QueryParamsResponse defines the response type for querying x/evm
