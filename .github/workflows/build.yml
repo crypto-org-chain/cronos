@@ -75,6 +75,8 @@ jobs:
       - name: test & coverage report creation
         run: |
           nix develop -c make test
+          nix develop -c make test-memiavl
+          nix develop -c make test-store
           nix develop .#rocksdb -c make test-versiondb
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files

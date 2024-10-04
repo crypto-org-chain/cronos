@@ -21,6 +21,7 @@
 * [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
 * [#1611](https://github.com/crypto-org-chain/cronos/pull/1611) Fix multisig account failed on threshold encode after send tx.
 * [#1617](https://github.com/crypto-org-chain/cronos/pull/1617) Fix unsuppored sign mode SIGN_MODE_TEXTUAL for bank transfer.
+* [#1621](https://github.com/crypto-org-chain/cronos/pull/1621) Update ethermint to the fix of broken opBlockhash and tx validation.
 
 *Sep 13, 2024*
 

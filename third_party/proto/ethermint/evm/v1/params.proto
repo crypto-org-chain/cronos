@@ -22,4 +22,6 @@ message Params {
   // allow_unprotected_txs defines if replay-protected (i.e non EIP155
   // signed) transactions can be executed on the state machine.
   bool allow_unprotected_txs = 6;
+  // header_hash_num is the number of header hash to persist.
+  uint64 header_hash_num = 7;
 }

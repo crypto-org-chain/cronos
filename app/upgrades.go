@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	clientkeeper "github.com/cosmos/ibc-go/v8/modules/core/02-client/keeper"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clientkeeper.Keeper) {
@@ -26,6 +27,11 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, clientKeeper clie
 			params := app.ICAHostKeeper.GetParams(sdkCtx)
 			params.HostEnabled = false
 			app.ICAHostKeeper.SetParams(sdkCtx, params)
+			evmParams := app.EvmKeeper.GetParams(sdkCtx)
+			evmParams.HeaderHashNum = evmtypes.DefaultHeaderHashNum
+			if err := app.EvmKeeper.SetParams(sdkCtx, evmParams); err != nil {
+				return m, err
+			}
 		}
 		return m, nil
 	})
