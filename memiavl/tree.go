@@ -158,7 +158,7 @@ func (t *Tree) remove(key []byte) {
 
 // SaveVersion increases the version number and optionally updates the hashes
 func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
-	if t.version >= uint32(math.MaxUint32) {
+	if t.version == uint32(math.MaxUint32) {
 		return nil, 0, fmt.Errorf("version overflows uint32: %d", t.version)
 	}
 
