@@ -59,9 +59,10 @@ def test_ica_enabled(cronos, tmp_path):
                 "params": p,
             }
         ],
-        "deposit": "1basetcro",
+        "deposit": "5basetcro",
         "title": "title",
         "summary": "summary",
+        "expedited": True,
     }
     proposal.write_text(json.dumps(proposal_src))
     rsp = cli.submit_gov_proposal(proposal, from_="community")

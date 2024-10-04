@@ -164,6 +164,21 @@ def approve_proposal(n, events, event_query_tx=False):
     assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
 
 
+def submit_gov_proposal(cronos, tmp_path, **kwargs):
+    proposal = tmp_path / "proposal.json"
+    proposal_src = {
+        "title": "title",
+        "summary": "summary",
+        "deposit": "1basetcro",
+        **kwargs,
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cronos.cosmos_cli().submit_gov_proposal(proposal, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal(cronos, rsp["events"])
+    print("check params have been updated now")
+
+
 def wait_for_port(port, host="127.0.0.1", timeout=40.0):
     start_time = time.perf_counter()
     while True:
@@ -739,3 +754,24 @@ def get_send_enable(port):
     url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
     raw = requests.get(url).json()
     return raw["params"]["send_enabled"]
+
+
+def get_expedited_params(param):
+    min_deposit = param["min_deposit"][0]
+    voting_period = param["voting_period"]
+    return {
+        "expedited_min_deposit": [
+            {
+                "denom": min_deposit["denom"],
+                "amount": str(int(min_deposit["amount"]) * 5),
+            }
+        ],
+        "expedited_voting_period": f"{int(voting_period[:-1]) // 2}s",
+    }
+
+
+def assert_gov_params(cli, old_param):
+    param = cli.query_params("gov")
+    expedited_param = get_expedited_params(old_param)
+    for key, value in expedited_param.items():
+        assert param[key] == value, param

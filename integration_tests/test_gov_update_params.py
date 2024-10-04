@@ -16,7 +16,7 @@ def test_evm_update_param(cronos, tmp_path):
     res = contract.caller.randomTokenId()
     assert res > 0, res
     cli = cronos.cosmos_cli()
-    p = cli.query_params("evm")["params"]
+    p = cli.query_params("evm")
     del p["chain_config"]["merge_netsplit_block"]
     del p["chain_config"]["shanghai_time"]
     proposal = tmp_path / "proposal.json"
@@ -40,7 +40,7 @@ def test_evm_update_param(cronos, tmp_path):
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp["events"])
     print("check params have been updated now")
-    p = cli.query_params("evm")["params"]
+    p = cli.query_params("evm")
     assert not p["chain_config"]["merge_netsplit_block"]
     assert not p["chain_config"]["shanghai_time"]
     invalid_msg = "invalid opcode: PUSH0"
