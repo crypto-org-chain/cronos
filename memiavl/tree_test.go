@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"testing"
@@ -66,9 +67,13 @@ func init() {
 		if err := applyChangeSetRef(refTree, changes); err != nil {
 			panic(err)
 		}
+		workingHash := refTree.WorkingHash()
 		refHash, _, err := refTree.SaveVersion()
 		if err != nil {
 			panic(err)
+		}
+		if !bytes.Equal(workingHash, refHash) {
+			panic(fmt.Sprintf("working hash %X != ref hash %X", workingHash, refHash))
 		}
 		RefHashes = append(RefHashes, refHash)
 	}
@@ -154,10 +159,12 @@ func TestRootHashes(t *testing.T) {
 
 	for i, changes := range ChangeSets {
 		tree.ApplyChangeSet(changes)
+		workingHash := tree.RootHash()
 		hash, v, err := tree.SaveVersion(true)
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
+		require.Equal(t, hash, workingHash)
 	}
 }
 
