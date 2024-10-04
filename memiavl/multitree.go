@@ -144,8 +144,10 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 
 func (t *MultiTree) setInitialVersion(initialVersion int64) {
 	t.initialVersion = uint32(initialVersion)
-	for _, entry := range t.trees {
-		entry.Tree.initialVersion = t.initialVersion
+	if t.initialVersion > 1 {
+		for _, entry := range t.trees {
+			entry.Tree.version = t.initialVersion - 1
+		}
 	}
 }
 
