@@ -283,10 +283,18 @@ def exec(c, tmp_path_factory):
     do_upgrade("v1.4", target_height3)
 
     cli = c.cosmos_cli()
-    assert e0 == cli.query_params("evm", height=target_height0 - 1)["params"]
-    assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
+
+    def assert_evm_params(cli, expected, height):
+        params = cli.query_params("evm", height=height)["params"]
+        del params["header_hash_num"]
+        assert expected == params
+
+    assert_evm_params(cli, e0, target_height0 - 1)
+    assert_evm_params(cli, e1, target_height1 - 1)
+
     assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
     assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
+    assert cli.query_params("evm")["params"]["header_hash_num"] == "10000", p
 
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
