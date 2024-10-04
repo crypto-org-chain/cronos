@@ -17,6 +17,9 @@ var (
 	ChangeSets  []ChangeSet
 	RefHashes   [][]byte
 	ExpectItems [][]pair
+
+	IAVLInitialVersion      = 100
+	RefHashesInitialVersion [][]byte
 )
 
 func mockKVPairs(kvPairs ...string) []*KVPair {
@@ -63,7 +66,23 @@ func init() {
 	// generate ref hashes with ref impl
 	d := wrapper.NewDBWrapper(db.NewMemDB())
 	refTree := iavl.NewMutableTree(d, 0, true, log.NewNopLogger())
+	refTreeInitialVersion := iavl.NewMutableTree(d, 0, true, log.NewNopLogger(), iavl.InitialVersionOption(uint64(IAVLInitialVersion)))
 	for _, changes := range ChangeSets {
+		{
+			if err := applyChangeSetRef(refTreeInitialVersion, changes); err != nil {
+				panic(err)
+			}
+			workingHash := refTreeInitialVersion.WorkingHash()
+			refHash, _, err := refTreeInitialVersion.SaveVersion()
+			if err != nil {
+				panic(err)
+			}
+			if !bytes.Equal(workingHash, refHash) {
+				panic(fmt.Sprintf("working hash %X != ref hash %X", workingHash, refHash))
+			}
+			RefHashesInitialVersion = append(RefHashesInitialVersion, refHash)
+		}
+
 		if err := applyChangeSetRef(refTree, changes); err != nil {
 			panic(err)
 		}
@@ -164,6 +183,20 @@ func TestRootHashes(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, i+1, int(v))
 		require.Equal(t, RefHashes[i], hash)
+		require.Equal(t, hash, workingHash)
+	}
+}
+
+func TestRootHashesInitialVersion(t *testing.T) {
+	tree := NewWithInitialVersion(uint32(IAVLInitialVersion), 0)
+
+	for i, changes := range ChangeSets {
+		tree.ApplyChangeSet(changes)
+		workingHash := tree.RootHash()
+		hash, v, err := tree.SaveVersion(true)
+		require.NoError(t, err)
+		require.Equal(t, IAVLInitialVersion+i, int(v))
+		require.Equal(t, RefHashesInitialVersion[i], hash)
 		require.Equal(t, hash, workingHash)
 	}
 }
