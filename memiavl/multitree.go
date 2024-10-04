@@ -105,8 +105,9 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 		zeroCopy:       zeroCopy,
 		cacheSize:      cacheSize,
 	}
-	// initial version is nesserary for wal index conversion
-	mtree.setInitialVersion(metadata.InitialVersion)
+	// initial version is nesserary for wal index conversion,
+	// overflow checked in `readMetadata`.
+	mtree.setInitialVersion(uint32(metadata.InitialVersion))
 	return mtree, nil
 }
 
@@ -138,12 +139,12 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 		}
 	}
 
-	t.setInitialVersion(initialVersion)
+	t.setInitialVersion(uint32(initialVersion))
 	return nil
 }
 
-func (t *MultiTree) setInitialVersion(initialVersion int64) {
-	t.initialVersion = uint32(initialVersion)
+func (t *MultiTree) setInitialVersion(initialVersion uint32) {
+	t.initialVersion = initialVersion
 	if t.initialVersion > 1 {
 		for _, entry := range t.trees {
 			entry.setInitialVersion(t.initialVersion)
