@@ -157,7 +157,7 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 		hash = t.RootHash()
 	}
 
-	t.version = t.version + 1
+	t.version++
 	return hash, int64(t.version), nil
 }
 
