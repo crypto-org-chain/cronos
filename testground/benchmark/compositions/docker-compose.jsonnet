@@ -5,12 +5,12 @@ std.manifestYamlDoc({
       command: 'stateless-testcase run',
       container_name: 'testplan-' + i,
       volumes: [
-        @'${OUTDIR:-/tmp/outputs}:/outputs',
+        std.extVar('outputs') + ':/outputs',
       ],
       environment: {
         JOB_COMPLETION_INDEX: i,
       },
     }
-    for i in std.range(0, 9)
+    for i in std.range(0, std.extVar('nodes') - 1)
   },
 })
