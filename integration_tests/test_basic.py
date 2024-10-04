@@ -985,3 +985,14 @@ def test_multi_acc(cronos):
     acc = cli.account(multi_addr)
     res = cli.account_by_num(acc["account"]["value"]["base_account"]["account_number"])
     assert res["account_address"] == multi_addr
+
+
+def test_textual(cronos):
+    cli = cronos.cosmos_cli()
+    rsp = cli.transfer(
+        cli.address("validator"),
+        cli.address("signer2"),
+        "1basetcro",
+        sign_mode="textual",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
