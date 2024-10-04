@@ -10,6 +10,7 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from decimal import Decimal
 from pathlib import Path
 
 import bech32
@@ -759,14 +760,21 @@ def get_send_enable(port):
 def get_expedited_params(param):
     min_deposit = param["min_deposit"][0]
     voting_period = param["voting_period"]
+    tokens_ratio = 5
+    threshold_ratio = 1.334
+    period_ratio = 0.5
+    expedited_threshold = float(param["threshold"]) * threshold_ratio
+    expedited_threshold = Decimal(f"{expedited_threshold}")
+    expedited_voting_period = int(int(voting_period[:-1]) * period_ratio)
     return {
         "expedited_min_deposit": [
             {
                 "denom": min_deposit["denom"],
-                "amount": str(int(min_deposit["amount"]) * 5),
+                "amount": str(int(min_deposit["amount"]) * tokens_ratio),
             }
         ],
-        "expedited_voting_period": f"{int(voting_period[:-1]) // 2}s",
+        "expedited_threshold": f"{expedited_threshold:.18f}",
+        "expedited_voting_period": f"{expedited_voting_period}s",
     }
 
 
