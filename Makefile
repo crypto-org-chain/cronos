@@ -100,13 +100,17 @@ install: check-network print-ledger go.sum
 
 test:
 	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
-	@cd memiavl; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
-	@cd store; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+
+test-memiavl:
+	@cd memiavl; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
+
+test-store:
+	@cd store; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
 
 test-versiondb:
-	@cd versiondb; go test -tags rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic; cd ..
+	@cd versiondb; go test -tags=objstore,rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
 
-.PHONY: clean build install test
+.PHONY: clean build install test test-memiavl test-store test-versiondb
 
 clean:
 	rm -rf $(BUILDDIR)/
