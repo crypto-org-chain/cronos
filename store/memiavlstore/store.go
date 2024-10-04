@@ -180,7 +180,7 @@ func (st *Store) Query(req *types.RequestQuery) (res *types.ResponseQuery, err e
 }
 
 func (st *Store) WorkingHash() []byte {
-	return st.tree.RootHash()
+	return st.tree.WorkingHash()
 }
 
 // Takes a MutableTree, a key, and a flag for creating existence or absence proof and returns the

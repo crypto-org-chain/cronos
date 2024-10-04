@@ -172,6 +172,20 @@ func (t *Tree) RootHash() []byte {
 	return t.root.SafeHash()
 }
 
+func (t *Tree) WorkingHash() []byte {
+	if t.root == nil {
+		return emptyHash
+	}
+	version := nextVersionU32(t.version, t.initialVersion)
+	node := mutateRecursive(t.root, version, version)
+	t.root = node
+	h := sha256.New()
+	if err := writeHashBytes(node, h); err != nil {
+		panic(err)
+	}
+	return h.Sum(nil)
+}
+
 func (t *Tree) GetWithIndex(key []byte) (int64, []byte) {
 	if t.root == nil {
 		return 0, nil

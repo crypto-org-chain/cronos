@@ -136,6 +136,21 @@ func removeRecursive(node Node, key []byte, version, cowVersion uint32) ([]byte,
 	return value, newNode.reBalance(version, cowVersion), nil
 }
 
+func mutateRecursive(node Node, version, cowVersion uint32) Node {
+	if node == nil {
+		return nil
+	}
+
+	newNode := node.Mutate(version, cowVersion)
+	if node.IsLeaf() {
+		return newNode
+	}
+
+	newNode.left = mutateRecursive(node.Left(), version, cowVersion)
+	newNode.right = mutateRecursive(node.Right(), version, cowVersion)
+	return newNode
+}
+
 // Writes the node's hash to the given `io.Writer`. This function recursively calls
 // children to update hashes.
 func writeHashBytes(node Node, w io.Writer) error {
