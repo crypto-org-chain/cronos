@@ -110,7 +110,7 @@ func (t *Tree) setInitialVersion(initialVersion uint32) {
 	if initialVersion < 1 {
 		t.version = 0
 	} else {
-		t.version = uint32(initialVersion - 1)
+		t.version = initialVersion - 1
 	}
 }
 
