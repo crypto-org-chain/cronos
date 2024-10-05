@@ -10,7 +10,7 @@ require (
 	github.com/alitto/pond v1.8.3
 	github.com/cosmos/cosmos-db v1.0.2
 	github.com/cosmos/gogoproto v1.4.11
-	github.com/cosmos/iavl v1.1.2
+	github.com/cosmos/iavl v1.2.0
 	github.com/cosmos/ics23/go v0.10.0
 	github.com/ledgerwatch/erigon-lib v0.0.0-20230210071639-db0e7ed11263
 	github.com/stretchr/testify v1.8.4

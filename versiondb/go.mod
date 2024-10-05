@@ -13,7 +13,7 @@ require (
 	github.com/cosmos/cosmos-db v1.0.2
 	github.com/cosmos/cosmos-sdk v0.50.4
 	github.com/cosmos/gogoproto v1.7.0
-	github.com/cosmos/iavl v1.1.2
+	github.com/cosmos/iavl v1.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.0
 	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/golang/snappy v0.0.4

@@ -131,7 +131,7 @@ func (ai *TreeImporter) Close() error {
 // doImport a stream of `ExportNode`s into a new snapshot.
 func doImport(dir string, version int64, nodes <-chan *ExportNode) (returnErr error) {
 	if version > int64(math.MaxUint32) {
-		return errors.New("version overflows uint32")
+		return fmt.Errorf("version overflows uint32: %d", version)
 	}
 
 	return writeSnapshot(context.Background(), dir, uint32(version), func(w *snapshotWriter) (uint32, error) {
@@ -167,7 +167,7 @@ type importer struct {
 
 func (i *importer) Add(n *ExportNode) error {
 	if n.Version > int64(math.MaxUint32) {
-		return errors.New("version overflows uint32")
+		return fmt.Errorf("version overflows uint32: %d", n.Version)
 	}
 
 	if n.Height == 0 {
