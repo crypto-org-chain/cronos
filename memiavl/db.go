@@ -699,7 +699,7 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 
 	db.MultiTree = *mtree
 	// catch-up the pending changes
-	return db.MultiTree.applyWALEntry(db.pendingLog)
+	return db.applyWALEntry(db.pendingLog)
 }
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height

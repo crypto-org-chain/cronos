@@ -114,10 +114,9 @@ def wait_for_block(cli, height, timeout=240):
             print(f"get sync status failed: {e}", file=sys.stderr)
         else:
             current_height = int(get_sync_info(status)["latest_block_height"])
-            print("debug current height", current_height)
+            print("current block height", current_height)
             if current_height >= height:
                 break
-            print("current block height", current_height)
         time.sleep(0.5)
     else:
         raise TimeoutError(f"wait for block {height} timeout")

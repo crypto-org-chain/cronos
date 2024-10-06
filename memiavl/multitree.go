@@ -105,8 +105,9 @@ func LoadMultiTree(dir string, zeroCopy bool, cacheSize int) (*MultiTree, error)
 		zeroCopy:       zeroCopy,
 		cacheSize:      cacheSize,
 	}
-	// initial version is nesserary for wal index conversion
-	mtree.setInitialVersion(metadata.InitialVersion)
+	// initial version is nesserary for wal index conversion,
+	// overflow checked in `readMetadata`.
+	mtree.setInitialVersion(uint32(metadata.InitialVersion))
 	return mtree, nil
 }
 
@@ -133,26 +134,28 @@ func (t *MultiTree) SetInitialVersion(initialVersion int64) error {
 	}
 
 	for _, entry := range t.trees {
-		if !entry.Tree.IsEmpty() {
+		if !entry.IsEmpty() {
 			return fmt.Errorf("tree is not empty: %s", entry.Name)
 		}
 	}
 
-	t.setInitialVersion(initialVersion)
+	t.setInitialVersion(uint32(initialVersion))
 	return nil
 }
 
-func (t *MultiTree) setInitialVersion(initialVersion int64) {
-	t.initialVersion = uint32(initialVersion)
-	for _, entry := range t.trees {
-		entry.Tree.initialVersion = t.initialVersion
+func (t *MultiTree) setInitialVersion(initialVersion uint32) {
+	t.initialVersion = initialVersion
+	if t.initialVersion > 1 {
+		for _, entry := range t.trees {
+			entry.setInitialVersion(t.initialVersion)
+		}
 	}
 }
 
 func (t *MultiTree) SetZeroCopy(zeroCopy bool) {
 	t.zeroCopy = zeroCopy
 	for _, entry := range t.trees {
-		entry.Tree.SetZeroCopy(zeroCopy)
+		entry.SetZeroCopy(zeroCopy)
 	}
 }
 
@@ -161,7 +164,7 @@ func (t *MultiTree) Copy(cacheSize int) *MultiTree {
 	trees := make([]NamedTree, len(t.trees))
 	treesByName := make(map[string]int, len(t.trees))
 	for i, entry := range t.trees {
-		tree := entry.Tree.Copy(cacheSize)
+		tree := entry.Copy(cacheSize)
 		trees[i] = NamedTree{Tree: tree, Name: entry.Name}
 		treesByName[entry.Name] = i
 	}
@@ -247,7 +250,7 @@ func (t *MultiTree) ApplyChangeSet(name string, changeSet ChangeSet) error {
 	if !found {
 		return fmt.Errorf("unknown tree name %s", name)
 	}
-	t.trees[i].Tree.ApplyChangeSet(changeSet)
+	t.trees[i].ApplyChangeSet(changeSet)
 	return nil
 }
 
@@ -271,7 +274,7 @@ func (t *MultiTree) WorkingCommitInfo() *CommitInfo {
 func (t *MultiTree) SaveVersion(updateCommitInfo bool) (int64, error) {
 	t.lastCommitInfo.Version = nextVersion(t.lastCommitInfo.Version, t.initialVersion)
 	for _, entry := range t.trees {
-		if _, _, err := entry.Tree.SaveVersion(updateCommitInfo); err != nil {
+		if _, _, err := entry.SaveVersion(updateCommitInfo); err != nil {
 			return 0, err
 		}
 	}
@@ -292,8 +295,8 @@ func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
 		infos = append(infos, StoreInfo{
 			Name: entry.Name,
 			CommitId: CommitID{
-				Version: entry.Tree.Version(),
-				Hash:    entry.Tree.RootHash(),
+				Version: entry.Version(),
+				Hash:    entry.RootHash(),
 			},
 		})
 	}
@@ -410,7 +413,7 @@ func WriteFileSync(name string, data []byte) error {
 func (t *MultiTree) Close() error {
 	errs := make([]error, 0, len(t.trees))
 	for _, entry := range t.trees {
-		errs = append(errs, entry.Tree.Close())
+		errs = append(errs, entry.Close())
 	}
 	t.trees = nil
 	t.treesByName = nil

@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* (memiavl)[#1618](https://github.com/crypto-org-chain/cronos/pull/1618) memiavl change initial version logic to be
+  compatible with iavl 1.2.0.
+
 ### Improvements
 
 * [#1592](https://github.com/crypto-org-chain/cronos/pull/1592) Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
