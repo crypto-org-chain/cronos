@@ -10,6 +10,7 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from decimal import Decimal
 from pathlib import Path
 
 import bech32
@@ -161,6 +162,21 @@ def approve_proposal(n, events, event_query_tx=False):
     wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
     proposal = cli.query_proposal(proposal_id)
     assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
+
+
+def submit_gov_proposal(cronos, tmp_path, **kwargs):
+    proposal = tmp_path / "proposal.json"
+    proposal_src = {
+        "title": "title",
+        "summary": "summary",
+        "deposit": "1basetcro",
+        **kwargs,
+    }
+    proposal.write_text(json.dumps(proposal_src))
+    rsp = cronos.cosmos_cli().submit_gov_proposal(proposal, from_="community")
+    assert rsp["code"] == 0, rsp["raw_log"]
+    approve_proposal(cronos, rsp["events"])
+    print("check params have been updated now")
 
 
 def wait_for_port(port, host="127.0.0.1", timeout=40.0):
@@ -738,3 +754,31 @@ def get_send_enable(port):
     url = f"http://127.0.0.1:{port}/cosmos/bank/v1beta1/params"
     raw = requests.get(url).json()
     return raw["params"]["send_enabled"]
+
+
+def get_expedited_params(param):
+    min_deposit = param["min_deposit"][0]
+    voting_period = param["voting_period"]
+    tokens_ratio = 5
+    threshold_ratio = 1.334
+    period_ratio = 0.5
+    expedited_threshold = float(param["threshold"]) * threshold_ratio
+    expedited_threshold = Decimal(f"{expedited_threshold}")
+    expedited_voting_period = int(int(voting_period[:-1]) * period_ratio)
+    return {
+        "expedited_min_deposit": [
+            {
+                "denom": min_deposit["denom"],
+                "amount": str(int(min_deposit["amount"]) * tokens_ratio),
+            }
+        ],
+        "expedited_threshold": f"{expedited_threshold:.18f}",
+        "expedited_voting_period": f"{expedited_voting_period}s",
+    }
+
+
+def assert_gov_params(cli, old_param):
+    param = cli.query_params("gov")
+    expedited_param = get_expedited_params(old_param)
+    for key, value in expedited_param.items():
+        assert param[key] == value, param

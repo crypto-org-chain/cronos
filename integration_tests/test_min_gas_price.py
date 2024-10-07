@@ -60,7 +60,7 @@ def adjust_base_fee(parent_fee, gas_limit, gas_used, params):
 
 
 def get_params(cli):
-    params = cli.query_params("feemarket")["params"]
+    params = cli.query_params("feemarket")
     return {k: int(float(v)) for k, v in params.items()}
 
 
