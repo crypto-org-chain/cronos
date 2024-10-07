@@ -313,7 +313,7 @@ def test_gravity_detect_malicious_supply(gravity):
         print(denom)
 
         # check that the bridge is activated
-        activate = cli.query_gravity_params()["params"]["bridge_active"]
+        activate = cli.query_gravity_params()["bridge_active"]
         assert activate is True
 
         max_int = 2**256 - 1
@@ -332,7 +332,7 @@ def test_gravity_detect_malicious_supply(gravity):
         wait_for_fn("balance", check_gravity_native_tokens)
 
         # check that the bridge is still activated
-        activate = cli.query_gravity_params()["params"]["bridge_active"]
+        activate = cli.query_gravity_params()["bridge_active"]
         assert activate is True
 
         # need a random transferFrom to increment the counter in the contract
@@ -354,7 +354,7 @@ def test_gravity_detect_malicious_supply(gravity):
         wait_for_new_blocks(cli, 30)
 
         # check that the bridge has not been deactivated
-        activate = cli.query_gravity_params()["params"]["bridge_active"]
+        activate = cli.query_gravity_params()["bridge_active"]
         assert activate is True
 
         # check that balance is still same

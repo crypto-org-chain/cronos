@@ -1,4 +1,3 @@
-import hashlib
 import json
 import subprocess
 import time
@@ -12,7 +11,7 @@ from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
 
-from .cosmoscli import CosmosCLI
+from .cosmoscli import CosmosCLI, module_address
 from .network import Geth
 from .utils import (
     ADDRS,
@@ -20,13 +19,13 @@ from .utils import (
     KEYS,
     Greeter,
     RevertTestContract,
-    approve_proposal,
+    assert_gov_params,
     build_batch_tx,
     contract_address,
     contract_path,
     deploy_contract,
     derive_new_account,
-    eth_to_bech32,
+    get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
@@ -34,6 +33,7 @@ from .utils import (
     send_txs,
     sign_transaction,
     submit_any_proposal,
+    submit_gov_proposal,
     w3_wait_for_block,
     wait_for_block,
     wait_for_new_blocks,
@@ -43,31 +43,43 @@ from .utils import (
 
 def test_ica_enabled(cronos, tmp_path):
     cli = cronos.cosmos_cli()
+    param0 = cli.query_params("gov")
+    param1 = get_expedited_params(param0)
+    # governance module account as signer
+    authority = module_address("gov")
+    submit_gov_proposal(
+        cronos,
+        tmp_path,
+        messages=[
+            {
+                "@type": "/cosmos.gov.v1.MsgUpdateParams",
+                "authority": authority,
+                "params": {
+                    **param0,
+                    **param1,
+                },
+            }
+        ],
+    )
+    assert_gov_params(cli, param0)
+
     p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
-    proposal = tmp_path / "proposal.json"
-    # governance module account as signer
-    data = hashlib.sha256("gov".encode()).digest()[:20]
-    signer = eth_to_bech32(data)
     type = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
-    proposal_src = {
-        "messages": [
+    submit_gov_proposal(
+        cronos,
+        tmp_path,
+        messages=[
             {
                 "@type": type,
-                "signer": signer,
+                "signer": authority,
                 "params": p,
             }
         ],
-        "deposit": "1basetcro",
-        "title": "title",
-        "summary": "summary",
-    }
-    proposal.write_text(json.dumps(proposal_src))
-    rsp = cli.submit_gov_proposal(proposal, from_="community")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
-    print("check params have been updated now")
+        deposit="5basetcro",
+        expedited=True,
+    )
     p = cli.query_ica_params()
     assert not p["controller_enabled"]
 
@@ -912,30 +924,22 @@ def test_submit_send_enabled(cronos, tmp_path):
     cli = cronos.cosmos_cli()
     denoms = ["basetcro", "stake"]
     assert len(cli.query_bank_send(*denoms)) == 0, "should be empty"
-    proposal = tmp_path / "proposal.json"
-    # governance module account as signer
-    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
     send_enable = [
         {"denom": "basetcro"},
         {"denom": "stake", "enabled": True},
     ]
-    proposal_src = {
-        "messages": [
+    authority = module_address("gov")
+    submit_gov_proposal(
+        cronos,
+        tmp_path,
+        messages=[
             {
                 "@type": "/cosmos.bank.v1beta1.MsgSetSendEnabled",
-                "authority": signer,
+                "authority": authority,
                 "sendEnabled": send_enable,
             }
         ],
-        "deposit": "1basetcro",
-        "title": "title",
-        "summary": "summary",
-    }
-    proposal.write_text(json.dumps(proposal_src))
-    rsp = cli.submit_gov_proposal(proposal, from_="community")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
-    print("check params have been updated now")
+    )
     assert cli.query_bank_send(*denoms) == send_enable
 
 
@@ -985,3 +989,14 @@ def test_multi_acc(cronos):
     acc = cli.account(multi_addr)
     res = cli.account_by_num(acc["account"]["value"]["base_account"]["account_number"])
     assert res["account_address"] == multi_addr
+
+
+def test_textual(cronos):
+    cli = cronos.cosmos_cli()
+    rsp = cli.transfer(
+        cli.address("validator"),
+        cli.address("signer2"),
+        "1basetcro",
+        sign_mode="textual",
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]

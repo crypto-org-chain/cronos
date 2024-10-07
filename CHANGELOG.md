@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* (memiavl)[#1618](https://github.com/crypto-org-chain/cronos/pull/1618) memiavl change initial version logic to be
+  compatible with iavl 1.2.0.
+
 ### Improvements
 
 * [#1592](https://github.com/crypto-org-chain/cronos/pull/1592) Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
@@ -16,6 +21,9 @@
 
 * [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
 * [#1611](https://github.com/crypto-org-chain/cronos/pull/1611) Fix multisig account failed on threshold encode after send tx.
+* [#1617](https://github.com/crypto-org-chain/cronos/pull/1617) Fix unsuppored sign mode SIGN_MODE_TEXTUAL for bank transfer.
+* [#1621](https://github.com/crypto-org-chain/cronos/pull/1621) Update ethermint to the fix of broken opBlockhash and tx validation.
+* [#1623](https://github.com/crypto-org-chain/cronos/pull/1623) Ensure expedited related gov params pass the basic validation.
 
 *Sep 13, 2024*
 

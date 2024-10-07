@@ -16,6 +16,7 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     approve_proposal,
+    assert_gov_params,
     deploy_contract,
     edit_ini_sections,
     get_consensus_params,
@@ -111,6 +112,27 @@ def setup_cronos_test(tmp_path_factory):
         yield cronos
 
 
+def assert_evm_params(cli, expected, height):
+    params = cli.query_params("evm", height=height)
+    del params["header_hash_num"]
+    assert expected == params
+
+
+def check_basic_tx(c):
+    # check basic tx works
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+    receipt = send_transaction(
+        c.w3,
+        {
+            "to": ADDRS["community"],
+            "value": 1000,
+            "maxFeePerGas": 10000000000000,
+            "maxPriorityFeePerGas": 10000,
+        },
+    )
+    assert receipt.status == 1
+
+
 def exec(c, tmp_path_factory):
     """
     - propose an upgrade and pass it
@@ -162,6 +184,7 @@ def exec(c, tmp_path_factory):
         # block should pass the target height
         wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
         wait_for_port(ports.rpc_port(base_port))
+        return c.cosmos_cli()
 
     # test migrate keystore
     cli.migrate_keystore()
@@ -169,28 +192,16 @@ def exec(c, tmp_path_factory):
     target_height0 = height + 15
     print("upgrade v1.1 height", target_height0)
 
-    do_upgrade("v1.1.0", target_height0, "block")
-    cli = c.cosmos_cli()
+    cli = do_upgrade("v1.1.0", target_height0, "block")
+    check_basic_tx(c)
 
-    # check basic tx works
-    wait_for_port(ports.evmrpc_port(base_port))
-    receipt = send_transaction(
-        c.w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1000,
-            "maxFeePerGas": 10000000000000,
-            "maxPriorityFeePerGas": 10000,
-        },
-    )
-    assert receipt.status == 1
     height = cli.block_height()
     target_height1 = height + 15
     print("upgrade v1.2 height", target_height1)
 
     w3 = c.w3
     random_contract = deploy_contract(
-        c.w3,
+        w3,
         CONTRACTS["Random"],
     )
     with pytest.raises(ValueError) as e_info:
@@ -205,21 +216,8 @@ def exec(c, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    do_upgrade("v1.2", target_height1)
-    cli = c.cosmos_cli()
-
-    # check basic tx works
-    wait_for_port(ports.evmrpc_port(base_port))
-    receipt = send_transaction(
-        c.w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1000,
-            "maxFeePerGas": 10000000000000,
-            "maxPriorityFeePerGas": 10000,
-        },
-    )
-    assert receipt.status == 1
+    cli = do_upgrade("v1.2", target_height1)
+    check_basic_tx(c)
 
     # deploy contract should still work
     deploy_contract(w3, CONTRACTS["Greeter"])
@@ -247,14 +245,14 @@ def exec(c, tmp_path_factory):
     assert sorted(p, key=lambda x: x["denom"]) == send_enable
 
     rsp = cli.query_params("icaauth")
-    assert rsp["params"]["min_timeout_duration"] == "3600s", rsp
+    assert rsp["min_timeout_duration"] == "3600s", rsp
     max_callback_gas = cli.query_params()["max_callback_gas"]
     assert max_callback_gas == "50000", max_callback_gas
 
-    e0 = cli.query_params("evm", height=target_height0 - 1)["params"]
-    e1 = cli.query_params("evm", height=target_height1 - 1)["params"]
-    f0 = cli.query_params("feemarket", height=target_height0 - 1)["params"]
-    f1 = cli.query_params("feemarket", height=target_height1 - 1)["params"]
+    e0 = cli.query_params("evm", height=target_height0 - 1)
+    e1 = cli.query_params("evm", height=target_height1 - 1)
+    f0 = cli.query_params("feemarket", height=target_height0 - 1)
+    f1 = cli.query_params("feemarket", height=target_height1 - 1)
     assert e0["evm_denom"] == e1["evm_denom"] == "basetcro"
 
     # update the genesis time = current time + 5 secs
@@ -280,16 +278,18 @@ def exec(c, tmp_path_factory):
     height = cli.block_height()
     target_height3 = height + 15
     print("upgrade v1.4 height", target_height2)
-    do_upgrade("v1.4", target_height3)
+    gov_param = cli.query_params("gov")
 
-    cli = c.cosmos_cli()
-    assert e0 == cli.query_params("evm", height=target_height0 - 1)["params"]
-    assert e1 == cli.query_params("evm", height=target_height1 - 1)["params"]
-    assert f0 == cli.query_params("feemarket", height=target_height0 - 1)["params"]
-    assert f1 == cli.query_params("feemarket", height=target_height1 - 1)["params"]
+    cli = do_upgrade("v1.4", target_height3)
 
+    assert_evm_params(cli, e0, target_height0 - 1)
+    assert_evm_params(cli, e1, target_height1 - 1)
+    assert f0 == cli.query_params("feemarket", height=target_height0 - 1)
+    assert f1 == cli.query_params("feemarket", height=target_height1 - 1)
+    assert cli.query_params("evm")["header_hash_num"] == "10000", p
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
+    assert_gov_params(cli, gov_param)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

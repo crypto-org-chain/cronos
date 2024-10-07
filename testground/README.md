@@ -1,6 +1,9 @@
 # Testground
 
-[Testground documentation](https://docs.testground.ai/)
+The implementation is inspired by [testground](https://github.com/testground/testground), but we did a lot of simplifications to make it easier to deploy:
+
+- No centralized sync service, each node are assigned an unique continuous integer identifier, and node's hostname can be derived from that, that's how nodes discover each other and build the network.
+- Don't support networking configuration, but we might implement it in the future.
 
 ## Build Image
 
@@ -10,96 +13,39 @@ You can test with the prebuilt images in [github registry](https://github.com/cr
 
 ```bash
 $ nix build .#testground-image
-# for mac: nix build .#legacyPackages.aarch64-linux.testground-image
+# for apple silicon mac: nix build .#legacyPackages.aarch64-linux.testground-image
+# for x86 mac: nix build .#legacyPackages.x86_64-linux.testground-image
 $ docker load < ./result
 Loaded image: cronos-testground:<imageID>
 $ docker tag cronos-testground:<imageID> ghcr.io/crypto-org-chain/cronos-testground:latest
 ```
 
-## Run Test
-
-### Install Testground
+Or one liner like this:
 
 ```bash
-$ git clone https://github.com/testground/testground.git
-$ cd testground
-# compile Testground and all related dependencies
-$ make install
+docker load < $(nix build .#legacyPackages.aarch64-linux.testground-image --no-link --print-out-paths) \
+  | grep "^Loaded image:" \
+  | cut -d ' ' -f 3 \
+  | xargs -I{} docker tag {} ghcr.io/crypto-org-chain/cronos-testground:latest
 ```
-
-It'll install the `testground` binary in your `$GOPATH/bin` directory, and build several docker images.
-
-### Run Testground Daemon
-
-```bash
-$ TESTGROUND_HOME=$PWD/data testground daemon
-```
-
-Keep the daemon process running during the test.
-
-### Run Test Plan
-
-Import the test plan before the first run:
-
-```bash
-$ TESTGROUND_HOME=$PWD/data testground plan import --from /path/to/cronos/testground/benchmark
-```
-
-Run the benchmark test plan in local docker environment:
-
-```bash
-$ TESTGROUND_HOME=$PWD/data testground run composition -f /path/to/cronos/testground/benchmark/compositions/local.toml --wait
-```
-
-### macOS
-
-If you use `colima` as docker runtime on macOS, create the symbolic link `/var/run/docker.sock`:
-
-```bash
-$ sudo ln -s $HOME/.colima/docker.sock /var/run/docker.sock
-```
-
-And mount the related directories into the virtual machine:
-
-```toml
-mounts:
-  - location: /var/folders
-    writable: false
-  - location: <TESTGROUND_HOME>
-    writable: true
-```
-
-
-
-# Stateless Mode
-
-To simplify cluster setup, we are introducing a stateless mode.
 
 ## Generate data files locally
 
 You need to have the `cronosd` in `PATH`.
 
 ```bash
-$ nix run github:crypto-org-chain/cronos#stateless-testcase -- gen /tmp/data/out \
-  --hostname_template "testplan-{index}" \
-  --options '{
-    "validators": 3,
-    "fullnodes": 7,
-    "num_accounts": 10,
-    "num_txs": 1000,
-    "config": {
-      "mempool.size": 10000
-    },
-    "app": {
-      "evm.block-stm-pre-estimate": true
-    },
-    "genesis": {
-      "consensus.params.block.max_gas": "163000000"
-    }
-  }'
+nix run .#stateless-testcase -- gen /tmp/data/out \
+  --validator-generate-load \
+  --validators 3 \
+  --fullnodes 0 \
+  --num-accounts 800 \
+  --num-txs 400 \
+  --app-patch '{"mempool.max-txs": -1}' \
+  --config-patch '{"mempool.size": 100000}' \
+  --tx-type erc20-transfer \
+  --genesis-patch '{"consensus": {"params": {"block": {"max_gas": "263000000"}}}}'
 ```
 
-* `hostname_template` is the hostname of each node that can communicate.
 * `validators`/`fullnodes` is the number of validators/full nodes.
 * `num_accounts` is the number of test accounts for each full node.
 * `num_txs` is the number of test transactions to be sent for each test account.
@@ -114,15 +60,18 @@ Embed the data directory into the image, it produce a new image:
 $ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-testground:latest /tmp/data/out
 ```
 
-## Run In Local Docker
+## Run With Docker Compose
 
 ```bash
 $ mkdir /tmp/outputs
-$ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet | docker-compose -f /dev/stdin up
+$ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
+  --ext-str outputs=/tmp/outputs \
+  --ext-code nodes=3 \
+  | docker-compose -f /dev/stdin up --remove-orphans --force-recreate
 ```
 
 It'll collect the node data files to the `/tmp/outputs` directory.
 
 ## Run In Cluster
 
-TODO
+Please use [cronos-testground](https://github.com/crypto-org-chain/cronos-testground) to run the benchmark in k8s cluster.
