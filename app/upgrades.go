@@ -57,6 +57,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec) {
 		}
 	}
 }
+
 func UpdateExpeditedParams(ctx context.Context, gov govkeeper.Keeper) error {
 	govParams, err := gov.Params.Get(ctx)
 	if err != nil {
@@ -83,7 +84,8 @@ func UpdateExpeditedParams(ctx context.Context, gov govkeeper.Keeper) error {
 	}
 	govParams.ExpeditedThreshold = expeditedThreshold.String()
 	if govParams.ExpeditedVotingPeriod != nil && govParams.VotingPeriod != nil && *govParams.ExpeditedVotingPeriod >= *govParams.VotingPeriod {
-		period := time.Second * time.Duration(DefaultPeriodRatio()*govParams.VotingPeriod.Seconds())
+		votingPeriod := DurationToDec(*govParams.VotingPeriod)
+		period := DecToDuration(DefaultPeriodRatio().Mul(votingPeriod))
 		govParams.ExpeditedVotingPeriod = &period
 	}
 	if err := govParams.ValidateBasic(); err != nil {
@@ -96,6 +98,14 @@ func DefaultThresholdRatio() sdkmath.LegacyDec {
 	return govv1.DefaultExpeditedThreshold.Quo(govv1.DefaultThreshold)
 }
 
-func DefaultPeriodRatio() float64 {
-	return govv1.DefaultExpeditedPeriod.Seconds() / govv1.DefaultPeriod.Seconds()
+func DefaultPeriodRatio() sdkmath.LegacyDec {
+	return DurationToDec(govv1.DefaultExpeditedPeriod).Quo(DurationToDec(govv1.DefaultPeriod))
+}
+
+func DurationToDec(d time.Duration) sdkmath.LegacyDec {
+	return sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%f", d.Seconds()))
+}
+
+func DecToDuration(d sdkmath.LegacyDec) time.Duration {
+	return time.Second * time.Duration(d.RoundInt64())
 }

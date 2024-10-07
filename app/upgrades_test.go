@@ -89,7 +89,8 @@ func (suite *AppTestSuite) TestUpdateExpeditedParams() {
 				suite.govParams.VotingPeriod = &period
 			},
 			exp: func(params govv1.Params) {
-				expected := time.Second * time.Duration(app.DefaultPeriodRatio()*suite.govParams.VotingPeriod.Seconds())
+				votingPeriod := app.DurationToDec(*suite.govParams.VotingPeriod)
+				expected := app.DecToDuration(app.DefaultPeriodRatio().Mul(votingPeriod))
 				suite.Require().Equal(expected, *params.ExpeditedVotingPeriod)
 			},
 		},
