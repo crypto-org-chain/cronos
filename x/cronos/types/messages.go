@@ -191,8 +191,6 @@ func NewMsgStoreBlockList(from string, blob []byte) *MsgStoreBlockList {
 
 var errDummyIdentity = stderrors.New("dummy")
 
-const MaximumBlobLength = 20480
-
 type dummyIdentity struct{}
 
 func (i *dummyIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
@@ -200,10 +198,6 @@ func (i *dummyIdentity) Unwrap(stanzas []*age.Stanza) ([]byte, error) {
 }
 
 func (msg *MsgStoreBlockList) ValidateBasic() error {
-	length := len(msg.Blob)
-	if length > MaximumBlobLength {
-		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "block length %d must not exceed %d", length, MaximumBlobLength)
-	}
 	_, err := sdk.AccAddressFromBech32(msg.From)
 	if err != nil {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)

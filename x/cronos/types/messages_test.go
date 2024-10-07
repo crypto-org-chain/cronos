@@ -85,16 +85,6 @@ func TestValidateMsgStoreBlockList(t *testing.T) {
 			"",
 		},
 		{
-			"blob exceeds maximum length",
-			types.NewMsgStoreBlockList(
-				from,
-				make([]byte, types.MaximumBlobLength+1),
-			),
-			false,
-			true,
-			fmt.Sprintf("must not exceed %d", types.MaximumBlobLength),
-		},
-		{
 			"invalid sender address",
 			types.NewMsgStoreBlockList("invalid", blob),
 			false,
