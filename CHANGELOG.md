@@ -5,6 +5,7 @@
 ### Improvements
 
 * [#1613](https://github.com/crypto-org-chain/cronos/pull/1613) Check admin sender for MsgStoreBlockList in check tx.
+* [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
 
 *Sep 24, 2024*
 
