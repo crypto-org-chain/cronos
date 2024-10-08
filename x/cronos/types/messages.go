@@ -347,7 +347,8 @@ func (msg *MsgStoreBlockList) ValidateBasic() error {
 	if err != nil {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
 	}
-
+	// skip heavy operation in Decrypt by early return with errDummyIdentity in
+	// https://github.com/FiloSottile/age/blob/v1.1.1/age.go#L197
 	_, err = age.Decrypt(bytes.NewBuffer(msg.Blob), new(dummyIdentity))
 	if err != nil && err != errDummyIdentity {
 		return err
