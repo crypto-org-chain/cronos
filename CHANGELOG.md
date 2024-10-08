@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#1613](https://github.com/crypto-org-chain/cronos/pull/1613) Check admin sender for MsgStoreBlockList in check tx.
+
 *Sep 24, 2024*
 
 ## v1.3.2
