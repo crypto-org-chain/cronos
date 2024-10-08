@@ -39,12 +39,12 @@ func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 				}
 			}
 		}
-	}
-	admin := bad.getParams(ctx).CronosAdmin
-	for _, msg := range tx.GetMsgs() {
-		if blocklistMsg, ok := msg.(*types.MsgStoreBlockList); ok {
-			if admin != blocklistMsg.From {
-				return ctx, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+		admin := bad.getParams(ctx).CronosAdmin
+		for _, msg := range tx.GetMsgs() {
+			if blocklistMsg, ok := msg.(*types.MsgStoreBlockList); ok {
+				if admin != blocklistMsg.From {
+					return ctx, errors.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")
+				}
 			}
 		}
 	}
