@@ -31,22 +31,21 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [
-              (import ./nix/build_overlay.nix)
-              poetry2nix.overlays.default
-              gomod2nix.overlays.default
-              self.overlay
-            ];
+            overlays = self.overlays.default;
             config = { };
           };
         in
         rec {
           packages = pkgs.cronos-matrix // {
-            inherit (pkgs) rocksdb;
+            inherit (pkgs) rocksdb testground-image;
           };
           apps = {
             cronosd = mkApp packages.cronosd;
             cronosd-testnet = mkApp packages.cronosd-testnet;
+            stateless-testcase = {
+              type = "app";
+              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
+            };
           };
           defaultPackage = packages.cronosd;
           defaultApp = apps.cronosd;
@@ -73,62 +72,20 @@
         }
       )
     ) // {
-      overlay = final: super: {
-        go = super.go_1_22;
-        test-env = final.callPackage ./nix/testenv.nix { };
-        bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
-        # make-tarball don't follow symbolic links to avoid duplicate file, the bundle should have no external references.
-        # reset the ownership and permissions to make the extract result more normal.
-        make-tarball = drv: final.runCommand "tarball-${drv.name}"
-          {
-            nativeBuildInputs = with final.buildPackages; [ gnutar gzip ];
-          } ''
-          tar cfv - -C "${drv}" \
-            --owner=0 --group=0 --mode=u+rw,uga+r --hard-dereference . \
-            | gzip -9 > $out
-        '';
-        bundle-win-exe = drv: final.callPackage ./nix/bundle-win-exe.nix { cronosd = drv; };
-      } // (with final;
-        let
-          matrix = lib.cartesianProductOfSets {
-            network = [ "mainnet" "testnet" ];
-            pkgtype = [
-              "nix" # normal nix package
-              "bundle" # relocatable bundled package
-              "tarball" # tarball of the bundle, for distribution and checksum
-            ];
+      overlays.default = [
+        (import ./nix/build_overlay.nix)
+        poetry2nix.overlays.default
+        gomod2nix.overlays.default
+        (import ./testground/benchmark/overlay.nix)
+        (final: super: {
+          go = super.go_1_22;
+          test-env = final.callPackage ./nix/testenv.nix { };
+          cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
+            inherit rev;
+            bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
           };
-          binaries = builtins.listToAttrs (builtins.map
-            ({ network, pkgtype }: {
-              name = builtins.concatStringsSep "-" (
-                [ "cronosd" ] ++
-                lib.optional (network != "mainnet") network ++
-                lib.optional (pkgtype != "nix") pkgtype
-              );
-              value =
-                let
-                  cronosd = callPackage ./. {
-                    inherit rev network;
-                  };
-                  bundle =
-                    if stdenv.hostPlatform.isWindows then
-                      bundle-win-exe cronosd
-                    else
-                      bundle-exe cronosd;
-                in
-                if pkgtype == "bundle" then
-                  bundle
-                else if pkgtype == "tarball" then
-                  make-tarball bundle
-                else
-                  cronosd;
-            })
-            matrix
-          );
-        in
-        {
-          cronos-matrix = binaries;
-        }
-      );
+          testground-image = final.callPackage ./nix/testground-image.nix { };
+        })
+      ];
     };
 }
