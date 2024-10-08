@@ -15,6 +15,7 @@
 * [#1610](https://github.com/crypto-org-chain/cronos/pull/1610) Sync e2ee module with v1.3.x branch.
 * [#1612](https://github.com/crypto-org-chain/cronos/pull/1612) Support ibc channel upgrade related methods.
 * [#1614](https://github.com/crypto-org-chain/cronos/pull/1614) Bump cosmos-sdk to v0.50.10.
+* [#1613](https://github.com/crypto-org-chain/cronos/pull/1613) Check admin sender for MsgStoreBlockList in check tx.
 
 ### Bug Fixes
 

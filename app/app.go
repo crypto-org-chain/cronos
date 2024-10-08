@@ -1106,7 +1106,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 
 		blockedMap[addr.String()] = struct{}{}
 	}
-	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap)
+	blockAddressDecorator := NewBlockAddressesDecorator(blockedMap, app.CronosKeeper.GetParams)
 	options := evmante.HandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,

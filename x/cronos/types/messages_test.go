@@ -1,16 +1,20 @@
 package types_test
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"testing"
 
-	"github.com/crypto-org-chain/cronos/v2/app"
+	"filippo.io/age"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	cmdcfg "github.com/crypto-org-chain/cronos/v2/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestValidateMsgUpdateTokenMapping(t *testing.T) {
-	app.SetConfig()
+	cmdcfg.SetBech32Prefixes(sdk.GetConfig())
 
 	testCases := []struct {
 		name     string
@@ -50,6 +54,71 @@ func TestValidateMsgUpdateTokenMapping(t *testing.T) {
 				require.NoError(t1, err)
 			} else {
 				require.Error(t1, err)
+			}
+		})
+	}
+}
+
+func TestValidateMsgStoreBlockList(t *testing.T) {
+	cmdcfg.SetBech32Prefixes(sdk.GetConfig())
+
+	publicKey := "age1cy0su9fwf3gf9mw868g5yut09p6nytfmmnktexz2ya5uqg9vl9sss4euqm"
+	recipient, err := age.ParseX25519Recipient(publicKey)
+	if err != nil {
+		log.Fatalf("Failed to parse public key %q: %v", publicKey, err)
+	}
+
+	from := "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp"
+	blob := []byte("valid blob data")
+	testCases := []struct {
+		name        string
+		msg         *types.MsgStoreBlockList
+		noEncrypt   bool
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			"valid message",
+			types.NewMsgStoreBlockList(from, blob),
+			false,
+			false,
+			"",
+		},
+		{
+			"invalid sender address",
+			types.NewMsgStoreBlockList("invalid", blob),
+			false,
+			true,
+			"invalid sender address",
+		},
+		{
+			"decryption error",
+			types.NewMsgStoreBlockList(from, blob),
+			true,
+			true,
+			"failed to read header",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if !tc.noEncrypt {
+				out := new(bytes.Buffer)
+				w, err := age.Encrypt(out, recipient)
+				require.NoError(t, err)
+				_, err = w.Write(tc.msg.Blob)
+				require.NoError(t, err)
+				err = w.Close()
+				require.NoError(t, err)
+				tc.msg.Blob = out.Bytes()
+			}
+
+			err = tc.msg.ValidateBasic()
+			if tc.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errorMsg)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
