@@ -125,6 +125,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig ethermint.EncodingConfig
 		WrapGenTxCmd(encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		WrapValidateGenesisCmd(),
 		AddGenesisAccountCmd(app.DefaultNodeHome),
+		genutilcli.AddBulkGenesisAccountCmd(app.DefaultNodeHome),
 		tmcli.NewCompletionCmd(rootCmd, true),
 		ethermintclient.NewTestnetCmd(app.ModuleBasics, banktypes.GenesisBalancesIterator{}),
 		debug.Cmd(),

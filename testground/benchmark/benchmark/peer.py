@@ -74,7 +74,7 @@ def init_node(
         for i in range(num_accounts)
     ]
 
-    node_id = cli("comet", "show-node-id", **default_kwargs)
+    node_id = cli("tendermint", "show-node-id", **default_kwargs)
     peer_id = f"{node_id}@{ip}:26656"
     peer = PeerPacket(
         ip=str(ip),
@@ -103,13 +103,12 @@ def gen_genesis(
         fp.write(json.dumps(accounts, default=pydantic_encoder).encode())
         fp.flush()
         cli(
-            "genesis",
             "bulk-add-genesis-account",
             fp.name,
             home=leader_home,
         )
     collect_gen_tx(cli, peers, home=leader_home)
-    cli("genesis", "validate", home=leader_home)
+    cli("validate-genesis", home=leader_home)
     print("genesis validated")
 
     evm_accounts, auth_accounts = erc20.genesis_accounts(
@@ -153,11 +152,6 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
             "cache-size": 0,
         },
         "mempool": {"max-txs": MEMPOOL_SIZE},
-        "evm": {
-            "block-executor": "block-stm",  # or "sequential"
-            "block-stm-workers": 0,
-            "block-stm-pre-estimate": True,
-        },
         "json-rpc": {"enable-indexer": True},
     }
     # update persistent_peers and other configs in config.toml
@@ -175,7 +169,6 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
 
 def gentx(cli, **kwargs):
     cli(
-        "genesis",
         "add-genesis-account",
         VAL_ACCOUNT,
         str(VAL_INITIAL_AMOUNT),
@@ -184,7 +177,6 @@ def gentx(cli, **kwargs):
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp) / "gentx.json"
         cli(
-            "genesis",
             "gentx",
             VAL_ACCOUNT,
             VAL_STAKED_AMOUNT,
@@ -205,4 +197,4 @@ def collect_gen_tx(cli, peers, **kwargs):
         for i, peer in enumerate(peers):
             if peer.gentx is not None:
                 (tmpdir / f"gentx-{i}.json").write_text(json.dumps(peer.gentx))
-        cli("genesis", "collect-gentxs", gentx_dir=str(tmpdir), **kwargs)
+        cli("collect-gentxs", gentx_dir=str(tmpdir), **kwargs)

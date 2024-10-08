@@ -74,8 +74,8 @@ def wait_for_port(port, host="127.0.0.1", timeout=40.0):
 def wait_for_block(cli, target: int, timeout=40):
     height = -1
     for i in range(timeout):
-        status = json.loads(cli("status", output="json"))
-        height = int(status["sync_info"]["latest_block_height"])
+        status = json.loads(cli("status"))
+        height = int(status["SyncInfo"]["latest_block_height"])
 
         if height >= target:
             break

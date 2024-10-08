@@ -43,7 +43,7 @@ nix run .#stateless-testcase -- gen /tmp/data/out \
   --app-patch '{"mempool": {"max-txs": -1}}' \
   --config-patch '{"mempool": {"size": 100000}}' \
   --tx-type erc20-transfer \
-  --genesis-patch '{"consensus": {"params": {"block": {"max_gas": "263000000"}}}}'
+  --genesis-patch '{"consensus_params": {"block": {"max_gas": "263000000"}}}'
 ```
 
 * `validators`/`fullnodes` is the number of validators/full nodes.
