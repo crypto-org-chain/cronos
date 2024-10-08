@@ -39,9 +39,9 @@ nix run .#stateless-testcase -- gen /tmp/data/out \
   --validators 3 \
   --fullnodes 0 \
   --num-accounts 800 \
-  --num-txs 400 \
-  --app-patch '{"mempool.max-txs": -1}' \
-  --config-patch '{"mempool.size": 100000}' \
+  --num-txs 20 \
+  --app-patch '{"mempool": {"max-txs": -1}}' \
+  --config-patch '{"mempool": {"size": 100000}}' \
   --tx-type erc20-transfer \
   --genesis-patch '{"consensus": {"params": {"block": {"max_gas": "263000000"}}}}'
 ```
@@ -65,7 +65,7 @@ $ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-te
 ```bash
 $ mkdir /tmp/outputs
 $ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
-  --ext-str outputs=/tmp/outputs \
+  --ext-str outputs=/tmp/colima \
   --ext-code nodes=3 \
   | docker-compose -f /dev/stdin up --remove-orphans --force-recreate
 ```
