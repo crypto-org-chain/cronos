@@ -24,7 +24,7 @@
 * [#1617](https://github.com/crypto-org-chain/cronos/pull/1617) Fix unsuppored sign mode SIGN_MODE_TEXTUAL for bank transfer.
 * [#1621](https://github.com/crypto-org-chain/cronos/pull/1621), [1630](https://github.com/crypto-org-chain/cronos/pull/1630) Update ethermint to the fix of broken opBlockhash and tx validation.
 * [#1623](https://github.com/crypto-org-chain/cronos/pull/1623) Ensure expedited related gov params pass the basic validation.
-* [#1633](https://github.com/crypto-org-chain/cronos/pull/1633) Align acknowledgement with underlying_app_success when ack packet not does not succeed.
+* [#1633](https://github.com/crypto-org-chain/cronos/pull/1633) Align acknowledgement with underlying_app_success when ack packet does not succeed.
 
 *Sep 13, 2024*
 
