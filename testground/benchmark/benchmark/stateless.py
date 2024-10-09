@@ -56,6 +56,7 @@ def validate_json(ctx, param, value):
 @click.option("--fullnodes", default=7)
 @click.option("--num-accounts", default=10)
 @click.option("--num-txs", default=1000)
+@click.option("--num-idle", default=20)
 @click.option("--tx-type", default="simple-transfer")
 @click.option("--config-patch", default="{}", callback=validate_json)
 @click.option("--app-patch", default="{}", callback=validate_json)
@@ -78,6 +79,7 @@ def _gen(
     fullnodes: int = 7,
     num_accounts: int = 10,
     num_txs: int = 1000,
+    num_idle: int = 20,
     tx_type: str = "simple-transfer",
     validator_generate_load: bool = True,
     config_patch: dict = None,
@@ -140,6 +142,7 @@ def _gen(
         "fullnodes": fullnodes,
         "num_accounts": num_accounts,
         "num_txs": num_txs,
+        "num_idle": num_idle,
         "tx_type": tx_type,
         "validator-generate-load": validator_generate_load,
     }
@@ -277,7 +280,7 @@ def do_run(
         print("sent", len(txs), "txs")
 
     # node quit when the chain is idle or halted for a while
-    detect_idle_halted(20, 20)
+    detect_idle_halted(cfg["num_idle"], 20)
 
     with (home / "block_stats.log").open("w") as logfile:
         dump_block_stats(logfile)
