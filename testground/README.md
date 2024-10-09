@@ -40,6 +40,7 @@ nix run .#stateless-testcase -- gen /tmp/data/out \
   --fullnodes 0 \
   --num-accounts 800 \
   --num-txs 20 \
+  --num-idle 20 \
   --app-patch '{"mempool": {"max-txs": -1}}' \
   --config-patch '{"mempool": {"size": 100000}}' \
   --tx-type erc20-transfer \
