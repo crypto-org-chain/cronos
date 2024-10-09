@@ -286,7 +286,7 @@ def exec(c, tmp_path_factory):
     assert_evm_params(cli, e1, target_height1 - 1)
     assert f0 == cli.query_params("feemarket", height=target_height0 - 1)
     assert f1 == cli.query_params("feemarket", height=target_height1 - 1)
-    assert cli.query_params("evm")["header_hash_num"] == "10000", p
+    assert cli.query_params("evm")["header_hash_num"] == "256", p
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
     assert_gov_params(cli, gov_param)
