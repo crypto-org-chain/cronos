@@ -1,5 +1,12 @@
 { dockerTools, runCommandLocal, cronos-matrix, benchmark-testcase }:
 let
+  patched-cronosd = cronos-matrix.cronosd.overrideAttrs (oldAttrs: {
+    patches = oldAttrs.patches or [ ] ++ [
+      ./testground-cronosd.patch
+    ];
+  });
+in
+let
   tmpDir = runCommandLocal "tmp" { } ''
     mkdir -p $out/tmp/
   '';
@@ -9,7 +16,7 @@ dockerTools.buildLayeredImage {
   created = "now";
   contents = [
     benchmark-testcase
-    cronos-matrix.cronosd
+    patched-cronosd
     tmpDir
   ];
   config = {
