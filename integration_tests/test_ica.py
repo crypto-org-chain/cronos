@@ -1,8 +1,8 @@
 import base64
 import json
 
-import cprotobuf
 import pytest
+from cprotobuf import Field, ProtoEntity
 from pystarport import cluster
 
 from .cosmoscli import module_address
@@ -166,36 +166,38 @@ def test_ica(ibc, order, tmp_path):
     balance -= amount * msg_num
     # check if the funds are reduced in interchain account
     assert cli_host.balance(ica_address, denom=denom) == balance
+    call_module_safe_query(cli_controller, connid, signer, ica_address)
 
 
-class QueryBalanceRequest(cprotobuf.Entity):
-    address = cprotobuf.Field("string", 1)
-    denom = cprotobuf.Field("string", 2)
+class QueryBalanceRequest(ProtoEntity):
+    address = Field("string", 1)
+    denom = Field("string", 2)
 
 
-def test_module_safe_query(ibc, tmp_path):
-    cli_controller = ibc.cronos.cosmos_cli()
-    signer = cli_controller.address("community")
-    connid = "connection-0"
-    query = QueryBalanceRequest(address=signer, denom="basecro")
+def call_module_safe_query(cli, connid, signer, ica_address):
+    query = QueryBalanceRequest(address=ica_address, denom="basecro")
     data = json.dumps(
         {
             "@type": "/ibc.applications.interchain_accounts.host.v1.MsgModuleQuerySafe",
-            "signer": signer,
+            "signer": ica_address,
             "requests": [
                 {
                     "path": "/cosmos.bank.v1beta1.Query/Balance",
-                    "data": base64.b64encode(query.SerializeToString()),
+                    "data": base64.b64encode(query.SerializeToString()).decode("utf-8"),
                 }
             ],
         }
     )
-    packet = cli_controller.ica_generate_packet_data(data)
+    packet = cli.ica_generate_packet_data(data)
     timeout = 60  # in seconds
-    cli_controller.ica_send_tx(
+    rsp = cli.ica_send_tx(
         connid,
         json.dumps(packet),
         timeout_in_ns=int(timeout * 1e9),
         gas=200000,
         from_=signer,
     )
+    assert rsp["code"] == 0, rsp
+    events = parse_events_rpc(rsp["events"])
+    seq = int(events.get("send_packet")["packet_sequence"])
+    return seq
