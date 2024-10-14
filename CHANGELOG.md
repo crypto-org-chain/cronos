@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Oct 14, 2024*
+
+## v1.3.3
 
 ### Improvements
 
