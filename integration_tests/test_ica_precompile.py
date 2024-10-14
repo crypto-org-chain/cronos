@@ -10,6 +10,7 @@ from web3.datastructures import AttributeDict
 from .ibc_utils import (
     Status,
     funds_ica,
+    gen_query_balance_packet,
     gen_send_msg,
     get_next_channel,
     prepare_network,
@@ -448,3 +449,11 @@ def test_sc_call(ibc, order):
     wait_for_packet_log(start, packet_event, channel_id2, last_seq, status)
     balance -= diff
     assert cli_host.balance(ica_address, denom=denom) == balance
+
+    packet = gen_query_balance_packet(cli_controller, ica_address)
+    str = base64.b64decode(packet["data"])
+    tx = tcontract.functions.callSubmitMsgs(
+        connid, channel_id, str, no_timeout
+    ).build_transaction(data)
+    receipt = send_transaction(w3, tx, KEYS[signer])
+    assert receipt.status == 1

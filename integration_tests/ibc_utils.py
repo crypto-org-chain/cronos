@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import subprocess
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import requests
+from cprotobuf import Field, ProtoEntity
 from pystarport import cluster, ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
@@ -869,3 +871,25 @@ def log_gas_records(cli):
         if res["gas_used"]:
             records.append(int(res["gas_used"]))
     return records
+
+
+class QueryBalanceRequest(ProtoEntity):
+    address = Field("string", 1)
+    denom = Field("string", 2)
+
+
+def gen_query_balance_packet(cli, ica_address):
+    query = QueryBalanceRequest(address=ica_address, denom="basecro")
+    data = json.dumps(
+        {
+            "@type": "/ibc.applications.interchain_accounts.host.v1.MsgModuleQuerySafe",
+            "signer": ica_address,
+            "requests": [
+                {
+                    "path": "/cosmos.bank.v1beta1.Query/Balance",
+                    "data": base64.b64encode(query.SerializeToString()).decode("utf-8"),
+                }
+            ],
+        }
+    )
+    return cli.ica_generate_packet_data(data)
