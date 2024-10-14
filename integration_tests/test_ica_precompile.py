@@ -253,7 +253,6 @@ def test_sc_call(ibc, order):
         signer=signer,
         contract_addr=contract_addr,
     )
-    balance = funds_ica(cli_host, ica_address, signer=signer)
     assert tcontract.caller.getAccount() == addr
     assert (
         tcontract.functions.callQueryAccount(connid, contract_addr).call()
@@ -307,10 +306,32 @@ def test_sc_call(ibc, order):
         expected_seq,
         contract.events.SubmitMsgsResult,
         channel_id,
+        need_wait=False,
         signer=signer,
     )
     submit_msgs_ro(tcontract.functions.delegateSubmitMsgs, str)
     submit_msgs_ro(tcontract.functions.staticSubmitMsgs, str)
+    last_seq = tcontract.caller.getLastSeq()
+    wait_for_status_change(tcontract, channel_id, last_seq)
+    status = tcontract.caller.getStatus(channel_id, last_seq)
+    assert expected_seq == last_seq
+    assert status == Status.FAIL
+    wait_for_packet_log(start, packet_event, channel_id, last_seq, status)
+
+    expected_seq += 1
+    balance = funds_ica(cli_host, ica_address, signer=signer)
+    start = w3.eth.get_block_number()
+    str, diff = submit_msgs(
+        ibc,
+        tcontract.functions.callSubmitMsgs,
+        data,
+        ica_address,
+        False,
+        expected_seq,
+        contract.events.SubmitMsgsResult,
+        channel_id,
+        signer=signer,
+    )
     last_seq = tcontract.caller.getLastSeq()
     wait_for_status_change(tcontract, channel_id, last_seq)
     status = tcontract.caller.getStatus(channel_id, last_seq)
