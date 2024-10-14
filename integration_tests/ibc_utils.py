@@ -887,7 +887,7 @@ def gen_query_balance_packet(cli, ica_address):
             "requests": [
                 {
                     "path": "/cosmos.bank.v1beta1.Query/Balance",
-                    "data": base64.b64encode(query.SerializeToString()).decode("utf-8"),
+                    "data": base64.b64encode(query.SerializeToString()).decode(),
                 }
             ],
         }
