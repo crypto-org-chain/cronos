@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Oct 14, 2024*
+
+## v1.4.0-rc1
 
 ### State Machine Breaking
 
