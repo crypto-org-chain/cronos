@@ -317,7 +317,7 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
 		return err
 	}
-	if !ack.UnderlyingAppSuccess {
+	if !ack.Success() {
 		return k.onPacketResult(ctx, packet, false, relayer, contractAddress, packetSenderAddress)
 	}
 	var res channeltypes.Acknowledgement
