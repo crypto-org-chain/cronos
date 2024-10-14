@@ -111,6 +111,7 @@ config {
               allow_messages: [
                 '/cosmos.bank.v1beta1.MsgSend',
                 '/cosmos.staking.v1beta1.MsgDelegate',
+                '/ibc.applications.interchain_accounts.host.v1.MsgModuleQuerySafe',
               ],
             },
           },

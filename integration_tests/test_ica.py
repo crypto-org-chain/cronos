@@ -9,6 +9,7 @@ from .ibc_utils import (
     Status,
     deploy_contract,
     funds_ica,
+    gen_query_balance_packet,
     gen_send_msg,
     ica_send_tx,
     parse_events_rpc,
@@ -164,3 +165,17 @@ def test_ica(ibc, order, tmp_path):
     balance -= amount * msg_num
     # check if the funds are reduced in interchain account
     assert cli_host.balance(ica_address, denom=denom) == balance
+    call_module_safe_query(cli_controller, connid, signer, ica_address)
+
+
+def call_module_safe_query(cli, connid, signer, ica_address):
+    packet = gen_query_balance_packet(cli, ica_address)
+    timeout = 60  # in seconds
+    rsp = cli.ica_send_tx(
+        connid,
+        json.dumps(packet),
+        timeout_in_ns=int(timeout * 1e9),
+        gas=200000,
+        from_=signer,
+    )
+    assert rsp["code"] == 0, rsp
