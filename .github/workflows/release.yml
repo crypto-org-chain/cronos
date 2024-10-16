@@ -14,8 +14,6 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
       - uses: cachix/install-nix-action@v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
@@ -57,8 +55,6 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
       - uses: cachix/install-nix-action@v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11

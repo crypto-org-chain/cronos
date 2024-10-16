@@ -17,8 +17,6 @@ jobs:
       GO111MODULE: on
     steps:
       - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
       - uses: technote-space/get-diff-action@v3
         with:
           SUFFIX_FILTER: |
