@@ -14,6 +14,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
@@ -25,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
@@ -36,6 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
