@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#]() Gen test tx in parallel even in single node.
+
 *Oct 14, 2024*
 
 ## v1.4.0-rc1

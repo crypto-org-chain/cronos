@@ -171,3 +171,11 @@ def block(height):
 
 def block_txs(height):
     return block(height)["result"]["block"]["data"]["txs"]
+
+
+def split(a: int, n: int):
+    """
+    Split range(0, a) into n parts
+    """
+    k, m = divmod(a, n)
+    return [(i * k + min(i, m), (i + 1) * k + min(i + 1, m)) for i in range(n)]
