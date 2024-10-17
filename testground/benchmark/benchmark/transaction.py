@@ -1,4 +1,8 @@
 import asyncio
+import itertools
+import multiprocessing
+import os
+from collections import namedtuple
 from pathlib import Path
 
 import aiohttp
@@ -7,7 +11,7 @@ import eth_abi
 import ujson
 
 from .erc20 import CONTRACT_ADDRESS
-from .utils import gen_account
+from .utils import gen_account, split
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
@@ -48,17 +52,43 @@ TX_TYPES = {
 }
 
 
-def gen(global_seq, num_accounts, num_txs, tx_type: str) -> [str]:
-    accounts = [gen_account(global_seq, i + 1) for i in range(num_accounts)]
-    txs = []
-    create_tx = TX_TYPES[tx_type]
-    for i in range(num_txs):
-        for acct in accounts:
-            txs.append(acct.sign_transaction(create_tx(i)).rawTransaction.hex())
-            if len(txs) % 1000 == 0:
-                print("generated", len(txs), "txs for node", global_seq)
+Job = namedtuple(
+    "Job", ["chunk", "global_seq", "num_accounts", "num_txs", "tx_type", "create_tx"]
+)
 
-    return txs
+
+def _do_job(job: Job):
+    accounts = [gen_account(job.global_seq, i + 1) for i in range(*job.chunk)]
+    acct_txs = []
+    total = 0
+    for acct in accounts:
+        txs = []
+        for i in range(job.num_txs):
+            txs.append(acct.sign_transaction(job.create_tx(i)).rawTransaction.hex())
+            total += 1
+            if total % 1000 == 0:
+                print("generated", total, "txs for node", job.global_seq)
+        acct_txs.append(txs)
+    return acct_txs
+
+
+def gen(global_seq, num_accounts, num_txs, tx_type: str) -> [str]:
+    chunks = split(num_accounts, os.cpu_count())
+    create_tx = TX_TYPES[tx_type]
+    jobs = [
+        Job(chunk, global_seq, num_accounts, num_txs, tx_type, create_tx)
+        for chunk in chunks
+    ]
+
+    with multiprocessing.Pool() as pool:
+        acct_txs = pool.map(_do_job, jobs)
+
+    # mix the account txs together, ordered by nonce.
+    all_txs = []
+    for txs in itertools.zip_longest(*itertools.chain(*acct_txs)):
+        all_txs += txs
+
+    return all_txs
 
 
 def save(txs: [str], datadir: Path, global_seq: int):
