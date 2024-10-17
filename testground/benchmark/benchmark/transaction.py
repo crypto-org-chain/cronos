@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 
 import aiohttp
+import backoff
 import eth_abi
 import ujson
 
@@ -77,6 +78,8 @@ def load(datadir: Path, global_seq: int) -> [str]:
         return ujson.load(f)
 
 
+@backoff.on_predicate(backoff.expo, max_time=60, max_value=5)
+@backoff.on_exception(backoff.expo, aiohttp.ClientError, max_time=60, max_value=5)
 async def async_sendtx(session, raw):
     async with session.post(
         LOCAL_JSON_RPC,
@@ -89,7 +92,9 @@ async def async_sendtx(session, raw):
     ) as rsp:
         data = await rsp.json()
         if "error" in data:
-            print("send tx error", data["error"])
+            print("send tx error, will retry,", data["error"])
+            return False
+        return True
 
 
 async def send(txs):
