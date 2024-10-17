@@ -59,14 +59,16 @@ Job = namedtuple(
 
 def _do_job(job: Job):
     accounts = [gen_account(job.global_seq, i + 1) for i in range(*job.chunk)]
-    acct_txs = [[] for acct in accounts]
+    acct_txs = []
     total = 0
-    for i in range(job.num_txs):
-        for acct, txs in zip(accounts, acct_txs):
+    for acct in accounts:
+        txs = []
+        for i in range(job.num_txs):
             txs.append(acct.sign_transaction(job.create_tx(i)).rawTransaction.hex())
             total += 1
             if total % 1000 == 0:
                 print("generated", total, "txs for node", job.global_seq)
+        acct_txs.append(txs)
     return acct_txs
 
 
