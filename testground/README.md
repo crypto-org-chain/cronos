@@ -42,7 +42,7 @@ nix run .#stateless-testcase -- gen /tmp/data/out \
   --num-txs 20 \
   --num-idle 20 \
   --app-patch '{"mempool": {"max-txs": -1}}' \
-  --config-patch '{"mempool": {"size": 100000}}' \
+  --config-patch '{"mempool": {"size": 10000}}' \
   --tx-type erc20-transfer \
   --genesis-patch '{"consensus": {"params": {"block": {"max_gas": "263000000"}}}}'
 ```

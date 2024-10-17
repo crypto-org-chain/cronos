@@ -19,6 +19,7 @@ click = "^8.1.7"
 ujson = "^5.10.0"
 jsonmerge = "^1.9.2"
 
+backoff = "^2.2.1"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2"
 pytest-github-actions-annotate-failures = "^0.2.0"

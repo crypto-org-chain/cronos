@@ -5,6 +5,7 @@
 ### Improvements
 
 * [#1645](https://github.com/crypto-org-chain/cronos/pull/1645) Gen test tx in parallel even in single node.
+* (testground)[#1644](https://github.com/crypto-org-chain/cronos/pull/1644) load generator retry with backoff on error.
 
 *Oct 14, 2024*
 
