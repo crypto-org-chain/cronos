@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+* (testground)[]() Fix running single validator benchmark locally.
+
 ### Improvements
 
 * [#1645](https://github.com/crypto-org-chain/cronos/pull/1645) Gen test tx in parallel even in single node.
