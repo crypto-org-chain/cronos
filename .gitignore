@@ -23,5 +23,5 @@ result
 integration_tests/configs/*.yaml
 
 # direnv
-/.envrc
-/.direnv
+.envrc
+.direnv

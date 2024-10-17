@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* (testground)[#1644 ](https://github.com/crypto-org-chain/cronos/pull/1644) load generator retry with backoff on error.
+
 *Oct 14, 2024*
 
 ## v1.4.0-rc1
