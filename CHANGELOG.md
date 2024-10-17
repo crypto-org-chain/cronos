@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* (cli)[#]() Fix node can't shutdown by signal.
+* (cli)[#1647](https://github.com/crypto-org-chain/cronos/pull/1647) Fix node can't shutdown by signal.
 
 ### Improvements
 
