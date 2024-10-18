@@ -11,6 +11,7 @@ from . import erc20
 from .cli import ChainCommand
 from .types import Balance, GenesisAccount, PeerPacket
 from .utils import (
+    DEFAULT_DENOM,
     bech32_to_eth,
     eth_to_bech32,
     gen_account,
@@ -19,7 +20,6 @@ from .utils import (
     patch_toml,
 )
 
-DEFAULT_DENOM = "basecro"
 VAL_ACCOUNT = "validator"
 VAL_INITIAL_AMOUNT = Balance(amount="100000000000000000000", denom=DEFAULT_DENOM)
 VAL_STAKED_AMOUNT = Balance(amount="10000000000000000000", denom=DEFAULT_DENOM)
