@@ -377,6 +377,10 @@ def test_local_statesync(cronos, tmp_path_factory):
         Path(home) / "config/app.toml",
         base_port,
         {
+            "json-rpc": {
+                "address": f"127.0.0.1:{ports.evmrpc_port(base_port)}",
+                "ws-address": f"127.0.0.1:{ports.evmrpc_ws_port(base_port)}",
+            },
             "versiondb": {
                 "enable": True,
             },
