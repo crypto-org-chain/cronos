@@ -442,7 +442,11 @@ def prepare_txs(cfg, datadir, global_seq):
     else:
         print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
         txs = transaction.gen(
-            global_seq, cfg["num_accounts"], cfg["num_txs"], cfg["tx_type"], cfg["batch_size"]
+            global_seq,
+            cfg["num_accounts"],
+            cfg["num_txs"],
+            cfg["tx_type"],
+            cfg["batch_size"],
         )
     return txs
 
