@@ -55,7 +55,8 @@ TX_TYPES = {
 
 
 Job = namedtuple(
-    "Job", ["chunk", "global_seq", "num_accounts", "num_txs", "tx_type", "create_tx", "batch"]
+    "Job",
+    ["chunk", "global_seq", "num_accounts", "num_txs", "tx_type", "create_tx", "batch"],
 )
 EthTx = namedtuple("EthTx", ["tx", "raw", "sender"])
 
@@ -75,7 +76,10 @@ def _do_job(job: Job):
                 print("generated", total, "txs for node", job.global_seq)
 
         # to keep it simple, only build batch inside the account
-        txs = [build_cosmos_tx(*txs[start, end]) for start, end in split_batch(len(txs), job.batch)]
+        txs = [
+            build_cosmos_tx(*txs[start:end])
+            for start, end in split_batch(len(txs), job.batch)
+        ]
         acct_txs.append(txs)
     return acct_txs
 
@@ -120,15 +124,18 @@ def build_cosmos_tx(*txs: EthTx) -> str:
     """
     return base64 encoded cosmos tx, support batch
     """
-    msgs = [cosmostx.build_any(
-        "/ethermint.evm.v1.MsgEthereumTx",
-        cosmostx.MsgEthereumTx(
-            from_=tx.sender,
-            raw=tx.raw,
-        ),
-    ) for tx in txs]
-    fee = sum(tx["gas"] * tx["gasPrice"] for tx in txs)
-    gas = sum(tx["gas"] for tx in txs)
+    msgs = [
+        cosmostx.build_any(
+            "/ethermint.evm.v1.MsgEthereumTx",
+            cosmostx.MsgEthereumTx(
+                from_=tx.sender,
+                raw=tx.raw,
+            ),
+        )
+        for tx in txs
+    ]
+    fee = sum(tx.tx["gas"] * tx.tx["gasPrice"] for tx in txs)
+    gas = sum(tx.tx["gas"] for tx in txs)
     body = cosmostx.TxBody(
         messages=msgs,
         extension_options=[

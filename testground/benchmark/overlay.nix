@@ -11,6 +11,8 @@ let
           pyunormalize = [ "setuptools" ];
           pytest-github-actions-annotate-failures = [ "setuptools" ];
           cprotobuf = [ "setuptools" ];
+          flake8-black = [ "setuptools" ];
+          flake8-isort = [ "hatchling" ];
         };
       in
       lib.mapAttrs
