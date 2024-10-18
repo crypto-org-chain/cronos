@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* (testground)[]() Fix running single validator benchmark locally.
+* (testground)[1649](https://github.com/crypto-org-chain/cronos/pull/1649) Fix running single validator benchmark locally.
 
 ### Improvements
 
