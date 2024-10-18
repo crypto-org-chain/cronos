@@ -14,7 +14,7 @@ from hexbytes import HexBytes
 
 from . import cosmostx
 from .erc20 import CONTRACT_ADDRESS
-from .utils import DEFAULT_DENOM, LOCAL_RPC, gen_account, split
+from .utils import DEFAULT_DENOM, LOCAL_RPC, gen_account, split, split_batch
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
@@ -55,8 +55,9 @@ TX_TYPES = {
 
 
 Job = namedtuple(
-    "Job", ["chunk", "global_seq", "num_accounts", "num_txs", "tx_type", "create_tx"]
+    "Job", ["chunk", "global_seq", "num_accounts", "num_txs", "tx_type", "create_tx", "batch"]
 )
+EthTx = namedtuple("EthTx", ["tx", "raw", "sender"])
 
 
 def _do_job(job: Job):
@@ -68,19 +69,22 @@ def _do_job(job: Job):
         for i in range(job.num_txs):
             tx = job.create_tx(i)
             raw = acct.sign_transaction(tx).rawTransaction
-            txs.append(build_cosmos_tx(tx, raw, HexBytes(acct.address)))
+            txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
             if total % 1000 == 0:
                 print("generated", total, "txs for node", job.global_seq)
+
+        # to keep it simple, only build batch inside the account
+        txs = [build_cosmos_tx(*txs[start, end]) for start, end in split_batch(len(txs), job.batch)]
         acct_txs.append(txs)
     return acct_txs
 
 
-def gen(global_seq, num_accounts, num_txs, tx_type: str) -> [str]:
+def gen(global_seq, num_accounts, num_txs, tx_type: str, batch: int) -> [str]:
     chunks = split(num_accounts, os.cpu_count())
     create_tx = TX_TYPES[tx_type]
     jobs = [
-        Job(chunk, global_seq, num_accounts, num_txs, tx_type, create_tx)
+        Job(chunk, global_seq, num_accounts, num_txs, tx_type, create_tx, batch)
         for chunk in chunks
     ]
 
@@ -112,20 +116,21 @@ def load(datadir: Path, global_seq: int) -> [str]:
         return ujson.load(f)
 
 
-def build_cosmos_tx(tx: dict, raw: bytes, sender: bytes) -> str:
+def build_cosmos_tx(*txs: EthTx) -> str:
     """
-    return base64 encoded cosmos tx
+    return base64 encoded cosmos tx, support batch
     """
-    msg = cosmostx.build_any(
+    msgs = [cosmostx.build_any(
         "/ethermint.evm.v1.MsgEthereumTx",
         cosmostx.MsgEthereumTx(
-            from_=sender,
-            raw=raw,
+            from_=tx.sender,
+            raw=tx.raw,
         ),
-    )
-    fee = tx["gas"] * tx["gasPrice"]
+    ) for tx in txs]
+    fee = sum(tx["gas"] * tx["gasPrice"] for tx in txs)
+    gas = sum(tx["gas"] for tx in txs)
     body = cosmostx.TxBody(
-        messages=[msg],
+        messages=msgs,
         extension_options=[
             cosmostx.build_any("/ethermint.evm.v1.ExtensionOptionsEthereumTx")
         ],
@@ -133,7 +138,7 @@ def build_cosmos_tx(tx: dict, raw: bytes, sender: bytes) -> str:
     auth_info = cosmostx.AuthInfo(
         fee=cosmostx.Fee(
             amount=[cosmostx.Coin(denom=DEFAULT_DENOM, amount=str(fee))],
-            gas_limit=tx["gas"],
+            gas_limit=gas,
         )
     )
     return base64.b64encode(
@@ -151,7 +156,9 @@ async def async_sendtx(session, raw):
         json={
             "jsonrpc": "2.0",
             "method": "broadcast_tx_async",
-            "params": {"tx": raw},
+            "params": {
+                "tx": raw,
+            },
             "id": 1,
         },
     ) as rsp:

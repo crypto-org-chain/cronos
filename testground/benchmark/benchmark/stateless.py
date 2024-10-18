@@ -59,6 +59,7 @@ def validate_json(ctx, param, value):
 @click.option("--num-txs", default=1000)
 @click.option("--num-idle", default=20)
 @click.option("--tx-type", default="simple-transfer")
+@click.option("--batch-size", default=1)
 @click.option("--config-patch", default="{}", callback=validate_json)
 @click.option("--app-patch", default="{}", callback=validate_json)
 @click.option("--genesis-patch", default="{}", callback=validate_json)
@@ -82,6 +83,7 @@ def _gen(
     num_txs: int = 1000,
     num_idle: int = 20,
     tx_type: str = "simple-transfer",
+    batch_size: int = 1,
     validator_generate_load: bool = True,
     config_patch: dict = None,
     app_patch: dict = None,
@@ -145,7 +147,8 @@ def _gen(
         "num_txs": num_txs,
         "num_idle": num_idle,
         "tx_type": tx_type,
-        "validator-generate-load": validator_generate_load,
+        "batch_size": batch_size,
+        "validator_generate_load": validator_generate_load,
     }
     (outdir / "config.json").write_text(json.dumps(cfg))
 
@@ -216,6 +219,7 @@ def run(outdir: str, datadir: str, cronosd, global_seq):
 @click.option("--num-accounts", default=10)
 @click.option("--num-txs", default=1000)
 @click.option("--tx-type", default="simple-transfer")
+@click.option("--batch-size", default=1)
 @click.option("--node", type=int)
 def gen_txs(**kwargs):
     return _gen_txs(**kwargs)
@@ -249,13 +253,14 @@ def _gen_txs(
     num_accounts: int = 10,
     num_txs: int = 1000,
     tx_type: str = "simple-transfer",
+    batch_size: int = 1,
     node: Optional[int] = None,
 ):
     outdir = Path(outdir)
 
     def job(global_seq):
         print("generating", num_accounts * num_txs, "txs for node", global_seq)
-        txs = transaction.gen(global_seq, num_accounts, num_txs, tx_type)
+        txs = transaction.gen(global_seq, num_accounts, num_txs, tx_type, batch_size)
         transaction.save(txs, outdir, global_seq)
         print("saved", len(txs), "txs for node", global_seq)
 
@@ -269,7 +274,7 @@ def _gen_txs(
 def do_run(
     datadir: Path, home: Path, cronosd: str, group: str, global_seq: int, cfg: dict
 ):
-    if group == FULLNODE_GROUP or cfg.get("validator-generate-load", True):
+    if group == FULLNODE_GROUP or cfg.get("validator_generate_load", True):
         txs = prepare_txs(cfg, datadir, global_seq)
     else:
         txs = []
@@ -437,7 +442,7 @@ def prepare_txs(cfg, datadir, global_seq):
     else:
         print("generating", cfg["num_accounts"] * cfg["num_txs"], "txs")
         txs = transaction.gen(
-            global_seq, cfg["num_accounts"], cfg["num_txs"], cfg["tx_type"]
+            global_seq, cfg["num_accounts"], cfg["num_txs"], cfg["tx_type"], cfg["batch_size"]
         )
     return txs
 
