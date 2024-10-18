@@ -11,11 +11,10 @@ import eth_abi
 import ujson
 
 from .erc20 import CONTRACT_ADDRESS
-from .utils import gen_account, split
+from .utils import LOCAL_JSON_RPC, gen_account, split
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
-LOCAL_JSON_RPC = "http://localhost:8545"
 CONNECTION_POOL_SIZE = 1024
 TXS_DIR = "txs"
 RECIPIENT = "0x1" + "0" * 39
@@ -128,7 +127,7 @@ async def async_sendtx(session, raw):
 
 
 async def send(txs):
-    connector = aiohttp.TCPConnector(limit=1024)
+    connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:

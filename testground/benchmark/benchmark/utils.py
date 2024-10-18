@@ -13,7 +13,8 @@ from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
 CRONOS_ADDRESS_PREFIX = "crc"
-LOCAL_RPC = "http://localhost:26657"
+LOCAL_RPC = "http://127.0.0.1:26657"
+LOCAL_JSON_RPC = "http://127.0.0.1:8545"
 
 
 def patch_toml_doc(doc, patch):
@@ -93,7 +94,7 @@ def wait_for_block(cli, target: int, timeout=40):
 def wait_for_w3(timeout=40):
     for i in range(timeout):
         try:
-            w3 = web3.Web3(web3.providers.HTTPProvider("http://localhost:8545"))
+            w3 = web3.Web3(web3.providers.HTTPProvider(LOCAL_JSON_RPC))
             w3.eth.get_balance("0x0000000000000000000000000000000000000001")
         except:  # noqa
             time.sleep(1)
