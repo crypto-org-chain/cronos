@@ -378,7 +378,8 @@ def test_local_statesync(cronos, tmp_path_factory):
         base_port,
         {
             "json-rpc": {
-                "address": "127.0.0.1:26671",
+                "address": f"127.0.0.1:{ports.evmrpc_port(base_port)}",
+                "ws-address": f"127.0.0.1:{ports.evmrpc_ws_port(base_port)}",
             },
             "versiondb": {
                 "enable": True,
