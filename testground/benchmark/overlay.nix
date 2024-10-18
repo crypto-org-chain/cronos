@@ -10,6 +10,7 @@ let
           docker = [ "hatchling" "hatch-vcs" ];
           pyunormalize = [ "setuptools" ];
           pytest-github-actions-annotate-failures = [ "setuptools" ];
+          cprotobuf = [ "setuptools" ];
         };
       in
       lib.mapAttrs

@@ -12,6 +12,7 @@ from eth_account import Account
 from hexbytes import HexBytes
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
 
+DEFAULT_DENOM = "basecro"
 CRONOS_ADDRESS_PREFIX = "crc"
 LOCAL_RPC = "http://127.0.0.1:26657"
 LOCAL_JSON_RPC = "http://127.0.0.1:8545"

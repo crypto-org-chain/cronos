@@ -534,6 +534,16 @@ files = [
 ]
 
 [[package]]
+name = "cprotobuf"
+version = "0.1.11"
+description = "pythonic and high performance protocol buffer implementation."
+optional = false
+python-versions = "*"
+files = [
+    {file = "cprotobuf-0.1.11.tar.gz", hash = "sha256:d2d88c8de840275205e64e530052c653dd25a0fb9e5cd9f7e39ce8f762d7c0a4"},
+]
+
+[[package]]
 name = "cytoolz"
 version = "0.12.3"
 description = "Cython implementation of Toolz: High performance functional utilities"
@@ -2227,4 +2237,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "777a8252968a616738411c9418f1621f68befb12ee7147ea7ab36918a5a9a118"
+content-hash = "bebd65d7cba833c0079907f3174c7441312f4daa9c254a5030bdeb7c81bf6387"

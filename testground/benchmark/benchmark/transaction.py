@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import itertools
 import multiprocessing
 import os
@@ -9,9 +10,11 @@ import aiohttp
 import backoff
 import eth_abi
 import ujson
+from hexbytes import HexBytes
 
+from . import cosmostx
 from .erc20 import CONTRACT_ADDRESS
-from .utils import LOCAL_JSON_RPC, gen_account, split
+from .utils import DEFAULT_DENOM, LOCAL_RPC, gen_account, split
 
 GAS_PRICE = 1000000000
 CHAIN_ID = 777
@@ -63,7 +66,9 @@ def _do_job(job: Job):
     for acct in accounts:
         txs = []
         for i in range(job.num_txs):
-            txs.append(acct.sign_transaction(job.create_tx(i)).rawTransaction.hex())
+            tx = job.create_tx(i)
+            raw = acct.sign_transaction(tx).rawTransaction
+            txs.append(build_cosmos_tx(tx, raw, HexBytes(acct.address)))
             total += 1
             if total % 1000 == 0:
                 print("generated", total, "txs for node", job.global_seq)
@@ -107,15 +112,46 @@ def load(datadir: Path, global_seq: int) -> [str]:
         return ujson.load(f)
 
 
+def build_cosmos_tx(tx: dict, raw: bytes, sender: bytes) -> str:
+    """
+    return base64 encoded cosmos tx
+    """
+    msg = cosmostx.build_any(
+        "/ethermint.evm.v1.MsgEthereumTx",
+        cosmostx.MsgEthereumTx(
+            from_=sender,
+            raw=raw,
+        ),
+    )
+    fee = tx["gas"] * tx["gasPrice"]
+    body = cosmostx.TxBody(
+        messages=[msg],
+        extension_options=[
+            cosmostx.build_any("/ethermint.evm.v1.ExtensionOptionsEthereumTx")
+        ],
+    )
+    auth_info = cosmostx.AuthInfo(
+        fee=cosmostx.Fee(
+            amount=[cosmostx.Coin(denom=DEFAULT_DENOM, amount=str(fee))],
+            gas_limit=tx["gas"],
+        )
+    )
+    return base64.b64encode(
+        cosmostx.TxRaw(
+            body=body.SerializeToString(), auth_info=auth_info.SerializeToString()
+        ).SerializeToString()
+    ).decode()
+
+
 @backoff.on_predicate(backoff.expo, max_time=60, max_value=5)
 @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_time=60, max_value=5)
 async def async_sendtx(session, raw):
     async with session.post(
-        LOCAL_JSON_RPC,
+        LOCAL_RPC,
         json={
             "jsonrpc": "2.0",
-            "method": "eth_sendRawTransaction",
-            "params": [raw],
+            "method": "broadcast_tx_async",
+            "params": {"tx": raw},
             "id": 1,
         },
     ) as rsp:
