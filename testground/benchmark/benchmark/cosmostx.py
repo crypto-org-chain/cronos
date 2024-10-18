@@ -3,24 +3,24 @@ from typing import Optional
 from cprotobuf import Field, ProtoEntity
 
 
-class Any(ProtoEntity):
+class ProtoAny(ProtoEntity):
     type_url = Field("string", 1)
     value = Field("bytes", 2)
 
 
-def build_any(type_url: str, msg: Optional[ProtoEntity] = None) -> Any:
+def build_any(type_url: str, msg: Optional[ProtoEntity] = None) -> ProtoAny:
     value = b""
     if msg is not None:
         value = msg.SerializeToString()
-    return Any(type_url=type_url, value=value)
+    return ProtoAny(type_url=type_url, value=value)
 
 
 class TxBody(ProtoEntity):
-    messages = Field(Any, 1, repeated=True)
+    messages = Field(ProtoAny, 1, repeated=True)
     memo = Field("string", 2)
     timeout_height = Field("uint64", 3)
-    extension_options = Field(Any, 1023, repeated=True)
-    non_critical_extension_options = Field(Any, 2047, repeated=True)
+    extension_options = Field(ProtoAny, 1023, repeated=True)
+    non_critical_extension_options = Field(ProtoAny, 2047, repeated=True)
 
 
 class CompactBitArray(ProtoEntity):
@@ -43,7 +43,7 @@ class ModeInfo(ProtoEntity):
 
 
 class SignerInfo(ProtoEntity):
-    public_key = Field(Any, 1)
+    public_key = Field(ProtoAny, 1)
     mode_info = Field(ModeInfo, 2)
     sequence = Field("uint64", 3)
 
