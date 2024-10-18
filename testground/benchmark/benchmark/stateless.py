@@ -231,9 +231,9 @@ def generic_gen_txs(options: dict):
 @click.option("--datadir", default="/data", type=Path)
 @click.option("--global-seq", default=0)
 def generate_load(datadir: Path, global_seq: int):
-    '''
+    """
     manually generate load to an existing node
-    '''
+    """
     cfg = json.loads((datadir / "config.json").read_text())
     txs = prepare_txs(cfg, datadir, global_seq)
     asyncio.run(transaction.send(txs))
