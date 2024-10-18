@@ -377,6 +377,9 @@ def test_local_statesync(cronos, tmp_path_factory):
         Path(home) / "config/app.toml",
         base_port,
         {
+            "json-rpc": {
+                "address": "127.0.0.1:26671",
+            },
             "versiondb": {
                 "enable": True,
             },

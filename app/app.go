@@ -1454,7 +1454,12 @@ func (app *App) Close() error {
 	}
 
 	err := stderrors.Join(errs...)
-	app.Logger().Info("Application gracefully shutdown", "error", err)
+	msg := "Application gracefully shutdown"
+	if err == nil {
+		app.Logger().Info(msg)
+	} else {
+		app.Logger().Error(msg, "error", err)
+	}
 	return err
 }
 
