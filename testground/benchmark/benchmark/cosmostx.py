@@ -80,7 +80,3 @@ class TxRaw(ProtoEntity):
 class MsgEthereumTx(ProtoEntity):
     from_ = Field("bytes", 5)
     raw = Field("bytes", 6)
-
-
-class ExtensionOptionsEthereumTx(ProtoEntity):
-    pass
