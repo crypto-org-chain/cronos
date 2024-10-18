@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .utils import block, block_height
+from .utils import block, block_eth, block_height
 
 # the tps calculation use the average of the last 10 blocks
 TPS_WINDOW = 5
@@ -19,18 +19,33 @@ def calculate_tps(blocks):
     return txs / time_diff
 
 
-def dump_block_stats(fp):
+def get_block_info_cosmos(height):
+    blk = block(height)
+    timestamp = datetime.fromisoformat(blk["result"]["block"]["header"]["time"])
+    txs = len(blk["result"]["block"]["data"]["txs"])
+    return timestamp, txs
+
+
+def get_block_info_eth(height):
+    blk = block_eth(height)
+    timestamp = datetime.fromtimestamp(int(blk["timestamp"], 0))
+    txs = len(blk["transactions"])
+    return timestamp, txs
+
+
+def dump_block_stats(fp, eth=True):
     """
-    dump simple statistics for blocks for analysis
+    dump block stats using web3 json-rpc, which splits batch tx
     """
     tps_list = []
     current = block_height()
     blocks = []
     # skip block 1 whose timestamp is not accurate
     for i in range(2, current + 1):
-        blk = block(i)
-        timestamp = datetime.fromisoformat(blk["result"]["block"]["header"]["time"])
-        txs = len(blk["result"]["block"]["data"]["txs"])
+        if eth:
+            timestamp, txs = get_block_info_eth(i)
+        else:
+            timestamp, txs = get_block_info_cosmos(i)
         blocks.append((txs, timestamp))
         tps = calculate_tps(blocks[-TPS_WINDOW:])
         tps_list.append(tps)

@@ -171,6 +171,18 @@ def block(height):
     return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
 
 
+def block_eth(height: int):
+    return requests.post(
+        f"{LOCAL_JSON_RPC}",
+        json={
+            "jsonrpc": "2.0",
+            "method": "eth_getBlockByNumber",
+            "params": [hex(height), False],
+            "id": 1,
+        },
+    ).json()["result"]
+
+
 def block_txs(height):
     return block(height)["result"]["block"]["data"]["txs"]
 
@@ -181,3 +193,17 @@ def split(a: int, n: int):
     """
     k, m = divmod(a, n)
     return [(i * k + min(i, m), (i + 1) * k + min(i + 1, m)) for i in range(n)]
+
+
+def split_batch(a: int, size: int):
+    """
+    Split range(0, a) into batches with size
+    """
+    if size < 1:
+        size = 1
+
+    k, m = divmod(a, size)
+    parts = [(i * size, (i + 1) * size) for i in range(k)]
+    if m:
+        parts.append((k * size, a))
+    return parts
