@@ -38,8 +38,8 @@ class ModeInfoMulti(ProtoEntity):
 
 
 class ModeInfo(ProtoEntity):
-    single = Field("ModeInfo.Single", 1)
-    multi = Field("ModeInfo.Multi", 2)
+    single = Field(ModeInfoSingle, 1)
+    multi = Field(ModeInfoMulti, 2)
 
 
 class SignerInfo(ProtoEntity):
