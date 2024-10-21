@@ -20,12 +20,11 @@ GAS_PRICE = 1000000000
 CHAIN_ID = 777
 CONNECTION_POOL_SIZE = 1024
 TXS_DIR = "txs"
-RECIPIENT = "0x1" + "0" * 39
 
 
-def simple_transfer_tx(nonce: int):
+def simple_transfer_tx(sender: str, nonce: int):
     return {
-        "to": RECIPIENT,
+        "to": sender,
         "value": 1,
         "nonce": nonce,
         "gas": 21000,
@@ -34,9 +33,9 @@ def simple_transfer_tx(nonce: int):
     }
 
 
-def erc20_transfer_tx(nonce: int):
+def erc20_transfer_tx(sender: str, nonce: int):
     # data is erc20 transfer function call
-    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [RECIPIENT, 1]).hex()
+    data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [sender, 1]).hex()
     return {
         "to": CONTRACT_ADDRESS,
         "value": 0,
@@ -68,7 +67,7 @@ def _do_job(job: Job):
     for acct in accounts:
         txs = []
         for i in range(job.num_txs):
-            tx = job.create_tx(i)
+            tx = job.create_tx(acct.address, i)
             raw = acct.sign_transaction(tx).rawTransaction
             txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
