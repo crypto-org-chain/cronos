@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	ibcfeekeeper "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/keeper"
 	transferTypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
@@ -19,13 +20,15 @@ var _ porttypes.UpgradableModule = (*IBCConversionModule)(nil)
 type IBCConversionModule struct {
 	app          porttypes.IBCModule
 	cronoskeeper cronoskeeper.Keeper
+	feekeeper    ibcfeekeeper.Keeper
 }
 
 // NewIBCConversionModule creates a new IBCModule given the keeper and underlying application
-func NewIBCConversionModule(app porttypes.IBCModule, ck cronoskeeper.Keeper) IBCConversionModule {
+func NewIBCConversionModule(app porttypes.IBCModule, ck cronoskeeper.Keeper, fk ibcfeekeeper.Keeper) IBCConversionModule {
 	return IBCConversionModule{
 		app:          app,
 		cronoskeeper: ck,
+		feekeeper:    fk,
 	}
 }
 

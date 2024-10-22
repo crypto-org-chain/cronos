@@ -218,15 +218,22 @@ def prepare_network(
 
 
 def register_fee_payee(src_chain, dst_chain):
+    port_id = "transfer"
+    channel_id = "channel-0"
     rsp = dst_chain.register_counterparty_payee(
-        "transfer",
-        "channel-0",
+        port_id,
+        channel_id,
         dst_chain.address("relayer"),
         src_chain.address("signer1"),
         from_="relayer",
         fees="100000000basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
+    # relayer = src_chain.address("signer1")
+    # relayer_caller = eth_to_bech32(RELAYER_CALLER)
+    # rsp = src_chain.register_payee(
+    #     port_id, channel_id, relayer_caller, relayer, _from=relayer_caller
+    # )
 
 
 def assert_ready(ibc):
