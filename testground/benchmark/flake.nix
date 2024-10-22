@@ -33,6 +33,10 @@
               type = "app";
               program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
             };
+            testnet = {
+              type = "app";
+              program = "${pkgs.benchmark-testcase}/bin/testnet";
+            };
           };
           devShells.default = pkgs.mkShell {
             buildInputs = [ pkgs.benchmark-testcase-env ];

@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#]() Add testnet benchmark command.
+
 *Oct 24, 2024*
 
 ## v1.4.0-rc2

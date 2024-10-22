@@ -35,6 +35,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 stateless-testcase = "benchmark.stateless:cli"
+testnet = "benchmark.testnet:cli"
 
 [tool.black]
 line-length = 88
