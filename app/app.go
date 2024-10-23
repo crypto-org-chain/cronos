@@ -189,6 +189,7 @@ const (
 
 	FlagBlockedAddresses             = "blocked-addresses"
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
+	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
 )
 
 var Forks = []Fork{}
@@ -318,6 +319,7 @@ type App struct {
 	// encoding
 	cdc               *codec.LegacyAmino
 	txConfig          client.TxConfig
+	txDecoder         sdk.TxDecoder
 	appCodec          codec.Codec
 	interfaceRegistry types.InterfaceRegistry
 
@@ -381,6 +383,9 @@ type App struct {
 	qms storetypes.RootMultiStore
 
 	blockProposalHandler *ProposalHandler
+
+	// unsafe to set for validator, used for testing
+	dummyCheckTx bool
 }
 
 // New returns a reference to an initialized chain.
@@ -485,6 +490,7 @@ func New(
 		BaseApp:              bApp,
 		cdc:                  cdc,
 		txConfig:             txConfig,
+		txDecoder:            txDecoder,
 		appCodec:             appCodec,
 		interfaceRegistry:    interfaceRegistry,
 		invCheckPeriod:       invCheckPeriod,
@@ -493,6 +499,7 @@ func New(
 		okeys:                okeys,
 		memKeys:              memKeys,
 		blockProposalHandler: blockProposalHandler,
+		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -1494,4 +1501,22 @@ func (app *App) Close() error {
 
 func maxParallelism() int {
 	return min(stdruntime.GOMAXPROCS(0), stdruntime.NumCPU())
+}
+
+func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	if app.dummyCheckTx {
+		tx, err := app.txDecoder(req.Tx)
+		if err != nil {
+			return nil, err
+		}
+
+		feeTx, ok := tx.(sdk.FeeTx)
+		if !ok {
+			return nil, errors.Wrap(sdkerrors.ErrInvalidRequest, "tx must be FeeTx")
+		}
+
+		return &abci.ResponseCheckTx{Code: abci.CodeTypeOK, GasWanted: int64(feeTx.GetGas())}, nil
+	}
+
+	return app.BaseApp.CheckTx(req)
 }

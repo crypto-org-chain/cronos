@@ -8,6 +8,7 @@
 * (cli)[#1647](https://github.com/crypto-org-chain/cronos/pull/1647) Fix node can't shutdown by signal.
 * (testground)[#1652](https://github.com/crypto-org-chain/cronos/pull/1652) Remove unexpected conflicts in benchmark transactions.
 * [#1654](https://github.com/crypto-org-chain/cronos/pull/1654) Set relayer as payee for relayer caller when enabled incentivized packet.
+* [#1655](https://github.com/crypto-org-chain/cronos/pull/1655) Fix state overwrite in debug trace APIs.
 
 ### Improvements
 
@@ -16,6 +17,8 @@
 * [#1648](https://github.com/crypto-org-chain/cronos/pull/1648) Add abort OE in PrepareProposal.
 * (testground)[#1651](https://github.com/crypto-org-chain/cronos/pull/1651) Benchmark use cosmos broadcast rpc.
 * (testground)[#1650](https://github.com/crypto-org-chain/cronos/pull/1650) Benchmark support batch mode.
+* [#1658](https://github.com/crypto-org-chain/cronos/pull/1658) Optimize when block-list is empty.
+* (testground)[#1659](https://github.com/crypto-org-chain/cronos/pull/1659) Support skip check-tx in benchmark.
 
 *Oct 14, 2024*
 
