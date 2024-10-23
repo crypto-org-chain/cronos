@@ -122,11 +122,14 @@ def wait_for_block(cli, height, timeout=240):
         raise TimeoutError(f"wait for block {height} timeout")
 
 
-def wait_for_new_blocks(cli, n, sleep=0.5):
+def wait_for_new_blocks(cli, n, sleep=0.5, timeout=240):
     cur_height = begin_height = int(get_sync_info(cli.status())["latest_block_height"])
+    start_time = time.time()
     while cur_height - begin_height < n:
         time.sleep(sleep)
         cur_height = int(get_sync_info(cli.status())["latest_block_height"])
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"wait for block {begin_height + n} timeout")
     return cur_height
 
 
