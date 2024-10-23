@@ -867,6 +867,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         lambda cmd: fn(cmd),
     )
     cronos.supervisorctl("update")
+    time.sleep(2)
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     # reset to origin_cmd only
