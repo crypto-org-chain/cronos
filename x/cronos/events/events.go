@@ -1,6 +1,8 @@
 package events
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
@@ -17,22 +19,24 @@ var (
 	RelayerEvents        map[string]*EventDescriptor
 	IcaEvents            map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
-		channeltypes.AttributeKeyDataHex:      ConvertPacketData,
-		transfertypes.AttributeKeyAmount:      ConvertAmount,
-		banktypes.AttributeKeyRecipient:       ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySpender:         ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyReceiver:        ConvertAccAddressFromBech32,
-		banktypes.AttributeKeySender:          ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyMinter:          ConvertAccAddressFromBech32,
-		banktypes.AttributeKeyBurner:          ConvertAccAddressFromBech32,
-		channeltypes.AttributeKeySequence:     ReturnStringAsIs,
-		channeltypes.AttributeKeySrcPort:      ReturnStringAsIs,
-		channeltypes.AttributeKeySrcChannel:   ReturnStringAsIs,
-		channeltypes.AttributeKeyDstPort:      ReturnStringAsIs,
-		channeltypes.AttributeKeyDstChannel:   ReturnStringAsIs,
-		channeltypes.AttributeKeyConnectionID: ReturnStringAsIs,
-		ibcfeetypes.AttributeKeyFee:           ReturnStringAsIs,
-		transfertypes.AttributeKeyDenom:       ReturnStringAsIs,
+		channeltypes.AttributeKeyDataHex:                            ConvertPacketData,
+		transfertypes.AttributeKeyAmount:                            ConvertAmount,
+		banktypes.AttributeKeyRecipient:                             ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySpender:                               ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyReceiver:                              ConvertAccAddressFromBech32,
+		banktypes.AttributeKeySender:                                ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyMinter:                                ConvertAccAddressFromBech32,
+		banktypes.AttributeKeyBurner:                                ConvertAccAddressFromBech32,
+		channeltypes.AttributeKeySequence:                           ConvertUint64,
+		channeltypes.AttributeKeySrcPort:                            ReturnStringAsIs,
+		fmt.Sprintf("%s_info", channeltypes.AttributeKeySrcPort):    ReturnStringAsIs,
+		channeltypes.AttributeKeySrcChannel:                         ReturnStringAsIs,
+		fmt.Sprintf("%s_info", channeltypes.AttributeKeySrcChannel): ReturnStringAsIs,
+		channeltypes.AttributeKeyDstPort:                            ReturnStringAsIs,
+		channeltypes.AttributeKeyDstChannel:                         ReturnStringAsIs,
+		channeltypes.AttributeKeyConnectionID:                       ReturnStringAsIs,
+		ibcfeetypes.AttributeKeyFee:                                 ReturnStringAsIs,
+		transfertypes.AttributeKeyDenom:                             ReturnStringAsIs,
 	}
 	IcaValueDecoders = ValueDecoders{
 		cronoseventstypes.AttributeKeySeq:   ConvertUint64,

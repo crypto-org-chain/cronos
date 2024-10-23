@@ -123,9 +123,11 @@ def burn(burner, amt, denom):
 
 def recv_packet(seq, src, dst, amt, denom):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": f"{seq}",
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
@@ -141,9 +143,11 @@ def recv_packet(seq, src, dst, amt, denom):
 
 def acknowledge_packet(seq):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": f"{seq}",
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
@@ -158,9 +162,11 @@ def denom_trace(denom):
 
 def write_ack(seq, src, dst, amt, denom):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": f"{seq}",
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
