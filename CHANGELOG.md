@@ -16,7 +16,7 @@
 * [#1648](https://github.com/crypto-org-chain/cronos/pull/1648) Add abort OE in PrepareProposal.
 * (testground)[#1651](https://github.com/crypto-org-chain/cronos/pull/1651) Benchmark use cosmos broadcast rpc.
 * (testground)[#1650](https://github.com/crypto-org-chain/cronos/pull/1650) Benchmark support batch mode.
-* (testground)[#]() Support skip check-tx in benchmark.
+* (testground)[#1659](https://github.com/crypto-org-chain/cronos/pull/1659) Support skip check-tx in benchmark.
 
 *Oct 14, 2024*
 
