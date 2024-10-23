@@ -55,7 +55,7 @@ interface IRelayerModule {
     event Timeout(
         address indexed refundReceiver,
         string refundDenom,
-        uint256 amount
+        string refundAmount
     );
     event FungibleTokenPacket(
         address indexed receiver,
