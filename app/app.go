@@ -301,21 +301,12 @@ func (im CustomIBCFeeMiddleware) OnAcknowledgementPacket(
 ) error {
 	if im.keeper.IsFeeEnabled(ctx, packet.SourcePort, packet.SourceChannel) {
 		var ack ibcfeetypes.IncentivizedAcknowledgement
-		err := ibcfeetypes.ModuleCdc.UnmarshalJSON(acknowledgement, &ack)
-		if err != nil {
+		if err := ibcfeetypes.ModuleCdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
 			return errors.Wrapf(err, "cannot unmarshal ICS-29 incentivized packet acknowledgement: %v", ack)
 		}
 		im.keeper.SetPayeeAddress(ctx, relayer.String(), ack.ForwardRelayerAddress, packet.SourceChannel)
 	}
 	return im.IBCMiddleware.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
-}
-
-func (im CustomIBCFeeMiddleware) OnTimeoutPacket(
-	ctx sdk.Context,
-	packet ibcchanneltypes.Packet,
-	relayer sdk.AccAddress,
-) error {
-	return im.IBCMiddleware.OnTimeoutPacket(ctx, packet, relayer)
 }
 
 // App extends an ABCI application, but with most of its parameters exported.
