@@ -93,7 +93,7 @@ def coin_spent(spender, amt, denom):
 def distribute_fee(receiver, fee):
     return {
         "receiver": receiver,
-        "fee": keccak(text=fee),
+        "fee": fee,
     }
 
 
@@ -101,7 +101,7 @@ def fungible(dst, src, amt, denom):
     return {
         "receiver": dst,
         "sender": src,
-        "denom": keccak(text=denom),
+        "denom": denom,
         "amount": amt,
     }
 
@@ -123,7 +123,7 @@ def burn(burner, amt, denom):
 
 def recv_packet(seq, src, dst, amt, denom):
     return {
-        "packetSequence": f"{seq}",
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
         "packetSrcPortInfo": "transfer",
@@ -143,7 +143,7 @@ def recv_packet(seq, src, dst, amt, denom):
 
 def acknowledge_packet(seq):
     return {
-        "packetSequence": f"{seq}",
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
         "packetSrcPortInfo": "transfer",
@@ -156,13 +156,13 @@ def acknowledge_packet(seq):
 
 def denom_trace(denom):
     return {
-        "denom": keccak(text=denom),
+        "denom": denom,
     }
 
 
 def write_ack(seq, src, dst, amt, denom):
     return {
-        "packetSequence": f"{seq}",
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
         "packetSrcPortInfo": "transfer",
@@ -226,7 +226,7 @@ def filter_logs_since(w3, start, name, seq):
         {
             "fromBlock": start,
             "address": [CONTRACT],
-            "topics": [topic, "0x" + keccak(text=f"{seq}").hex()],
+            "topics": [topic, "0x{:064x}".format(seq)],
         }
     )
 
@@ -244,7 +244,7 @@ def test_ibc(ibc):
     relayer = to_checksum_address(bech32_to_eth(relayer0))
     cronos_addr = module_address("cronos")
     transfer_addr = module_address("transfer")
-    seq = get_send_packet_seq(chainmain_cli)
+    seq = int(get_send_packet_seq(chainmain_cli))
     expected = [
         recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom),
         denom_trace(denom),
