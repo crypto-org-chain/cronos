@@ -124,6 +124,11 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 }
 
 func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
+	if len(h.blocklist) == 0 {
+		// fast path, accept all txs
+		return nil
+	}
+
 	sigTx, ok := tx.(signing.SigVerifiableTx)
 	if !ok {
 		return fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
@@ -147,6 +152,11 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
 
 func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
+		if len(h.blocklist) == 0 {
+			// fast path, accept all txs
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
+		}
+
 		for _, txBz := range req.Txs {
 			memTx, err := h.TxDecoder(txBz)
 			if err != nil {
