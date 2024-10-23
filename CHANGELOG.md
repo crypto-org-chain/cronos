@@ -20,6 +20,7 @@
 * (testground)[#1650](https://github.com/crypto-org-chain/cronos/pull/1650) Benchmark support batch mode.
 * [#1658](https://github.com/crypto-org-chain/cronos/pull/1658) Optimize when block-list is empty.
 * (testground)[#1659](https://github.com/crypto-org-chain/cronos/pull/1659) Support skip check-tx in benchmark.
+* [#1662](https://github.com/crypto-org-chain/cronos/pull/1662) Emit more packet info for ibc relayer event.
 
 *Oct 14, 2024*
 
