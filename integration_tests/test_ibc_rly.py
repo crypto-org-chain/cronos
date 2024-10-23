@@ -215,7 +215,7 @@ def get_send_packet_seq(
         events = parse_events_rpc(res["events"])
         target = events.get("send_packet")
         if target and target["packet_sequence"]:
-            return target["packet_sequence"]
+            return int(target["packet_sequence"])
     return None
 
 
@@ -244,7 +244,7 @@ def test_ibc(ibc):
     relayer = to_checksum_address(bech32_to_eth(relayer0))
     cronos_addr = module_address("cronos")
     transfer_addr = module_address("transfer")
-    seq = int(get_send_packet_seq(chainmain_cli))
+    seq = get_send_packet_seq(chainmain_cli)
     expected = [
         recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom),
         denom_trace(denom),
