@@ -10,35 +10,43 @@ interface IRelayerModule {
         Cosmos.Coin[] amount;
     }
     event RecvPacket(
-        string indexed packetSequence,
+        uint256 indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
+        string packetSrcPortInfo,
+        string packetSrcChannelInfo,
         string packetDstPort,
         string packetDstChannel,
         string connectionId,
         PacketData packetDataHex
     );
     event WriteAcknowledgement(
-        string indexed packetSequence,
+        uint256 indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
+        string packetSrcPortInfo,
+        string packetSrcChannelInfo,
         string packetDstPort,
         string packetDstChannel,
         string connectionId,
         PacketData packetDataHex
     );
     event AcknowledgePacket(
-        string indexed packetSequence,
+        uint256 indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
+        string packetSrcPortInfo,
+        string packetSrcChannelInfo,
         string packetDstPort,
         string packetDstChannel,
         string connectionId
     );
     event TimeoutPacket(
-        string indexed packetSequence,
+        uint256 indexed packetSequence,
         string indexed packetSrcPort,
         string indexed packetSrcChannel,
+        string packetSrcPortInfo,
+        string packetSrcChannelInfo,
         string packetDstPort,
         string packetDstChannel,
         string connectionId
@@ -46,27 +54,27 @@ interface IRelayerModule {
     // IBC transfer
     event Timeout(
         address indexed refundReceiver,
-        string indexed refundDenom,
+        string refundDenom,
         uint256 amount
     );
     event FungibleTokenPacket(
         address indexed receiver,
         address indexed sender,
-        string indexed denom,
+        string denom,
         uint256 amount
     );
     event IbcTransfer(
         address indexed sender,
         address indexed receiver,
-        string indexed denom,
+        string denom,
         uint256 amount
     );
     event ChannelClosed();
-    event DenominationTrace(string indexed denom);
+    event DenominationTrace(string denom);
     // 29-fee
     event DistributeFee(
         address indexed receiver,
-        string indexed fee
+        string fee
     );
     // Bank
     event Transfer(
