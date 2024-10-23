@@ -131,7 +131,6 @@ import (
 	ibc "github.com/cosmos/ibc-go/v8/modules/core"
 	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
-	ibcchanneltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
 	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v8/modules/core/keeper"
@@ -281,34 +280,6 @@ var (
 )
 
 type GenesisState = map[string]json.RawMessage
-
-type CustomIBCFeeMiddleware struct {
-	ibcfee.IBCMiddleware
-	keeper ibcfeekeeper.Keeper
-}
-
-func NewIBCFeeMiddleware(app porttypes.IBCModule, k ibcfeekeeper.Keeper) CustomIBCFeeMiddleware {
-	return CustomIBCFeeMiddleware{
-		IBCMiddleware: ibcfee.NewIBCMiddleware(app, k),
-		keeper:        k,
-	}
-}
-
-func (im CustomIBCFeeMiddleware) OnAcknowledgementPacket(
-	ctx sdk.Context,
-	packet ibcchanneltypes.Packet,
-	acknowledgement []byte,
-	relayer sdk.AccAddress,
-) error {
-	if im.keeper.IsFeeEnabled(ctx, packet.SourcePort, packet.SourceChannel) {
-		var ack ibcfeetypes.IncentivizedAcknowledgement
-		if err := ibcfeetypes.ModuleCdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
-			return errors.Wrapf(err, "cannot unmarshal ICS-29 incentivized packet acknowledgement: %v", ack)
-		}
-		im.keeper.SetPayeeAddress(ctx, relayer.String(), ack.ForwardRelayerAddress, packet.SourceChannel)
-	}
-	return im.IBCMiddleware.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
-}
 
 // App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
@@ -749,8 +720,8 @@ func New(
 
 	var transferStack porttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
-	transferStack = middleware.NewIBCConversionModule(transferStack, app.CronosKeeper, app.IBCFeeKeeper)
-	transferStack = NewIBCFeeMiddleware(transferStack, app.IBCFeeKeeper)
+	transferStack = middleware.NewIBCConversionModule(transferStack, app.CronosKeeper)
+	transferStack = ibcfee.NewIBCMiddleware(transferStack, app.IBCFeeKeeper)
 
 	govKeeper := govkeeper.NewKeeper(
 		appCodec,
@@ -777,7 +748,7 @@ func New(
 
 	var icaControllerStack porttypes.IBCModule
 	icaControllerStack = icacontroller.NewIBCMiddleware(nil, app.ICAControllerKeeper)
-	icaControllerStack = NewIBCFeeMiddleware(icaControllerStack, app.IBCFeeKeeper)
+	icaControllerStack = ibcfee.NewIBCMiddleware(icaControllerStack, app.IBCFeeKeeper)
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
 	ics4Wrapper := icaControllerStack.(porttypes.Middleware)
 	app.ICAControllerKeeper.WithICS4Wrapper(ics4Wrapper)
@@ -786,7 +757,7 @@ func New(
 
 	var icaHostStack porttypes.IBCModule
 	icaHostStack = icahost.NewIBCModule(app.ICAHostKeeper)
-	icaHostStack = NewIBCFeeMiddleware(icaHostStack, app.IBCFeeKeeper)
+	icaHostStack = ibcfee.NewIBCMiddleware(icaHostStack, app.IBCFeeKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()

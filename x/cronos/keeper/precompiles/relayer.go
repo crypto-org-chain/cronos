@@ -1,6 +1,7 @@
 package precompiles
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -12,7 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
+	errorsmod "cosmossdk.io/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -230,7 +233,14 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case RecvPacket:
 		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
-		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error) {
+			var ack ibcfeetypes.IncentivizedAcknowledgement
+			if err := ibcfeetypes.ModuleCdc.UnmarshalJSON(msg.Acknowledgement, &ack); err != nil {
+				return nil, errorsmod.Wrapf(err, "cannot unmarshal ICS-29 incentivized packet acknowledgement: %v", ack)
+			}
+			msg.Signer = ack.ForwardRelayerAddress
+			return bc.ibcKeeper.Acknowledgement(goCtx, msg)
+		})
 	case Timeout:
 		res, err = exec(e, bc.ibcKeeper.Timeout)
 	case TimeoutOnClose:
