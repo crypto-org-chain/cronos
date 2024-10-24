@@ -1,11 +1,13 @@
 package precompiles
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -141,7 +143,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		if err != nil {
 			panic(err)
 		}
-		i := args[0].([]byte)
+		i := args[1].([]byte)
 		var msg channeltypes.MsgRecvPacket
 		if err = bc.cdc.Unmarshal(i, &msg); err != nil {
 			panic(err)
@@ -190,7 +192,8 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	if err != nil {
 		return nil, errors.New("fail to unpack input arguments")
 	}
-	input := args[0].([]byte)
+	signer := args[0].(common.Address)
+	input := args[1].([]byte)
 	converter := cronosevents.RelayerConvertEvent
 	e := &Executor{
 		cdc:       bc.cdc,
@@ -230,9 +233,15 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case RecvPacket:
 		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
-		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error) {
+			msg.Signer = sdk.AccAddress(signer.Bytes()).String()
+			return bc.ibcKeeper.Acknowledgement(goCtx, msg)
+		})
 	case Timeout:
-		res, err = exec(e, bc.ibcKeeper.Timeout)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error) {
+			msg.Signer = sdk.AccAddress(signer.Bytes()).String()
+			return bc.ibcKeeper.Timeout(goCtx, msg)
+		})
 	case TimeoutOnClose:
 		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	default:

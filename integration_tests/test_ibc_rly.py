@@ -7,7 +7,6 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     RATIO,
-    RELAYER_CALLER,
     assert_duplicate,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
@@ -16,6 +15,7 @@ from .ibc_utils import (
     ibc_multi_transfer,
     ibc_transfer,
     prepare_network,
+    rly_transfer,
 )
 from .utils import (
     ADDRS,
@@ -52,7 +52,7 @@ def ibc(request, tmp_path_factory):
     yield from prepare_network(
         path,
         name,
-        relayer=cluster.Relayer.HERMES.value,
+        relayer=cluster.Relayer.RLY.value,
     )
 
 
@@ -236,7 +236,7 @@ def test_ibc(ibc):
     w3 = ibc.cronos.w3
     wait_for_new_blocks(ibc.cronos.cosmos_cli(), 1)
     start = w3.eth.get_block_number()
-    ibc_transfer(ibc)
+    ibc_transfer(ibc, rly_transfer)
     denom = ibc_denom(channel, src_denom)
     logs = get_logs_since(w3, CONTRACT, start)
     chainmain_cli = ibc.chainmain.cosmos_cli()
@@ -293,8 +293,8 @@ def test_ibc_incentivized_transfer(ibc):
         acknowledge_packet(seq0),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
-        distribute_fee(RELAYER_CALLER, fee),
-        *send_coins(feeibc_addr, RELAYER_CALLER, src_amount, fee_denom),
+        distribute_fee(src_relayer, fee),
+        *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
         distribute_fee(cronos_signer2, ""),
         *send_coins(feeibc_addr, cronos_signer2, 0, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
