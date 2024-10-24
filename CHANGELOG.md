@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Oct 24, 2024*
+
+## v1.4.0-rc2
 
 ### Bug Fixes
 
@@ -9,6 +11,7 @@
 * (testground)[#1652](https://github.com/crypto-org-chain/cronos/pull/1652) Remove unexpected conflicts in benchmark transactions.
 * [#1654](https://github.com/crypto-org-chain/cronos/pull/1654) Set relayer as payee for relayer caller when enabled incentivized packet.
 * [#1655](https://github.com/crypto-org-chain/cronos/pull/1655) Fix state overwrite in debug trace APIs.
+* [#1663](https://github.com/crypto-org-chain/cronos/pull/1663) Align attributes for ibc timeout event.
 
 ### Improvements
 
