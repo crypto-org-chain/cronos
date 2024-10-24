@@ -62,12 +62,15 @@ func makeFilter(
 func (desc *EventDescriptor) ConvertEvent(
 	event []abci.EventAttribute,
 	valueDecoders ValueDecoders,
+	replaceAttrs map[string]string,
 ) (*ethtypes.Log, error) {
 	attrs := make(map[string]string, len(event))
 	for _, attr := range event {
 		attrs[toUnderScore(attr.Key)] = attr.Value
 	}
-
+	for k, v := range replaceAttrs {
+		attrs[k] = attrs[v]
+	}
 	filterQuery, err := makeFilter(valueDecoders, attrs, desc.indexed, true)
 	if err != nil {
 		return nil, err

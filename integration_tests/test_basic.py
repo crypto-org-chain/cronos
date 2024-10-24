@@ -866,7 +866,12 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         cronos.base_dir / "tasks.ini",
         lambda cmd: fn(cmd),
     )
+    cli = cronos.cosmos_cli()
+    # update right after a new block start
+    wait_for_new_blocks(cli, 1, sleep=0.1)
     cronos.supervisorctl("update")
+    # ensure nodes stop and start at the same time
+    time.sleep(2)
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
 
     # reset to origin_cmd only
@@ -874,7 +879,6 @@ def test_tx_inclusion(cronos, max_gas_wanted):
         return
 
     w3 = cronos.w3
-    cli = cronos.cosmos_cli()
     block_gas_limit = 81500000
     tx_gas_limit = 80000000
     max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
