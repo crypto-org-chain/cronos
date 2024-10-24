@@ -35,6 +35,9 @@ var (
 		channeltypes.AttributeKeyConnectionID:        ReturnStringAsIs,
 		ibcfeetypes.AttributeKeyFee:                  ReturnStringAsIs,
 		transfertypes.AttributeKeyDenom:              ReturnStringAsIs,
+		transfertypes.AttributeKeyRefundReceiver:     ConvertAccAddressFromBech32,
+		transfertypes.AttributeKeyRefundDenom:        ReturnStringAsIs,
+		transfertypes.AttributeKeyRefundAmount:       ReturnStringAsIs,
 	}
 	IcaValueDecoders = ValueDecoders{
 		cronoseventstypes.AttributeKeySeq:   ConvertUint64,

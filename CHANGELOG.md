@@ -10,6 +10,7 @@
 * (cli)[#1647](https://github.com/crypto-org-chain/cronos/pull/1647) Fix node can't shutdown by signal.
 * (testground)[#1652](https://github.com/crypto-org-chain/cronos/pull/1652) Remove unexpected conflicts in benchmark transactions.
 * [#1655](https://github.com/crypto-org-chain/cronos/pull/1655) Fix state overwrite in debug trace APIs.
+* [#1663](https://github.com/crypto-org-chain/cronos/pull/1663) Align attributes for ibc timeout event.
 
 ### Improvements
 
