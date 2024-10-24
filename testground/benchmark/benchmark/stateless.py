@@ -286,7 +286,7 @@ def do_run(
     print("start node")
     logfile = open(home / "node.log", "ab", buffering=0)
     proc = subprocess.Popen(
-        [cronosd, "start", "--home", str(home)],
+        [cronosd, "start", "--home", str(home), "--async-check-tx"],
         stdout=logfile,
     )
 
