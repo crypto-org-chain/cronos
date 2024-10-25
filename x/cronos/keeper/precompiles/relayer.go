@@ -7,15 +7,14 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
-	errorsmod "cosmossdk.io/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -186,7 +185,6 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, err
 	}
 	stateDB := evm.StateDB.(ExtStateDB)
-
 	var res []byte
 	precompileAddr := bc.Address()
 	args, err := method.Inputs.Unpack(contract.Input[4:])
@@ -234,15 +232,14 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
 		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error) {
-			var ack ibcfeetypes.IncentivizedAcknowledgement
-			if err := ibcfeetypes.ModuleCdc.UnmarshalJSON(msg.Acknowledgement, &ack); err != nil {
-				return nil, errorsmod.Wrapf(err, "cannot unmarshal ICS-29 incentivized packet acknowledgement: %v", ack)
-			}
-			msg.Signer = ack.ForwardRelayerAddress
+			msg.Signer = sdk.AccAddress(evm.TxContext.Origin.Bytes()).String()
 			return bc.ibcKeeper.Acknowledgement(goCtx, msg)
 		})
 	case Timeout:
-		res, err = exec(e, bc.ibcKeeper.Timeout)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error) {
+			msg.Signer = sdk.AccAddress(evm.TxContext.Origin.Bytes()).String()
+			return bc.ibcKeeper.Timeout(goCtx, msg)
+		})
 	case TimeoutOnClose:
 		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	default:
