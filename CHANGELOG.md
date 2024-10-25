@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#]() Update cometbft to 0.38.13.
+
 *Oct 24, 2024*
 
 ## v1.4.0-rc2
