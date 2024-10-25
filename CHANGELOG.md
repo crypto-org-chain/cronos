@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Features
+
+* [#1665](https://github.com/crypto-org-chain/cronos/pull/1665) Support register for payee and counterpartyPayee in relayer precompile.
+
 *Oct 24, 2024*
 
 ## v1.4.0-rc2

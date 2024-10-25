@@ -189,7 +189,8 @@ def prepare_network(
             tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
             send_transaction(w3, tx)
             assert w3.eth.get_balance(sender, "latest") == fund
-        caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
+        contract = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key)
+        caller = contract.address
         assert caller == RELAYER_CALLER, caller
         if is_hermes:
             hermes = Hermes(path.with_suffix(".toml"))
@@ -203,7 +204,17 @@ def prepare_network(
             call_rly_cmd(path, connection_only, version)
 
         if incentivized:
-            register_fee_payee(cronos.cosmos_cli(), chainmain.cosmos_cli())
+            port_id = "transfer"
+            channel_id = "channel-0"
+            register_fee_payee(
+                cronos.cosmos_cli(), chainmain.cosmos_cli(), port_id, channel_id
+            )
+            data = {"from": acc.address}
+            tx = contract.functions.callRegisterPayee(
+                port_id, channel_id, ADDRS["signer1"]
+            ).build_transaction(data)
+            receipt = send_transaction(w3, tx, acc.key)
+            assert receipt.status == 1, receipt
 
         port = None
         if is_relay:
@@ -217,10 +228,10 @@ def prepare_network(
             wait_for_port(port)
 
 
-def register_fee_payee(src_chain, dst_chain):
+def register_fee_payee(src_chain, dst_chain, port_id, channel_id):
     rsp = dst_chain.register_counterparty_payee(
-        "transfer",
-        "channel-0",
+        port_id,
+        channel_id,
         dst_chain.address("relayer"),
         src_chain.address("signer1"),
         from_="relayer",
