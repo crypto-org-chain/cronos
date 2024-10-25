@@ -15,7 +15,6 @@ from .ibc_utils import (
     ibc_multi_transfer,
     ibc_transfer,
     prepare_network,
-    rly_transfer,
 )
 from .utils import (
     ADDRS,
@@ -52,7 +51,7 @@ def ibc(request, tmp_path_factory):
     yield from prepare_network(
         path,
         name,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
     )
 
 
@@ -236,7 +235,7 @@ def test_ibc(ibc):
     w3 = ibc.cronos.w3
     wait_for_new_blocks(ibc.cronos.cosmos_cli(), 1)
     start = w3.eth.get_block_number()
-    ibc_transfer(ibc, rly_transfer)
+    ibc_transfer(ibc)
     denom = ibc_denom(channel, src_denom)
     logs = get_logs_since(w3, CONTRACT, start)
     chainmain_cli = ibc.chainmain.cosmos_cli()
