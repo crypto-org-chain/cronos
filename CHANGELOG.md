@@ -4,7 +4,7 @@
 
 ### Improvements
 
-* [#]() Update cometbft to 0.38.13.
+* [#1664](https://github.com/crypto-org-chain/cronos/pull/1664) Update cometbft to 0.38.13.
 
 *Oct 24, 2024*
 
