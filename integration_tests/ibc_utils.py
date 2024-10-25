@@ -228,7 +228,7 @@ def prepare_network(
             wait_for_port(port)
 
 
-def register_fee_payee(src_chain, dst_chain, port_id, channel_id):
+def register_fee_payee(src_chain, dst_chain, port_id="transfer", channel_id="channel-0"):
     rsp = dst_chain.register_counterparty_payee(
         port_id,
         channel_id,
