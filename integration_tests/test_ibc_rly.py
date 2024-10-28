@@ -276,10 +276,9 @@ def test_ibc_incentivized_transfer(ibc):
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
     start = w3.eth.get_block_number()
-    amount, seq0 = ibc_incentivized_transfer(ibc)
+    amount, seq0, recv_fee, ack_fee = ibc_incentivized_transfer(ibc)
     logs = get_logs_since(w3, CONTRACT, start)
     fee_denom = "ibcfee"
-    fee = f"{src_amount}{fee_denom}"
     transfer_denom = "transfer/channel-0/basetcro"
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     src_relayer = ADDRS["signer1"]
@@ -289,10 +288,10 @@ def test_ibc_incentivized_transfer(ibc):
     seq1 = get_send_packet_seq(ibc.chainmain.cosmos_cli())
     expected = [
         acknowledge_packet(seq0),
-        distribute_fee(src_relayer, fee),
-        *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
-        distribute_fee(src_relayer, fee),
-        *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
+        distribute_fee(src_relayer, f"{recv_fee}{fee_denom}"),
+        *send_coins(feeibc_addr, src_relayer, recv_fee, fee_denom),
+        distribute_fee(src_relayer, f"{ack_fee}{fee_denom}"),
+        *send_coins(feeibc_addr, src_relayer, ack_fee, fee_denom),
         distribute_fee(cronos_signer2, ""),
         *send_coins(feeibc_addr, cronos_signer2, 0, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),

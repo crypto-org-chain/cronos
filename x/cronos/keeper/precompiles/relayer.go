@@ -93,8 +93,10 @@ func init() {
 			relayerGasRequiredByMethod[methodID] = 61781
 		case Timeout:
 			relayerGasRequiredByMethod[methodID] = 104283
-		case RegisterPayee, RegisterCounterpartyPayee:
-			relayerGasRequiredByMethod[methodID] = 40000
+		case RegisterPayee:
+			relayerGasRequiredByMethod[methodID] = 38000
+		case RegisterCounterpartyPayee:
+			relayerGasRequiredByMethod[methodID] = 37000
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}

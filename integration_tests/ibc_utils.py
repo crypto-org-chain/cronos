@@ -241,6 +241,15 @@ def register_fee_payee(src_chain, dst_chain, contract=None, acc=None):
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     if contract is None:
+        rsp = chains[0].register_payee(
+            port_id,
+            channel_id,
+            relayer0,
+            relayer0,
+            from_="signer1",
+            fees="100000000basetcro",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
         rsp = chains[0].register_counterparty_payee(
             port_id,
             channel_id,
@@ -569,7 +578,7 @@ def ibc_incentivized_transfer(ibc):
         return chains[0].balance(user0, base_denom0) != old_user0_base - amount
 
     wait_for_fn("balance change", check_balance_change)
-    return amount, packet_seq
+    return amount, packet_seq, recv_fee, ack_fee
 
 
 def ibc_denom(channel, denom):
