@@ -68,7 +68,6 @@ def test_ibc_incentivized_transfer(ibc, tmp_path):
     if not ibc.incentivized:
         # upgrade to incentivized
         src_chain = ibc.cronos.cosmos_cli()
-        dst_chain = ibc.chainmain.cosmos_cli()
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
         community = "community"
         authority = module_address("gov")
@@ -96,7 +95,7 @@ def test_ibc_incentivized_transfer(ibc, tmp_path):
             src_chain, connid, channel_id, "STATE_FLUSHCOMPLETE"
         )
         wait_for_check_channel_ready(src_chain, connid, channel_id)
-        register_fee_payee(src_chain, dst_chain)
+        register_fee_payee(ibc.cronos, ibc.chainmain)
     ibc_incentivized_transfer(ibc)
 
 

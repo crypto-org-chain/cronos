@@ -20,6 +20,6 @@ interface IRelayerFunctions {
     function acknowledgement(bytes calldata data) external payable returns (bytes calldata);
     function timeout(bytes calldata data) external payable returns (bytes calldata);
     function timeoutOnClose(bytes calldata data) external payable returns (bytes calldata);
-    function registerPayee(string calldata portID, string calldata channelID, address relayerAddr) external payable returns (bool);
-    function registerCounterpartyPayee(string calldata portID, string calldata channelID, address relayerAddr) external payable returns (bool);
+    function registerPayee(string calldata portID, string calldata channelID, address payeeAddr) external payable returns (bool);
+    function registerCounterpartyPayee(string calldata portID, string calldata channelID, string calldata counterpartyPayeeAddr) external payable returns (bool);
 }

@@ -2,7 +2,6 @@ import json
 
 import pytest
 from eth_utils import keccak, to_checksum_address
-from pystarport import cluster
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
@@ -51,7 +50,7 @@ def ibc(request, tmp_path_factory):
     yield from prepare_network(
         path,
         name,
-        relayer=cluster.Relayer.HERMES.value,
+        need_relayer_caller=True,
     )
 
 

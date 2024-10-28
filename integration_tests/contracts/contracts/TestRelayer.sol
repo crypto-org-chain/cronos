@@ -16,16 +16,16 @@ contract TestRelayer {
         }
     }
 
-    function callRegisterPayee(string calldata portID, string calldata channelID, address relayerAddr) public returns (bool) {
+    function callRegisterPayee(string calldata portID, string calldata channelID, address payeeAddr) public returns (bool) {
         require(payee == address(0) || payee == msg.sender, "register fail");
-        bool result = relayer.registerPayee(portID, channelID, relayerAddr);
+        bool result = relayer.registerPayee(portID, channelID, payeeAddr);
         require(result, "call failed");
         payee = msg.sender;
     }
 
-    function callRegisterCounterpartyPayee(string calldata portID, string calldata channelID, address relayerAddr) public returns (bool) {
+    function callRegisterCounterpartyPayee(string calldata portID, string calldata channelID, string calldata counterpartyPayeeAddr) public returns (bool) {
         require(counterpartyPayee == address(0) || counterpartyPayee == msg.sender, "register fail");
-        bool result = relayer.registerCounterpartyPayee(portID, channelID, relayerAddr);
+        bool result = relayer.registerCounterpartyPayee(portID, channelID, counterpartyPayeeAddr);
         require(result, "call failed");
         counterpartyPayee = msg.sender;
     }

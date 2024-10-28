@@ -50,7 +50,7 @@ const (
 	TimeoutOnClose        = "timeoutOnClose"
 	// ibc fee
 	RegisterPayee                   = "registerPayee"
-	RsegisterCounterpartyPayee      = "registerCounterpartyPayee"
+	RegisterCounterpartyPayee       = "registerCounterpartyPayee"
 	GasWhenReceiverChainIsSource    = 51705
 	GasWhenReceiverChainIsNotSource = 144025
 )
@@ -93,6 +93,8 @@ func init() {
 			relayerGasRequiredByMethod[methodID] = 61781
 		case Timeout:
 			relayerGasRequiredByMethod[methodID] = 104283
+		case RegisterPayee, RegisterCounterpartyPayee:
+			relayerGasRequiredByMethod[methodID] = 40000
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}
@@ -196,22 +198,23 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, errors.New("fail to unpack input arguments")
 	}
 	converter := cronosevents.RelayerConvertEvent
-	if method.Name == RegisterPayee || method.Name == RsegisterCounterpartyPayee {
+	if method.Name == RegisterPayee || method.Name == RegisterCounterpartyPayee {
 		execErr := stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			portID := args[0].(string)
 			channelID := args[1].(string)
-			relayerAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
 			caller := sdk.AccAddress(contract.CallerAddress.Bytes()).String()
 			if method.Name == RegisterPayee {
+				payeeAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
 				_, err := bc.ibcFeeKeeper.RegisterPayee(
 					ctx,
-					ibcfeetypes.NewMsgRegisterPayee(portID, channelID, caller, relayerAddr),
+					ibcfeetypes.NewMsgRegisterPayee(portID, channelID, caller, payeeAddr),
 				)
 				return err
 			} else {
-				_, err = bc.ibcFeeKeeper.RegisterCounterpartyPayee(
+				counterpartyPayeeAddr := args[2].(string)
+				_, err := bc.ibcFeeKeeper.RegisterCounterpartyPayee(
 					ctx,
-					ibcfeetypes.NewMsgRegisterCounterpartyPayee(portID, channelID, caller, relayerAddr),
+					ibcfeetypes.NewMsgRegisterCounterpartyPayee(portID, channelID, caller, counterpartyPayeeAddr),
 				)
 				return err
 			}
