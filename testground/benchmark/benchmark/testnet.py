@@ -94,15 +94,17 @@ def check(json_rpc, start, end):
 @click.argument("end", type=int)
 @click.option("--num-txs", default=1)
 @click.option("--nonce", default=0)
+@click.option("--batch-size", default=1)
+@click.option("--tx-type", default="simple-transfer")
 @click.option("--msg-version", default="1.3")
-def gen_txs(start, end, num_txs, nonce, msg_version):
+def gen_txs(start, end, num_txs, nonce, batch_size, tx_type, msg_version):
     num_accounts = end - start + 1
     txs = gen(
         GLOBAL_SEQ,
         num_accounts,
         num_txs,
-        "simple-transfer",
-        1,
+        tx_type,
+        batch_size,
         start_account=start,
         nonce=nonce,
         msg_version=msg_version,
