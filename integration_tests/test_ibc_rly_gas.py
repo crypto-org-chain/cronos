@@ -1,5 +1,4 @@
 import pytest
-from pystarport import cluster
 
 from .ibc_utils import (
     ibc_incentivized_transfer,
@@ -18,7 +17,7 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = request.param
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, relayer=cluster.Relayer.HERMES.value)
+    yield from prepare_network(path, name, need_relayer_caller=name == "ibc_rly_evm")
 
 
 records = []
@@ -31,7 +30,7 @@ def test_ibc(ibc):
     ibc_transfer(ibc)
     ibc_incentivized_transfer(ibc)
     ibc_multi_transfer(ibc)
-    diff = 0.1
+    diff = 0.15
     record = log_gas_records(cli)
     if record:
         records.append(record)

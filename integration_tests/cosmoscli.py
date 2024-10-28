@@ -888,7 +888,7 @@ class CosmosCLI:
         to,
         amount,
         channel,  # src channel
-        target_version,  # chain version number of target chain
+        target_version=1,  # chain version number of target chain
         event_query_tx_for=False,
         **kwargs,
     ):

@@ -9,12 +9,14 @@ from typing import NamedTuple
 
 import requests
 from cprotobuf import Field, ProtoEntity
+from eth_utils import to_checksum_address
 from pystarport import cluster, ports
 
 from .network import Chainmain, Cronos, Hermes, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
+    bech32_to_eth,
     deploy_contract,
     derive_new_account,
     eth_to_bech32,
@@ -97,7 +99,7 @@ def call_hermes_cmd(
         )
 
 
-def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
+def call_rly_cmd(path, connection_only, incentivized, version, hostchain="chainmain-1"):
     cmd = [
         "rly",
         "pth",
@@ -130,11 +132,11 @@ def call_rly_cmd(path, connection_only, version, hostchain="chainmain-1"):
             "transfer",
             "--order",
             "unordered",
-            "--version",
-            json.dumps(version),
             "--home",
             str(path),
         ]
+        if incentivized:
+            cmd.extend(["--version", json.dumps(version)])
     subprocess.check_call(cmd)
 
 
@@ -145,12 +147,14 @@ def prepare_network(
     is_relay=True,
     connection_only=False,
     grantee=None,
+    need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
     print("connection_only", connection_only)
     print("relayer", relayer)
+    print("need_relayer_caller", need_relayer_caller)
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
     file = f"configs/{file}.jsonnet"
@@ -181,16 +185,20 @@ def prepare_network(
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
         path = cronos.base_dir.parent / "relayer"
         w3 = cronos.w3
-        acc = derive_new_account(2)
-        sender = acc.address
-        # fund new sender to deploy contract with same address
-        if w3.eth.get_balance(sender, "latest") == 0:
-            fund = 3000000000000000000
-            tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
-            send_transaction(w3, tx)
-            assert w3.eth.get_balance(sender, "latest") == fund
-        caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
-        assert caller == RELAYER_CALLER, caller
+        contract = None
+        acc = None
+        if need_relayer_caller:
+            acc = derive_new_account(2)
+            sender = acc.address
+            # fund new sender to deploy contract with same address
+            if w3.eth.get_balance(sender, "latest") == 0:
+                fund = 3000000000000000000
+                tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+                send_transaction(w3, tx)
+                assert w3.eth.get_balance(sender, "latest") == fund
+            contract = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key)
+            caller = contract.address
+            assert caller == RELAYER_CALLER, caller
         if is_hermes:
             hermes = Hermes(path.with_suffix(".toml"))
             call_hermes_cmd(
@@ -200,10 +208,10 @@ def prepare_network(
                 version,
             )
         else:
-            call_rly_cmd(path, connection_only, version)
+            call_rly_cmd(path, connection_only, incentivized, version)
 
         if incentivized:
-            register_fee_payee(cronos.cosmos_cli(), chainmain.cosmos_cli())
+            register_fee_payee(cronos, chainmain, contract, acc)
 
         port = None
         if is_relay:
@@ -217,16 +225,52 @@ def prepare_network(
             wait_for_port(port)
 
 
-def register_fee_payee(src_chain, dst_chain):
-    rsp = dst_chain.register_counterparty_payee(
-        "transfer",
-        "channel-0",
-        dst_chain.address("relayer"),
-        src_chain.address("signer1"),
-        from_="relayer",
+def register_fee_payee(src_chain, dst_chain, contract=None, acc=None):
+    port_id = "transfer"
+    channel_id = "channel-0"
+    chains = [src_chain.cosmos_cli(), dst_chain.cosmos_cli()]
+    relayer0 = chains[0].address("signer1")
+    relayer1 = chains[1].address("relayer")
+    rsp = chains[1].register_counterparty_payee(
+        port_id,
+        channel_id,
+        relayer1,
+        relayer0,
+        from_=relayer1,
         fees="100000000basecro",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
+    if contract is None:
+        rsp = chains[0].register_payee(
+            port_id,
+            channel_id,
+            relayer0,
+            relayer0,
+            from_="signer1",
+            fees="100000000basetcro",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+        rsp = chains[0].register_counterparty_payee(
+            port_id,
+            channel_id,
+            relayer0,
+            relayer1,
+            from_=relayer0,
+            fees="100000000basetcro",
+        )
+        assert rsp["code"] == 0, rsp["raw_log"]
+    else:
+        data = {"from": acc.address}
+        tx = contract.functions.callRegisterPayee(
+            port_id, channel_id, to_checksum_address(bech32_to_eth(relayer0))
+        ).build_transaction(data)
+        receipt = send_transaction(src_chain.w3, tx, acc.key)
+        assert receipt.status == 1, receipt
+        tx = contract.functions.callRegisterCounterpartyPayee(
+            port_id, channel_id, relayer1
+        ).build_transaction(data)
+        receipt = send_transaction(src_chain.w3, tx, acc.key)
+        assert receipt.status == 1, receipt
 
 
 def assert_ready(ibc):
@@ -360,7 +404,6 @@ def ibc_multi_transfer(ibc):
             addrs1[i],
             f"{amount}{denom0}",
             channel0,
-            1,
             fees=f"1000{denom1}",
             event_query_tx_for=True,
         )
@@ -401,7 +444,6 @@ def ibc_multi_transfer(ibc):
                 addrs0[i],
                 f"{amt}ibc/{denom_hash}",
                 channel1,
-                1,
                 fees=f"100000000{denom1}",
             )
             assert rsp["code"] == 0, rsp["raw_log"]
@@ -414,66 +456,61 @@ def ibc_multi_transfer(ibc):
 
 def ibc_incentivized_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    receiver = chains[1].address("signer2")
-    sender = chains[0].address("signer2")
-    relayer = chains[0].address("signer1")
-    relayer_caller = eth_to_bech32(RELAYER_CALLER)
+    user0 = chains[0].address("signer2")
+    relayer0 = chains[0].address("signer1")
+    user1 = chains[1].address("signer2")
+    relayer1 = chains[1].address("relayer")
     amount = 1000
     fee_denom = "ibcfee"
-    base_denom = "basetcro"
-    old_amt_fee = chains[0].balance(relayer, fee_denom)
-    old_amt_fee_caller = chains[0].balance(relayer_caller, fee_denom)
-    old_amt_sender_fee = chains[0].balance(sender, fee_denom)
-    old_amt_sender_base = chains[0].balance(sender, base_denom)
-    old_amt_receiver_base = chains[1].balance(receiver, "basecro")
-    assert old_amt_sender_base == 30000000000100000000000
-    assert old_amt_receiver_base == 1000000000000000000000
+    base_denom0 = "basetcro"
+    base_denom1 = "basecro"
+    old_relayer0_fee = chains[0].balance(relayer0, fee_denom)
+    old_user0_fee = chains[0].balance(user0, fee_denom)
+    old_user0_base = chains[0].balance(user0, base_denom0)
+    old_relayer1_fee = chains[1].balance(relayer1, fee_denom)
+    old_user1_fee = chains[1].balance(user1, fee_denom)
+    old_user1_base = chains[1].balance(user1, base_denom1)
+    assert old_user0_base == 30000000000100000000000
+    assert old_user1_base == 1000000000000000000000
     src_channel = "channel-0"
     dst_channel = "channel-0"
     rsp = chains[0].ibc_transfer(
-        sender,
-        receiver,
-        f"{amount}{base_denom}",
+        user0,
+        user1,
+        f"{amount}{base_denom0}",
         src_channel,
-        1,
-        fees="0basecro",
+        fees=f"0{base_denom0}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    src_chain = ibc.cronos.cosmos_cli()
-    rsp = src_chain.event_query_tx_for(rsp["txhash"])
-
-    def cb(attrs):
-        return "packet_sequence" in attrs
-
-    evt = find_log_event_attrs(rsp["events"], "send_packet", cb)
+    rsp = chains[0].event_query_tx_for(rsp["txhash"])
+    evt = find_log_event_attrs(
+        rsp["events"], "send_packet", lambda attrs: "packet_sequence" in attrs
+    )
     print("packet event", evt)
     packet_seq = int(evt["packet_sequence"])
-    fee = f"10{fee_denom}"
+    recv_fee = 10
+    ack_fee = 11
+    timeout_fee = 12
     rsp = chains[0].pay_packet_fee(
         "transfer",
         src_channel,
         packet_seq,
-        recv_fee=fee,
-        ack_fee=fee,
-        timeout_fee=fee,
-        from_=sender,
+        recv_fee=f"{recv_fee}{fee_denom}",
+        ack_fee=f"{ack_fee}{fee_denom}",
+        timeout_fee=f"{timeout_fee}{fee_denom}",
+        from_=user0,
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     # fee is locked
-    current = chains[0].balance(sender, fee_denom)
+    user0_fee = chains[0].balance(user0, fee_denom)
     # https://github.com/cosmos/ibc-go/pull/5571
-    assert current == old_amt_sender_fee - 20, current
+    assert user0_fee == old_user0_fee - recv_fee - ack_fee, user0_fee
 
     # wait for relayer receive the fee
     def check_fee():
-        amount = chains[0].balance(relayer, fee_denom)
-        if amount > old_amt_fee:
-            amount_caller = chains[0].balance(relayer_caller, fee_denom)
-            if amount_caller > 0:
-                assert amount_caller == old_amt_fee_caller + 10, amount_caller
-                assert amount == old_amt_fee + 10, amount
-            else:
-                assert amount == old_amt_fee + 20, amount
+        relayer0_fee = chains[0].balance(relayer0, fee_denom)
+        if relayer0_fee > old_relayer0_fee:
+            assert relayer0_fee == old_relayer0_fee + recv_fee + ack_fee, relayer0_fee
             return True
         else:
             return False
@@ -481,41 +518,67 @@ def ibc_incentivized_transfer(ibc):
     wait_for_fn("wait for relayer to receive the fee", check_fee)
 
     # timeout fee is refunded
-    actual = get_balances(ibc.cronos, sender)
-    assert actual == [
-        {"denom": base_denom, "amount": f"{old_amt_sender_base - amount}"},
-        {"denom": fee_denom, "amount": f"{old_amt_sender_fee - 20}"},
-    ], actual
-    path = f"transfer/{dst_channel}/{base_denom}"
-    denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
+    user0_balances = get_balances(ibc.cronos, user0)
+    expected = [
+        {"denom": base_denom0, "amount": f"{old_user0_base - amount}"},
+        {"denom": fee_denom, "amount": f"{old_user0_fee - recv_fee - ack_fee}"},
+    ]
+    assert user0_balances == expected, user0_balances
+    path = f"transfer/{dst_channel}/{base_denom0}"
+    denom_hash = ibc_denom(dst_channel, base_denom0)
     denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
-    current = get_balances(ibc.chainmain, receiver)
-    assert current == [
-        {"denom": "basecro", "amount": f"{old_amt_receiver_base}"},
-        {"denom": f"ibc/{denom_hash}", "amount": f"{amount}"},
-    ], current
+    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
+    user1_balances = get_balances(ibc.chainmain, user1)
+    expected = [
+        {"denom": base_denom1, "amount": f"{old_user1_base}"},
+        {"denom": f"{denom_hash}", "amount": f"{amount}"},
+        {"denom": f"{fee_denom}", "amount": f"{old_user1_fee}"},
+    ]
+    assert user1_balances == expected, user1_balances
     # transfer back
-    fee_amount = 100000000
     rsp = chains[1].ibc_transfer(
-        receiver,
-        sender,
-        f"{amount}ibc/{denom_hash}",
+        user1,
+        user0,
+        f"{amount}{denom_hash}",
         dst_channel,
-        1,
-        fees=f"{fee_amount}basecro",
+        fees=f"0{base_denom1}",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
+    rsp = chains[1].event_query_tx_for(rsp["txhash"])
+    evt = find_log_event_attrs(
+        rsp["events"], "send_packet", lambda attrs: "packet_sequence" in attrs
+    )
+    print("packet event", evt)
+    rsp = chains[1].pay_packet_fee(
+        "transfer",
+        dst_channel,
+        int(evt["packet_sequence"]),
+        recv_fee=f"{recv_fee}{fee_denom}",
+        ack_fee=f"{ack_fee}{fee_denom}",
+        timeout_fee=f"{timeout_fee}{fee_denom}",
+        from_=user1,
+    )
+    assert rsp["code"] == 0, rsp["raw_log"]
+    # fee is locked
+    user1_fee = chains[1].balance(user1, fee_denom)
+    assert user1_fee == old_user1_fee - recv_fee - ack_fee, user1_fee
+
+    # wait for relayer receive the fee
+    def check_fee():
+        relayer1_fee = chains[1].balance(relayer1, fee_denom)
+        if relayer1_fee > old_relayer1_fee:
+            assert relayer1_fee == old_relayer1_fee + recv_fee + ack_fee, relayer1_fee
+            return True
+        else:
+            return False
+
+    wait_for_fn("wait for relayer to receive the fee", check_fee)
 
     def check_balance_change():
-        return chains[0].balance(sender, base_denom) != old_amt_sender_base - amount
+        return chains[0].balance(user0, base_denom0) != old_user0_base - amount
 
     wait_for_fn("balance change", check_balance_change)
-    actual = chains[0].balance(sender, base_denom)
-    assert actual == old_amt_sender_base, actual
-    current = chains[1].balance(receiver, "basecro")
-    assert current == old_amt_receiver_base - fee_amount
-    return amount, packet_seq
+    return amount, packet_seq, recv_fee, ack_fee
 
 
 def ibc_denom(channel, denom):
@@ -581,7 +644,7 @@ def cronos_transfer_source_tokens(ibc):
     coin = "1000" + dest_denom
     fees = "100000000basecro"
     rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, fees=fees
+        chainmain_receiver, cronos_receiver, coin, "channel-0", fees=fees
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
@@ -683,7 +746,7 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
     coin = f"{amount}{dest_denom}"
     fees = "100000000basecro"
     rsp = chainmain_cli.ibc_transfer(
-        chainmain_receiver, cronos_receiver, coin, "channel-0", 1, fees=fees
+        chainmain_receiver, cronos_receiver, coin, "channel-0", fees=fees
     )
     assert rsp["code"] == 0, rsp["raw_log"]
 
