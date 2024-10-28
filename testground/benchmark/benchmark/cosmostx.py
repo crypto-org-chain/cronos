@@ -78,5 +78,23 @@ class TxRaw(ProtoEntity):
 
 
 class MsgEthereumTx(ProtoEntity):
+    MSG_URL = "/ethermint.evm.v1.MsgEthereumTx"
+
+    data = Field(ProtoAny, 1)
+    deprecated_hash = Field("string", 3)
     from_ = Field("bytes", 5)
     raw = Field("bytes", 6)
+
+
+class LegacyTx(ProtoEntity):
+    MSG_URL = "/ethermint.evm.v1.LegacyTx"
+
+    nonce = Field("uint64", 1)
+    gas_price = Field("string", 2)
+    gas = Field("uint64", 3)
+    to = Field("string", 4)
+    value = Field("string", 5)
+    data = Field("bytes", 6)
+    v = Field("bytes", 7)
+    r = Field("bytes", 8)
+    s = Field("bytes", 9)
