@@ -112,7 +112,7 @@ def gen_txs(start, end, num_txs, nonce, msg_version):
 @cli.command()
 @click.argument("path", type=str)
 @click.option("--rpc", default=TESTNET_RPC)
-@click.option("--sync", default=False)
+@click.option("--sync/--async", default=False)
 def send_txs(path, rpc, sync):
     txs = json.loads(Path(path).read_text())
     asyncio.run(send(txs, rpc, sync))
