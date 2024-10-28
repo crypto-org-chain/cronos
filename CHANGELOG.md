@@ -9,7 +9,7 @@
 ### Improvements
 
 * [#1664](https://github.com/crypto-org-chain/cronos/pull/1664) Update cometbft to 0.38.13.
-* [#]() Add testnet benchmark command.
+* [#1667](https://github.com/crypto-org-chain/cronos/pull/1667) Add testnet benchmark command.
 
 *Oct 24, 2024*
 
