@@ -228,8 +228,9 @@ def json_rpc_send_body(raw, method="broadcast_tx_async"):
 
 @backoff.on_predicate(backoff.expo, max_time=60, max_value=5)
 @backoff.on_exception(backoff.expo, aiohttp.ClientError, max_time=60, max_value=5)
-async def async_sendtx(session, raw, rpc):
-    async with session.post(rpc, json=json_rpc_send_body(raw)) as rsp:
+async def async_sendtx(session, raw, rpc, sync=False):
+    method = "broadcast_tx_sync" if sync else "broadcast_tx_async"
+    async with session.post(rpc, json=json_rpc_send_body(raw, method)) as rsp:
         data = await rsp.json()
         if "error" in data:
             print("send tx error, will retry,", data["error"])
@@ -237,10 +238,12 @@ async def async_sendtx(session, raw, rpc):
         return True
 
 
-async def send(txs, rpc=LOCAL_RPC):
+async def send(txs, rpc=LOCAL_RPC, sync=False):
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
-        tasks = [asyncio.ensure_future(async_sendtx(session, raw, rpc)) for raw in txs]
+        tasks = [
+            asyncio.ensure_future(async_sendtx(session, raw, rpc, sync)) for raw in txs
+        ]
         await asyncio.gather(*tasks)
