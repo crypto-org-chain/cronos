@@ -3,6 +3,7 @@ import base64
 import itertools
 import multiprocessing
 import os
+import sys
 from collections import namedtuple
 from pathlib import Path
 
@@ -127,7 +128,9 @@ def _do_job(job: Job):
             txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
             if total % 1000 == 0:
-                print("generated", total, "txs for node", job.global_seq)
+                print(
+                    "generated", total, "txs for node", job.global_seq, file=sys.stderr
+                )
 
         # to keep it simple, only build batch inside the account
         txs = [
@@ -241,7 +244,6 @@ async def async_sendtx(session, raw, rpc, sync=False):
     method = "broadcast_tx_sync" if sync else "broadcast_tx_async"
     async with session.post(rpc, json=json_rpc_send_body(raw, method)) as rsp:
         data = await rsp.json()
-        print("data", data)
         if "error" in data:
             print("send tx error, will retry,", data["error"])
             return False
