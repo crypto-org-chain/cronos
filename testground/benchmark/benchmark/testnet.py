@@ -105,6 +105,8 @@ def gen_txs(start, end, num_txs, nonce, msg_version):
         start_account=start,
         nonce=nonce,
         msg_version=msg_version,
+        tx_options={"gas_price": GAS_PRICE, "chain_id": CHAIN_ID},
+        evm_denom=TESTNET_EVM_DENOM,
     )
     json.dump(txs, sys.stdout)
 

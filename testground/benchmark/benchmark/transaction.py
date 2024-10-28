@@ -33,23 +33,25 @@ Job = namedtuple(
         "batch",
         "nonce",
         "msg_version",
+        "tx_options",
+        "evm_denom",
     ],
 )
 EthTx = namedtuple("EthTx", ["tx", "raw", "sender"])
 
 
-def simple_transfer_tx(sender: str, nonce: int):
+def simple_transfer_tx(sender: str, nonce: int, options: dict):
     return {
         "to": sender,
         "value": 1,
         "nonce": nonce,
         "gas": 21000,
-        "gasPrice": GAS_PRICE,
-        "chainId": CHAIN_ID,
+        "gasPrice": options.get("gas_price", GAS_PRICE),
+        "chainId": options.get("chain_id", CHAIN_ID),
     }
 
 
-def erc20_transfer_tx(sender: str, nonce: int):
+def erc20_transfer_tx(sender: str, nonce: int, options: dict):
     # data is erc20 transfer function call
     data = "0xa9059cbb" + eth_abi.encode(["address", "uint256"], [sender, 1]).hex()
     return {
@@ -57,8 +59,8 @@ def erc20_transfer_tx(sender: str, nonce: int):
         "value": 0,
         "nonce": nonce,
         "gas": 51630,
-        "gasPrice": GAS_PRICE,
-        "chainId": CHAIN_ID,
+        "gasPrice": options.get("gas_price", GAS_PRICE),
+        "chainId": options.get("chain_id", CHAIN_ID),
         "data": data,
     }
 
@@ -120,7 +122,7 @@ def _do_job(job: Job):
     for acct in accounts:
         txs = []
         for i in range(job.num_txs):
-            tx = job.create_tx(acct.address, job.nonce + i)
+            tx = job.create_tx(acct.address, job.nonce + i, job.tx_options)
             raw = acct.sign_transaction(tx).rawTransaction
             txs.append(EthTx(tx, raw, HexBytes(acct.address)))
             total += 1
@@ -129,7 +131,9 @@ def _do_job(job: Job):
 
         # to keep it simple, only build batch inside the account
         txs = [
-            build_cosmos_tx(*txs[start:end], msg_version=job.msg_version)
+            build_cosmos_tx(
+                *txs[start:end], msg_version=job.msg_version, evm_denom=job.evm_denom
+            )
             for start, end in split_batch(len(txs), job.batch)
         ]
         acct_txs.append(txs)
@@ -145,7 +149,10 @@ def gen(
     nonce: int = 0,
     start_account: int = 0,
     msg_version: str = "1.4",
+    tx_options: dict = None,
+    evm_denom: str = DEFAULT_DENOM,
 ) -> [str]:
+    tx_options = tx_options or {}
     chunks = split(num_accounts, os.cpu_count())
     create_tx = TX_TYPES[tx_type]
     jobs = [
@@ -158,6 +165,8 @@ def gen(
             batch,
             nonce,
             msg_version,
+            tx_options,
+            evm_denom,
         )
         for start, end in chunks
     ]
@@ -232,9 +241,13 @@ async def async_sendtx(session, raw, rpc, sync=False):
     method = "broadcast_tx_sync" if sync else "broadcast_tx_async"
     async with session.post(rpc, json=json_rpc_send_body(raw, method)) as rsp:
         data = await rsp.json()
+        print("data", data)
         if "error" in data:
             print("send tx error, will retry,", data["error"])
             return False
+        result = data["result"]
+        if result["code"] != 0:
+            print("tx is invalid, won't retry,", result["log"])
         return True
 
 
