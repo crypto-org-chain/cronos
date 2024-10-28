@@ -162,18 +162,18 @@ def gen_account(global_seq: int, index: int) -> Account:
     return Account.from_key(((global_seq + 1) << 32 | index).to_bytes(32))
 
 
-def block_height():
-    rsp = requests.get(f"{LOCAL_RPC}/status").json()
+def block_height(rpc=LOCAL_RPC):
+    rsp = requests.get(f"{rpc}/status").json()
     return int(rsp["result"]["sync_info"]["latest_block_height"])
 
 
-def block(height):
-    return requests.get(f"{LOCAL_RPC}/block?height={height}").json()
+def block(height, rpc=LOCAL_RPC):
+    return requests.get(f"{rpc}/block?height={height}").json()
 
 
-def block_eth(height: int):
+def block_eth(height: int, json_rpc=LOCAL_JSON_RPC):
     return requests.post(
-        f"{LOCAL_JSON_RPC}",
+        json_rpc,
         json={
             "jsonrpc": "2.0",
             "method": "eth_getBlockByNumber",
@@ -183,8 +183,8 @@ def block_eth(height: int):
     ).json()["result"]
 
 
-def block_txs(height):
-    return block(height)["result"]["block"]["data"]["txs"]
+def block_txs(height, rpc=LOCAL_RPC):
+    return block(height, rpc=rpc)["result"]["block"]["data"]["txs"]
 
 
 def split(a: int, n: int):

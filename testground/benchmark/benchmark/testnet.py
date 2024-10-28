@@ -9,8 +9,9 @@ import requests
 import web3
 from hexbytes import HexBytes
 
+from .stats import dump_block_stats
 from .transaction import EthTx, build_cosmos_tx, gen, json_rpc_send_body, send
-from .utils import gen_account, split_batch
+from .utils import block_height, gen_account, split_batch
 
 # arbitrarily picked for testnet, to not conflict with devnet benchmark accounts.
 GLOBAL_SEQ = 999
@@ -118,6 +119,22 @@ def gen_txs(start, end, num_txs, nonce, msg_version):
 def send_txs(path, rpc, sync):
     txs = json.loads(Path(path).read_text())
     asyncio.run(send(txs, rpc, sync))
+
+
+@cli.command()
+@click.option("--json-rpc", default=TESTNET_JSONRPC)
+@click.option("--rpc", default=TESTNET_RPC)
+@click.option("count", default=30)
+def stats(json_rpc, rpc, count):
+    current = block_height(rpc)
+    dump_block_stats(
+        sys.stdout,
+        eth=True,
+        rpc=rpc,
+        json_rpc=json_rpc,
+        start=current - count,
+        end=current,
+    )
 
 
 if __name__ == "__main__":
