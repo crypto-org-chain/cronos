@@ -124,7 +124,7 @@ def send_txs(path, rpc, sync):
 @cli.command()
 @click.option("--json-rpc", default=TESTNET_JSONRPC)
 @click.option("--rpc", default=TESTNET_RPC)
-@click.option("count", default=30)
+@click.option("--count", default=30)
 def stats(json_rpc, rpc, count):
     current = block_height(rpc)
     dump_block_stats(
