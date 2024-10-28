@@ -601,9 +601,12 @@ class CosmosCLI:
     def broadcast_tx(self, tx_file, **kwargs):
         kwargs.setdefault("broadcast_mode", "sync")
         kwargs.setdefault("output", "json")
-        return json.loads(
+        rsp = json.loads(
             self.raw("tx", "broadcast", tx_file, node=self.node_rpc, **kwargs)
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def broadcast_tx_json(self, tx, **kwargs):
         with tempfile.NamedTemporaryFile("w") as fp:
@@ -1612,10 +1615,7 @@ class CosmosCLI:
         return rsp
 
     def register_payee(self, port_id, channel_id, relayer, payee, **kwargs):
-        default_kwargs = {
-            "home": self.data_dir,
-        }
-        return json.loads(
+        rsp = json.loads(
             self.raw(
                 "tx",
                 "ibc-fee",
@@ -1625,14 +1625,15 @@ class CosmosCLI:
                 relayer,
                 payee,
                 "-y",
-                **(default_kwargs | kwargs),
+                home=self.data_dir,
+                **kwargs,
             )
         )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
 
     def pay_packet_fee(self, port_id, channel_id, packet_seq, **kwargs):
-        default_kwargs = {
-            "home": self.data_dir,
-        }
         rsp = json.loads(
             self.raw(
                 "tx",
@@ -1642,7 +1643,8 @@ class CosmosCLI:
                 channel_id,
                 str(packet_seq),
                 "-y",
-                **(default_kwargs | kwargs),
+                home=self.data_dir,
+                **kwargs,
             )
         )
         if rsp["code"] == 0:

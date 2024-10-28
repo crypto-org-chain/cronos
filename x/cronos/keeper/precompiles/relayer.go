@@ -1,11 +1,13 @@
 package precompiles
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -183,7 +185,6 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, err
 	}
 	stateDB := evm.StateDB.(ExtStateDB)
-
 	var res []byte
 	precompileAddr := bc.Address()
 	args, err := method.Inputs.Unpack(contract.Input[4:])
@@ -230,9 +231,15 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	case RecvPacket:
 		res, err = exec(e, bc.ibcKeeper.RecvPacket)
 	case Acknowledgement:
-		res, err = exec(e, bc.ibcKeeper.Acknowledgement)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error) {
+			msg.Signer = sdk.AccAddress(evm.TxContext.Origin.Bytes()).String()
+			return bc.ibcKeeper.Acknowledgement(goCtx, msg)
+		})
 	case Timeout:
-		res, err = exec(e, bc.ibcKeeper.Timeout)
+		res, err = exec(e, func(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error) {
+			msg.Signer = sdk.AccAddress(evm.TxContext.Origin.Bytes()).String()
+			return bc.ibcKeeper.Timeout(goCtx, msg)
+		})
 	case TimeoutOnClose:
 		res, err = exec(e, bc.ibcKeeper.TimeoutOnClose)
 	default:

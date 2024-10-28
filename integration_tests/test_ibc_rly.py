@@ -7,7 +7,6 @@ from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
     RATIO,
-    RELAYER_CALLER,
     assert_duplicate,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
@@ -93,7 +92,7 @@ def coin_spent(spender, amt, denom):
 def distribute_fee(receiver, fee):
     return {
         "receiver": receiver,
-        "fee": keccak(text=fee),
+        "fee": fee,
     }
 
 
@@ -101,7 +100,7 @@ def fungible(dst, src, amt, denom):
     return {
         "receiver": dst,
         "sender": src,
-        "denom": keccak(text=denom),
+        "denom": denom,
         "amount": amt,
     }
 
@@ -123,9 +122,11 @@ def burn(burner, amt, denom):
 
 def recv_packet(seq, src, dst, amt, denom):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
@@ -141,9 +142,11 @@ def recv_packet(seq, src, dst, amt, denom):
 
 def acknowledge_packet(seq):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
@@ -152,15 +155,17 @@ def acknowledge_packet(seq):
 
 def denom_trace(denom):
     return {
-        "denom": keccak(text=denom),
+        "denom": denom,
     }
 
 
 def write_ack(seq, src, dst, amt, denom):
     return {
-        "packetSequence": keccak(text=f"{seq}"),
+        "packetSequence": seq,
         "packetSrcPort": keccak(text="transfer"),
         "packetSrcChannel": keccak(text=channel),
+        "packetSrcPortInfo": "transfer",
+        "packetSrcChannelInfo": channel,
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
@@ -209,7 +214,7 @@ def get_send_packet_seq(
         events = parse_events_rpc(res["events"])
         target = events.get("send_packet")
         if target and target["packet_sequence"]:
-            return target["packet_sequence"]
+            return int(target["packet_sequence"])
     return None
 
 
@@ -220,7 +225,7 @@ def filter_logs_since(w3, start, name, seq):
         {
             "fromBlock": start,
             "address": [CONTRACT],
-            "topics": [topic, "0x" + keccak(text=f"{seq}").hex()],
+            "topics": [topic, "0x{:064x}".format(seq)],
         }
     )
 
@@ -287,8 +292,8 @@ def test_ibc_incentivized_transfer(ibc):
         acknowledge_packet(seq0),
         distribute_fee(src_relayer, fee),
         *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
-        distribute_fee(RELAYER_CALLER, fee),
-        *send_coins(feeibc_addr, RELAYER_CALLER, src_amount, fee_denom),
+        distribute_fee(src_relayer, fee),
+        *send_coins(feeibc_addr, src_relayer, src_amount, fee_denom),
         distribute_fee(cronos_signer2, ""),
         *send_coins(feeibc_addr, cronos_signer2, 0, fee_denom),
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
