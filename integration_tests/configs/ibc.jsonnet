@@ -39,7 +39,7 @@ config {
     'account-prefix': 'cro',
     'coin-type': 394,
     'app-config': {
-      'minimum-gas-prices': '500basecro',
+      'minimum-gas-prices': '0basecro',
     },
     validators: [
       {
@@ -68,7 +68,7 @@ config {
       },
       {
         name: 'signer2',
-        coins: '10000000000000cro',
+        coins: '10000000000000cro,100000000000ibcfee',
         mnemonic: '${SIGNER2_MNEMONIC}',
       },
     ] + [
