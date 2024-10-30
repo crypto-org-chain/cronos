@@ -300,7 +300,7 @@ def do_run(
         print("sent", len(txs), "txs")
 
     # node quit when the chain is idle or halted for a while
-    detect_idle_halted(cfg["num_idle"], 20)
+    detect_idle_halted(cfg["num_idle"], 5)
 
     with (home / "block_stats.log").open("w") as logfile:
         dump_block_stats(logfile)
