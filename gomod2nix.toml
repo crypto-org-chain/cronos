@@ -158,9 +158,9 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.38.0-alpha.1.0.20241101065232-3c5c180eb40a"
-    hash = "sha256-9nwy4dL0I58B+FOKbSxa5fr/DXgBpIrihNM/T6uh0Xk="
-    replaced = "github.com/yihuang/cometbft"
+    version = "v0.0.0-20241101071018-f2b043f6eebe"
+    hash = "sha256-km1ddv98RESwmC3MaUT17wOt4vh/mYmD6n1nIFGbdI0="
+    replaced = "github.com/crypto-org-chain/cometbft"
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.14.1"
     hash = "sha256-QvWMRGsdgCsSfL+DHp3w1Bm4jXa14SeT7oRK3PiNGV0="
