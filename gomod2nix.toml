@@ -158,8 +158,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.0.0-20241101071018-f2b043f6eebe"
-    hash = "sha256-km1ddv98RESwmC3MaUT17wOt4vh/mYmD6n1nIFGbdI0="
+    version = "v0.0.0-20241101110921-cee5fa03c9ba"
+    hash = "sha256-Zlu11cj2cv++ecqF9urfsGhPgfh6Q4Rk9WBlB1hcwX4="
     replaced = "github.com/crypto-org-chain/cometbft"
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.14.1"
@@ -263,9 +263,9 @@ schema = 3
     hash = "sha256-ozwVS2BhAoz+OOisAyMhgg+lq8FdQjf90xoOq9cxtGw="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20241101053009-8afdc6924206"
-    hash = "sha256-IdQlvRPacae3q2jlJZctf+/uiIqJj/GndPEaqVF0tEU="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.6.1-0.20241101111950-60fb5e661f18"
+    hash = "sha256-nT9pD3IPj1LTzCmQqE2riggLvGJ5wc8tAi3QXzXyPp0="
+    replaced = "github.com/yihuang/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.16.0"
     hash = "sha256-Aq/SM28aPJVzvapllQ64R/DM4aZ5CHPewcm/AUJPyJQ="
