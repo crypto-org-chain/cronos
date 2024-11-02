@@ -164,8 +164,8 @@ def prepare_network(
         Path(__file__).parent / file,
         relayer=relayer,
     ) as cronos:
+        cli = cronos.cosmos_cli()
         if grantee:
-            cli = cronos.cosmos_cli()
             granter_addr = cli.address("signer1")
             grantee_addr = cli.address(grantee)
             max_gas = 1000000
@@ -181,6 +181,8 @@ def prepare_network(
         # wait for grpc ready
         wait_for_port(ports.grpc_port(chainmain.base_port(0)))  # chainmain grpc
         wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
+        wait_for_new_blocks(chainmain.cosmos_cli(), 1)
+        wait_for_new_blocks(cli, 1)
 
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
         path = cronos.base_dir.parent / "relayer"
