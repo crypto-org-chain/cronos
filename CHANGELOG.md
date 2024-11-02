@@ -11,7 +11,7 @@
 * [#1664](https://github.com/crypto-org-chain/cronos/pull/1664) Update cometbft to 0.38.13.
 * [#1660](https://github.com/crypto-org-chain/cronos/pull/1660) Support async check tx.
 * [#1667](https://github.com/crypto-org-chain/cronos/pull/1667) Add testnet benchmark command.
-* [#1669](https://github.com/crypto-org-chain/cronos/pull/1669) Add performance optimizations: a) async fireEvents, b) faster prepare proposal when using NopMempool
+* [#1669](https://github.com/crypto-org-chain/cronos/pull/1669) Add performance optimizations: a) async fireEvents, b) faster prepare proposal when using NopMempool, c) parallel check-tx
 
 *Oct 24, 2024*
 
