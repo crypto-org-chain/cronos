@@ -420,7 +420,7 @@ func New(
 		app.SetMempool(mpool)
 
 		// Re-use the default prepare proposal handler, extend the transaction validation logic
-		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
 		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
 			baseapp.NewDefaultTxSelector(),
 			txDecoder,

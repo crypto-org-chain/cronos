@@ -26,10 +26,10 @@ var _ baseapp.TxSelector = &ExtTxSelector{}
 type ExtTxSelector struct {
 	baseapp.TxSelector
 	TxDecoder  sdk.TxDecoder
-	ValidateTx func(sdk.Tx) error
+	ValidateTx func(sdk.Tx, []byte) error
 }
 
-func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx) error) *ExtTxSelector {
+func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx, []byte) error) *ExtTxSelector {
 	return &ExtTxSelector{
 		TxSelector: parent,
 		TxDecoder:  txDecoder,
@@ -38,21 +38,38 @@ func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, valida
 }
 
 func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte, gasWanted uint64) bool {
-	var err error
-	if memTx == nil {
-		memTx, err = ts.TxDecoder(txBz)
-		if err != nil {
-			return false
-		}
-	}
-
-	if err := ts.ValidateTx(memTx); err != nil {
+	if err := ts.ValidateTx(memTx, txBz); err != nil {
 		return false
 	}
 
 	// don't pass `memTx` to parent selector so it don't check tx gas wanted against block gas limit,
 	// it conflicts with the max-tx-gas-wanted logic.
 	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, nil, txBz, gasWanted)
+}
+
+func (ts *ExtTxSelector) SelectTxForProposalFast(ctx context.Context, txs [][]byte) [][]byte {
+	var invalidTxs []int
+	for i, txBz := range txs {
+		if err := ts.ValidateTx(nil, txBz); err != nil {
+			invalidTxs = append(invalidTxs, i)
+		}
+	}
+
+	if len(invalidTxs) > 0 {
+		filtered := make([][]byte, 0, len(txs)-len(invalidTxs))
+		var offset int
+		for i, txBz := range txs {
+			if offset < len(invalidTxs) && i == invalidTxs[offset] {
+				offset++
+				continue
+			}
+			filtered = append(filtered, txBz)
+		}
+
+		txs = filtered
+	}
+
+	return ts.TxSelector.SelectTxForProposalFast(ctx, txs)
 }
 
 type ProposalHandler struct {
@@ -123,10 +140,18 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 	return nil
 }
 
-func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx) error {
+func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 	if len(h.blocklist) == 0 {
 		// fast path, accept all txs
 		return nil
+	}
+
+	var err error
+	if tx == nil {
+		tx, err = h.TxDecoder(txBz)
+		if err != nil {
+			return err
+		}
 	}
 
 	sigTx, ok := tx.(signing.SigVerifiableTx)
@@ -158,12 +183,7 @@ func (h *ProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
 		}
 
 		for _, txBz := range req.Txs {
-			memTx, err := h.TxDecoder(txBz)
-			if err != nil {
-				return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
-			}
-
-			if err := h.ValidateTransaction(memTx); err != nil {
+			if err := h.ValidateTransaction(nil, txBz); err != nil {
 				return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_REJECT}, nil
 			}
 		}
