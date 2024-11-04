@@ -28,7 +28,7 @@ from .peer import (
 from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import block_height, block_txs, wait_for_block, wait_for_port
+from .utils import Tee, block_height, block_txs, wait_for_block, wait_for_port
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
@@ -303,7 +303,7 @@ def do_run(
     detect_idle_halted(cfg["num_idle"], 5)
 
     with (home / "block_stats.log").open("w") as logfile:
-        dump_block_stats(logfile)
+        dump_block_stats(Tee(logfile, sys.stdout))
 
     proc.kill()
     proc.wait(20)
