@@ -57,6 +57,7 @@ def dump_block_stats(
         blocks.append((txs, timestamp))
         tps = calculate_tps(blocks[-TPS_WINDOW:])
         tps_list.append(tps)
+        print("block", i, txs, timestamp, tps)
         print("block", i, txs, timestamp, tps, file=fp)
     tps_list.sort(reverse=True)
     print("top_tps", tps_list[:5], file=fp)
