@@ -219,8 +219,8 @@ schema = 3
     hash = "sha256-lDIqRLUrXYCb9mmFBY/+WW+ee69+IkxOgqjHVyo4ij0="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20241010012107-36adc9cd07c8"
-    hash = "sha256-Yfxl3JUpiJvX8Al/CdzDKRV6KMKTfyFaUZ7BbiolmqM="
+    version = "v0.6.1-0.20241104051437-1e621c7767f3"
+    hash = "sha256-0LzVvyOOuPayc5259gBTJMLml9ctJuFVtzLzIAwY9uY="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.4"
