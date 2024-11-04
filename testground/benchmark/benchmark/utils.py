@@ -208,12 +208,14 @@ def split_batch(a: int, size: int):
         parts.append((k * size, a))
     return parts
 
+
 class Tee:
     def __init__(self, f1, f2):
         self.f1 = f1
         self.f2 = f2
+
     def write(self, s) -> int:
         s1 = self.f1.write(s)
         s2 = self.f2.write(s)
-        assert s1 = s2
+        assert s1 == s2
         return s1
