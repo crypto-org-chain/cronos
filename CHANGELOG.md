@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+* [#1670](https://github.com/crypto-org-chain/cronos/pull/1670) Fix state overwrite in debug trace APIs.
+
 *Oct 14, 2024*
 
 ## v1.3.3
