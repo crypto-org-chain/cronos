@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* (iavl)[#]() Update iavl dependency to include pruning fix.
+* (iavl)[#1673](https://github.com/crypto-org-chain/cronos/pull/1673) Update iavl dependency to include pruning fix.
 
 ### Features
 
