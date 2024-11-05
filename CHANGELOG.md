@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+* (iavl)[#1673](https://github.com/crypto-org-chain/cronos/pull/1673) Update iavl dependency to include pruning fix.
+
 ### Features
 
 * [#1665](https://github.com/crypto-org-chain/cronos/pull/1665) Support register for payee and counterpartyPayee in relayer precompile.

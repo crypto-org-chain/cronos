@@ -391,8 +391,8 @@ github.com/cosmos/gogogateway v1.2.0/go.mod h1:iQpLkGWxYcnCdz5iAdLcRBSw3h7NXeOkZ
 github.com/cosmos/gogoproto v1.4.2/go.mod h1:cLxOsn1ljAHSV527CHOtaIP91kK6cCrZETRBrkzItWU=
 github.com/cosmos/gogoproto v1.7.0 h1:79USr0oyXAbxg3rspGh/m4SWNyoz/GLaAh0QlCe2fro=
 github.com/cosmos/gogoproto v1.7.0/go.mod h1:yWChEv5IUEYURQasfyBW5ffkMHR/90hiHgbNgrtp4j0=
-github.com/cosmos/iavl v1.2.0 h1:kVxTmjTh4k0Dh1VNL046v6BXqKziqMDzxo93oh3kOfM=
-github.com/cosmos/iavl v1.2.0/go.mod h1:HidWWLVAtODJqFD6Hbne2Y0q3SdxByJepHUOeoH4LiI=
+github.com/cosmos/iavl v1.2.1-0.20240731145221-594b181f427e h1:5bxw1E0peLMrr8ZO9mYT0d9sxy0WgR1ZEWb92yjKnnk=
+github.com/cosmos/iavl v1.2.1-0.20240731145221-594b181f427e/go.mod h1:GiM43q0pB+uG53mLxLDzimxM9l/5N9UuSY3/D0huuVw=
 github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240913130017-6b2554360c0e h1:jMqihcJRBdpRrKGOMS1bDyyoo2JoQxv4QmMCwK3HSvI=
 github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240913130017-6b2554360c0e/go.mod h1:akR14gsU5YD5S1G5I6lOI7z51OjR1vJko06Rs/3/Ym0=
 github.com/cosmos/ibc-go/modules/capability v1.0.1 h1:ibwhrpJ3SftEEZRxCRkH0fQZ9svjthrX2+oXdZvzgGI=
