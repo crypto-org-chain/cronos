@@ -62,6 +62,7 @@
             buildInputs = [
               defaultPackage.go
               pkgs.gomod2nix
+              pkgs.nixfmt-rfc-style
             ];
           };
           rocksdb = pkgs.mkShell {
@@ -70,11 +71,7 @@
               pkgs.rocksdb.tools
             ];
           };
-          full = pkgs.mkShell {
-            buildInputs = rocksdb.buildInputs ++ [
-              pkgs.test-env
-            ];
-          };
+          full = pkgs.mkShell { buildInputs = rocksdb.buildInputs ++ [ pkgs.test-env ]; };
         };
         legacyPackages = pkgs;
       }

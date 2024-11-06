@@ -44,9 +44,7 @@
             program = "${pkgs.benchmark-testcase}/bin/testnet";
           };
         };
-        devShells.default = pkgs.mkShell {
-          buildInputs = [ pkgs.benchmark-testcase-env ];
-        };
+        devShells.default = pkgs.mkShell { buildInputs = [ pkgs.benchmark-testcase-env ]; };
         legacyPackages = pkgs;
       }
     );

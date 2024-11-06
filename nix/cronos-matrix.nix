@@ -48,9 +48,7 @@ builtins.listToAttrs (
       );
       value =
         let
-          cronosd = callPackage ../. {
-            inherit rev network;
-          };
+          cronosd = callPackage ../. { inherit rev network; };
           bundle = if stdenv.hostPlatform.isWindows then bundle-win-exe cronosd else bundle-exe cronosd;
         in
         if pkgtype == "bundle" then

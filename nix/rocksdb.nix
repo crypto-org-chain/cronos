@@ -52,11 +52,7 @@ stdenv.mkDerivation (finalAttrs: {
     "tools"
   ];
 
-  env.NIX_CFLAGS_COMPILE = toString (
-    lib.optionals stdenv.cc.isClang [
-      "-faligned-allocation"
-    ]
-  );
+  env.NIX_CFLAGS_COMPILE = toString (lib.optionals stdenv.cc.isClang [ "-faligned-allocation" ]);
 
   cmakeFlags = [
     "-DPORTABLE=1"

@@ -10,9 +10,7 @@ let
   dapptools-patched = self.srcOnly {
     name = "dapptools-patched";
     src = dapptools-master;
-    patches = [
-      ./dapptools.patch
-    ];
+    patches = [ ./dapptools.patch ];
   };
 in
 {

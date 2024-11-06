@@ -6,9 +6,7 @@
 }:
 let
   patched-cronosd = cronos-matrix.cronosd.overrideAttrs (oldAttrs: {
-    patches = oldAttrs.patches or [ ] ++ [
-      ./testground-cronosd.patch
-    ];
+    patches = oldAttrs.patches or [ ] ++ [ ./testground-cronosd.patch ];
   });
 in
 let
@@ -36,8 +34,6 @@ dockerTools.buildLayeredImage {
       30000
     ];
     Cmd = [ "/bin/stateless-testcase" ];
-    Env = [
-      "PYTHONUNBUFFERED=1"
-    ];
+    Env = [ "PYTHONUNBUFFERED=1" ];
   };
 }
