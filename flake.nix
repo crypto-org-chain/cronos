@@ -18,15 +18,7 @@
     };
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      nix-bundle-exe,
-      gomod2nix,
-      flake-utils,
-      poetry2nix,
-    }:
+  outputs = { self, nixpkgs, nix-bundle-exe, gomod2nix, flake-utils, poetry2nix }:
     let
       rev = self.shortRev or "dirty";
       mkApp = drv: {
@@ -34,52 +26,52 @@
         program = "${drv}/bin/${drv.meta.mainProgram}";
       };
     in
-    (flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = self.overlays.default;
-          config = { };
-        };
-      in
-      rec {
-        packages = pkgs.cronos-matrix // {
-          inherit (pkgs) rocksdb testground-image;
-        };
-        apps = {
-          cronosd = mkApp packages.cronosd;
-          cronosd-testnet = mkApp packages.cronosd-testnet;
-          stateless-testcase = {
-            type = "app";
-            program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
+    (flake-utils.lib.eachDefaultSystem
+      (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = self.overlays.default;
+            config = { };
           };
-        };
-        defaultPackage = packages.cronosd;
-        defaultApp = apps.cronosd;
-        devShells = rec {
-          default = pkgs.mkShell {
-            buildInputs = [
-              defaultPackage.go
-              pkgs.gomod2nix
-            ];
+        in
+        rec {
+          packages = pkgs.cronos-matrix // {
+            inherit (pkgs) rocksdb testground-image;
           };
-          rocksdb = pkgs.mkShell {
-            buildInputs = default.buildInputs ++ [
-              pkgs.rocksdb
-              pkgs.rocksdb.tools
-            ];
+          apps = {
+            cronosd = mkApp packages.cronosd;
+            cronosd-testnet = mkApp packages.cronosd-testnet;
+            stateless-testcase = {
+              type = "app";
+              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
+            };
           };
-          full = pkgs.mkShell {
-            buildInputs = rocksdb.buildInputs ++ [
-              pkgs.test-env
-            ];
+          defaultPackage = packages.cronosd;
+          defaultApp = apps.cronosd;
+          devShells = rec {
+            default = pkgs.mkShell {
+              buildInputs = [
+                defaultPackage.go
+                pkgs.gomod2nix
+              ];
+            };
+            rocksdb = pkgs.mkShell {
+              buildInputs = default.buildInputs ++ [
+                pkgs.rocksdb
+                pkgs.rocksdb.tools
+              ];
+            };
+            full = pkgs.mkShell {
+              buildInputs = rocksdb.buildInputs ++ [
+                pkgs.test-env
+              ];
+            };
           };
-        };
-        legacyPackages = pkgs;
-      }
-    ))
-    // {
+          legacyPackages = pkgs;
+        }
+      )
+    ) // {
       overlays.default = [
         (import ./nix/build_overlay.nix)
         poetry2nix.overlays.default
