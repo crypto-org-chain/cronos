@@ -1,5 +1,6 @@
-{ buildGoModule
-, fetchFromGitHub
+{
+  buildGoModule,
+  fetchFromGitHub,
 }:
 
 let

@@ -1,7 +1,9 @@
-{ pkgs
-, config
-, cronos ? (import ../. { inherit pkgs; })
-}: rec {
+{
+  pkgs,
+  config,
+  cronos ? (import ../. { inherit pkgs; }),
+}:
+rec {
   start-cronos = pkgs.writeShellScriptBin "start-cronos" ''
     # rely on environment to provide cronosd
     export PATH=${pkgs.test-env}/bin:$PATH
@@ -14,6 +16,9 @@
   '';
   start-scripts = pkgs.symlinkJoin {
     name = "start-scripts";
-    paths = [ start-cronos start-geth ];
+    paths = [
+      start-cronos
+      start-geth
+    ];
   };
 }

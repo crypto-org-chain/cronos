@@ -1,5 +1,8 @@
-{ pkgs ? import ../../nix { } }:
-let cronosd = (pkgs.callPackage ../../. { });
+{
+  pkgs ? import ../../nix { },
+}:
+let
+  cronosd = (pkgs.callPackage ../../. { });
 in
 cronosd.overrideAttrs (oldAttrs: {
   patches = oldAttrs.patches or [ ] ++ [

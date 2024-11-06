@@ -1,13 +1,12 @@
 { dapptools-release, dapptools-master }:
 self: super:
 let
-  dapptools = {
-    x86_64-linux =
-      (import (dapptools-release + "/release.nix") { }).dapphub.linux.stable;
-    x86_64-darwin =
-      (import (dapptools-release + "/release.nix") { }).dapphub.darwin.stable;
-  }.${self.system} or (throw
-    "Unsupported system: ${self.system}");
+  dapptools =
+    {
+      x86_64-linux = (import (dapptools-release + "/release.nix") { }).dapphub.linux.stable;
+      x86_64-darwin = (import (dapptools-release + "/release.nix") { }).dapphub.darwin.stable;
+    }
+    .${self.system} or (throw "Unsupported system: ${self.system}");
   dapptools-patched = self.srcOnly {
     name = "dapptools-patched";
     src = dapptools-master;

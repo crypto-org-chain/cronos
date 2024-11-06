@@ -9,38 +9,45 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, poetry2nix }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [
-              poetry2nix.overlays.default
-              (import ./overlay.nix)
-            ];
-            config = { };
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      poetry2nix,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            poetry2nix.overlays.default
+            (import ./overlay.nix)
+          ];
+          config = { };
+        };
+      in
+      rec {
+        packages.default = pkgs.benchmark-testcase;
+        apps = {
+          default = {
+            type = "app";
+            program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
           };
-        in
-        rec {
-          packages.default = pkgs.benchmark-testcase;
-          apps = {
-            default = {
-              type = "app";
-              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
-            };
-            stateless-testcase = {
-              type = "app";
-              program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
-            };
-            testnet = {
-              type = "app";
-              program = "${pkgs.benchmark-testcase}/bin/testnet";
-            };
+          stateless-testcase = {
+            type = "app";
+            program = "${pkgs.benchmark-testcase}/bin/stateless-testcase";
           };
-          devShells.default = pkgs.mkShell {
-            buildInputs = [ pkgs.benchmark-testcase-env ];
+          testnet = {
+            type = "app";
+            program = "${pkgs.benchmark-testcase}/bin/testnet";
           };
-          legacyPackages = pkgs;
-        });
+        };
+        devShells.default = pkgs.mkShell {
+          buildInputs = [ pkgs.benchmark-testcase-env ];
+        };
+        legacyPackages = pkgs;
+      }
+    );
 }

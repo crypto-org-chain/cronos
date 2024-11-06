@@ -1,4 +1,9 @@
-{ dockerTools, runCommandLocal, cronos-matrix, benchmark-testcase }:
+{
+  dockerTools,
+  runCommandLocal,
+  cronos-matrix,
+  benchmark-testcase,
+}:
 let
   patched-cronosd = cronos-matrix.cronosd.overrideAttrs (oldAttrs: {
     patches = oldAttrs.patches or [ ] ++ [
@@ -20,7 +25,16 @@ dockerTools.buildLayeredImage {
     tmpDir
   ];
   config = {
-    Expose = [ 9090 26657 26656 1317 26658 26660 26659 30000 ];
+    Expose = [
+      9090
+      26657
+      26656
+      1317
+      26658
+      26660
+      26659
+      30000
+    ];
     Cmd = [ "/bin/stateless-testcase" ];
     Env = [
       "PYTHONUNBUFFERED=1"
