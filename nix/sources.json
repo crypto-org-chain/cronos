@@ -55,7 +55,7 @@
         "owner": "obreitwi",
         "repo": "gomod2nix",
         "rev": "983228366edc1bed1be6e6f7a45e285b4707b9ba",
-        "sha256": "",
+        "sha256": "1pz4qymn6755p96ai00birvj2y5wrkv6wkyi40y8vpqzs2s60pnj",
         "type": "tarball",
         "url": "https://github.com/obreitwi/gomod2nix/archive/983228366edc1bed1be6e6f7a45e285b4707b9ba.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
