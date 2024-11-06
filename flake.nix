@@ -7,7 +7,7 @@
       flake = false;
     };
     gomod2nix = {
-      url = "github:nix-community/gomod2nix";
+      url = "github:obreitwi/gomod2nix/fix/go_mod_vendor";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };

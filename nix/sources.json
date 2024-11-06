@@ -49,15 +49,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gomod2nix": {
-        "branch": "master",
+        "branch": "fix/go_mod_vendor",
         "description": "Convert applications using Go modules to Nix expressions",
         "homepage": null,
-        "owner": "nix-community",
+        "owner": "obreitwi",
         "repo": "gomod2nix",
-        "rev": "31b6d2e40b36456e792cd6cf50d5a8ddd2fa59a1",
-        "sha256": "0b8cmc8dk34pgcac5s1jvryfcn8kyhbzhh1i22rzv5kf00f09lhb",
+        "rev": "983228366edc1bed1be6e6f7a45e285b4707b9ba",
+        "sha256": "1pz4qymn6755p96ai00birvj2y5wrkv6wkyi40y8vpqzs2s60pnj",
         "type": "tarball",
-        "url": "https://github.com/nix-community/gomod2nix/archive/31b6d2e40b36456e792cd6cf50d5a8ddd2fa59a1.tar.gz",
+        "url": "https://github.com/obreitwi/gomod2nix/archive/983228366edc1bed1be6e6f7a45e285b4707b9ba.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "gravity-bridge": {
