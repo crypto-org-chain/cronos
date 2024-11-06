@@ -1,8 +1,13 @@
-{ poetry2nix, lib, python311 }:
+{
+  poetry2nix,
+  lib,
+  python311,
+}:
 poetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
   python = python311;
-  overrides = poetry2nix.overrides.withDefaults (self: super:
+  overrides = poetry2nix.overrides.withDefaults (
+    self: super:
     let
       buildSystems = {
         pystarport = [ "poetry-core" ];
@@ -16,11 +21,11 @@ poetry2nix.mkPoetryEnv {
         eth-bloom = [ "setuptools" ];
       };
     in
-    lib.mapAttrs
-      (attr: systems: super.${attr}.overridePythonAttrs
-        (old: {
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
-        }))
-      buildSystems
+    lib.mapAttrs (
+      attr: systems:
+      super.${attr}.overridePythonAttrs (old: {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
+      })
+    ) buildSystems
   );
 }
