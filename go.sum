@@ -491,8 +491,8 @@ github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63 h1:R1
 github.com/crypto-org-chain/cometbft-db v0.0.0-20231011055109-57922ac52a63/go.mod h1:rocwIfnS+kA060x64gkSIRvWB9StSppIkJuo5MWzL24=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20241008100047-e671aed24d19 h1:e45niobYERw7QF6viZe5KhIH8eLgDTtg+mT5HsVhqCs=
 github.com/crypto-org-chain/cosmos-sdk v0.46.0-beta2.0.20241008100047-e671aed24d19/go.mod h1:vdMQLvLSGh56GqAAQP/w2R389j+g+hHOIwKcUNt9yAc=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241104051437-1e621c7767f3 h1:U7qSRJ5g85AOX6KJwcBHUFanhYhFh/1HjHGVZx6Adzo=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241104051437-1e621c7767f3/go.mod h1:zJYmx1D+tDggzvXmdJ0/I62TeIykdCMfJBjBxOcniAU=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20241108024404-f6d137b91faa h1:Ja8mrktznbXLxC97HtkL9OSMQNVpOuBlOvWv8WrjaEE=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20241108024404-f6d137b91faa/go.mod h1:zJYmx1D+tDggzvXmdJ0/I62TeIykdCMfJBjBxOcniAU=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e h1:vnyepPQ/m25+19xcTuBUdRxmltZ/EjVWNqEjhg7Ummk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20231207063621-43cf32d91c3e/go.mod h1:+a8pUj1tOyJ2RinsNQD4326YS+leSoKGiG/uVVb0x6Y=
 github.com/crypto-org-chain/gravity-bridge/module/v2 v2.0.1-0.20230825054824-75403cd90c6e h1:rSTc35OBjjCBx47rHPWBCIHNGPbMnEj8f7fNcK2TjVI=
