@@ -1,7 +1,6 @@
 module github.com/crypto-org-chain/cronos/store
 
-go 1.22
-toolchain go1.22.8
+go 1.22.7
 
 require (
 	cosmossdk.io/errors v1.0.1
