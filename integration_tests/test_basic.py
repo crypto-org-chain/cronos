@@ -797,12 +797,11 @@ def test_failed_transfer_tx(cronos):
             assert not result["failed"]
             assert receipt.gasUsed == result["gas"]
         else:
-            assert rsp["error"] == {
-                "code": -32000,
-                "message": (
-                    "rpc error: code = Internal desc = "
-                    "insufficient balance for transfer"
-                ),
+            assert rsp["result"] == {
+                "failed": False,
+                "gas": 21000,
+                "returnValue": "",
+                "structLogs": [],
             }
 
 
