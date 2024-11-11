@@ -36,10 +36,6 @@ func (app *App) setupVersionDB(
 	}
 
 	// see: https://github.com/crypto-org-chain/cronos/issues/1683
-	if err := versionDB.FixData(exposedKeys); err != nil {
-		return nil, err
-	}
-
 	versionDB.SetSkipVersionZero(true)
 
 	app.CommitMultiStore().AddListeners(exposedKeys)

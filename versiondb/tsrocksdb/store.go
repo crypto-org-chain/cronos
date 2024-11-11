@@ -235,9 +235,9 @@ func (s Store) Flush() error {
 // FixData fixes wrong data written in versiondb due to rocksdb upgrade, the operation is idempotent.
 // see: https://github.com/crypto-org-chain/cronos/issues/1683
 // call this before `SetSkipVersionZero(true)`.
-func (s Store) FixData(storeKeys []types.StoreKey) error {
-	for _, storeKey := range storeKeys {
-		if err := s.fixDataStore(storeKey.Name()); err != nil {
+func (s Store) FixData(storeNames []string) error {
+	for _, storeName := range storeNames {
+		if err := s.fixDataStore(storeName); err != nil {
 			return err
 		}
 	}
