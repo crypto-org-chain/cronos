@@ -125,7 +125,7 @@ func (s Store) GetAtVersion(storeKey string, key []byte, version *int64) ([]byte
 // HasAtVersion implements VersionStore interface
 func (s Store) HasAtVersion(storeKey string, key []byte, version *int64) (bool, error) {
 	slice, err := s.GetAtVersionSlice(storeKey, key, version)
-	if err != nil {
+	if err != nil || slice == nil {
 		return false, err
 	}
 	defer slice.Free()
