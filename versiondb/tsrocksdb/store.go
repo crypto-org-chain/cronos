@@ -274,6 +274,7 @@ func (s Store) fixDataStore(storeName string) error {
 		if err != nil {
 			return err
 		}
+		readOpts.Destroy()
 
 		clean := bytes.Equal(oldValue.Data(), iter.Value())
 		oldValue.Free()
