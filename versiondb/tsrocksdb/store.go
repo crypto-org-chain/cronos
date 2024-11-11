@@ -1,6 +1,7 @@
 package tsrocksdb
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -101,10 +102,10 @@ func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*
 	if err != nil {
 		return nil, err
 	}
+	defer ts.Free()
 
-	if s.skipVersionZero {
-		ts := binary.LittleEndian.Uint64(ts.Data())
-		if ts == 0 {
+	if value.Exists() && s.skipVersionZero {
+		if binary.LittleEndian.Uint64(ts.Data()) == 0 {
 			return nil, nil
 		}
 	}
@@ -233,9 +234,10 @@ func (s Store) Flush() error {
 
 // FixData fixes wrong data written in versiondb due to rocksdb upgrade, the operation is idempotent.
 // see: https://github.com/crypto-org-chain/cronos/issues/1683
-func (s Store) FixData(stores []types.StoreKey) error {
-	for _, store := range stores {
-		if err := s.fixDataStore(store.Name()); err != nil {
+// call this before `SetSkipVersionZero(true)`.
+func (s Store) FixData(storeKeys []types.StoreKey) error {
+	for _, storeKey := range storeKeys {
+		if err := s.fixDataStore(storeKey.Name()); err != nil {
 			return err
 		}
 	}
@@ -257,8 +259,28 @@ func (s Store) fixDataStore(name string) error {
 
 	for ; iter.Valid(); iter.Next() {
 		key := iter.Key()
+		if len(key) < TimestampSize {
+			return fmt.Errorf("invalid key length: %X", key)
+		}
+
 		ts := key[len(key)-TimestampSize:]
 		key = key[:len(key)-TimestampSize]
+
+		readOpts := grocksdb.NewDefaultReadOptions()
+		readOpts.SetTimestamp(ts)
+		oldValue, err := s.db.GetCF(readOpts, s.cfHandle, prependStoreKey(name, key))
+		if err != nil {
+			return err
+		}
+
+		clean := bytes.Equal(oldValue.Data(), iter.Value())
+		oldValue.Free()
+
+		if clean {
+			continue
+		}
+
+		fmt.Println("[debug] fix key", string(key), "ts", binary.LittleEndian.Uint64(ts))
 		batch.PutCFWithTS(s.cfHandle, key, ts, iter.Value())
 	}
 

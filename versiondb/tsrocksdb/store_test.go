@@ -157,60 +157,74 @@ func TestUserTimestampPruning(t *testing.T) {
 }
 
 func TestSkipVersionZero(t *testing.T) {
+	storeKey := types.NewKVStoreKey("test")
+
+	var wrongTz [8]byte
+	binary.LittleEndian.PutUint64(wrongTz[:], 100)
+
 	key1 := []byte("hello1")
 	key2 := []byte("hello2")
+	key2Wrong := cloneAppend(key2, wrongTz[:])
 	key3 := []byte("hello3")
 
 	store, err := NewStore(t.TempDir())
 	require.NoError(t, err)
 
 	err = store.PutAtVersion(0, []*types.StoreKVPair{
-		{Key: key2, Value: []byte{2}},
+		{StoreKey: storeKey.Name(), Key: key2Wrong, Value: []byte{2}},
 	})
 	require.NoError(t, err)
 	err = store.PutAtVersion(100, []*types.StoreKVPair{
-		{Key: key1, Value: []byte{1}},
+		{StoreKey: storeKey.Name(), Key: key1, Value: []byte{1}},
 	})
 	require.NoError(t, err)
 	err = store.PutAtVersion(100, []*types.StoreKVPair{
-		{Key: key3, Value: []byte{3}},
+		{StoreKey: storeKey.Name(), Key: key3, Value: []byte{3}},
 	})
 	require.NoError(t, err)
 
 	i := int64(999)
-	bz, err := store.GetAtVersion("", key2, &i)
+	bz, err := store.GetAtVersion(storeKey.Name(), key2Wrong, &i)
 	require.NoError(t, err)
 	require.Equal(t, []byte{2}, bz)
 
-	it, err := store.IteratorAtVersion("", nil, nil, &i)
+	it, err := store.IteratorAtVersion(storeKey.Name(), nil, nil, &i)
 	require.NoError(t, err)
 	require.Equal(t,
 		[]kvPair{
-			{Key: []byte("hello1"), Value: []byte{1}},
-			{Key: []byte("hello2"), Value: []byte{2}},
-			{Key: []byte("hello3"), Value: []byte{3}},
+			{Key: key1, Value: []byte{1}},
+			{Key: key2Wrong, Value: []byte{2}},
+			{Key: key3, Value: []byte{3}},
 		},
 		consumeIterator(it),
 	)
 
 	store.SetSkipVersionZero(true)
 
-	bz, err = store.GetAtVersion("", key2, &i)
+	bz, err = store.GetAtVersion(storeKey.Name(), key2Wrong, &i)
 	require.NoError(t, err)
 	require.Empty(t, bz)
-	bz, err = store.GetAtVersion("", key1, &i)
+	bz, err = store.GetAtVersion(storeKey.Name(), key1, &i)
 	require.NoError(t, err)
 	require.Equal(t, []byte{1}, bz)
 
-	it, err = store.IteratorAtVersion("", nil, nil, &i)
+	it, err = store.IteratorAtVersion(storeKey.Name(), nil, nil, &i)
 	require.NoError(t, err)
 	require.Equal(t,
 		[]kvPair{
-			{Key: []byte("hello1"), Value: []byte{1}},
-			{Key: []byte("hello3"), Value: []byte{3}},
+			{Key: key1, Value: []byte{1}},
+			{Key: key3, Value: []byte{3}},
 		},
 		consumeIterator(it),
 	)
+
+	store.SetSkipVersionZero(false)
+	err = store.FixData([]types.StoreKey{storeKey})
+	require.NoError(t, err)
+
+	bz, err = store.GetAtVersion(storeKey.Name(), key2, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{2}, bz)
 }
 
 type kvPair struct {
