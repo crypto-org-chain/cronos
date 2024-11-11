@@ -7,7 +7,7 @@ import (
 
 func FixDataCmd(stores []string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fixdata",
+		Use:   "fixdata <dir>",
 		Args:  cobra.ExactArgs(1),
 		Short: "Fix wrong data in versiondb, see: https://github.com/crypto-org-chain/cronos/issues/1683",
 		RunE: func(cmd *cobra.Command, args []string) error {
