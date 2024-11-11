@@ -23,9 +23,9 @@ var DefaultStores = []string{
 	"icahost", "icaauth", "evm", "feemarket", "e2ee", "cronos",
 }
 
-func FixCmd() *cobra.Command {
+func FixDataCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "fix",
+		Use:   "fixdata",
 		Args:  cobra.ExactArgs(1),
 		Short: "Fix versiondb data for a specific issue, see: https://github.com/crypto-org-chain/cronos/issues/1683",
 		RunE: func(cmd *cobra.Command, args []string) error {
