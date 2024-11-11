@@ -17,7 +17,6 @@ func FixDataCmd(stores []string) *cobra.Command {
 				return err
 			}
 
-			// see: https://github.com/crypto-org-chain/cronos/issues/1683
 			if err := versionDB.FixData(stores); err != nil {
 				return err
 			}
