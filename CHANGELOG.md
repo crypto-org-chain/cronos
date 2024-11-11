@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
+* [#1685](https://github.com/crypto-org-chain/cronos/pull/1685) Fix versiondb corrupted data on startup.
 
 ### Improvements
 

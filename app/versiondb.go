@@ -35,6 +35,7 @@ func (app *App) setupVersionDB(
 		return nil, err
 	}
 
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
 	if err := versionDB.FixData(exposedKeys); err != nil {
 		return nil, err
 	}

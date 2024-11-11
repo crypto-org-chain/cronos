@@ -257,6 +257,7 @@ func (s Store) fixDataStore(name string) error {
 	batch := grocksdb.NewWriteBatch()
 	defer batch.Destroy()
 
+	prefix := storePrefix(name)
 	for ; iter.Valid(); iter.Next() {
 		key := iter.Key()
 		if len(key) < TimestampSize {
@@ -280,8 +281,7 @@ func (s Store) fixDataStore(name string) error {
 			continue
 		}
 
-		fmt.Println("[debug] fix key", string(key), "ts", binary.LittleEndian.Uint64(ts))
-		batch.PutCFWithTS(s.cfHandle, key, ts, iter.Value())
+		batch.PutCFWithTS(s.cfHandle, cloneAppend(prefix, key), ts, iter.Value())
 	}
 
 	return s.db.Write(defaultSyncWriteOpts, batch)
