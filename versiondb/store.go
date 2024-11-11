@@ -15,12 +15,12 @@ var _ types.KVStore = (*Store)(nil)
 
 // Store Implements types.KVStore
 type Store struct {
-	store    VersionStore
-	storeKey types.StoreKey
-	version  *int64
+	store   VersionStore
+	name    string
+	version *int64
 }
 
-func NewKVStore(store VersionStore, storeKey types.StoreKey, version *int64) *Store {
+func NewKVStore(store VersionStore, storeKey string, version *int64) *Store {
 	return &Store{store, storeKey, version}
 }
 
@@ -38,7 +38,7 @@ func (st *Store) CacheWrap() types.CacheWrap {
 // Implements types.KVStore.
 func (st *Store) Get(key []byte) []byte {
 	defer telemetry.MeasureSince(time.Now(), "store", "versiondb", "get")
-	value, err := st.store.GetAtVersion(st.storeKey.Name(), key, st.version)
+	value, err := st.store.GetAtVersion(st.name, key, st.version)
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +48,7 @@ func (st *Store) Get(key []byte) []byte {
 // Implements types.KVStore.
 func (st *Store) Has(key []byte) (exists bool) {
 	defer telemetry.MeasureSince(time.Now(), "store", "versiondb", "has")
-	has, err := st.store.HasAtVersion(st.storeKey.Name(), key, st.version)
+	has, err := st.store.HasAtVersion(st.name, key, st.version)
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func (st *Store) Has(key []byte) (exists bool) {
 
 // Implements types.KVStore.
 func (st *Store) Iterator(start, end []byte) types.Iterator {
-	itr, err := st.store.IteratorAtVersion(st.storeKey.Name(), start, end, st.version)
+	itr, err := st.store.IteratorAtVersion(st.name, start, end, st.version)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +66,7 @@ func (st *Store) Iterator(start, end []byte) types.Iterator {
 
 // Implements types.KVStore.
 func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
-	itr, err := st.store.ReverseIteratorAtVersion(st.storeKey.Name(), start, end, st.version)
+	itr, err := st.store.ReverseIteratorAtVersion(st.name, start, end, st.version)
 	if err != nil {
 		panic(err)
 	}

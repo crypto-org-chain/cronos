@@ -6,6 +6,10 @@
 
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
 
+### Improvements
+
+* [#]() versiondb NewKVStore accept string as store name.
+
 *Nov 6, 2024*
 
 ## v1.4.0-rc3
