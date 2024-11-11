@@ -24,15 +24,15 @@ func (app *App) setupVersionDB(
 		return nil, err
 	}
 
+	versionDB, err := tsrocksdb.NewStore(dataDir)
+	if err != nil {
+		return nil, err
+	}
+
 	// always listen for all keys to simplify configuration
 	exposedKeys := make([]storetypes.StoreKey, 0, len(keys))
 	for _, key := range keys {
 		exposedKeys = append(exposedKeys, key)
-	}
-
-	versionDB, err := tsrocksdb.NewStore(dataDir)
-	if err != nil {
-		return nil, err
 	}
 
 	// see: https://github.com/crypto-org-chain/cronos/issues/1683
