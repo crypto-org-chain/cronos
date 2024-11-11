@@ -157,7 +157,7 @@ func TestUserTimestampPruning(t *testing.T) {
 }
 
 func TestSkipVersionZero(t *testing.T) {
-	storeKey := types.NewKVStoreKey("test")
+	storeKey := "test"
 
 	var wrongTz [8]byte
 	binary.LittleEndian.PutUint64(wrongTz[:], 100)
@@ -171,24 +171,24 @@ func TestSkipVersionZero(t *testing.T) {
 	require.NoError(t, err)
 
 	err = store.PutAtVersion(0, []*types.StoreKVPair{
-		{StoreKey: storeKey.Name(), Key: key2Wrong, Value: []byte{2}},
+		{StoreKey: storeKey, Key: key2Wrong, Value: []byte{2}},
 	})
 	require.NoError(t, err)
 	err = store.PutAtVersion(100, []*types.StoreKVPair{
-		{StoreKey: storeKey.Name(), Key: key1, Value: []byte{1}},
+		{StoreKey: storeKey, Key: key1, Value: []byte{1}},
 	})
 	require.NoError(t, err)
 	err = store.PutAtVersion(100, []*types.StoreKVPair{
-		{StoreKey: storeKey.Name(), Key: key3, Value: []byte{3}},
+		{StoreKey: storeKey, Key: key3, Value: []byte{3}},
 	})
 	require.NoError(t, err)
 
 	i := int64(999)
-	bz, err := store.GetAtVersion(storeKey.Name(), key2Wrong, &i)
+	bz, err := store.GetAtVersion(storeKey, key2Wrong, &i)
 	require.NoError(t, err)
 	require.Equal(t, []byte{2}, bz)
 
-	it, err := store.IteratorAtVersion(storeKey.Name(), nil, nil, &i)
+	it, err := store.IteratorAtVersion(storeKey, nil, nil, &i)
 	require.NoError(t, err)
 	require.Equal(t,
 		[]kvPair{
@@ -201,14 +201,14 @@ func TestSkipVersionZero(t *testing.T) {
 
 	store.SetSkipVersionZero(true)
 
-	bz, err = store.GetAtVersion(storeKey.Name(), key2Wrong, &i)
+	bz, err = store.GetAtVersion(storeKey, key2Wrong, &i)
 	require.NoError(t, err)
 	require.Empty(t, bz)
-	bz, err = store.GetAtVersion(storeKey.Name(), key1, &i)
+	bz, err = store.GetAtVersion(storeKey, key1, &i)
 	require.NoError(t, err)
 	require.Equal(t, []byte{1}, bz)
 
-	it, err = store.IteratorAtVersion(storeKey.Name(), nil, nil, &i)
+	it, err = store.IteratorAtVersion(storeKey, nil, nil, &i)
 	require.NoError(t, err)
 	require.Equal(t,
 		[]kvPair{
@@ -219,10 +219,10 @@ func TestSkipVersionZero(t *testing.T) {
 	)
 
 	store.SetSkipVersionZero(false)
-	err = store.FixData([]types.StoreKey{storeKey})
+	err = store.FixData([]string{storeKey})
 	require.NoError(t, err)
 
-	bz, err = store.GetAtVersion(storeKey.Name(), key2, &i)
+	bz, err = store.GetAtVersion(storeKey, key2, &i)
 	require.NoError(t, err)
 	require.Equal(t, []byte{2}, bz)
 }
