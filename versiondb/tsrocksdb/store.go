@@ -261,7 +261,7 @@ func (s Store) fixDataStore(storeName string) error {
 	for ; iter.Valid(); iter.Next() {
 		key := iter.Key()
 		if len(key) < TimestampSize {
-			return fmt.Errorf("invalid key length: %X", key)
+			return fmt.Errorf("invalid key length: %X, store: %s", key, storeName)
 		}
 
 		ts := key[len(key)-TimestampSize:]
