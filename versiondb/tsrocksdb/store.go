@@ -246,9 +246,9 @@ func (s Store) FixData(storeKeys []types.StoreKey) error {
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
-func (s Store) fixDataStore(name string) error {
+func (s Store) fixDataStore(storeName string) error {
 	var version int64
-	iter, err := s.IteratorAtVersion(name, nil, nil, &version)
+	iter, err := s.IteratorAtVersion(storeName, nil, nil, &version)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (s Store) fixDataStore(name string) error {
 	batch := grocksdb.NewWriteBatch()
 	defer batch.Destroy()
 
-	prefix := storePrefix(name)
+	prefix := storePrefix(storeName)
 	for ; iter.Valid(); iter.Next() {
 		key := iter.Key()
 		if len(key) < TimestampSize {
@@ -266,10 +266,11 @@ func (s Store) fixDataStore(name string) error {
 
 		ts := key[len(key)-TimestampSize:]
 		key = key[:len(key)-TimestampSize]
+		realKey := cloneAppend(prefix, key)
 
 		readOpts := grocksdb.NewDefaultReadOptions()
 		readOpts.SetTimestamp(ts)
-		oldValue, err := s.db.GetCF(readOpts, s.cfHandle, prependStoreKey(name, key))
+		oldValue, err := s.db.GetCF(readOpts, s.cfHandle, realKey)
 		if err != nil {
 			return err
 		}
@@ -281,7 +282,7 @@ func (s Store) fixDataStore(name string) error {
 			continue
 		}
 
-		batch.PutCFWithTS(s.cfHandle, cloneAppend(prefix, key), ts, iter.Value())
+		batch.PutCFWithTS(s.cfHandle, realKey, ts, iter.Value())
 	}
 
 	return s.db.Write(defaultSyncWriteOpts, batch)
