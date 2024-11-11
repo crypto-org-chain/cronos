@@ -38,6 +38,9 @@ func init() {
 type Store struct {
 	db       *grocksdb.DB
 	cfHandle *grocksdb.ColumnFamilyHandle
+
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
+	skipVersionZero bool
 }
 
 func NewStore(dir string) (Store, error) {
@@ -56,6 +59,10 @@ func NewStoreWithDB(db *grocksdb.DB, cfHandle *grocksdb.ColumnFamilyHandle) Stor
 		db:       db,
 		cfHandle: cfHandle,
 	}
+}
+
+func (s *Store) SetSkipVersionZero(skip bool) {
+	s.skipVersionZero = skip
 }
 
 func (s Store) SetLatestVersion(version int64) error {
@@ -86,11 +93,23 @@ func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error
 }
 
 func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*grocksdb.Slice, error) {
-	return s.db.GetCF(
+	value, ts, err := s.db.GetCFWithTS(
 		newTSReadOptions(version),
 		s.cfHandle,
 		prependStoreKey(storeKey, key),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.skipVersionZero {
+		ts := binary.LittleEndian.Uint64(ts.Data())
+		if ts == 0 {
+			return nil, nil
+		}
+	}
+
+	return value, err
 }
 
 // GetAtVersion implements VersionStore interface
@@ -128,6 +147,15 @@ func (s Store) GetLatestVersion() (int64, error) {
 
 // IteratorAtVersion implements VersionStore interface
 func (s Store) IteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error) {
+	return s.iteratorAtVersion(storeKey, start, end, version, false)
+}
+
+// ReverseIteratorAtVersion implements VersionStore interface
+func (s Store) ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error) {
+	return s.iteratorAtVersion(storeKey, start, end, version, true)
+}
+
+func (s Store) iteratorAtVersion(storeKey string, start, end []byte, version *int64, reverse bool) (types.Iterator, error) {
 	if (start != nil && len(start) == 0) || (end != nil && len(end) == 0) {
 		return nil, errKeyEmpty
 	}
@@ -136,20 +164,7 @@ func (s Store) IteratorAtVersion(storeKey string, start, end []byte, version *in
 	start, end = iterateWithPrefix(prefix, start, end)
 
 	itr := s.db.NewIteratorCF(newTSReadOptions(version), s.cfHandle)
-	return newRocksDBIterator(itr, prefix, start, end, false), nil
-}
-
-// ReverseIteratorAtVersion implements VersionStore interface
-func (s Store) ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error) {
-	if (start != nil && len(start) == 0) || (end != nil && len(end) == 0) {
-		return nil, errKeyEmpty
-	}
-
-	prefix := storePrefix(storeKey)
-	start, end = iterateWithPrefix(storePrefix(storeKey), start, end)
-
-	itr := s.db.NewIteratorCF(newTSReadOptions(version), s.cfHandle)
-	return newRocksDBIterator(itr, prefix, start, end, true), nil
+	return newRocksDBIterator(itr, prefix, start, end, reverse, s.skipVersionZero), nil
 }
 
 // FeedChangeSet is used to migrate legacy change sets into versiondb
@@ -214,6 +229,40 @@ func (s Store) Flush() error {
 		s.db.Flush(opts),
 		s.db.FlushCF(s.cfHandle, opts),
 	)
+}
+
+// FixData fixes wrong data written in versiondb due to rocksdb upgrade, the operation is idempotent.
+// see: https://github.com/crypto-org-chain/cronos/issues/1683
+func (s Store) FixData(stores []types.StoreKey) error {
+	for _, store := range stores {
+		if err := s.fixDataStore(store.Name()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
+func (s Store) fixDataStore(name string) error {
+	var version int64
+	iter, err := s.IteratorAtVersion(name, nil, nil, &version)
+	if err != nil {
+		return err
+	}
+	defer iter.Close()
+
+	batch := grocksdb.NewWriteBatch()
+	defer batch.Destroy()
+
+	for ; iter.Valid(); iter.Next() {
+		key := iter.Key()
+		ts := key[len(key)-TimestampSize:]
+		key = key[:len(key)-TimestampSize]
+		batch.PutCFWithTS(s.cfHandle, key, ts, iter.Value())
+	}
+
+	return s.db.Write(defaultSyncWriteOpts, batch)
 }
 
 func newTSReadOptions(version *int64) *grocksdb.ReadOptions {

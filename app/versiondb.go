@@ -24,16 +24,23 @@ func (app *App) setupVersionDB(
 		return nil, err
 	}
 
-	versionDB, err := tsrocksdb.NewStore(dataDir)
-	if err != nil {
-		return nil, err
-	}
-
 	// always listen for all keys to simplify configuration
 	exposedKeys := make([]storetypes.StoreKey, 0, len(keys))
 	for _, key := range keys {
 		exposedKeys = append(exposedKeys, key)
 	}
+
+	versionDB, err := tsrocksdb.NewStore(dataDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := versionDB.FixData(exposedKeys); err != nil {
+		return nil, err
+	}
+
+	versionDB.SetSkipVersionZero(true)
+
 	app.CommitMultiStore().AddListeners(exposedKeys)
 
 	// register in app streaming manager

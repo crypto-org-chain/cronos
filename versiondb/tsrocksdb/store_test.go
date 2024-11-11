@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"cosmossdk.io/store/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
@@ -152,4 +154,75 @@ func TestUserTimestampPruning(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{100}, bz.Data())
 	bz.Free()
+}
+
+func TestSkipVersionZero(t *testing.T) {
+	key1 := []byte("hello1")
+	key2 := []byte("hello2")
+	key3 := []byte("hello3")
+
+	store, err := NewStore(t.TempDir())
+	require.NoError(t, err)
+
+	err = store.PutAtVersion(0, []*types.StoreKVPair{
+		{Key: key2, Value: []byte{2}},
+	})
+	require.NoError(t, err)
+	err = store.PutAtVersion(100, []*types.StoreKVPair{
+		{Key: key1, Value: []byte{1}},
+	})
+	require.NoError(t, err)
+	err = store.PutAtVersion(100, []*types.StoreKVPair{
+		{Key: key3, Value: []byte{3}},
+	})
+	require.NoError(t, err)
+
+	i := int64(999)
+	bz, err := store.GetAtVersion("", key2, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{2}, bz)
+
+	it, err := store.IteratorAtVersion("", nil, nil, &i)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]kvPair{
+			{Key: []byte("hello1"), Value: []byte{1}},
+			{Key: []byte("hello2"), Value: []byte{2}},
+			{Key: []byte("hello3"), Value: []byte{3}},
+		},
+		consumeIterator(it),
+	)
+
+	store.SetSkipVersionZero(true)
+
+	bz, err = store.GetAtVersion("", key2, &i)
+	require.NoError(t, err)
+	require.Empty(t, bz)
+	bz, err = store.GetAtVersion("", key1, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1}, bz)
+
+	it, err = store.IteratorAtVersion("", nil, nil, &i)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]kvPair{
+			{Key: []byte("hello1"), Value: []byte{1}},
+			{Key: []byte("hello3"), Value: []byte{3}},
+		},
+		consumeIterator(it),
+	)
+}
+
+type kvPair struct {
+	Key   []byte
+	Value []byte
+}
+
+func consumeIterator(it dbm.Iterator) []kvPair {
+	var result []kvPair
+	for ; it.Valid(); it.Next() {
+		result = append(result, kvPair{it.Key(), it.Value()})
+	}
+	it.Close()
+	return result
 }

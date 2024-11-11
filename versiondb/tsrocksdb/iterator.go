@@ -2,6 +2,7 @@ package tsrocksdb
 
 import (
 	"bytes"
+	"encoding/binary"
 
 	"cosmossdk.io/store/types"
 	"github.com/linxGnu/grocksdb"
@@ -12,11 +13,14 @@ type rocksDBIterator struct {
 	prefix, start, end []byte
 	isReverse          bool
 	isInvalid          bool
+
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
+	skipVersionZero bool
 }
 
 var _ types.Iterator = (*rocksDBIterator)(nil)
 
-func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool) *rocksDBIterator {
+func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool, skipVersionZero bool) *rocksDBIterator {
 	if isReverse {
 		if end == nil {
 			source.SeekToLast()
@@ -39,14 +43,18 @@ func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, is
 			source.Seek(start)
 		}
 	}
-	return &rocksDBIterator{
-		source:    source,
-		prefix:    prefix,
-		start:     start,
-		end:       end,
-		isReverse: isReverse,
-		isInvalid: false,
+	it := &rocksDBIterator{
+		source:          source,
+		prefix:          prefix,
+		start:           start,
+		end:             end,
+		isReverse:       isReverse,
+		isInvalid:       false,
+		skipVersionZero: skipVersionZero,
 	}
+
+	it.trySkipNonZeroVersion()
+	return it
 }
 
 // Domain implements Iterator.
@@ -114,6 +122,22 @@ func (itr rocksDBIterator) Next() {
 	} else {
 		itr.source.Next()
 	}
+
+	itr.trySkipNonZeroVersion()
+}
+
+func (itr rocksDBIterator) timestamp() uint64 {
+	ts := itr.source.Timestamp()
+	defer ts.Free()
+	return binary.LittleEndian.Uint64(ts.Data())
+}
+
+func (itr rocksDBIterator) trySkipNonZeroVersion() {
+	if itr.skipVersionZero {
+		for itr.Valid() && itr.timestamp() == 0 {
+			itr.Next()
+		}
+	}
 }
 
 // Error implements Iterator.
@@ -137,6 +161,10 @@ func (itr *rocksDBIterator) assertIsValid() {
 // This function can be applied on *Slice returned from Key() and Value()
 // of an Iterator, because they are marked as freed.
 func moveSliceToBytes(s *grocksdb.Slice) []byte {
+	if s == nil {
+		return nil
+	}
+
 	defer s.Free()
 	if !s.Exists() {
 		return nil
