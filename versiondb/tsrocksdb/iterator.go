@@ -53,7 +53,7 @@ func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, is
 		skipVersionZero: skipVersionZero,
 	}
 
-	it.trySkipNonZeroVersion()
+	it.trySkipZeroVersion()
 	return it
 }
 
@@ -123,7 +123,7 @@ func (itr rocksDBIterator) Next() {
 		itr.source.Next()
 	}
 
-	itr.trySkipNonZeroVersion()
+	itr.trySkipZeroVersion()
 }
 
 func (itr rocksDBIterator) timestamp() uint64 {
@@ -132,7 +132,7 @@ func (itr rocksDBIterator) timestamp() uint64 {
 	return binary.LittleEndian.Uint64(ts.Data())
 }
 
-func (itr rocksDBIterator) trySkipNonZeroVersion() {
+func (itr rocksDBIterator) trySkipZeroVersion() {
 	if itr.skipVersionZero {
 		for itr.Valid() && itr.timestamp() == 0 {
 			itr.Next()
