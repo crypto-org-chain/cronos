@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	dbm "github.com/cometbft/cometbft-db"
+	"github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
@@ -152,4 +154,89 @@ func TestUserTimestampPruning(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{100}, bz.Data())
 	bz.Free()
+}
+
+func TestSkipVersionZero(t *testing.T) {
+	storeKey := "test"
+
+	var wrongTz [8]byte
+	binary.LittleEndian.PutUint64(wrongTz[:], 100)
+
+	key1 := []byte("hello1")
+	key2 := []byte("hello2")
+	key2Wrong := cloneAppend(key2, wrongTz[:])
+	key3 := []byte("hello3")
+
+	store, err := NewStore(t.TempDir())
+	require.NoError(t, err)
+
+	err = store.PutAtVersion(0, []types.StoreKVPair{
+		{StoreKey: storeKey, Key: key2Wrong, Value: []byte{2}},
+	})
+	require.NoError(t, err)
+	err = store.PutAtVersion(100, []types.StoreKVPair{
+		{StoreKey: storeKey, Key: key1, Value: []byte{1}},
+	})
+	require.NoError(t, err)
+	err = store.PutAtVersion(100, []types.StoreKVPair{
+		{StoreKey: storeKey, Key: key3, Value: []byte{3}},
+	})
+	require.NoError(t, err)
+
+	i := int64(999)
+	bz, err := store.GetAtVersion(storeKey, key2Wrong, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{2}, bz)
+
+	it, err := store.IteratorAtVersion(storeKey, nil, nil, &i)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]kvPair{
+			{Key: key1, Value: []byte{1}},
+			{Key: key2Wrong, Value: []byte{2}},
+			{Key: key3, Value: []byte{3}},
+		},
+		consumeIterator(it),
+	)
+
+	store.SetSkipVersionZero(true)
+
+	bz, err = store.GetAtVersion(storeKey, key2Wrong, &i)
+	require.NoError(t, err)
+	require.Empty(t, bz)
+	bz, err = store.GetAtVersion(storeKey, key1, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1}, bz)
+
+	it, err = store.IteratorAtVersion(storeKey, nil, nil, &i)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]kvPair{
+			{Key: key1, Value: []byte{1}},
+			{Key: key3, Value: []byte{3}},
+		},
+		consumeIterator(it),
+	)
+
+	store.SetSkipVersionZero(false)
+	err = store.FixData([]string{storeKey}, false)
+	require.NoError(t, err)
+
+	bz, err = store.GetAtVersion(storeKey, key2, &i)
+	require.NoError(t, err)
+	require.Equal(t, []byte{2}, bz)
+}
+
+type kvPair struct {
+	Key   []byte
+	Value []byte
+}
+
+func consumeIterator(it dbm.Iterator) []kvPair {
+	var result []kvPair
+	for ; it.Valid(); it.Next() {
+		result = append(result, kvPair{it.Key(), it.Value()})
+	}
+	it.Close()
+	return result
 }

@@ -64,6 +64,20 @@ func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, erro
 	return db, cfHandles[1], nil
 }
 
+// OpenVersionDBForReadOnly open versiondb in readonly mode
+func OpenVersionDBForReadOnly(dir string, errorIfWalFileExists bool) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
+	opts := grocksdb.NewDefaultOptions()
+	db, cfHandles, err := grocksdb.OpenDbForReadOnlyColumnFamilies(
+		opts, dir, []string{"default", VersionDBCFName},
+		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
+		errorIfWalFileExists,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	return db, cfHandles[1], nil
+}
+
 // OpenVersionDBAndTrimHistory opens versiondb similar to `OpenVersionDB`,
 // but it also trim the versions newer than target one, can be used for rollback.
 func OpenVersionDBAndTrimHistory(dir string, version int64) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
