@@ -102,5 +102,5 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
-      - run: nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
+      - run: nix develop -c make lint-nix
         if: steps.changed-files.outputs.any_changed == 'true'
