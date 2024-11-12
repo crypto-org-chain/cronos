@@ -34,6 +34,10 @@ func (app *App) setupVersionDB(
 	for _, key := range keys {
 		exposedKeys = append(exposedKeys, key)
 	}
+
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
+	versionDB.SetSkipVersionZero(true)
+
 	app.CommitMultiStore().AddListeners(exposedKeys)
 
 	// register in app streaming manager
