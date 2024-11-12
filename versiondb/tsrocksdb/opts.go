@@ -67,8 +67,6 @@ func OpenVersionDB(dir string) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, erro
 // OpenVersionDBForReadOnly open versiondb in readonly mode
 func OpenVersionDBForReadOnly(dir string, errorIfWalFileExists bool) (*grocksdb.DB, *grocksdb.ColumnFamilyHandle, error) {
 	opts := grocksdb.NewDefaultOptions()
-	opts.SetCreateIfMissing(true)
-	opts.SetCreateIfMissingColumnFamilies(true)
 	db, cfHandles, err := grocksdb.OpenDbForReadOnlyColumnFamilies(
 		opts, dir, []string{"default", VersionDBCFName},
 		[]*grocksdb.Options{opts, NewVersionDBOpts(false)},
