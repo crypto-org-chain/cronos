@@ -8,7 +8,7 @@ import (
 
 const (
 	FlagDryRun = "dry-run"
-	FlagStore  = "store"
+	FlagStore  = "store-name"
 )
 
 func FixDataCmd(defaultStores []string) *cobra.Command {
@@ -54,6 +54,6 @@ func FixDataCmd(defaultStores []string) *cobra.Command {
 	}
 
 	cmd.Flags().Bool(FlagDryRun, false, "Dry run, do not write to the database, open the database in read-only mode.")
-	cmd.Flags().StringArray(FlagStore, nil, "Store names to fix, if not specified, all stores will be fixed.")
+	cmd.Flags().StringArray(FlagStore, []string{}, "Store names to fix, if not specified, all stores will be fixed.")
 	return cmd
 }
