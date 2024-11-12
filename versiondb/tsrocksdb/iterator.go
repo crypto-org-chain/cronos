@@ -161,10 +161,6 @@ func (itr *rocksDBIterator) assertIsValid() {
 // This function can be applied on *Slice returned from Key() and Value()
 // of an Iterator, because they are marked as freed.
 func moveSliceToBytes(s *grocksdb.Slice) []byte {
-	if s == nil {
-		return nil
-	}
-
 	defer s.Free()
 	if !s.Exists() {
 		return nil

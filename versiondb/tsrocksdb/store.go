@@ -106,7 +106,7 @@ func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*
 
 	if value.Exists() && s.skipVersionZero {
 		if binary.LittleEndian.Uint64(ts.Data()) == 0 {
-			return nil, nil
+			return grocksdb.NewSlice(nil, 0), nil
 		}
 	}
 
