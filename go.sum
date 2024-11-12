@@ -428,8 +428,6 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241114020021-3300cc8f3836 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241114020021-3300cc8f3836/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241114020021-3300cc8f3836 h1:i4ubInu2ixIWOxjADpdLcaO08iIAQjIQucwsNutNZmM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241114020021-3300cc8f3836/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241108020006-836617d21619 h1:zW3yTgu0cp5pzsikWT26JULera27jnxLMG2Rxrmwo10=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241108020006-836617d21619/go.mod h1:bDouX0WGx+JWkT61l8uSUFqaj+WLOfZv0nxlirm3gsM=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716 h1:OvD5Rm0B6LHUJk6z858UgwdP72jU2DuUdXeclRyKpDI=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a h1:IUPD+dg1YQl8cLocxQ/Mbx/ObTgAgcrZlcBhFjsLO40=
@@ -1139,6 +1137,8 @@ github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa/go.mod h1:1CNUng3
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673/go.mod h1:N3UwUGtsrSj3ccvlPHLoLsHnpR27oXr4ZE984MbSER8=
+github.com/yihuang/ethermint v0.6.1-0.20241114075203-b68d050efc5b h1:kyApK6uOruP/LxnyiFI3jhccVDs4PDsfjl43MTownkg=
+github.com/yihuang/ethermint v0.6.1-0.20241114075203-b68d050efc5b/go.mod h1:bDouX0WGx+JWkT61l8uSUFqaj+WLOfZv0nxlirm3gsM=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -4,10 +4,16 @@
 
 ## v1.4.0-rc4
 
+### State Machine Breaking
+
+* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Handle max-tx-gas-wanted only in CheckTx mode.
+
 ### Bug Fixes
 
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
+* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Include balance and gasPrice fix of debug trace api.
 * [#1685](https://github.com/crypto-org-chain/cronos/pull/1685) Add command to fix versiondb corrupted data.
+* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Include balance and gasPrice fix of debug trace api and check gasWanted only in checkTx mode.
 
 ### Improvements
 
