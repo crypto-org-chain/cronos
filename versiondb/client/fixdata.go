@@ -6,9 +6,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const FlagDryRun = "dry-run"
+const (
+	FlagDryRun = "dry-run"
+	FlagStore  = "store-name"
+)
 
-func FixDataCmd(stores []string) *cobra.Command {
+func FixDataCmd(defaultStores []string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fixdata <dir>",
 		Args:  cobra.ExactArgs(1),
@@ -18,6 +21,13 @@ func FixDataCmd(stores []string) *cobra.Command {
 			dryRun, err := cmd.Flags().GetBool(FlagDryRun)
 			if err != nil {
 				return err
+			}
+			stores, err := cmd.Flags().GetStringArray(FlagStore)
+			if err != nil {
+				return err
+			}
+			if len(stores) == 0 {
+				stores = defaultStores
 			}
 
 			var (
@@ -44,5 +54,6 @@ func FixDataCmd(stores []string) *cobra.Command {
 	}
 
 	cmd.Flags().Bool(FlagDryRun, false, "Dry run, do not write to the database, open the database in read-only mode.")
+	cmd.Flags().StringArray(FlagStore, []string{}, "Store names to fix, if not specified, all stores will be fixed.")
 	return cmd
 }
