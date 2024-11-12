@@ -1,4 +1,7 @@
-{ system ? builtins.currentSystem, pkgs ? import ./. { inherit system; } }:
+{
+  system ? builtins.currentSystem,
+  pkgs ? import ./. { inherit system; },
+}:
 let
   renameExe = pkgs.callPackage ./rename-exe.nix { };
 in
