@@ -2,8 +2,9 @@ package tsrocksdb
 
 import (
 	"bytes"
+	"encoding/binary"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
+	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
 )
 
@@ -12,11 +13,14 @@ type rocksDBIterator struct {
 	prefix, start, end []byte
 	isReverse          bool
 	isInvalid          bool
+
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
+	skipVersionZero bool
 }
 
-var _ types.Iterator = (*rocksDBIterator)(nil)
+var _ versiondb.Iterator = (*rocksDBIterator)(nil)
 
-func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool) *rocksDBIterator {
+func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool, skipVersionZero bool) *rocksDBIterator {
 	if isReverse {
 		if end == nil {
 			source.SeekToLast()
@@ -39,14 +43,18 @@ func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, is
 			source.Seek(start)
 		}
 	}
-	return &rocksDBIterator{
-		source:    source,
-		prefix:    prefix,
-		start:     start,
-		end:       end,
-		isReverse: isReverse,
-		isInvalid: false,
+	it := &rocksDBIterator{
+		source:          source,
+		prefix:          prefix,
+		start:           start,
+		end:             end,
+		isReverse:       isReverse,
+		isInvalid:       false,
+		skipVersionZero: skipVersionZero,
 	}
+
+	it.trySkipZeroVersion()
+	return it
 }
 
 // Domain implements Iterator.
@@ -113,6 +121,21 @@ func (itr rocksDBIterator) Next() {
 		itr.source.Prev()
 	} else {
 		itr.source.Next()
+	}
+
+	itr.trySkipZeroVersion()
+}
+
+func (itr rocksDBIterator) Timestamp() []byte {
+	itr.assertIsValid()
+	return moveSliceToBytes(itr.source.Timestamp())
+}
+
+func (itr rocksDBIterator) trySkipZeroVersion() {
+	if itr.skipVersionZero {
+		for itr.Valid() && binary.LittleEndian.Uint64(itr.Timestamp()) == 0 {
+			itr.Next()
+		}
 	}
 }
 

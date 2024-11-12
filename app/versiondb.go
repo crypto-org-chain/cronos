@@ -23,6 +23,7 @@ func (app *App) setupVersionDB(
 	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
 		return nil, err
 	}
+
 	versionDB, err := tsrocksdb.NewStore(dataDir)
 	if err != nil {
 		return nil, err
@@ -33,6 +34,9 @@ func (app *App) setupVersionDB(
 	for _, storeKey := range keys {
 		exposeStoreKeys = append(exposeStoreKeys, storeKey)
 	}
+
+	// see: https://github.com/crypto-org-chain/cronos/issues/1683
+	versionDB.SetSkipVersionZero(true)
 
 	service := versiondb.NewStreamingService(versionDB, exposeStoreKeys)
 	app.SetStreamingService(service)
