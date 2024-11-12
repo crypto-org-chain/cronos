@@ -7,6 +7,7 @@
 * [#1670](https://github.com/crypto-org-chain/cronos/pull/1670) Fix state overwrite in debug trace APIs.
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
 * [#1685](https://github.com/crypto-org-chain/cronos/pull/1685) Add command to fix versiondb corrupted data.
+* [#1688](https://github.com/crypto-org-chain/cronos/pull/1688) Add timestamp api to versiondb iterator.
 
 *Oct 14, 2024*
 
