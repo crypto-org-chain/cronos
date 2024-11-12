@@ -304,7 +304,12 @@ func (s Store) loadWrongData(storeName string) ([]KVPairWithTS, error) {
 
 	var pairs []KVPairWithTS
 	for ; iter.Valid(); iter.Next() {
+		ts := iter.Timestamp()
 		key := iter.Key()
+		if binary.LittleEndian.Uint64(ts) != 0 {
+			return nil, fmt.Errorf("invalid timestamp: %X, store: %s, key: %X", ts, storeName, key)
+		}
+
 		if len(key) < TimestampSize {
 			return nil, fmt.Errorf("invalid key length: %X, store: %s", key, storeName)
 		}
