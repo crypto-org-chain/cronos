@@ -10,6 +10,7 @@
 ### Improvements
 
 * [#1684](https://github.com/crypto-org-chain/cronos/pull/1684) versiondb NewKVStore accept string as store name.
+* [#1688](https://github.com/crypto-org-chain/cronos/pull/1688) Add Timestamp api to versiondb iterator.
 
 *Nov 6, 2024*
 

@@ -147,16 +147,16 @@ func (s Store) GetLatestVersion() (int64, error) {
 }
 
 // IteratorAtVersion implements VersionStore interface
-func (s Store) IteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error) {
+func (s Store) IteratorAtVersion(storeKey string, start, end []byte, version *int64) (versiondb.Iterator, error) {
 	return s.iteratorAtVersion(storeKey, start, end, version, false)
 }
 
 // ReverseIteratorAtVersion implements VersionStore interface
-func (s Store) ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (types.Iterator, error) {
+func (s Store) ReverseIteratorAtVersion(storeKey string, start, end []byte, version *int64) (versiondb.Iterator, error) {
 	return s.iteratorAtVersion(storeKey, start, end, version, true)
 }
 
-func (s Store) iteratorAtVersion(storeKey string, start, end []byte, version *int64, reverse bool) (types.Iterator, error) {
+func (s Store) iteratorAtVersion(storeKey string, start, end []byte, version *int64, reverse bool) (versiondb.Iterator, error) {
 	if (start != nil && len(start) == 0) || (end != nil && len(end) == 0) {
 		return nil, errKeyEmpty
 	}

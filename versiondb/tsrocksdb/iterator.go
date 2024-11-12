@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"cosmossdk.io/store/types"
+	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
 )
 
@@ -18,7 +18,7 @@ type rocksDBIterator struct {
 	skipVersionZero bool
 }
 
-var _ types.Iterator = (*rocksDBIterator)(nil)
+var _ versiondb.Iterator = (*rocksDBIterator)(nil)
 
 func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool, skipVersionZero bool) *rocksDBIterator {
 	if isReverse {
@@ -100,6 +100,12 @@ func (itr *rocksDBIterator) Valid() bool {
 
 	// It's valid.
 	return true
+}
+
+// Timestamp implements Iterator.
+func (itr *rocksDBIterator) Timestamp() []byte {
+	itr.assertIsValid()
+	return moveSliceToBytes(itr.source.Timestamp())
 }
 
 // Key implements Iterator.
