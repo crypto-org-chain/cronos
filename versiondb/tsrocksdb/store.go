@@ -235,9 +235,9 @@ func (s Store) Flush() error {
 // FixData fixes wrong data written in versiondb due to rocksdb upgrade, the operation is idempotent.
 // see: https://github.com/crypto-org-chain/cronos/issues/1683
 // call this before `SetSkipVersionZero(true)`.
-func (s Store) FixData(storeNames []string) error {
+func (s Store) FixData(storeNames []string, dryRun bool) error {
 	for _, storeName := range storeNames {
-		if err := s.fixDataStore(storeName); err != nil {
+		if err := s.fixDataStore(storeName, dryRun); err != nil {
 			return err
 		}
 	}
@@ -246,7 +246,7 @@ func (s Store) FixData(storeNames []string) error {
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
-func (s Store) fixDataStore(storeName string) error {
+func (s Store) fixDataStore(storeName string, dryRun bool) error {
 	var version int64
 	iter, err := s.IteratorAtVersion(storeName, nil, nil, &version)
 	if err != nil {
@@ -283,10 +283,18 @@ func (s Store) fixDataStore(storeName string) error {
 			continue
 		}
 
-		batch.PutCFWithTS(s.cfHandle, realKey, ts, iter.Value())
+		if dryRun {
+			fmt.Printf("fix data: %s, key: %X, ts: %X\n", storeName, key, ts)
+		} else {
+			batch.PutCFWithTS(s.cfHandle, realKey, ts, iter.Value())
+		}
 	}
 
-	return s.db.Write(defaultSyncWriteOpts, batch)
+	if !dryRun {
+		return s.db.Write(defaultSyncWriteOpts, batch)
+	}
+
+	return nil
 }
 
 func newTSReadOptions(version *int64) *grocksdb.ReadOptions {
