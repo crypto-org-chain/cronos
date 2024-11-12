@@ -304,8 +304,7 @@ func (s Store) loadWrongData(storeName string) ([]KVPairWithTS, error) {
 
 	var pairs []KVPairWithTS
 	for ; iter.Valid(); iter.Next() {
-		ts := iter.Timestamp()
-		if binary.LittleEndian.Uint64(ts) != 0 {
+		if binary.LittleEndian.Uint64(iter.Timestamp()) != 0 {
 			// FIXME: https://github.com/crypto-org-chain/cronos/issues/1689
 			continue
 		}
