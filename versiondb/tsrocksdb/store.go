@@ -242,7 +242,11 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 		}
 	}
 
-	return s.Flush()
+	if !dryRun {
+		return s.Flush()
+	}
+
+	return nil
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
