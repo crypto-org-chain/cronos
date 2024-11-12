@@ -219,7 +219,7 @@ func TestSkipVersionZero(t *testing.T) {
 	)
 
 	store.SetSkipVersionZero(false)
-	err = store.FixData([]string{storeKey})
+	err = store.FixData([]string{storeKey}, false)
 	require.NoError(t, err)
 
 	bz, err = store.GetAtVersion(storeKey, key2, &i)
