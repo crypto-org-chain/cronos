@@ -74,7 +74,7 @@ def test_rollback(custom_cronos):
     clis = {i: custom_cronos.cosmos_cli(i) for i in nodes}
     for i, cli in clis.items():
         wait_for_port(ports.rpc_port(custom_cronos.base_port(i)))
-        print("wait for node {i} to sync the first 10 blocks")
+        print(f"wait for node {i} to sync the first 10 blocks")
         wait_for_block(cli, 10)
 
     print("wait for a few more blocks on the healthy nodes")
