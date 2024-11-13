@@ -72,7 +72,7 @@ def test_rollback(custom_cronos):
     """
     nodes = [2, 3]
     clis = {i: custom_cronos.cosmos_cli(i) for i in nodes}
-    for i, cli in clis:
+    for i, cli in clis.items():
         wait_for_port(ports.rpc_port(custom_cronos.base_port(i)))
         print("wait for node {i} to sync the first 10 blocks")
         wait_for_block(cli, 10)
@@ -82,7 +82,7 @@ def test_rollback(custom_cronos):
     wait_for_block(cli, 13)
 
     # (app hash mismatch happens after the 10th block, detected in the 11th block)
-    for i, cli in clis:
+    for i, cli in clis.items():
         print(f"check node {i} get stuck at block 10")
         assert cli.block_height() == 10
 
