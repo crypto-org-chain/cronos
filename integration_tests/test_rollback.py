@@ -12,7 +12,7 @@ from .utils import supervisorctl, wait_for_block, wait_for_port
 pytestmark = pytest.mark.slow
 
 
-def update_node2_cmd(path, cmd, i):
+def update_node_cmd(path, cmd, i):
     ini_path = path / SUPERVISOR_CONFIG_FILE
     ini = configparser.RawConfigParser()
     ini.read(ini_path)
@@ -31,7 +31,8 @@ def update_node2_cmd(path, cmd, i):
 def post_init(broken_binary):
     def inner(path, base_port, config):
         chain_id = "cronos_777-1"
-        update_node2_cmd(path / chain_id, broken_binary, 2)
+        update_node_cmd(path / chain_id, broken_binary, 2)
+        update_node_cmd(path / chain_id, broken_binary, 3)
 
     return inner
 
@@ -65,32 +66,42 @@ def test_rollback(custom_cronos):
     - the broken node will sync up to block 10 then crash.
     - use rollback command to rollback the db.
     - switch to correct binary should make the node syncing again.
-    """
-    wait_for_port(ports.rpc_port(custom_cronos.base_port(2)))
 
-    print("wait for node2 to sync the first 10 blocks")
-    cli2 = custom_cronos.cosmos_cli(2)
-    wait_for_block(cli2, 10)
+    node2: test memiavl node
+    node3: test iavl node
+    """
+    nodes = [2, 3]
+    clis = {i: custom_cronos.cosmos_cli(i) for i in nodes}
+    for i, cli in clis:
+        wait_for_port(ports.rpc_port(custom_cronos.base_port(i)))
+        print("wait for node {i} to sync the first 10 blocks")
+        wait_for_block(cli, 10)
 
     print("wait for a few more blocks on the healthy nodes")
     cli = custom_cronos.cosmos_cli(0)
     wait_for_block(cli, 13)
 
     # (app hash mismatch happens after the 10th block, detected in the 11th block)
-    print("check node2 get stuck at block 10")
-    assert cli2.block_height() == 10
+    for i, cli in clis:
+        print(f"check node {i} get stuck at block 10")
+        assert cli.block_height() == 10
 
-    print("stop node2")
-    supervisorctl(custom_cronos.base_dir / "../tasks.ini", "stop", "cronos_777-1-node2")
+        print(f"stop node {i}")
+        supervisorctl(
+            custom_cronos.base_dir / "../tasks.ini", "stop", f"cronos_777-1-node{i}"
+        )
 
-    print("do rollback on node2")
-    cli2.rollback()
+        print(f"do rollback on node{i}")
+        cli.rollback()
 
-    print("switch to normal binary")
-    update_node2_cmd(custom_cronos.base_dir, "cronosd", 2)
+        print("switch to normal binary")
+        update_node_cmd(custom_cronos.base_dir, "cronosd", i)
+
     supervisorctl(custom_cronos.base_dir / "../tasks.ini", "update")
-    wait_for_port(ports.rpc_port(custom_cronos.base_port(2)))
 
-    print("check node2 sync again")
-    cli2 = custom_cronos.cosmos_cli(2)
-    wait_for_block(cli2, 15)
+    for i in clis:
+        wait_for_port(ports.rpc_port(custom_cronos.base_port(i)))
+
+        print(f"check node{i} sync again")
+        cli = custom_cronos.cosmos_cli(i)
+        wait_for_block(cli, 15)
