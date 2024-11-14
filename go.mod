@@ -252,9 +252,9 @@ require (
 
 // release/v0.50.x
 replace (
-	cosmossdk.io/store => github.com/mmsqe/cosmos-sdk/store v0.0.0-20241114013052-ff30c865e26f
-	cosmossdk.io/x/tx => github.com/mmsqe/cosmos-sdk/x/tx v0.0.0-20241114013052-ff30c865e26f
-	github.com/cosmos/cosmos-sdk => github.com/mmsqe/cosmos-sdk v0.46.0-beta2.0.20241114013052-ff30c865e26f
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241114020021-3300cc8f3836
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241114020021-3300cc8f3836
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20241114020021-3300cc8f3836
 )
 
 replace (
