@@ -89,7 +89,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt,./memiavl/coverage.txt,./store/coverage.txt,./versiondb/coverage.txt
-          fail_ci_if_error: true
         if: steps.changed-files.outputs.any_changed == 'true'
 
   gomod2nix:
