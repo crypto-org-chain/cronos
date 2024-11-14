@@ -7,10 +7,8 @@
 ### Bug Fixes
 
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
-* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Include balance and gasPrice fix of debug trace api.
 * [#1685](https://github.com/crypto-org-chain/cronos/pull/1685) Add command to fix versiondb corrupted data.
-* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Include balance and gasPrice fix of debug trace api and check gasWanted only in checkTx mode.
-* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Fix nil pointer panic with legacy tx format.
+* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Include balance and gasPrice fix of debug trace api and fix nil pointer panic with legacy tx format.
 
 ### Improvements
 
