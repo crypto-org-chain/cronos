@@ -4,10 +4,6 @@
 
 ## v1.4.0-rc4
 
-### State Machine Breaking
-
-* [#1690](https://github.com/crypto-org-chain/cronos/pull/1690) Handle max-tx-gas-wanted only in CheckTx mode.
-
 ### Bug Fixes
 
 * [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
