@@ -165,4 +165,4 @@ releases](https://github.com/PeggyJV/gravity-bridge/releases).
 		--ethereum-key="orch_eth"
 ```
 
-After all the orchestrator processes run, the gravity bridge between ethereum and cronos is setup succesfully.
+After all the orchestrator processes run, the gravity bridge between ethereum and cronos is setup successfully.

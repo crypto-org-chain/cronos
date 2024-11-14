@@ -3,21 +3,19 @@ package types
 import (
 	context "context"
 	"math/big"
-	time "time"
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
+	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
@@ -72,13 +70,6 @@ type EvmKeeper interface {
 	ChainID() *big.Int
 }
 
-// Icaauthkeeper defines the interface for icaauth keeper
-type Icaauthkeeper interface {
-	RegisterAccount(goCtx context.Context, msg *icaauthtypes.MsgRegisterAccount) (*icaauthtypes.MsgRegisterAccountResponse, error)
-	InterchainAccountAddress(goCtx context.Context, req *icaauthtypes.QueryInterchainAccountAddressRequest) (*icaauthtypes.QueryInterchainAccountAddressResponse, error)
-	SubmitTxWithArgs(goCtx context.Context, owner, connectionId string, timeoutDuration time.Duration, packetData icatypes.InterchainAccountPacketData) (string, *icaauthtypes.MsgSubmitTxResponse, error)
-}
-
 // CronosKeeper defines the interface for cronos keeper
 type CronosKeeper interface {
 	GetParams(ctx sdk.Context) (params Params)
@@ -103,4 +94,9 @@ type IbcKeeper interface {
 	Acknowledgement(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error)
 	Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error)
 	TimeoutOnClose(goCtx context.Context, msg *channeltypes.MsgTimeoutOnClose) (*channeltypes.MsgTimeoutOnCloseResponse, error)
+}
+
+type IbcFeeKeeper interface {
+	RegisterPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterPayee) (*ibcfeetypes.MsgRegisterPayeeResponse, error)
+	RegisterCounterpartyPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterCounterpartyPayee) (*ibcfeetypes.MsgRegisterCounterpartyPayeeResponse, error)
 }

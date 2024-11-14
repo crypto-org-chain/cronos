@@ -74,8 +74,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: test & coverage report creation
         run: |
-          nix develop -c make test
-          nix develop .#rocksdb -c make test-versiondb
+          nix develop .#rocksdb -c make test test-versiondb
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |

@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -23,7 +25,6 @@ import (
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 )
@@ -45,6 +46,7 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(CmdUpdateTokenMapping())
 	cmd.AddCommand(CmdTurnBridge())
 	cmd.AddCommand(CmdUpdatePermissions())
+	cmd.AddCommand(CmdStoreBlockList())
 	cmd.AddCommand(MigrateGenesisCmd())
 	return cmd
 }
@@ -318,6 +320,43 @@ func CmdUpdatePermissions() *cobra.Command {
 	return cmd
 }
 
+// CmdStoreBlockList returns a CLI command handler for updating cronos permissions
+func CmdStoreBlockList() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "store-block-list [encrypted-block-list-file]",
+		Short: "Store encrypted block list",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			fp, err := os.Open(args[0])
+			if err != nil {
+				return err
+			}
+			defer fp.Close()
+
+			// Read the file
+			blob, err := io.ReadAll(fp)
+			if err != nil {
+				return err
+			}
+
+			msg := types.NewMsgStoreBlockList(clientCtx.GetFromAddress().String(), blob)
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
 type ExportEvmGenesisState struct {
 	evmtypes.GenesisState
 	Params ExportEvmParams `json:"params"`
@@ -347,10 +386,6 @@ func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltyp
 	// Add interchainaccounts with default genesis.
 	if appState[icatypes.ModuleName] == nil {
 		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())
-	}
-	// Add icaauth with default genesis.
-	if appState[icaauthtypes.ModuleName] == nil {
-		appState[icaauthtypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icaauthtypes.DefaultGenesis())
 	}
 	var evmState ExportEvmGenesisState
 	err := json.Unmarshal(appState[evmtypes.ModuleName], &evmState)

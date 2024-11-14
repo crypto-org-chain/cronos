@@ -1,26 +1,186 @@
 # Changelog
 
-## UNRELEASED
+*Nov 14, 2024*
+
+## v1.4.0-rc4
+
+### Bug Fixes
+
+* [#1679](https://github.com/crypto-org-chain/cronos/pull/1679) Include no trace detail on insufficient balance fix.
+* [#1685](https://github.com/crypto-org-chain/cronos/pull/1685) Add command to fix versiondb corrupted data.
+
+### Improvements
+
+* [#1684](https://github.com/crypto-org-chain/cronos/pull/1684) versiondb NewKVStore accept string as store name.
+* [#1688](https://github.com/crypto-org-chain/cronos/pull/1688) Add Timestamp api to versiondb iterator.
+* [#1692](https://github.com/crypto-org-chain/cronos/pull/1692) Set iavl async pruning option.
+
+*Nov 6, 2024*
+
+## v1.4.0-rc3
+
+### Bug Fixes
+
+* (iavl)[#1673](https://github.com/crypto-org-chain/cronos/pull/1673) Update iavl dependency to include pruning fix.
+
+### Features
+
+* [#1665](https://github.com/crypto-org-chain/cronos/pull/1665) Support register for payee and counterpartyPayee in relayer precompile.
+
+### Improvements
+
+* [#1664](https://github.com/crypto-org-chain/cronos/pull/1664) Update cometbft to 0.38.13.
+* [#1660](https://github.com/crypto-org-chain/cronos/pull/1660) Support async check tx.
+* [#1667](https://github.com/crypto-org-chain/cronos/pull/1667) Add testnet benchmark command.
+* [#1669](https://github.com/crypto-org-chain/cronos/pull/1669) Add performance optimizations: a) async fireEvents, b) faster prepare proposal when using NopMempool, c) parallel check-tx
+* [#1676](https://github.com/crypto-org-chain/cronos/pull/1676) Update cometbft to 0.38.14 and rocksdb to 9.7.4.
+
+*Oct 24, 2024*
+
+## v1.4.0-rc2
+
+### Bug Fixes
+
+* (testground)[1649](https://github.com/crypto-org-chain/cronos/pull/1649) Fix running single validator benchmark locally.
+* (cli)[#1647](https://github.com/crypto-org-chain/cronos/pull/1647) Fix node can't shutdown by signal.
+* (testground)[#1652](https://github.com/crypto-org-chain/cronos/pull/1652) Remove unexpected conflicts in benchmark transactions.
+* [#1654](https://github.com/crypto-org-chain/cronos/pull/1654) Set relayer as payee for relayer caller when enabled incentivized packet.
+* [#1655](https://github.com/crypto-org-chain/cronos/pull/1655) Fix state overwrite in debug trace APIs.
+* [#1663](https://github.com/crypto-org-chain/cronos/pull/1663) Align attributes for ibc timeout event.
+
+### Improvements
+
+* [#1645](https://github.com/crypto-org-chain/cronos/pull/1645) Gen test tx in parallel even in single node.
+* (testground)[#1644](https://github.com/crypto-org-chain/cronos/pull/1644) load generator retry with backoff on error.
+* [#1648](https://github.com/crypto-org-chain/cronos/pull/1648) Add abort OE in PrepareProposal.
+* (testground)[#1651](https://github.com/crypto-org-chain/cronos/pull/1651) Benchmark use cosmos broadcast rpc.
+* (testground)[#1650](https://github.com/crypto-org-chain/cronos/pull/1650) Benchmark support batch mode.
+* [#1658](https://github.com/crypto-org-chain/cronos/pull/1658) Optimize when block-list is empty.
+* (testground)[#1659](https://github.com/crypto-org-chain/cronos/pull/1659) Support skip check-tx in benchmark.
+* [#1662](https://github.com/crypto-org-chain/cronos/pull/1662) Emit more packet info for ibc relayer event.
+
+*Oct 14, 2024*
+
+## v1.4.0-rc1
+
+### State Machine Breaking
+
+* (memiavl)[#1618](https://github.com/crypto-org-chain/cronos/pull/1618) memiavl change initial version logic to be
+  compatible with iavl 1.2.0.
+
+### Improvements
+
+* [#1592](https://github.com/crypto-org-chain/cronos/pull/1592) Change the default parallelism of the block-stm to minimum between GOMAXPROCS and NumCPU
+* [#1600](https://github.com/crypto-org-chain/cronos/pull/1600) Update ethermint to avoid unnecessary block result in header related api call.
+* [#1606](https://github.com/crypto-org-chain/cronos/pull/1606) Fix pebbledb support.
+* [#1610](https://github.com/crypto-org-chain/cronos/pull/1610) Sync e2ee module with v1.3.x branch.
+* [#1612](https://github.com/crypto-org-chain/cronos/pull/1612) Support ibc channel upgrade related methods.
+* [#1614](https://github.com/crypto-org-chain/cronos/pull/1614) Bump cosmos-sdk to v0.50.10.
+* [#1613](https://github.com/crypto-org-chain/cronos/pull/1613) Check admin sender for MsgStoreBlockList in check tx.
+
+### Bug Fixes
+
+* [#1609](https://github.com/crypto-org-chain/cronos/pull/1609) Fix query address-by-acc-num by account_id instead of id.
+* [#1611](https://github.com/crypto-org-chain/cronos/pull/1611) Fix multisig account failed on threshold encode after send tx.
+* [#1617](https://github.com/crypto-org-chain/cronos/pull/1617) Fix unsuppored sign mode SIGN_MODE_TEXTUAL for bank transfer.
+* [#1621](https://github.com/crypto-org-chain/cronos/pull/1621), [1630](https://github.com/crypto-org-chain/cronos/pull/1630) Update ethermint to the fix of broken opBlockhash and tx validation.
+* [#1623](https://github.com/crypto-org-chain/cronos/pull/1623) Ensure expedited related gov params pass the basic validation.
+* [#1633](https://github.com/crypto-org-chain/cronos/pull/1633) Align acknowledgement with underlying_app_success when ack packet does not succeed.
+* [#1638](https://github.com/crypto-org-chain/cronos/pull/1638) sync x/tx bug fixes.
+
+*Sep 13, 2024*
+
+## v1.4.0-rc0
 
 ### State Machine Breaking
 
 * [#1377](https://github.com/crypto-org-chain/cronos/pull/1377) Upgrade sdk to 0.50, and integrate block-stm parallel tx execution.
 * [#1394](https://github.com/crypto-org-chain/cronos/pull/1394) Add icahost wirings but disable in parameters.
-* [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
 * [#1414](https://github.com/crypto-org-chain/cronos/pull/1414) Integrate new evm tx format.
 * [#1458](https://github.com/crypto-org-chain/cronos/pull/1458) Adjust require gas for recvPacket when ReceiverChainIsSource.
+* [#1519](https://github.com/crypto-org-chain/cronos/pull/1519) Upgrade ibc-go to 8.3 and remove icaauth module.
+* [#1518](https://github.com/crypto-org-chain/cronos/pull/1518) Keep versiondb/memiavl compatible with upstream sdk, stop supporting other streaming service.
+* [#1541](https://github.com/crypto-org-chain/cronos/pull/1541) Disable MsgCreatePermanentLockedAccount and MsgCreatePeriodicVestingAccount messages.
+* [#1552](https://github.com/crypto-org-chain/cronos/pull/1552) Avoid unnecessary GetAccount in ante handlers.
+
+### Improvements
+
+* (store) [#1378](https://github.com/crypto-org-chain/cronos/pull/1378) Upgrade rocksdb to `v8.11.3`.
+* (versiondb) [#1387](https://github.com/crypto-org-chain/cronos/pull/1387) Add dedicated config section for versiondb, prepare for sdk 0.50 integration.
+* (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
+* [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
+* [#1464](https://github.com/crypto-org-chain/cronos/pull/1464) Update cosmos-sdk to `v0.50.7`.
+* [#1484](https://github.com/crypto-org-chain/cronos/pull/1484), [#1487](https://github.com/crypto-org-chain/cronos/pull/1487) Respect gas that is wanted to be returned by the ante handler.
+* [#1488](https://github.com/crypto-org-chain/cronos/pull/1488) Enable optimistic execution.
+* [#1490](https://github.com/crypto-org-chain/cronos/pull/1490) Update cometbft to v0.38.8.
+* (versiondb) [#1491](https://github.com/crypto-org-chain/cronos/pull/1491) Free slice data in HasAtVersion.
+* (versiondb) [#1498](https://github.com/crypto-org-chain/cronos/pull/1498) Reduce scope of copying slice data in iterator.
+* [#1500](https://github.com/crypto-org-chain/cronos/pull/1500), [#1503](https://github.com/crypto-org-chain/cronos/pull/1503) Set mempool MaxTx from config (with a default value of `3000`).
+* (store) [#1511](https://github.com/crypto-org-chain/cronos/pull/1511) Upgrade rocksdb to `v9.2.1`.
+* (block-stm) [#1515](https://github.com/crypto-org-chain/cronos/pull/1515) Improve performance by cache signature verification result between incarnations of same tx.
+* (store) [#1526](https://github.com/crypto-org-chain/cronos/pull/1526) Cache index/filters in rocksdb application.db to reduce ram usage.
+* (store)[#1529](https://github.com/crypto-org-chain/cronos/pull/1529) Enable pinL0FilterAndIndexBlocksInCache.
+* (store)[#1547](https://github.com/crypto-org-chain/cronos/pull/1547) Disable memiavl cache if block-stm is enabled.
+* (app)[#1564](https://github.com/crypto-org-chain/cronos/pull/1564) Fix mempool data race.
+* [#1568](https://github.com/crypto-org-chain/cronos/pull/1568) Update cometbft to 0.38.12.
+* [#1570](https://github.com/crypto-org-chain/cronos/pull/1570) Integrate pre-estimate block-stm option to improve worst case performance.
+* [#1572](https://github.com/crypto-org-chain/cronos/pull/1572) Allow disable sdk mempool by setting mempool.max-txs to `-1`.
+
+### Bug Fixes
+
+* [#1520](https://github.com/crypto-org-chain/cronos/pull/1520) Avoid invalid chain id for signer error when rpc call before chain id set in BeginBlock.
+* [#1539](https://github.com/crypto-org-chain/cronos/pull/1539) Fix go-block-stm bug that causes app hash mismatch.
+* [#1560](https://github.com/crypto-org-chain/cronos/pull/1560) Update queries contract addresses by native denom from a query in contract_by_denom.
+* [#1569](https://github.com/crypto-org-chain/cronos/pull/1569) Update ethermint to fix of crash on chainID and mismatch tx hash in newHeads.
+
+*Jun 18, 2024*
+
+## v1.3.0-rc2
+
+### Improvements
+
+* (rpc) [#1467](https://github.com/crypto-org-chain/cronos/pull/1467) Avoid unnecessary tx decode in tx listener.
+
+### Bug Fixes
+
+* [#1466](https://github.com/crypto-org-chain/cronos/pull/1466) Fix handling of pending transactions related APIs.
+
+*May 21, 2024*
+
+## v1.3.0-rc1
+
+### State Machine Breaking
+
+* [#1407](https://github.com/crypto-org-chain/cronos/pull/1407) Add end-to-end encryption module.
+
+### Improvements
+
+* [#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
+* (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
+* (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
+* [#1437](https://github.com/crypto-org-chain/cronos/pull/1437) Update cometbft and cosmos-sdk dependencies.
+
+### Bug Fixes
+
+* (rpc) [#1444](https://github.com/crypto-org-chain/cronos/pull/1444) Avoid nil pointer error when query blocks before feemarket module gets enabled.
+* [#1439](https://github.com/crypto-org-chain/cronos/pull/1439) Add back default prepare proposal logic.
+
+*May 3, 2024*
+
+## v1.2.2
+
+### Bug Fixes
+
+* (rpc) [#1416](https://github.com/crypto-org-chain/cronos/pull/1416) Fix parsed logs from old events.
+
+*April 22, 2024*
+
+## v1.2.1
 
 ### Improvements
 
 * (test) [#1380](https://github.com/crypto-org-chain/cronos/pull/1380) Upgrade cosmovisor to 1.5.0 in integration test.
 * (versiondb) [#1379](https://github.com/crypto-org-chain/cronos/pull/1379) Flush versiondb when graceful shutdown, make rocksdb upgrade smooth.
-* (store) [#1378](https://github.com/crypto-org-chain/cronos/pull/1378) Upgrade rocksdb to `v8.11.3`.
-* (versiondb) [#1387](https://github.com/crypto-org-chain/cronos/pull/1387) Add dedicated config section for versiondb, prepare for sdk 0.50 integration.
-* (e2ee)[#1413](https://github.com/crypto-org-chain/cronos/pull/1413) Add custom keyring implementation for e2ee module.
-* (e2ee)[#1415](https://github.com/crypto-org-chain/cronos/pull/1415) Add batch keys query for e2ee module.
-* (e2ee)[#1421](https://github.com/crypto-org-chain/cronos/pull/1421) Validate e2ee key when register.
-* (store) [#1448](https://github.com/crypto-org-chain/cronos/pull/1448) Upgrade rocksdb to `v9.1.1`.
-* [#1431](https://github.com/crypto-org-chain/cronos/pull/1431) Integrate testground to run benchmark on cluster.
 
 ### Bug Fixes
 
@@ -33,6 +193,7 @@
 
 *April 8, 2024*
 
+## v1.2.0
 ## v1.2.0-rc1
 
 ### Bug Fixes

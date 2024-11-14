@@ -71,7 +71,7 @@ contract TestCRC20Proxy {
         emit __CronosSendToEvmChain(msg.sender, recipient, chain_id, amount, bridge_fee, extraData);
     }
 
-    // cancel a send to chain transaction considering if it hasnt been batched yet.
+    // cancel a send to chain transaction considering if it hasn't been batched yet.
     function cancel_send_to_evm_chain(uint256 id) external {
         emit __CronosCancelSendToEvmChain(msg.sender, id);
     }

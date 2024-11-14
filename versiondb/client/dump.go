@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
+	"cosmossdk.io/store/wrapper"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 
@@ -84,7 +85,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 			if endVersion == 0 {
 				// use the latest version of the first store for all stores
 				prefix := []byte(fmt.Sprintf(tsrocksdb.StorePrefixTpl, stores[0]))
-				tree := iavl.NewMutableTree(dbm.NewPrefixDB(db, prefix), 0, true, log.NewNopLogger())
+				tree := iavl.NewMutableTree(wrapper.NewDBWrapper((dbm.NewPrefixDB(db, prefix))), 0, true, log.NewNopLogger())
 				latestVersion, err := tree.LoadVersion(0)
 				if err != nil {
 					return err
@@ -120,7 +121,7 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 				iavlTreePool := sync.Pool{
 					New: func() any {
 						// use separate prefixdb and iavl tree in each task to maximize concurrency performance
-						return iavl.NewImmutableTree(dbm.NewPrefixDB(db, prefix), cacheSize, true, log.NewNopLogger())
+						return iavl.NewImmutableTree(wrapper.NewDBWrapper(dbm.NewPrefixDB(db, prefix)), cacheSize, true, log.NewNopLogger())
 					},
 				}
 

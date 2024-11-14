@@ -1,0 +1,52 @@
+name: Push Testground Image
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+    tags:
+      - "v*.*.*"
+
+env:
+  IMAGE_NAME: cronos-testground
+
+jobs:
+
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v23
+        with:
+          nix_path: nixpkgs=channel:nixos-24.05
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - uses: cachix/cachix-action@v12
+        with:
+          name: cronos
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - name: build and push image
+        run: |
+          # login to ghcr.io
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,' | sed -e 's/^v//')
+          [ "$VERSION" == "main" ] && VERSION=latest
+          echo "VERSION: $VERSION"
+
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          echo "IMAGE_ID: $IMAGE_ID"
+
+          BUILD_TAG="$(nix eval --raw .#testground-image.imageTag)"
+          echo "BUILD_TAG: $BUILD_TAG"
+
+          docker load -i "$(nix build --no-link --print-out-paths .#testground-image)"
+          docker run --rm -e TEST_CASE=info $IMAGE_NAME:$BUILD_TAG
+          docker tag $IMAGE_NAME:$BUILD_TAG $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION

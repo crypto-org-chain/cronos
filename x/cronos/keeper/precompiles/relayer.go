@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -46,7 +48,9 @@ const (
 	Acknowledgement       = "acknowledgement"
 	Timeout               = "timeout"
 	TimeoutOnClose        = "timeoutOnClose"
-
+	// ibc fee
+	RegisterPayee                   = "registerPayee"
+	RegisterCounterpartyPayee       = "registerCounterpartyPayee"
 	GasWhenReceiverChainIsSource    = 51705
 	GasWhenReceiverChainIsNotSource = 144025
 )
@@ -89,6 +93,10 @@ func init() {
 			relayerGasRequiredByMethod[methodID] = 61781
 		case Timeout:
 			relayerGasRequiredByMethod[methodID] = 104283
+		case RegisterPayee:
+			relayerGasRequiredByMethod[methodID] = 38000
+		case RegisterCounterpartyPayee:
+			relayerGasRequiredByMethod[methodID] = 37000
 		default:
 			relayerGasRequiredByMethod[methodID] = 100000
 		}
@@ -99,18 +107,20 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc         codec.Codec
-	ibcKeeper   types.IbcKeeper
-	logger      log.Logger
-	isHomestead bool
-	isIstanbul  bool
-	isShanghai  bool
+	cdc          codec.Codec
+	ibcKeeper    types.IbcKeeper
+	ibcFeeKeeper types.IbcFeeKeeper
+	logger       log.Logger
+	isHomestead  bool
+	isIstanbul   bool
+	isShanghai   bool
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, ibcFeeKeeper types.IbcFeeKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
+		ibcFeeKeeper: ibcFeeKeeper,
 		cdc:          cdc,
 		isHomestead:  rules.IsHomestead,
 		isIstanbul:   rules.IsIstanbul,
@@ -183,15 +193,40 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, err
 	}
 	stateDB := evm.StateDB.(ExtStateDB)
-
 	var res []byte
 	precompileAddr := bc.Address()
 	args, err := method.Inputs.Unpack(contract.Input[4:])
 	if err != nil {
 		return nil, errors.New("fail to unpack input arguments")
 	}
-	input := args[0].([]byte)
 	converter := cronosevents.RelayerConvertEvent
+	if method.Name == RegisterPayee || method.Name == RegisterCounterpartyPayee {
+		execErr := stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
+			portID := args[0].(string)
+			channelID := args[1].(string)
+			caller := sdk.AccAddress(contract.CallerAddress.Bytes()).String()
+			if method.Name == RegisterPayee {
+				payeeAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
+				_, err := bc.ibcFeeKeeper.RegisterPayee(
+					ctx,
+					ibcfeetypes.NewMsgRegisterPayee(portID, channelID, caller, payeeAddr),
+				)
+				return err
+			} else {
+				counterpartyPayeeAddr := args[2].(string)
+				_, err := bc.ibcFeeKeeper.RegisterCounterpartyPayee(
+					ctx,
+					ibcfeetypes.NewMsgRegisterCounterpartyPayee(portID, channelID, caller, counterpartyPayeeAddr),
+				)
+				return err
+			}
+		})
+		if execErr != nil {
+			return nil, execErr
+		}
+		return method.Outputs.Pack(true)
+	}
+	input := args[0].([]byte)
 	e := &Executor{
 		cdc:       bc.cdc,
 		stateDB:   stateDB,

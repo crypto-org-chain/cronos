@@ -116,7 +116,7 @@ def prepare_gravity(custom_cronos, custom_geth):
     send_transaction(w3, {"to": admin.address, "value": 10**17}, KEYS["validator"])
 
     # deploy gravity contract to geth
-    gravity_id = cli.query_gravity_params()["params"]["gravity_id"]
+    gravity_id = cli.query_gravity_params()["gravity_id"]
     signer_set = cli.query_latest_signer_set_tx()["signer_set"]["signers"]
     powers = [int(signer["power"]) for signer in signer_set]
     threshold = int(2**32 * 0.66)  # gravity normalize the power to [0, 2**32]

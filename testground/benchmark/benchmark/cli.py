@@ -9,21 +9,28 @@ class ChainCommand:
     def raw(self, *args, stdin=None, stderr=subprocess.STDOUT, **kwargs):
         "execute the command"
         args = " ".join(build_cli_args_safe(*args, **kwargs))
-        return interact(
+        stdout = interact(
             f"{self.cmd} {args}", input=stdin, stderr=stderr, env=os.environ
         )
+
+        # filter out "<jemalloc>:" warning messages
+        stdout = b"\n".join(
+            line for line in stdout.splitlines() if not line.startswith(b"<jemalloc>:")
+        )
+
+        return stdout
 
     def __call__(self, *args, **kwargs):
         "execute the command and clean the output"
         return self.raw(*args, **kwargs).decode().strip()
 
 
-def interact(cmd, ignore_error=False, input=None, **kwargs):
-    kwargs.setdefault("stderr", subprocess.STDOUT)
+def interact(cmd, ignore_error=False, input=None, stderr=subprocess.STDOUT, **kwargs):
     proc = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
+        stderr=stderr,
         shell=True,
         **kwargs,
     )

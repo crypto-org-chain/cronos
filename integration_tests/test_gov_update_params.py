@@ -1,9 +1,7 @@
-import hashlib
-import json
-
 import pytest
 
-from .utils import CONTRACTS, approve_proposal, deploy_contract, eth_to_bech32
+from .cosmoscli import module_address
+from .utils import CONTRACTS, deploy_contract, submit_gov_proposal
 
 pytestmark = pytest.mark.gov
 
@@ -16,31 +14,22 @@ def test_evm_update_param(cronos, tmp_path):
     res = contract.caller.randomTokenId()
     assert res > 0, res
     cli = cronos.cosmos_cli()
-    p = cli.query_params("evm")["params"]
+    p = cli.query_params("evm")
     del p["chain_config"]["merge_netsplit_block"]
     del p["chain_config"]["shanghai_time"]
-    proposal = tmp_path / "proposal.json"
-    # governance module account as signer
-    data = hashlib.sha256("gov".encode()).digest()[:20]
-    signer = eth_to_bech32(data)
-    proposal_src = {
-        "messages": [
+    authority = module_address("gov")
+    submit_gov_proposal(
+        cronos,
+        tmp_path,
+        messages=[
             {
                 "@type": "/ethermint.evm.v1.MsgUpdateParams",
-                "authority": signer,
+                "authority": authority,
                 "params": p,
             }
         ],
-        "deposit": "1basetcro",
-        "title": "title",
-        "summary": "summary",
-    }
-    proposal.write_text(json.dumps(proposal_src))
-    rsp = cli.submit_gov_proposal(proposal, from_="community")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
-    print("check params have been updated now")
-    p = cli.query_params("evm")["params"]
+    )
+    p = cli.query_params("evm")
     assert not p["chain_config"]["merge_netsplit_block"]
     assert not p["chain_config"]["shanghai_time"]
     invalid_msg = "invalid opcode: PUSH0"
@@ -53,11 +42,6 @@ def test_evm_update_param(cronos, tmp_path):
 
 
 def test_gov_update_params(cronos, tmp_path):
-    cli = cronos.cosmos_cli()
-
-    proposal = tmp_path / "proposal.json"
-    # governance module account as signer
-    signer = "crc10d07y265gmmuvt4z0w9aw880jnsr700jdufnyd"
     params = {
         "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
         "enable_auto_deployment": False,
@@ -66,23 +50,16 @@ def test_gov_update_params(cronos, tmp_path):
         "ibc_timeout": "96400000000000",
         "max_callback_gas": "400000",
     }
-    proposal_src = {
-        "messages": [
+    authority = module_address("gov")
+    submit_gov_proposal(
+        cronos,
+        tmp_path,
+        messages=[
             {
                 "@type": "/cronos.MsgUpdateParams",
-                "authority": signer,
+                "authority": authority,
                 "params": params,
             }
         ],
-        "deposit": "1basetcro",
-        "title": "title",
-        "summary": "summary",
-    }
-    proposal.write_text(json.dumps(proposal_src))
-    rsp = cli.submit_gov_proposal(proposal, from_="community")
-    assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp["events"])
-    print("check params have been updated now")
-    rsp = cli.query_params()
-    print("params", rsp)
-    assert rsp == params
+    )
+    assert cronos.cosmos_cli().query_params() == params

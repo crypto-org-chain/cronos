@@ -161,7 +161,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			}
 
 			if save {
-				if err := os.WriteFile(verifiedFileName, buf.Bytes(), os.ModePerm); err != nil {
+				if err := os.WriteFile(verifiedFileName, buf.Bytes(), 0o600); err != nil {
 					return err
 				}
 				fmt.Printf("version %d verify result saved to %s\n", commitInfo.Version, verifiedFileName)

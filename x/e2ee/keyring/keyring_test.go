@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"filippo.io/age"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )

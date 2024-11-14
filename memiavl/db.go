@@ -342,16 +342,17 @@ func (db *DB) ApplyChangeSets(changeSets []*NamedChangeSet) error {
 
 	if len(db.pendingLog.Changesets) == 0 {
 		db.pendingLog.Changesets = changeSets
-	} else {
-		// slow path, merge into exist changesets one by one
-		for _, cs := range changeSets {
-			if err := db.applyChangeSet(cs.Name, cs.Changeset); err != nil {
-				return err
-			}
-		}
+		return db.MultiTree.ApplyChangeSets(changeSets)
 	}
 
-	return db.MultiTree.ApplyChangeSets(changeSets)
+	// slow path, merge into exist changesets one store at a time,
+	// should not happen in normal state machine life-cycle.
+	for _, cs := range changeSets {
+		if err := db.applyChangeSet(cs.Name, cs.Changeset); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ApplyChangeSet wraps MultiTree.ApplyChangeSet, it also append the changesets in the pending log,
@@ -698,7 +699,7 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 
 	db.MultiTree = *mtree
 	// catch-up the pending changes
-	return db.MultiTree.applyWALEntry(db.pendingLog)
+	return db.applyWALEntry(db.pendingLog)
 }
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height

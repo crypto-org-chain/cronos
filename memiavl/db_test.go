@@ -180,6 +180,7 @@ func TestInitialVersion(t *testing.T) {
 	name2 := "new2"
 	key := "hello"
 	value := "world"
+	value1 := "world1"
 	for _, initialVersion := range []int64{0, 1, 100} {
 		dir := t.TempDir()
 		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}})
@@ -188,66 +189,56 @@ func TestInitialVersion(t *testing.T) {
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, value)))
 		v, err := db.Commit()
 		require.NoError(t, err)
-		if initialVersion <= 1 {
-			require.Equal(t, int64(1), v)
-		} else {
-			require.Equal(t, initialVersion, v)
-		}
-		hash := db.LastCommitInfo().StoreInfos[0].CommitId.Hash
-		require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(hash))
-		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, "world1")))
+
+		realInitialVersion := max(initialVersion, 1)
+		require.Equal(t, realInitialVersion, v)
+
+		// the nodes are created with initial version to be compatible with iavl v1 behavior.
+		// with iavl v0, the nodes are created with version 1.
+		commitId := db.LastCommitInfo().StoreInfos[0].CommitId
+		require.Equal(t, commitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value), uint32(commitId.Version))))
+
+		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, value1)))
 		v, err = db.Commit()
 		require.NoError(t, err)
-		hash = db.LastCommitInfo().StoreInfos[0].CommitId.Hash
-		if initialVersion <= 1 {
-			require.Equal(t, int64(2), v)
-			require.Equal(t, "ef0530f9bf1af56c19a3bac32a3ec4f76a6fefaacb2efd4027a2cf37240f60bb", hex.EncodeToString(hash))
-		} else {
-			require.Equal(t, initialVersion+1, v)
-			require.Equal(t, "a719e7d699d42ea8e5637ec84675a2c28f14a00a71fb518f20aa2c395673a3b8", hex.EncodeToString(hash))
-		}
+		commitId = db.LastCommitInfo().StoreInfos[0].CommitId
+		require.Equal(t, realInitialVersion+1, v)
+		require.Equal(t, commitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value1), uint32(commitId.Version))))
 		require.NoError(t, db.Close())
 
+		// reload the db, check the contents are the same
 		db, err = Load(dir, Options{})
 		require.NoError(t, err)
 		require.Equal(t, uint32(initialVersion), db.initialVersion)
 		require.Equal(t, v, db.Version())
-		require.Equal(t, hex.EncodeToString(hash), hex.EncodeToString(db.LastCommitInfo().StoreInfos[0].CommitId.Hash))
+		require.Equal(t, hex.EncodeToString(commitId.Hash), hex.EncodeToString(db.LastCommitInfo().StoreInfos[0].CommitId.Hash))
 
+		// add a new store to a reloaded db
 		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name1, key, value)))
 		v, err = db.Commit()
 		require.NoError(t, err)
-		if initialVersion <= 1 {
-			require.Equal(t, int64(3), v)
-		} else {
-			require.Equal(t, initialVersion+2, v)
-		}
+		require.Equal(t, realInitialVersion+2, v)
 		require.Equal(t, 2, len(db.lastCommitInfo.StoreInfos))
 		info := db.lastCommitInfo.StoreInfos[0]
 		require.Equal(t, name1, info.Name)
 		require.Equal(t, v, info.CommitId.Version)
-		require.Equal(t, "6032661ab0d201132db7a8fa1da6a0afe427e6278bd122c301197680ab79ca02", hex.EncodeToString(info.CommitId.Hash))
-		// the nodes are created with version 1, which is compatible with iavl behavior: https://github.com/cosmos/iavl/pull/660
-		require.Equal(t, info.CommitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value), 1)))
+		require.Equal(t, info.CommitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value), uint32(info.CommitId.Version))))
 
+		// test snapshot rewriting and reload
 		require.NoError(t, db.RewriteSnapshot())
 		require.NoError(t, db.Reload())
-
+		// add new store after snapshot rewriting
 		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name2}})
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name2, key, value)))
 		v, err = db.Commit()
 		require.NoError(t, err)
-		if initialVersion <= 1 {
-			require.Equal(t, int64(4), v)
-		} else {
-			require.Equal(t, initialVersion+3, v)
-		}
+		require.Equal(t, realInitialVersion+3, v)
 		require.Equal(t, 3, len(db.lastCommitInfo.StoreInfos))
 		info2 := db.lastCommitInfo.StoreInfos[1]
 		require.Equal(t, name2, info2.Name)
 		require.Equal(t, v, info2.CommitId.Version)
-		require.Equal(t, hex.EncodeToString(info.CommitId.Hash), hex.EncodeToString(info2.CommitId.Hash))
+		require.Equal(t, info2.CommitId.Hash, HashNode(newLeafNode([]byte(key), []byte(value), uint32(info2.CommitId.Version))))
 	}
 }
 

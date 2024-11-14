@@ -12,9 +12,9 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // ContractByDenom queries contract addresses by native denom
+  // ContractByDenom queries contract addresses by native denom from a query string.
   rpc ContractByDenom(ContractByDenomRequest) returns (ContractByDenomResponse) {
-    option (google.api.http).get = "/cronos/v1/contract_by_denom/{denom}";
+    option (google.api.http).get = "/cronos/v1/contract_by_denom";
   }
 
   // DenomByContract queries native denom by contract address
@@ -34,6 +34,11 @@ service Query {
   // Params queries permissions for a specific address..
   rpc Permissions(QueryPermissionsRequest) returns (QueryPermissionsResponse) {
     option (google.api.http).get = "/cronos/v1/permissions";
+  }
+
+  // BlockList
+  rpc BlockList(QueryBlockListRequest) returns (QueryBlockListResponse) {
+    option (google.api.http).get = "/cronos/v1/blocklist";
   }
 
   // this line is used by starport scaffolding # 2
@@ -105,4 +110,10 @@ message QueryPermissionsResponse {
   bool can_turn_bridge          = 2;
 }
 
-// this line is used by starport scaffolding # 3
+// QueryBlockListRequest
+message QueryBlockListRequest { }
+
+// QueryBlockListResponse
+message QueryBlockListResponse {
+  bytes blob = 1;
+}

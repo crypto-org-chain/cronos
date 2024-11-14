@@ -31,7 +31,7 @@ var (
 
 // RelayerFunctionsMetaData contains all meta data concerning the RelayerFunctions contract.
 var RelayerFunctionsMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"acknowledgement\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelCloseConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelCloseInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenAck\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenTry\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenAck\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenTry\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"createClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"recvPacket\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"submitMisbehaviour\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"timeout\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"timeoutOnClose\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"updateClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndAcknowledgement\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelCloseConfirm\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelCloseInit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelOpenAck\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelOpenConfirm\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelOpenInit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndChannelOpenTry\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndConnectionOpenAck\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndConnectionOpenConfirm\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndConnectionOpenInit\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndConnectionOpenTry\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndRecvPacket\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data1\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"data2\",\"type\":\"bytes\"}],\"name\":\"updateClientAndTimeout\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"acknowledgement\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelCloseConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelCloseInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenAck\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"channelOpenTry\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenAck\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenConfirm\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenInit\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"connectionOpenTry\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"createClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"recvPacket\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"portID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"channelID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"counterpartyPayeeAddr\",\"type\":\"string\"}],\"name\":\"registerCounterpartyPayee\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"string\",\"name\":\"portID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"channelID\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"payeeAddr\",\"type\":\"address\"}],\"name\":\"registerPayee\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"submitMisbehaviour\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"timeout\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"timeoutOnClose\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"updateClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeClient\",\"outputs\":[{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // RelayerFunctionsABI is the input ABI used to generate the binding from.
@@ -453,6 +453,48 @@ func (_RelayerFunctions *RelayerFunctionsTransactorSession) RecvPacket(data []by
 	return _RelayerFunctions.Contract.RecvPacket(&_RelayerFunctions.TransactOpts, data)
 }
 
+// RegisterCounterpartyPayee is a paid mutator transaction binding the contract method 0x8e0bf32e.
+//
+// Solidity: function registerCounterpartyPayee(string portID, string channelID, string counterpartyPayeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsTransactor) RegisterCounterpartyPayee(opts *bind.TransactOpts, portID string, channelID string, counterpartyPayeeAddr string) (*types.Transaction, error) {
+	return _RelayerFunctions.contract.Transact(opts, "registerCounterpartyPayee", portID, channelID, counterpartyPayeeAddr)
+}
+
+// RegisterCounterpartyPayee is a paid mutator transaction binding the contract method 0x8e0bf32e.
+//
+// Solidity: function registerCounterpartyPayee(string portID, string channelID, string counterpartyPayeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsSession) RegisterCounterpartyPayee(portID string, channelID string, counterpartyPayeeAddr string) (*types.Transaction, error) {
+	return _RelayerFunctions.Contract.RegisterCounterpartyPayee(&_RelayerFunctions.TransactOpts, portID, channelID, counterpartyPayeeAddr)
+}
+
+// RegisterCounterpartyPayee is a paid mutator transaction binding the contract method 0x8e0bf32e.
+//
+// Solidity: function registerCounterpartyPayee(string portID, string channelID, string counterpartyPayeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsTransactorSession) RegisterCounterpartyPayee(portID string, channelID string, counterpartyPayeeAddr string) (*types.Transaction, error) {
+	return _RelayerFunctions.Contract.RegisterCounterpartyPayee(&_RelayerFunctions.TransactOpts, portID, channelID, counterpartyPayeeAddr)
+}
+
+// RegisterPayee is a paid mutator transaction binding the contract method 0xb0dff939.
+//
+// Solidity: function registerPayee(string portID, string channelID, address payeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsTransactor) RegisterPayee(opts *bind.TransactOpts, portID string, channelID string, payeeAddr common.Address) (*types.Transaction, error) {
+	return _RelayerFunctions.contract.Transact(opts, "registerPayee", portID, channelID, payeeAddr)
+}
+
+// RegisterPayee is a paid mutator transaction binding the contract method 0xb0dff939.
+//
+// Solidity: function registerPayee(string portID, string channelID, address payeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsSession) RegisterPayee(portID string, channelID string, payeeAddr common.Address) (*types.Transaction, error) {
+	return _RelayerFunctions.Contract.RegisterPayee(&_RelayerFunctions.TransactOpts, portID, channelID, payeeAddr)
+}
+
+// RegisterPayee is a paid mutator transaction binding the contract method 0xb0dff939.
+//
+// Solidity: function registerPayee(string portID, string channelID, address payeeAddr) payable returns(bool)
+func (_RelayerFunctions *RelayerFunctionsTransactorSession) RegisterPayee(portID string, channelID string, payeeAddr common.Address) (*types.Transaction, error) {
+	return _RelayerFunctions.Contract.RegisterPayee(&_RelayerFunctions.TransactOpts, portID, channelID, payeeAddr)
+}
+
 // SubmitMisbehaviour is a paid mutator transaction binding the contract method 0xa53b1c82.
 //
 // Solidity: function submitMisbehaviour(bytes data) payable returns(bytes)
@@ -535,279 +577,6 @@ func (_RelayerFunctions *RelayerFunctionsSession) UpdateClient(data []byte) (*ty
 // Solidity: function updateClient(bytes data) payable returns(bytes)
 func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClient(data []byte) (*types.Transaction, error) {
 	return _RelayerFunctions.Contract.UpdateClient(&_RelayerFunctions.TransactOpts, data)
-}
-
-// UpdateClientAndAcknowledgement is a paid mutator transaction binding the contract method 0x65a939c6.
-//
-// Solidity: function updateClientAndAcknowledgement(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndAcknowledgement(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndAcknowledgement", data1, data2)
-}
-
-// UpdateClientAndAcknowledgement is a paid mutator transaction binding the contract method 0x65a939c6.
-//
-// Solidity: function updateClientAndAcknowledgement(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndAcknowledgement(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndAcknowledgement(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndAcknowledgement is a paid mutator transaction binding the contract method 0x65a939c6.
-//
-// Solidity: function updateClientAndAcknowledgement(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndAcknowledgement(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndAcknowledgement(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelCloseConfirm is a paid mutator transaction binding the contract method 0x9bbcbfd2.
-//
-// Solidity: function updateClientAndChannelCloseConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelCloseConfirm(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelCloseConfirm", data1, data2)
-}
-
-// UpdateClientAndChannelCloseConfirm is a paid mutator transaction binding the contract method 0x9bbcbfd2.
-//
-// Solidity: function updateClientAndChannelCloseConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelCloseConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelCloseConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelCloseConfirm is a paid mutator transaction binding the contract method 0x9bbcbfd2.
-//
-// Solidity: function updateClientAndChannelCloseConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelCloseConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelCloseConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelCloseInit is a paid mutator transaction binding the contract method 0x5447448d.
-//
-// Solidity: function updateClientAndChannelCloseInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelCloseInit(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelCloseInit", data1, data2)
-}
-
-// UpdateClientAndChannelCloseInit is a paid mutator transaction binding the contract method 0x5447448d.
-//
-// Solidity: function updateClientAndChannelCloseInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelCloseInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelCloseInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelCloseInit is a paid mutator transaction binding the contract method 0x5447448d.
-//
-// Solidity: function updateClientAndChannelCloseInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelCloseInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelCloseInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenAck is a paid mutator transaction binding the contract method 0xc518ffc8.
-//
-// Solidity: function updateClientAndChannelOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelOpenAck(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelOpenAck", data1, data2)
-}
-
-// UpdateClientAndChannelOpenAck is a paid mutator transaction binding the contract method 0xc518ffc8.
-//
-// Solidity: function updateClientAndChannelOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelOpenAck(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenAck(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenAck is a paid mutator transaction binding the contract method 0xc518ffc8.
-//
-// Solidity: function updateClientAndChannelOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelOpenAck(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenAck(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenConfirm is a paid mutator transaction binding the contract method 0x0982b806.
-//
-// Solidity: function updateClientAndChannelOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelOpenConfirm(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelOpenConfirm", data1, data2)
-}
-
-// UpdateClientAndChannelOpenConfirm is a paid mutator transaction binding the contract method 0x0982b806.
-//
-// Solidity: function updateClientAndChannelOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelOpenConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenConfirm is a paid mutator transaction binding the contract method 0x0982b806.
-//
-// Solidity: function updateClientAndChannelOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelOpenConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenInit is a paid mutator transaction binding the contract method 0x66365fc4.
-//
-// Solidity: function updateClientAndChannelOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelOpenInit(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelOpenInit", data1, data2)
-}
-
-// UpdateClientAndChannelOpenInit is a paid mutator transaction binding the contract method 0x66365fc4.
-//
-// Solidity: function updateClientAndChannelOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelOpenInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenInit is a paid mutator transaction binding the contract method 0x66365fc4.
-//
-// Solidity: function updateClientAndChannelOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelOpenInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenTry is a paid mutator transaction binding the contract method 0x33978088.
-//
-// Solidity: function updateClientAndChannelOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndChannelOpenTry(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndChannelOpenTry", data1, data2)
-}
-
-// UpdateClientAndChannelOpenTry is a paid mutator transaction binding the contract method 0x33978088.
-//
-// Solidity: function updateClientAndChannelOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndChannelOpenTry(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenTry(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndChannelOpenTry is a paid mutator transaction binding the contract method 0x33978088.
-//
-// Solidity: function updateClientAndChannelOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndChannelOpenTry(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndChannelOpenTry(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenAck is a paid mutator transaction binding the contract method 0xfedb9353.
-//
-// Solidity: function updateClientAndConnectionOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndConnectionOpenAck(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndConnectionOpenAck", data1, data2)
-}
-
-// UpdateClientAndConnectionOpenAck is a paid mutator transaction binding the contract method 0xfedb9353.
-//
-// Solidity: function updateClientAndConnectionOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndConnectionOpenAck(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenAck(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenAck is a paid mutator transaction binding the contract method 0xfedb9353.
-//
-// Solidity: function updateClientAndConnectionOpenAck(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndConnectionOpenAck(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenAck(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenConfirm is a paid mutator transaction binding the contract method 0x70009dfc.
-//
-// Solidity: function updateClientAndConnectionOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndConnectionOpenConfirm(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndConnectionOpenConfirm", data1, data2)
-}
-
-// UpdateClientAndConnectionOpenConfirm is a paid mutator transaction binding the contract method 0x70009dfc.
-//
-// Solidity: function updateClientAndConnectionOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndConnectionOpenConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenConfirm is a paid mutator transaction binding the contract method 0x70009dfc.
-//
-// Solidity: function updateClientAndConnectionOpenConfirm(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndConnectionOpenConfirm(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenConfirm(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenInit is a paid mutator transaction binding the contract method 0x491e69c7.
-//
-// Solidity: function updateClientAndConnectionOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndConnectionOpenInit(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndConnectionOpenInit", data1, data2)
-}
-
-// UpdateClientAndConnectionOpenInit is a paid mutator transaction binding the contract method 0x491e69c7.
-//
-// Solidity: function updateClientAndConnectionOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndConnectionOpenInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenInit is a paid mutator transaction binding the contract method 0x491e69c7.
-//
-// Solidity: function updateClientAndConnectionOpenInit(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndConnectionOpenInit(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenInit(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenTry is a paid mutator transaction binding the contract method 0x5f3a7169.
-//
-// Solidity: function updateClientAndConnectionOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndConnectionOpenTry(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndConnectionOpenTry", data1, data2)
-}
-
-// UpdateClientAndConnectionOpenTry is a paid mutator transaction binding the contract method 0x5f3a7169.
-//
-// Solidity: function updateClientAndConnectionOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndConnectionOpenTry(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenTry(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndConnectionOpenTry is a paid mutator transaction binding the contract method 0x5f3a7169.
-//
-// Solidity: function updateClientAndConnectionOpenTry(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndConnectionOpenTry(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndConnectionOpenTry(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndRecvPacket is a paid mutator transaction binding the contract method 0xd3cffc28.
-//
-// Solidity: function updateClientAndRecvPacket(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndRecvPacket(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndRecvPacket", data1, data2)
-}
-
-// UpdateClientAndRecvPacket is a paid mutator transaction binding the contract method 0xd3cffc28.
-//
-// Solidity: function updateClientAndRecvPacket(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndRecvPacket(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndRecvPacket(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndRecvPacket is a paid mutator transaction binding the contract method 0xd3cffc28.
-//
-// Solidity: function updateClientAndRecvPacket(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndRecvPacket(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndRecvPacket(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndTimeout is a paid mutator transaction binding the contract method 0xca4c72a0.
-//
-// Solidity: function updateClientAndTimeout(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactor) UpdateClientAndTimeout(opts *bind.TransactOpts, data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.contract.Transact(opts, "updateClientAndTimeout", data1, data2)
-}
-
-// UpdateClientAndTimeout is a paid mutator transaction binding the contract method 0xca4c72a0.
-//
-// Solidity: function updateClientAndTimeout(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsSession) UpdateClientAndTimeout(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndTimeout(&_RelayerFunctions.TransactOpts, data1, data2)
-}
-
-// UpdateClientAndTimeout is a paid mutator transaction binding the contract method 0xca4c72a0.
-//
-// Solidity: function updateClientAndTimeout(bytes data1, bytes data2) payable returns(bool)
-func (_RelayerFunctions *RelayerFunctionsTransactorSession) UpdateClientAndTimeout(data1 []byte, data2 []byte) (*types.Transaction, error) {
-	return _RelayerFunctions.Contract.UpdateClientAndTimeout(&_RelayerFunctions.TransactOpts, data1, data2)
 }
 
 // UpgradeClient is a paid mutator transaction binding the contract method 0x8a8e4c5d.

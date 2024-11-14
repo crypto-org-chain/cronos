@@ -5,7 +5,7 @@ import pytest
 from .ibc_utils import (
     funds_ica,
     get_balance,
-    ica_ctrl_send_tx,
+    ica_send_tx,
     prepare_network,
     register_acc,
 )
@@ -26,7 +26,7 @@ def test_incentivized(ibc):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
-    ica_address, channel_id = register_acc(cli_controller, connid)
+    ica_address, _, channel_id = register_acc(cli_controller, connid)
     relayer = cli_controller.address("signer1")
     balance = funds_ica(cli_host, ica_address)
     ibc.cronos.supervisorctl("stop", "relayer-demo")
@@ -64,7 +64,7 @@ def test_incentivized(ibc):
         )
         assert rsp["code"] == 0, rsp["raw_log"]
 
-    ica_ctrl_send_tx(
+    ica_send_tx(
         cli_host,
         cli_controller,
         connid,

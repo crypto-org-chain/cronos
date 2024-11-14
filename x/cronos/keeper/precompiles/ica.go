@@ -4,12 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	icacontrollerkeeper "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/keeper"
+	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
@@ -18,7 +19,6 @@ import (
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 
-	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -70,21 +70,27 @@ func OnPacketResultCallback(args ...interface{}) ([]byte, error) {
 type IcaContract struct {
 	BaseContract
 
-	ctx           sdk.Context
-	cdc           codec.Codec
-	icaauthKeeper types.Icaauthkeeper
-	cronosKeeper  types.CronosKeeper
-	kvGasConfig   storetypes.GasConfig
+	ctx              sdk.Context
+	cdc              codec.Codec
+	controllerKeeper icacontrollerkeeper.Keeper
+	cronosKeeper     types.CronosKeeper
+	kvGasConfig      storetypes.GasConfig
 }
 
-func NewIcaContract(ctx sdk.Context, icaauthKeeper types.Icaauthkeeper, cronosKeeper types.CronosKeeper, cdc codec.Codec, kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewIcaContract(
+	ctx sdk.Context,
+	controllerKeeper icacontrollerkeeper.Keeper,
+	cronosKeeper types.CronosKeeper,
+	cdc codec.Codec,
+	kvGasConfig storetypes.GasConfig,
+) vm.PrecompiledContract {
 	return &IcaContract{
-		BaseContract:  NewBaseContract(icaContractAddress),
-		ctx:           ctx,
-		cdc:           cdc,
-		icaauthKeeper: icaauthKeeper,
-		cronosKeeper:  cronosKeeper,
-		kvGasConfig:   kvGasConfig,
+		BaseContract:     NewBaseContract(icaContractAddress),
+		ctx:              ctx,
+		cdc:              cdc,
+		controllerKeeper: controllerKeeper,
+		cronosKeeper:     cronosKeeper,
+		kvGasConfig:      kvGasConfig,
 	}
 }
 
@@ -132,11 +138,14 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		}
 		connectionID := args[0].(string)
 		version := args[1].(string)
+		ordering := args[2].(int32)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			_, err := ic.icaauthKeeper.RegisterAccount(ctx, &icaauthtypes.MsgRegisterAccount{
+			msgServer := icacontrollerkeeper.NewMsgServerImpl(&ic.controllerKeeper)
+			_, err := msgServer.RegisterInterchainAccount(ctx, &icacontrollertypes.MsgRegisterInterchainAccount{
 				Owner:        owner,
 				ConnectionId: connectionID,
 				Version:      version,
+				Ordering:     channeltypes.Order(ordering),
 			})
 			return err
 		})
@@ -153,9 +162,9 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 		account := args[1].(common.Address)
 		owner := sdk.AccAddress(account.Bytes()).String()
 		icaAddress := ""
-		response, err := ic.icaauthKeeper.InterchainAccountAddress(
+		response, err := ic.controllerKeeper.InterchainAccount(
 			stateDB.Context(),
-			&icaauthtypes.QueryInterchainAccountAddressRequest{
+			&icacontrollertypes.QueryInterchainAccountRequest{
 				Owner:        owner,
 				ConnectionId: connectionID,
 			})
@@ -163,7 +172,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			return nil, err
 		}
 		if response != nil {
-			icaAddress = response.InterchainAccountAddress
+			icaAddress = response.Address
 		}
 		return method.Outputs.Pack(icaAddress)
 	case SubmitMsgsMethodName:
@@ -182,18 +191,30 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 			Data: data,
 			Memo: fmt.Sprintf(`{"src_callback": {"address": "%s"}}`, caller.String()),
 		}
-		timeoutDuration := time.Duration(timeout.Uint64())
 		seq := uint64(0)
 		execErr = stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			activeChannelID, response, err := ic.icaauthKeeper.SubmitTxWithArgs(
-				ctx,
-				owner,
-				connectionID,
-				timeoutDuration,
-				icaMsgData,
+			msgServer := icacontrollerkeeper.NewMsgServerImpl(&ic.controllerKeeper)
+			response, err := msgServer.SendTx(
+				ctx, &icacontrollertypes.MsgSendTx{
+					Owner:           owner,
+					ConnectionId:    connectionID,
+					RelativeTimeout: timeout.Uint64(),
+					PacketData:      icaMsgData,
+				},
 			)
 			if err == nil && response != nil {
 				seq = response.Sequence
+
+				// fetch src channel id for event
+				portID, err := icatypes.NewControllerPortID(owner)
+				if err != nil {
+					return err
+				}
+				activeChannelID, found := ic.controllerKeeper.GetActiveChannelID(ctx, connectionID, portID)
+				if !found {
+					return errors.New("failed to retrieve active channel")
+				}
+
 				ctx.EventManager().EmitEvents(sdk.Events{
 					sdk.NewEvent(
 						cronoseventstypes.EventTypeSubmitMsgsResult,

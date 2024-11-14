@@ -20,17 +20,6 @@ interface IRelayerFunctions {
     function acknowledgement(bytes calldata data) external payable returns (bytes calldata);
     function timeout(bytes calldata data) external payable returns (bytes calldata);
     function timeoutOnClose(bytes calldata data) external payable returns (bytes calldata);
-    function updateClientAndConnectionOpenInit(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndConnectionOpenTry(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndConnectionOpenAck(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndConnectionOpenConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelOpenInit(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelOpenTry(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelOpenAck(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelOpenConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndRecvPacket(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndAcknowledgement(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndTimeout(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelCloseInit(bytes calldata data1, bytes calldata data2) external payable returns (bool);
-    function updateClientAndChannelCloseConfirm(bytes calldata data1, bytes calldata data2) external payable returns (bool);
+    function registerPayee(string calldata portID, string calldata channelID, address payeeAddr) external payable returns (bool);
+    function registerCounterpartyPayee(string calldata portID, string calldata channelID, string calldata counterpartyPayeeAddr) external payable returns (bool);
 }

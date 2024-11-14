@@ -317,6 +317,9 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
 		return err
 	}
+	if !ack.Success() {
+		return k.onPacketResult(ctx, packet, false, relayer, contractAddress, packetSenderAddress)
+	}
 	var res channeltypes.Acknowledgement
 	if err := k.cdc.UnmarshalJSON(ack.AppAcknowledgement, &res); err != nil {
 		return err
@@ -354,4 +357,8 @@ func (k Keeper) IBCSendPacketCallback(
 	packetSenderAddress string,
 ) error {
 	return nil
+}
+
+func (k Keeper) GetBlockList(ctx sdk.Context) []byte {
+	return ctx.KVStore(k.storeKey).Get(types.KeyPrefixBlockList)
 }

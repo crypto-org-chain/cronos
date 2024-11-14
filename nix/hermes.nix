@@ -1,11 +1,12 @@
-{ src
-, lib
-, stdenv
-, darwin
-, rustPlatform
-, symlinkJoin
-, openssl
-, pkg-config
+{
+  src,
+  lib,
+  stdenv,
+  darwin,
+  rustPlatform,
+  symlinkJoin,
+  openssl,
+  pkg-config,
 }:
 
 rustPlatform.buildRustPackage rec {
@@ -21,12 +22,18 @@ rustPlatform.buildRustPackage rec {
   ];
   cargoLock = {
     lockFile = "${src}/Cargo.lock";
+    outputHashes = {
+      "ibc-proto-0.46.0" = "sha256-3rNlmu5jN5eRICynnT+Vib0PrlJOuaJnwbaTYJdX8/8=";
+    };
   };
   doCheck = false;
   RUSTFLAGS = "--cfg ossl111 --cfg ossl110 --cfg ossl101";
   OPENSSL_NO_VENDOR = "1";
   OPENSSL_DIR = symlinkJoin {
     name = "openssl";
-    paths = with openssl; [ out dev ];
+    paths = with openssl; [
+      out
+      dev
+    ];
   };
 }

@@ -18,11 +18,11 @@ jobs:
   golangci:
     name: Run golangci-lint
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: '^1.22.0'
+          go-version: '1.22.7'
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v23
         with:
@@ -44,15 +44,15 @@ jobs:
           export CGO_CFLAGS="$(pkg-config --cflags rocksdb)" CGO_LDFLAGS="$(pkg-config --libs rocksdb)"
           golangci-lint version
 
-          BUILD_TAGS=rocksdb,grocksdb_clean_link
+          BUILD_TAGS=rocksdb,grocksdb_clean_link,objstore
           go build -tags $BUILD_TAGS ./cmd/cronosd
-          golangci-lint run --out-format=github-actions --path-prefix=./ --timeout 10m --build-tags $BUILD_TAGS
+          golangci-lint run --out-format=github-actions --path-prefix=./ --timeout 30m --build-tags $BUILD_TAGS
           cd versiondb
-          golangci-lint run --out-format=github-actions --path-prefix=./versiondb --timeout 10m --build-tags $BUILD_TAGS
+          golangci-lint run --out-format=github-actions --path-prefix=./versiondb --timeout 30m --build-tags $BUILD_TAGS
           cd ../memiavl
-          golangci-lint run --out-format=github-actions --path-prefix=./memiavl --timeout 10m
+          golangci-lint run --out-format=github-actions --path-prefix=./memiavl --timeout 30m --build-tags objstore
           cd ../store
-          golangci-lint run --out-format=github-actions --path-prefix=./store --timeout 10m
+          golangci-lint run --out-format=github-actions --path-prefix=./store --timeout 30m --build-tags objstore
         # Check only if there are differences in the source code
         if: steps.changed-files.outputs.any_changed == 'true'
 
@@ -102,5 +102,5 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
-      - run: nix-shell -I nixpkgs=./nix -p nixpkgs-fmt --run "make lint-nix"
+      - run: nix-shell -I nixpkgs=./nix -p nixfmt-rfc-style --run "make lint-nix"
         if: steps.changed-files.outputs.any_changed == 'true'

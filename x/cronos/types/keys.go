@@ -27,6 +27,7 @@ const (
 	prefixContractToDenom
 	paramsKey
 	prefixAdminToPermissions
+	prefixBlockList
 )
 
 // KVStore key prefixes
@@ -37,6 +38,7 @@ var (
 	// ParamsKey is the key for params.
 	ParamsKey                   = []byte{paramsKey}
 	KeyPrefixAdminToPermissions = []byte{prefixAdminToPermissions}
+	KeyPrefixBlockList          = []byte{prefixBlockList}
 )
 
 // this line is used by starport scaffolding # ibc/keys/port

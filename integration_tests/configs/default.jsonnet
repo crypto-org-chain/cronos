@@ -24,7 +24,10 @@
         'logs-cap': 10000,
       },
       evm: {
-        'block-executor': 'block-stm',
+        'block-executor': 'sequential',
+      },
+      mempool: {
+        'max-txs': 1000,
       },
     },
     validators: [{
@@ -39,9 +42,14 @@
           enable: true,
           'zero-copy': true,
           'snapshot-interval': 5,
+          'cache-size': 0,
         },
         versiondb: {
           enable: true,
+        },
+        evm: {
+          'block-executor': 'block-stm',
+          'block-stm-workers': 32,
         },
       },
     }, {
@@ -50,6 +58,12 @@
       mnemonic: '${VALIDATOR2_MNEMONIC}',
       client_config: {
         'broadcast-mode': 'sync',
+      },
+      config: {
+        db_backend: 'pebbledb',
+      },
+      'app-config': {
+        'app-db-backend': 'pebbledb',
       },
     }],
     accounts: [{

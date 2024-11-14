@@ -18,16 +18,16 @@ contract TestICA {
     mapping (string => mapping (uint64 => Status)) public statusMap;
     event OnPacketResult(string indexed packetSrcChannel, uint64 seq, Status status);
 
-    function encodeRegister(string memory connectionID, string memory version) internal view returns (bytes memory) {
+    function encodeRegister(string memory connectionID, string memory version, int32 ordering) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
-            "registerAccount(string,string)",
-            connectionID, msg.sender, version
+            "registerAccount(string,string,int32)",
+            connectionID, version, ordering
         );
     }
 
-    function callRegister(string memory connectionID, string memory version) public returns (bool) {
+    function callRegister(string memory connectionID, string memory version, int32 ordering) public returns (bool) {
         require(account == address(0) || account == msg.sender, "register fail");
-        bool result = ica.registerAccount(connectionID, version);
+        bool result = ica.registerAccount(connectionID, version, ordering);
         require(result, "call failed");
         account = msg.sender;
     }
@@ -36,14 +36,14 @@ contract TestICA {
         return account;
     }
 
-    function delegateRegister(string memory connectionID, string memory version) public returns (bool) {
-        (bool result,) = icaContract.delegatecall(encodeRegister(connectionID, version));
+    function delegateRegister(string memory connectionID, string memory version, int32 ordering) public returns (bool) {
+        (bool result,) = icaContract.delegatecall(encodeRegister(connectionID, version, ordering));
         require(result, "call failed");
         return true;
     }
 
-    function staticRegister(string memory connectionID, string memory version) public returns (bool) {
-        (bool result,) = icaContract.staticcall(encodeRegister(connectionID, version));
+    function staticRegister(string memory connectionID, string memory version, int32 ordering) public returns (bool) {
+        (bool result,) = icaContract.staticcall(encodeRegister(connectionID, version, ordering));
         require(result, "call failed");
         return true;
     }
@@ -74,7 +74,7 @@ contract TestICA {
     function encodeSubmitMsgs(string memory connectionID, bytes memory data, uint256 timeout) internal view returns (bytes memory) {
         return abi.encodeWithSignature(
             "submitMsgs(string,bytes,uint256)",
-            connectionID, msg.sender, data, timeout
+            connectionID, data, timeout
         );
     }
 

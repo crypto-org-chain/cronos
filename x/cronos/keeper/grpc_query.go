@@ -142,3 +142,11 @@ func (k Keeper) Permissions(goCtx context.Context, req *types.QueryPermissionsRe
 		CanTurnBridge:         CanTurnBridge == (permissions & CanTurnBridge),
 	}, nil
 }
+
+func (k Keeper) BlockList(goCtx context.Context, req *types.QueryBlockListRequest) (*types.QueryBlockListResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	blob := ctx.KVStore(k.storeKey).Get(types.KeyPrefixBlockList)
+	return &types.QueryBlockListResponse{
+		Blob: blob,
+	}, nil
+}
