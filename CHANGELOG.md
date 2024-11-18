@@ -1,5 +1,13 @@
 # Changelog
 
+*Nov 18, 2024*
+
+## v1.4.0-rc5
+
+### State Machine Breaking
+
+* [#1697](https://github.com/crypto-org-chain/cronos/pull/1697) Check max-tx-gas-wanted only in CheckTx mode.
+
 *Nov 14, 2024*
 
 ## v1.4.0-rc4

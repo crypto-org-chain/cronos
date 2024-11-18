@@ -42,6 +42,12 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec) {
 		return m, nil
 	})
 
+	// a hotfix upgrade plan just for testnet
+	hotfixPlanName := "v1.4.0-rc5-testnet"
+	app.UpgradeKeeper.SetUpgradeHandler(hotfixPlanName, func(ctx context.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+	})
+
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
 		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))
