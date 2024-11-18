@@ -162,20 +162,36 @@ def exec(c, tmp_path_factory):
     wait_for_new_blocks(cli, 1)
 
     def do_upgrade(plan_name, target, mode=None):
-        rsp = cli.gov_propose_legacy(
-            "community",
-            "software-upgrade",
-            {
-                "name": plan_name,
-                "title": "upgrade test",
-                "description": "ditto",
-                "upgrade-height": target,
-                "deposit": "10000basetcro",
-            },
-            mode=mode,
-        )
-        assert rsp["code"] == 0, rsp["raw_log"]
-        approve_proposal(c, rsp["logs"][0]["events"])
+        print(f"upgrade {plan_name} height: {target}")
+        if plan_name == "v1.4.0-rc5-testnet":
+            rsp = cli.software_upgrade(
+                "community",
+                {
+                    "name": plan_name,
+                    "title": "upgrade test",
+                    "note": "ditto",
+                    "upgrade-height": target,
+                    "summary": "summary",
+                    "deposit": "10000basetcro",
+                },
+            )
+            assert rsp["code"] == 0, rsp["raw_log"]
+            approve_proposal(c, rsp["events"])
+        else:
+            rsp = cli.gov_propose_legacy(
+                "community",
+                "software-upgrade",
+                {
+                    "name": plan_name,
+                    "title": "upgrade test",
+                    "description": "ditto",
+                    "upgrade-height": target,
+                    "deposit": "10000basetcro",
+                },
+                mode=mode,
+            )
+            assert rsp["code"] == 0, rsp["raw_log"]
+            approve_proposal(c, rsp["logs"][0]["events"])
 
         # update cli chain binary
         c.chain_binary = (
@@ -190,14 +206,11 @@ def exec(c, tmp_path_factory):
     cli.migrate_keystore()
     height = cli.block_height()
     target_height0 = height + 15
-    print("upgrade v1.1 height", target_height0)
-
     cli = do_upgrade("v1.1.0", target_height0, "block")
     check_basic_tx(c)
 
     height = cli.block_height()
     target_height1 = height + 15
-    print("upgrade v1.2 height", target_height1)
 
     w3 = c.w3
     random_contract = deploy_contract(
@@ -269,18 +282,12 @@ def exec(c, tmp_path_factory):
     wait_for_new_blocks(c.cosmos_cli(), 1)
 
     height = cli.block_height()
-    target_height2 = height + 15
-    print("upgrade v1.3 height", target_height2)
     txs = get_txs(base_port, height)
-    do_upgrade("v1.3", target_height2)
+    cli = do_upgrade("v1.3", height + 15)
     assert txs == get_txs(base_port, height)
 
-    height = cli.block_height()
-    target_height3 = height + 15
-    print("upgrade v1.4 height", target_height2)
     gov_param = cli.query_params("gov")
-
-    cli = do_upgrade("v1.4", target_height3)
+    cli = do_upgrade("v1.4", cli.block_height() + 15)
 
     assert_evm_params(cli, e0, target_height0 - 1)
     assert_evm_params(cli, e1, target_height1 - 1)
@@ -290,6 +297,9 @@ def exec(c, tmp_path_factory):
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
     assert_gov_params(cli, gov_param)
+
+    cli = do_upgrade("v1.4.0-rc5-testnet", cli.block_height() + 15)
+    check_basic_tx(c)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
