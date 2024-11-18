@@ -1,5 +1,13 @@
 # Changelog
 
+*Nov 18, 2024*
+
+## v1.4.0-rc5
+
+### State Machine Breaking
+
+* [#]() Check gasWanted only in checkTx mode.
+
 *Nov 14, 2024*
 
 ## v1.4.0-rc4
