@@ -6,7 +6,7 @@
 
 ### State Machine Breaking
 
-* [#1697](https://github.com/crypto-org-chain/cronos/pull/1697) Check gasWanted only in checkTx mode.
+* [#1697](https://github.com/crypto-org-chain/cronos/pull/1697) Check max-tx-gas-wanted only in CheckTx mode.
 
 *Nov 14, 2024*
 
