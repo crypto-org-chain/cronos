@@ -6,7 +6,7 @@
 
 ### State Machine Breaking
 
-* [#]() Check gasWanted only in checkTx mode.
+* [#1697](https://github.com/crypto-org-chain/cronos/pull/1697) Check gasWanted only in checkTx mode.
 
 *Nov 14, 2024*
 
