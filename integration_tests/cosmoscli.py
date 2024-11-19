@@ -719,6 +719,35 @@ class CosmosCLI:
             )
         )
 
+    def software_upgrade(self, proposer, proposal, **kwargs):
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                "upgrade",
+                "software-upgrade",
+                proposal["name"],
+                "-y",
+                "--no-validate",
+                from_=proposer,
+                # content
+                title=proposal.get("title"),
+                note=proposal.get("note"),
+                upgrade_height=proposal.get("upgrade-height"),
+                upgrade_time=proposal.get("upgrade-time"),
+                upgrade_info=proposal.get("upgrade-info"),
+                summary=proposal.get("summary"),
+                deposit=proposal.get("deposit"),
+                # basic
+                home=self.data_dir,
+                **kwargs,
+            )
+        )
+        if rsp["code"] == 0:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
     def gov_propose_legacy(self, proposer, kind, proposal, mode="block", **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
