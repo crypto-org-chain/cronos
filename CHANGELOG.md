@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+
+* [#1701](https://github.com/crypto-org-chain/cronos/pull/1701) Update ibc-go to v8.5.2.
+
 *Nov 18, 2024*
 
 ## v1.4.0-rc5
