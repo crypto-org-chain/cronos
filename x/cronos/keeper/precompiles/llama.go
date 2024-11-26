@@ -1,14 +1,14 @@
 package precompiles
 
 import (
+	"bytes"
+	_ "embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
 
@@ -63,10 +63,16 @@ type RunState struct {
 var (
 	llamaABI             abi.ABI
 	llamaContractAddress = common.BytesToAddress([]byte{103})
+
+	//go:embed llama/stories15M.bin
+	stories []byte
+
+	//go:embed llama/tokenizer.bin
+	tokenizer []byte
 )
 
 func init() {
-	if err := icaABI.UnmarshalJSON([]byte(llama.ILLamaModuleMetaData.ABI)); err != nil {
+	if err := llamaABI.UnmarshalJSON([]byte(llama.ILLamaModuleMetaData.ABI)); err != nil {
 		panic(err)
 	}
 }
@@ -75,14 +81,12 @@ type LLamaContract struct {
 	BaseContract
 
 	kvGasConfig storetypes.GasConfig
-	homeDir     string
 }
 
-func NewLLamaContract(kvGasConfig storetypes.GasConfig, homeDir string) vm.PrecompiledContract {
+func NewLLamaContract(kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
 	return &LLamaContract{
 		BaseContract: NewBaseContract(llamaContractAddress),
 		kvGasConfig:  kvGasConfig,
-		homeDir:      homeDir,
 	}
 }
 
@@ -109,33 +113,30 @@ func (lc *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 		return nil, errors.New("fail to unpack input arguments")
 	}
 	prompt := args[0].(string)
-	seed := args[1].(int32)
+	seed := args[1].(int64)
 	steps := args[2].(int32)
-	checkpoint := fmt.Sprintf("%s/stories15M.bin", lc.homeDir)
-	tokenizer := fmt.Sprintf("%s/tokenizer.bin", lc.homeDir)
-	return nil, execute(checkpoint, tokenizer, prompt, int64(seed), steps)
+	rd := rand.New(rand.NewSource(seed))
+	res, err := execute(prompt, rd, steps)
+	if err != nil {
+		return nil, err
+	}
+	return method.Outputs.Pack(res)
 }
 
-func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) error {
+func execute(prompt string, rd *rand.Rand, steps int32) (string, error) {
 	temperature := 1.0 // e.g. 1.0, or 0.0
 	// read in the config header
 	var config Config
-	file, err := os.Open(checkpoint)
+	r := bytes.NewBuffer(stories)
+	err := binary.Read(r, binary.LittleEndian, &config)
 	if err != nil {
-		fmt.Println("Unable to open file:", checkpoint)
-		return err
-	}
-	err = binary.Read(file, binary.LittleEndian, &config)
-	if err != nil {
-		fmt.Println("binary.Read failed:", err)
-		return err
+		return "", fmt.Errorf("binary.Read failed: %w", err)
 	}
 
 	// create and init the Transformer
 	var weights TransformerWeights
 	allocWeights(&weights, &config)
-	checkpointInitWeights(&weights, &config, file)
-	file.Close()
+	checkpointInitWeights(&weights, &config, r)
 
 	// create and init the application RunState
 	var state RunState
@@ -153,25 +154,21 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 	vocab := make([]string, config.VocabSize)
 	vocabScores := make([]float32, config.VocabSize)
 	var maxTokenLength uint32
-	tokfile, err := os.Open(tokenizer)
-	if err != nil {
-		log.Fatalln("Unable to open tokenizer.bin", err)
-	}
-	defer tokfile.Close()
-	if err := binary.Read(tokfile, binary.LittleEndian, &maxTokenLength); err != nil {
-		log.Fatalln("Unable to read maxTokenLength from tokenizer.bin", err)
+	r = bytes.NewBuffer(tokenizer)
+	if err := binary.Read(r, binary.LittleEndian, &maxTokenLength); err != nil {
+		return "", fmt.Errorf("unable to read maxTokenLength from tokenizer.bin: %w", err)
 	}
 	for i := int32(0); i < config.VocabSize; i++ {
-		if err := binary.Read(tokfile, binary.LittleEndian, &vocabScores[i]); err != nil {
-			log.Fatalln("Unable to read vocabScores from tokenizer.bin", err)
+		if err := binary.Read(r, binary.LittleEndian, &vocabScores[i]); err != nil {
+			return "", fmt.Errorf("unable to read vocabScores from tokenizer.bin: %w", err)
 		}
 		var length int32
-		if err = binary.Read(tokfile, binary.LittleEndian, &length); err != nil {
-			log.Fatalln("Unable to read length from tokenizer.bin", err)
+		if err = binary.Read(r, binary.LittleEndian, &length); err != nil {
+			return "", fmt.Errorf("unable to read length from tokenizer.bin: %w", err)
 		}
 		bytes := make([]byte, length)
-		if _, err = io.ReadFull(tokfile, bytes); err != nil {
-			log.Fatalln("Unable to read bytes from tokenizer.bin", err)
+		if _, err = io.ReadFull(r, bytes); err != nil {
+			return "", fmt.Errorf("unable to read bytes from tokenizer.bin: %w", err)
 		}
 		vocab[i] = string(bytes)
 	}
@@ -179,7 +176,7 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 	// process the prompt, if any
 	promptTokens, err := bpeEncode(prompt, vocab, vocabScores, maxTokenLength)
 	if err != nil {
-		log.Fatalln("Unable to encode prompt", err)
+		return "", fmt.Errorf("unable to encode prompt: %w", err)
 	}
 
 	// start the main loop
@@ -188,9 +185,9 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 	var next int32      // will store the next token in the sequence
 	var token int32 = 1 // init with token 1 (=BOS), as done in Llama-2 sentencepiece tokenizer
 	var pos int32 = 0   // position in the sequence
+	fmt.Println("<s>")  // explicit print the initial BOS token for stylistic symmetry reasons
 
-	fmt.Println("<s>") // explicit print the initial BOS token for stylistic symmetry reasons
-
+	var results []string
 	for pos < steps {
 		// forward the transformer to get logits for the next token
 		transformer(token, pos, &config, &state, &weights)
@@ -212,7 +209,7 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 				// apply softmax to the logits to get the probabilities for next token
 				softmax(state.Logits)
 				// we now want to sample from this distribution to get the next token
-				next = sample(seed, state.Logits)
+				next = sample(rd, state.Logits)
 			}
 		}
 		var tokenStr string
@@ -224,6 +221,7 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 			tokenStr = vocab[next]
 		}
 		fmt.Print(tokenStr)
+		results = append(results, tokenStr)
 
 		// advance forward
 		token = next
@@ -236,7 +234,7 @@ func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) erro
 	// report achieved tok/s
 	end := time.Now()
 	fmt.Printf("\nachieved tok/s: %f\n", float64(steps-1)/end.Sub(start).Seconds())
-	return nil
+	return strings.Join(results, ""), nil
 }
 
 func allocWeights(w *TransformerWeights, p *Config) {
@@ -509,10 +507,9 @@ func argmax(v []float32) int32 {
 // ----------------------------------------------------------------------------
 // functions to sample the next token from the transformer's predicted distribution
 
-func sample(seed int64, probabilities []float32) int32 {
+func sample(rd *rand.Rand, probabilities []float32) int32 {
 	// sample index from probabilities, they must sum to 1
-	random := rand.New(rand.NewSource(seed))
-	r := random.Float32()
+	r := rd.Float32()
 	cdf := float32(0.0)
 	for i, probability := range probabilities {
 		cdf += probability

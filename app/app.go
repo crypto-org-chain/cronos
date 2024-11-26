@@ -685,6 +685,9 @@ func New(
 			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
 				return cronosprecompiles.NewIcaContract(ctx, app.ICAControllerKeeper, &app.CronosKeeper, appCodec, gasConfig)
 			},
+			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
+				return cronosprecompiles.NewLLamaContract(gasConfig)
+			},
 		},
 	)
 

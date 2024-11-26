@@ -31,7 +31,7 @@ var (
 
 // ILLamaModuleMetaData contains all meta data concerning the ILLamaModule contract.
 var ILLamaModuleMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"string\",\"name\":\"prompt\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"seed\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"steps\",\"type\":\"uint256\"}],\"name\":\"inference\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"result\",\"type\":\"string\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"string\",\"name\":\"prompt\",\"type\":\"string\"},{\"internalType\":\"int64\",\"name\":\"seed\",\"type\":\"int64\"},{\"internalType\":\"int32\",\"name\":\"steps\",\"type\":\"int32\"}],\"name\":\"inference\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"result\",\"type\":\"string\"}],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ILLamaModuleABI is the input ABI used to generate the binding from.
@@ -180,23 +180,23 @@ func (_ILLamaModule *ILLamaModuleTransactorRaw) Transact(opts *bind.TransactOpts
 	return _ILLamaModule.Contract.contract.Transact(opts, method, params...)
 }
 
-// Inference is a paid mutator transaction binding the contract method 0x911f6d37.
+// Inference is a paid mutator transaction binding the contract method 0x3c8c648f.
 //
-// Solidity: function inference(string prompt, uint256 seed, uint256 steps) payable returns(string result)
-func (_ILLamaModule *ILLamaModuleTransactor) Inference(opts *bind.TransactOpts, prompt string, seed *big.Int, steps *big.Int) (*types.Transaction, error) {
+// Solidity: function inference(string prompt, int64 seed, int32 steps) payable returns(string result)
+func (_ILLamaModule *ILLamaModuleTransactor) Inference(opts *bind.TransactOpts, prompt string, seed int64, steps int32) (*types.Transaction, error) {
 	return _ILLamaModule.contract.Transact(opts, "inference", prompt, seed, steps)
 }
 
-// Inference is a paid mutator transaction binding the contract method 0x911f6d37.
+// Inference is a paid mutator transaction binding the contract method 0x3c8c648f.
 //
-// Solidity: function inference(string prompt, uint256 seed, uint256 steps) payable returns(string result)
-func (_ILLamaModule *ILLamaModuleSession) Inference(prompt string, seed *big.Int, steps *big.Int) (*types.Transaction, error) {
+// Solidity: function inference(string prompt, int64 seed, int32 steps) payable returns(string result)
+func (_ILLamaModule *ILLamaModuleSession) Inference(prompt string, seed int64, steps int32) (*types.Transaction, error) {
 	return _ILLamaModule.Contract.Inference(&_ILLamaModule.TransactOpts, prompt, seed, steps)
 }
 
-// Inference is a paid mutator transaction binding the contract method 0x911f6d37.
+// Inference is a paid mutator transaction binding the contract method 0x3c8c648f.
 //
-// Solidity: function inference(string prompt, uint256 seed, uint256 steps) payable returns(string result)
-func (_ILLamaModule *ILLamaModuleTransactorSession) Inference(prompt string, seed *big.Int, steps *big.Int) (*types.Transaction, error) {
+// Solidity: function inference(string prompt, int64 seed, int32 steps) payable returns(string result)
+func (_ILLamaModule *ILLamaModuleTransactorSession) Inference(prompt string, seed int64, steps int32) (*types.Transaction, error) {
 	return _ILLamaModule.Contract.Inference(&_ILLamaModule.TransactOpts, prompt, seed, steps)
 }
