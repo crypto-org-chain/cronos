@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* [#]() Update iavl to include prune fix.
+* [#1702](https://github.com/crypto-org-chain/cronos/pull/1702) Update iavl to include prune fix.
 
 ### Improvements
 
