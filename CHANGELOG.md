@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bug Fixes
+
+* [#1702](https://github.com/crypto-org-chain/cronos/pull/1702) Update iavl to include prune fix.
+
 ### Improvements
 
 * [#1701](https://github.com/crypto-org-chain/cronos/pull/1701) Update ibc-go to v8.5.2.

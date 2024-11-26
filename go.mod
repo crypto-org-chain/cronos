@@ -89,7 +89,6 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	// release/v1.2.x
 	github.com/cosmos/iavl v1.2.1-0.20240731145221-594b181f427e // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.3 // indirect
@@ -268,6 +267,8 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// v0.38.x
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20241106091515-ce418f845d9a
+	// release/v1.2.x
+	github.com/cosmos/iavl => github.com/crypto-org-chain/iavl v0.0.0-20241126033451-a3e0980a5b06
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
