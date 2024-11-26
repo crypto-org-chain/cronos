@@ -1,5 +1,7 @@
 # Changelog
 
+*Nov 26, 2024*
+
 ## v1.4.0-rc6
 
 ### Bug Fixes
