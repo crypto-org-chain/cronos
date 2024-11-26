@@ -8,9 +8,11 @@ solc08 --abi --bin x/cronos/events/bindings/src/ICA.sol -o build --overwrite
 solc08 --abi --bin x/cronos/events/bindings/src/ICACallback.sol -o build --overwrite
 
 
+solc08 --abi --bin x/cronos/events/bindings/src/LLama.sol -o build --overwrite
 abigen --pkg lib --abi build/CosmosTypes.abi --bin build/CosmosTypes.bin --out x/cronos/events/bindings/cosmos/lib/cosmos_types.abigen.go --type CosmosTypes
 abigen --pkg relayer --abi build/IRelayerModule.abi --bin build/IRelayerModule.bin --out x/cronos/events/bindings/cosmos/precompile/relayer/i_relayer_module.abigen.go --type RelayerModule
 abigen --pkg relayer --abi build/IRelayerFunctions.abi --bin build/IRelayerFunctions.bin --out x/cronos/events/bindings/cosmos/precompile/relayer/i_relayer_functions.abigen.go --type RelayerFunctions
 abigen --pkg bank --abi build/IBankModule.abi --bin build/IBankModule.bin --out x/cronos/events/bindings/cosmos/precompile/bank/i_bank_module.abigen.go --type BankModule
 abigen --pkg ica --abi build/IICAModule.abi --bin build/IICAModule.bin --out x/cronos/events/bindings/cosmos/precompile/ica/i_ica_module.abigen.go --type ICAModule
 abigen --pkg icacallback --abi build/IICACallback.abi --bin build/IICACallback.bin --out x/cronos/events/bindings/cosmos/precompile/icacallback/i_ica_callback.abigen.go --type ICACallback
+abigen --pkg llama --abi build/ILLamaModule.abi --bin build/ILLamaModule.bin --out x/cronos/events/bindings/cosmos/precompile/llama/i_llama.abigen.go --type ILLamaModule
