@@ -60,8 +60,6 @@ type RunState struct {
 	ValueCache []float32 // (layer, seq_len, dim)
 }
 
-const RunMethodName = "run"
-
 var (
 	llamaABI             abi.ABI
 	llamaContractAddress = common.BytesToAddress([]byte{103})
@@ -108,7 +106,7 @@ func NewLLamaContract(kvGasConfig storetypes.GasConfig, homeDir string) vm.Preco
 }
 
 func (ic *LLamaContract) Address() common.Address {
-	return icaContractAddress
+	return llamaContractAddress
 }
 
 func (ic *LLamaContract) RequiredGas(input []byte) uint64 {
@@ -136,7 +134,7 @@ func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 }
 
 func execute(checkpoint, prompt string, seed int64) error {
-	temperature := 0.9  // e.g. 1.0, or 0.0
+	temperature := 1.0  // e.g. 1.0, or 0.0
 	steps := int32(256) // max number of steps to run for, 0: use seq_len
 	// read in the config header
 	var config Config
