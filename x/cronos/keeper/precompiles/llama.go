@@ -129,13 +129,13 @@ func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 	}
 	prompt := args[0].(string)
 	seed := args[1].(int32)
+	steps := args[2].(int32)
 	checkpoint := fmt.Sprintf("%s/stories15M.bin", ic.homeDir)
-	return nil, execute(checkpoint, prompt, int64(seed))
+	return nil, execute(checkpoint, prompt, int64(seed), steps)
 }
 
-func execute(checkpoint, prompt string, seed int64) error {
-	temperature := 1.0  // e.g. 1.0, or 0.0
-	steps := int32(256) // max number of steps to run for, 0: use seq_len
+func execute(checkpoint, prompt string, seed int64, steps int32) error {
+	temperature := 1.0 // e.g. 1.0, or 0.0
 	// read in the config header
 	var config Config
 	file, err := os.Open(checkpoint)
