@@ -9,7 +9,6 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -97,12 +96,14 @@ type LLamaContract struct {
 	BaseContract
 
 	kvGasConfig storetypes.GasConfig
+	homeDir     string
 }
 
-func NewLLamaContract(kvGasConfig storetypes.GasConfig) vm.PrecompiledContract {
+func NewLLamaContract(kvGasConfig storetypes.GasConfig, homeDir string) vm.PrecompiledContract {
 	return &LLamaContract{
 		BaseContract: NewBaseContract(llamaContractAddress),
 		kvGasConfig:  kvGasConfig,
+		homeDir:      homeDir,
 	}
 }
 
@@ -130,50 +131,24 @@ func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 	}
 	prompt := args[0].(string)
 	seed := args[1].(int32)
-	execute(prompt, int64(seed))
-	return nil, errors.New("unknown method")
+	checkpoint := fmt.Sprintf("%s/stories15M.bin", ic.homeDir)
+	return nil, execute(checkpoint, prompt, int64(seed))
 }
 
-func execute(prompt string, seed int64) {
-	checkpoint := ""    // e.g. out/model.bin
+func execute(checkpoint, prompt string, seed int64) error {
 	temperature := 0.9  // e.g. 1.0, or 0.0
 	steps := int32(256) // max number of steps to run for, 0: use seq_len
-	// prompt := ""        // e.g. "The meaning of life is"
-	// seed := int64(0)
-
-	// 'checkpoint' is necessary arg
-	if len(os.Args) < 2 {
-		fmt.Printf("Usage: %s <checkpoint_file> [temperature] [steps] [prompt]\n", os.Args[0])
-		os.Exit(1)
-	}
-	checkpoint = os.Args[1]
-	// temperature is optional
-	if len(os.Args) >= 3 {
-		temperature, _ = strconv.ParseFloat(os.Args[2], 64)
-	}
-	if len(os.Args) >= 4 {
-		s, _ := strconv.Atoi(os.Args[3])
-		steps = int32(s)
-	}
-	if len(os.Args) >= 5 {
-		prompt = os.Args[4]
-	}
-
-	if len(os.Args) >= 6 {
-		seed, _ = strconv.ParseInt(os.Args[5], 10, 64)
-	}
-
 	// read in the config header
 	var config Config
 	file, err := os.Open(checkpoint)
 	if err != nil {
 		fmt.Println("Unable to open file:", checkpoint)
-		os.Exit(1)
+		return err
 	}
 	err = binary.Read(file, binary.LittleEndian, &config)
 	if err != nil {
 		fmt.Println("binary.Read failed:", err)
-		os.Exit(1)
+		return err
 	}
 
 	// create and init the Transformer
@@ -281,6 +256,7 @@ func execute(prompt string, seed int64) {
 	// report achieved tok/s
 	end := time.Now()
 	fmt.Printf("\nachieved tok/s: %f\n", float64(steps-1)/end.Sub(start).Seconds())
+	return nil
 }
 
 func allocWeights(w *TransformerWeights, p *Config) {
