@@ -131,10 +131,11 @@ func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 	seed := args[1].(int32)
 	steps := args[2].(int32)
 	checkpoint := fmt.Sprintf("%s/stories15M.bin", ic.homeDir)
-	return nil, execute(checkpoint, prompt, int64(seed), steps)
+	tokenizer := fmt.Sprintf("%s/tokenizer.bin", ic.homeDir)
+	return nil, execute(checkpoint, tokenizer, prompt, int64(seed), steps)
 }
 
-func execute(checkpoint, prompt string, seed int64, steps int32) error {
+func execute(checkpoint, tokenizer, prompt string, seed int64, steps int32) error {
 	temperature := 1.0 // e.g. 1.0, or 0.0
 	// read in the config header
 	var config Config
@@ -171,7 +172,7 @@ func execute(checkpoint, prompt string, seed int64, steps int32) error {
 	vocab := make([]string, config.VocabSize)
 	vocabScores := make([]float32, config.VocabSize)
 	var maxTokenLength uint32
-	tokfile, err := os.Open("../tokenizer.bin")
+	tokfile, err := os.Open(tokenizer)
 	if err != nil {
 		log.Fatalln("Unable to open tokenizer.bin", err)
 	}
