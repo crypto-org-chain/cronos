@@ -13,7 +13,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/icacallback"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/llama"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -66,27 +66,8 @@ var (
 )
 
 func init() {
-	if err := icaABI.UnmarshalJSON([]byte(llamaABI.I.ABI)); err != nil {
+	if err := icaABI.UnmarshalJSON([]byte(llama.ILLamaModuleMetaData.ABI)); err != nil {
 		panic(err)
-	}
-	if err := icaCallbackABI.UnmarshalJSON([]byte(icacallback.ICACallbackMetaData.ABI)); err != nil {
-		panic(err)
-	}
-
-	for methodName := range icaABI.Methods {
-		var methodID [4]byte
-		copy(methodID[:], icaABI.Methods[methodName].ID[:4])
-		switch methodName {
-		case RegisterAccountMethodName:
-			icaGasRequiredByMethod[methodID] = 300000
-		case QueryAccountMethodName:
-			icaGasRequiredByMethod[methodID] = 100000
-		case SubmitMsgsMethodName:
-			icaGasRequiredByMethod[methodID] = 300000
-		default:
-			icaGasRequiredByMethod[methodID] = 0
-		}
-		icaMethodNamesByID[methodID] = methodName
 	}
 }
 
@@ -105,16 +86,16 @@ func NewLLamaContract(kvGasConfig storetypes.GasConfig, homeDir string) vm.Preco
 	}
 }
 
-func (ic *LLamaContract) Address() common.Address {
+func (lc *LLamaContract) Address() common.Address {
 	return llamaContractAddress
 }
 
-func (ic *LLamaContract) RequiredGas(input []byte) uint64 {
+func (lc *LLamaContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size
-	return uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
+	return uint64(len(input)) * lc.kvGasConfig.WriteCostPerByte
 }
 
-func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
+func (lc *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	methodID := contract.Input[:4]
 	method, err := llamaABI.MethodById(methodID)
 	if err != nil {
@@ -130,8 +111,8 @@ func (ic *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 	prompt := args[0].(string)
 	seed := args[1].(int32)
 	steps := args[2].(int32)
-	checkpoint := fmt.Sprintf("%s/stories15M.bin", ic.homeDir)
-	tokenizer := fmt.Sprintf("%s/tokenizer.bin", ic.homeDir)
+	checkpoint := fmt.Sprintf("%s/stories15M.bin", lc.homeDir)
+	tokenizer := fmt.Sprintf("%s/tokenizer.bin", lc.homeDir)
 	return nil, execute(checkpoint, tokenizer, prompt, int64(seed), steps)
 }
 
