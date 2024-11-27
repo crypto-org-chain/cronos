@@ -13,10 +13,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/llama"
-	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -123,16 +120,6 @@ func (lc *LLamaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) 
 	if err != nil {
 		return nil, err
 	}
-	stateDB := evm.StateDB.(ExtStateDB)
-	stateDB.ExecuteNativeAction(lc.Address(), cronosevents.LLamaConvertEvent, func(ctx sdk.Context) error {
-		ctx.EventManager().EmitEvents(sdk.Events{
-			sdk.NewEvent(
-				cronoseventstypes.EventTypeSubmitMsgsResult,
-				sdk.NewAttribute(cronoseventstypes.AttributeKeyInference, res),
-			),
-		})
-		return nil
-	})
 	return method.Outputs.Pack(res)
 }
 
