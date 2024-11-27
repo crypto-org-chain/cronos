@@ -16,6 +16,7 @@ import (
 var (
 	RelayerEvents        map[string]*EventDescriptor
 	IcaEvents            map[string]*EventDescriptor
+	LLamaEvents          map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
 		channeltypes.AttributeKeyDataHex:             ConvertPacketData,
 		transfertypes.AttributeKeyAmount:             ConvertAmount,
@@ -42,6 +43,9 @@ var (
 	IcaValueDecoders = ValueDecoders{
 		cronoseventstypes.AttributeKeySeq:   ConvertUint64,
 		channeltypes.AttributeKeySrcChannel: ReturnStringAsIs,
+	}
+	LLamaValueDecoders = ValueDecoders{
+		cronoseventstypes.AttributeKeyInference: ReturnStringAsIs,
 	}
 )
 
@@ -77,4 +81,12 @@ func IcaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
 		return nil, nil
 	}
 	return desc.ConvertEvent(event.Attributes, IcaValueDecoders, map[string]string{})
+}
+
+func LLamaConvertEvent(event sdk.Event) (*ethtypes.Log, error) {
+	desc, ok := LLamaEvents[event.Type]
+	if !ok {
+		return nil, nil
+	}
+	return desc.ConvertEvent(event.Attributes, LLamaValueDecoders, map[string]string{})
 }
