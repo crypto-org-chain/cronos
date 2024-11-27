@@ -158,6 +158,7 @@ import (
 
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
+	"github.com/crypto-org-chain/cronos/v2/llm"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
@@ -686,7 +687,7 @@ func New(
 				return cronosprecompiles.NewIcaContract(ctx, app.ICAControllerKeeper, &app.CronosKeeper, appCodec, gasConfig)
 			},
 			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
-				return cronosprecompiles.NewLLamaContract(gasConfig)
+				return cronosprecompiles.NewLLamaContract(gasConfig, llm.NewBuiltinModel())
 			},
 		},
 	)
