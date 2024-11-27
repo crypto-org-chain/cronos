@@ -62,6 +62,7 @@ TEST_CONTRACTS = {
     "TestICA": "TestICA.sol",
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
+    "TestLLama": "TestLLama.sol",
 }
 
 
