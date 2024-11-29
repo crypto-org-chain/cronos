@@ -60,6 +60,19 @@
         'broadcast-mode': 'sync',
       },
       config: {
+        db_backend: 'goleveldb',
+      },
+      'app-config': {
+        'app-db-backend': 'goleveldb',
+      },
+    }, {
+      coins: '1000000000000000000stake,10000000000000000000000basetcro',
+      staked: '1000000000000000000stake',
+      mnemonic: '${VALIDATOR3_MNEMONIC}',
+      client_config: {
+        'broadcast-mode': 'sync',
+      },
+      config: {
         db_backend: 'pebbledb',
       },
       'app-config': {
