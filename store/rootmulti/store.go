@@ -446,6 +446,10 @@ func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 }
 
 // Implements interface CommitMultiStore
+func (rs *Store) SetIAVLSyncPruning(syncPruning bool) {
+}
+
+// Implements interface CommitMultiStore
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 

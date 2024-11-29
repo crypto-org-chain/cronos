@@ -251,9 +251,9 @@ require (
 
 // release/v0.50.x
 replace (
-	cosmossdk.io/store => github.com/yihuang/cosmos-sdk/store b6ec0d55cc17f179113e320e72b530c8388fae61
-	cosmossdk.io/x/tx => github.com/yihuang/cosmos-sdk/x/tx b6ec0d55cc17f179113e320e72b530c8388fae61
-	github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk b6ec0d55cc17f179113e320e72b530c8388fae61
+	cosmossdk.io/store => github.com/yihuang/cosmos-sdk/store v0.0.0-20241129083954-b6ec0d55cc17
+	cosmossdk.io/x/tx => github.com/yihuang/cosmos-sdk/x/tx v0.0.0-20241129083954-b6ec0d55cc17
+	github.com/cosmos/cosmos-sdk => github.com/yihuang/cosmos-sdk v0.43.0-beta1.0.20241129083954-b6ec0d55cc17
 )
 
 replace (
@@ -267,7 +267,6 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// v0.38.x
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20241106091515-ce418f845d9a
-	github.com/cosmos/iavl => ../iavl
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
