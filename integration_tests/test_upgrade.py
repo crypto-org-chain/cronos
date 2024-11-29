@@ -157,7 +157,9 @@ def exec(c, tmp_path_factory):
         json.dump(json.loads(cli.export()), fp)
         fp.flush()
 
-    c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    c.supervisorctl(
+        "start", "cronos_777-1-node0", "cronos_777-1-node1", "cronos_777-1-node2"
+    )
     wait_for_port(ports.evmrpc_port(base_port))
     wait_for_new_blocks(cli, 1)
 
@@ -278,7 +280,9 @@ def exec(c, tmp_path_factory):
         genesis["genesis_time"] = config.get("genesis-time")
         file = c.cosmos_cli(i).data_dir / "config/genesis.json"
         file.write_text(json.dumps(genesis))
-    c.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1")
+    c.supervisorctl(
+        "start", "cronos_777-1-node0", "cronos_777-1-node1", "cronos_777-1-node2"
+    )
     wait_for_new_blocks(c.cosmos_cli(), 1)
 
     height = cli.block_height()
