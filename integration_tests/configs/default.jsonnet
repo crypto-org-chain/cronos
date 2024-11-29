@@ -4,14 +4,14 @@
     cmd: 'cronosd',
     'start-flags': '--trace',
     config: {
-      db_backend: 'goleveldb',
+      db_backend: 'rocksdb',
       mempool: {
         version: 'v1',
       },
     },
     'app-config': {
       chain_id: 'cronos_777-1',
-      'app-db-backend': 'goleveldb',
+      'app-db-backend': 'rocksdb',
       'minimum-gas-prices': '0basetcro',
       'index-events': ['ethereum_tx.ethereumTxHash'],
       'iavl-lazy-loading': true,
@@ -60,10 +60,10 @@
         'broadcast-mode': 'sync',
       },
       config: {
-        db_backend: 'goleveldb',
+        db_backend: 'pebbledb',
       },
       'app-config': {
-        'app-db-backend': 'goleveldb',
+        'app-db-backend': 'pebbledb',
       },
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
