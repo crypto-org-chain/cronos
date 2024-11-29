@@ -60,10 +60,10 @@
         'broadcast-mode': 'sync',
       },
       config: {
-        db_backend: 'goleveldb',
+        db_backend: 'pebbledb',
       },
       'app-config': {
-        'app-db-backend': 'goleveldb',
+        'app-db-backend': 'pebbledb',
       },
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
@@ -73,10 +73,10 @@
         'broadcast-mode': 'sync',
       },
       config: {
-        db_backend: 'pebbledb',
+        db_backend: 'goleveldb',
       },
       'app-config': {
-        'app-db-backend': 'pebbledb',
+        'app-db-backend': 'goleveldb',
       },
     }],
     accounts: [{

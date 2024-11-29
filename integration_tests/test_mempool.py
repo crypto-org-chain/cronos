@@ -61,7 +61,7 @@ def test_mempool(cronos_mempool):
     print(f"all send tx hash: {sended_hash_set} at {block_num_0}")
 
     all_pending = w3.eth.get_filter_changes(filter.filter_id)
-    assert len(all_pending) == 4
+    assert len(all_pending) == len(KEYS.items()) - 1
 
     block_num_1 = w3.eth.get_block_number()
     print(f"block_num_1 {block_num_1}")
