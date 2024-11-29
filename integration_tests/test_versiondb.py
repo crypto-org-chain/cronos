@@ -72,9 +72,13 @@ def test_versiondb_migration(cronos: Cronos):
     patch_app_db_backend(cli1.data_dir / "config/app.toml", "rocksdb")
 
     print("start all nodes")
-    print(cronos.supervisorctl("start", "cronos_777-1-node0", "cronos_777-1-node1"))
-    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
-    wait_for_port(ports.evmrpc_port(cronos.base_port(1)))
+    print(
+        cronos.supervisorctl(
+            "start", "cronos_777-1-node0", "cronos_777-1-node1", "cronos_777-1-node2"
+        )
+    )
+    for i in range(len(cronos.config["validators"])):
+        wait_for_port(ports.evmrpc_port(cronos.base_port(i)))
 
     assert w3.eth.get_balance(community, block_identifier=block0) == balance0
     assert w3.eth.get_balance(community, block_identifier=block1) == balance1
