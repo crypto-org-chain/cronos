@@ -31,8 +31,8 @@ def update_node_cmd(path, cmd, i):
 def post_init(broken_binary):
     def inner(path, base_port, config):
         chain_id = "cronos_777-1"
-        update_node_cmd(path / chain_id, broken_binary, 2)
         update_node_cmd(path / chain_id, broken_binary, 3)
+        update_node_cmd(path / chain_id, broken_binary, 4)
 
     return inner
 
@@ -67,10 +67,10 @@ def test_rollback(custom_cronos):
     - use rollback command to rollback the db.
     - switch to correct binary should make the node syncing again.
 
-    node2: test memiavl node
-    node3: test iavl node
+    node3: test memiavl node
+    node4: test iavl node
     """
-    nodes = [2, 3]
+    nodes = [3, 4]
     clis = {i: custom_cronos.cosmos_cli(i) for i in nodes}
     for i, cli in clis.items():
         wait_for_port(ports.rpc_port(custom_cronos.base_port(i)))
