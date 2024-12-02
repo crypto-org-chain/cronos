@@ -2020,3 +2020,6 @@ class CosmosCLI:
             .strip()
             .decode()
         )
+
+    def prune(self, kind="everything"):
+        return self.raw("prune", kind, home=self.data_dir).decode()
