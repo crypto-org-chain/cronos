@@ -9,7 +9,7 @@ def test_permissions_updates(cronos):
     - reproduce an iavl prune issue: https://github.com/cosmos/iavl/pull/1007
     """
     acc = eth_to_bech32(ADDRS["signer1"])
-    cli = cronos.cosmos_cli(1)  # node1 is iavl
+    cli = cronos.cosmos_cli(2)  # node2 is iavl
     cli.create_account("community", os.environ["COMMUNITY_MNEMONIC"])
     cli.create_account("admin", os.environ["VALIDATOR1_MNEMONIC"])
     rsp = cli.query_permissions(acc)
@@ -31,9 +31,9 @@ def test_permissions_updates(cronos):
     assert rsp["can_change_token_mapping"] is True
     assert rsp["can_turn_bridge"] is True
 
-    cronos.supervisorctl("stop", "cronos_777-1-node1")
+    cronos.supervisorctl("stop", "cronos_777-1-node2")
     print(cli.prune())
-    cronos.supervisorctl("start", "cronos_777-1-node1")
+    cronos.supervisorctl("start", "cronos_777-1-node2")
 
     rsp = cli.update_permissions(acc, 4, from_="admin")
     assert rsp["code"] == 0, rsp["raw_log"]
