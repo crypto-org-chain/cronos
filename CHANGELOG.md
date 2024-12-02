@@ -1,5 +1,14 @@
 # Changelog
 
+*Dec 2, 2024*
+
+## v1.4.0
+
+### Improvements
+
+* [#1705](https://github.com/crypto-org-chain/cronos/pull/1705) Reproduce iavl prune bug in test and change iavl
+  dependency back to upstream.
+
 *Nov 26, 2024*
 
 ## v1.4.0-rc6
