@@ -6,8 +6,10 @@
 
 ### Improvements
 
-* [#1705](https://github.com/crypto-org-chain/cronos/pull/1705) Reproduce iavl prune bug in test and change iavl
-  dependency back to upstream.
+* [#1705](https://github.com/crypto-org-chain/cronos/pull/1705)
+  - Reproduce iavl prune bug in test
+  - change iavl dependency back to upstream
+  - fix prune command with async pruning
 
 *Nov 26, 2024*
 
