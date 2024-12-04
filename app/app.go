@@ -170,6 +170,7 @@ import (
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
 	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	icaauthtypes "github.com/crypto-org-chain/cronos/v2/x/icaauth/types"
 	"github.com/ethereum/go-ethereum/common"
 
 	// force register the extension json-rpc.
@@ -850,6 +851,8 @@ func New(
 		})
 	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
 	app.BasicModuleManager.RegisterInterfaces(interfaceRegistry)
+	icaauthtypes.RegisterCodec(cdc)
+	icaauthtypes.RegisterInterfaces(interfaceRegistry)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
