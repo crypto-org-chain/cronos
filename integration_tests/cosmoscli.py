@@ -1437,6 +1437,41 @@ class CosmosCLI:
             )
         )
 
+    def icaauth_register_account(self, connid, event_query_tx=True, **kwargs):
+        default_kwargs = {
+            "home": self.data_dir,
+            "node": self.node_rpc,
+            "chain_id": self.chain_id,
+            "keyring_backend": "test",
+        }
+        args = ["icaauth", "register-account"]
+        rsp = json.loads(
+            self.raw(
+                "tx",
+                *args,
+                connid,
+                "-y",
+                **(default_kwargs | kwargs),
+            )
+        )
+        if rsp["code"] == 0 and event_query_tx:
+            rsp = self.event_query_tx_for(rsp["txhash"])
+        return rsp
+
+    def icaauth_query_account(self, connid, owner, **kwargs):
+        default_kwargs = {
+            "node": self.node_rpc,
+            "output": "json",
+        }
+        args = ["icaauth", "interchain-account-address", connid, owner]
+        return json.loads(
+            self.raw(
+                "q",
+                *args,
+                **(default_kwargs | kwargs),
+            )
+        )
+
     def query_ica_params(self, **kwargs):
         default_kwargs = {
             "node": self.node_rpc,
