@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Improvements
+
+* [#1712](https://github.com/crypto-org-chain/cronos/pull/1712) Upgrade rocksdb to `v9.8.4`.
+
 *Dec 2, 2024*
 
 ## v1.4.0
