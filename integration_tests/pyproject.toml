@@ -17,7 +17,7 @@ protobuf = "^4.25"
 python-dateutil = "^2.8"
 web3 = "^6.15"
 python-dotenv = "^1.0"
-pystarport = { git = "https://github.com/mmsqe/pystarport.git", branch = "fix_cmd" }
+pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 websockets = "^12.0"
 toml = "^0"
 jsonnet = "^0"

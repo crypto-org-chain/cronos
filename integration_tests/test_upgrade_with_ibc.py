@@ -39,13 +39,14 @@ def ibc(tmp_path_factory):
     for d in upgrades.iterdir():
         d.chmod(mod)
 
+    binary = str(upgrades / "genesis/bin/cronosd")
     yield from prepare_network(
         path,
         name,
         incentivized=False,
         connection_only=True,
         post_init=post_init,
-        chain_binary=str(upgrades / "genesis/bin/cronosd"),
+        chain_binary=f"chain-maind,{binary}",
         relayer=cluster.Relayer.RLY.value,
     )
 
