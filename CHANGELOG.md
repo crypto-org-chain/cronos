@@ -4,8 +4,8 @@
 
 ### Bug Fixes
 
-* [#1713](https://github.com/crypto-org-chain/cronos/pull/1713) Register legacy codec to allow query historical txs from deleted icaauth module.
 * [#1714](https://github.com/crypto-org-chain/cronos/pull/1714) Avoid nil pointer error when query blocks before feemarket module gets enabled.
+* [#1713](https://github.com/crypto-org-chain/cronos/pull/1713) Register legacy codec to allow query historical txs whose modules are removed.
 
 ### Improvements
 
