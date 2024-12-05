@@ -19,10 +19,6 @@ poetry2nix.mkPoetryEnv {
         flake8-isort = [ "hatchling" ];
         pyunormalize = [ "setuptools" ];
         eth-bloom = [ "setuptools" ];
-        docker = [
-          "hatchling"
-          "hatch-vcs"
-        ];
       };
     in
     lib.mapAttrs (

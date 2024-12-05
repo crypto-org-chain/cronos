@@ -149,8 +149,6 @@ def prepare_network(
     grantee=None,
     need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
-    post_init=None,
-    chain_binary=None,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
@@ -164,8 +162,6 @@ def prepare_network(
         tmp_path,
         26700,
         Path(__file__).parent / file,
-        post_init=post_init,
-        chain_binary=chain_binary,
         relayer=relayer,
     ) as cronos:
         cli = cronos.cosmos_cli()

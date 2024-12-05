@@ -186,15 +186,7 @@ def setup_custom_cronos(
         if wait_port:
             wait_for_port(ports.evmrpc_port(base_port))
             wait_for_port(ports.evmrpc_ws_port(base_port))
-        chain_binary = (
-            "cronosd"
-            if chain_binary is None
-            else next(
-                (b.strip() for b in chain_binary.split(",") if "cronosd" in b),
-                "cronosd",
-            )
-        )
-        c = Cronos(path / "cronos_777-1", chain_binary=chain_binary)
+        c = Cronos(path / "cronos_777-1", chain_binary=chain_binary or "cronosd")
         w3_wait_for_block(c.w3, 1)
         yield c
     finally:
