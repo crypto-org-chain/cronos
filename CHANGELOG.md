@@ -1,5 +1,16 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+* [#1714](https://github.com/crypto-org-chain/cronos/pull/1714) Avoid nil pointer error when query blocks before feemarket module gets enabled.
+* [#1713](https://github.com/crypto-org-chain/cronos/pull/1713) Register legacy codec to allow query historical txs whose modules are removed (icaauth, authz).
+
+### Improvements
+
+* [#1712](https://github.com/crypto-org-chain/cronos/pull/1712) Upgrade rocksdb to `v9.8.4`.
+
 *Dec 2, 2024*
 
 ## v1.4.0
