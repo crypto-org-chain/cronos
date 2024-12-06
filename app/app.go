@@ -1327,23 +1327,7 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
-	// create new config instance to avoid affect the state machine
-	encodingConfig := evmenc.MakeConfig()
-	cdc := encodingConfig.Amino
-	interfaceRegistry := encodingConfig.InterfaceRegistry
-
-	app.BasicModuleManager.RegisterLegacyAminoCodec(cdc)
-	app.BasicModuleManager.RegisterInterfaces(interfaceRegistry)
-
-	// for decoding legacy transactions whose modules are removed
-	RegisterLegacyCodec(cdc)
-	RegisterLegacyInterfaces(interfaceRegistry)
-
-	clientCtx = clientCtx.
-		WithInterfaceRegistry(interfaceRegistry).
-		WithTxConfig(encodingConfig.TxConfig).
-		WithCodec(encodingConfig.Codec)
-	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, interfaceRegistry)
+	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
