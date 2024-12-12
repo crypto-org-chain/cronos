@@ -19,6 +19,7 @@ require (
 	github.com/99designs/keyring v1.2.2
 	github.com/cometbft/cometbft v0.38.15
 	github.com/cosmos/cosmos-db v1.0.3-0.20240408151834-e75f6e4b28d8
+	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.50.9
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240913130017-6b2554360c0e // v8.5.1
@@ -45,8 +46,6 @@ require (
 	google.golang.org/protobuf v1.35.1
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-require github.com/cosmos/cosmos-proto v1.0.0-beta.5
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
