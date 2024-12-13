@@ -1,28 +1,21 @@
 import json
-import shutil
-import stat
-import subprocess
-from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 import requests
 from pystarport import ports
-from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 
-from .network import Cronos, setup_custom_cronos
+from .network import Cronos, setup_upgrade_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
-    approve_proposal,
     assert_gov_params,
     deploy_contract,
-    edit_ini_sections,
+    do_upgrade,
     get_consensus_params,
     get_send_enable,
     send_transaction,
-    wait_for_block,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -32,7 +25,10 @@ pytestmark = pytest.mark.upgrade
 
 @pytest.fixture(scope="module")
 def custom_cronos(tmp_path_factory):
-    yield from setup_cronos_test(tmp_path_factory)
+    port = 26200
+    nix_name = "upgrade-test-package"
+    cfg_name = "cosmovisor"
+    yield from setup_upgrade_cronos(tmp_path_factory, port, nix_name, cfg_name)
 
 
 def get_txs(base_port, end):
@@ -42,74 +38,6 @@ def get_txs(base_port, end):
         url = f"http://127.0.0.1:{port}/block_results?height={h}"
         res.append(requests.get(url).json().get("result")["txs_results"])
     return res
-
-
-def init_cosmovisor(home):
-    """
-    build and setup cosmovisor directory structure in each node's home directory
-    """
-    cosmovisor = home / "cosmovisor"
-    cosmovisor.mkdir()
-    (cosmovisor / "upgrades").symlink_to("../../../upgrades")
-    (cosmovisor / "genesis").symlink_to("./upgrades/genesis")
-
-
-def post_init(path, base_port, config):
-    """
-    prepare cosmovisor for each node
-    """
-    chain_id = "cronos_777-1"
-    data = path / chain_id
-    cfg = json.loads((data / "config.json").read_text())
-    for i, _ in enumerate(cfg["validators"]):
-        home = data / f"node{i}"
-        init_cosmovisor(home)
-
-    edit_ini_sections(
-        chain_id,
-        data / SUPERVISOR_CONFIG_FILE,
-        lambda i, _: {
-            "command": f"cosmovisor run start --home %(here)s/node{i}",
-            "environment": (
-                "DAEMON_NAME=cronosd,"
-                "DAEMON_SHUTDOWN_GRACE=1m,"
-                "UNSAFE_SKIP_BACKUP=true,"
-                f"DAEMON_HOME=%(here)s/node{i}"
-            ),
-        },
-    )
-
-
-def setup_cronos_test(tmp_path_factory):
-    path = tmp_path_factory.mktemp("upgrade")
-    port = 26200
-    nix_name = "upgrade-test-package"
-    cfg_name = "cosmovisor"
-    configdir = Path(__file__).parent
-    cmd = [
-        "nix-build",
-        configdir / f"configs/{nix_name}.nix",
-    ]
-    print(*cmd)
-    subprocess.run(cmd, check=True)
-
-    # copy the content so the new directory is writable.
-    upgrades = path / "upgrades"
-    shutil.copytree("./result", upgrades)
-    mod = stat.S_IRWXU
-    upgrades.chmod(mod)
-    for d in upgrades.iterdir():
-        d.chmod(mod)
-
-    # init with genesis binary
-    with contextmanager(setup_custom_cronos)(
-        path,
-        port,
-        configdir / f"configs/{cfg_name}.jsonnet",
-        post_init=post_init,
-        chain_binary=str(upgrades / "genesis/bin/cronosd"),
-    ) as cronos:
-        yield cronos
 
 
 def assert_evm_params(cli, expected, height):
@@ -163,52 +91,11 @@ def exec(c, tmp_path_factory):
     wait_for_port(ports.evmrpc_port(base_port))
     wait_for_new_blocks(cli, 1)
 
-    def do_upgrade(plan_name, target, mode=None):
-        print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.4.0-rc5-testnet":
-            rsp = cli.software_upgrade(
-                "community",
-                {
-                    "name": plan_name,
-                    "title": "upgrade test",
-                    "note": "ditto",
-                    "upgrade-height": target,
-                    "summary": "summary",
-                    "deposit": "10000basetcro",
-                },
-            )
-            assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["events"])
-        else:
-            rsp = cli.gov_propose_legacy(
-                "community",
-                "software-upgrade",
-                {
-                    "name": plan_name,
-                    "title": "upgrade test",
-                    "description": "ditto",
-                    "upgrade-height": target,
-                    "deposit": "10000basetcro",
-                },
-                mode=mode,
-            )
-            assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["logs"][0]["events"])
-
-        # update cli chain binary
-        c.chain_binary = (
-            Path(c.chain_binary).parent.parent.parent / f"{plan_name}/bin/cronosd"
-        )
-        # block should pass the target height
-        wait_for_block(c.cosmos_cli(), target + 2, timeout=480)
-        wait_for_port(ports.rpc_port(base_port))
-        return c.cosmos_cli()
-
     # test migrate keystore
     cli.migrate_keystore()
     height = cli.block_height()
     target_height0 = height + 15
-    cli = do_upgrade("v1.1.0", target_height0, "block")
+    cli = do_upgrade(c, "v1.1.0", target_height0, "block")
     check_basic_tx(c)
 
     height = cli.block_height()
@@ -231,7 +118,7 @@ def exec(c, tmp_path_factory):
     )
     print("old values", old_height, old_balance, old_base_fee)
 
-    cli = do_upgrade("v1.2", target_height1)
+    cli = do_upgrade(c, "v1.2", target_height1)
     check_basic_tx(c)
 
     # deploy contract should still work
@@ -287,11 +174,11 @@ def exec(c, tmp_path_factory):
 
     height = cli.block_height()
     txs = get_txs(base_port, height)
-    cli = do_upgrade("v1.3", height + 15)
+    cli = do_upgrade(c, "v1.3", height + 15)
     assert txs == get_txs(base_port, height)
 
     gov_param = cli.query_params("gov")
-    cli = do_upgrade("v1.4", cli.block_height() + 15)
+    cli = do_upgrade(c, "v1.4", cli.block_height() + 15)
 
     assert_evm_params(cli, e0, target_height0 - 1)
     assert_evm_params(cli, e1, target_height1 - 1)
@@ -302,7 +189,7 @@ def exec(c, tmp_path_factory):
         cli.query_params("icaauth")
     assert_gov_params(cli, gov_param)
 
-    cli = do_upgrade("v1.4.0-rc5-testnet", cli.block_height() + 15)
+    cli = do_upgrade(c, "v1.4.0-rc5-testnet", cli.block_height() + 15)
     check_basic_tx(c)
 
 
