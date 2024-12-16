@@ -1,7 +1,6 @@
 release/
 /build
 coverage.txt
-trace.out
 __pycache__
 /dist
 /vendor
