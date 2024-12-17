@@ -10,7 +10,6 @@ pkgs.mkShell {
     pkgs.cosmovisor
     pkgs.nodejs
     pkgs.test-env
-    pkgs.go
     pkgs.chain-maind
     pkgs.hermes
     pkgs.rly
