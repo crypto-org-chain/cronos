@@ -36,6 +36,7 @@ from .utils import (
     submit_gov_proposal,
     w3_wait_for_block,
     wait_for_block,
+    wait_for_fn,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -1002,6 +1003,19 @@ def test_join_validator(cronos):
         "max_rate": "200000000000000000",
         "max_change_rate": "10000000000000000",
     }
+
+    def check_status(status):
+        return cli1.validator(val_addr)["status"] == status
+
+    wait_for_fn("check_status", lambda: check_status("BOND_STATUS_BONDED"))
+    res = cli1.unbond_amount(
+        val_addr,
+        f"{staked}stake",
+        cli1.address("validator"),
+        gas_prices=DEFAULT_GAS_PRICE,
+    )
+    assert res["code"] == 0
+    wait_for_fn("check_status", lambda: check_status("BOND_STATUS_UNBONDING"))
 
 
 def test_block_stm_delete(cronos):
