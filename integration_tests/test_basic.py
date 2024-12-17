@@ -11,7 +11,7 @@ from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
 
-from .cosmoscli import CosmosCLI, module_address
+from .cosmoscli import DEFAULT_GAS_PRICE, CosmosCLI, module_address
 from .network import Geth
 from .utils import (
     ADDRS,
@@ -944,6 +944,52 @@ def test_submit_send_enabled(cronos, tmp_path):
         ],
     )
     assert cli.query_bank_send(*denoms) == send_enable
+
+
+def test_join_validator(cronos):
+    chain_id = cronos.config["chain_id"]
+    data = Path(cronos.base_dir).parent
+    clustercli = cluster.ClusterCLI(data, cmd="cronosd", chain_id=chain_id)
+    moniker = "new joined"
+    i = clustercli.create_node(moniker=moniker)
+    cli1 = clustercli.cosmos_cli(i)
+    staked = 1000000000000000000
+    amt = 50000000000000000
+    coin = f"{staked}stake,{amt}basetcro"
+    cli = cronos.cosmos_cli()
+    addr = cli1.address("validator")
+    res = cli.transfer(cli.address("validator"), addr, coin)
+    assert res["code"] == 0
+    assert cli.balance(addr) == amt
+    # start the node
+    clustercli.supervisor.startProcess(f"{chain_id}-node{i}")
+    wait_for_block(clustercli.cosmos_cli(i), cli.block_height() + 1)
+    # wait for the new node to sync
+    wait_for_block(cli1, cli1.block_height())
+    count1 = len(cli1.validators())
+    # create validator tx
+    res = cli1.create_validator(
+        f"{staked}stake",
+        {
+            "moniker": moniker,
+        },
+        gas_prices=DEFAULT_GAS_PRICE,
+    )
+    assert res["code"] == 0
+    assert (
+        len(cli1.validators()) == count1 + 1
+    ), "new validator should joined successfully"
+    val_addr = cli1.address("validator", bech="val")
+    val = cli1.validator(val_addr)
+    assert not val.get("jailed")
+    assert val["status"] == "BOND_STATUS_BONDED"
+    assert val["tokens"] == f"{staked}"
+    assert val["description"]["moniker"] == moniker
+    assert val["commission"]["commission_rates"] == {
+        "rate": "100000000000000000",
+        "max_rate": "200000000000000000",
+        "max_change_rate": "10000000000000000",
+    }
 
 
 def test_block_stm_delete(cronos):
