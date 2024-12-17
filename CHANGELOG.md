@@ -4,6 +4,14 @@
 
 ### Bug Fixes
 
+* [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
+
+*Dec 9, 2024*
+
+v1.4.1
+
+### Bug Fixes
+
 * [#1714](https://github.com/crypto-org-chain/cronos/pull/1714) Avoid nil pointer error when query blocks before feemarket module gets enabled.
 * [#1713](https://github.com/crypto-org-chain/cronos/pull/1713) Register legacy codec to allow query historical txs whose modules are removed (icaauth, authz).
 
