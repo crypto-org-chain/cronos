@@ -951,7 +951,9 @@ def test_join_validator(cronos):
     data = Path(cronos.base_dir).parent
     clustercli = cluster.ClusterCLI(data, cmd="cronosd", chain_id=chain_id)
     moniker = "new joined"
-    i = clustercli.create_node(moniker=moniker)
+    base_port = 26800
+    i = clustercli.create_node(base_port=base_port, moniker=moniker)
+    home = cronos.node_home(i=i)
     cli1 = clustercli.cosmos_cli(i)
     staked = 1000000000000000000
     amt = 50000000000000000
@@ -961,6 +963,16 @@ def test_join_validator(cronos):
     res = cli.transfer(cli.address("validator"), addr, coin)
     assert res["code"] == 0
     assert cli.balance(addr) == amt
+    cluster.edit_app_cfg(
+        Path(home) / "config/app.toml",
+        base_port,
+        {
+            "json-rpc": {
+                "address": f"127.0.0.1:{ports.evmrpc_port(base_port)}",
+                "ws-address": f"127.0.0.1:{ports.evmrpc_ws_port(base_port)}",
+            },
+        },
+    )
     # start the node
     clustercli.supervisor.startProcess(f"{chain_id}-node{i}")
     wait_for_block(clustercli.cosmos_cli(i), cli.block_height() + 1)
