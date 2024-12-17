@@ -5,6 +5,7 @@
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
 * [#1725](https://github.com/crypto-org-chain/cronos/pull/1725) Include the fix of deadlock when close tree in iavl.
 * [#1723](https://github.com/crypto-org-chain/cronos/pull/1723) Include the restriction of same sender tx appear in the same tx after contract creation in ethermint.
+* [#1722](https://github.com/crypto-org-chain/cronos/pull/1722) Include a security patch from cosmos sdk.
 
 *Dec 9, 2024*
 
