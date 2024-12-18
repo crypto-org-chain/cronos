@@ -699,7 +699,6 @@ def test_batch_tx(cronos):
     )
 
     cosmos_tx, tx_hashes = build_batch_tx_signed(
-        w3,
         cli,
         [
             sign_transaction(w3, deploy_tx, KEYS["validator"]),
