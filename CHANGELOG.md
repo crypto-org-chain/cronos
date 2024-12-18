@@ -3,6 +3,7 @@
 ### Bug Fixes
 
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
+* [#1723](https://github.com/crypto-org-chain/cronos/pull/1723) Include the restriction of same sender tx appear in the same tx after contract creation in ethermint.
 
 *Dec 9, 2024*
 
