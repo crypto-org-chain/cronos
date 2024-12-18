@@ -12,7 +12,7 @@
   nativeByteOrder ? true, # nativeByteOrder mode will panic on big endian machines
 }:
 let
-  version = "v1.4.1";
+  version = "v1.4.2";
   pname = "cronosd";
   tags = [
     "ledger"

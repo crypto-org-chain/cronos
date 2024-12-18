@@ -1,5 +1,9 @@
 # Changelog
 
+*Dec 19, 2024*
+
+## v1.4.2
+
 ### Bug Fixes
 
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
