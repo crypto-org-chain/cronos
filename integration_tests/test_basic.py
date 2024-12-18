@@ -825,7 +825,6 @@ def test_log0(cluster):
         w3,
         Path(__file__).parent
         / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
-        args=(ADDRS["validator"],),
     )
     tx = contract.functions.test_log0().build_transaction({"from": ADDRS["validator"]})
     receipt = send_transaction(w3, tx, KEYS["validator"])
