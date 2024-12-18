@@ -6,9 +6,13 @@
 
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
 
+### State Machine Breaking
+
+* [#1724](https://github.com/crypto-org-chain/cronos/pull/1724) Include the fix of nonce management in batch tx in ethermint.
+
 *Dec 9, 2024*
 
-v1.4.1
+## v1.4.1
 
 ### Bug Fixes
 
