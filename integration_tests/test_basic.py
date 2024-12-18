@@ -722,6 +722,9 @@ def test_batch_tx(cronos):
         == receipts[0].gasUsed + receipts[1].gasUsed + receipts[2].gasUsed
     )
 
+    # check nonce
+    assert w3.eth.get_transaction_count(sender) == nonce + 3
+
     # check traceTransaction
     rsps = [
         w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
