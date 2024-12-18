@@ -21,6 +21,7 @@ from .utils import (
     RevertTestContract,
     assert_gov_params,
     build_batch_tx,
+    build_batch_tx_signed,
     contract_address,
     contract_path,
     deploy_contract,
@@ -677,24 +678,34 @@ def test_batch_tx(cronos):
     "send multiple eth txs in single cosmos tx"
     w3 = cronos.w3
     cli = cronos.cosmos_cli()
-    sender = ADDRS["validator"]
+    deployer = ADDRS["validator"]
+    sender = ADDRS["signer1"]
     recipient = ADDRS["community"]
+    deployer_nonce = w3.eth.get_transaction_count(deployer)
     nonce = w3.eth.get_transaction_count(sender)
-    info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
+    info = json.loads(CONTRACTS["TestERC20Owner"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    deploy_tx = contract.constructor().build_transaction(
-        {"from": sender, "nonce": nonce}
+    deploy_tx = contract.constructor(sender).build_transaction(
+        {"from": deployer, "nonce": deployer_nonce}
     )
-    contract = w3.eth.contract(address=contract_address(sender, nonce), abi=info["abi"])
+    contract = w3.eth.contract(
+        address=contract_address(deployer, deployer_nonce), abi=info["abi"]
+    )
     transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
-        {"from": sender, "nonce": nonce + 1, "gas": 200000}
+        {"from": sender, "nonce": nonce, "gas": 200000}
     )
     transfer_tx2 = contract.functions.transfer(recipient, 1000).build_transaction(
-        {"from": sender, "nonce": nonce + 2, "gas": 200000}
+        {"from": sender, "nonce": nonce + 1, "gas": 200000}
     )
 
-    cosmos_tx, tx_hashes = build_batch_tx(
-        w3, cli, [deploy_tx, transfer_tx1, transfer_tx2]
+    cosmos_tx, tx_hashes = build_batch_tx_signed(
+        w3,
+        cli,
+        [
+            sign_transaction(w3, deploy_tx, KEYS["validator"]),
+            sign_transaction(w3, transfer_tx1, KEYS["signer1"]),
+            sign_transaction(w3, transfer_tx2, KEYS["signer1"]),
+        ],
     )
     rsp = cli.broadcast_tx_json(cosmos_tx)
     assert rsp["code"] == 0, rsp["raw_log"]
@@ -814,6 +825,7 @@ def test_log0(cluster):
         w3,
         Path(__file__).parent
         / "contracts/artifacts/contracts/TestERC20Utility.sol/TestERC20Utility.json",
+        args=(ADDRS["validator"],),
     )
     tx = contract.functions.test_log0().build_transaction({"from": ADDRS["validator"]})
     receipt = send_transaction(w3, tx, KEYS["validator"])
