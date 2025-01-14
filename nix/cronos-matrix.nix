@@ -25,7 +25,7 @@ let
           | gzip -9 > $out
       '';
   bundle-win-exe = drv: callPackage ./bundle-win-exe.nix { cronosd = drv; };
-  matrix = lib.cartesianProductOfSets {
+  matrix = lib.cartesianProduct {
     network = [
       "mainnet"
       "testnet"

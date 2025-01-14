@@ -25,16 +25,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1725226629,
-        "narHash": "sha256-0l5gtNAf3408INFPbvbMvHghd44LgKhMuqUcY6vH5N8=",
-        "owner": "obreitwi",
+        "lastModified": 1733668782,
+        "narHash": "sha256-tPsqU00FhgdFr0JiQUiBMgPVbl1jbPCY5gbFiJycL3I=",
+        "owner": "nix-community",
         "repo": "gomod2nix",
-        "rev": "983228366edc1bed1be6e6f7a45e285b4707b9ba",
+        "rev": "514283ec89c39ad0079ff2f3b1437404e4cba608",
         "type": "github"
       },
       "original": {
-        "owner": "obreitwi",
-        "ref": "fix/go_mod_vendor",
+        "owner": "nix-community",
         "repo": "gomod2nix",
         "type": "github"
       }
