@@ -6,10 +6,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-	transferTypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v8/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v8/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v9/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v9/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 )
 
@@ -98,22 +98,32 @@ func (im IBCConversionModule) OnChanCloseConfirm(
 // OnRecvPacket implements the IBCModule interface.
 func (im IBCConversionModule) OnRecvPacket(
 	ctx sdk.Context,
+	channelVersion string,
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
-	ack := im.app.OnRecvPacket(ctx, packet, relayer)
+	ack := im.app.OnRecvPacket(ctx, channelVersion, packet, relayer)
 	if ack.Success() {
-		data, err := im.getFungibleTokenPacketData(packet)
+		data, err := transferTypes.UnmarshalPacketData(packet.GetData(), channelVersion)
 		if err != nil {
 			return channeltypes.NewErrorAcknowledgement(errors.Wrap(sdkerrors.ErrUnknownRequest,
 				"cannot unmarshal ICS-20 transfer packet data in middleware"))
 		}
-		denom := im.getIbcDenomFromPacketAndData(packet, data)
-		// Check if it can be converted
-		if im.canBeConverted(ctx, denom) {
-			err = im.convertVouchers(ctx, data, denom, false)
-			if err != nil {
-				return channeltypes.NewErrorAcknowledgement(err)
+		for _, token := range data.Tokens {
+			denom := im.getIbcDenomFromPacketAndData(packet, token)
+			// Check if it can be converted
+			if im.canBeConverted(ctx, denom) {
+				err = im.convertVouchers(
+					ctx,
+					token.Amount,
+					data.Sender,
+					data.Receiver,
+					denom,
+					false,
+				)
+				if err != nil {
+					return channeltypes.NewErrorAcknowledgement(err)
+				}
 			}
 		}
 	}
@@ -124,11 +134,12 @@ func (im IBCConversionModule) OnRecvPacket(
 // OnAcknowledgementPacket implements the IBCModule interface
 func (im IBCConversionModule) OnAcknowledgementPacket(
 	ctx sdk.Context,
+	channelVersion string,
 	packet channeltypes.Packet,
 	acknowledgement []byte,
 	relayer sdk.AccAddress,
 ) error {
-	err := im.app.OnAcknowledgementPacket(ctx, packet, acknowledgement, relayer)
+	err := im.app.OnAcknowledgementPacket(ctx, channelVersion, packet, acknowledgement, relayer)
 	if err == nil {
 		// Call the middle ware only at the "refund" case
 		var ack channeltypes.Acknowledgement
@@ -137,13 +148,22 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 				"cannot unmarshal ICS-20 transfer packet acknowledgement in middleware: %v", err)
 		}
 		if _, ok := ack.Response.(*channeltypes.Acknowledgement_Error); ok {
-			data, err := im.getFungibleTokenPacketData(packet)
+			data, err := transferTypes.UnmarshalPacketData(packet.GetData(), channelVersion)
 			if err != nil {
 				return err
 			}
-			denom := im.getIbcDenomFromDataForRefund(data)
-			if im.canBeConverted(ctx, denom) {
-				return im.convertVouchers(ctx, data, denom, true)
+			for _, token := range data.Tokens {
+				denom := im.getIbcDenomFromDataForRefund(token)
+				if im.canBeConverted(ctx, denom) {
+					return im.convertVouchers(
+						ctx,
+						token.Amount,
+						data.Sender,
+						data.Receiver,
+						denom,
+						true,
+					)
+				}
 			}
 		}
 	}
@@ -154,19 +174,29 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 // OnTimeoutPacket implements the IBCModule interface
 func (im IBCConversionModule) OnTimeoutPacket(
 	ctx sdk.Context,
+	channelVersion string,
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) error {
-	err := im.app.OnTimeoutPacket(ctx, packet, relayer)
+	err := im.app.OnTimeoutPacket(ctx, channelVersion, packet, relayer)
 	// If no error on the refund
 	if err == nil {
-		data, err := im.getFungibleTokenPacketData(packet)
+		data, err := transferTypes.UnmarshalPacketData(packet.GetData(), channelVersion)
 		if err != nil {
 			return err
 		}
-		denom := im.getIbcDenomFromDataForRefund(data)
-		if im.canBeConverted(ctx, denom) {
-			return im.convertVouchers(ctx, data, denom, true)
+		for _, token := range data.Tokens {
+			denom := im.getIbcDenomFromDataForRefund(token)
+			if im.canBeConverted(ctx, denom) {
+				return im.convertVouchers(
+					ctx,
+					token.Amount,
+					data.Sender,
+					data.Receiver,
+					denom,
+					true,
+				)
+			}
 		}
 	}
 	return err
@@ -181,18 +211,25 @@ func (im IBCConversionModule) getFungibleTokenPacketData(packet channeltypes.Pac
 	return data, nil
 }
 
-func (im IBCConversionModule) convertVouchers(ctx sdk.Context, data transferTypes.FungibleTokenPacketData, denom string, isSender bool) error {
+func (im IBCConversionModule) convertVouchers(
+	ctx sdk.Context,
+	amount string,
+	sender string,
+	receiver string,
+	denom string,
+	isSender bool,
+) error {
 	// parse the transfer amount
-	transferAmount, ok := sdkmath.NewIntFromString(data.Amount)
+	transferAmount, ok := sdkmath.NewIntFromString(amount)
 	if !ok {
 		return errors.Wrapf(transferTypes.ErrInvalidAmount,
-			"unable to parse transfer amount (%s) into sdk.Int in middleware", data.Amount)
+			"unable to parse transfer amount (%s) into sdk.Int in middleware", amount)
 	}
 	token := sdk.NewCoin(denom, transferAmount)
 	if isSender {
-		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Sender)
+		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), sender)
 	} else {
-		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), data.Receiver)
+		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), receiver)
 	}
 	return nil
 }
@@ -206,29 +243,23 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 	return found
 }
 
-func (im IBCConversionModule) getIbcDenomFromDataForRefund(data transferTypes.FungibleTokenPacketData) string {
-	return transferTypes.ParseDenomTrace(data.Denom).IBCDenom()
+func (im IBCConversionModule) getIbcDenomFromDataForRefund(token transferTypes.Token) string {
+	return token.Denom.Base
 }
 
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(
-	packet channeltypes.Packet, data transferTypes.FungibleTokenPacketData,
+	packet channeltypes.Packet, token transferTypes.Token,
 ) string {
-	if transferTypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
-		voucherPrefix := transferTypes.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
-		unprefixedDenom := data.Denom[len(voucherPrefix):]
-		denom := unprefixedDenom
-		denomTrace := transferTypes.ParseDenomTrace(unprefixedDenom)
-		if denomTrace.Path != "" {
-			denom = denomTrace.IBCDenom()
-		}
-		return denom
+	denom := token.Denom
+	if denom.HasPrefix(packet.GetSourcePort(), packet.GetSourceChannel()) {
+		denom.Trace = denom.Trace[1:]
+		return denom.IBCDenom()
 	}
 
 	// since SendPacket did not prefix the denomination, we must prefix denomination here
-	sourcePrefix := transferTypes.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
-	prefixedDenom := sourcePrefix + data.Denom
-	denomTrace := transferTypes.ParseDenomTrace(prefixedDenom)
-	return denomTrace.IBCDenom()
+	trace := []transferTypes.Hop{transferTypes.NewHop(packet.DestinationPort, packet.DestinationChannel)}
+	denom.Trace = append(trace, denom.Trace...)
+	return denom.IBCDenom()
 }
 
 // OnChanUpgradeInit implements the IBCModule interface

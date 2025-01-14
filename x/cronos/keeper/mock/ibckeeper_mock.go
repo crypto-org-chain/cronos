@@ -5,7 +5,7 @@ import (
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	"github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
 )
 
 type IbcKeeperMock struct{}
