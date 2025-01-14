@@ -14,9 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v9/modules/apps/29-fee/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -160,7 +160,8 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
 			panic(err)
 		}
-		if ibctransfertypes.ReceiverChainIsSource(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel(), data.Denom) {
+		denom := ibctransfertypes.ExtractDenomFromPath(data.Denom)
+		if denom.HasPrefix(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel()) {
 			requiredGas = GasWhenReceiverChainIsSource
 		}
 	}

@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+### State Machine Breaking
+
+* [#]() Upgrade to ibc-go v9.0.x
+
+
 ### Improvements
 
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
