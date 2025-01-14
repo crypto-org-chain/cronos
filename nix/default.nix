@@ -71,7 +71,7 @@ import sources.nixpkgs {
         subPackages = [ "." ];
         vendorHash = "sha256-dwKZZu9wKOo2u1/8AAWFx89iC9pWZbCxAERMMAOFsts=";
         doCheck = false;
-        GOWORK = "off";
+        env.GOWORK = "off";
         postInstall = ''
           mv $out/bin/relayer $out/bin/rly
         '';
