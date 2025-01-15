@@ -57,5 +57,5 @@ func (k Keeper) GetSourceChannelID(ctx sdk.Context, ibcVoucherDenom string) (cha
 	}
 
 	// the path has for format port/channelId
-	return denomTrace.Trace[1].ChannelId, nil
+	return denomTrace.Trace[0].ChannelId, nil
 }
