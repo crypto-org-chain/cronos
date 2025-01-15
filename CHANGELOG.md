@@ -4,7 +4,7 @@
 
 ### State Machine Breaking
 
-* [#]() Upgrade to ibc-go v9.0.x
+* [#1731](https://github.com/crypto-org-chain/cronos/pull/1731) Upgrade to ibc-go v9.0.x
 
 
 ### Improvements

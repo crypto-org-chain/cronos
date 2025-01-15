@@ -14,18 +14,22 @@ func (i IbcKeeperMock) Transfer(goCtx context.Context, msg *types.MsgTransfer) (
 	return nil, nil
 }
 
-func (i IbcKeeperMock) GetDenomTrace(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.DenomTrace, bool) {
+func (i IbcKeeperMock) GetDenom(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.Denom, bool) {
 	if denomTraceHash.String() == "6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865" {
-		return types.DenomTrace{
-			Path:      "transfer/channel-0",
-			BaseDenom: "basetcro",
+		return types.Denom{
+			Trace: []types.Hop{
+				{PortId: "transfer", ChannelId: "channel-0"},
+			},
+			Base: "basetcro",
 		}, true
 	}
 	if denomTraceHash.String() == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" {
-		return types.DenomTrace{
-			Path:      "transfer/channel-0",
-			BaseDenom: "correctIBCToken",
+		return types.Denom{
+			Trace: []types.Hop{
+				{PortId: "transfer", ChannelId: "channel-0"},
+			},
+			Base: "correctIBCToken",
 		}, true
 	}
-	return types.DenomTrace{}, false
+	return types.Denom{}, false
 }
