@@ -768,6 +768,11 @@ func New(
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
+	clientKeeper := app.IBCKeeper.ClientKeeper
+	storeProvider := clientKeeper.GetStoreProvider()
+
+	tmLightClientModule := ibctm.NewLightClientModule(appCodec, storeProvider)
+	clientKeeper.AddRoute(ibctm.ModuleName, &tmLightClientModule)
 
 	// Create evidence Keeper for to register the IBC light client misbehavior evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -823,7 +828,8 @@ func New(
 
 		// ibc modules
 		ibc.NewAppModule(app.IBCKeeper),
-		ibctm.AppModule{},
+		// IBC light clients
+		ibctm.NewAppModule(tmLightClientModule),
 		transferModule,
 		icaModule,
 		feeModule,
