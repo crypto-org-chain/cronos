@@ -202,15 +202,6 @@ func (im IBCConversionModule) OnTimeoutPacket(
 	return err
 }
 
-func (im IBCConversionModule) getFungibleTokenPacketData(packet channeltypes.Packet) (transferTypes.FungibleTokenPacketData, error) {
-	var data transferTypes.FungibleTokenPacketData
-	if err := transferTypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
-		return data, errors.Wrapf(sdkerrors.ErrUnknownRequest,
-			"cannot unmarshal ICS-20 transfer packet data in middleware: %s", err.Error())
-	}
-	return data, nil
-}
-
 func (im IBCConversionModule) convertVouchers(
 	ctx sdk.Context,
 	amount string,
