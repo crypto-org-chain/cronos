@@ -78,10 +78,10 @@
         "homepage": "",
         "owner": "informalsystems",
         "repo": "ibc-rs",
-        "rev": "0181c462486b7801d4ec720aa34f34576fcf981b",
-        "sha256": "1mwm0ia69wlshr5m5a8vblc6zh244rrxxm7np5df74jg330nyw7z",
+        "rev": "0af17d7f1b808d146d352c35e2d49803fe79a422",
+        "sha256": "0r5ymyy6wxk1nksbl7kgp8jc362j7gzj8mix4g305wi86pv97p66",
         "type": "tarball",
-        "url": "https://github.com/devashishdxt/hermes/archive/0181c462486b7801d4ec720aa34f34576fcf981b.tar.gz",
+        "url": "https://github.com/devashishdxt/hermes/archive/0af17d7f1b808d146d352c35e2d49803fe79a422.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

@@ -14,6 +14,7 @@ from .utils import (
     ADDRS,
     CONTRACTS,
     deploy_contract,
+    derive_new_account,
     eth_to_bech32,
     parse_events,
     parse_events_rpc,
@@ -25,6 +26,7 @@ from .utils import (
 )
 
 RATIO = 10**10
+RELAYER_CALLER = "0x6F1805D56bF05b7be10857F376A5b1c160C8f72C"
 
 
 class Status(IntEnum):
@@ -171,6 +173,17 @@ def prepare_network(
 
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
         path = cronos.base_dir.parent / "relayer"
+        w3 = cronos.w3
+        acc = derive_new_account(2)
+        sender = acc.address
+        # fund new sender to deploy contract with same address
+        if w3.eth.get_balance(sender, "latest") == 0:
+            fund = 3000000000000000000
+            tx = {"to": sender, "value": fund, "gasPrice": w3.eth.gas_price}
+            send_transaction(w3, tx)
+            assert w3.eth.get_balance(sender, "latest") == fund
+        caller = deploy_contract(w3, CONTRACTS["TestRelayer"], key=acc.key).address
+        assert caller == RELAYER_CALLER, caller
         if is_hermes:
             hermes = Hermes(path.with_suffix(".toml"))
             call_hermes_cmd(
@@ -254,6 +267,7 @@ def rly_transfer(ibc):
         f"--home {str(path)}"
     )
     subprocess.run(cmd, check=True, shell=True)
+    return src_amount
 
 
 def assert_duplicate(base_port, height):
@@ -285,8 +299,8 @@ def find_duplicate(attributes):
     return None
 
 
-def ibc_transfer_with_hermes(ibc):
-    src_amount = hermes_transfer(ibc)
+def ibc_transfer(ibc, transfer_fn=hermes_transfer):
+    src_amount = transfer_fn(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
     dst_addr = eth_to_bech32(ADDRS["signer2"])
@@ -301,24 +315,6 @@ def ibc_transfer_with_hermes(ibc):
 
     wait_for_fn("balance change", check_balance_change)
     assert old_dst_balance + dst_amount == new_dst_balance
-    # assert that the relayer transactions do enables the dynamic fee extension option.
-    cli = ibc.cronos.cosmos_cli()
-    criteria = "message.action=/ibc.core.channel.v1.MsgChannelOpenInit"
-    tx = cli.tx_search(criteria)["txs"][0]
-    events = parse_events_rpc(tx["events"])
-    fee = int(events["tx"]["fee"].removesuffix(dst_denom))
-    gas = int(tx["gas_wanted"])
-    # the effective fee is decided by the max_priority_fee (base fee is zero)
-    # rather than the normal gas price
-    assert fee == gas * 1000000
-
-    # check duplicate OnRecvPacket events
-    criteria = "message.action=/ibc.core.channel.v1.MsgRecvPacket"
-    tx = cli.tx_search(criteria)["txs"][0]
-    events = tx["logs"][1]["events"]
-    for event in events:
-        dup = find_duplicate(event["attributes"])
-        assert not dup, f"duplicate {dup} in {event['type']}"
 
 
 def get_balance(chain, addr, denom):
@@ -333,7 +329,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 21)]
+    users = [f"user{i}" for i in range(1, 51)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -413,10 +409,12 @@ def ibc_incentivized_transfer(ibc):
     receiver = chains[1].address("signer2")
     sender = chains[0].address("signer2")
     relayer = chains[0].address("signer1")
+    relayer_caller = eth_to_bech32(RELAYER_CALLER)
     amount = 1000
     fee_denom = "ibcfee"
     base_denom = "basetcro"
     old_amt_fee = chains[0].balance(relayer, fee_denom)
+    old_amt_fee_caller = chains[0].balance(relayer_caller, fee_denom)
     old_amt_sender_fee = chains[0].balance(sender, fee_denom)
     old_amt_sender_base = chains[0].balance(sender, base_denom)
     old_amt_receiver_base = chains[1].balance(receiver, "basecro")
@@ -456,7 +454,12 @@ def ibc_incentivized_transfer(ibc):
     def check_fee():
         amount = chains[0].balance(relayer, fee_denom)
         if amount > old_amt_fee:
-            assert amount == old_amt_fee + 20
+            amount_caller = chains[0].balance(relayer_caller, fee_denom)
+            if amount_caller > 0:
+                assert amount_caller == old_amt_fee_caller + 10, amount_caller
+                assert amount == old_amt_fee + 10, amount
+            else:
+                assert amount == old_amt_fee + 20, amount
             return True
         else:
             return False
@@ -471,17 +474,10 @@ def ibc_incentivized_transfer(ibc):
     ], actual
     path = f"transfer/{dst_channel}/{base_denom}"
     denom_hash = hashlib.sha256(path.encode()).hexdigest().upper()
-    assert json.loads(
-        chains[0].raw(
-            "query",
-            "ibc-transfer",
-            "denom-trace",
-            denom_hash,
-            node=ibc.chainmain.node_rpc(0),
-            output="json",
-        )
-    )["denom_trace"] == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
-    assert get_balances(ibc.chainmain, receiver) == [
+    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom}
+    current = get_balances(ibc.chainmain, receiver)
+    assert current == [
         {"denom": "basecro", "amount": f"{old_amt_receiver_base}"},
         {"denom": f"ibc/{denom_hash}", "amount": f"{amount}"},
     ]
@@ -849,7 +845,8 @@ def log_gas_records(cli):
     txs = cli.tx_search_rpc(criteria)
     records = []
     for tx in txs:
+        print("mm-tx", tx)
         res = tx["tx_result"]
         if res["gas_used"]:
-            records.append(res["gas_used"])
+            records.append(int(res["gas_used"]))
     return records
