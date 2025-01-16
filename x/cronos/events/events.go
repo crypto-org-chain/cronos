@@ -18,7 +18,8 @@ var (
 	IcaEvents            map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
 		channeltypes.AttributeKeyDataHex:             ConvertPacketData,
-		transfertypes.AttributeKeyTokens:             ConvertAmount,
+		transfertypes.AttributeKeyTokens:             ConvertTokens,
+		sdk.AttributeKeyAmount:                       ConvertAmount,
 		banktypes.AttributeKeyRecipient:              ConvertAccAddressFromBech32,
 		banktypes.AttributeKeySpender:                ConvertAccAddressFromBech32,
 		banktypes.AttributeKeyReceiver:               ConvertAccAddressFromBech32,

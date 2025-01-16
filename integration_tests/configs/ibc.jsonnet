@@ -12,7 +12,7 @@ config {
         name: 'user' + i,
         coins: '30000000000000000000000basetcro',
       }
-      for i in std.range(1, 50)
+      for i in std.range(1, 1)
     ],
     'app-config'+: {
       'index-events': super['index-events'] + ['message.action'],

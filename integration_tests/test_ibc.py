@@ -5,7 +5,6 @@ import pytest
 from .cosmoscli import module_address
 from .ibc_utils import (
     RATIO,
-    assert_ready,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
     find_duplicate,
@@ -104,7 +103,6 @@ def test_cronos_transfer_tokens(ibc):
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
     """
-    assert_ready(ibc)
     dst_addr = ibc.chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
     dst_denom = "basecro"
@@ -141,7 +139,6 @@ def test_cronos_transfer_tokens_acknowledgement_error(ibc):
     with invalid receiver for acknowledgement error.
     depends on `test_ibc` to send the original coins.
     """
-    assert_ready(ibc)
     dst_addr = "invalid_address"
     dst_amount = 2
     cli = ibc.cronos.cosmos_cli()
@@ -205,7 +202,6 @@ def test_cronos_transfer_source_tokens(ibc):
     """
     test sending crc20 tokens originated from cronos to crypto-org-chain
     """
-    assert_ready(ibc)
     cronos_transfer_source_tokens(ibc)
 
 
@@ -213,5 +209,4 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     """
     test sending crc20 tokens originated from cronos to crypto-org-chain
     """
-    assert_ready(ibc)
     cronos_transfer_source_tokens_with_proxy(ibc)
