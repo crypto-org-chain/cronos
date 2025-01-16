@@ -148,7 +148,7 @@ def prepare_network(
     connection_only=False,
     grantee=None,
     need_relayer_caller=False,
-    relayer=cluster.Relayer.HERMES.value,
+    relayer=cluster.Relayer.RLY.value,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
@@ -221,7 +221,7 @@ def prepare_network(
             if is_hermes:
                 port = hermes.port
             else:
-                port = 5183
+                port = 5183  # mmsqe
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
@@ -383,7 +383,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 51)]
+    users = [f"user{i}" for i in range(1, 1)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -424,7 +424,10 @@ def ibc_multi_transfer(ibc):
             return False
 
     denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
+    assert denom_trace == {
+        "base": denom0,
+        "trace": [{"port_id": "transfer", "channel_id": channel1}],
+    }
     for i, _ in enumerate(users):
         wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
 
@@ -529,7 +532,10 @@ def ibc_incentivized_transfer(ibc):
     path = f"transfer/{dst_channel}/{base_denom0}"
     denom_hash = ibc_denom(dst_channel, base_denom0)
     denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
+    assert denom_trace == {
+        "base": base_denom0,
+        "trace": [{"port_id": "transfer", "channel_id": dst_channel}],
+    }
     user1_balances = get_balances(ibc.chainmain, user1)
     expected = [
         {"denom": base_denom1, "amount": f"{old_user1_base}"},

@@ -3,12 +3,12 @@
         "branch": "master",
         "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
         "homepage": "https://crypto.org",
-        "owner": "crypto-org-chain",
+        "owner": "mmsqe",
         "repo": "chain-main",
-        "rev": "1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3",
-        "sha256": "01cg1jfg4l2d6g2spxf3c2375zj0siv8wg1lssafv7ry51f3zyqz",
+        "rev": "baf003849c2fef4ffa0d705079a3d16906fdd041",
+        "sha256": "0j0h47b24jh8h4jb9p42byn64wgypcphz50kinmy8my77vvijmni",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3.tar.gz",
+        "url": "https://github.com/mmsqe/chain-main/archive/baf003849c2fef4ffa0d705079a3d16906fdd041.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
@@ -123,13 +123,13 @@
     "relayer": {
         "branch": "main",
         "description": "An IBC relayer for ibc-go",
-        "homepage": "https://github.com/crypto-org-chain/relayer",
-        "owner": "crypto-org-chain",
+        "homepage": "https://github.com/mmsqe/relayer",
+        "owner": "mmsqe",
         "repo": "relayer",
-        "rev": "fe5722292a9961e80818e3ef5c987330b538bc05",
-        "sha256": "0jv4pkrqhckbabxxxbr0bcil0fakbnc7sf22k2wa5q6v6921ci0y",
+        "rev": "f1b0605a7f6f75946493e8577e45899aaf91bc04",
+        "sha256": "0gn5wdvhxd866pbhmcr18db63cz25mw3aa4lk24i582d1cpg7lzx",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/relayer/archive/fe5722292a9961e80818e3ef5c987330b538bc05.tar.gz",
+        "url": "https://github.com/mmsqe/relayer/archive/f1b0605a7f6f75946493e8577e45899aaf91bc04.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

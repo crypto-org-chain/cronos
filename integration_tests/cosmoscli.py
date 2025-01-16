@@ -968,12 +968,12 @@ class CosmosCLI:
             self.raw(
                 "query",
                 "ibc-transfer",
-                "denom-trace",
+                "denom",
                 denom_hash,
                 node=node,
                 output="json",
             )
-        )["denom_trace"]
+        )["denom"]
 
     def export(self, **kwargs):
         return self.raw("export", home=self.data_dir, **kwargs)

@@ -1,7 +1,6 @@
 import json
 
 import pytest
-from pystarport import cluster
 
 from .cosmoscli import module_address
 from .ibc_utils import (
@@ -34,7 +33,6 @@ def ibc(request, tmp_path_factory):
         name,
         incentivized=False,
         connection_only=True,
-        relayer=cluster.Relayer.HERMES.value,
     )
 
 

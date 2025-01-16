@@ -2,6 +2,7 @@ import json
 
 import pytest
 from eth_utils import keccak, to_checksum_address
+from pystarport import cluster
 from web3.datastructures import AttributeDict
 
 from .ibc_utils import (
@@ -14,6 +15,7 @@ from .ibc_utils import (
     ibc_multi_transfer,
     ibc_transfer,
     prepare_network,
+    rly_transfer,
 )
 from .utils import (
     ADDRS,
@@ -51,6 +53,7 @@ def ibc(request, tmp_path_factory):
         path,
         name,
         need_relayer_caller=True,
+        relayer=cluster.Relayer.RLY.value,
     )
 
 
@@ -62,6 +65,24 @@ def amount_dict(amt, denom):
             {
                 "amount": amt,
                 "denom": denom,
+            }
+        )
+    ]
+
+
+def token_dict(amt, denom):
+    if amt == 0:
+        return []
+    return [
+        AttributeDict(
+            {
+                "amount": amt,
+                "denom": AttributeDict(
+                    {
+                        "base": denom,
+                        "trace": [],
+                    }
+                ),
             }
         )
     ]
@@ -96,12 +117,7 @@ def distribute_fee(receiver, fee):
 
 
 def fungible(dst, src, amt, denom):
-    return {
-        "receiver": dst,
-        "sender": src,
-        "denom": denom,
-        "amount": amt,
-    }
+    return {"receiver": dst, "sender": src, "tokens": token_dict(amt, denom)}
 
 
 def transfer(src, dst, amt, denom):
@@ -149,12 +165,6 @@ def acknowledge_packet(seq):
         "packetDstPort": "transfer",
         "packetDstChannel": channel,
         "connectionId": "connection-0",
-    }
-
-
-def denom_trace(denom):
-    return {
-        "denom": denom,
     }
 
 
@@ -234,7 +244,7 @@ def test_ibc(ibc):
     w3 = ibc.cronos.w3
     wait_for_new_blocks(ibc.cronos.cosmos_cli(), 1)
     start = w3.eth.get_block_number()
-    ibc_transfer(ibc)
+    ibc_transfer(ibc, rly_transfer)
     denom = ibc_denom(channel, src_denom)
     logs = get_logs_since(w3, CONTRACT, start)
     chainmain_cli = ibc.chainmain.cosmos_cli()
@@ -245,7 +255,6 @@ def test_ibc(ibc):
     seq = get_send_packet_seq(chainmain_cli)
     expected = [
         recv_packet(seq, relayer0, cronos_signer2, src_amount, src_denom),
-        denom_trace(denom),
         *send_from_module_to_acc(transfer_addr, cronos_signer2, src_amount, denom),
         fungible(cronos_signer2, relayer, src_amount, src_denom),
         *send_from_acc_to_module(cronos_signer2, cronos_addr, src_amount, denom),
