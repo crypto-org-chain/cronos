@@ -9,7 +9,6 @@ from .utils import (
     CONTRACTS,
     KEYS,
     deploy_contract,
-    send_transaction,
     send_txs,
     sign_transaction,
     wait_for_new_blocks,
@@ -91,6 +90,8 @@ def test_mempool_nonce(cronos_mempool):
     the tx body is so large that they won't be included in next block at the same time,
     then we'll try to send a new tx with local nonce to see if it still get accepted even if
     check-tx state get reset.
+
+    the expected behavior is when mempool.recheck=true, this test should pass, because although check-tx state get reset when new blocks generated, but recheck logic will bring it back in sync with pending txs, so the client can keep sending new transactions with local nonce.
     """
     w3: Web3 = cronos_mempool.w3
     cli = cronos_mempool.cosmos_cli(0)
