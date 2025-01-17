@@ -88,10 +88,13 @@ def test_mempool_nonce(cronos_mempool):
 
     we'll insert several transactions into mempool with increasing nonces,
     the tx body is so large that they won't be included in next block at the same time,
-    then we'll try to send a new tx with local nonce to see if it still get accepted even if
-    check-tx state get reset.
+    then we'll try to send a new tx with local nonce to see if it still get accepted
+    even if check-tx state get reset.
 
-    the expected behavior is when mempool.recheck=true, this test should pass, because although check-tx state get reset when new blocks generated, but recheck logic will bring it back in sync with pending txs, so the client can keep sending new transactions with local nonce.
+    the expected behavior is when mempool.recheck=true, this test should pass, because
+    although check-tx state get reset when new blocks generated, but recheck logic will
+    bring it back in sync with pending txs, so the client can keep sending new
+    transactions with local nonce.
     """
     w3: Web3 = cronos_mempool.w3
     cli = cronos_mempool.cosmos_cli(0)
@@ -120,7 +123,7 @@ def test_mempool_nonce(cronos_mempool):
         local_nonce += 1
 
     new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
-    assert orig_nonce + (new_height-height) == w3.eth.get_transaction_count(sender)
+    assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(sender)
     assert orig_nonce + 3 == local_nonce
 
     for i in range(3):
@@ -130,5 +133,7 @@ def test_mempool_nonce(cronos_mempool):
         local_nonce += 1
 
         new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
-        assert orig_nonce + (new_height-height) == w3.eth.get_transaction_count(sender)
+        assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(
+            sender
+        )
         assert orig_nonce + 4 + i == local_nonce
