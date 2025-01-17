@@ -235,7 +235,7 @@ func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool
 }
 
 func (im IBCConversionModule) getIbcDenomFromDataForRefund(token transferTypes.Token) string {
-	return token.Denom.Base
+	return token.Denom.IBCDenom()
 }
 
 func (im IBCConversionModule) getIbcDenomFromPacketAndData(

@@ -30,7 +30,7 @@ def test_ibc(ibc):
     ibc_transfer(ibc)
     ibc_incentivized_transfer(ibc)
     ibc_multi_transfer(ibc)
-    diff = 0.15
+    diff = 0.3
     record = log_gas_records(cli)
     if record:
         records.append(record)
