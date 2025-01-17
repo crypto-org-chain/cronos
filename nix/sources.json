@@ -3,12 +3,12 @@
         "branch": "master",
         "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
         "homepage": "https://crypto.org",
-        "owner": "mmsqe",
+        "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "baf003849c2fef4ffa0d705079a3d16906fdd041",
-        "sha256": "0j0h47b24jh8h4jb9p42byn64wgypcphz50kinmy8my77vvijmni",
+        "rev": "1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3",
+        "sha256": "01cg1jfg4l2d6g2spxf3c2375zj0siv8wg1lssafv7ry51f3zyqz",
         "type": "tarball",
-        "url": "https://github.com/mmsqe/chain-main/archive/baf003849c2fef4ffa0d705079a3d16906fdd041.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
@@ -126,10 +126,10 @@
         "homepage": "https://github.com/mmsqe/relayer",
         "owner": "mmsqe",
         "repo": "relayer",
-        "rev": "f1b0605a7f6f75946493e8577e45899aaf91bc04",
-        "sha256": "0gn5wdvhxd866pbhmcr18db63cz25mw3aa4lk24i582d1cpg7lzx",
+        "rev": "e7dccaa26661696c0c9b3a2eefb086eb5dc8f0db",
+        "sha256": "1gi9g7ncqzc4jlg7xyn9kwk26p7w5vclqmahralhbgjkl69a69cp",
         "type": "tarball",
-        "url": "https://github.com/mmsqe/relayer/archive/f1b0605a7f6f75946493e8577e45899aaf91bc04.tar.gz",
+        "url": "https://github.com/mmsqe/relayer/archive/e7dccaa26661696c0c9b3a2eefb086eb5dc8f0db.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
