@@ -220,8 +220,6 @@ def prepare_network(
             cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
                 port = hermes.port
-            else:
-                port = 5183  # mmsqe
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
@@ -353,7 +351,7 @@ def find_duplicate(attributes):
     return None
 
 
-def ibc_transfer(ibc, transfer_fn=hermes_transfer):
+def ibc_transfer(ibc, transfer_fn=rly_transfer):
     src_amount = transfer_fn(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
@@ -423,11 +421,8 @@ def ibc_multi_transfer(ibc):
         else:
             return False
 
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {
-        "base": denom0,
-        "trace": [{"port_id": "transfer", "channel_id": channel1}],
-    }
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
     for i, _ in enumerate(users):
         wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
 
@@ -531,11 +526,8 @@ def ibc_incentivized_transfer(ibc):
     assert user0_balances == expected, user0_balances
     path = f"transfer/{dst_channel}/{base_denom0}"
     denom_hash = ibc_denom(dst_channel, base_denom0)
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {
-        "base": base_denom0,
-        "trace": [{"port_id": "transfer", "channel_id": dst_channel}],
-    }
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
     user1_balances = get_balances(ibc.chainmain, user1)
     expected = [
         {"denom": base_denom1, "amount": f"{old_user1_base}"},

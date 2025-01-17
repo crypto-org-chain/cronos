@@ -37,6 +37,7 @@ method_map = get_method_map(contract_info)
 method_name_map = get_method_map(contract_info, by_name=True)
 method_with_seq = ["RecvPacket", "WriteAcknowledgement", "AcknowledgePacket"]
 cronos_signer2 = ADDRS["signer2"]
+port_id = "transfer"
 src_amount = 10
 src_denom = "basecro"
 dst_amount = src_amount * RATIO  # the decimal places difference
@@ -70,7 +71,7 @@ def amount_dict(amt, denom):
     ]
 
 
-def token_dict(amt, denom):
+def token_dict(amt, denom, trace):
     if amt == 0:
         return []
     return [
@@ -80,7 +81,7 @@ def token_dict(amt, denom):
                 "denom": AttributeDict(
                     {
                         "base": denom,
-                        "trace": [],
+                        "trace": trace,
                     }
                 ),
             }
@@ -116,8 +117,8 @@ def distribute_fee(receiver, fee):
     }
 
 
-def fungible(dst, src, amt, denom):
-    return {"receiver": dst, "sender": src, "tokens": token_dict(amt, denom)}
+def fungible(dst, src, amt, denom, trace=[]):
+    return {"receiver": dst, "sender": src, "tokens": token_dict(amt, denom, trace)}
 
 
 def transfer(src, dst, amt, denom):
@@ -288,7 +289,7 @@ def test_ibc_incentivized_transfer(ibc):
     amount, seq0, recv_fee, ack_fee = ibc_incentivized_transfer(ibc)
     logs = get_logs_since(w3, CONTRACT, start)
     fee_denom = "ibcfee"
-    transfer_denom = "transfer/channel-0/basetcro"
+    transfer_denom = f"{port_id}/{channel}/{dst_denom}"
     dst_adr = ibc.chainmain.cosmos_cli().address("signer2")
     src_relayer = ADDRS["signer1"]
     checksum_dst_adr = to_checksum_address(bech32_to_eth(dst_adr))
@@ -306,7 +307,13 @@ def test_ibc_incentivized_transfer(ibc):
         fungible(checksum_dst_adr, cronos_signer2, amount, dst_denom),
         recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, dst_denom),
-        fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
+        fungible(
+            cronos_signer2,
+            checksum_dst_adr,
+            amount,
+            dst_denom,
+            [AttributeDict({"portId": port_id, "channelId": channel})],
+        ),
         write_ack(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
     ]
     assert len(logs) == len(expected)
@@ -338,13 +345,19 @@ def assert_transfer_source_tokens_topics(ibc, fn):
     checksum_dst_adr = to_checksum_address(bech32_to_eth(dst_adr))
     cronos_addr = module_address("cronos")
     cronos_denom = f"cronos{contract}"
-    transfer_denom = f"transfer/{channel}/{cronos_denom}"
+    transfer_denom = f"{port_id}/{channel}/{cronos_denom}"
     expected = [
         acknowledge_packet(seq0),
         fungible(checksum_dst_adr, ADDRS["validator"], amount, cronos_denom),
         recv_packet(seq1, dst_adr, cronos_signer2, amount, transfer_denom),
         *send_coins(escrow, cronos_signer2, amount, cronos_denom),
-        fungible(cronos_signer2, checksum_dst_adr, amount, transfer_denom),
+        fungible(
+            cronos_signer2,
+            checksum_dst_adr,
+            amount,
+            cronos_denom,
+            [AttributeDict({"portId": port_id, "channelId": channel})],
+        ),
         *send_coins(cronos_signer2, cronos_addr, amount, cronos_denom),
         coin_spent(cronos_addr, amount, cronos_denom),
         burn(cronos_addr, amount, cronos_denom),
