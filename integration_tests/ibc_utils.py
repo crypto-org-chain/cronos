@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 import subprocess
 from contextlib import contextmanager
 from enum import Enum, IntEnum
@@ -165,6 +166,7 @@ def prepare_network(
         relayer=relayer,
     ) as cronos:
         cli = cronos.cosmos_cli()
+        path = cronos.base_dir.parent / "relayer"
         if grantee:
             granter_addr = cli.address("signer1")
             grantee_addr = cli.address(grantee)
@@ -176,6 +178,20 @@ def prepare_network(
             grant_detail = cli.query_grant(granter_addr, grantee_addr)
             assert grant_detail["granter"] == granter_addr
             assert grant_detail["grantee"] == grantee_addr
+            if not is_hermes:
+                subprocess.run(
+                    [
+                        "rly",
+                        "keys",
+                        "restore",
+                        "cronos_777-1",
+                        granter_addr,
+                        os.getenv("SIGNER1_MNEMONIC"),
+                        "--home",
+                        path,
+                    ],
+                    check=True,
+                )
 
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
         # wait for grpc ready
@@ -185,7 +201,6 @@ def prepare_network(
         wait_for_new_blocks(cli, 1)
 
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-        path = cronos.base_dir.parent / "relayer"
         w3 = cronos.w3
         contract = None
         acc = None
