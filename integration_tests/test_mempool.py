@@ -80,3 +80,61 @@ def test_blocked_address(cronos_mempool):
     rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
     assert rsp["code"] != 0
     assert "signer is blocked" in rsp["raw_log"]
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_mempool_nonce(cronos_mempool):
+    """
+    test the nonce logic in check-tx after new block is created.
+
+    we'll insert several transactions into mempool with increasing nonces,
+    the tx body is so large that they won't be included in next block at the same time,
+    then we'll try to send a new tx with local nonce to see if it still get accepted
+    even if check-tx state get reset.
+
+    the expected behavior is when mempool.recheck=true, this test should pass, because
+    although check-tx state get reset when new blocks generated, but recheck logic will
+    bring it back in sync with pending txs, so the client can keep sending new
+    transactions with local nonce.
+    """
+    w3: Web3 = cronos_mempool.w3
+    cli = cronos_mempool.cosmos_cli(0)
+    wait_for_new_blocks(cli, 1, sleep=0.1)
+    sender = ADDRS["validator"]
+    orig_nonce = w3.eth.get_transaction_count(sender)
+    height = w3.eth.get_block_number()
+    local_nonce = orig_nonce
+    tx_bytes = 1000000  # can only include one tx at a time
+
+    def send_with_nonce(nonce):
+        tx = {
+            "to": ADDRS["community"],
+            "value": 1,
+            "gas": 4121000,
+            "data": "0x" + "00" * tx_bytes,
+            "nonce": nonce,
+        }
+        signed = sign_transaction(w3, tx, KEYS["validator"])
+        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        return txhash
+
+    for i in range(3):
+        txhash = send_with_nonce(local_nonce)
+        print(f"txhash: {txhash.hex()}")
+        local_nonce += 1
+
+    new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
+    assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(sender)
+    assert orig_nonce + 3 == local_nonce
+
+    for i in range(3):
+        # send a new tx with the next nonce
+        txhash = send_with_nonce(local_nonce)
+        print(f"txhash: {txhash.hex()}")
+        local_nonce += 1
+
+        new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
+        assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(
+            sender
+        )
+        assert orig_nonce + 4 + i == local_nonce
