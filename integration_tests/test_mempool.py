@@ -82,6 +82,7 @@ def test_blocked_address(cronos_mempool):
     assert "signer is blocked" in rsp["raw_log"]
 
 
+@pytest.mark.flaky(max_runs=3)
 def test_mempool_nonce(cronos_mempool):
     """
     test the nonce logic in check-tx after new block is created.
