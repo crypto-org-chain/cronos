@@ -165,7 +165,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.4.0-rc5-testnet":
+        if plan_name == "v1.5":
             rsp = cli.software_upgrade(
                 "community",
                 {
@@ -302,7 +302,7 @@ def exec(c, tmp_path_factory):
         cli.query_params("icaauth")
     assert_gov_params(cli, gov_param)
 
-    cli = do_upgrade("v1.4.0-rc5-testnet", cli.block_height() + 15)
+    cli = do_upgrade("v1.5", cli.block_height() + 15)
     check_basic_tx(c)
 
 
