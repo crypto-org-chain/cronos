@@ -42,7 +42,7 @@ jobs:
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: "cronosd-tarball-${{ matrix.os }}"
           path: "*.tar.gz"
@@ -118,7 +118,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.changed == 1
         with:
           name: gomod2nix.toml
@@ -161,7 +161,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.changed == 1
         with:
           name: contracts_out
