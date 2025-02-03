@@ -1,5 +1,13 @@
 # Changelog
 
+*Feb 3, 2025*
+
+## v1.4.3
+
+### Bug Fixes
+
+* [#1736](https://github.com/crypto-org-chain/cronos/pull/1736) Update cometbft to v0.38.17.
+
 *Dec 19, 2024*
 
 ## v1.4.2
