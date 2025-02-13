@@ -1,7 +1,8 @@
 module github.com/crypto-org-chain/cronos/versiondb
 
-go 1.22.7
-toolchain go1.23.1
+go 1.22.11
+
+toolchain go1.23.6
 
 require (
 	cosmossdk.io/errors v1.0.1
