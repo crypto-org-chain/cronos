@@ -241,7 +241,9 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 			return err
 		}
 	}
-
+	if dryRun {
+		return nil
+	}
 	return s.Flush()
 }
 
