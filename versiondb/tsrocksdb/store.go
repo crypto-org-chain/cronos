@@ -241,12 +241,10 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 			return err
 		}
 	}
-
-	if !dryRun {
-		return s.Flush()
+	if dryRun {
+		return nil
 	}
-
-	return nil
+	return s.Flush()
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
@@ -256,8 +254,11 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		return err
 	}
 
-	batch := grocksdb.NewWriteBatch()
-	defer batch.Destroy()
+	var batch *grocksdb.WriteBatch
+	if !dryRun {
+		batch = grocksdb.NewWriteBatch()
+		defer batch.Destroy()
+	}
 
 	prefix := storePrefix(storeName)
 	readOpts := grocksdb.NewDefaultReadOptions()
