@@ -115,12 +115,16 @@ stdenv.mkDerivation (finalAttrs: {
     '';
 
   # Old version doesn't ship the .pc file, new version puts wrong paths in there.
-  postFixup = ''
-    if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
-      substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
-        --replace '="''${prefix}//' '="/'
-    fi
-  '';
+  postFixup =
+    ''
+      if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
+        substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
+          --replace '="''${prefix}//' '="/'
+      fi
+    ''
+    + lib.optionalString stdenv.isDarwin ''
+      ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
+    '';
 
   meta = with lib; {
     homepage = "https://rocksdb.org";
