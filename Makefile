@@ -235,7 +235,7 @@ TESTS_TO_RUN ?= all
 
 run-integration-tests:
 	@make gen-bindings-contracts
-	@nix-shell ./integration_tests/shell.nix --run ./scripts/run-integration-tests
+	@./scripts/run-integration-tests
 
 .PHONY: run-integration-tests
 
