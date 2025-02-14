@@ -35,9 +35,9 @@ import (
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	ibcfeetypes "github.com/cosmos/ibc-go/v9/modules/apps/29-fee/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v9/modules/core/exported"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
