@@ -241,7 +241,9 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 			return err
 		}
 	}
-
+	if dryRun {
+		return nil
+	}
 	return s.Flush()
 }
 
@@ -252,8 +254,11 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		return err
 	}
 
-	batch := grocksdb.NewWriteBatch()
-	defer batch.Destroy()
+	var batch *grocksdb.WriteBatch
+	if !dryRun {
+		batch = grocksdb.NewWriteBatch()
+		defer batch.Destroy()
+	}
 
 	prefix := storePrefix(storeName)
 	readOpts := grocksdb.NewDefaultReadOptions()
