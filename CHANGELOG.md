@@ -24,6 +24,7 @@
 ### Improvements
 
 * [#1712](https://github.com/crypto-org-chain/cronos/pull/1712) Upgrade rocksdb to `v9.8.4`.
+* [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
 
 *Dec 2, 2024*
 
