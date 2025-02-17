@@ -1794,6 +1794,11 @@ class CosmosCLI:
             **kwargs,
         ).decode()
 
+    def changeset_fixdata(self, versiondb_dir, dry_run=False):
+        return self.raw(
+            "changeset", "fixdata", versiondb_dir, "--dry-run" if dry_run else None
+        )
+
     def restore_versiondb(self, height, format=3, **kwargs):
         return self.raw(
             "changeset",

@@ -1,7 +1,10 @@
 import json
 import os
+import shutil
 import signal
+import stat
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import tomlkit
@@ -10,7 +13,7 @@ from pystarport import cluster, ports
 from web3.middleware import geth_poa_middleware
 
 from .cosmoscli import CosmosCLI
-from .utils import supervisorctl, wait_for_port
+from .utils import post_init, supervisorctl, wait_for_port
 
 
 class Cronos:
@@ -191,3 +194,32 @@ def setup_custom_cronos(
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
         # proc.terminate()
         proc.wait()
+
+
+def setup_upgrade_cronos(tmp_path_factory, port, nix_name, cfg_name):
+    path = tmp_path_factory.mktemp("upgrade")
+    configdir = Path(__file__).parent
+    cmd = [
+        "nix-build",
+        configdir / f"configs/{nix_name}.nix",
+    ]
+    print(*cmd)
+    subprocess.run(cmd, check=True)
+
+    # copy the content so the new directory is writable.
+    upgrades = path / "upgrades"
+    shutil.copytree("./result", upgrades)
+    mod = stat.S_IRWXU
+    upgrades.chmod(mod)
+    for d in upgrades.iterdir():
+        d.chmod(mod)
+
+    # init with genesis binary
+    with contextmanager(setup_custom_cronos)(
+        path,
+        port,
+        configdir / f"configs/{cfg_name}.jsonnet",
+        post_init=post_init,
+        chain_binary=str(upgrades / "genesis/bin/cronosd"),
+    ) as cronos:
+        yield cronos
