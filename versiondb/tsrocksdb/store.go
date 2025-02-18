@@ -263,7 +263,6 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 	prefix := storePrefix(storeName)
 	readOpts := grocksdb.NewDefaultReadOptions()
 	defer readOpts.Destroy()
-
 	for _, pair := range pairs {
 		realKey := cloneAppend(prefix, pair.Key)
 
@@ -281,7 +280,7 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		}
 
 		if dryRun {
-			fmt.Printf("fix data: %s, key: %X, ts: %X, %X\n", storeName, pair.Key, pair.Timestamp, pair.Value)
+			fmt.Printf("fix data: %s, key: %X, ts: %X\n", storeName, pair.Key, pair.Timestamp)
 		} else {
 			batch.PutCFWithTS(s.cfHandle, realKey, pair.Timestamp, pair.Value)
 		}
