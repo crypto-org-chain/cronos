@@ -267,14 +267,14 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		realKey := cloneAppend(prefix, pair.Key)
 
 		readOpts.SetTimestamp(pair.Timestamp)
-		oldValue, err := s.db.GetCF(readOpts, s.cfHandle, realKey)
+		oldValue, oldTimestamp, err := s.db.GetCFWithTS(readOpts, s.cfHandle, realKey)
 		if err != nil {
 			return err
 		}
 
-		clean := bytes.Equal(oldValue.Data(), pair.Value)
+		clean := bytes.Equal(oldValue.Data(), pair.Value) && bytes.Equal(oldTimestamp.Data(), pair.Timestamp)
 		oldValue.Free()
-
+		oldTimestamp.Free()
 		if clean {
 			continue
 		}

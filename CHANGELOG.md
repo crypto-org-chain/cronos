@@ -6,6 +6,10 @@
 
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
 
+### Improvements
+
+* [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
+
 *Nov 13, 2024*
 
 ## v1.3.4
