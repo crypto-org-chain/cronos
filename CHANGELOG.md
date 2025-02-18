@@ -7,6 +7,11 @@
 * [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
 * [#1725](https://github.com/crypto-org-chain/cronos/pull/1725) Include the fix of deadlock when close tree in iavl.
 * [#1724](https://github.com/crypto-org-chain/cronos/pull/1724) Include the fix of nonce management in batch tx in ethermint.
+* [#1748](https://github.com/crypto-org-chain/cronos/pull/1748) Query with GetCFWithTS to compare both timestamp and key to avoid run fixdata multiple times.
+
+### Improvements
+
+* [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
 
 ### State Machine Breaking
 
@@ -24,7 +29,6 @@
 ### Improvements
 
 * [#1712](https://github.com/crypto-org-chain/cronos/pull/1712) Upgrade rocksdb to `v9.8.4`.
-* [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
 
 *Dec 2, 2024*
 
