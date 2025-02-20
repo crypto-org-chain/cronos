@@ -8,6 +8,7 @@
 * [#1725](https://github.com/crypto-org-chain/cronos/pull/1725) Include the fix of deadlock when close tree in iavl.
 * [#1724](https://github.com/crypto-org-chain/cronos/pull/1724) Include the fix of nonce management in batch tx in ethermint.
 * [#1748](https://github.com/crypto-org-chain/cronos/pull/1748) Query with GetCFWithTS to compare both timestamp and key to avoid run fixdata multiple times.
+* (versiondb) [#1751](https://github.com/crypto-org-chain/cronos/pull/1751) Add missing Destroy for read options to properly hold and release options reference.
 
 ### Improvements
 
