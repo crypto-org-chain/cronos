@@ -65,7 +65,7 @@ jobs:
         if: steps.changed-files.outputs.only_changed == 'false'
         run: |
           nix profile install ./nix#go_1_22
-          go tool covdata textfmt -i=integration_tests/coverage -o profile.txt
+          go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
         if: steps.changed-files.outputs.only_changed == 'false'
         uses: codecov/codecov-action@v4
