@@ -65,13 +65,13 @@ import sources.nixpkgs {
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo121Module rec {
+      rly = pkgs.buildGo123Module rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorHash = "sha256-dwKZZu9wKOo2u1/8AAWFx89iC9pWZbCxAERMMAOFsts=";
+        vendorHash = "sha256-O8bjUfB+tXDizb4uKfpE+A3roFDjD8AYba8ncTAHlF0=";
         doCheck = false;
-        GOWORK = "off";
+        env.GOWORK = "off";
         postInstall = ''
           mv $out/bin/relayer $out/bin/rly
         '';
