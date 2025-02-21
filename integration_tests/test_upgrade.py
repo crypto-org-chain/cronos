@@ -2,6 +2,7 @@ import json
 import shutil
 import stat
 import subprocess
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -19,6 +20,7 @@ from .utils import (
     assert_gov_params,
     deploy_contract,
     edit_ini_sections,
+    eth_to_bech32,
     get_consensus_params,
     get_send_enable,
     send_transaction,
@@ -291,6 +293,23 @@ def exec(c, tmp_path_factory):
     assert txs == get_txs(base_port, height)
 
     gov_param = cli.query_params("gov")
+
+    c.supervisorctl("stop", "cronos_777-1-node0")
+    time.sleep(3)
+    cli.changeset_fixdata(f"{c.base_dir}/node0/data/versiondb")
+    print(cli.changeset_fixdata(f"{c.base_dir}/node0/data/versiondb", dry_run=True))
+    c.supervisorctl("start", "cronos_777-1-node0")
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
+
+    to = "0x2D5B6C193C39D2AECb4a99052074E6F325258a0f"
+    with pytest.raises(AssertionError) as err:
+        cli.query_account(eth_to_bech32(to))
+    assert "crc194dkcxfu88f2aj62nyzjqa8x7vjjtzs0jwcj06 not found" in str(err.value)
+    receipt = send_transaction(w3, {"to": to, "value": 10, "gas": 21000})
+    method = "debug_traceTransaction"
+    params = [receipt["transactionHash"].hex(), {"tracer": "callTracer"}]
+    tx_bf = w3.provider.make_request(method, params)
+
     cli = do_upgrade("v1.4", cli.block_height() + 15)
 
     assert_evm_params(cli, e0, target_height0 - 1)
@@ -301,6 +320,9 @@ def exec(c, tmp_path_factory):
     with pytest.raises(AssertionError):
         cli.query_params("icaauth")
     assert_gov_params(cli, gov_param)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af == tx_bf, tx_af
 
     cli = do_upgrade("v1.4.0-rc5-testnet", cli.block_height() + 15)
     check_basic_tx(c)
