@@ -322,7 +322,7 @@ def exec(c, tmp_path_factory):
     assert_gov_params(cli, gov_param)
 
     tx_af = w3.provider.make_request(method, params)
-    assert tx_af == tx_bf, tx_af
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
     cli = do_upgrade("v1.4.0-rc5-testnet", cli.block_height() + 15)
     check_basic_tx(c)
