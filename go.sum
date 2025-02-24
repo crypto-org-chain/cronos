@@ -424,12 +424,14 @@ github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c h1:MOgfS4+F
 github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c/go.mod h1:twD9XRA5jj9VUQGELzDO4HPQTNJsoWWfYEL+EUQ2cKY=
 github.com/crypto-org-chain/cometbft v0.0.0-20241106091515-ce418f845d9a h1:0EN1TkzHTAxpgpGaZJY3G7L4jf4+sYnI7FOmBFLCg4U=
 github.com/crypto-org-chain/cometbft v0.0.0-20241106091515-ce418f845d9a/go.mod h1:khbgmtxbgwJfMqDmnGY4rl2sQpTdzpPb1f9nqnfpy1o=
+github.com/crypto-org-chain/cosmos-sdk v0.43.0-beta1.0.20250224020346-25e0cb78f920 h1:T4nlD37kZ2CodSH54l7p/Dg7c56ptMsfDoxndf7bNAM=
+github.com/crypto-org-chain/cosmos-sdk v0.43.0-beta1.0.20250224020346-25e0cb78f920/go.mod h1:JwwsMeZldLN20b72mmbWPY0EV9rs+v/12hRu1JFttvY=
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 h1:NEgy0r3otU/O+0OAjMdEhbn4VotQlg+98hHbD7M23wU=
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241217094803-acbe290991cc h1:NDD/ddYvUlnJ6TQMf+VUrN7a9YATYiLZA7xbDHwbJxY=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20241217094803-acbe290991cc/go.mod h1:9FNO9k70szJ7CEge4tnJraWu3baTbwNxjpZhZBqlMok=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250109075157-62042e2252f6 h1:TFO18Bi2Rp/N/9T+6xSXXHM5CBY8MKSDdo/o39aeBZU=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250109075157-62042e2252f6/go.mod h1:b/zGbkkYhrshNpuHTk1sCA5Teyo5d3Ex3CpPdq8f+ZA=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716 h1:OvD5Rm0B6LHUJk6z858UgwdP72jU2DuUdXeclRyKpDI=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a h1:IUPD+dg1YQl8cLocxQ/Mbx/ObTgAgcrZlcBhFjsLO40=
@@ -894,8 +896,6 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/pointerstructure v1.2.0 h1:O+i9nHnXS3l/9Wu7r4NrEdwA2VFTicjUEN1uBnDo34A=
 github.com/mitchellh/pointerstructure v1.2.0/go.mod h1:BRAsLI5zgXmw97Lf6s25bs8ohIXc3tViBH44KcwB2g4=
-github.com/mmsqe/cosmos-sdk v0.46.0-beta2.0.20250223011221-4a4ce02ab30c h1:rE5j6iJZaS9rdP/2lUeo6iM5EAECBxObOG3JtSMCNvk=
-github.com/mmsqe/cosmos-sdk v0.46.0-beta2.0.20250223011221-4a4ce02ab30c/go.mod h1:JwwsMeZldLN20b72mmbWPY0EV9rs+v/12hRu1JFttvY=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
