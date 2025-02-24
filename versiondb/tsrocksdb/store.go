@@ -94,8 +94,10 @@ func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error 
 }
 
 func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*grocksdb.Slice, error) {
+	readOpts := newTSReadOptions(version)
+	defer readOpts.Destroy()
 	value, ts, err := s.db.GetCFWithTS(
-		newTSReadOptions(version),
+		readOpts,
 		s.cfHandle,
 		prependStoreKey(storeKey, key),
 	)
@@ -164,7 +166,9 @@ func (s Store) iteratorAtVersion(storeKey string, start, end []byte, version *in
 	prefix := storePrefix(storeKey)
 	start, end = iterateWithPrefix(prefix, start, end)
 
-	itr := s.db.NewIteratorCF(newTSReadOptions(version), s.cfHandle)
+	readOpts := newTSReadOptions(version)
+	defer readOpts.Destroy()
+	itr := s.db.NewIteratorCF(readOpts, s.cfHandle)
 	return newRocksDBIterator(itr, prefix, start, end, reverse, s.skipVersionZero), nil
 }
 
@@ -241,12 +245,10 @@ func (s Store) FixData(storeNames []string, dryRun bool) error {
 			return err
 		}
 	}
-
-	if !dryRun {
-		return s.Flush()
+	if dryRun {
+		return nil
 	}
-
-	return nil
+	return s.Flush()
 }
 
 // fixDataStore iterate the wrong data at version 0, parse the timestamp from the key and write it again.
@@ -256,8 +258,11 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		return err
 	}
 
-	batch := grocksdb.NewWriteBatch()
-	defer batch.Destroy()
+	var batch *grocksdb.WriteBatch
+	if !dryRun {
+		batch = grocksdb.NewWriteBatch()
+		defer batch.Destroy()
+	}
 
 	prefix := storePrefix(storeName)
 	readOpts := grocksdb.NewDefaultReadOptions()
@@ -266,14 +271,14 @@ func (s Store) fixDataStore(storeName string, dryRun bool) error {
 		realKey := cloneAppend(prefix, pair.Key)
 
 		readOpts.SetTimestamp(pair.Timestamp)
-		oldValue, err := s.db.GetCF(readOpts, s.cfHandle, realKey)
+		oldValue, oldTimestamp, err := s.db.GetCFWithTS(readOpts, s.cfHandle, realKey)
 		if err != nil {
 			return err
 		}
 
-		clean := bytes.Equal(oldValue.Data(), pair.Value)
+		clean := bytes.Equal(oldValue.Data(), pair.Value) && bytes.Equal(oldTimestamp.Data(), pair.Timestamp)
 		oldValue.Free()
-
+		oldTimestamp.Free()
 		if clean {
 			continue
 		}

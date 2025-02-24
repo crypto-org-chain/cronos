@@ -2,6 +2,7 @@ import json
 import shutil
 import stat
 import subprocess
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -273,6 +274,13 @@ def exec(c, tmp_path_factory):
     print("upgrade v1.3 height", target4)
     do_upgrade("v1.3", target4, gas_prices=gas_prices)
     cli = c.cosmos_cli()
+
+    c.supervisorctl("stop", "cronos_777-1-node0")
+    time.sleep(3)
+    cli.changeset_fixdata(f"{c.base_dir}/node0/data/versiondb")
+    assert not cli.changeset_fixdata(f"{c.base_dir}/node0/data/versiondb", dry_run=True)
+    c.supervisorctl("start", "cronos_777-1-node0")
+    wait_for_port(ports.evmrpc_port(c.base_port(0)))
 
     # check basic tx works
     wait_for_port(ports.evmrpc_port(c.base_port(0)))
