@@ -1851,6 +1851,11 @@ class CosmosCLI:
             "changeset", "restore-versiondb", height, format, home=self.data_dir
         )
 
+    def changeset_fixdata(self, versiondb_dir, dry_run=False):
+        return self.raw(
+            "changeset", "fixdata", versiondb_dir, "--dry-run" if dry_run else None
+        )
+
     def dump_snapshot(self, height, tarball, format=3):
         return self.raw(
             "snapshots", "dump", height, format, home=self.data_dir, output=tarball
