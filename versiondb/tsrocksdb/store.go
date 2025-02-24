@@ -94,8 +94,10 @@ func (s Store) PutAtVersion(version int64, changeSet []types.StoreKVPair) error 
 }
 
 func (s Store) GetAtVersionSlice(storeKey string, key []byte, version *int64) (*grocksdb.Slice, error) {
+	readOpts := newTSReadOptions(version)
+	defer readOpts.Destroy()
 	value, ts, err := s.db.GetCFWithTS(
-		newTSReadOptions(version),
+		readOpts,
 		s.cfHandle,
 		prependStoreKey(storeKey, key),
 	)
@@ -164,7 +166,9 @@ func (s Store) iteratorAtVersion(storeKey string, start, end []byte, version *in
 	prefix := storePrefix(storeKey)
 	start, end = iterateWithPrefix(prefix, start, end)
 
-	itr := s.db.NewIteratorCF(newTSReadOptions(version), s.cfHandle)
+	readOpts := newTSReadOptions(version)
+	defer readOpts.Destroy()
+	itr := s.db.NewIteratorCF(readOpts, s.cfHandle)
 	return newRocksDBIterator(itr, prefix, start, end, reverse, s.skipVersionZero), nil
 }
 
