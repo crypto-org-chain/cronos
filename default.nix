@@ -3,7 +3,6 @@
   stdenv,
   buildGoApplication,
   nix-gitignore,
-  buildPackages,
   coverage ? false, # https://tip.golang.org/doc/go1.20#cover
   rocksdb,
   network ? "mainnet", # mainnet|testnet
