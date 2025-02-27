@@ -5,6 +5,9 @@
 ### Bug Fixes
 
 * [#1748](https://github.com/crypto-org-chain/cronos/pull/1748) Query with GetCFWithTS to compare both timestamp and key to avoid run fixdata multiple times.
+* (versiondb) [#1751](https://github.com/crypto-org-chain/cronos/pull/1751) Add missing Destroy for read options to properly hold and release options reference.
+* [#1753](https://github.com/crypto-org-chain/cronos/pull/1753) Support legacy global AccountNumber.
+* (versiondb) [#1758](https://github.com/crypto-org-chain/cronos/pull/1758) Avoid ReadOptions mutated by reference release in iterator.
 
 ### Improvements
 
