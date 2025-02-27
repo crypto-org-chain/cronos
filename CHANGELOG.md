@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Feb 28, 2025*
+
+## v1.4.4
 
 ### Bug Fixes
 
@@ -8,6 +10,7 @@
 * (versiondb) [#1751](https://github.com/crypto-org-chain/cronos/pull/1751) Add missing Destroy for read options to properly hold and release options reference.
 * [#1753](https://github.com/crypto-org-chain/cronos/pull/1753) Support legacy global AccountNumber.
 * (versiondb) [#1758](https://github.com/crypto-org-chain/cronos/pull/1758) Avoid ReadOptions mutated by reference release in iterator.
+* [#1761](https://github.com/crypto-org-chain/cronos/pull/1761) Include a security patch from ibc-go.
 
 ### Improvements
 

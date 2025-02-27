@@ -393,12 +393,12 @@ github.com/cosmos/gogoproto v1.7.0 h1:79USr0oyXAbxg3rspGh/m4SWNyoz/GLaAh0QlCe2fr
 github.com/cosmos/gogoproto v1.7.0/go.mod h1:yWChEv5IUEYURQasfyBW5ffkMHR/90hiHgbNgrtp4j0=
 github.com/cosmos/iavl v1.2.4-0.20241218014611-3b0ad9922f9f h1:ex8R1/5/ghhCBEwSWr2L2+OSnWU0A6Pe68cROdGiVX4=
 github.com/cosmos/iavl v1.2.4-0.20241218014611-3b0ad9922f9f/go.mod h1:GiM43q0pB+uG53mLxLDzimxM9l/5N9UuSY3/D0huuVw=
-github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240913130017-6b2554360c0e h1:jMqihcJRBdpRrKGOMS1bDyyoo2JoQxv4QmMCwK3HSvI=
-github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20240913130017-6b2554360c0e/go.mod h1:akR14gsU5YD5S1G5I6lOI7z51OjR1vJko06Rs/3/Ym0=
+github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20250227161037-91dda0165967 h1:DUzViXxZcI36utUIkDLmUYzhpXlDIUhBNkch4Qyc2UI=
+github.com/cosmos/ibc-go/modules/apps/callbacks v0.0.0-20250227161037-91dda0165967/go.mod h1:akR14gsU5YD5S1G5I6lOI7z51OjR1vJko06Rs/3/Ym0=
 github.com/cosmos/ibc-go/modules/capability v1.0.1 h1:ibwhrpJ3SftEEZRxCRkH0fQZ9svjthrX2+oXdZvzgGI=
 github.com/cosmos/ibc-go/modules/capability v1.0.1/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
-github.com/cosmos/ibc-go/v8 v8.5.2 h1:27s9oeD2AxLQF3e9BQsYt9doONyZ7FwZi/qkBv6Sdks=
-github.com/cosmos/ibc-go/v8 v8.5.2/go.mod h1:P5hkAvq0Qbg0h18uLxDVA9q1kOJ0l36htMsskiNwXbo=
+github.com/cosmos/ibc-go/v8 v8.6.0 h1:mU0cztvIraZ2OWZMNKDrOos63D5OHTIYlTGlEwugqPw=
+github.com/cosmos/ibc-go/v8 v8.6.0/go.mod h1:6fe2axQco2tSBvBIi7ExRQJ2BVrWL3QAxQDguLcmw1g=
 github.com/cosmos/ics23/go v0.11.0 h1:jk5skjT0TqX5e5QJbEnwXIS2yI2vnmLOgpQPeM5RtnU=
 github.com/cosmos/ics23/go v0.11.0/go.mod h1:A8OjxPE67hHST4Icw94hOxxFEJMBG031xIGF/JHNIY0=
 github.com/cosmos/keyring v1.2.0 h1:8C1lBP9xhImmIabyXW4c3vFjjLiBdGCmfLUfeZlV1Yo=
