@@ -1041,16 +1041,28 @@ func New(
 	}
 
 	if loadLatest {
-		if err := app.LoadLatestVersion(); err != nil {
-			tmos.Exit(err.Error())
+		var qmsVersion int64
+		if app.qms != nil {
+			qmsVersion = app.qms.LatestVersion()
 		}
 
-		if app.qms != nil {
-			v1 := app.qms.LatestVersion()
-			v2 := app.LastBlockHeight()
-			if v1 > 0 && v1 < v2 {
+		if qmsVersion == 0 {
+			if err := app.LoadLatestVersion(); err != nil {
+				tmos.Exit(err.Error())
+			}
+		} else {
+			// make sure iavl version is not ahead of versiondb version
+			app.SetStoreLoader(VersionStoreLoader(qmsVersion))
+
+			if err := app.LoadLatestVersion(); err != nil {
+				tmos.Exit(err.Error())
+			}
+
+			// still keep the check for safety
+			iavlVersion := app.LastBlockHeight()
+			if qmsVersion < iavlVersion {
 				// try to prevent gap being created in versiondb
-				tmos.Exit(fmt.Sprintf("versiondb version %d lag behind iavl version %d", v1, v2))
+				tmos.Exit(fmt.Sprintf("versiondb version %d lag behind iavl version %d", qmsVersion, iavlVersion))
 			}
 		}
 
@@ -1490,4 +1502,11 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	return app.BaseApp.CheckTx(req)
+}
+
+// VersionStoreLoader will be used by default and loads the latest version
+func VersionStoreLoader(version int64) baseapp.StoreLoader {
+	return func(ms storetypes.CommitMultiStore) error {
+		return ms.LoadVersion(version)
+	}
 }
