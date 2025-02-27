@@ -560,8 +560,17 @@ func (db *DB) Commit() (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			if err := db.wal.Write(entry.index, bz); err != nil {
+
+			lastIndex, err := db.wal.LastIndex()
+			if err != nil {
 				return 0, err
+			}
+			if entry.index < lastIndex+1 {
+				db.logger.Error("commit old version idempotently", "expected", lastIndex+1, "actual", entry.index)
+			} else {
+				if err := db.wal.Write(entry.index, bz); err != nil {
+					return 0, err
+				}
 			}
 		}
 	}
@@ -591,13 +600,25 @@ func (db *DB) initAsyncCommit() {
 				break
 			}
 
-			for _, entry := range entries {
+			lastIndex, err := db.wal.LastIndex()
+			if err != nil {
+				walQuit <- err
+				return
+			}
+
+			for i, entry := range entries {
 				bz, err := entry.data.Marshal()
 				if err != nil {
 					walQuit <- err
 					return
 				}
-				batch.Write(entry.index, bz)
+
+				if entry.index < lastIndex+uint64(i+1) {
+					db.logger.Error("commit old version idempotently", "expected", lastIndex+uint64(i+1), "actual", entry.index)
+					continue
+				} else {
+					batch.Write(entry.index, bz)
+				}
 			}
 
 			if err := db.wal.WriteBatch(&batch); err != nil {
