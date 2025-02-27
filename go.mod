@@ -277,6 +277,7 @@ replace (
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
+	github.com/linxGnu/grocksdb => github.com/mmsqe/grocksdb v0.0.0-20250224033534-2ce3fc37a74a
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tidwall/btree => github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c
 )
