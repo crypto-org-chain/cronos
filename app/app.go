@@ -1504,7 +1504,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	return app.BaseApp.CheckTx(req)
 }
 
-// VersionStoreLoader will be used by default and loads the latest version
+// VersionStoreLoader will be used when there's versiondb
 func VersionStoreLoader(version int64) baseapp.StoreLoader {
 	return func(ms storetypes.CommitMultiStore) error {
 		return ms.LoadVersion(version)
