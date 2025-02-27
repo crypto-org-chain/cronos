@@ -19,6 +19,7 @@ poetry2nix.mkPoetryEnv {
         flake8-isort = [ "hatchling" ];
         pyunormalize = [ "setuptools" ];
         eth-bloom = [ "setuptools" ];
+        isort = [ "poetry-core" ];
       };
     in
     lib.mapAttrs (
