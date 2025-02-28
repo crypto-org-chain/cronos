@@ -2,6 +2,14 @@
 
 *Feb 28, 2025*
 
+## v1.4.5
+
+### Bug Fixes
+
+* [#1763](https://github.com/crypto-org-chain/cronos/pull/1763) Include a security patch from ibc-go.
+
+*Feb 28, 2025*
+
 ## v1.4.4
 
 ### Bug Fixes
