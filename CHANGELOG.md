@@ -6,7 +6,7 @@
 
 ### Bug Fixes
 
-* [#1763](https://github.com/crypto-org-chain/cronos/pull/1763) Include a security patch from ibc-go.
+* [#1763](https://github.com/crypto-org-chain/cronos/pull/1763) Avoid breaking change from packet forward middleware from ibc-go.
 
 *Feb 28, 2025*
 
