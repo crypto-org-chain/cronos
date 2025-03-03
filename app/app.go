@@ -959,9 +959,27 @@ func New(
 		panic(err)
 	}
 
+	// wire up the versiondb's `StreamingService` and `MultiStore`.
+	if cast.ToBool(appOpts.Get("versiondb.enable")) {
+		var err error
+		app.qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys, okeys)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	var qmsVersion int64
+	if app.qms != nil {
+		qmsVersion = app.qms.LatestVersion()
+	}
+
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
 	// Make sure it's called after `app.mm` and `app.configurator` are set.
-	app.RegisterUpgradeHandlers(app.appCodec)
+	storeLoaderOverritten := app.RegisterUpgradeHandlers(app.appCodec, qmsVersion)
+	if !storeLoaderOverritten {
+		// Register the default store loader
+		app.SetStoreLoader(MaxVersionStoreLoader(qmsVersion))
+	}
 
 	// add test gRPC service for testing gRPC queries in isolation
 	// testdata.RegisterQueryServer(app.GRPCQueryRouter(), testdata.QueryImpl{})
@@ -991,15 +1009,6 @@ func New(
 	app.MountTransientStores(tkeys)
 	app.MountMemoryStores(memKeys)
 	app.MountObjectStores(okeys)
-
-	// wire up the versiondb's `StreamingService` and `MultiStore`.
-	if cast.ToBool(appOpts.Get("versiondb.enable")) {
-		var err error
-		app.qms, err = app.setupVersionDB(homePath, keys, tkeys, memKeys, okeys)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
@@ -1041,24 +1050,13 @@ func New(
 	}
 
 	if loadLatest {
-		var qmsVersion int64
-		if app.qms != nil {
-			qmsVersion = app.qms.LatestVersion()
+		if err := app.LoadLatestVersion(); err != nil {
+			tmos.Exit(err.Error())
 		}
 
-		if qmsVersion == 0 {
-			if err := app.LoadLatestVersion(); err != nil {
-				tmos.Exit(err.Error())
-			}
-		} else {
-			// make sure iavl version is not ahead of versiondb version
-			app.SetStoreLoader(VersionStoreLoader(qmsVersion))
-
-			if err := app.LoadLatestVersion(); err != nil {
-				tmos.Exit(err.Error())
-			}
-
-			// still keep the check for safety
+		if qmsVersion > 0 {
+			// it should not happens since we constraint the loaded iavl version to not exceed the versiondb version,
+			// still keep the check for safety.
 			iavlVersion := app.LastBlockHeight()
 			if qmsVersion < iavlVersion {
 				// try to prevent gap being created in versiondb
@@ -1502,11 +1500,4 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	return app.BaseApp.CheckTx(req)
-}
-
-// VersionStoreLoader will be used when there's versiondb
-func VersionStoreLoader(version int64) baseapp.StoreLoader {
-	return func(ms storetypes.CommitMultiStore) error {
-		return ms.LoadVersion(version)
-	}
 }
