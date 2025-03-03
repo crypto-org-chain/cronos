@@ -762,7 +762,8 @@ func (db *DB) rewriteSnapshotBackground() error {
 
 		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshotWithContext(ctx); err != nil {
-			ch <- snapshotResult{err: err}
+			// write error log but don't stop the client, it could happen when load an old version.
+			cloned.logger.Error("failed to rewrite snapshot", "err", err)
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())

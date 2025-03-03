@@ -17,5 +17,6 @@ pkgs.mkShell {
   shellHook = ''
     mkdir ./coverage
     export GOCOVERDIR=./coverage
+    export TMPDIR=/tmp
   '';
 }
