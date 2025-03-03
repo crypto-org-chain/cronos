@@ -443,8 +443,13 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		db.snapshotRewriteCancel = nil
 
 		if result.mtree == nil {
-			// background snapshot rewrite failed
-			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+			if result.err != nil {
+				// background snapshot rewrite failed
+				return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+			}
+
+			// background snapshot rewrite don't success, but no error to propogate, ignore it.
+			return nil
 		}
 
 		// wait for potential pending wal writings to finish, to make sure we catch up to latest state.
