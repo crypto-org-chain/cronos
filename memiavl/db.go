@@ -80,6 +80,9 @@ type DB struct {
 	mtx sync.Mutex
 	// worker goroutine IdleTimeout = 5s
 	snapshotWriterPool *pond.WorkerPool
+
+	// reusable write batch
+	wbatch wal.Batch
 }
 
 type Options struct {
@@ -556,21 +559,18 @@ func (db *DB) Commit() (int64, error) {
 			// async wal writing
 			db.walChan <- &entry
 		} else {
-			bz, err := entry.data.Marshal()
-			if err != nil {
-				return 0, err
-			}
-
 			lastIndex, err := db.wal.LastIndex()
 			if err != nil {
 				return 0, err
 			}
-			if entry.index < lastIndex+1 {
-				db.logger.Error("commit old version idempotently", "expected", lastIndex+1, "actual", entry.index)
-			} else {
-				if err := db.wal.Write(entry.index, bz); err != nil {
-					return 0, err
-				}
+
+			db.wbatch.Clear()
+			if err := writeEntry(&db.wbatch, db.logger, lastIndex, &entry); err != nil {
+				return 0, err
+			}
+
+			if err := db.wal.WriteBatch(&db.wbatch); err != nil {
+				return 0, err
 			}
 		}
 	}
@@ -606,18 +606,10 @@ func (db *DB) initAsyncCommit() {
 				return
 			}
 
-			for i, entry := range entries {
-				bz, err := entry.data.Marshal()
-				if err != nil {
+			for _, entry := range entries {
+				if err := writeEntry(&batch, db.logger, lastIndex, entry); err != nil {
 					walQuit <- err
 					return
-				}
-
-				if entry.index < lastIndex+uint64(i+1) {
-					db.logger.Error("commit old version idempotently", "expected", lastIndex+uint64(i+1), "actual", entry.index)
-					continue
-				} else {
-					batch.Write(entry.index, bz)
 				}
 			}
 
@@ -1113,4 +1105,18 @@ func channelBatchRecv[T any](ch <-chan *T) []*T {
 	}
 
 	return result
+}
+
+func writeEntry(batch *wal.Batch, logger Logger, lastIndex uint64, entry *walEntry) error {
+	bz, err := entry.data.Marshal()
+	if err != nil {
+		return err
+	}
+
+	if entry.index <= lastIndex {
+		logger.Error("commit old version idempotently", "lastIndex", lastIndex, "version", entry.index)
+	} else {
+		batch.Write(entry.index, bz)
+	}
+	return nil
 }
