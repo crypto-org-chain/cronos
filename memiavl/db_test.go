@@ -500,8 +500,26 @@ func TestRepeatedApplyChangeSet(t *testing.T) {
 }
 
 func TestIdempotentWrite(t *testing.T) {
+	for _, asyncCommit := range []bool{false, true} {
+		t.Run(fmt.Sprintf("asyncCommit=%v", asyncCommit), func(t *testing.T) {
+			testIdempotentWrite(t, asyncCommit)
+		})
+	}
+}
+
+func testIdempotentWrite(t *testing.T, asyncCommit bool) {
 	dir := t.TempDir()
-	db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{"test1", "test2"}})
+
+	asyncCommitBuffer := -1
+	if asyncCommit {
+		asyncCommitBuffer = 10
+	}
+
+	db, err := Load(dir, Options{
+		CreateIfMissing:   true,
+		InitialStores:     []string{"test1", "test2"},
+		AsyncCommitBuffer: asyncCommitBuffer,
+	})
 	require.NoError(t, err)
 
 	// generate some data into db
