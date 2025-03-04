@@ -17,7 +17,8 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
-func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec) {
+// RegisterUpgradeHandlers returns if store loader is overridden
+func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
 	planName := "v1.4"
 	app.UpgradeKeeper.SetUpgradeHandler(planName, func(ctx context.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		m, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
@@ -54,14 +55,18 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec) {
 	}
 	if !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 		if upgradeInfo.Name == planName {
-			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storetypes.StoreUpgrades{
+			app.SetStoreLoader(MaxVersionUpgradeStoreLoader(maxVersion, upgradeInfo.Height, &storetypes.StoreUpgrades{
 				Added: []string{
 					icahosttypes.StoreKey,
 				},
 				Deleted: []string{"icaauth"},
 			}))
+
+			return true
 		}
 	}
+
+	return false
 }
 
 func UpdateExpeditedParams(ctx context.Context, gov govkeeper.Keeper) error {

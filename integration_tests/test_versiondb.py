@@ -5,7 +5,7 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, send_transaction, wait_for_port
+from .utils import ADDRS, send_transaction, w3_wait_for_new_blocks, wait_for_port
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -37,6 +37,9 @@ def test_versiondb_migration(cronos: Cronos):
     balance1 = w3.eth.get_balance(community)
     block1 = w3.eth.block_number
 
+    # wait for a few blocks
+    w3_wait_for_new_blocks(w3, 5)
+
     # stop the network first
     print("stop all nodes")
     print(cronos.supervisorctl("stop", "all"))
@@ -45,7 +48,10 @@ def test_versiondb_migration(cronos: Cronos):
 
     changeset_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print("dump to:", changeset_dir)
-    print(cli1.changeset_dump(changeset_dir))
+
+    # only restore to an intermidiate version to test version mismatch behavior
+    print(cli1.changeset_dump(changeset_dir, end_version=block1 + 1))
+
     snapshot_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print("verify and save to snapshot:", snapshot_dir)
     _, commit_info = cli0.changeset_verify(changeset_dir, save_snapshot=snapshot_dir)

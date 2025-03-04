@@ -80,6 +80,9 @@ type DB struct {
 	mtx sync.Mutex
 	// worker goroutine IdleTimeout = 5s
 	snapshotWriterPool *pond.WorkerPool
+
+	// reusable write batch
+	wbatch wal.Batch
 }
 
 type Options struct {
@@ -440,8 +443,13 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 		db.snapshotRewriteCancel = nil
 
 		if result.mtree == nil {
-			// background snapshot rewrite failed
-			return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+			if result.err != nil {
+				// background snapshot rewrite failed
+				return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
+			}
+
+			// background snapshot rewrite don't success, but no error to propagate, ignore it.
+			return nil
 		}
 
 		// wait for potential pending wal writings to finish, to make sure we catch up to latest state.
@@ -556,11 +564,17 @@ func (db *DB) Commit() (int64, error) {
 			// async wal writing
 			db.walChan <- &entry
 		} else {
-			bz, err := entry.data.Marshal()
+			lastIndex, err := db.wal.LastIndex()
 			if err != nil {
 				return 0, err
 			}
-			if err := db.wal.Write(entry.index, bz); err != nil {
+
+			db.wbatch.Clear()
+			if err := writeEntry(&db.wbatch, db.logger, lastIndex, &entry); err != nil {
+				return 0, err
+			}
+
+			if err := db.wal.WriteBatch(&db.wbatch); err != nil {
 				return 0, err
 			}
 		}
@@ -591,13 +605,17 @@ func (db *DB) initAsyncCommit() {
 				break
 			}
 
+			lastIndex, err := db.wal.LastIndex()
+			if err != nil {
+				walQuit <- err
+				return
+			}
+
 			for _, entry := range entries {
-				bz, err := entry.data.Marshal()
-				if err != nil {
+				if err := writeEntry(&batch, db.logger, lastIndex, entry); err != nil {
 					walQuit <- err
 					return
 				}
-				batch.Write(entry.index, bz)
 			}
 
 			if err := db.wal.WriteBatch(&batch); err != nil {
@@ -749,7 +767,8 @@ func (db *DB) rewriteSnapshotBackground() error {
 
 		cloned.logger.Info("start rewriting snapshot", "version", cloned.Version())
 		if err := cloned.RewriteSnapshotWithContext(ctx); err != nil {
-			ch <- snapshotResult{err: err}
+			// write error log but don't stop the client, it could happen when load an old version.
+			cloned.logger.Error("failed to rewrite snapshot", "err", err)
 			return
 		}
 		cloned.logger.Info("finished rewriting snapshot", "version", cloned.Version())
@@ -1092,4 +1111,18 @@ func channelBatchRecv[T any](ch <-chan *T) []*T {
 	}
 
 	return result
+}
+
+func writeEntry(batch *wal.Batch, logger Logger, lastIndex uint64, entry *walEntry) error {
+	bz, err := entry.data.Marshal()
+	if err != nil {
+		return err
+	}
+
+	if entry.index <= lastIndex {
+		logger.Error("commit old version idempotently", "lastIndex", lastIndex, "version", entry.index)
+	} else {
+		batch.Write(entry.index, bz)
+	}
+	return nil
 }
