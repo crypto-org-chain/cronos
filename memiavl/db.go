@@ -448,7 +448,7 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 				return fmt.Errorf("background snapshot rewriting failed: %w", result.err)
 			}
 
-			// background snapshot rewrite don't success, but no error to propogate, ignore it.
+			// background snapshot rewrite don't success, but no error to propagate, ignore it.
 			return nil
 		}
 

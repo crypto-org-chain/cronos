@@ -547,7 +547,7 @@ func testIdempotentWrite(t *testing.T, asyncCommit bool) {
 	commitInfo := *db.LastCommitInfo()
 	require.NoError(t, db.Close())
 
-	// reload db from disk at an intermidiate version
+	// reload db from disk at an intermediate version
 	db, err = Load(dir, Options{TargetVersion: 5})
 	require.NoError(t, err)
 
