@@ -3,6 +3,7 @@ package memiavl
 import (
 	"encoding/hex"
 	"errors"
+	fmt "fmt"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -496,4 +497,74 @@ func TestRepeatedApplyChangeSet(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+}
+
+func TestIdempotentWrite(t *testing.T) {
+	for _, asyncCommit := range []bool{false, true} {
+		t.Run(fmt.Sprintf("asyncCommit=%v", asyncCommit), func(t *testing.T) {
+			testIdempotentWrite(t, asyncCommit)
+		})
+	}
+}
+
+func testIdempotentWrite(t *testing.T, asyncCommit bool) {
+	dir := t.TempDir()
+
+	asyncCommitBuffer := -1
+	if asyncCommit {
+		asyncCommitBuffer = 10
+	}
+
+	db, err := Load(dir, Options{
+		CreateIfMissing:   true,
+		InitialStores:     []string{"test1", "test2"},
+		AsyncCommitBuffer: asyncCommitBuffer,
+	})
+	require.NoError(t, err)
+
+	// generate some data into db
+	var changes [][]*NamedChangeSet
+	for i := 0; i < 10; i++ {
+		cs := []*NamedChangeSet{
+			{
+				Name:      "test1",
+				Changeset: ChangeSet{Pairs: mockKVPairs("hello", fmt.Sprintf("world%d", i))},
+			},
+			{
+				Name:      "test2",
+				Changeset: ChangeSet{Pairs: mockKVPairs("hello", fmt.Sprintf("world%d", i))},
+			},
+		}
+		changes = append(changes, cs)
+	}
+
+	for _, cs := range changes {
+		require.NoError(t, db.ApplyChangeSets(cs))
+		_, err := db.Commit()
+		require.NoError(t, err)
+	}
+
+	commitInfo := *db.LastCommitInfo()
+	require.NoError(t, db.Close())
+
+	// reload db from disk at an intermediate version
+	db, err = Load(dir, Options{TargetVersion: 5})
+	require.NoError(t, err)
+
+	// replay some random writes to reach same version
+	for i := 0; i < 5; i++ {
+		require.NoError(t, db.ApplyChangeSets(changes[i+5]))
+		_, err := db.Commit()
+		require.NoError(t, err)
+	}
+
+	// it should reach same result
+	require.Equal(t, commitInfo, *db.LastCommitInfo())
+
+	require.NoError(t, db.Close())
+
+	// reload db again, it should reach same result
+	db, err = Load(dir, Options{})
+	require.NoError(t, err)
+	require.Equal(t, commitInfo, *db.LastCommitInfo())
 }
