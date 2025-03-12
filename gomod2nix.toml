@@ -190,14 +190,14 @@ schema = 3
     version = "v1.2.4-0.20241218014611-3b0ad9922f9f"
     hash = "sha256-WbNyKZmKBr2R1YaVfGVdSH9dX6AqFynOwd2dmpTX3ZI="
   [mod."github.com/cosmos/ibc-go/modules/apps/callbacks"]
-    version = "v0.0.0-20250227161037-91dda0165967"
+    version = "v0.0.0-20250312150146-53eaba19375d"
     hash = "sha256-mL+g8WB+fLUlTKMnrdn8rTgw2gqXsHlky3/BTsyfek0="
   [mod."github.com/cosmos/ibc-go/modules/capability"]
     version = "v1.0.1"
     hash = "sha256-iRhj2WTr99DgAl80h25pxtkO6iHYjyHflwpxKKG5b6E="
   [mod."github.com/cosmos/ibc-go/v8"]
-    version = "v8.6.0"
-    hash = "sha256-fAb3wWqexFo/l5cKRWpZFaRLYSwe3glUrw8Z2mnbBFo="
+    version = "v8.7.0"
+    hash = "sha256-axMi6WoRyrtIGpZ24XQ1N0e2gUQ4ZbqnPVpYsqwmUmU="
   [mod."github.com/cosmos/ics23/go"]
     version = "v0.11.0"
     hash = "sha256-mgU/pqp4kASmW/bP0z6PzssfjRp7GU9ioyvNlDdGC+E="

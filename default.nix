@@ -3,7 +3,6 @@
   stdenv,
   buildGoApplication,
   nix-gitignore,
-  buildPackages,
   coverage ? false, # https://tip.golang.org/doc/go1.20#cover
   rocksdb,
   network ? "mainnet", # mainnet|testnet
@@ -12,7 +11,7 @@
   nativeByteOrder ? true, # nativeByteOrder mode will panic on big endian machines
 }:
 let
-  version = "v1.4.4";
+  version = "v1.4.5";
   pname = "cronosd";
   tags = [
     "ledger"

@@ -1,10 +1,13 @@
 # Changelog
 
-## UNRELEASED
+*Mar 13, 2025*
+
+## v1.4.5
 
 ### Bug Fixes
 
 * [#1759](https://github.com/crypto-org-chain/cronos/pull/1759) Fix version mismatch happen occasionally.
+* [#1766](https://github.com/crypto-org-chain/cronos/pull/1766) Include a security patch from ibc-go `v8.7.0`.
 
 *Feb 28, 2025*
 
