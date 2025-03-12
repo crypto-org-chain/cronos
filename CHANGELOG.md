@@ -11,6 +11,7 @@
 * (versiondb) [#1751](https://github.com/crypto-org-chain/cronos/pull/1751) Add missing Destroy for read options to properly hold and release options reference.
 * (versiondb) [#1758](https://github.com/crypto-org-chain/cronos/pull/1758) Avoid ReadOptions mutated by reference release in iterator.
 * [#1759](https://github.com/crypto-org-chain/cronos/pull/1759) Fix version mismatch happen occasionally.
+* [#1766](https://github.com/crypto-org-chain/cronos/pull/1766) Include a security patch from ibc-go `v8.7.0`.
 
 ### Improvements
 
