@@ -11,7 +11,10 @@ poetry2nix.mkPoetryEnv {
     let
       buildSystems = {
         pystarport = [ "poetry-core" ];
-        cprotobuf = [ "setuptools" "poetry-core" ];
+        cprotobuf = [
+          "setuptools"
+          "poetry-core"
+        ];
         durations = [ "setuptools" ];
         multitail2 = [ "setuptools" ];
         pytest-github-actions-annotate-failures = [ "setuptools" ];
@@ -20,7 +23,10 @@ poetry2nix.mkPoetryEnv {
         pyunormalize = [ "setuptools" ];
         eth-bloom = [ "setuptools" ];
         isort = [ "poetry-core" ];
-        docker = [ "hatchling" "hatch-vcs" ];
+        docker = [
+          "hatchling"
+          "hatch-vcs"
+        ];
       };
     in
     lib.mapAttrs (
