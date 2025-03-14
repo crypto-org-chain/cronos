@@ -2,13 +2,13 @@
 
 [[package]]
 name = "aiohappyeyeballs"
-version = "2.4.1"
+version = "2.4.4"
 description = "Happy Eyeballs for asyncio"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "aiohappyeyeballs-2.4.1-py3-none-any.whl", hash = "sha256:a53432f3a64c2e5924164b1a7f9e75531ecbc24f4bcf078d306c0613d482d32a"},
-    {file = "aiohappyeyeballs-2.4.1.tar.gz", hash = "sha256:f91ea6cf3c4a8f64de44876de94d723172e1eb5effe845bf5cad1c1a2af95c6a"},
+    {file = "aiohappyeyeballs-2.4.4-py3-none-any.whl", hash = "sha256:a980909d50efcd44795c4afeca523296716d50cd756ddca6af8c65b996e27de8"},
+    {file = "aiohappyeyeballs-2.4.4.tar.gz", hash = "sha256:5fdd7d87889c63183afc18ce9271f9b0a7d32c2303e394468dd45d514a757745"},
 ]
 
 [[package]]
@@ -614,9 +614,9 @@ cython = "^3.0.12"
 
 [package.source]
 type = "git"
-url = "https://github.com/mmsqe/cprotobuf.git"
-reference = "build"
-resolved_reference = "023f1cb255ec6bd15492809e46bf9f7b018bc875"
+url = "https://github.com/yihuang/cprotobuf.git"
+reference = "master"
+resolved_reference = "62d5870c6d89b12290d539fe5362e965db21ad61"
 
 [[package]]
 name = "cython"
@@ -2739,4 +2739,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "3ab6075c01af5b73618439d21b58a0599051e01117864c088af4afc1df436fa7"
+content-hash = "584e1bd54c9d44472abd0682209f60a69d24fc3cc3b7143ed59ea7ef5092e4e8"
