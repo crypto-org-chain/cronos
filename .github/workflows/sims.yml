@@ -136,7 +136,7 @@ jobs:
         run: go version
       - name: Install runsim
         run: export GO111MODULE="on" && go install github.com/cosmos/tools/cmd/runsim@v1.0.0
-      - uses: actions/cache@v2.1.6
+      - uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
@@ -183,7 +183,7 @@ jobs:
             go.mod
             go.sum
         if: github.event_name == 'push' || github.event_name == 'pull_request'
-      - uses: actions/cache@v2.1.6
+      - uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
@@ -239,7 +239,7 @@ jobs:
             go.mod
             go.sum
         if: github.event_name == 'push' || github.event_name == 'pull_request'
-      - uses: actions/cache@v2.1.6
+      - uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
@@ -295,7 +295,7 @@ jobs:
             go.mod
             go.sum
         if: github.event_name == 'push' || github.event_name == 'pull_request'
-      - uses: actions/cache@v2.1.6
+      - uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
@@ -351,7 +351,7 @@ jobs:
             go.mod
             go.sum
         if: github.event_name == 'push' || github.event_name == 'pull_request'
-      - uses: actions/cache@v2.1.6
+      - uses: actions/cache@v4
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-runsim-binary
