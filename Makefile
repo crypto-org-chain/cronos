@@ -14,6 +14,8 @@ VERSION := $(shell echo $(shell git describe --tags 2>/dev/null ) | sed 's/^v//'
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 
+UNAME_S := $(shell uname -s)
+
 # process build tags
 build_tags = netgo objstore pebbledb
 ifeq ($(NETWORK),mainnet)
@@ -31,7 +33,6 @@ ifeq ($(LEDGER_ENABLED),true)
             build_tags += ledger
         endif
     else
-        UNAME_S = $(shell uname -s)
         ifeq ($(UNAME_S),OpenBSD)
             $(warning OpenBSD detected, disabling ledger support (https://github.com/cosmos/cosmos-sdk/issues/1988))
         else
@@ -42,6 +43,14 @@ ifeq ($(LEDGER_ENABLED),true)
                 build_tags += ledger
             endif
         endif
+    endif
+endif
+
+ifeq ($(shell uname -s),Darwin)
+    GEN_BINDING_FLAGS := --system x86_64-darwin
+else
+    ifeq ($(shell uname -s),Linux)
+        GEN_BINDING_FLAGS := --system x86_64-linux
     endif
 endif
 
@@ -257,7 +266,7 @@ gen-cronos-contracts:
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
 gen-bindings-contracts:
-	@nix-shell ./nix/gen-binding-shell.nix --pure --run ./scripts/gen-bindings-contracts
+	@nix-shell ./nix/gen-binding-shell.nix $(GEN_BINDING_FLAGS) --pure --run ./scripts/gen-bindings-contracts
 
 .PHONY: gen-cronos-contracts gen-bindings-contracts test-cronos-contracts
 
