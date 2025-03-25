@@ -34,7 +34,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.3
-	github.com/linxGnu/grocksdb v1.9.7
+	github.com/linxGnu/grocksdb v1.9.9-0.20250325001712-9cdf8b3938cf
 	github.com/spf13/cast v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
@@ -277,7 +277,6 @@ replace (
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
 	github.com/jhump/protoreflect => github.com/jhump/protoreflect v1.9.0
-	github.com/linxGnu/grocksdb => github.com/mmsqe/grocksdb v0.0.0-20250224034712-04aa63064718
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tidwall/btree => github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c
 )
