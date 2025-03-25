@@ -72,16 +72,16 @@
         "url": "https://github.com/crypto-org-chain/gravity-bridge/archive/d984b1562242efab5d7595d4108472ed27eba06f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
-    "ibc-rs": {
-        "branch": "v1.8.3",
-        "description": "IBC modules and relayer - Formal specifications and Rust implementation",
+    "hermes": {
+        "branch": "ethermint-v1.9.0",
+        "description": "Rust implementation of an Inter-Blockchain Communication (IBC) relayer",
         "homepage": "",
-        "owner": "informalsystems",
-        "repo": "ibc-rs",
-        "rev": "d54d0dcfc4fe0aaccf83e4c785538fac5af06d15",
-        "sha256": "13pfnjh2a5vjhgl7fnaw4gvr2qchp6a9yy2g3ln6rsasgp8qvpn0",
+        "owner": "crypto-org-chain",
+        "repo": "hermes",
+        "rev": "bfab4c4f797772e64ff7933d16b58bffad39b884",
+        "sha256": "0mf6sj6p076cxcrj7dry949m6wb6br320dkfadarhpypxwfz88cs",
         "type": "tarball",
-        "url": "https://github.com/devashishdxt/hermes/archive/d54d0dcfc4fe0aaccf83e4c785538fac5af06d15.tar.gz",
+        "url": "https://github.com/devashishdxt/hermes/archive/bfab4c4f797772e64ff7933d16b58bffad39b884.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

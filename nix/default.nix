@@ -60,7 +60,7 @@ import sources.nixpkgs {
           ];
         };
       };
-      hermes = pkgs.callPackage ./hermes.nix { src = sources.ibc-rs; };
+      hermes = pkgs.callPackage ./hermes.nix { src = sources.hermes; };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
