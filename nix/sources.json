@@ -81,7 +81,7 @@
         "rev": "bfab4c4f797772e64ff7933d16b58bffad39b884",
         "sha256": "0mf6sj6p076cxcrj7dry949m6wb6br320dkfadarhpypxwfz88cs",
         "type": "tarball",
-        "url": "https://github.com/devashishdxt/hermes/archive/bfab4c4f797772e64ff7933d16b58bffad39b884.tar.gz",
+        "url": "https://github.com/crypto-org-chain/hermes/archive/bfab4c4f797772e64ff7933d16b58bffad39b884.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
