@@ -16,6 +16,7 @@
 ### Improvements
 
 * [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
+* [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
 
 ### State Machine Breaking
 
