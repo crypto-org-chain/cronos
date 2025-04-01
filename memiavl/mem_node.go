@@ -88,7 +88,7 @@ func (node *MemNode) Hash() []byte {
 }
 
 func (node *MemNode) updateHeightSize() {
-	node.height = maxUInt8(node.left.Height(), node.right.Height()) + 1
+	node.height = max(node.left.Height(), node.right.Height()) + 1
 	node.size = node.left.Size() + node.right.Size()
 }
 
@@ -208,11 +208,4 @@ func EncodeBytes(w io.Writer, bz []byte) error {
 	}
 	_, err := w.Write(bz)
 	return err
-}
-
-func maxUInt8(a, b uint8) uint8 {
-	if a > b {
-		return a
-	}
-	return b
 }
