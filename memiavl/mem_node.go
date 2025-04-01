@@ -209,4 +209,3 @@ func EncodeBytes(w io.Writer, bz []byte) error {
 	_, err := w.Write(bz)
 	return err
 }
-
