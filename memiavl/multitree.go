@@ -326,8 +326,10 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 		return nil
 	}
 
-	endIndex := lastIndex
-	if endVersion != 0 {
+	var endIndex uint64
+	if endVersion == 0 {
+		endIndex = lastIndex
+	} else {
 		endIndex = walIndex(endVersion, t.initialVersion)
 	}
 
@@ -336,7 +338,7 @@ func (t *MultiTree) CatchupWAL(wal *wal.Log, endVersion int64) error {
 	}
 
 	if endIndex > lastIndex {
-		return fmt.Errorf("target index %d is in the future, latest index: %d", endIndex, lastIndex)
+		endIndex = lastIndex
 	}
 
 	for i := firstIndex; i <= endIndex; i++ {

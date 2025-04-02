@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+* [#1780](https://github.com/crypto-org-chain/cronos/pull/1780) memiavl LoadVersion loads up to the target version instead of exact version.
+
 *Mar 13, 2025*
 
 ## v1.4.5
