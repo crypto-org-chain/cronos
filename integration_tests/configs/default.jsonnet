@@ -43,6 +43,7 @@
           'zero-copy': true,
           'snapshot-interval': 5,
           'cache-size': 0,
+          'async-commit-buffer': 5,
         },
         versiondb: {
           enable: true,

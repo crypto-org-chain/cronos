@@ -17,6 +17,7 @@
 
 * [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
+* [#1780](https://github.com/crypto-org-chain/cronos/pull/1780) memiavl LoadVersion loads up to the target version instead of exact version.
 
 ### State Machine Breaking
 
