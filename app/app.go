@@ -1270,7 +1270,7 @@ func (app *App) GetKey(storeKey string) *storetypes.KVStoreKey {
 
 // GetStoreKeys returns all the stored store keys.
 func (app *App) GetStoreKeys() []storetypes.StoreKey {
-	keys := make([]storetypes.StoreKey, 0, len(app.keys))
+	keys := make([]storetypes.StoreKey, 0, len(app.keys)+len(app.tkeys)+len(app.memKeys)+len(app.okeys))
 	for _, key := range app.keys {
 		keys = append(keys, key)
 	}
