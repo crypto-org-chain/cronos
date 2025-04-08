@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* [#]() Fix eth_getLogs edge case with batch transaction.
+* [#1783](https://github.com/crypto-org-chain/cronos/pull/1783) Fix eth_getLogs edge case with batch transaction.
 
 *Mar 13, 2025*
 
