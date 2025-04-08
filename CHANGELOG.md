@@ -1,5 +1,11 @@
 # Changelog
 
+## UNRELEASED
+
+### Bug Fixes
+
+* [#]() Fix eth_getLogs edge case with batch transaction.
+
 *Mar 13, 2025*
 
 ## v1.4.5
