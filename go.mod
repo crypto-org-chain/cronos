@@ -271,8 +271,8 @@ replace (
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
-	// release/v1.4.x
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250109075157-62042e2252f6
+	// release/v1.4.x-2
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250409022716-434f46d2a46c
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
