@@ -18,6 +18,7 @@ let
           cprotobuf = [ "setuptools" ];
           flake8-black = [ "setuptools" ];
           flake8-isort = [ "hatchling" ];
+          isort = [ "poetry-core" ];
         };
       in
       lib.mapAttrs (
