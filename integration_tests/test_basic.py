@@ -754,6 +754,45 @@ def test_batch_tx(cronos):
         assert txs[i].transactionIndex == i
 
 
+def test_batch_tx2(cronos):
+    """
+    reproduce a bug in eth_getLogs, in batch tx when the first tx emit logs but the second tx don't,
+    the logs are not returned in eth_getLogs.
+    """
+    w3: web3.Web3 = cronos.w3
+    cli = cronos.cosmos_cli()
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestERC20A"],
+    )
+
+    deployer = ADDRS["validator"]
+    recipient = ADDRS["community"]
+
+    nonce = w3.eth.get_transaction_count(deployer)
+
+    transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
+        {"from": deployer, "nonce": nonce, "gas": 200000}
+    )
+    transfer_tx2 = {"from": deployer, "to": recipient, "nonce": nonce + 1, "gas": 21000}
+    cosmos_tx, tx_hashes = build_batch_tx_signed(
+        cli, [sign_transaction(w3, transfer_tx1), sign_transaction(w3, transfer_tx2)]
+    )
+    rsp = cli.broadcast_tx_json(cosmos_tx)
+    assert rsp["code"] == 0, rsp["raw_log"]
+
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hashes[0])
+    assert len(receipt.logs) == 1
+
+    logs = w3.eth.get_logs(
+        {
+            "fromBlock": receipt.blockNumber,
+            "toBlock": receipt.blockNumber,
+        }
+    )
+    assert len(logs) == 1
+
+
 def test_failed_transfer_tx(cronos):
     """
     It's possible to include a failed transfer transaction in batch tx
