@@ -7,6 +7,7 @@
 ### Bug Fixes
 
 * [#1783](https://github.com/crypto-org-chain/cronos/pull/1783) Fix eth_getLogs edge case with batch transaction.
+* [#1785](https://github.com/crypto-org-chain/cronos/pull/1785) Include ethermint bug fixes (https://github.com/crypto-org-chain/ethermint/pull/579).
 
 ### Improvements
 
