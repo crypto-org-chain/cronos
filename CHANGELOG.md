@@ -1,6 +1,8 @@
 # Changelog
 
-## UNRELEASED
+*Apr 9, 2025*
+
+## v1.4.6
 
 ### Bug Fixes
 
