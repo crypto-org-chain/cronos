@@ -756,8 +756,8 @@ def test_batch_tx(cronos):
 
 def test_batch_tx2(cronos):
     """
-    reproduce a bug in eth_getLogs, in batch tx when the first tx emit logs but the second tx don't,
-    the logs are not returned in eth_getLogs.
+    reproduce a bug in eth_getLogs, in batch tx when the first tx emit logs
+    but the second tx don't, the logs are not returned in eth_getLogs.
     """
     w3: web3.Web3 = cronos.w3
     cli = cronos.cosmos_cli()
