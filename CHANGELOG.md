@@ -2,25 +2,66 @@
 
 ## UNRELEASED
 
+### Improvements
+
+* [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
+
+*Apr 9, 2025*
+
+## v1.4.6
+
 ### Bug Fixes
 
-* [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
-* [#1725](https://github.com/crypto-org-chain/cronos/pull/1725) Include the fix of deadlock when close tree in iavl.
+* [#1783](https://github.com/crypto-org-chain/cronos/pull/1783) Fix eth_getLogs edge case with batch transaction.
+* [#1785](https://github.com/crypto-org-chain/cronos/pull/1785) Include ethermint bug fixes (https://github.com/crypto-org-chain/ethermint/pull/579).
+
+### Improvements
+
+* [#1780](https://github.com/crypto-org-chain/cronos/pull/1780) memiavl LoadVersion loads up to the target version instead of exact version.
+
+*Mar 13, 2025*
+
+## v1.4.5
+
+### Bug Fixes
+
+* [#1759](https://github.com/crypto-org-chain/cronos/pull/1759) Fix version mismatch happen occasionally.
+* [#1766](https://github.com/crypto-org-chain/cronos/pull/1766) Include a security patch from ibc-go `v8.7.0`.
+
+*Feb 28, 2025*
+
+## v1.4.4
+
+### Bug Fixes
+
 * [#1724](https://github.com/crypto-org-chain/cronos/pull/1724) Include the fix of nonce management in batch tx in ethermint.
 * [#1748](https://github.com/crypto-org-chain/cronos/pull/1748) Query with GetCFWithTS to compare both timestamp and key to avoid run fixdata multiple times.
 * (versiondb) [#1751](https://github.com/crypto-org-chain/cronos/pull/1751) Add missing Destroy for read options to properly hold and release options reference.
+* [#1753](https://github.com/crypto-org-chain/cronos/pull/1753) Support legacy global AccountNumber.
 * (versiondb) [#1758](https://github.com/crypto-org-chain/cronos/pull/1758) Avoid ReadOptions mutated by reference release in iterator.
-* [#1759](https://github.com/crypto-org-chain/cronos/pull/1759) Fix version mismatch happen occasionally.
-* [#1766](https://github.com/crypto-org-chain/cronos/pull/1766) Include a security patch from ibc-go `v8.7.0`.
+* [#1761](https://github.com/crypto-org-chain/cronos/pull/1761) Include a security patch from ibc-go.
 
 ### Improvements
 
 * [#1747](https://github.com/crypto-org-chain/cronos/pull/1747) Skip batch initialization and flush when fixdata with dry-run.
-* [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
-* [#1780](https://github.com/crypto-org-chain/cronos/pull/1780) memiavl LoadVersion loads up to the target version instead of exact version.
 
-### State Machine Breaking
+*Feb 3, 2025*
 
+## v1.4.3
+
+### Bug Fixes
+
+* [#1736](https://github.com/crypto-org-chain/cronos/pull/1736) Update cometbft to v0.38.17.
+
+*Dec 19, 2024*
+
+## v1.4.2
+
+### Bug Fixes
+
+* [#1720](https://github.com/crypto-org-chain/cronos/pull/1720) Include the fix of performance regression after upgrade in iavl.
+* [#1725](https://github.com/crypto-org-chain/cronos/pull/1725) Include the fix of deadlock when close tree in iavl.
+* [#1723](https://github.com/crypto-org-chain/cronos/pull/1723) Include the restriction of same sender tx appear in the same tx after contract creation in ethermint.
 * [#1722](https://github.com/crypto-org-chain/cronos/pull/1722) Include a security patch from cosmos sdk.
 
 *Dec 9, 2024*
