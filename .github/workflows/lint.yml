@@ -24,7 +24,7 @@ jobs:
         with:
           go-version: '1.22.7'
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@6a9a9e84a173d90b3ffb42c5ddaf9ea033fad011 # v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
@@ -70,13 +70,13 @@ jobs:
             **/poetry.lock
             **/pyproject.toml
             **/*.py
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@6a9a9e84a173d90b3ffb42c5ddaf9ea033fad011 # v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
@@ -96,7 +96,7 @@ jobs:
           files: |
             *.nix
             **/*.nix
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@6a9a9e84a173d90b3ffb42c5ddaf9ea033fad011 # v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
