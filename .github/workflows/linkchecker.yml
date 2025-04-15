@@ -19,7 +19,7 @@ jobs:
         with:
           files: |
             docs/**/*.md
-      - uses: gaurav-nelson/github-action-markdown-link-check@1.0.13
+      - uses: gaurav-nelson/github-action-markdown-link-check@4d5a901466436052915a68d4a856171a50b2c762 # 1.0.13
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           folder-path: "docs"
