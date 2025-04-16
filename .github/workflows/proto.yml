@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
         with:
           PATTERNS: |
             **/**.proto
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
         with:
           PATTERNS: |
             **/**.proto
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
         with:
           PATTERNS: |
             **/**.proto
@@ -46,4 +46,4 @@ jobs:
           make proto-gen-ci # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
           git checkout -- go.mod go.sum # FIXME doc gen not reproducible in CI
       - name: check working directory is clean
-        uses: numtide/clean-git-action@main
+        uses: numtide/clean-git-action@30e3d6d6e2d6e77e73761cf5324467cb74386f87 # v2

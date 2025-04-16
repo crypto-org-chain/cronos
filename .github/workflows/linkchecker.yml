@@ -15,11 +15,11 @@ jobs:
         with:
           fetch-depth: 0
       - id: changed-files
-        uses: tj-actions/changed-files@v41
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
         with:
           files: |
             docs/**/*.md
-      - uses: gaurav-nelson/github-action-markdown-link-check@1.0.13
+      - uses: gaurav-nelson/github-action-markdown-link-check@4d5a901466436052915a68d4a856171a50b2c762 # 1.0.13
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           folder-path: "docs"
