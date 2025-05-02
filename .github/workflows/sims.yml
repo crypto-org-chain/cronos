@@ -31,7 +31,7 @@ jobs:
     outputs:
       valid: ${{ steps.setValid.outputs.valid }}
     steps:
-      - uses: tspascoal/get-user-teams-membership@v1.0.2
+      - uses: tspascoal/get-user-teams-membership@f7435257091e582354c44b55b296edf65be35700 # v1.0.2
         id: checkMember
         if: github.event_name == 'issue_comment'
         with:
@@ -76,7 +76,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Github API Request
         id: request
-        uses: octokit/request-action@main
+        uses: octokit/request-action@bbedc70b1981e610d89f1f8de88311a1fc02fb83 # v2.4.0
         if: github.event_name == 'issue_comment'
         with:
           route: ${{ github.event.issue.pull_request.url }}
