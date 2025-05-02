@@ -167,7 +167,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.4.0-rc5-testnet":
+        if plan_name == "v1.4.0-rc5-testnet" or plan_name == "v1.5":
             rsp = cli.software_upgrade(
                 "community",
                 {
@@ -326,6 +326,9 @@ def exec(c, tmp_path_factory):
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    cli = do_upgrade("v1.5", cli.block_height() + 15)
+    check_basic_tx(c)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

@@ -23,6 +23,9 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
+      grpc: {
+        'skip-check-header': true,
+      },
       evm: {
         'block-executor': 'sequential',
       },

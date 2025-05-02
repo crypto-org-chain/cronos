@@ -1598,11 +1598,10 @@ class CosmosCLI:
 
     def create_vesting_account(self, to_address, amount, end_time, **kwargs):
         "create vesting account"
+        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
+        kwargs.setdefault("gas", DEFAULT_GAS)
         default_kwargs = {
             "home": self.data_dir,
-            "node": self.node_rpc,
-            "chain_id": self.chain_id,
-            "keyring_backend": "test",
         }
         rsp = json.loads(
             self.raw(

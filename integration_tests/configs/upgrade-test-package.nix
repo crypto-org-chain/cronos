@@ -24,6 +24,8 @@ let
   # release/v1.4.x
   released1_4 =
     (fetchFlake "crypto-org-chain/cronos" "ce797fa995000530ee53cd1fbeb3c67180648002").default;
+  released1_4_testnet =
+    (fetchFlake "crypto-org-chain/cronos" "2e2f2cd25b16e2a11411b9e2b8f66c6fbea4681c").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
@@ -49,6 +51,10 @@ pkgs.linkFarm "upgrade-test-package" [
   }
   {
     name = "v1.4.0-rc5-testnet";
+    path = released1_4_testnet;
+  }
+  {
+    name = "v1.5";
     path = current;
   }
 ]
