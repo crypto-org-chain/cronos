@@ -211,7 +211,7 @@ func genesisCommand(txConfig client.TxConfig, basicManager module.BasicManager, 
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
-	crisis.AddModuleInitFlags(startCmd)
+	crisis.AddModuleInitFlags(startCmd) //nolint: staticcheck
 	cronos.AddModuleInitFlags(startCmd)
 	// this line is used by starport scaffolding # stargate/root/initFlags
 }
