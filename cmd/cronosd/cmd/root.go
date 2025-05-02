@@ -36,7 +36,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-	rosettaCmd "github.com/cosmos/rosetta/cmd"
 	ethermintclient "github.com/evmos/ethermint/client"
 	"github.com/evmos/ethermint/crypto/hd"
 	ethermintserver "github.com/evmos/ethermint/server"
@@ -195,12 +194,10 @@ func initRootCmd(
 		e2eecli.E2EECommand(),
 	)
 
-	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
+	_, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {
 		panic(err)
 	}
-	// add rosetta
-	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
 }
 
 // genesisCommand builds genesis-related `simd genesis` command. Users may provide application specific commands as a parameter

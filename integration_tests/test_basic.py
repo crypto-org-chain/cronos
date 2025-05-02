@@ -862,7 +862,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
             origin_cmd = cmd
         if max_gas_wanted is None:
             return origin_cmd
-        return f"{origin_cmd} --evm.max-tx-gas-wanted {max_gas_wanted}"
+        return f"{origin_cmd} --evm.max-tx-gas-wanted {max_gas_wanted} --grpc.skip-check-header"
 
     modify_command_in_supervisor_config(
         cronos.base_dir / "tasks.ini",
