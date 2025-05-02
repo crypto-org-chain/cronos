@@ -1,5 +1,14 @@
 # Changelog
 
+*Apr 24, 2025*
+
+## v1.4.7
+
+### Bug Fixes
+
+* [#1796](https://github.com/crypto-org-chain/cronos/pull/1796) Upgrade cosmos sdk to latest to include bug fix
+
+
 *Apr 9, 2025*
 
 ## v1.4.6
