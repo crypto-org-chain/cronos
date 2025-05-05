@@ -404,7 +404,7 @@ def test_local_statesync(cronos, tmp_path_factory):
         wait_for_new_blocks(cli, 2)
         # check grpc works
         print("distribution", cli.distribution_community(height=height))
-        print("balances", cli.balances(ADDRS["validator"]))
+        print("balances", cli.balances(cli0.address("validator")))
         with pytest.raises(Exception) as exc_info:
             cli.distribution_community(height=height - 1)
 
