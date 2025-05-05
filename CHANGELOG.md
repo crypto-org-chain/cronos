@@ -6,6 +6,10 @@
 
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
 
+### Bug Fixes
+
+* [#1801](https://github.com/crypto-org-chain/cronos/pull/1801) Avoid non-empty data from being cleared during restoration from versiondb.
+
 *Apr 9, 2025*
 
 ## v1.4.6

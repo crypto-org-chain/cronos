@@ -107,10 +107,12 @@ loop:
 				return fmt.Errorf("node height %v cannot exceed %v",
 					item.IAVL.Height, math.MaxInt8)
 			}
-			ch <- versiondb.ImportEntry{
-				StoreKey: storeKey,
-				Key:      item.IAVL.Key,
-				Value:    item.IAVL.Value,
+			if len(item.IAVL.Value) > 0 {
+				ch <- versiondb.ImportEntry{
+					StoreKey: storeKey,
+					Key:      item.IAVL.Key,
+					Value:    item.IAVL.Value,
+				}
 			}
 		default:
 			break loop
