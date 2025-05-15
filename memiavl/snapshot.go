@@ -67,7 +67,7 @@ func OpenSnapshot(snapshotDir string) (snapshot *Snapshot, err error) {
 		return nil, err
 	}
 	if len(bz) != SizeMetadata {
-		return nil, fmt.Errorf("wrong metadata file size, expcted: %d, found: %d", SizeMetadata, len(bz))
+		return nil, fmt.Errorf("wrong metadata file size, expected: %d, found: %d", SizeMetadata, len(bz))
 	}
 
 	magic := binary.LittleEndian.Uint32(bz)
