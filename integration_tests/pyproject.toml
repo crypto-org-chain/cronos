@@ -18,11 +18,11 @@ python-dateutil = "^2.8"
 web3 = "^6.15"
 python-dotenv = "^1.0"
 pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
+cprotobuf = { git = "https://github.com/yihuang/cprotobuf.git", branch = "master" }
 websockets = "^12.0"
 toml = "^0"
 jsonnet = "^0"
 eth-account = "^0.11"
-cprotobuf = "^0.1.11"
 flaky = "^3.7"
 eth-bloom = "^3.0"
 eth-hash = "^0"
@@ -30,6 +30,10 @@ pyyaml = "^6.0.2rc1"
 pytest-timeout = "^2.3.1"
 
 [tool.poetry.dev-dependencies]
+attrs = "24.2.0"
+referencing = "v0.35.1"
+rpds-py = "v0.22.3"
+aiohappyeyeballs = "2.4.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
