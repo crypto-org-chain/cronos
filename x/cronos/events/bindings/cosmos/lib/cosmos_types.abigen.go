@@ -35,10 +35,28 @@ type CosmosCoin struct {
 	Denom  string
 }
 
+// CosmosDenom is an auto generated low-level Go binding around an user-defined struct.
+type CosmosDenom struct {
+	Base  string
+	Trace []CosmosHop
+}
+
+// CosmosHop is an auto generated low-level Go binding around an user-defined struct.
+type CosmosHop struct {
+	PortId    string
+	ChannelId string
+}
+
+// CosmosToken is an auto generated low-level Go binding around an user-defined struct.
+type CosmosToken struct {
+	Amount *big.Int
+	Denom  CosmosDenom
+}
+
 // CosmosTypesMetaData contains all meta data concerning the CosmosTypes contract.
 var CosmosTypesMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin\",\"name\":\"\",\"type\":\"tuple\"}],\"name\":\"coin\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561000f575f80fd5b5060e18061001c5f395ff3fe6080604052348015600e575f80fd5b50600436106026575f3560e01c80632ff6e5df14602a575b5f80fd5b60406004803603810190603c9190606c565b6042565b005b50565b5f80fd5b5f80fd5b5f80fd5b5f604082840312156063576062604d565b5b81905092915050565b5f60208284031215607e57607d6045565b5b5f82013567ffffffffffffffff81111560985760976049565b5b60a2848285016051565b9150509291505056fea2646970667358221220b4a4d631241cbdc75e6e75e055823dd6db1594434c76b5c414647e9ea8f8953a64736f6c63430008150033",
+	ABI: "[{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin\",\"name\":\"\",\"type\":\"tuple\"}],\"name\":\"coin\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"base\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"portId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"channelId\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Hop[]\",\"name\":\"trace\",\"type\":\"tuple[]\"}],\"internalType\":\"structCosmos.Denom\",\"name\":\"denom\",\"type\":\"tuple\"}],\"internalType\":\"structCosmos.Token\",\"name\":\"\",\"type\":\"tuple\"}],\"name\":\"token\",\"outputs\":[],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561000f575f80fd5b506101828061001d5f395ff3fe608060405234801561000f575f80fd5b5060043610610034575f3560e01c806319f03890146100385780632ff6e5df14610054575b5f80fd5b610052600480360381019061004d91906100a0565b610070565b005b61006e60048036038101906100699190610105565b610073565b005b50565b50565b5f80fd5b5f80fd5b5f80fd5b5f604082840312156100975761009661007e565b5b81905092915050565b5f602082840312156100b5576100b4610076565b5b5f82013567ffffffffffffffff8111156100d2576100d161007a565b5b6100de84828501610082565b91505092915050565b5f604082840312156100fc576100fb61007e565b5b81905092915050565b5f6020828403121561011a57610119610076565b5b5f82013567ffffffffffffffff8111156101375761013661007a565b5b610143848285016100e7565b9150509291505056fea2646970667358221220751fab6396930c36ad147499a37b00e24525312cb016fb63a0448ebf93dbb79e64736f6c63430008150033",
 }
 
 // CosmosTypesABI is the input ABI used to generate the binding from.
@@ -235,4 +253,33 @@ func (_CosmosTypes *CosmosTypesSession) Coin(arg0 CosmosCoin) error {
 // Solidity: function coin((uint256,string) ) pure returns()
 func (_CosmosTypes *CosmosTypesCallerSession) Coin(arg0 CosmosCoin) error {
 	return _CosmosTypes.Contract.Coin(&_CosmosTypes.CallOpts, arg0)
+}
+
+// Token is a free data retrieval call binding the contract method 0x19f03890.
+//
+// Solidity: function token((uint256,(string,(string,string)[])) ) pure returns()
+func (_CosmosTypes *CosmosTypesCaller) Token(opts *bind.CallOpts, arg0 CosmosToken) error {
+	var out []interface{}
+	err := _CosmosTypes.contract.Call(opts, &out, "token", arg0)
+
+	if err != nil {
+		return err
+	}
+
+	return err
+
+}
+
+// Token is a free data retrieval call binding the contract method 0x19f03890.
+//
+// Solidity: function token((uint256,(string,(string,string)[])) ) pure returns()
+func (_CosmosTypes *CosmosTypesSession) Token(arg0 CosmosToken) error {
+	return _CosmosTypes.Contract.Token(&_CosmosTypes.CallOpts, arg0)
+}
+
+// Token is a free data retrieval call binding the contract method 0x19f03890.
+//
+// Solidity: function token((uint256,(string,(string,string)[])) ) pure returns()
+func (_CosmosTypes *CosmosTypesCallerSession) Token(arg0 CosmosToken) error {
+	return _CosmosTypes.Contract.Token(&_CosmosTypes.CallOpts, arg0)
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ibc.core.channel.v1;
 
-option go_package = "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types";
+option go_package = "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types";
 
 import "gogoproto/gogo.proto";
 import "ibc/core/client/v1/client.proto";
@@ -141,7 +141,7 @@ message PacketState {
   bytes data = 4;
 }
 
-// PacketId is an identifer for a unique Packet
+// PacketId is an identifier for a unique Packet
 // Source chains refer to packets by source port/channel
 // Destination chains refer to packets by destination port/channel
 message PacketId {
