@@ -3,9 +3,8 @@ package events
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v9/modules/apps/29-fee/types"
-	transfertypes "github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
+	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	ica "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
 	relayer "github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
@@ -18,7 +17,6 @@ var (
 	IcaEvents            map[string]*EventDescriptor
 	RelayerValueDecoders = ValueDecoders{
 		channeltypes.AttributeKeyDataHex:             ConvertPacketData,
-		transfertypes.AttributeKeyTokens:             ConvertTokens,
 		sdk.AttributeKeyAmount:                       ConvertAmount,
 		banktypes.AttributeKeyRecipient:              ConvertAccAddressFromBech32,
 		banktypes.AttributeKeySpender:                ConvertAccAddressFromBech32,
@@ -34,7 +32,6 @@ var (
 		channeltypes.AttributeKeyDstPort:             ReturnStringAsIs,
 		channeltypes.AttributeKeyDstChannel:          ReturnStringAsIs,
 		channeltypes.AttributeKeyConnectionID:        ReturnStringAsIs,
-		ibcfeetypes.AttributeKeyFee:                  ReturnStringAsIs,
 		transfertypes.AttributeKeyDenom:              ReturnStringAsIs,
 		transfertypes.AttributeKeyRefundReceiver:     ConvertAccAddressFromBech32,
 		transfertypes.AttributeKeyRefundTokens:       ReturnStringAsIs,
