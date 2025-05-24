@@ -21,9 +21,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
-	icagenesistypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/genesis/types"
-	icatypes "github.com/cosmos/ibc-go/v9/modules/apps/27-interchain-accounts/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v9/modules/apps/29-fee/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/genesis/types"
+	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
@@ -379,10 +378,6 @@ type ExportFeemarketParams struct {
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltypes.AppMap, error) {
-	// Add feeibc with default genesis.
-	if appState[ibcfeetypes.ModuleName] == nil {
-		appState[ibcfeetypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(ibcfeetypes.DefaultGenesisState())
-	}
 	// Add interchainaccounts with default genesis.
 	if appState[icatypes.ModuleName] == nil {
 		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())

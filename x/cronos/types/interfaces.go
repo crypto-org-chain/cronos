@@ -8,17 +8,16 @@ import (
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/ibc-go/v9/modules/apps/transfer/types"
+	"github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
-	ibcfeetypes "github.com/cosmos/ibc-go/v9/modules/apps/29-fee/types"
-	clienttypes "github.com/cosmos/ibc-go/v9/modules/core/02-client/types"
-	connectiontypes "github.com/cosmos/ibc-go/v9/modules/core/03-connection/types"
-	channeltypes "github.com/cosmos/ibc-go/v9/modules/core/04-channel/types"
+	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
+	connectiontypes "github.com/cosmos/ibc-go/v10/modules/core/03-connection/types"
+	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 )
 
 // BankKeeper defines the expected interface needed to retrieve account balances.
@@ -96,7 +95,7 @@ type IbcKeeper interface {
 	TimeoutOnClose(goCtx context.Context, msg *channeltypes.MsgTimeoutOnClose) (*channeltypes.MsgTimeoutOnCloseResponse, error)
 }
 
-type IbcFeeKeeper interface {
-	RegisterPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterPayee) (*ibcfeetypes.MsgRegisterPayeeResponse, error)
-	RegisterCounterpartyPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterCounterpartyPayee) (*ibcfeetypes.MsgRegisterCounterpartyPayeeResponse, error)
-}
+// type IbcFeeKeeper interface {
+// 	RegisterPayee(goCtx context.Context) error
+// 	RegisterCounterpartyPayee(goCtx context.Context) error
+// }
