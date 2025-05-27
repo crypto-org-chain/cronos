@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ibc.core.client.v1;
 
-option go_package = "github.com/cosmos/ibc-go/v9/modules/core/02-client/types";
+option go_package = "github.com/cosmos/ibc-go/v10/modules/core/02-client/types";
 
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "cosmos/query/v1/query.proto";
@@ -51,6 +51,11 @@ service Query {
   // ClientParams queries all parameters of the ibc client submodule.
   rpc ClientParams(QueryClientParamsRequest) returns (QueryClientParamsResponse) {
     option (google.api.http).get = "/ibc/core/client/v1/params";
+  }
+
+  // ClientCreator queries the creator of a given client.
+  rpc ClientCreator(QueryClientCreatorRequest) returns (QueryClientCreatorResponse) {
+    option (google.api.http).get = "/ibc/core/client/v1/client_creator/{client_id}";
   }
 
   // UpgradedClientState queries an Upgraded IBC light client.
@@ -193,6 +198,20 @@ message QueryClientParamsRequest {}
 message QueryClientParamsResponse {
   // params defines the parameters of the module.
   Params params = 1;
+}
+
+// QueryClientCreatorRequest is the request type for the Query/ClientCreator RPC
+// method.
+message QueryClientCreatorRequest {
+  // client unique identifier
+  string client_id = 1;
+}
+
+// QueryClientCreatorResponse is the response type for the Query/ClientCreator RPC
+// method.
+message QueryClientCreatorResponse {
+  // creator of the client
+  string creator = 1;
 }
 
 // QueryUpgradedClientStateRequest is the request type for the
