@@ -149,7 +149,7 @@ def prepare_network(
     connection_only=False,
     grantee=None,
     need_relayer_caller=False,
-    relayer=cluster.Relayer.RLY.value,
+    relayer=cluster.Relayer.HERMES.value,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)

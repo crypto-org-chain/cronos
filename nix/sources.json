@@ -36,6 +36,18 @@
         "url": "https://github.com/dapphub/dapptools/archive/ba9fbcf95c01d247a30b26d7e064e8abdfba79db.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "fenix": {
+        "branch": "main",
+        "description": "Rust toolchains and rust-analyzer nightly for Nix [maintainers=@figsoda, @winterqt, @zmitchell]",
+        "homepage": "",
+        "owner": "nix-community",
+        "repo": "fenix",
+        "rev": "8c0499eb59f1c2c07b3734c210480623e1fe90a1",
+        "sha256": "071sakz1zwa9jkskf3fqlgf166ms7rysa674qarr61s1r89k324g",
+        "type": "tarball",
+        "url": "https://github.com/nix-community/fenix/archive/8c0499eb59f1c2c07b3734c210480623e1fe90a1.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "flake-compat": {
         "branch": "master",
         "description": null,
@@ -73,15 +85,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "hermes": {
-        "branch": "ethermint-v1.9.0",
+        "branch": "",
         "description": "Rust implementation of an Inter-Blockchain Communication (IBC) relayer",
         "homepage": "",
-        "owner": "crypto-org-chain",
+        "owner": "informalsystems",
         "repo": "hermes",
-        "rev": "bfab4c4f797772e64ff7933d16b58bffad39b884",
-        "sha256": "0mf6sj6p076cxcrj7dry949m6wb6br320dkfadarhpypxwfz88cs",
+        "rev": "5e403dd5c72ecc2bc296af4ddb70eae98ad28c5d",
+        "sha256": "186m5fp8y7l3clylkjdyxflbi16fij1k9k8gl9xkpz8wcm69n3bq",
+        "tag": "v1.13.1",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/hermes/archive/bfab4c4f797772e64ff7933d16b58bffad39b884.tar.gz",
+        "url": "https://github.com/informalsystems/hermes/archive/5e403dd5c72ecc2bc296af4ddb70eae98ad28c5d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

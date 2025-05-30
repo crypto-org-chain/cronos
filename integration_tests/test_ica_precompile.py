@@ -55,7 +55,7 @@ def ibc(request, tmp_path_factory):
         name,
         incentivized=False,
         connection_only=True,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
         need_relayer_caller=True,
     )
 

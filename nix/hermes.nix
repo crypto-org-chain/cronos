@@ -7,8 +7,8 @@
   symlinkJoin,
   openssl,
   pkg-config,
+  protobuf, # required by namada_tx crate
 }:
-
 rustPlatform.buildRustPackage rec {
   name = "hermes";
   inherit src;
@@ -19,12 +19,10 @@ rustPlatform.buildRustPackage rec {
     openssl
     darwin.libiconv
     darwin.apple_sdk.frameworks.SystemConfiguration
+    protobuf
   ];
   cargoLock = {
-    lockFile = "${src}/Cargo.lock";
-    outputHashes = {
-      "ibc-proto-0.46.0" = "sha256-3rNlmu5jN5eRICynnT+Vib0PrlJOuaJnwbaTYJdX8/8=";
-    };
+    lockFile = "${src}/Cargo.lock"; 
   };
   doCheck = false;
   RUSTFLAGS = "--cfg ossl111 --cfg ossl110 --cfg ossl101";
@@ -36,4 +34,6 @@ rustPlatform.buildRustPackage rec {
       dev
     ];
   };
+  PROTOC = "${protobuf}/bin/protoc";
+  PROTOC_INCLUDE = "${protobuf}/include";
 }
