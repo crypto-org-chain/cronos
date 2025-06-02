@@ -599,7 +599,7 @@ func New(
 	app.ICAHostKeeper = icahostkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[icahosttypes.StoreKey]),
-		nil,
+		app.GetSubspace(icahosttypes.SubModuleName),
 		app.IBCKeeper.ChannelKeeper,
 		app.IBCKeeper.ChannelKeeper,
 		app.AccountKeeper,
