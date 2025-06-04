@@ -35,12 +35,14 @@ message MsgEthereumTx {
   // size is the encoded storage size of the transaction (DEPRECATED)
   double size = 2 [(gogoproto.jsontag) = "-"];
   // hash of the transaction in hex format
-  string hash = 3 [(gogoproto.moretags) = "rlp:\"-\""];
+  string deprecated_hash = 3 [(gogoproto.moretags) = "rlp:\"-\""];
   string deprecated_from = 4 [deprecated = true];
   // from is the bytes of ethereum signer address. This address value is checked
   // against the address derived from the signature (V, R, S) using the
   // secp256k1 elliptic curve
   bytes from = 5;
+  // raw is the raw bytes of the ethereum transaction
+  bytes raw = 6 [(gogoproto.customtype) = "EthereumTx", (gogoproto.nullable) = false];
 }
 
 // LegacyTx is the transaction data of regular Ethereum transactions.

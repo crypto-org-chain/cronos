@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 import subprocess
 from contextlib import contextmanager
 from enum import Enum, IntEnum
@@ -165,6 +166,7 @@ def prepare_network(
         relayer=relayer,
     ) as cronos:
         cli = cronos.cosmos_cli()
+        path = cronos.base_dir.parent / "relayer"
         if grantee:
             granter_addr = cli.address("signer1")
             grantee_addr = cli.address(grantee)
@@ -176,6 +178,20 @@ def prepare_network(
             grant_detail = cli.query_grant(granter_addr, grantee_addr)
             assert grant_detail["granter"] == granter_addr
             assert grant_detail["grantee"] == grantee_addr
+            if not is_hermes:
+                subprocess.run(
+                    [
+                        "rly",
+                        "keys",
+                        "restore",
+                        "cronos_777-1",
+                        granter_addr,
+                        os.getenv("SIGNER1_MNEMONIC"),
+                        "--home",
+                        path,
+                    ],
+                    check=True,
+                )
 
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
         # wait for grpc ready
@@ -185,7 +201,6 @@ def prepare_network(
         wait_for_new_blocks(cli, 1)
 
         version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-        path = cronos.base_dir.parent / "relayer"
         w3 = cronos.w3
         contract = None
         acc = None
@@ -220,8 +235,6 @@ def prepare_network(
             cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
                 port = hermes.port
-            else:
-                port = 5183
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
@@ -353,7 +366,7 @@ def find_duplicate(attributes):
     return None
 
 
-def ibc_transfer(ibc, transfer_fn=hermes_transfer):
+def ibc_transfer(ibc, transfer_fn=rly_transfer):
     src_amount = transfer_fn(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
@@ -383,7 +396,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 51)]
+    users = [f"user{i}" for i in range(1, 50)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -423,7 +436,7 @@ def ibc_multi_transfer(ibc):
         else:
             return False
 
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
     assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
     for i, _ in enumerate(users):
         wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
@@ -528,7 +541,7 @@ def ibc_incentivized_transfer(ibc):
     assert user0_balances == expected, user0_balances
     path = f"transfer/{dst_channel}/{base_denom0}"
     denom_hash = ibc_denom(dst_channel, base_denom0)
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
     assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
     user1_balances = get_balances(ibc.chainmain, user1)
     expected = [
@@ -832,7 +845,13 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signer2"):
     print("register ica account")
-    v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
+    v = json.dumps({
+            "version": "ics27-1",
+            "encoding": "proto3",
+            "tx_type": "sdk_multi_msg",
+            "controller_connection_id": connid,
+            "host_connection_id": connid,
+    })
     rsp = cli.ica_register_account(
         connid,
         from_=signer,

@@ -111,7 +111,7 @@ message QueryPermissionsResponse {
 }
 
 // QueryBlockListRequest
-message QueryBlockListRequest { }
+message QueryBlockListRequest {}
 
 // QueryBlockListResponse
 message QueryBlockListResponse {
