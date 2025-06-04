@@ -44,7 +44,7 @@ def test_ica(ibc, order, tmp_path):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()
     cli_controller = ibc.cronos.cosmos_cli()
-    ica_address, _, channel_id = register_acc(
+    ica_address, port_id, channel_id = register_acc(
         cli_controller, connid, ordering=order, signer=signer
     )
     balance = funds_ica(cli_host, ica_address, signer=signer)
@@ -104,7 +104,7 @@ def test_ica(ibc, order, tmp_path):
             from_=signer,
         )
         assert rsp["code"] == 0, rsp["raw_log"]
-        timeout = timeout_in_s + 3 if timeout_in_s < no_timeout else None
+        timeout = timeout_in_s if timeout_in_s < no_timeout else None
         wait_for_check_tx(cli_host, ica_address, num_txs, timeout)
 
     # submit large txs to trigger close channel with small timeout for order channel

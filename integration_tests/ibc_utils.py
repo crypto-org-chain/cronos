@@ -845,7 +845,13 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signer2"):
     print("register ica account")
-    v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
+    v = json.dumps({
+            "version": "ics27-1",
+            "encoding": "proto3",
+            "tx_type": "sdk_multi_msg",
+            "controller_connection_id": connid,
+            "host_connection_id": connid,
+    })
     rsp = cli.ica_register_account(
         connid,
         from_=signer,
