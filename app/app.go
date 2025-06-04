@@ -706,12 +706,15 @@ func New(
 	))
 
 	var icaControllerStack porttypes.IBCModule
-	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper)
+	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
+	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCKeeper.ChannelKeeper, app.CronosKeeper, math.MaxUint64)
+	var icaICS4Wrapper porttypes.ICS4Wrapper
+	icaICS4Wrapper, ok := icaControllerStack.(porttypes.ICS4Wrapper)
+	if !ok {
+		panic(fmt.Errorf("cannot convert %T to %T", icaControllerStack, icaICS4Wrapper))
+	}
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
-	ics4Wrapper := icaControllerStack.(porttypes.Middleware)
-	app.ICAControllerKeeper.WithICS4Wrapper(ics4Wrapper)
-	// we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
-	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, ics4Wrapper, app.CronosKeeper, math.MaxUint64)
+	app.ICAControllerKeeper.WithICS4Wrapper(icaICS4Wrapper)
 
 	var icaHostStack porttypes.IBCModule
 	icaHostStack = icahost.NewIBCModule(app.ICAHostKeeper)
