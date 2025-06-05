@@ -164,7 +164,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 			requiredGas = GasWhenReceiverChainIsSource
 		}
 	}
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
@@ -204,7 +204,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		execErr := stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
 			portID := args[0].(string)
 			channelID := args[1].(string)
-			caller := sdk.AccAddress(contract.CallerAddress.Bytes()).String()
+			caller := sdk.AccAddress(contract.Address().Bytes()).String()
 			if method.Name == RegisterPayee {
 				payeeAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
 				_, err := bc.ibcFeeKeeper.RegisterPayee(
@@ -230,7 +230,7 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	e := &Executor{
 		cdc:       bc.cdc,
 		stateDB:   stateDB,
-		caller:    contract.CallerAddress,
+		caller:    contract.Address(),
 		contract:  precompileAddr,
 		input:     input,
 		converter: converter,
