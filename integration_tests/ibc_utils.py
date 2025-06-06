@@ -158,11 +158,17 @@ def prepare_network(
     print("need_relayer_caller", need_relayer_caller)
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
-    file = f"configs/{file}.jsonnet"
+
+    # We ignore the ibc_rly_evm settings if it is hermes relayer
+    config_file = file
+    if is_hermes and file == "ibc_rly_evm":
+        config_file = "ibc_rly"
+    file_path = f"configs/{config_file}.jsonnet"
+
     with contextmanager(setup_custom_cronos)(
         tmp_path,
         26700,
-        Path(__file__).parent / file,
+        Path(__file__).parent / file_path,
         relayer=relayer,
     ) as cronos:
         cli = cronos.cosmos_cli()
@@ -200,7 +206,15 @@ def prepare_network(
         wait_for_new_blocks(chainmain.cosmos_cli(), 1)
         wait_for_new_blocks(cli, 1)
 
-        version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
+        connid = "connection-0"
+        version = json.dumps({
+            "version": "ics27-1",
+            "encoding": "proto3",
+            "tx_type": "sdk_multi_msg",
+            "controller_connection_id": connid,
+            "host_connection_id": connid,
+        })
+
         w3 = cronos.w3
         contract = None
         acc = None
