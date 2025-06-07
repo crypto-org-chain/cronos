@@ -129,7 +129,7 @@ def test_ica(ibc, order, tmp_path):
         community = "community"
         authority = module_address("gov")
         deposit = "1basetcro"
-        proposal_src = cli_controller.ibc_upgrade_channels(
+        proposal_json = cli_controller.ibc_upgrade_channels(
             json.loads(version_data["app_version"]),
             community,
             deposit=deposit,
@@ -138,15 +138,13 @@ def test_ica(ibc, order, tmp_path):
             port_pattern=port_id2,
             channel_ids=channel_id2,
         )
-        proposal_src["deposit"] = deposit
-        proposal_src["proposer"] = authority
-        proposal_src["messages"][0]["signer"] = authority
-        proposal_src["messages"][0]["fields"]["ordering"] = ChannelOrder.UNORDERED.value
-        proposal = tmp_path / "proposal.json"
-        proposal.write_text(json.dumps(proposal_src))
-        rsp = cli_controller.submit_gov_proposal(proposal, from_=community)
+        proposal_json["deposit"] = deposit
+        proposal_json["proposer"] = authority
+        proposal_json["messages"][0]["signer"] = authority
+        proposal_json["messages"][0]["fields"]["ordering"] = ChannelOrder.UNORDERED.value
+        rsp = cli_controller.submit_gov_proposal("community", "submit-proposal", proposal_json, broadcast_mode="sync")
         assert rsp["code"] == 0, rsp["raw_log"]
-        approve_proposal(ibc.cronos, rsp["events"])
+        approve_proposal(ibc.cronos, rsp)
         wait_for_check_channel_ready(
             cli_controller, connid, channel_id2, "STATE_FLUSHCOMPLETE"
         )

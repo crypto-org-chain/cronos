@@ -74,7 +74,7 @@ def test_ibc_incentivized_transfer(ibc, tmp_path):
         connid = "connection-0"
         channel_id = "channel-0"
         deposit = "1basetcro"
-        proposal_src = src_chain.ibc_upgrade_channels(
+        proposal_json = src_chain.ibc_upgrade_channels(
             version,
             community,
             deposit=deposit,
@@ -83,14 +83,12 @@ def test_ibc_incentivized_transfer(ibc, tmp_path):
             port_pattern="transfer",
             channel_ids=channel_id,
         )
-        proposal_src["deposit"] = deposit
-        proposal_src["proposer"] = authority
-        proposal_src["messages"][0]["signer"] = authority
-        proposal = tmp_path / "proposal.json"
-        proposal.write_text(json.dumps(proposal_src))
-        rsp = src_chain.submit_gov_proposal(proposal, from_=community)
+        proposal_json["deposit"] = deposit
+        proposal_json["proposer"] = authority
+        proposal_json["messages"][0]["signer"] = authority
+        rsp = src_chain.submit_gov_proposal("community", "submit-proposal", proposal_json, broadcast_mode="sync")
         assert rsp["code"] == 0, rsp["raw_log"]
-        approve_proposal(ibc.cronos, rsp["events"])
+        approve_proposal(ibc.cronos, rsp)
         wait_for_check_channel_ready(
             src_chain, connid, channel_id, "STATE_FLUSHCOMPLETE"
         )

@@ -47,12 +47,13 @@ def test_ica_enabled(cronos, tmp_path):
     param1 = get_expedited_params(param0)
     # governance module account as signer
     authority = module_address("gov")
+    msg = "/cosmos.gov.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/cosmos.gov.v1.MsgUpdateParams",
+                "@type": msg,
                 "authority": authority,
                 "params": {
                     **param0,
@@ -66,13 +67,13 @@ def test_ica_enabled(cronos, tmp_path):
     p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
-    type = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
+    msg = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": type,
+                "@type": msg,
                 "signer": authority,
                 "params": p,
             }
@@ -920,12 +921,12 @@ def test_replay_protection(cronos):
 
 
 @pytest.mark.gov
-def test_submit_any_proposal(cronos, tmp_path):
-    submit_any_proposal(cronos, tmp_path)
+def test_submit_any_proposal(cronos):
+    submit_any_proposal(cronos)
 
 
 @pytest.mark.gov
-def test_submit_send_enabled(cronos, tmp_path):
+def test_submit_send_enabled(cronos):
     # check bank send enable
     cli = cronos.cosmos_cli()
     denoms = ["basetcro", "stake"]
@@ -935,12 +936,13 @@ def test_submit_send_enabled(cronos, tmp_path):
         {"denom": "stake", "enabled": True},
     ]
     authority = module_address("gov")
+    msg = "/cosmos.bank.v1beta1.MsgSetSendEnabled"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/cosmos.bank.v1beta1.MsgSetSendEnabled",
+                "@type": msg,
                 "authority": authority,
                 "sendEnabled": send_enable,
             }

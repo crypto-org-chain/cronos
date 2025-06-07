@@ -180,7 +180,7 @@ def exec(c, tmp_path_factory):
                 },
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["events"])
+            approve_proposal(c, rsp)
         else:
             rsp = cli.gov_propose_legacy(
                 "community",
@@ -195,7 +195,7 @@ def exec(c, tmp_path_factory):
                 mode=mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["logs"][0]["events"])
+            approve_proposal(c, rsp)
 
         # update cli chain binary
         c.chain_binary = (

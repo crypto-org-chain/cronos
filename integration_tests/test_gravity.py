@@ -245,7 +245,7 @@ def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
         "summary": "summary",
     }
     proposal.write_text(json.dumps(proposal_src))
-    return cli.submit_gov_proposal(proposal, from_="community")
+    return cli.submit_gov_proposal("community", "submit-proposal", proposal, broadcast_mode="sync")
 
 
 @pytest.mark.parametrize("is_legacy", [True, False])
@@ -281,7 +281,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
     rsp = submit_proposal(cli, tmp_path, is_legacy, denom, crc21.address)
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    approve_proposal(gravity.cronos, rsp["events"])
+    approve_proposal(gravity.cronos, rsp)
 
     print("check the contract mapping exists now")
     rsp = cli.query_contract_by_denom(denom)
