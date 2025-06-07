@@ -128,6 +128,6 @@ def test_ibc_update_client_via_proposal(ibc):
         },
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(ibc.cronos, rsp["events"])
+    approve_proposal(ibc.cronos, rsp)
     default_trust_period = "1209600s"
     assert_trust_period(default_trust_period)
