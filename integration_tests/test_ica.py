@@ -141,10 +141,12 @@ def test_ica(ibc, order, tmp_path):
         proposal_json["deposit"] = deposit
         proposal_json["proposer"] = authority
         proposal_json["messages"][0]["signer"] = authority
-        proposal_json["messages"][0]["fields"]["ordering"] = (
-            ChannelOrder.UNORDERED.value)
+        proposal_json["messages"][0]["fields"][
+            "ordering"
+        ] = ChannelOrder.UNORDERED.value
         rsp = cli_controller.submit_gov_proposal(
-            "community", "submit-proposal", proposal_json, broadcast_mode="sync")
+            "community", "submit-proposal", proposal_json, broadcast_mode="sync"
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
         approve_proposal(ibc.cronos, rsp)
         wait_for_check_channel_ready(

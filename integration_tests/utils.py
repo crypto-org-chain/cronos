@@ -155,12 +155,12 @@ def get_proposal_id(rsp, msg=",/cosmos.staking.v1beta1.MsgUpdateParams"):
 
 
 def approve_proposal(
-        cronos,
-        rsp,
-        vote_option="yes",
-        msg=",/cosmos.gov.v1.MsgUpdateParams",
-        wait_tx=True,
-        broadcast_mode="sync",
+    cronos,
+    rsp,
+    vote_option="yes",
+    msg=",/cosmos.gov.v1.MsgUpdateParams",
+    wait_tx=True,
+    broadcast_mode="sync",
 ):
     cli = cronos.cosmos_cli()
     proposal_id = get_proposal_id(rsp, msg)
@@ -189,8 +189,8 @@ def approve_proposal(
             )
             assert rsp["code"] == 0, rsp["raw_log"]
         assert (
-                int(cli.query_tally(proposal_id)[vote_option + "_count"])
-                == cli.staking_pool()
+            int(cli.query_tally(proposal_id)[vote_option + "_count"])
+            == cli.staking_pool()
         ), "all voted"
     else:
         assert cli.query_tally(proposal_id) == {
@@ -218,7 +218,8 @@ def submit_gov_proposal(cronos, msg, **kwargs):
         **kwargs,
     }
     rsp = cronos.cosmos_cli().submit_gov_proposal(
-        "community", "submit-proposal", proposal_json, broadcast_mode="sync")
+        "community", "submit-proposal", proposal_json, broadcast_mode="sync"
+    )
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp, msg=msg)
     print("check params have been updated now")
@@ -502,6 +503,7 @@ def deploy_erc20(gravity_contract, w3, denom, name, symbol, decimal, key=None):
 
 class InlineTable(dict, toml.decoder.InlineTableDict):
     "a hack to dump inline table with toml library"
+
     pass
 
 
@@ -747,7 +749,8 @@ def submit_any_proposal(cronos):
     }
 
     rsp = cli.submit_gov_proposal(
-        "community", "submit-proposal", proposal_json, broadcast_mode="sync")
+        "community", "submit-proposal", proposal_json, broadcast_mode="sync"
+    )
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp, msg=msg)
     grant_detail = cli.query_grant(granter_addr, grantee_addr)

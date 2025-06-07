@@ -1294,12 +1294,12 @@ class CosmosCLI:
         )
 
     def submit_gov_proposal(
-            self,
-            proposer,
-            kind,
-            proposal,
-            wait_tx=True,
-            **kwargs,
+        self,
+        proposer,
+        kind,
+        proposal,
+        wait_tx=True,
+        **kwargs,
     ):
         default_kwargs = self.get_default_kwargs()
         kwargs.setdefault("broadcast_mode", "sync")

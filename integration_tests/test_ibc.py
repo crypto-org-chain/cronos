@@ -85,7 +85,8 @@ def test_ibc_incentivized_transfer(ibc, tmp_path):
         proposal_json["proposer"] = authority
         proposal_json["messages"][0]["signer"] = authority
         rsp = src_chain.submit_gov_proposal(
-            "community", "submit-proposal", proposal_json, broadcast_mode="sync")
+            "community", "submit-proposal", proposal_json, broadcast_mode="sync"
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
         approve_proposal(ibc.cronos, rsp)
         wait_for_check_channel_ready(
