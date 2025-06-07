@@ -145,12 +145,12 @@ def wait_for_block_time(cli, t):
         time.sleep(0.5)
 
 
-def get_proposal_id(rsp, msg=",/cosmos.staking.v1beta1.MsgUpdateParams"):
+def get_proposal_id(rsp, msg="/cosmos.staking.v1beta1.MsgUpdateParams"):
     def cb(attrs):
         return "proposal_id" in attrs
 
     ev = find_log_event_attrs(rsp["events"], "submit_proposal", cb)
-    assert ev["proposal_messages"] == msg, rsp
+    assert ev["proposal_messages"] == "," + msg, rsp
     return ev["proposal_id"]
 
 
@@ -158,14 +158,14 @@ def approve_proposal(
     cronos,
     rsp,
     vote_option="yes",
-    msg=",/cosmos.gov.v1.MsgUpdateParams",
+    msg="/cosmos.gov.v1.MsgExecLegacyContent",
     wait_tx=True,
     broadcast_mode="sync",
 ):
     cli = cronos.cosmos_cli()
     proposal_id = get_proposal_id(rsp, msg)
     proposal = cli.query_proposal(proposal_id)
-    if msg == ",/cosmos.gov.v1.MsgExecLegacyContent":
+    if msg == "/cosmos.gov.v1.MsgExecLegacyContent":
         assert proposal["status"] == "PROPOSAL_STATUS_DEPOSIT_PERIOD", proposal
     rsp = cli.gov_deposit(
         "signer2",
