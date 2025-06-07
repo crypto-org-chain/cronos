@@ -153,6 +153,7 @@ def get_proposal_id(rsp, msg=",/cosmos.staking.v1beta1.MsgUpdateParams"):
     assert ev["proposal_messages"] == msg, rsp
     return ev["proposal_id"]
 
+
 def approve_proposal(
         cronos,
         rsp,
@@ -208,6 +209,7 @@ def approve_proposal(
     else:
         assert proposal["status"] == "PROPOSAL_STATUS_REJECTED", proposal
 
+
 def submit_gov_proposal(cronos, msg, **kwargs):
     proposal_json = {
         "title": "title",
@@ -215,9 +217,10 @@ def submit_gov_proposal(cronos, msg, **kwargs):
         "deposit": "1basetcro",
         **kwargs,
     }
-    rsp = cronos.cosmos_cli().submit_gov_proposal("community", "submit-proposal", proposal_json, broadcast_mode="sync")
+    rsp = cronos.cosmos_cli().submit_gov_proposal(
+        "community", "submit-proposal", proposal_json, broadcast_mode="sync")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp, msg=","+msg)
+    approve_proposal(cronos, rsp, msg=msg)
     print("check params have been updated now")
 
 
@@ -743,9 +746,10 @@ def submit_any_proposal(cronos):
         ],
     }
 
-    rsp = cli.submit_gov_proposal("community", "submit-proposal", proposal_json, broadcast_mode="sync")
+    rsp = cli.submit_gov_proposal(
+        "community", "submit-proposal", proposal_json, broadcast_mode="sync")
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp, msg= msg)
+    approve_proposal(cronos, rsp, msg=msg)
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr

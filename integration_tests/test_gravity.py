@@ -245,7 +245,8 @@ def submit_proposal(cli, tmp_path, is_legacy, denom, conctract):
         "summary": "summary",
     }
     proposal.write_text(json.dumps(proposal_src))
-    return cli.submit_gov_proposal("community", "submit-proposal", proposal, broadcast_mode="sync")
+    return cli.submit_gov_proposal(
+        "community", "submit-proposal", proposal, broadcast_mode="sync")
 
 
 @pytest.mark.parametrize("is_legacy", [True, False])
