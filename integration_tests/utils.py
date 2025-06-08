@@ -10,7 +10,6 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -155,20 +154,25 @@ def get_proposal_id(rsp, msg="/cosmos.staking.v1beta1.MsgUpdateParams"):
 
 
 def approve_proposal(
-    cronos,
-    rsp,
+    n,
+    events,
     vote_option="yes",
     msg="/cosmos.gov.v1.MsgExecLegacyContent",
     wait_tx=True,
     broadcast_mode="sync",
 ):
-    cli = cronos.cosmos_cli()
-    proposal_id = get_proposal_id(rsp, msg)
+    cli = n.cosmos_cli()
+
+    # get proposal_id
+    ev = find_log_event_attrs(
+        events, "submit_proposal", lambda attrs: "proposal_id" in attrs
+    )
+    proposal_id = ev["proposal_id"]
     proposal = cli.query_proposal(proposal_id)
     if msg == "/cosmos.gov.v1.MsgExecLegacyContent":
         assert proposal["status"] == "PROPOSAL_STATUS_DEPOSIT_PERIOD", proposal
     rsp = cli.gov_deposit(
-        "signer2",
+        "community",
         proposal_id,
         "100000000basetcro",
         event_query_tx=wait_tx,
@@ -179,8 +183,8 @@ def approve_proposal(
     assert proposal["status"] == "PROPOSAL_STATUS_VOTING_PERIOD", proposal
 
     if vote_option is not None:
-        for i in range(len(cronos.config["validators"])):
-            rsp = cronos.cosmos_cli(i).gov_vote(
+        for i in range(len(n.config["validators"])):
+            rsp = n.cosmos_cli(i).gov_vote(
                 "validator",
                 proposal_id,
                 vote_option,
@@ -188,6 +192,8 @@ def approve_proposal(
                 broadcast_mode=broadcast_mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
+
+        wait_for_new_blocks(cli, 1)
         assert (
             int(cli.query_tally(proposal_id)[vote_option + "_count"])
             == cli.staking_pool()
@@ -200,9 +206,7 @@ def approve_proposal(
             "no_with_veto_count": "0",
         }
 
-    wait_for_block_time(
-        cli, isoparse(proposal["voting_end_time"]) + timedelta(seconds=5)
-    )
+    wait_for_block_time(cli, isoparse(proposal["voting_end_time"]))
     proposal = cli.query_proposal(proposal_id)
     if vote_option == "yes":
         assert proposal["status"] == "PROPOSAL_STATUS_PASSED", proposal
@@ -221,7 +225,7 @@ def submit_gov_proposal(cronos, msg, **kwargs):
         "community", "submit-proposal", proposal_json, broadcast_mode="sync"
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp, msg=msg)
+    approve_proposal(cronos, rsp["events"], msg=msg)
     print("check params have been updated now")
 
 
@@ -752,7 +756,7 @@ def submit_any_proposal(cronos):
         "community", "submit-proposal", proposal_json, broadcast_mode="sync"
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-    approve_proposal(cronos, rsp, msg=msg)
+    approve_proposal(cronos, rsp["events"], msg=msg)
     grant_detail = cli.query_grant(granter_addr, grantee_addr)
     assert grant_detail["granter"] == granter_addr
     assert grant_detail["grantee"] == grantee_addr

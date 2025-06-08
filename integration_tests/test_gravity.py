@@ -283,7 +283,7 @@ def test_gov_token_mapping(gravity, tmp_path, is_legacy):
     rsp = submit_proposal(cli, tmp_path, is_legacy, denom, crc21.address)
     assert rsp["code"] == 0, rsp["raw_log"]
 
-    approve_proposal(gravity.cronos, rsp)
+    approve_proposal(gravity.cronos, rsp["events"])
 
     print("check the contract mapping exists now")
     rsp = cli.query_contract_by_denom(denom)

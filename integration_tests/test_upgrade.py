@@ -180,7 +180,9 @@ def exec(c, tmp_path_factory):
                 },
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp, msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade")
+            approve_proposal(
+                c, rsp["events"], msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade"
+            )
         else:
             rsp = cli.gov_propose_legacy(
                 "community",
@@ -195,7 +197,12 @@ def exec(c, tmp_path_factory):
                 mode=mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp, msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade")
+            approve_proposal(
+                c,
+                rsp["logs"][0]["events"],
+                msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+                wait_tx=False,
+            )
 
         # update cli chain binary
         c.chain_binary = (

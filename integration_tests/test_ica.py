@@ -148,7 +148,9 @@ def test_ica(ibc, order, tmp_path):
             "community", "submit-proposal", proposal_json, broadcast_mode="sync"
         )
         assert rsp["code"] == 0, rsp["raw_log"]
-        approve_proposal(ibc.cronos, rsp)
+        approve_proposal(
+            ibc.cronos, rsp["events"], msg="ibc.core.channel.v1.MsgChannelUpgradeInit"
+        )
         wait_for_check_channel_ready(
             cli_controller, connid, channel_id2, "STATE_FLUSHCOMPLETE"
         )
