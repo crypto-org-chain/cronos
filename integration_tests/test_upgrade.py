@@ -168,8 +168,9 @@ def exec(c, tmp_path_factory):
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
         if plan_name == "v1.4.0-rc5-testnet":
-            rsp = cli.software_upgrade(
+            rsp = cli.submit_gov_proposal(
                 "community",
+                "software-upgrade",
                 {
                     "name": plan_name,
                     "title": "upgrade test",
@@ -178,6 +179,7 @@ def exec(c, tmp_path_factory):
                     "summary": "summary",
                     "deposit": "10000basetcro",
                 },
+                broadcast_mode="sync",
             )
             assert rsp["code"] == 0, rsp["raw_log"]
             approve_proposal(
