@@ -34,7 +34,7 @@ def ibc(request, tmp_path_factory):
     incentivized = request.param
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, incentivized=incentivized)
+    yield from prepare_network(path, name, incentivized=incentivized, is_ibc_transfer=True)
 
 
 def test_ibc_transfer(ibc):
