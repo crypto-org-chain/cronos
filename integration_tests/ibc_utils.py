@@ -55,6 +55,7 @@ def call_hermes_cmd(
     connection_only,
     incentivized,
     version,
+    is_ibc_transfer=False,
 ):
     if connection_only:
         subprocess.check_call(
@@ -92,10 +93,9 @@ def call_hermes_cmd(
             + (
                 [
                     "--channel-version",
-                    json.dumps(version),
+                    str(version) if is_ibc_transfer else json.dumps(version),
                 ]
-                if incentivized
-                else []
+                if incentivized or is_ibc_transfer else []
             )
         )
 
@@ -150,12 +150,14 @@ def prepare_network(
     grantee=None,
     need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
+    is_ibc_transfer=False,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
     print("connection_only", connection_only)
     print("relayer", relayer)
     print("need_relayer_caller", need_relayer_caller)
+    print("is_ibc_transfer", is_ibc_transfer)
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
 
@@ -205,15 +207,16 @@ def prepare_network(
         wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
         wait_for_new_blocks(chainmain.cosmos_cli(), 1)
         wait_for_new_blocks(cli, 1)
-
         connid = "connection-0"
-        version = json.dumps({
-            "version": "ics27-1",
+
+        ica_version = {
+            "version": "ics20-1",
             "encoding": "proto3",
             "tx_type": "sdk_multi_msg",
             "controller_connection_id": connid,
             "host_connection_id": connid,
-        })
+        }
+        version = "ics20-1" if is_ibc_transfer else json.dumps(ica_version)
 
         w3 = cronos.w3
         contract = None
@@ -237,12 +240,10 @@ def prepare_network(
                 connection_only,
                 incentivized,
                 version,
+                is_ibc_transfer
             )
         else:
             call_rly_cmd(path, connection_only, incentivized, version)
-
-        if incentivized:
-            register_fee_payee(cronos, chainmain, contract, acc)
 
         port = None
         if is_relay:
@@ -380,7 +381,7 @@ def find_duplicate(attributes):
     return None
 
 
-def ibc_transfer(ibc, transfer_fn=rly_transfer):
+def ibc_transfer(ibc, transfer_fn=hermes_transfer):
     src_amount = transfer_fn(ibc)
     dst_amount = src_amount * RATIO  # the decimal places difference
     dst_denom = "basetcro"
