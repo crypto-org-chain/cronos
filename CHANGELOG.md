@@ -6,6 +6,16 @@
 
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
 
+
+*Apr 24, 2025*
+
+## v1.4.7
+
+### Bug Fixes
+
+* [#1797](https://github.com/crypto-org-chain/cronos/pull/1797) Upgrade cosmos sdk to latest to include bug fix
+
+
 *Apr 9, 2025*
 
 ## v1.4.6
