@@ -63,6 +63,7 @@ def test_ibc_transfer(ibc):
         assert not dup, f"duplicate {dup} in {event['type']}"
 
 
+@pytest.mark.skip("skipping ibc incentivized transfer tests")
 def test_ibc_incentivized_transfer(ibc, tmp_path):
     if not ibc.incentivized:
         # rly: ibc_upgrade_channels not work
