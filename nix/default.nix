@@ -60,16 +60,35 @@ import sources.nixpkgs {
           ];
         };
       };
-      hermes = pkgs.callPackage ./hermes.nix { src = sources.hermes; };
+     })
+    (_: pkgs: {
+        hermes = let
+          # The informalsystems/hermes v1.13.1 requires rust version >= v1.83
+          # The nixpkgs 24.11 is using rust version v1.82
+          # Use fenix to select different rust toolchain version
+          rustToolchain = (import sources.fenix {
+            inherit system;
+          }).fromToolchainFile {
+            file = ./rust-toolchain.toml;
+            sha256 = "sha256-s1RPtyvDGJaX/BisLT+ifVfuhDT1nZkZ1NcK8sbwELM=";
+          };
+          fenixRustPlatform = pkgs.makeRustPlatform {
+            cargo = rustToolchain;
+            rustc = rustToolchain;
+          };
+          in pkgs.callPackage ./hermes.nix {
+          src = sources.hermes;
+          rustPlatform = fenixRustPlatform;
+        };
     })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo122Module {
+      rly = pkgs.buildGo123Module rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
-        vendorHash = "sha256-dwKZZu9wKOo2u1/8AAWFx89iC9pWZbCxAERMMAOFsts=";
+        vendorHash = "sha256-O8bjUfB+tXDizb4uKfpE+A3roFDjD8AYba8ncTAHlF0=";
         doCheck = false;
         env.GOWORK = "off";
         postInstall = ''

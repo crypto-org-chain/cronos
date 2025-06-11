@@ -267,8 +267,10 @@ message QueryTraceTxRequest {
   google.protobuf.Timestamp block_time = 7 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
   // proposer_address is the proposer of the requested block
   bytes proposer_address = 8 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.ConsAddress"];
-  // chain_id is the the eip155 chain id parsed from the requested block header
+  // chain_id is the eip155 chain id parsed from the requested block header
   int64 chain_id = 9;
+  // base_fee is the base fee based on the block_number of requested transaction
+  string base_fee = 10 [(gogoproto.customtype) = "cosmossdk.io/math.Int"];
 }
 
 // QueryTraceTxResponse defines TraceTx response

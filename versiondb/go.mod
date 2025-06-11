@@ -14,7 +14,6 @@ require (
 	github.com/cosmos/cosmos-sdk v0.50.4
 	github.com/cosmos/gogoproto v1.7.0
 	github.com/cosmos/iavl v1.2.0
-	github.com/cosmos/ibc-go/modules/capability v1.0.0
 	github.com/crypto-org-chain/cronos/memiavl v0.0.3
 	github.com/golang/snappy v0.0.4
 	github.com/linxGnu/grocksdb v1.9.10-0.20250331012329-9d5f074653d1

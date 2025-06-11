@@ -9,8 +9,8 @@ import "memiavl/commit_info.proto";
 
 // NamedChangeSet combine a tree name with the changeset
 message NamedChangeSet {
-  ChangeSet      changeset = 1 [(gogoproto.nullable) = false];
-  string         name      = 2;
+  ChangeSet changeset = 1 [(gogoproto.nullable) = false];
+  string    name      = 2;
 }
 
 // TreeNameUpgrade defines upgrade of tree names:
