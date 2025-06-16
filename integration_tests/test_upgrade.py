@@ -168,8 +168,9 @@ def exec(c, tmp_path_factory):
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
         if plan_name == "v1.4.0-rc5-testnet":
-            rsp = cli.software_upgrade(
+            rsp = cli.submit_gov_proposal(
                 "community",
+                "software-upgrade",
                 {
                     "name": plan_name,
                     "title": "upgrade test",
@@ -178,9 +179,12 @@ def exec(c, tmp_path_factory):
                     "summary": "summary",
                     "deposit": "10000basetcro",
                 },
+                broadcast_mode="sync",
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["events"])
+            approve_proposal(
+                c, rsp["events"], msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade"
+            )
         else:
             rsp = cli.gov_propose_legacy(
                 "community",
@@ -195,7 +199,12 @@ def exec(c, tmp_path_factory):
                 mode=mode,
             )
             assert rsp["code"] == 0, rsp["raw_log"]
-            approve_proposal(c, rsp["logs"][0]["events"])
+            approve_proposal(
+                c,
+                rsp["logs"][0]["events"],
+                msg="/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+                wait_tx=False,
+            )
 
         # update cli chain binary
         c.chain_binary = (

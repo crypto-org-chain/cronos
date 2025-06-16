@@ -719,35 +719,6 @@ class CosmosCLI:
             )
         )
 
-    def software_upgrade(self, proposer, proposal, **kwargs):
-        kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
-        kwargs.setdefault("gas", DEFAULT_GAS)
-        rsp = json.loads(
-            self.raw(
-                "tx",
-                "upgrade",
-                "software-upgrade",
-                proposal["name"],
-                "-y",
-                "--no-validate",
-                from_=proposer,
-                # content
-                title=proposal.get("title"),
-                note=proposal.get("note"),
-                upgrade_height=proposal.get("upgrade-height"),
-                upgrade_time=proposal.get("upgrade-time"),
-                upgrade_info=proposal.get("upgrade-info"),
-                summary=proposal.get("summary"),
-                deposit=proposal.get("deposit"),
-                # basic
-                home=self.data_dir,
-                **kwargs,
-            )
-        )
-        if rsp["code"] == 0:
-            rsp = self.event_query_tx_for(rsp["txhash"])
-        return rsp
-
     def gov_propose_legacy(self, proposer, kind, proposal, mode="block", **kwargs):
         kwargs.setdefault("gas_prices", DEFAULT_GAS_PRICE)
         kwargs.setdefault("gas", DEFAULT_GAS)
@@ -1293,23 +1264,85 @@ class CosmosCLI:
             )
         )
 
-    def submit_gov_proposal(self, proposal, **kwargs):
+    def submit_gov_proposal(
+        self,
+        proposer,
+        kind,
+        proposal,
+        wait_tx=True,
+        **kwargs,
+    ):
         default_kwargs = self.get_default_kwargs()
         kwargs.setdefault("broadcast_mode", "sync")
-        rsp = json.loads(
-            self.raw(
-                "tx",
-                "gov",
-                "submit-proposal",
-                proposal,
-                "-y",
-                home=self.data_dir,
-                node=self.node_rpc,
-                stderr=subprocess.DEVNULL,
-                **(default_kwargs | kwargs),
+        if kind == "software-upgrade":
+            rsp = json.loads(
+                self.raw(
+                    "tx",
+                    "upgrade",
+                    kind,
+                    proposal["name"],
+                    "-y",
+                    "--no-validate",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    summary=proposal.get("summary"),
+                    upgrade_height=proposal.get("upgrade-height"),
+                    upgrade_time=proposal.get("upgrade-time"),
+                    upgrade_info=proposal.get("upgrade-info", "info"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    node=self.node_rpc,
+                    keyring_backend="test",
+                    chain_id=self.chain_id,
+                    stderr=subprocess.DEVNULL,
+                    **(default_kwargs | kwargs),
+                )
             )
-        )
-        if rsp["code"] == 0:
+        elif kind == "cancel-software-upgrade":
+            rsp = json.loads(
+                self.raw(
+                    "tx",
+                    "upgrade",
+                    kind,
+                    "-y",
+                    from_=proposer,
+                    # content
+                    title=proposal.get("title"),
+                    summary=proposal.get("summary"),
+                    deposit=proposal.get("deposit"),
+                    # basic
+                    home=self.data_dir,
+                    node=self.node_rpc,
+                    keyring_backend="test",
+                    chain_id=self.chain_id,
+                    stderr=subprocess.DEVNULL,
+                    **(default_kwargs | kwargs),
+                )
+            )
+        else:
+            with tempfile.NamedTemporaryFile("w") as fp:
+                json.dump(proposal, fp)
+                fp.flush()
+                rsp = json.loads(
+                    self.raw(
+                        "tx",
+                        "gov",
+                        "submit-proposal",
+                        fp.name,
+                        "-y",
+                        from_=proposer,
+                        # basic
+                        home=self.data_dir,
+                        node=self.node_rpc,
+                        keyring_backend="test",
+                        chain_id=self.chain_id,
+                        stderr=subprocess.DEVNULL,
+                        **(default_kwargs | kwargs),
+                    )
+                )
+        if rsp["code"] == 0 and wait_tx:
             rsp = self.event_query_tx_for(rsp["txhash"])
         return rsp
 
