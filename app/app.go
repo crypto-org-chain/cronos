@@ -708,7 +708,6 @@ func New(
 	var icaControllerStack porttypes.IBCModule
 	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
 	icaControllerStack = ibccallbacks.NewIBCMiddleware(icaControllerStack, app.IBCKeeper.ChannelKeeper, app.CronosKeeper, math.MaxUint64)
-	var icaICS4Wrapper porttypes.ICS4Wrapper
 	icaICS4Wrapper, ok := icaControllerStack.(porttypes.ICS4Wrapper)
 	if !ok {
 		panic(fmt.Errorf("cannot convert %T to %T", icaControllerStack, icaICS4Wrapper))
