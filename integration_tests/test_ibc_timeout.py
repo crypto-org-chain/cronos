@@ -11,7 +11,13 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc_timeout"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, grantee="signer3")
+    yield from prepare_network(
+        path,
+        name,
+        grantee="signer3",
+        is_ibc_transfer=True,
+        incentivized=False,
+    )
 
 
 def test_ibc(ibc):

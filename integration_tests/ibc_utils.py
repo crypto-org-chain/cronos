@@ -163,8 +163,12 @@ def prepare_network(
 
     # We ignore the ibc_rly_evm settings if it is hermes relayer
     config_file = file
-    if is_hermes and file == "ibc_rly_evm":
-        config_file = "ibc_rly"
+    if is_hermes :
+        if file == "ibc_rly_evm":
+            config_file = "ibc_rly"
+        if file == "ibc_timeout":
+            config_file = "ibc_timeout_hermes"
+
     file_path = f"configs/{config_file}.jsonnet"
 
     with contextmanager(setup_custom_cronos)(
