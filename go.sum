@@ -428,6 +428,8 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250618065241-823fc683e6f0 h1:Fl0H4Tqwzzkdh6pWDN/zRkDU/4U0+n9BdPL++88nCeA=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250618065241-823fc683e6f0/go.mod h1:X11RkHpz0TlJf5E30HLyvxXJCDGB0XW0CUzdG4MNSWg=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716 h1:OvD5Rm0B6LHUJk6z858UgwdP72jU2DuUdXeclRyKpDI=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20240919080136-6c49aef68716/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a h1:IUPD+dg1YQl8cLocxQ/Mbx/ObTgAgcrZlcBhFjsLO40=
@@ -1103,8 +1105,6 @@ github.com/tendermint/go-amino v0.16.0 h1:GyhmgQKvqF82e2oZeuMSp9JTN0N09emoSZlb2l
 github.com/tendermint/go-amino v0.16.0/go.mod h1:TQU0M1i/ImAo+tYpZi73AU3V/dKeCoMC9Sphe2ZwGME=
 github.com/test-go/testify v1.1.4 h1:Tf9lntrKUMHiXQ07qBScBTSA0dhYQlu83hswqelv1iE=
 github.com/test-go/testify v1.1.4/go.mod h1:rH7cfJo/47vWGdi4GPj16x3/t1xGOj2YxzmNQzk2ghU=
-github.com/thomas-nguy/ethermint v0.4.2-0.20250618050616-e29673e898f8 h1:N6JwZ1wWosBB0MvY3a+0TxbGn0zpsiZyikGDbk82spg=
-github.com/thomas-nguy/ethermint v0.4.2-0.20250618050616-e29673e898f8/go.mod h1:X11RkHpz0TlJf5E30HLyvxXJCDGB0XW0CUzdG4MNSWg=
 github.com/tidwall/gjson v1.10.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.4 h1:uo0p8EbA09J7RQaflQ1aBRffTR7xedD2bcIVSYxLnkM=
