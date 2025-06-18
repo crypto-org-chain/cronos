@@ -112,9 +112,8 @@ def test_ica(ibc, order, tmp_path):
     submit_msgs(msg_num, 0.005, "600000")
     assert cli_host.balance(ica_address, denom=denom) == balance
     if order == ChannelOrder.UNORDERED.value:
-        with pytest.raises(AssertionError) as exc:
-            register_acc(cli_controller, connid)
-        assert "existing active channel" in str(exc.value)
+        # regiser new account for unordered channel, will not update the original channel.
+        register_acc(cli_controller, connid)
     else:
         # rly: ibc_upgrade_channels not work
         return
