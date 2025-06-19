@@ -462,6 +462,7 @@ def deploy_erc20(gravity_contract, w3, denom, name, symbol, decimal, key=None):
 
 class InlineTable(dict, toml.decoder.InlineTableDict):
     "a hack to dump inline table with toml library"
+
     pass
 
 
