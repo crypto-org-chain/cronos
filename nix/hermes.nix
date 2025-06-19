@@ -22,7 +22,7 @@ rustPlatform.buildRustPackage rec {
     protobuf
   ];
   cargoLock = {
-    lockFile = "${src}/Cargo.lock"; 
+    lockFile = "${src}/Cargo.lock";
   };
   doCheck = false;
   RUSTFLAGS = "--cfg ossl111 --cfg ossl110 --cfg ossl101";

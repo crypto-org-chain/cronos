@@ -33,10 +33,10 @@ def test_ibc(ibc):
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
     ibc_transfer(ibc)
-    
+
     if ibc.hermes is None:
         ibc_incentivized_transfer(ibc)
-    
+
     ibc_multi_transfer(ibc)
     diff = 0.15
     record = log_gas_records(cli)

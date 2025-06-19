@@ -715,8 +715,7 @@ func New(
 	// Since the callbacks middleware itself is an ics4wrapper, it needs to be passed to the ica controller keeper
 	app.ICAControllerKeeper.WithICS4Wrapper(icaICS4Wrapper)
 
-	var icaHostStack porttypes.IBCModule
-	icaHostStack = icahost.NewIBCModule(app.ICAHostKeeper)
+	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()

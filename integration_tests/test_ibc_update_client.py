@@ -14,7 +14,13 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, is_relay=False, is_ibc_transfer=True, incentivized=False)
+    yield from prepare_network(
+        path,
+        name,
+        is_relay=False,
+        is_ibc_transfer=True,
+        incentivized=False,
+    )
 
 
 def test_ibc_update_client(ibc, tmp_path):
