@@ -94,8 +94,3 @@ type IbcKeeper interface {
 	Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error)
 	TimeoutOnClose(goCtx context.Context, msg *channeltypes.MsgTimeoutOnClose) (*channeltypes.MsgTimeoutOnCloseResponse, error)
 }
-
-// type IbcFeeKeeper interface {
-// 	RegisterPayee(goCtx context.Context) error
-// 	RegisterCounterpartyPayee(goCtx context.Context) error
-// }

@@ -74,10 +74,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 				lastestVersion int64
 				storeInfosLock sync.Mutex
 			)
-			storeInfos := []storetypes.StoreInfo{
-				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				//{Name: "mem_capability", CommitId: storetypes.CommitID{}},
-			}
+			storeInfos := []storetypes.StoreInfo{}
 
 			mtree := memiavl.NewEmptyMultiTree(0, 0)
 			if len(loadSnapshot) > 0 {

@@ -198,34 +198,6 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 	}
 	converter := cronosevents.RelayerConvertEvent
 
-	//TODO:: There is no ibcFeeKeeper in ibc-go-v10
-	// if method.Name == RegisterPayee || method.Name == RegisterCounterpartyPayee {
-	// 	execErr := stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-	// 		portID := args[0].(string)
-	// 		channelID := args[1].(string)
-	// 		caller := sdk.AccAddress(contract.CallerAddress.Bytes()).String()
-
-	// 		if method.Name == RegisterPayee {
-	// 			payeeAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
-	// 			_, err := bc.ibcFeeKeeper.RegisterPayee(
-	// 				ctx,
-	// 				ibcfeetypes.NewMsgRegisterPayee(portID, channelID, caller, payeeAddr),
-	// 			)
-	// 			return err
-	// 		} else {
-	// 			counterpartyPayeeAddr := args[2].(string)
-	// 			_, err := bc.ibcFeeKeeper.RegisterCounterpartyPayee(
-	// 				ctx,
-	// 				ibcfeetypes.NewMsgRegisterCounterpartyPayee(portID, channelID, caller, counterpartyPayeeAddr),
-	// 			)
-	// 			return err
-	// 		}
-	// 	})
-	// 	if execErr != nil {
-	// 		return nil, execErr
-	// 	}
-	// 	return method.Outputs.Pack(true)
-	// }
 	input := args[0].([]byte)
 	e := &Executor{
 		cdc:       bc.cdc,

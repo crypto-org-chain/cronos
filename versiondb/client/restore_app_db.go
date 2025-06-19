@@ -64,10 +64,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// sdk64Compact, err := cmd.Flags().GetBool(flagSDK64Compact)
-			// if err != nil {
-			// 	return err
-			// }
 			stores, err := GetStoresOrDefault(cmd, opts.DefaultStores)
 			if err != nil {
 				return err
@@ -82,10 +78,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 			// load the snapshots and compute commit info first
 			var lastestVersion int64
 			var storeInfos []storetypes.StoreInfo
-			// if sdk64Compact {
-			// 	// https://github.com/cosmos/cosmos-sdk/issues/14916
-			// 	storeInfos = append(storeInfos, storetypes.StoreInfo{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}})
-			// }
 			snapshots := make([]*memiavl.Snapshot, len(stores))
 			for i, store := range stores {
 				path := filepath.Join(snapshotDir, store)

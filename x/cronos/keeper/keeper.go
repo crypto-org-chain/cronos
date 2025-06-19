@@ -315,14 +315,6 @@ func (k Keeper) IBCOnAcknowledgementPacketCallback(
 	packetSenderAddress string,
 	version string,
 ) error {
-	// the ack is wrapped by fee middleware
-	// var ack ibcfeetypes.IncentivizedAcknowledgement
-	// if err := k.cdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
-	// 	return err
-	// }
-	// if !ack.Success() {
-	// 	return k.onPacketResult(ctx, packet, false, relayer, contractAddress, packetSenderAddress)
-	// }
 	var res channeltypes.Acknowledgement
 	if err := k.cdc.UnmarshalJSON(acknowledgement, &res); err != nil {
 		return err
