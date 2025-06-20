@@ -10,13 +10,13 @@ from .ibc_utils import (
     assert_duplicate,
     cronos_transfer_source_tokens,
     cronos_transfer_source_tokens_with_proxy,
+    hermes_transfer,
     ibc_denom,
     ibc_incentivized_transfer,
     ibc_multi_transfer,
     ibc_transfer,
     prepare_network,
     rly_transfer,
-    hermes_transfer,
 )
 from .utils import (
     ADDRS,
@@ -269,36 +269,39 @@ def test_ibc(ibc):
                 relayer0,
                 cronos_signer2,
                 src_amount,
-                src_denom),
-            *
+                src_denom,
+            ),
             send_from_module_to_acc(
                 transfer_addr,
                 cronos_signer2,
                 src_amount,
-                denom),
+                denom,
+            ),
             fungible(
                 cronos_signer2,
                 relayer,
                 src_amount,
-                src_denom),
-            *
+                src_denom,
+            ),
             send_from_acc_to_module(
                 cronos_signer2,
                 cronos_addr,
                 src_amount,
-                denom),
-            *
+                denom,
+            ),
             send_from_module_to_acc(
                 cronos_addr,
                 cronos_signer2,
                 dst_amount,
-                dst_denom),
+                dst_denom,
+            ),
             write_ack(
                 seq,
                 relayer0,
                 cronos_signer2,
                 src_amount,
-                src_denom),
+                src_denom,
+            ),
         ]
         assert len(logs) == len(expected)
         height = logs[0]["blockNumber"]

@@ -95,7 +95,8 @@ def call_hermes_cmd(
                     "--channel-version",
                     str(version) if is_ibc_transfer else json.dumps(version),
                 ]
-                if incentivized or is_ibc_transfer else []
+                if incentivized or is_ibc_transfer
+                else []
             )
         )
 
@@ -163,7 +164,7 @@ def prepare_network(
 
     # We ignore the ibc_rly_evm settings if it is hermes relayer
     config_file = file
-    if is_hermes :
+    if is_hermes:
         if file == "ibc_rly_evm":
             config_file = "ibc_rly"
         if file == "ibc_timeout":
@@ -244,7 +245,7 @@ def prepare_network(
                 connection_only,
                 incentivized,
                 version,
-                is_ibc_transfer
+                is_ibc_transfer,
             )
         else:
             call_rly_cmd(path, connection_only, incentivized, version)
@@ -864,13 +865,15 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signer2"):
     print("register ica account")
-    v = json.dumps({
+    v = json.dumps(
+        {
             "version": "ics27-1",
             "encoding": "proto3",
             "tx_type": "sdk_multi_msg",
             "controller_connection_id": connid,
             "host_connection_id": connid,
-    })
+        }
+    )
     rsp = cli.ica_register_account(
         connid,
         from_=signer,
