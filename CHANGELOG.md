@@ -6,25 +6,21 @@
 
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
 
+*Jun 20, 2025*
 
-*Apr 24, 2025*
-
-## UNRELEASED
+## v1.4.8
 
 ### Improvements
 
 * [#1817](https://github.com/crypto-org-chain/cronos/pull/1817) Add support for eth_getBlockReceipts.
 
+*Apr 24, 2025*
+
 ## v1.4.7
 
 ### Bug Fixes
 
-<<<<<<< HEAD
 * [#1797](https://github.com/crypto-org-chain/cronos/pull/1797) Upgrade cosmos sdk to latest to include bug fix
-=======
-* [#1796](https://github.com/crypto-org-chain/cronos/pull/1796) Upgrade cosmos sdk to latest to include bug fix.
->>>>>>> 3474cc41 (feat: add support for eth_getBlockReceipts (#1817))
-
 
 *Apr 9, 2025*
 

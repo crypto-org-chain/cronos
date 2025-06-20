@@ -60,10 +60,10 @@ where `hexAddress` is an Ethereum hex address (eg: `0x11223344556677889900112233
 
 ### Ethereum JSON-RPC Events
 
-Cronos also supports the Ethereum [JSON-RPC](https://ethereum.github.io/execution-apis/api-documentation) filters calls to
-subscribe to [state logs](https://ethereum.github.io/execution-apis/api-documentation#eth_newfilter),
-[blocks](https://ethereum.github.io/execution-apis/api-documentation#eth_newblockfilter) or [pending
-transactions](https://ethereum.github.io/execution-apis/api-documentation#eth_newpendingtransactionfilter) changes.
+Cronos also supports the Ethereum [JSON-RPC](https://ethereum.github.io/execution-apis/docs/reference/json-rpc-api) filters calls to
+subscribe to [state logs](https://ethereum.github.io/execution-apis/docs/reference/eth_newfilter),
+[blocks](https://ethereum.github.io/execution-apis/docs/reference/eth_newblockfilter) or [pending
+transactions](https://ethereum.github.io/execution-apis/docs/reference/eth_newpendingtransactionfilter) changes.
 
 Under the hood, it uses the Tendermint RPC client's event system to process subscriptions that are
 then formatted to Ethereum-compatible events.
@@ -74,7 +74,7 @@ curl -X POST --data '{"jsonrpc":"2.0","method":"eth_newBlockFilter","params":[],
 {"jsonrpc":"2.0","id":1,"result":"0x3503de5f0c766c68f78a03a3b05036a5"}
 ```
 
-Then you can check if the state changes with the [`eth_getFilterChanges`](https://ethereum.github.io/execution-apis/api-documentation#eth_getfilterchanges) call:
+Then you can check if the state changes with the [`eth_getFilterChanges`](https://ethereum.github.io/execution-apis/docs/reference/eth_getfilterchanges) call:
 
 ```bash
 curl -X POST --data '{"jsonrpc":"2.0","method":"eth_getFilterChanges","params":["0x3503de5f0c766c68f78a03a3b05036a5"],"id":1}' -H "Content-Type: application/json" http://localhost:8545
