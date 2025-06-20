@@ -1,12 +1,18 @@
 # Changelog
 
-*Apr 24, 2025*
+
 
 ## UNRELEASED
+
+*Jun 20, 2025*
+
+## v1.4.8
 
 ### Improvements
 
 * [#1817](https://github.com/crypto-org-chain/cronos/pull/1817) Add support for eth_getBlockReceipts.
+
+*Apr 24, 2025*
 
 ## v1.4.7
 

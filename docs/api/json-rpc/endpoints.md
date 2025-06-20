@@ -38,6 +38,7 @@ Check the JSON-RPC methods supported on Cronos. {synopsis}
 | [`eth_estimateGas`](#eth-estimategas)                                             | Eth       | ✔           | ✔      |                    |
 | [`eth_getBlockByNumber`](#eth-getblockbynumber)                                   | Eth       | ✔           | ✔      |                    |
 | [`eth_getBlockByHash`](#eth-getblockbyhash)                                       | Eth       | ✔           | ✔      |                    |
+| [`eth_getBlockReceipts`](#eth-getblockbyhash)                                     | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionByHash`](#eth-gettransactionbyhash)                           | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionByBlockHashAndIndex`](#eth-gettransactionbyblockhashandindex) | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionReceipt`](#eth-gettransactionreceipt)                         | Eth       | ✔           | ✔      |                    |
@@ -124,13 +125,13 @@ Check the JSON-RPC methods supported on Cronos. {synopsis}
 | `debug_startGoTrace`                                                              | Debug     | ✔           |        |                    |
 | `debug_stopCPUProfile`                                                            | Debug     | ✔           |        |                    |
 | `debug_stopGoTrace`                                                               | Debug     | ✔           |        |                    |
-| `debug_traceBlock`(#debug-traceblock)                                                                | Debug     | ✔           |        |                    |
+| `debug_traceBlock`(#debug-traceblock)                                             | Debug     | ✔           |        |                    |
 | `debug_traceBlockByNumber`                                                        | Debug     |             |        |                    |
 | `debug_traceBlockByHash`                                                          | Debug     |             |        |                    |
 | `debug_traceBlockFromFile`                                                        | Debug     |             |        |                    |
 | `debug_standardTraceBlockToFile`                                                  | Debug     |             |        |                    |
 | `debug_standardTraceBadBlockToFile`                                               | Debug     |             |        |                    |
-| [`debug_traceTransaction`](#debug-tracetransaction)                                                          | Debug     | ✔           |        |                    |
+| [`debug_traceTransaction`](#debug-tracetransaction)                               | Debug     | ✔           |        |                    |
 | `debug_verbosity`                                                                 | Debug     |             |        |                    |
 | `debug_vmodule`                                                                   | Debug     |             |        |                    |
 | `debug_writeBlockProfile`                                                         | Debug     | ✔           |        |                    |
