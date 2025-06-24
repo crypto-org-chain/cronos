@@ -61,30 +61,7 @@ import sources.nixpkgs {
         };
       };
     })
-    (_: pkgs: {
-      hermes =
-        let
-          # The informalsystems/hermes v1.13.1 requires rust version >= v1.83
-          # The nixpkgs 24.11 is using rust version v1.82
-          # Use fenix to select different rust toolchain version
-          rustToolchain =
-            (import sources.fenix {
-              inherit system;
-            }).fromToolchainFile
-              {
-                file = ./rust-toolchain.toml;
-                sha256 = "sha256-s1RPtyvDGJaX/BisLT+ifVfuhDT1nZkZ1NcK8sbwELM=";
-              };
-          fenixRustPlatform = pkgs.makeRustPlatform {
-            cargo = rustToolchain;
-            rustc = rustToolchain;
-          };
-        in
-        pkgs.callPackage ./hermes.nix {
-          src = sources.hermes;
-          rustPlatform = fenixRustPlatform;
-        };
-    })
+    (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { }; })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
