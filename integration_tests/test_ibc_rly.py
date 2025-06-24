@@ -119,7 +119,9 @@ def distribute_fee(receiver, fee):
     }
 
 
-def fungible(dst, src, amt, denom, trace=[]):
+def fungible(dst, src, amt, denom, trace=None):
+    if trace is None:
+        trace = []
     return {"receiver": dst, "sender": src, "tokens": token_dict(amt, denom, trace)}
 
 

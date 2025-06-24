@@ -212,16 +212,16 @@ def prepare_network(
         wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
         wait_for_new_blocks(chainmain.cosmos_cli(), 1)
         wait_for_new_blocks(cli, 1)
-        connid = "connection-0"
+        connid = os.getenv("CONNECTION_ID", "connection-0")
 
-        ica_version = {
+        channel_version = {
             "version": "ics20-1",
             "encoding": "proto3",
             "tx_type": "sdk_multi_msg",
             "controller_connection_id": connid,
             "host_connection_id": connid,
         }
-        version = "ics20-1" if is_ibc_transfer else json.dumps(ica_version)
+        version = "ics20-1" if is_ibc_transfer else json.dumps(channel_version)
 
         w3 = cronos.w3
         contract = None
