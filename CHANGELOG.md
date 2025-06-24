@@ -12,7 +12,7 @@
 
 ### Improvements
 
-* [#1817](https://github.com/crypto-org-chain/cronos/pull/1817) Add support for eth_getBlockReceipts.
+* [#1823](https://github.com/crypto-org-chain/cronos/pull/1823) Add support for eth_getBlockReceipts.
 
 *Apr 24, 2025*
 
@@ -21,6 +21,7 @@
 ### Bug Fixes
 
 * [#1797](https://github.com/crypto-org-chain/cronos/pull/1797) Upgrade cosmos sdk to latest to include bug fix
+
 
 *Apr 9, 2025*
 
