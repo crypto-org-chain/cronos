@@ -35,6 +35,24 @@ type CosmosCoin struct {
 	Denom  string
 }
 
+// CosmosDenom is an auto generated low-level Go binding around an user-defined struct.
+type CosmosDenom struct {
+	Base  string
+	Trace []CosmosHop
+}
+
+// CosmosHop is an auto generated low-level Go binding around an user-defined struct.
+type CosmosHop struct {
+	PortId    string
+	ChannelId string
+}
+
+// CosmosToken is an auto generated low-level Go binding around an user-defined struct.
+type CosmosToken struct {
+	Amount *big.Int
+	Denom  CosmosDenom
+}
+
 // IRelayerModulePacketData is an auto generated low-level Go binding around an user-defined struct.
 type IRelayerModulePacketData struct {
 	Receiver common.Address
@@ -44,7 +62,7 @@ type IRelayerModulePacketData struct {
 
 // RelayerModuleMetaData contains all meta data concerning the RelayerModule contract.
 var RelayerModuleMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"AcknowledgePacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"burner\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Burn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ChannelClosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinSpent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"minter\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Coinbase\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"name\":\"DenominationTrace\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"fee\",\"type\":\"string\"}],\"name\":\"DistributeFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"FungibleTokenPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"IbcTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"RecvPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"refundReceiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"refundDenom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"refundAmount\",\"type\":\"string\"}],\"name\":\"Timeout\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"TimeoutPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"WriteAcknowledgement\",\"type\":\"event\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"AcknowledgePacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"burner\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Burn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"ChannelClosed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"spender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"CoinSpent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"minter\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Coinbase\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"fee\",\"type\":\"string\"}],\"name\":\"DistributeFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"base\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"portId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"channelId\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Hop[]\",\"name\":\"trace\",\"type\":\"tuple[]\"}],\"internalType\":\"structCosmos.Denom\",\"name\":\"denom\",\"type\":\"tuple\"}],\"indexed\":false,\"internalType\":\"structCosmos.Token[]\",\"name\":\"tokens\",\"type\":\"tuple[]\"}],\"name\":\"FungibleTokenPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"IbcTransfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"RecvPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"refundReceiver\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"refundDenom\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"refundAmount\",\"type\":\"string\"}],\"name\":\"Timeout\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"}],\"name\":\"TimeoutPacket\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"indexed\":false,\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"packetSequence\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcPort\",\"type\":\"string\"},{\"indexed\":true,\"internalType\":\"string\",\"name\":\"packetSrcChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcPortInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetSrcChannelInfo\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstPort\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"packetDstChannel\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"connectionId\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"receiver\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"sender\",\"type\":\"string\"},{\"components\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"denom\",\"type\":\"string\"}],\"internalType\":\"structCosmos.Coin[]\",\"name\":\"amount\",\"type\":\"tuple[]\"}],\"indexed\":false,\"internalType\":\"structIRelayerModule.PacketData\",\"name\":\"packetDataHex\",\"type\":\"tuple\"}],\"name\":\"WriteAcknowledgement\",\"type\":\"event\"}]",
 }
 
 // RelayerModuleABI is the input ABI used to generate the binding from.
@@ -1073,140 +1091,6 @@ func (_RelayerModule *RelayerModuleFilterer) ParseCoinbase(log types.Log) (*Rela
 	return event, nil
 }
 
-// RelayerModuleDenominationTraceIterator is returned from FilterDenominationTrace and is used to iterate over the raw logs and unpacked data for DenominationTrace events raised by the RelayerModule contract.
-type RelayerModuleDenominationTraceIterator struct {
-	Event *RelayerModuleDenominationTrace // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *RelayerModuleDenominationTraceIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(RelayerModuleDenominationTrace)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(RelayerModuleDenominationTrace)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *RelayerModuleDenominationTraceIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *RelayerModuleDenominationTraceIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// RelayerModuleDenominationTrace represents a DenominationTrace event raised by the RelayerModule contract.
-type RelayerModuleDenominationTrace struct {
-	Denom string
-	Raw   types.Log // Blockchain specific contextual infos
-}
-
-// FilterDenominationTrace is a free log retrieval operation binding the contract event 0x483180a024351f3ea4c4782eaadb34add715974648a3d47bbff4a7b76da20859.
-//
-// Solidity: event DenominationTrace(string denom)
-func (_RelayerModule *RelayerModuleFilterer) FilterDenominationTrace(opts *bind.FilterOpts) (*RelayerModuleDenominationTraceIterator, error) {
-
-	logs, sub, err := _RelayerModule.contract.FilterLogs(opts, "DenominationTrace")
-	if err != nil {
-		return nil, err
-	}
-	return &RelayerModuleDenominationTraceIterator{contract: _RelayerModule.contract, event: "DenominationTrace", logs: logs, sub: sub}, nil
-}
-
-// WatchDenominationTrace is a free log subscription operation binding the contract event 0x483180a024351f3ea4c4782eaadb34add715974648a3d47bbff4a7b76da20859.
-//
-// Solidity: event DenominationTrace(string denom)
-func (_RelayerModule *RelayerModuleFilterer) WatchDenominationTrace(opts *bind.WatchOpts, sink chan<- *RelayerModuleDenominationTrace) (event.Subscription, error) {
-
-	logs, sub, err := _RelayerModule.contract.WatchLogs(opts, "DenominationTrace")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(RelayerModuleDenominationTrace)
-				if err := _RelayerModule.contract.UnpackLog(event, "DenominationTrace", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDenominationTrace is a log parse operation binding the contract event 0x483180a024351f3ea4c4782eaadb34add715974648a3d47bbff4a7b76da20859.
-//
-// Solidity: event DenominationTrace(string denom)
-func (_RelayerModule *RelayerModuleFilterer) ParseDenominationTrace(log types.Log) (*RelayerModuleDenominationTrace, error) {
-	event := new(RelayerModuleDenominationTrace)
-	if err := _RelayerModule.contract.UnpackLog(event, "DenominationTrace", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
 // RelayerModuleDistributeFeeIterator is returned from FilterDistributeFee and is used to iterate over the raw logs and unpacked data for DistributeFee events raised by the RelayerModule contract.
 type RelayerModuleDistributeFeeIterator struct {
 	Event *RelayerModuleDistributeFee // Event containing the contract specifics and raw log
@@ -1423,14 +1307,13 @@ func (it *RelayerModuleFungibleTokenPacketIterator) Close() error {
 type RelayerModuleFungibleTokenPacket struct {
 	Receiver common.Address
 	Sender   common.Address
-	Denom    string
-	Amount   *big.Int
+	Tokens   []CosmosToken
 	Raw      types.Log // Blockchain specific contextual infos
 }
 
-// FilterFungibleTokenPacket is a free log retrieval operation binding the contract event 0xe0fdee6007dd2fb6acfd338163a4260f0abf107fc184f28b75c5b2c1be55f573.
+// FilterFungibleTokenPacket is a free log retrieval operation binding the contract event 0x8681afe37c8f6aabb2f095898d12d4d1c65f110716e0ed752c7662fc83bbbfaf.
 //
-// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, string denom, uint256 amount)
+// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, (uint256,(string,(string,string)[]))[] tokens)
 func (_RelayerModule *RelayerModuleFilterer) FilterFungibleTokenPacket(opts *bind.FilterOpts, receiver []common.Address, sender []common.Address) (*RelayerModuleFungibleTokenPacketIterator, error) {
 
 	var receiverRule []interface{}
@@ -1449,9 +1332,9 @@ func (_RelayerModule *RelayerModuleFilterer) FilterFungibleTokenPacket(opts *bin
 	return &RelayerModuleFungibleTokenPacketIterator{contract: _RelayerModule.contract, event: "FungibleTokenPacket", logs: logs, sub: sub}, nil
 }
 
-// WatchFungibleTokenPacket is a free log subscription operation binding the contract event 0xe0fdee6007dd2fb6acfd338163a4260f0abf107fc184f28b75c5b2c1be55f573.
+// WatchFungibleTokenPacket is a free log subscription operation binding the contract event 0x8681afe37c8f6aabb2f095898d12d4d1c65f110716e0ed752c7662fc83bbbfaf.
 //
-// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, string denom, uint256 amount)
+// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, (uint256,(string,(string,string)[]))[] tokens)
 func (_RelayerModule *RelayerModuleFilterer) WatchFungibleTokenPacket(opts *bind.WatchOpts, sink chan<- *RelayerModuleFungibleTokenPacket, receiver []common.Address, sender []common.Address) (event.Subscription, error) {
 
 	var receiverRule []interface{}
@@ -1495,9 +1378,9 @@ func (_RelayerModule *RelayerModuleFilterer) WatchFungibleTokenPacket(opts *bind
 	}), nil
 }
 
-// ParseFungibleTokenPacket is a log parse operation binding the contract event 0xe0fdee6007dd2fb6acfd338163a4260f0abf107fc184f28b75c5b2c1be55f573.
+// ParseFungibleTokenPacket is a log parse operation binding the contract event 0x8681afe37c8f6aabb2f095898d12d4d1c65f110716e0ed752c7662fc83bbbfaf.
 //
-// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, string denom, uint256 amount)
+// Solidity: event FungibleTokenPacket(address indexed receiver, address indexed sender, (uint256,(string,(string,string)[]))[] tokens)
 func (_RelayerModule *RelayerModuleFilterer) ParseFungibleTokenPacket(log types.Log) (*RelayerModuleFungibleTokenPacket, error) {
 	event := new(RelayerModuleFungibleTokenPacket)
 	if err := _RelayerModule.contract.UnpackLog(event, "FungibleTokenPacket", log); err != nil {

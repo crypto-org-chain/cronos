@@ -60,12 +60,12 @@ import sources.nixpkgs {
           ];
         };
       };
-      hermes = pkgs.callPackage ./hermes.nix { src = sources.hermes; };
     })
+    (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { }; })
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo122Module {
+      rly = pkgs.buildGo123Module rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];

@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 
 	storetypes "cosmossdk.io/store/types"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
 
 	"github.com/crypto-org-chain/cronos/memiavl"
 )
@@ -75,10 +74,7 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 				lastestVersion int64
 				storeInfosLock sync.Mutex
 			)
-			storeInfos := []storetypes.StoreInfo{
-				// https://github.com/cosmos/cosmos-sdk/issues/14916
-				{Name: capabilitytypes.MemStoreKey, CommitId: storetypes.CommitID{}},
-			}
+			storeInfos := []storetypes.StoreInfo{}
 
 			mtree := memiavl.NewEmptyMultiTree(0, 0)
 			if len(loadSnapshot) > 0 {

@@ -16,7 +16,6 @@ func (app *App) setupVersionDB(
 	homePath string,
 	keys map[string]*storetypes.KVStoreKey,
 	tkeys map[string]*storetypes.TransientStoreKey,
-	memKeys map[string]*storetypes.MemoryStoreKey,
 	okeys map[string]*storetypes.ObjectStoreKey,
 ) (storetypes.RootMultiStore, error) {
 	dataDir := filepath.Join(homePath, "data", "versiondb")
@@ -49,9 +48,6 @@ func (app *App) setupVersionDB(
 
 	delegatedStoreKeys := make(map[storetypes.StoreKey]struct{})
 	for _, k := range tkeys {
-		delegatedStoreKeys[k] = struct{}{}
-	}
-	for _, k := range memKeys {
 		delegatedStoreKeys[k] = struct{}{}
 	}
 	for _, k := range okeys {

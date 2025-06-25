@@ -73,15 +73,16 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "hermes": {
-        "branch": "ethermint-v1.9.0",
+        "branch": "main",
         "description": "Rust implementation of an Inter-Blockchain Communication (IBC) relayer",
         "homepage": "",
-        "owner": "crypto-org-chain",
+        "owner": "informalsystems",
         "repo": "hermes",
-        "rev": "bfab4c4f797772e64ff7933d16b58bffad39b884",
-        "sha256": "0mf6sj6p076cxcrj7dry949m6wb6br320dkfadarhpypxwfz88cs",
+        "rev": "9a071a9b1d3d5af92e62e5488e874e18aab56f3d",
+        "sha256": "0wh5hcybirpw2vilqpd10jyxd59wh70xwzhfzlrl196b6l02gckq",
+        "tag": "",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/hermes/archive/bfab4c4f797772e64ff7933d16b58bffad39b884.tar.gz",
+        "url": "https://github.com/informalsystems/hermes/archive/9a071a9b1d3d5af92e62e5488e874e18aab56f3d.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

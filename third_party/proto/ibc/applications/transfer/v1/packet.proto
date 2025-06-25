@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ibc.applications.transfer.v2;
+package ibc.applications.transfer.v1;
 
-option go_package = "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types";
+option go_package = "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types";
 
 // FungibleTokenPacketData defines a struct for the packet payload
 // See FungibleTokenPacketData spec:

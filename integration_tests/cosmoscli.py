@@ -1443,7 +1443,7 @@ class CosmosCLI:
                 "send-tx",
                 connid,
                 tx,
-                "--relative-packet-timeout" if timeout_in_ns else None,
+                "--packet-timeout-timestamp" if timeout_in_ns else None,
                 timeout_in_ns if timeout_in_ns else None,
                 "-y",
                 **(default_kwargs | kwargs),

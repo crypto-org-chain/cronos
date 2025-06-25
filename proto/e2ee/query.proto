@@ -7,17 +7,17 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
 
 // Query defines the gRPC querier service.
 service Query {
-    // Key queries the encryption key of a given address
-    rpc Key(KeyRequest) returns (KeyResponse) {
-        option (google.api.http).get = "/e2ee/v1/key/{address}";
-    }
-    // Keys queries the encryption keys for a batch of addresses
-    rpc Keys(KeysRequest) returns (KeysResponse) {
-        option (google.api.http) = {
-            post: "/e2ee/v1/keys"
-            body: "*"
-        };
-    }
+  // Key queries the encryption key of a given address
+  rpc Key(KeyRequest) returns (KeyResponse) {
+    option (google.api.http).get = "/e2ee/v1/key/{address}";
+  }
+  // Keys queries the encryption keys for a batch of addresses
+  rpc Keys(KeysRequest) returns (KeysResponse) {
+    option (google.api.http) = {
+      post: "/e2ee/v1/keys"
+      body: "*"
+    };
+  }
 }
 
 // KeyRequest is the request type for the Query/Key RPC method.
@@ -29,7 +29,6 @@ message KeyRequest {
 message KeyResponse {
   string key = 1;
 }
-
 
 // KeysRequest is the request type for the Query/Key RPC method.
 message KeysRequest {
