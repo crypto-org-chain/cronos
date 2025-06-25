@@ -215,7 +215,7 @@ def prepare_network(
         connid = os.getenv("CONNECTION_ID", "connection-0")
 
         channel_version = {
-            "version": "ics20-1",
+            "version": "ics27-1",
             "encoding": "proto3",
             "tx_type": "sdk_multi_msg",
             "controller_connection_id": connid,
