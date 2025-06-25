@@ -11,11 +11,11 @@ import sources.nixpkgs {
       dapptools-master = sources.dapptools-master;
     })
     (_: pkgs: {
-      go = pkgs.go_1_22;
+      go = pkgs.go_1_23;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo122Module;
+        buildGoModule = pkgs.buildGo123Module;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
@@ -65,7 +65,7 @@ import sources.nixpkgs {
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo122Module {
+      rly = pkgs.buildGo123Module {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];

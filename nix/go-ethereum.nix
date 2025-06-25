@@ -17,20 +17,20 @@ let
 in
 buildGoModule rec {
   pname = "go-ethereum";
-  version = "1.11.6";
+  version = "1.15.11";
 
   src = fetchFromGitHub {
     owner = "ethereum";
     repo = pname;
     rev = "v${version}";
-    sha256 = "sha256-mZ11xan3MGgaUORbiQczKrXSrxzjvQMhZbpHnEal11Y=";
+    sha256 = "sha256-2XGKkimwe9h8RxO3SzUta5Bh2Ooldl2LiHqUpn8FK7I=";
   };
 
-  vendorHash = "sha256-rjSGR2ie5sFK2OOo4HUZ6+hrDlQuUDtyTKn0sh8jFBY=";
+  proxyVendor = true;
+  vendorHash = "sha256-R9Qg6estiyjMAwN6tvuN9ZuE7+JqjEy+qYOPAg5lIJY=";
+
 
   doCheck = false;
-
-  outputs = [ "out" ] ++ bins;
 
   # Move binaries to separate outputs and symlink them back to $out
   postInstall = lib.concatStringsSep "\n" (
@@ -40,18 +40,18 @@ buildGoModule rec {
     ) bins
   );
 
+  outputs = ["out"] ++ bins;
+
   subPackages = [
     "cmd/abidump"
     "cmd/abigen"
-    "cmd/bootnode"
-    "cmd/checkpoint-admin"
+    "cmd/blsync"
     "cmd/clef"
     "cmd/devp2p"
+    "cmd/era"
     "cmd/ethkey"
     "cmd/evm"
-    "cmd/faucet"
     "cmd/geth"
-    "cmd/p2psim"
     "cmd/rlpdump"
     "cmd/utils"
   ];
