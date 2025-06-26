@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-for modfile in $(find . -name go.mod); do
- echo "Updating $modfile"
- DIR=$(dirname $modfile)
- (cd $DIR; go mod tidy)
+find . -name go.mod -print0 | while IFS= read -r -d '' modfile; do
+  echo "Updating $modfile"
+  DIR=$(dirname "$modfile")
+  (cd "$DIR" && go mod tidy)
 done

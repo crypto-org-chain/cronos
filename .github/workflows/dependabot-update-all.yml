@@ -34,8 +34,9 @@ jobs:
           # Extract the dependency name from the PR title
           # Example: "build(deps): Bump github.com/cosmos/cosmos-sdk from 0.46.0 to 0.47.0"
           # Extracts "github.com/cosmos/cosmos-sdk" and "0.47.0"
-          echo "name=$(echo "$PR_TITLE" | cut -d ' ' -f 3)" >> $GITHUB_OUTPUT
-          echo "version=$(echo "$PR_TITLE" | cut -d ' ' -f 7)" >> $GITHUB_OUTPUT
+          
+          echo "name=$(grep -oE 'github.com/[^ ]+' <<<"$PR_TITLE")" >> $GITHUB_OUTPUT
+          echo "version=$(grep -oE 'to ([0-9]+\.[0-9]+\.[0-9]+)' <<<"$PR_TITLE" | awk '{print $2}')" >> $GITHUB_OUTPUT
       - name: Update all Go modules
         run: |
           ./scripts/go-update-dep-all.sh ${{ format('{0}@v{1}', steps.deps.outputs.name, steps.deps.outputs.version) }}

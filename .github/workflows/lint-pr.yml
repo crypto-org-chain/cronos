@@ -13,7 +13,7 @@ permissions:
 jobs:
   main:
     permissions:
-      pull-requests: read # for amannn/action-semantic-pull-request to analyze PRs
+      pull-requests: write # for amannn/action-semantic-pull-request to analyze PRs
       statuses: write # for amannn/action-semantic-pull-request to mark status of analyzed PR
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +25,7 @@ jobs:
       - uses: marocchino/sticky-pull-request-comment@v2
         # When the previous steps fails, the workflow would stop. By adding this
         # condition you can continue the execution with the populated error message.
-        if: always() && (steps.lint_pr_title.outputs.error_message != null)
+        if: always() && (steps.lint_pr_title.outputs.error_message != '')
         with:
           header: pr-title-lint-error
           message: |
@@ -40,7 +40,7 @@ jobs:
             ```
 
       # Delete a previous comment when the issue has been resolved
-      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+      - if: ${{ steps.lint_pr_title.outputs.error_message == '' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-title-lint-error

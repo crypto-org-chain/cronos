@@ -20,14 +20,17 @@ jobs:
       - name: "Dependency Review"
         uses: actions/dependency-review-action@v4
         with:
-          base-ref: ${{ github.event.pull_request.base.sha || 'master' }}
+          base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
           head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
           fail-on-severity: high
       - name: "Go vulnerability check"
         id: govuln
         run: |
           # Run the vulnerability check and capture its output (ignoring non-zero exit codes)
-          make vulncheck 2>&1 | tee govulncheck-output.txt || true
+          if ! make vulncheck 2>&1 | tee govulncheck-output.txt ; then
+            echo "govulncheck failed to execute"
+            exit 1
+          fi
 
           # Extract vulnerability identifiers from the output (e.g., GO-2025-3443)
           vulnerabilities=$(grep -o 'GO-[0-9]\{4\}-[0-9]\+' govulncheck-output.txt | sort | uniq)
