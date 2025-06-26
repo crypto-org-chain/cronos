@@ -31,12 +31,20 @@ jobs:
       - name: Extract updated dependency
         id: deps
         run: |
-          # Extract the dependency name from the PR title
-          # Example: "build(deps): Bump github.com/cosmos/cosmos-sdk from 0.46.0 to 0.47.0"
-          # Extracts "github.com/cosmos/cosmos-sdk" and "0.47.0"
+          set -euo pipefail
+          # Example title:
+          # "build(deps): Bump github.com/cosmos/cosmos-sdk from v0.46.0 to v0.47.0-rc1"
           
-          echo "name=$(grep -oE 'github.com/[^ ]+' <<<"$PR_TITLE")" >> $GITHUB_OUTPUT
-          echo "version=$(grep -oE 'to ([0-9]+\.[0-9]+\.[0-9]+)' <<<"$PR_TITLE" | awk '{print $2}')" >> $GITHUB_OUTPUT
+          dep_name=$(grep -oE 'github.com/[^ ]+' <<<"$PR_TITLE" || true)
+          dep_version=$(grep -oE 'to v?([0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?)' <<<"$PR_TITLE" | awk '{print $2}' || true
+          
+          if [[ -z "$dep_name" || -z "$dep_version" ]]; then
+             echo "❌ Unable to parse dependency from PR title: $PR_TITLE" >&2
+             exit 1
+          fi
+          
+          echo "name=$dep_name" >> "$GITHUB_OUTPUT"
+          echo "version=${dep_version#v}" >> "$GITHUB_OUTPUT"
       - name: Update all Go modules
         run: |
           ./scripts/go-update-dep-all.sh ${{ format('{0}@v{1}', steps.deps.outputs.name, steps.deps.outputs.version) }}
