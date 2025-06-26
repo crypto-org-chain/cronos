@@ -8,7 +8,7 @@ Check the JSON-RPC methods supported on Cronos. {synopsis}
 
 ## Pre-requisite Readings
 
-- [Ethereum JSON-RPC](https://ethereum.github.io/execution-apis/api-documentation) {prereq}
+- [Ethereum JSON-RPC](https://ethereum.github.io/execution-apis/docs/reference/json-rpc-api) {prereq}
 - [Geth JSON-RPC APIs](https://geth.ethereum.org/docs/interacting-with-geth/rpc) {prereq}
 
 ## Endpoints
@@ -38,6 +38,7 @@ Check the JSON-RPC methods supported on Cronos. {synopsis}
 | [`eth_estimateGas`](#eth-estimategas)                                             | Eth       | ✔           | ✔      |                    |
 | [`eth_getBlockByNumber`](#eth-getblockbynumber)                                   | Eth       | ✔           | ✔      |                    |
 | [`eth_getBlockByHash`](#eth-getblockbyhash)                                       | Eth       | ✔           | ✔      |                    |
+| [`eth_getBlockReceipts`](#eth-getblockbyhash)                                     | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionByHash`](#eth-gettransactionbyhash)                           | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionByBlockHashAndIndex`](#eth-gettransactionbyblockhashandindex) | Eth       | ✔           | ✔      |                    |
 | [`eth_getTransactionReceipt`](#eth-gettransactionreceipt)                         | Eth       | ✔           | ✔      |                    |
