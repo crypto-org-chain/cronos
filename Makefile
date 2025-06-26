@@ -325,3 +325,7 @@ proto-check-breaking:
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
+
+vulncheck: $(BUILDDIR)/
+	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
+	$(BUILDDIR)/govulncheck ./...
