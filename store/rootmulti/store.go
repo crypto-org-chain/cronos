@@ -453,11 +453,6 @@ func (rs *Store) SetIAVLSyncPruning(syncPruning bool) {
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
-// GetObjKVStore Implements interface CommitMultiStore
-func (rs *Store) GetObjKVStore(storeKey types.StoreKey) types.ObjKVStore {
-	return rs.GetStore(storeKey).(types.ObjKVStore)
-}
-
 func (rs *Store) SetMemIAVLOptions(opts memiavl.Options) {
 	if opts.Logger == nil {
 		opts.Logger = memiavl.Logger(rs.logger.With("module", "memiavl"))
