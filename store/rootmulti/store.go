@@ -103,7 +103,7 @@ func (rs *Store) WorkingHash() []byte {
 	return commitInfo.Hash()
 }
 
-// Implements interface Committer
+// Commit Implements interface Committer
 func (rs *Store) Commit() types.CommitID {
 	if err := rs.flush(); err != nil {
 		panic(err)
@@ -139,7 +139,7 @@ func (rs *Store) Close() error {
 	return rs.db.Close()
 }
 
-// Implements interface Committer
+// LastCommitID Implements interface Committer
 func (rs *Store) LastCommitID() types.CommitID {
 	if rs.lastCommitInfo == nil {
 		v, err := memiavl.GetLatestVersion(rs.dir)
@@ -152,7 +152,7 @@ func (rs *Store) LastCommitID() types.CommitID {
 	return rs.lastCommitInfo.CommitID()
 }
 
-// Implements interface Committer
+// SetPruning Implements interface Committer
 func (rs *Store) SetPruning(pruningtypes.PruningOptions) {
 }
 
@@ -160,27 +160,27 @@ func (rs *Store) SetPruning(pruningtypes.PruningOptions) {
 func (rs *Store) SetMetrics(metrics metrics.StoreMetrics) {
 }
 
-// Implements interface Committer
+// GetPruning Implements interface Committer
 func (rs *Store) GetPruning() pruningtypes.PruningOptions {
 	return pruningtypes.NewPruningOptions(pruningtypes.PruningDefault)
 }
 
-// Implements interface Store
+// GetStoreType Implements interface Store
 func (rs *Store) GetStoreType() types.StoreType {
 	return types.StoreTypeMulti
 }
 
-// Implements interface CacheWrapper
+// CacheWrap Implements interface CacheWrapper
 func (rs *Store) CacheWrap() types.CacheWrap {
 	return rs.CacheMultiStore().(types.CacheWrap)
 }
 
-// Implements interface CacheWrapper
+// CacheWrapWithTrace Implements interface CacheWrapper
 func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.CacheWrap {
 	return rs.CacheWrap()
 }
 
-// Implements interface MultiStore
+// CacheMultiStore Implements interface MultiStore
 func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	stores := make(map[types.StoreKey]types.CacheWrapper)
 	for k, v := range rs.stores {
@@ -197,7 +197,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	return cachemulti.NewStore(stores, nil, nil, nil)
 }
 
-// Implements interface MultiStore
+// CacheMultiStoreWithVersion Implements interface MultiStore
 // used to createQueryContext, abci_query or grpc query service.
 func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStore, error) {
 	if version == 0 || (rs.lastCommitInfo != nil && version == rs.lastCommitInfo.Version) {
@@ -228,7 +228,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 	return cachemulti.NewStore(stores, nil, nil, nil), nil
 }
 
-// Implements interface MultiStore
+// GetStore Implements interface MultiStore
 func (rs *Store) GetStore(key types.StoreKey) types.Store {
 	s, ok := rs.stores[key]
 	if !ok {
@@ -237,7 +237,7 @@ func (rs *Store) GetStore(key types.StoreKey) types.Store {
 	return s
 }
 
-// Implements interface MultiStore
+// GetKVStore Implements interface MultiStore
 func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 	s, ok := rs.GetStore(key).(types.KVStore)
 	if !ok {
@@ -246,37 +246,37 @@ func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 	return s
 }
 
-// Implements interface MultiStore
+// TracingEnabled Implements interface MultiStore
 func (rs *Store) TracingEnabled() bool {
 	return false
 }
 
-// Implements interface MultiStore
+// SetTracer Implements interface MultiStore
 func (rs *Store) SetTracer(w io.Writer) types.MultiStore {
 	return nil
 }
 
-// Implements interface MultiStore
+// SetTracingContext Implements interface MultiStore
 func (rs *Store) SetTracingContext(types.TraceContext) types.MultiStore {
 	return nil
 }
 
-// Implements interface MultiStore
+// LatestVersion Implements interface MultiStore
 func (rs *Store) LatestVersion() int64 {
 	return rs.db.Version()
 }
 
-// Implements interface Snapshotter
+// PruneSnapshotHeight Implements interface Snapshotter
 // not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) PruneSnapshotHeight(height int64) {
 }
 
-// Implements interface Snapshotter
+// SetSnapshotInterval Implements interface Snapshotter
 // not needed, memiavl manage its own snapshot/pruning strategy
 func (rs *Store) SetSnapshotInterval(snapshotInterval uint64) {
 }
 
-// Implements interface CommitMultiStore
+// MountStoreWithDB Implements interface CommitMultiStore
 func (rs *Store) MountStoreWithDB(key types.StoreKey, typ types.StoreType, _ dbm.DB) {
 	if key == nil {
 		panic("MountIAVLStore() key cannot be nil")
@@ -291,12 +291,12 @@ func (rs *Store) MountStoreWithDB(key types.StoreKey, typ types.StoreType, _ dbm
 	rs.keysByName[key.Name()] = key
 }
 
-// Implements interface CommitMultiStore
+// GetCommitStore Implements interface CommitMultiStore
 func (rs *Store) GetCommitStore(key types.StoreKey) types.CommitStore {
 	return rs.stores[key]
 }
 
-// Implements interface CommitMultiStore
+// GetCommitKVStore Implements interface CommitMultiStore
 func (rs *Store) GetCommitKVStore(key types.StoreKey) types.CommitKVStore {
 	store, ok := rs.GetCommitStore(key).(types.CommitKVStore)
 	if !ok {
@@ -306,18 +306,18 @@ func (rs *Store) GetCommitKVStore(key types.StoreKey) types.CommitKVStore {
 	return store
 }
 
-// Implements interface CommitMultiStore
+// LoadLatestVersion Implements interface CommitMultiStore
 // used by normal node startup.
 func (rs *Store) LoadLatestVersion() error {
 	return rs.LoadVersionAndUpgrade(0, nil)
 }
 
-// Implements interface CommitMultiStore
+// LoadLatestVersionAndUpgrade Implements interface CommitMultiStore
 func (rs *Store) LoadLatestVersionAndUpgrade(upgrades *types.StoreUpgrades) error {
 	return rs.LoadVersionAndUpgrade(0, upgrades)
 }
 
-// Implements interface CommitMultiStore
+// LoadVersionAndUpgrade Implements interface CommitMultiStore
 // used by node startup with UpgradeStoreLoader
 func (rs *Store) LoadVersionAndUpgrade(version int64, upgrades *types.StoreUpgrades) error {
 	if version > math.MaxUint32 {
@@ -422,7 +422,7 @@ func (rs *Store) loadCommitStoreFromParams(db *memiavl.DB, key types.StoreKey, p
 	}
 }
 
-// Implements interface CommitMultiStore
+// LoadVersion Implements interface CommitMultiStore
 // used by export cmd
 func (rs *Store) LoadVersion(ver int64) error {
 	return rs.LoadVersionAndUpgrade(ver, nil)
@@ -431,25 +431,25 @@ func (rs *Store) LoadVersion(ver int64) error {
 // SetInterBlockCache is a noop here because memiavl do caching on it's own, which works well with zero-copy.
 func (rs *Store) SetInterBlockCache(c types.MultiStorePersistentCache) {}
 
-// Implements interface CommitMultiStore
+// SetInitialVersion Implements interface CommitMultiStore
 // used by InitChain when the initial height is bigger than 1
 func (rs *Store) SetInitialVersion(version int64) error {
 	return rs.db.SetInitialVersion(version)
 }
 
-// Implements interface CommitMultiStore
+// SetIAVLCacheSize Implements interface CommitMultiStore
 func (rs *Store) SetIAVLCacheSize(size int) {
 }
 
-// Implements interface CommitMultiStore
+// SetIAVLDisableFastNode Implements interface CommitMultiStore
 func (rs *Store) SetIAVLDisableFastNode(disable bool) {
 }
 
-// Implements interface CommitMultiStore
+// SetIAVLSyncPruning Implements interface CommitMultiStore
 func (rs *Store) SetIAVLSyncPruning(syncPruning bool) {
 }
 
-// Implements interface CommitMultiStore
+// SetLazyLoading Implements interface CommitMultiStore
 func (rs *Store) SetLazyLoading(lazyLoading bool) {
 }
 
@@ -536,7 +536,7 @@ func (rs *Store) GetStoreByName(name string) types.Store {
 	return rs.GetCommitStore(key)
 }
 
-// Implements interface Queryable
+// Query Implements interface Queryable
 func (rs *Store) Query(req *types.RequestQuery) (*types.ResponseQuery, error) {
 	version := req.Height
 	if version == 0 {
