@@ -488,7 +488,7 @@ func (db *DB) checkBackgroundSnapshotRewrite() error {
 	return nil
 }
 
-// pruneSnapshot prune the old snapshots
+// pruneSnapshots prune the old snapshots
 func (db *DB) pruneSnapshots() {
 	// wait until last prune finish
 	db.pruneSnapshotLock.Lock()
