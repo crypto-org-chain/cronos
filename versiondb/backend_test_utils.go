@@ -17,6 +17,7 @@ var (
 )
 
 func SetupTestDB(t *testing.T, store VersionStore) {
+	t.Helper()
 	changeSets := [][]*types.StoreKVPair{
 		{
 			{StoreKey: "evm", Key: []byte("delete-in-block2"), Value: []byte("1")},
@@ -51,6 +52,7 @@ func SetupTestDB(t *testing.T, store VersionStore) {
 }
 
 func Run(t *testing.T, storeCreator func() VersionStore) {
+	t.Helper()
 	testBasics(t, storeCreator())
 	testIterator(t, storeCreator())
 	testHeightInFuture(t, storeCreator())
@@ -64,6 +66,7 @@ func Run(t *testing.T, storeCreator func() VersionStore) {
 }
 
 func testBasics(t *testing.T, store VersionStore) {
+	t.Helper()
 	var v int64
 
 	SetupTestDB(t, store)
@@ -130,6 +133,7 @@ type kvPair struct {
 }
 
 func testIterator(t *testing.T, store VersionStore) {
+	t.Helper()
 	SetupTestDB(t, store)
 
 	expItems := [][]kvPair{
@@ -240,6 +244,7 @@ func testIterator(t *testing.T, store VersionStore) {
 }
 
 func testHeightInFuture(t *testing.T, store VersionStore) {
+	t.Helper() // Implements types.KVStore.
 	SetupTestDB(t, store)
 
 	latest, err := store.GetLatestVersion()
