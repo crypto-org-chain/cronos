@@ -70,7 +70,7 @@ func (mte *MultiTreeExporter) Next() (interface{}, error) {
 	if mte.exporter != nil {
 		node, err := mte.exporter.Next()
 		if err != nil {
-			if err == ErrorExportDone {
+			if errors.Is(err, ErrorExportDone) {
 				mte.exporter.Close()
 				mte.exporter = nil
 				return mte.Next()

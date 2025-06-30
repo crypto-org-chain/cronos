@@ -11,11 +11,10 @@ import (
 
 	"github.com/alitto/pond"
 	"github.com/cosmos/iavl"
-	"github.com/linxGnu/grocksdb"
-	"github.com/spf13/cobra"
-
 	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
+	"github.com/linxGnu/grocksdb"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -65,7 +64,7 @@ func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 			group, _ := pool.GroupContext(context.Background())
 			for _, store := range stores {
 				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-				store := store
+
 				group.Submit(func() error {
 					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
 				})
@@ -85,7 +84,7 @@ func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 
 // convertSingleStore handles a single store, can run in parallel with other stores,
 // it starts extra goroutines for parallel pipeline.
-func convertSingleStore(store string, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
+func convertSingleStore(store, changeSetDir, sstDir string, sstFileSize uint64, sorterChunkSize int64) error {
 	csFiles, err := scanChangeSetFiles(changeSetDir, store)
 	if err != nil {
 		return err
@@ -283,7 +282,7 @@ func compareSorterItem(a, b []byte) bool {
 	return aVersion > bVersion
 }
 
-func cloneAppend(bz []byte, tail []byte) (res []byte) {
+func cloneAppend(bz, tail []byte) (res []byte) {
 	res = make([]byte, len(bz)+len(tail))
 	copy(res, bz)
 	copy(res[len(bz):], tail)

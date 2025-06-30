@@ -1,6 +1,7 @@
 package memiavl
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -75,7 +76,7 @@ func TestSnapshotExport(t *testing.T) {
 	exporter := snapshot.Export()
 	for {
 		node, err := exporter.Next()
-		if err == ErrorExportDone {
+		if errors.Is(err, ErrorExportDone) {
 			break
 		}
 		require.NoError(t, err)
@@ -107,7 +108,7 @@ func TestSnapshotImportExport(t *testing.T) {
 		exporter := snapshot.Export()
 		for {
 			node, err := exporter.Next()
-			if err == ErrorExportDone {
+			if errors.Is(err, ErrorExportDone) {
 				break
 			}
 			require.NoError(t, err)
@@ -163,6 +164,7 @@ func TestDBSnapshotRestore(t *testing.T) {
 }
 
 func testSnapshotRoundTrip(t *testing.T, db *DB) {
+	t.Helper()
 	exporter, err := NewMultiTreeExporter(db.dir, uint32(db.Version()), true)
 	require.NoError(t, err)
 
@@ -172,7 +174,7 @@ func testSnapshotRoundTrip(t *testing.T, db *DB) {
 
 	for {
 		item, err := exporter.Next()
-		if err == ErrorExportDone {
+		if errors.Is(err, ErrorExportDone) {
 			break
 		}
 		require.NoError(t, err)

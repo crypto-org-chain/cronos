@@ -920,7 +920,7 @@ func parseVersion(name string) (int64, error) {
 
 	v, err := strconv.ParseInt(name[len(SnapshotPrefix):], 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("snapshot version overflows: %d", err)
+		return 0, fmt.Errorf("snapshot version overflows: %w", err)
 	}
 
 	return v, nil

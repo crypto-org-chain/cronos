@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"cosmossdk.io/store/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/store/types"
 )
 
 func TestTSVersionDB(t *testing.T) {

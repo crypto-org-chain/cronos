@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/store/cachekv"
 	"cosmossdk.io/store/types"
+
 	"github.com/cosmos/cosmos-sdk/telemetry"
 )
 

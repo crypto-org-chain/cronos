@@ -6,12 +6,13 @@ package rootmulti
 import (
 	"fmt"
 
+	"github.com/crypto-org-chain/cronos/memiavl"
+
 	"cosmossdk.io/store/transient"
 	"cosmossdk.io/store/types"
-	"github.com/crypto-org-chain/cronos/memiavl"
 )
 
-// Implements interface MultiStore
+// GetObjKVStore Implements interface MultiStore
 func (rs *Store) GetObjKVStore(key types.StoreKey) types.ObjKVStore {
 	s, ok := rs.stores[key].(types.ObjKVStore)
 	if !ok {

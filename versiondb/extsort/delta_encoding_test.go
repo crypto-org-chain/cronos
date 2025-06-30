@@ -2,6 +2,7 @@ package extsort
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestDeltaEncoding(t *testing.T) {
 			var keys []string
 			for {
 				key, err := decoder.Read(&buf)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				require.NoError(t, err)
