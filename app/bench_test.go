@@ -10,15 +10,22 @@ import (
 	"path/filepath"
 	"testing"
 
-	"cosmossdk.io/log"
-	sdkmath "cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	srvflags "github.com/evmos/ethermint/server/flags"
+	"github.com/evmos/ethermint/tests"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -29,23 +36,28 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-
-	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	srvflags "github.com/evmos/ethermint/server/flags"
-	"github.com/evmos/ethermint/tests"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
-
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 const BlockSTMPreEstimate = true
 
+// MinimalOptionsMap is a stub implementing AppOptions which can get data from a map
+type MinimalOptionsMap map[string]interface{}
+
+func (m MinimalOptionsMap) Get(key string) interface{} {
+	v, ok := m[key]
+	if !ok {
+		return interface{}(nil)
+	}
+
+	return v
+}
+
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions
 func BenchmarkERC20Transfer(b *testing.B) {
+	b.Helper()
 	b.Run("memdb", func(b *testing.B) {
 		db := dbm.NewMemDB()
-		benchmarkERC20Transfer(b, db, AppOptionsMap{
+		benchmarkERC20Transfer(b, db, MinimalOptionsMap{
 			flags.FlagHome: b.TempDir(),
 		})
 	})
@@ -53,19 +65,19 @@ func BenchmarkERC20Transfer(b *testing.B) {
 		homePath := b.TempDir()
 		db, err := dbm.NewDB("application", dbm.GoLevelDBBackend, filepath.Join(homePath, "data"))
 		require.NoError(b, err)
-		benchmarkERC20Transfer(b, db, AppOptionsMap{
+		benchmarkERC20Transfer(b, db, MinimalOptionsMap{
 			flags.FlagHome: homePath,
 		})
 	})
 	b.Run("memiavl", func(b *testing.B) {
-		benchmarkERC20Transfer(b, nil, AppOptionsMap{
+		benchmarkERC20Transfer(b, nil, MinimalOptionsMap{
 			flags.FlagHome:           b.TempDir(),
 			memiavlstore.FlagMemIAVL: true,
 		})
 	})
 	for _, workers := range []int{1, 8, 16, 32} {
 		b.Run(fmt.Sprintf("memiavl-stm-%d", workers), func(b *testing.B) {
-			benchmarkERC20Transfer(b, nil, AppOptionsMap{
+			benchmarkERC20Transfer(b, nil, MinimalOptionsMap{
 				flags.FlagHome:                  b.TempDir(),
 				memiavlstore.FlagMemIAVL:        true,
 				memiavlstore.FlagCacheSize:      0,
@@ -85,6 +97,7 @@ type TestAccount struct {
 
 // pass `nil` to db to use memiavl
 func benchmarkERC20Transfer(b *testing.B, db dbm.DB, appOpts servertypes.AppOptions) {
+	b.Helper()
 	txsPerBlock := 5000
 	accounts := 100
 	gasPrice := big.NewInt(100000000000)

@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // GetQueryCmd returns the cli query commands for this module

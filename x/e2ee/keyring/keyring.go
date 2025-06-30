@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	errorsmod "cosmossdk.io/errors"
+
 	"github.com/cosmos/cosmos-sdk/client/input"
 	sdkkeyring "github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
@@ -18,7 +19,7 @@ import (
 const (
 	keyringFileDirName         = "e2ee-keyring-file"
 	keyringTestDirName         = "e2ee-keyring-test"
-	passKeyringPrefix          = "e2ee-keyring-%s" //nolint: gosec
+	passKeyringPrefix          = "e2ee-keyring-%s"
 	maxPassphraseEntryAttempts = 3
 )
 

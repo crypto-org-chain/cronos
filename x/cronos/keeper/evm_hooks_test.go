@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"math/big"
 
-	sdkmath "cosmossdk.io/math"
-	"github.com/ethereum/go-ethereum/common"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	handlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 func (suite *KeeperTestSuite) TestEvmHooks() {
@@ -70,9 +70,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 		{
 			"success send to account",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(denom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
@@ -119,9 +120,10 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 				)
 				suite.app.CronosKeeper = cronosKeeper
 
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(denom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)

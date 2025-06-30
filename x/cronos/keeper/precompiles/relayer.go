@@ -4,22 +4,23 @@ import (
 	"errors"
 	"fmt"
 
-	"cosmossdk.io/log"
-	"github.com/cosmos/cosmos-sdk/codec"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
-
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
+
+	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var (
@@ -48,7 +49,7 @@ const (
 	Acknowledgement       = "acknowledgement"
 	Timeout               = "timeout"
 	TimeoutOnClose        = "timeoutOnClose"
-	// ibc fee
+	// RegisterPayee ibc fee
 	RegisterPayee                   = "registerPayee"
 	RegisterCounterpartyPayee       = "registerCounterpartyPayee"
 	GasWhenReceiverChainIsSource    = 51705

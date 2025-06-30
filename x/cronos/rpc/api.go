@@ -6,10 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"cosmossdk.io/log"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -22,6 +19,11 @@ import (
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
+	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/server"
 )
 
 const (
@@ -138,7 +140,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 
 		parsedTxs, err := rpctypes.ParseTxResult(txResult, tx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse tx events: %d:%d, %v", resBlock.Block.Height, i, err)
+			return nil, fmt.Errorf("failed to parse tx events: %d:%d, %w", resBlock.Block.Height, i, err)
 		}
 
 		if len(parsedTxs.Txs) == 0 {
