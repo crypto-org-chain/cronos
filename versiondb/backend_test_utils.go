@@ -244,7 +244,7 @@ func testIterator(t *testing.T, store VersionStore) {
 }
 
 func testHeightInFuture(t *testing.T, store VersionStore) {
-	t.Helper() // Implements types.KVStore.
+	t.Helper()
 	SetupTestDB(t, store)
 
 	latest, err := store.GetLatestVersion()
