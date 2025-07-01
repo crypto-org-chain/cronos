@@ -3,11 +3,12 @@ package keeper_test
 import (
 	"errors"
 
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 func (suite *KeeperTestSuite) TestGetSourceChannelID() {

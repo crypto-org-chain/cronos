@@ -1,19 +1,21 @@
 package rootmulti
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
 
-	"cosmossdk.io/errors"
-	"cosmossdk.io/store/snapshots/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	protoio "github.com/cosmos/gogoproto/io"
-
 	"github.com/crypto-org-chain/cronos/memiavl"
+
+	cosmoserrors "cosmossdk.io/errors"
+	"cosmossdk.io/store/snapshots/types"
+
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Implements interface Snapshotter
+// Restore Implements interface Snapshotter
 func (rs *Store) Restore(
 	height uint64, format uint32, protoReader protoio.Reader,
 ) (types.SnapshotItem, error) {
@@ -46,10 +48,10 @@ loop:
 	for {
 		snapshotItem = types.SnapshotItem{}
 		err := protoReader.ReadMsg(&snapshotItem)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return types.SnapshotItem{}, errors.Wrap(err, "invalid protobuf message")
+			return types.SnapshotItem{}, cosmoserrors.Wrap(err, "invalid protobuf message")
 		}
 
 		switch item := snapshotItem.Item.(type) {
@@ -59,7 +61,7 @@ loop:
 			}
 		case *types.SnapshotItem_IAVL:
 			if item.IAVL.Height > math.MaxInt8 {
-				return types.SnapshotItem{}, errors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
+				return types.SnapshotItem{}, cosmoserrors.Wrapf(sdkerrors.ErrLogic, "node height %v cannot exceed %v",
 					item.IAVL.Height, math.MaxInt8)
 			}
 			node := &memiavl.ExportNode{

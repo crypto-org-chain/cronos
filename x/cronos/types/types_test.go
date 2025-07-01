@@ -17,7 +17,6 @@ func Test_IsValidIBCDenom(t *testing.T) {
 		{"correct IBC denom", IbcCroDenomDefaultValue, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.success, IsValidIBCDenom(tt.denom))
 		})
@@ -35,7 +34,6 @@ func Test_IsValidGravityDenom(t *testing.T) {
 		{"correct gravity denom", "gravity0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.success, IsValidGravityDenom(tt.denom))
 		})
@@ -53,7 +51,6 @@ func Test_IsValidCronosDenom(t *testing.T) {
 		{"correct cronos denom", "cronos0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.success, IsValidCronosDenom(tt.denom))
 		})
@@ -75,7 +72,6 @@ func Test_IsValidCoinDenom(t *testing.T) {
 		{"correct cronos denom", "cronos0xb7a4F3E9097C08dA09517b5aB877F7a917224ede", true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.success, IsValidCoinDenom(tt.denom))
 		})

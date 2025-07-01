@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -13,7 +12,9 @@ import (
 	"github.com/evmos/ethermint/x/evm/statedb"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // DefaultGasCap defines the gas limit used to run internal evm call
@@ -141,7 +142,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 }
 
 // ConvertCoinFromCRC21ToNative convert erc20 token to native token
-func (k Keeper) ConvertCoinFromCRC21ToNative(ctx sdk.Context, contract common.Address, receiver common.Address, amount sdkmath.Int) error {
+func (k Keeper) ConvertCoinFromCRC21ToNative(ctx sdk.Context, contract, receiver common.Address, amount sdkmath.Int) error {
 	denom, found := k.GetDenomByContract(ctx, contract)
 	if !found {
 		return fmt.Errorf("the contract address %s is not mapped to native token", contract.String())

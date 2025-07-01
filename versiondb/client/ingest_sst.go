@@ -3,10 +3,9 @@ package client
 import (
 	"fmt"
 
+	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
-
-	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
 func IngestVersionDBSSTCmd() *cobra.Command {

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/types/kv"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // TestDecodeStore tests that evm simulation decoder decodes the key value pairs as expected.
@@ -36,7 +36,6 @@ func TestDecodeStore(t *testing.T) {
 		{"other", ""},
 	}
 	for i, tt := range tests {
-		i, tt := i, tt
 		t.Run(tt.name, func(t *testing.T) {
 			switch i {
 			case len(tests) - 1:

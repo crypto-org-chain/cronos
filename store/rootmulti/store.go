@@ -7,6 +7,11 @@ import (
 	"sort"
 	"strings"
 
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/crypto-org-chain/cronos/store/cachemulti"
+	"github.com/crypto-org-chain/cronos/store/memiavlstore"
+
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	"cosmossdk.io/store/listenkv"
@@ -16,12 +21,8 @@ import (
 	"cosmossdk.io/store/rootmulti"
 	"cosmossdk.io/store/transient"
 	"cosmossdk.io/store/types"
-	dbm "github.com/cosmos/cosmos-db"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/crypto-org-chain/cronos/memiavl"
-	"github.com/crypto-org-chain/cronos/store/cachemulti"
-	"github.com/crypto-org-chain/cronos/store/memiavlstore"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const CommitInfoFileName = "commit_infos"
@@ -52,7 +53,7 @@ type Store struct {
 	supportExportNonSnapshotVersion bool
 }
 
-func NewStore(dir string, logger log.Logger, sdk46Compact bool, supportExportNonSnapshotVersion bool) *Store {
+func NewStore(dir string, logger log.Logger, sdk46Compact, supportExportNonSnapshotVersion bool) *Store {
 	return &Store{
 		dir:                             dir,
 		logger:                          logger,
@@ -487,7 +488,7 @@ func (rs *Store) RollbackToVersion(target int64) error {
 	return err
 }
 
-// Implements interface CommitMultiStore
+// ListeningEnabled Implements interface CommitMultiStore
 func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
 	if ls, ok := rs.listeners[key]; ok {
 		return ls != nil
@@ -495,7 +496,7 @@ func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
 	return false
 }
 
-// Implements interface CommitMultiStore
+// AddListeners Implements interface CommitMultiStore
 func (rs *Store) AddListeners(keys []types.StoreKey) {
 	for i := range keys {
 		listener := rs.listeners[keys[i]]
@@ -593,7 +594,7 @@ func (rs *Store) Query(req *types.RequestQuery) (*types.ResponseQuery, error) {
 // parsePath expects a format like /<storeName>[/<subpath>]
 // Must start with /, subpath may be empty
 // Returns error if it doesn't start with /
-func parsePath(path string) (storeName string, subpath string, err error) {
+func parsePath(path string) (storeName, subpath string, err error) {
 	if !strings.HasPrefix(path, "/") {
 		return storeName, subpath, errors.Wrapf(sdkerrors.ErrUnknownRequest, "invalid path: %s", path)
 	}

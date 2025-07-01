@@ -21,7 +21,7 @@ func (nodes Nodes) Node(i uint32) NodeLayout {
 	return NodeLayout{data: (*[SizeNode]byte)(nodes.data[offset : offset+SizeNode])}
 }
 
-// see comment of `PersistedNode`
+// NodeLayout see comment of `PersistedNode`
 type NodeLayout struct {
 	data *[SizeNode]byte
 }

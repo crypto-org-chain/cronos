@@ -46,13 +46,13 @@ jobs:
 
           BUILD_TAGS=rocksdb,grocksdb_clean_link,objstore
           go build -tags $BUILD_TAGS ./cmd/cronosd
-          golangci-lint run --out-format=github-actions --path-prefix=./ --timeout 30m --build-tags $BUILD_TAGS
+          golangci-lint run --output.text.path stdout --path-prefix=./ --timeout 30m --build-tags $BUILD_TAGS
           cd versiondb
-          golangci-lint run --out-format=github-actions --path-prefix=./versiondb --timeout 30m --build-tags $BUILD_TAGS
+          golangci-lint run --output.text.path stdout --path-prefix=./versiondb --timeout 30m --build-tags $BUILD_TAGS
           cd ../memiavl
-          golangci-lint run --out-format=github-actions --path-prefix=./memiavl --timeout 30m --build-tags objstore
+          golangci-lint run --output.text.path stdout --path-prefix=./memiavl --timeout 30m --build-tags objstore
           cd ../store
-          golangci-lint run --out-format=github-actions --path-prefix=./store --timeout 30m --build-tags objstore
+          golangci-lint run --output.text.path stdout --path-prefix=./store --timeout 30m --build-tags objstore
         # Check only if there are differences in the source code
         if: steps.changed-files.outputs.any_changed == 'true'
 

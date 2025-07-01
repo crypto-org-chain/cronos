@@ -3,12 +3,13 @@ package keeper_test
 import (
 	"math/big"
 
-	sdkmath "cosmossdk.io/math"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func (suite *KeeperTestSuite) TestDeployContract() {

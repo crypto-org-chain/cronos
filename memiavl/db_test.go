@@ -42,7 +42,12 @@ func TestRewriteSnapshot(t *testing.T) {
 
 func TestRemoveSnapshotDir(t *testing.T) {
 	dbDir := t.TempDir()
-	defer os.RemoveAll(dbDir)
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			require.NoError(t, err)
+		}
+	}(dbDir)
 
 	snapshotDir := filepath.Join(dbDir, snapshotName(0))
 	tmpDir := snapshotDir + TmpSuffix
@@ -186,7 +191,8 @@ func TestInitialVersion(t *testing.T) {
 		dir := t.TempDir()
 		db, err := Load(dir, Options{CreateIfMissing: true, InitialStores: []string{name}})
 		require.NoError(t, err)
-		db.SetInitialVersion(initialVersion)
+		err = db.SetInitialVersion(initialVersion)
+		require.NoError(t, err)
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name, key, value)))
 		v, err := db.Commit()
 		require.NoError(t, err)
@@ -215,7 +221,8 @@ func TestInitialVersion(t *testing.T) {
 		require.Equal(t, hex.EncodeToString(commitId.Hash), hex.EncodeToString(db.LastCommitInfo().StoreInfos[0].CommitId.Hash))
 
 		// add a new store to a reloaded db
-		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
+		err = db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name1}})
+		require.NoError(t, err)
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name1, key, value)))
 		v, err = db.Commit()
 		require.NoError(t, err)
@@ -230,7 +237,8 @@ func TestInitialVersion(t *testing.T) {
 		require.NoError(t, db.RewriteSnapshot())
 		require.NoError(t, db.Reload())
 		// add new store after snapshot rewriting
-		db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name2}})
+		err = db.ApplyUpgrades([]*TreeNameUpgrade{{Name: name2}})
+		require.NoError(t, err)
 		require.NoError(t, db.ApplyChangeSets(mockNameChangeSet(name2, key, value)))
 		v, err = db.Commit()
 		require.NoError(t, err)
@@ -508,6 +516,7 @@ func TestIdempotentWrite(t *testing.T) {
 }
 
 func testIdempotentWrite(t *testing.T, asyncCommit bool) {
+	t.Helper()
 	dir := t.TempDir()
 
 	asyncCommitBuffer := -1
