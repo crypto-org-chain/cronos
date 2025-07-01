@@ -5,14 +5,16 @@ import (
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
+
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type CronosTestSuite struct {

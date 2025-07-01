@@ -3,6 +3,7 @@ package app
 import (
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 )
 
@@ -18,7 +19,7 @@ func MaxVersionStoreLoader(version int64) baseapp.StoreLoader {
 }
 
 // MaxVersionUpgradeStoreLoader is used to prepare baseapp with a fixed StoreLoader
-func MaxVersionUpgradeStoreLoader(version int64, upgradeHeight int64, storeUpgrades *storetypes.StoreUpgrades) baseapp.StoreLoader {
+func MaxVersionUpgradeStoreLoader(version, upgradeHeight int64, storeUpgrades *storetypes.StoreUpgrades) baseapp.StoreLoader {
 	if version == 0 {
 		return upgradetypes.UpgradeStoreLoader(upgradeHeight, storeUpgrades)
 	}

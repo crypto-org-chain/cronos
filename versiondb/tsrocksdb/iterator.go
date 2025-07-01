@@ -20,7 +20,7 @@ type rocksDBIterator struct {
 
 var _ versiondb.Iterator = (*rocksDBIterator)(nil)
 
-func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse bool, skipVersionZero bool) *rocksDBIterator {
+func newRocksDBIterator(source *grocksdb.Iterator, prefix, start, end []byte, isReverse, skipVersionZero bool) *rocksDBIterator {
 	if isReverse {
 		if end == nil {
 			source.SeekToLast()

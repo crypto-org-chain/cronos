@@ -23,8 +23,10 @@ func TestKeyring(t *testing.T) {
 		dst := bytes.NewBuffer(nil)
 		writer, err := age.Encrypt(dst, identity.Recipient())
 		require.NoError(t, err)
-		writer.Write([]byte("test"))
-		writer.Close()
+		_, err = writer.Write([]byte("test"))
+		require.NoError(t, err)
+		err = writer.Close()
+		require.NoError(t, err)
 		ciphertext = dst.Bytes()
 	}
 

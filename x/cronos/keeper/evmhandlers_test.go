@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"math/big"
 
-	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 func (suite *KeeperTestSuite) TestSendToAccountHandler() {
@@ -58,12 +60,13 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 		{
 			"success send to account",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, denom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(denom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), denom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -77,9 +80,9 @@ func (suite *KeeperTestSuite) TestSendToAccountHandler() {
 				data = input
 			},
 			func() {
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), denom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), denom)
 				suite.Require().Equal(sdk.NewCoin(denom, sdkmath.NewInt(0)), balance)
-				balance = suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(recipient.Bytes()), denom)
+				balance = suite.app.BankKeeper.GetBalance(suite.ctx, recipient.Bytes(), denom)
 				coin := sdk.NewCoin(denom, sdkmath.NewInt(100))
 				suite.Require().Equal(coin, balance)
 			},
@@ -120,10 +123,10 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 			"non associated coin denom, expect fail",
 			func() {
 				coin := sdk.NewCoin(invalidDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -142,12 +145,13 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 		{
 			"non IBC denom, expect fail",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(invalidDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -166,12 +170,13 @@ func (suite *KeeperTestSuite) TestSendToIbcHandler() {
 		{
 			"success send to ibc",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(validDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), validDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -235,10 +240,10 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 			"non associated coin denom, expect fail",
 			func() {
 				coin := sdk.NewCoin(invalidDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -259,12 +264,13 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 		{
 			"non IBC denom, expect fail",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, invalidDenom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(invalidDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), invalidDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), invalidDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -285,12 +291,13 @@ func (suite *KeeperTestSuite) TestSendToIbcV2Handler() {
 		{
 			"success send to ibc",
 			func() {
-				suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				err := suite.app.CronosKeeper.SetExternalContractForDenom(suite.ctx, validDenom, contract)
+				suite.Require().NoError(err)
 				coin := sdk.NewCoin(validDenom, sdkmath.NewInt(100))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), validDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), validDenom)
 				suite.Require().Equal(coin, balance)
 
 				topics = []common.Hash{
@@ -371,14 +378,15 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"success send cro to ibc",
 			func() {
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000500))
-				err := suite.MintCoins(sdk.AccAddress(contract.Bytes()), sdk.NewCoins(coin))
+				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
-				balance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(contract.Bytes()), suite.evmParam.EvmDenom)
+				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), suite.evmParam.EvmDenom)
 				suite.Require().Equal(coin, balance)
 
 				// Mint coin for the module
-				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				err = suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				topics = []common.Hash{
 					evmhandlers.SendCroToIbcEvent.ID,
 				}
@@ -396,10 +404,10 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 				suite.Require().Equal(coin, balance)
 				ibcCoin := sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))
 				// As we mock IBC module, we expect the token to be in user balance
-				ibcBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), types.IbcCroDenomDefaultValue)
+				ibcBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sender.Bytes(), types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(ibcCoin, ibcBalance)
 				croCoin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(500))
-				croBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sdk.AccAddress(sender.Bytes()), suite.evmParam.EvmDenom)
+				croBalance := suite.app.BankKeeper.GetBalance(suite.ctx, sender.Bytes(), suite.evmParam.EvmDenom)
 				suite.Require().Equal(croCoin, croBalance)
 			},
 			nil,

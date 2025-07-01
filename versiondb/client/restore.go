@@ -1,22 +1,23 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"path/filepath"
 	"strconv"
 
-	"cosmossdk.io/errors"
 	protoio "github.com/cosmos/gogoproto/io"
-	"github.com/spf13/cobra"
-
-	"cosmossdk.io/store/snapshots"
-	"cosmossdk.io/store/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/server"
-
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
+	"github.com/spf13/cobra"
+
+	cosmossdkio "cosmossdk.io/errors"
+	"cosmossdk.io/store/snapshots"
+	"cosmossdk.io/store/snapshots/types"
+
+	"github.com/cosmos/cosmos-sdk/server"
 )
 
 // RestoreVersionDBCmd returns a command to restore a versiondb from local snapshot
@@ -90,10 +91,10 @@ loop:
 	for {
 		snapshotItem = types.SnapshotItem{}
 		err := protoReader.ReadMsg(&snapshotItem)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
-			return errors.Wrap(err, "invalid protobuf message")
+			return cosmossdkio.Wrap(err, "invalid protobuf message")
 		}
 
 		switch item := snapshotItem.Item.(type) {
@@ -101,7 +102,7 @@ loop:
 			storeKey = item.Store.Name
 		case *types.SnapshotItem_IAVL:
 			if storeKey == "" {
-				return errors.Wrap(err, "invalid protobuf message, store name is empty")
+				return cosmossdkio.Wrap(err, "invalid protobuf message, store name is empty")
 			}
 			if item.IAVL.Height > math.MaxInt8 {
 				return fmt.Errorf("node height %v cannot exceed %v",

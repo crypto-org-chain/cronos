@@ -14,6 +14,10 @@ VERSION := $(shell echo $(shell git describe --tags 2>/dev/null ) | sed 's/^v//'
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 
+UNAME_S := $(shell uname -s)
+
+GOLANGCI_VERSION := "2.1.6"
+
 # process build tags
 build_tags = netgo objstore pebbledb
 ifeq ($(NETWORK),mainnet)
@@ -119,12 +123,16 @@ clean:
 ###                                Linting                                  ###
 ###############################################################################
 
+lint-install:
+	@echo "--> Installing golangci-lint $(GOLANGCI_VERSION)"
+	@nix profile install -f ./nix golangci-lint
+
 lint:
 	go mod verify
-	golangci-lint run --out-format=tab
+	golangci-lint run --output.text.path stdout --path-prefix=./
 
 lint-fix:
-	golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	golangci-lint run --fix --output.text.path stdout --issues-exit-code=0
 
 lint-py:
 	flake8 --show-source --count --statistics \

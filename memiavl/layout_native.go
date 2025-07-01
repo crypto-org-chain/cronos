@@ -42,7 +42,7 @@ func (nodes Nodes) Node(i uint32) NodeLayout {
 	return &nodes.nodes[i]
 }
 
-// see comment of `PersistedNode`
+// nodeLayout see comment of `PersistedNode`
 type nodeLayout struct {
 	data [4]uint32
 	hash [32]byte
@@ -78,7 +78,7 @@ func (node *nodeLayout) Hash() []byte {
 
 type LeafLayout = *leafLayout
 
-// Nodes is a continuously stored IAVL nodes
+// Leaves is a continuously stored IAVL nodes
 type Leaves struct {
 	leaves []leafLayout
 }

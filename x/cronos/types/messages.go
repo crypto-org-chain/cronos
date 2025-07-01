@@ -2,14 +2,15 @@ package types
 
 import (
 	"bytes"
-
 	stderrors "errors"
 
-	"cosmossdk.io/errors"
 	"filippo.io/age"
+	"github.com/ethereum/go-ethereum/common"
+
+	"cosmossdk.io/errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const TypeMsgUpdateTokenMapping = "UpdateTokenMapping"
@@ -49,7 +50,7 @@ func (msg *MsgConvertVouchers) ValidateBasic() error {
 
 var _ sdk.Msg = &MsgTransferTokens{}
 
-func NewMsgTransferTokens(from string, to string, coins sdk.Coins) *MsgTransferTokens {
+func NewMsgTransferTokens(from, to string, coins sdk.Coins) *MsgTransferTokens {
 	return &MsgTransferTokens{
 		From:  from,
 		To:    to,
@@ -79,7 +80,7 @@ func (msg *MsgTransferTokens) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateTokenMapping{}
 
 // NewMsgUpdateTokenMapping ...
-func NewMsgUpdateTokenMapping(admin string, denom string, contract string, symbol string, decimal uint32) *MsgUpdateTokenMapping {
+func NewMsgUpdateTokenMapping(admin, denom, contract, symbol string, decimal uint32) *MsgUpdateTokenMapping {
 	return &MsgUpdateTokenMapping{
 		Sender:   admin,
 		Denom:    denom,
@@ -160,7 +161,7 @@ func (msg *MsgUpdateParams) ValidateBasic() error {
 }
 
 // NewMsgUpdatePermissions ...
-func NewMsgUpdatePermissions(from string, address string, permissions uint64) *MsgUpdatePermissions {
+func NewMsgUpdatePermissions(from, address string, permissions uint64) *MsgUpdatePermissions {
 	return &MsgUpdatePermissions{
 		From:        from,
 		Address:     address,
@@ -203,9 +204,8 @@ func (msg *MsgStoreBlockList) ValidateBasic() error {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid sender address (%s)", err)
 	}
 	// skip heavy operation in Decrypt by early return with errDummyIdentity in
-	// https://github.com/FiloSottile/age/blob/v1.1.1/age.go#L197
 	_, err = age.Decrypt(bytes.NewBuffer(msg.Blob), new(dummyIdentity))
-	if err != nil && err != errDummyIdentity {
+	if err != nil && !stderrors.Is(err, errDummyIdentity) {
 		return err
 	}
 	return nil
