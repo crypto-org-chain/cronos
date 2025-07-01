@@ -44,12 +44,10 @@ const BlockSTMPreEstimate = true
 type MinimalOptionsMap map[string]interface{}
 
 func (m MinimalOptionsMap) Get(key string) interface{} {
-	v, ok := m[key]
-	if !ok {
-		return interface{}(nil)
+	if v, ok := m[key]; ok {
+		return v
 	}
-
-	return v
+	return interface{}(nil)
 }
 
 // BenchmarkERC20Transfer benchmarks execution of standard erc20 token transfer transactions

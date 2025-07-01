@@ -137,8 +137,6 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 					group, _ := pool.GroupContext(context.Background())
 					// then split each chunk according to number of workers, the results will be concatenated into a single chunk file
 					for _, workRange := range splitWorkLoad(concurrency, Range{Start: i, End: end}) {
-						// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-
 						taskFile := filepath.Join(outDir, fmt.Sprintf("tmp-%s-%d.snappy", store, workRange.Start))
 						group.Submit(func() error {
 							tree := iavlTreePool.Get().(*iavl.ImmutableTree)

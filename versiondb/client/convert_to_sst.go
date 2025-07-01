@@ -63,8 +63,6 @@ func BuildVersionDBSSTCmd(defaultStores []string) *cobra.Command {
 
 			group, _ := pool.GroupContext(context.Background())
 			for _, store := range stores {
-				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-
 				group.Submit(func() error {
 					return convertSingleStore(store, changeSetDir, sstDir, sstFileSize, sorterChunkSize)
 				})

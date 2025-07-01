@@ -114,7 +114,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 
 			group, _ := pool.GroupContext(context.Background())
 			for i := 0; i < len(stores); i++ {
-				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := stores[i]
 				snapshot := snapshots[i]
 				group.Submit(func() error {

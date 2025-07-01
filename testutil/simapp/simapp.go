@@ -26,7 +26,7 @@ func New(dir string) *app.App {
 		AppStateBytes:   []byte("{}"),
 	})
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	return a
 }
