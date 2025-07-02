@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"filippo.io/age"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	cmdcfg "github.com/crypto-org-chain/cronos/v2/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/stretchr/testify/require"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestValidateMsgUpdateTokenMapping(t *testing.T) {

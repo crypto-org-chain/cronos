@@ -18,7 +18,7 @@ func NewCache(cacheSize int) cache.Cache {
 	return cache.New(cacheSize)
 }
 
-// verify change sets by replay them to rebuild iavl tree and verify the root hashes
+// Tree verify change sets by replay them to rebuild iavl tree and verify the root hashes
 type Tree struct {
 	version, cowVersion uint32
 	// root node of empty tree is represented as `nil`
@@ -59,7 +59,7 @@ func New(cacheSize int) *Tree {
 	return NewEmptyTree(0, cacheSize)
 }
 
-// New creates a empty tree with initial-version,
+// NewWithInitialVersion creates a empty tree with initial-version,
 // it happens when a new store created at the middle of the chain.
 func NewWithInitialVersion(initialVersion uint32, cacheSize int) *Tree {
 	if initialVersion <= 1 {

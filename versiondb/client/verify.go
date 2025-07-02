@@ -14,11 +14,10 @@ import (
 	"github.com/alitto/pond"
 	"github.com/cosmos/gogoproto/jsonpb"
 	"github.com/cosmos/iavl"
+	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/spf13/cobra"
 
 	storetypes "cosmossdk.io/store/types"
-
-	"github.com/crypto-org-chain/cronos/memiavl"
 )
 
 func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
@@ -86,8 +85,6 @@ func VerifyChangeSetCmd(defaultStores []string) *cobra.Command {
 			}
 
 			for _, store := range stores {
-				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-				store := store
 				tree := mtree.TreeByName(store)
 				if tree == nil {
 					tree = memiavl.New(0)

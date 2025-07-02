@@ -22,7 +22,6 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	// this line is used by starport scaffolding # ibc/keeper/import
 )
 
 type (

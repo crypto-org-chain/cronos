@@ -3,6 +3,7 @@ package memiavl
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 // TODO fix in upstream: https://github.com/tidwall/wal/pull/22
 func OpenWAL(dir string, opts *wal.Options) (*wal.Log, error) {
 	log, err := wal.Open(dir, opts)
-	if err == wal.ErrCorrupt {
+	if errors.Is(err, wal.ErrCorrupt) {
 		// try to truncate corrupted tail
 		var fis []os.DirEntry
 		fis, err = os.ReadDir(dir)
@@ -58,7 +59,7 @@ func truncateCorruptedTail(path string, format wal.LogFormat) error {
 		} else {
 			n, err = loadNextBinaryEntry(data)
 		}
-		if err == wal.ErrCorrupt {
+		if errors.Is(err, wal.ErrCorrupt) {
 			break
 		}
 		if err != nil {

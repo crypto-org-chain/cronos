@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/zlib"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/bits"
@@ -256,7 +257,7 @@ func IterateChangeSets(
 		lastCompleteOffset += offset
 	}
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		// it's not easy to distinguish normal EOF or unexpected EOF,
 		// there could be potential corrupted end of file and the err is a normal io.EOF here,
 		// user should verify the change set files in advance, using the verify command.
@@ -291,7 +292,7 @@ func IterateVersions(
 		lastCompleteOffset += offset
 	}
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		// it's not easy to distinguish normal EOF or unexpected EOF,
 		// there could be potential corrupted end of file and the err is a normal io.EOF here,
 		// user should verify the change set files in advance, using the verify command.
@@ -314,7 +315,7 @@ func SortFilesByFirstVerson(files []string) ([]FileWithVersion, error) {
 	for _, fileName := range files {
 		version, err := ReadFirstVersion(fileName)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				// skipping empty files
 				continue
 			}
@@ -353,8 +354,8 @@ func ReadFirstVersion(fileName string) (uint64, error) {
 
 // uvarintSize returns the size (in bytes) of uint64 encoded with the `binary.PutUvarint`.
 func uvarintSize(num uint64) int {
-	bits := bits.Len64(num)
-	q, r := bits/7, bits%7
+	b := bits.Len64(num)
+	q, r := b/7, b%7
 	size := q
 	if r > 0 || size == 0 {
 		size++

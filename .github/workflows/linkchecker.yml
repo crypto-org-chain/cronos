@@ -1,7 +1,7 @@
 name: Check Markdown links
 on:
   schedule:
-    - cron: "* */24 * * *"
+    - cron: "0 * * * *"
   pull_request:
   push:
     branches:

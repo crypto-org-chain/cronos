@@ -16,6 +16,8 @@ DOCKER := $(shell which docker)
 
 UNAME_S := $(shell uname -s)
 
+GOLANGCI_VERSION := "2.1.6"
+
 # process build tags
 build_tags = netgo objstore pebbledb
 ifeq ($(NETWORK),mainnet)
@@ -128,12 +130,16 @@ clean:
 ###                                Linting                                  ###
 ###############################################################################
 
+lint-install:
+	@echo "--> Installing golangci-lint $(GOLANGCI_VERSION)"
+	@nix profile install -f ./nix golangci-lint
+
 lint:
 	go mod verify
-	golangci-lint run --out-format=tab
+	golangci-lint run --output.text.path stdout --path-prefix=./
 
 lint-fix:
-	golangci-lint run --fix --out-format=tab --issues-exit-code=0
+	golangci-lint run --fix --output.text.path stdout --issues-exit-code=0
 
 lint-py:
 	flake8 --show-source --count --statistics \
@@ -325,3 +331,7 @@ proto-check-breaking:
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
+
+vulncheck: $(BUILDDIR)/
+	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
+	$(BUILDDIR)/govulncheck ./...

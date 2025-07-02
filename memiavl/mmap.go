@@ -15,7 +15,7 @@ type MmapFile struct {
 	handle *[mmap.MaxMapSize]byte
 }
 
-// Open openes the file and create the mmap.
+// NewMmap Open openes the file and create the mmap.
 // the mmap is created with flags: PROT_READ, MAP_SHARED, MADV_RANDOM.
 func NewMmap(path string) (*MmapFile, error) {
 	file, err := os.Open(path)

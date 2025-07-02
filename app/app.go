@@ -17,12 +17,47 @@ import (
 	"sort"
 
 	"filippo.io/age"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmos "github.com/cometbft/cometbft/libs/os"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
+	memiavlstore "github.com/crypto-org-chain/cronos/store"
+	"github.com/crypto-org-chain/cronos/v2/client/docs"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
+	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
+
+	// force register the extension json-rpc.
+	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
+	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
+	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
+	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
+	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	"github.com/ethereum/go-ethereum/common"
+
+	// Force-load the tracer engines to trigger registration
+	"github.com/ethereum/go-ethereum/core/vm"
+	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
+	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+	ethparams "github.com/ethereum/go-ethereum/params"
+	evmapp "github.com/evmos/ethermint/app"
+	evmante "github.com/evmos/ethermint/app/ante"
+	evmenc "github.com/evmos/ethermint/encoding"
+	"github.com/evmos/ethermint/ethereum/eip712"
+	srvflags "github.com/evmos/ethermint/server/flags"
+	ethermint "github.com/evmos/ethermint/types"
+	"github.com/evmos/ethermint/x/evm"
+	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
+	v0evmtypes "github.com/evmos/ethermint/x/evm/migrations/v0/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/evmos/ethermint/x/feemarket"
+	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
+	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cast"
 
@@ -33,7 +68,6 @@ import (
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
-
 	"cosmossdk.io/x/evidence"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	evidencetypes "cosmossdk.io/x/evidence/types"
@@ -129,47 +163,6 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
-
-	// Force-load the tracer engines to trigger registration
-	"github.com/ethereum/go-ethereum/core/vm"
-	ethparams "github.com/ethereum/go-ethereum/params"
-
-	evmapp "github.com/evmos/ethermint/app"
-	evmante "github.com/evmos/ethermint/app/ante"
-	evmenc "github.com/evmos/ethermint/encoding"
-	"github.com/evmos/ethermint/ethereum/eip712"
-	srvflags "github.com/evmos/ethermint/server/flags"
-	ethermint "github.com/evmos/ethermint/types"
-	"github.com/evmos/ethermint/x/evm"
-	evmkeeper "github.com/evmos/ethermint/x/evm/keeper"
-	v0evmtypes "github.com/evmos/ethermint/x/evm/migrations/v0/types"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
-	"github.com/evmos/ethermint/x/feemarket"
-	feemarketkeeper "github.com/evmos/ethermint/x/feemarket/keeper"
-	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
-
-	// this line is used by starport scaffolding # stargate/app/moduleImport
-
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	"github.com/crypto-org-chain/cronos/v2/client/docs"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos"
-	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
-	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
-	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
-	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
-
-	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
-	e2eekeeper "github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
-	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
-	"github.com/ethereum/go-ethereum/common"
-
-	// force register the extension json-rpc.
-	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
-	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
-	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 )
 
 const (
@@ -1276,14 +1269,14 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig
 
 // RegisterTxService implements the Application.RegisterTxService method.
 func (app *App) RegisterTxService(clientCtx client.Context) {
-	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
+	authtx.RegisterTxService(app.GRPCQueryRouter(), clientCtx, app.Simulate, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	cmtservice.RegisterTendermintService(
 		clientCtx,
-		app.BaseApp.GRPCQueryRouter(),
+		app.GRPCQueryRouter(),
 		app.interfaceRegistry,
 		app.Query,
 	)

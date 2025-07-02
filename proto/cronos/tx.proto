@@ -85,7 +85,7 @@ message MsgTurnBridge {
   bool   enable                 = 2;
 }
 
-// MsgTurnBridgegResponse defines the response type
+// MsgTurnBridgeResponse defines the response type
 message MsgTurnBridgeResponse {}
 
 // MsgUpdateParams defines the request type for updating cronos params.

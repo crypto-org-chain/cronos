@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"math"
 
-	"cosmossdk.io/store/types"
 	"github.com/cosmos/iavl"
 	"github.com/crypto-org-chain/cronos/versiondb"
 	"github.com/linxGnu/grocksdb"
+
+	"cosmossdk.io/store/types"
 )
 
 const (
@@ -360,7 +361,7 @@ func prependStoreKey(storeKey string, key []byte) []byte {
 	return append(storePrefix(storeKey), key...)
 }
 
-func cloneAppend(bz []byte, tail []byte) (res []byte) {
+func cloneAppend(bz, tail []byte) (res []byte) {
 	res = make([]byte, len(bz)+len(tail))
 	copy(res, bz)
 	copy(res[len(bz):], tail)

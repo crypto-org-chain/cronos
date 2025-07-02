@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/cosmos/cosmos-sdk/types/kv"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
 // NewDecodeStore returns a decoder function closure that unmarshals the KVPair's

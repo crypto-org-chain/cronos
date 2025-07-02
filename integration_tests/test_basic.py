@@ -547,6 +547,7 @@ def assert_receipt_transaction_and_block(w3, futures):
 
     block_number = w3.eth.get_block_number()
     tx_indexes = [0, 1, 2, 3]
+
     for receipt in receipts:
         # check in the same block
         assert receipt["blockNumber"] == block_number
@@ -554,6 +555,25 @@ def assert_receipt_transaction_and_block(w3, futures):
         transaction_index = receipt["transactionIndex"]
         assert transaction_index in tx_indexes
         tx_indexes.remove(transaction_index)
+
+    # check block receipts
+
+    receipts.sort(key=lambda receipt: receipt["transactionIndex"])
+    block_receipts = w3.provider.make_request("eth_getBlockReceipts", [block_number])[
+        "result"
+    ]
+    assert len(block_receipts) == 4
+    for i, block_receipt in enumerate(block_receipts):
+        assert block_receipt["blockNumber"] == hex(receipts[i]["blockNumber"])
+        assert block_receipt["transactionHash"] == receipts[i]["transactionHash"].hex()
+        assert block_receipt["cumulativeGasUsed"] == hex(
+            receipts[i]["cumulativeGasUsed"]
+        )
+        assert block_receipt["effectiveGasPrice"] == hex(
+            receipts[i]["effectiveGasPrice"]
+        )
+        assert block_receipt["from"] == receipts[i]["from"].lower()
+        assert block_receipt["gasUsed"] == hex(receipts[i]["gasUsed"])
 
     block = w3.eth.get_block(block_number)
     # print(block)

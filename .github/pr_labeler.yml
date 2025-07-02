@@ -1,0 +1,29 @@
+"cli":
+  - client/**/*
+  - x/*/client/**/*
+"nix":
+  - nix/**
+  - default.nix
+  - docker.nix
+  - flake.nix
+"simulation":
+  - types/simulation/**/*
+  - x/simulation/**/*
+  - x/*/simulation/**/*
+  - simsx/**/*
+  - tools/benchmark/**/*
+"cronos":
+  - x/cronos/**/*
+"e2ee":
+  - x/e2ee/**/*
+"adr":
+  - docs/architecture/**/*
+"build":
+  - Makefile
+  - Dockerfile
+  - docker-compose.yml
+  - scripts/*
+"ci":
+  - .github/**
+  - buf.work.yaml
+  - .golangci.yml
