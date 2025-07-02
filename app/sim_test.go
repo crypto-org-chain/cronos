@@ -9,19 +9,26 @@ import (
 	"strings"
 	"testing"
 
-	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmante "github.com/evmos/ethermint/app/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	storetypes "cosmossdk.io/store/types"
 	evidencetypes "cosmossdk.io/x/evidence/types"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
+	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -32,13 +39,6 @@ import (
 	simcli "github.com/cosmos/cosmos-sdk/x/simulation/client/cli"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-
-	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
-	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 // Get flags every time the simulator is run
@@ -215,8 +215,10 @@ func TestAppImportExport(t *testing.T) {
 		Height:  app.LastBlockHeight(),
 		ChainID: SimAppChainID,
 	}).WithChainID(SimAppChainID)
-	newApp.ModuleManager.InitGenesis(ctxB, app.AppCodec(), genesisState)
-	newApp.StoreConsensusParams(ctxB, exported.ConsensusParams)
+	_, err = newApp.ModuleManager.InitGenesis(ctxB, app.AppCodec(), genesisState)
+	require.NoError(t, err)
+	err = newApp.StoreConsensusParams(ctxB, exported.ConsensusParams)
+	require.NoError(t, err)
 
 	fmt.Printf("comparing stores...\n")
 
@@ -322,10 +324,11 @@ func TestAppSimulationAfterImport(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, Name, newApp.Name())
 
-	newApp.InitChain(&abci.RequestInitChain{
+	_, err = newApp.InitChain(&abci.RequestInitChain{
 		ChainId:       SimAppChainID,
 		AppStateBytes: exported.AppState,
 	})
+	require.NoError(t, err)
 
 	_, _, err = simulation.SimulateFromSeed(
 		t,

@@ -5,6 +5,8 @@
 ### Improvements
 
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
+* [#1824](https://github.com/crypto-org-chain/cronos/pull/1824) Rework on github actions.
+* [#1826](https://github.com/crypto-org-chain/cronos/pull/1826) Update linter and tidy up code.
 
 *Jun 20, 2025*
 

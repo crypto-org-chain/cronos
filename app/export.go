@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	storetypes "cosmossdk.io/store/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+
+	storetypes "cosmossdk.io/store/types"
 
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,7 +18,7 @@ import (
 // ExportAppStateAndValidators exports the state of the application for a genesis
 // file.
 func (app *App) ExportAppStateAndValidators(
-	forZeroHeight bool, jailAllowedAddrs []string, modulesToExport []string,
+	forZeroHeight bool, jailAllowedAddrs, modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
 	// as if they could withdraw from the start of the next block
 	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
@@ -206,7 +207,6 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 	// update bond intra-tx counters.
 	store := ctx.KVStore(app.GetKey(stakingtypes.StoreKey))
 	iter := storetypes.KVStoreReversePrefixIterator(store, stakingtypes.ValidatorsKey)
-	counter := int16(0)
 
 	for ; iter.Valid(); iter.Next() {
 		addr := sdk.ValAddress(stakingtypes.AddressFromValidatorsKey(iter.Key()))
@@ -223,7 +223,6 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		if err := app.StakingKeeper.SetValidator(ctx, validator); err != nil {
 			return err
 		}
-		counter++
 	}
 
 	if err := iter.Close(); err != nil {

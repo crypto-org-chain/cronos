@@ -74,7 +74,7 @@ func (node *MemNode) SafeHash() []byte {
 	return node.Hash()
 }
 
-// Computes the hash of the node without computing its descendants. Must be
+// Hash Computes the hash of the node without computing its descendants. Must be
 // called on nodes which have descendant node hashes already computed.
 func (node *MemNode) Hash() []byte {
 	if node == nil {

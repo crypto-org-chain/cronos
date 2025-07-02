@@ -16,6 +16,7 @@ const (
 )
 
 func doTestExtSorter(t *testing.T, chunkSize int64, inputCount int) {
+	t.Helper()
 	sorter := New("/tmp", Options{
 		MaxChunkSize: chunkSize,
 		LesserFunc: func(a, b []byte) bool {

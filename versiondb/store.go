@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/store/cachekv"
 	"cosmossdk.io/store/types"
+
 	"github.com/cosmos/cosmos-sdk/telemetry"
 )
 
@@ -24,18 +25,18 @@ func NewKVStore(store VersionStore, storeKey string, version *int64) *Store {
 	return &Store{store, storeKey, version}
 }
 
-// Implements Store.
+// GetStoreType Implements Store.
 func (st *Store) GetStoreType() types.StoreType {
 	// should have effect, just define an unique indentifier, don't be conflicts with cosmos-sdk's builtin ones.
 	return StoreTypeVersionDB
 }
 
-// Implements Store.
+// CacheWrap Implements Store.
 func (st *Store) CacheWrap() types.CacheWrap {
 	return cachekv.NewStore(st)
 }
 
-// Implements types.KVStore.
+// Get Implements types.KVStore.
 func (st *Store) Get(key []byte) []byte {
 	defer telemetry.MeasureSince(time.Now(), "store", "versiondb", "get")
 	value, err := st.store.GetAtVersion(st.name, key, st.version)
@@ -45,7 +46,7 @@ func (st *Store) Get(key []byte) []byte {
 	return value
 }
 
-// Implements types.KVStore.
+// Has Implements types.KVStore.
 func (st *Store) Has(key []byte) (exists bool) {
 	defer telemetry.MeasureSince(time.Now(), "store", "versiondb", "has")
 	has, err := st.store.HasAtVersion(st.name, key, st.version)
@@ -55,7 +56,7 @@ func (st *Store) Has(key []byte) (exists bool) {
 	return has
 }
 
-// Implements types.KVStore.
+// Iterator Implements types.KVStore.
 func (st *Store) Iterator(start, end []byte) types.Iterator {
 	itr, err := st.store.IteratorAtVersion(st.name, start, end, st.version)
 	if err != nil {
@@ -64,7 +65,7 @@ func (st *Store) Iterator(start, end []byte) types.Iterator {
 	return itr
 }
 
-// Implements types.KVStore.
+// ReverseIterator Implements types.KVStore.
 func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
 	itr, err := st.store.ReverseIteratorAtVersion(st.name, start, end, st.version)
 	if err != nil {
@@ -73,12 +74,12 @@ func (st *Store) ReverseIterator(start, end []byte) types.Iterator {
 	return itr
 }
 
-// Implements types.KVStore.
+// Set Implements types.KVStore.
 func (st *Store) Set(key, value []byte) {
 	panic("write operation is not supported")
 }
 
-// Implements types.KVStore.
+// Delete Implements types.KVStore.
 func (st *Store) Delete(key []byte) {
 	panic("write operation is not supported")
 }

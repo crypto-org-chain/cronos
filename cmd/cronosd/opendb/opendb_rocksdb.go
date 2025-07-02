@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	dbm "github.com/cosmos/cosmos-db"
-	"github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/linxGnu/grocksdb"
+
+	"github.com/cosmos/cosmos-sdk/server/types"
 )
 
-// 3G block cache
+// BlockCacheSize 3G block cache
 const BlockCacheSize = 3 << 30
 
 func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {

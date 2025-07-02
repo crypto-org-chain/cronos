@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"math/big"
 
-	sdkmath "cosmossdk.io/math"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+
+	sdkmath "cosmossdk.io/math"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 )
 
 const (
@@ -71,7 +73,8 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))),
 			func() {
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdkmath.NewInt(123), ibcCroCoin.Amount)
@@ -102,7 +105,8 @@ func (suite *KeeperTestSuite) TestConvertVouchersToEvmCoins() {
 			address.String(),
 			sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdkmath.NewInt(123))),
 			func() {
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, CorrectIbcDenom)
 				suite.Require().Equal(sdkmath.NewInt(123), ibcCroCoin.Amount)
@@ -221,8 +225,10 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"channel-0",
 			func() {
 				// Mint Coin to user and module
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000000))))
-				suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000000))))
+				suite.Require().NoError(err)
+				err = suite.MintCoinsToModule(types.ModuleName, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdkmath.NewInt(0), ibcCroCoin.Amount)
@@ -262,7 +268,8 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"channel-0",
 			func() {
 				// Mint IBC token for user
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectIbcDenom, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Add support for the IBC token
 				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectIbcDenom, common.HexToAddress("0x11"))
 			},
@@ -278,7 +285,8 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 			"aaa",
 			func() {
 				// Mint IBC token for user
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectCronosDenom, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectCronosDenom, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Add support for the IBC token
 				suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectCronosDenom, common.HexToAddress("0x11"))
 			},

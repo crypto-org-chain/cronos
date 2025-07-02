@@ -11,16 +11,18 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
-	sdkmath "cosmossdk.io/math"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/evmos/ethermint/app"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/errors"
+	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
+
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -36,8 +38,6 @@ import (
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-
-	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 
 const (
@@ -242,7 +242,7 @@ func ConvertAddrsToValAddrs(addrs []sdk.AccAddress) []sdk.ValAddress {
 	return valAddrs
 }
 
-func TestAddr(addr string, bech string) (sdk.AccAddress, error) {
+func TestAddr(addr, bech string) (sdk.AccAddress, error) {
 	res, err := sdk.AccAddressFromHexUnsafe(addr)
 	if err != nil {
 		return nil, err
@@ -265,6 +265,7 @@ func TestAddr(addr string, bech string) (sdk.AccAddress, error) {
 
 // CheckBalance checks the balance of an account.
 func CheckBalance(t *testing.T, app *App, addr sdk.AccAddress, balances sdk.Coins) {
+	t.Helper()
 	ctxCheck := app.BaseApp.NewContext(true).WithBlockHeader(tmproto.Header{})
 	require.True(t, balances.Equal(app.BankKeeper.GetAllBalances(ctxCheck, addr)))
 }
@@ -272,7 +273,7 @@ func CheckBalance(t *testing.T, app *App, addr sdk.AccAddress, balances sdk.Coin
 // GenSequenceOfTxs generates a set of signed transactions of messages, such
 // that they differ only by having the sequence numbers incremented between
 // every transaction.
-func GenSequenceOfTxs(txGen client.TxConfig, msgs []sdk.Msg, accNums []uint64, initSeqNums []uint64, numToGenerate int, priv ...cryptotypes.PrivKey) ([]sdk.Tx, error) {
+func GenSequenceOfTxs(txGen client.TxConfig, msgs []sdk.Msg, accNums, initSeqNums []uint64, numToGenerate int, priv ...cryptotypes.PrivKey) ([]sdk.Tx, error) {
 	txs := make([]sdk.Tx, numToGenerate)
 	var err error
 	for i := 0; i < numToGenerate; i++ {
@@ -330,18 +331,6 @@ func NewPubKeyFromHex(pk string) (res cryptotypes.PubKey) {
 		panic(errors.Wrap(sdkerrors.ErrInvalidPubKey, "invalid pubkey size"))
 	}
 	return &ed25519.PubKey{Key: pkBytes}
-}
-
-// AppOptionsMap is a stub implementing AppOptions which can get data from a map
-type AppOptionsMap map[string]interface{}
-
-func (m AppOptionsMap) Get(key string) interface{} {
-	v, ok := m[key]
-	if !ok {
-		return interface{}(nil)
-	}
-
-	return v
 }
 
 // EmptyAppOptions is a stub implementing AppOptions
