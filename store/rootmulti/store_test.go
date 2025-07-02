@@ -3,9 +3,10 @@ package rootmulti
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"cosmossdk.io/log"
 	"cosmossdk.io/store/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLastCommitID(t *testing.T) {

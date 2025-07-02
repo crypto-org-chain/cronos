@@ -175,7 +175,7 @@ func (s *ExtSorter) Finalize() (*MultiWayMerge, error) {
 			decoder := NewDeltaDecoder()
 			streams[i] = func() ([]byte, error) {
 				item, err := decoder.Read(reader)
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					return nil, nil
 				}
 				return item, err
@@ -184,7 +184,7 @@ func (s *ExtSorter) Finalize() (*MultiWayMerge, error) {
 			streams[i] = func() ([]byte, error) {
 				size, err := binary.ReadUvarint(reader)
 				if err != nil {
-					if err == io.EOF && size == 0 {
+					if errors.Is(err, io.EOF) && size == 0 {
 						return nil, nil
 					}
 					return nil, err

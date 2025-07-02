@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 // ByteString is a byte array that serializes to hex

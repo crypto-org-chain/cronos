@@ -5,30 +5,29 @@ import (
 	"testing"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
-
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/version"
+	"github.com/crypto-org-chain/cronos/v2/app"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	ethermint "github.com/evmos/ethermint/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
+	sdkmath "cosmossdk.io/math"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	ethermint "github.com/evmos/ethermint/types"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
-	"github.com/crypto-org-chain/cronos/v2/app"
 )
 
 const (
@@ -53,6 +52,7 @@ type KeeperTestSuite struct {
 }
 
 func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
+	t.Helper()
 	// account key
 	priv, err := ethsecp256k1.GenerateKey()
 	require.NoError(t, err)
@@ -106,7 +106,8 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 	require.NoError(t, err)
 	err = suite.app.StakingKeeper.SetValidatorByConsAddr(suite.ctx, validator)
 	require.NoError(t, err)
-	suite.app.StakingKeeper.SetValidator(suite.ctx, validator)
+	err = suite.app.StakingKeeper.SetValidator(suite.ctx, validator)
+	require.NoError(t, err)
 
 	suite.evmParam = suite.app.EvmKeeper.GetParams(suite.ctx)
 }
@@ -165,7 +166,8 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				suite.Require().True(found)
 				suite.Require().Equal(autoContract, contract)
 
-				keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
+				err := keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
+				suite.Require().NoError(err)
 
 				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().True(found)
@@ -228,7 +230,8 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			"state reverted after error",
 			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123)), sdk.NewCoin("bad", sdkmath.NewInt(10))),
 			func() {
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdkmath.NewInt(123), ibcCroCoin.Amount)
@@ -249,7 +252,8 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			"state committed upon success",
 			sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))),
 			func() {
-				suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(types.IbcCroDenomDefaultValue, sdkmath.NewInt(123))))
+				suite.Require().NoError(err)
 				// Verify balance IBC coin pre operation
 				ibcCroCoin := suite.GetBalance(address, types.IbcCroDenomDefaultValue)
 				suite.Require().Equal(sdkmath.NewInt(123), ibcCroCoin.Amount)
@@ -399,7 +403,6 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		suite.Run(tc.name, func() {
 			suite.SetupTest() // reset
 			// Create Cronos Keeper with mock transfer keeper

@@ -15,7 +15,6 @@ const (
 	AttributeKeyReceiver              = "receiver"
 	AttributeKeyEthereumTokenContract = "ethereum_token_contract"
 
-	// events
 	EventTypeConvertVouchers             = "convert_vouchers"
 	EventTypeTransferTokens              = "transfer_tokens"
 	EventTypeEthereumSendToCosmosHandled = "ethereum_send_to_cosmos_handled"
@@ -32,7 +31,7 @@ func NewConvertVouchersEvent(sender string, amount fmt.Stringer) sdk.Event {
 }
 
 // NewTransferTokensEvent constructs a new transfer sdk.Event
-func NewTransferTokensEvent(sender string, recipient string, amount fmt.Stringer) sdk.Event {
+func NewTransferTokensEvent(sender, recipient string, amount fmt.Stringer) sdk.Event {
 	return sdk.NewEvent(
 		EventTypeTransferTokens,
 		sdk.NewAttribute(AttributeKeySender, sender),

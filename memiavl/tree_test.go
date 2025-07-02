@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"testing"
 
-	"cosmossdk.io/log"
-	"cosmossdk.io/store/wrapper"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/log"
+	"cosmossdk.io/store/wrapper"
 )
 
 var (

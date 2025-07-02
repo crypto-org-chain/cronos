@@ -69,7 +69,6 @@ func (suite *KeeperTestSuite) TestUpdateParams() {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		suite.Run(tc.name, func() {
 			msgServer := cronosmodulekeeper.NewMsgServerImpl(suite.app.CronosKeeper)
 			_, err := msgServer.UpdateParams(suite.ctx, tc.req)

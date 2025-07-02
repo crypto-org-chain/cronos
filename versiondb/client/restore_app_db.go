@@ -11,18 +11,17 @@ import (
 	"runtime"
 	"strings"
 
-	"cosmossdk.io/errors"
 	"github.com/alitto/pond"
 	gogotypes "github.com/cosmos/gogoproto/types"
 	"github.com/cosmos/iavl/keyformat"
+	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	"github.com/crypto-org-chain/cronos/memiavl"
+	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 
+	"cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-
-	"github.com/crypto-org-chain/cronos/memiavl"
-	"github.com/crypto-org-chain/cronos/versiondb/extsort"
 )
 
 const (
@@ -33,7 +32,7 @@ const (
 	latestVersionKey = "s/latest"
 	commitInfoKeyFmt = "s/%d" // s/<version>
 
-	// We creates the temporary sst files in the target database to make sure the file renaming is cheap in ingestion
+	// StoreSSTFileName We creates the temporary sst files in the target database to make sure the file renaming is cheap in ingestion
 	// part.
 	StoreSSTFileName = "tmp-%s-%d.sst"
 
@@ -115,7 +114,6 @@ func RestoreAppDBCmd(opts Options) *cobra.Command {
 
 			group, _ := pool.GroupContext(context.Background())
 			for i := 0; i < len(stores); i++ {
-				// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 				store := stores[i]
 				snapshot := snapshots[i]
 				group.Submit(func() error {

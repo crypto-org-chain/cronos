@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	// this line is used by starport scaffolding # 1
-
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/client/cli"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/simulation"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
-
-	abci "github.com/cometbft/cometbft/abci/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -20,11 +21,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/client/cli"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/simulation"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	// this line is used by starport scaffolding # ibc/module/import
 )
 
 var (

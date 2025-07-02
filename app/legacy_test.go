@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"testing"
 
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/stretchr/testify/require"
+
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 func TestDecodeLegacyTx(t *testing.T) {

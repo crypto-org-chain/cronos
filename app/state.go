@@ -3,11 +3,11 @@ package app
 import (
 	"encoding/json"
 
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 func StateFn(app *App) simtypes.AppStateFn {

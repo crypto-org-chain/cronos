@@ -14,19 +14,19 @@ import (
 	"sync"
 	"time"
 
-	log "cosmossdk.io/log"
 	"github.com/alitto/pond"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/iavl"
+	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 	"github.com/golang/snappy"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 
+	log "cosmossdk.io/log"
 	"cosmossdk.io/store/wrapper"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
-
-	"github.com/crypto-org-chain/cronos/versiondb/tsrocksdb"
 )
 
 const DefaultChunkSize = 1000000
@@ -137,8 +137,6 @@ func DumpChangeSetCmd(opts Options) *cobra.Command {
 					group, _ := pool.GroupContext(context.Background())
 					// then split each chunk according to number of workers, the results will be concatenated into a single chunk file
 					for _, workRange := range splitWorkLoad(concurrency, Range{Start: i, End: end}) {
-						// https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-						workRange := workRange
 						taskFile := filepath.Join(outDir, fmt.Sprintf("tmp-%s-%d.snappy", store, workRange.Start))
 						group.Submit(func() error {
 							tree := iavlTreePool.Get().(*iavl.ImmutableTree)
