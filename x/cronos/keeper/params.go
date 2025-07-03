@@ -3,11 +3,13 @@ package keeper
 import (
 	"strings"
 
-	"cosmossdk.io/errors"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	evmTypes "github.com/evmos/ethermint/x/evm/types"
+
+	"cosmossdk.io/errors"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // GetParams returns the total set of cronos parameters.
