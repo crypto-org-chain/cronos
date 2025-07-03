@@ -10,10 +10,10 @@ let
 in
 {
   go_1_23 = super.go_1_23.overrideAttrs (old: rec {
-    version = "1.23.6";
+    version = "1.23.10";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-A5xbBOZSedrO7opvcecL0Fz1uAF4K293xuGeLtBREiI=";
+      hash = "sha256-gAp64b/xeaIntlOi9kRRfIAEQ7i0q/MnOvXhy3ET3lk=";
     };
   });
   rocksdb = final.callPackage ./rocksdb.nix { };
