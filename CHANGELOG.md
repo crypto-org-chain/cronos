@@ -4,6 +4,10 @@
 
 ## UNRELEASED
 
+### Bug Fixes
+
+* [#1830](https://github.com/crypto-org-chain/cronos/pull/1830) Add sanity check for rpc call Trace_Tx and Trace_call.
+
 *Jun 20, 2025*
 
 ## v1.4.8
