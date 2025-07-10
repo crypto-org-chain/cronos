@@ -279,11 +279,8 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 	}
 
 	// minus one to get the context of block beginning
-	contextHeight := blockNumber - 1
-	if contextHeight < 1 {
-		// 0 is a special value in `ContextWithHeight`
-		contextHeight = 1
-	}
+	// 0 is a special value in `ContextWithHeight`
+	contextHeight := max(blockNumber-1, 1)
 	rsp, err := api.cronosQueryClient.ReplayBlock(rpctypes.ContextWithHeight(contextHeight), req)
 	if err != nil {
 		return nil, err
