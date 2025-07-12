@@ -52,7 +52,7 @@ message ContractByDenomRequest {
   string denom = 1;
 }
 
-// ContractByDenomRequest is the response type of ContractByDenom call
+// ContractByDenomResponse is the response type of ContractByDenom call
 message ContractByDenomResponse {
   string contract      = 1;
   string auto_contract = 2;
