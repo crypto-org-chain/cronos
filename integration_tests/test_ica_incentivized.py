@@ -22,6 +22,7 @@ def ibc(request, tmp_path_factory):
     yield from prepare_network(path, name)
 
 
+@pytest.mark.skip("The ibc-fee module has been removed in the ibc-go v10")
 def test_incentivized(ibc):
     connid = "connection-0"
     cli_host = ibc.chainmain.cosmos_cli()

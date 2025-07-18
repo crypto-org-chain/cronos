@@ -17,7 +17,12 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = request.param
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, need_relayer_caller=name == "ibc_rly_evm")
+    yield from prepare_network(
+        path,
+        name,
+        need_relayer_caller=name == "ibc_rly_evm",
+        is_ibc_transfer=True,
+    )
 
 
 records = []
@@ -28,7 +33,10 @@ def test_ibc(ibc):
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
     ibc_transfer(ibc)
-    ibc_incentivized_transfer(ibc)
+
+    if ibc.hermes is None:
+        ibc_incentivized_transfer(ibc)
+
     ibc_multi_transfer(ibc)
     diff = 0.15
     record = log_gas_records(cli)

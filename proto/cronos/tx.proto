@@ -42,7 +42,7 @@ service Msg {
 // MsgConvertVouchers represents a message to convert ibc voucher coins to
 // cronos evm coins.
 message MsgConvertVouchers {
-  option (cosmos.msg.v1.signer) = "address";
+  option (cosmos.msg.v1.signer)           = "address";
   string   address                        = 1;
   repeated cosmos.base.v1beta1.Coin coins = 2
       [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"];
@@ -51,7 +51,7 @@ message MsgConvertVouchers {
 // MsgTransferTokens represents a message to transfer cronos evm coins through
 // ibc.
 message MsgTransferTokens {
-  option (cosmos.msg.v1.signer) = "from";
+  option (cosmos.msg.v1.signer)           = "from";
   string   from                           = 1;
   string   to                             = 2;
   repeated cosmos.base.v1beta1.Coin coins = 3
@@ -67,9 +67,9 @@ message MsgTransferTokensResponse {}
 // MsgUpdateTokenMapping defines the request type
 message MsgUpdateTokenMapping {
   option (cosmos.msg.v1.signer) = "sender";
-  string sender   = 1;
-  string denom    = 2;
-  string contract = 3;
+  string sender                 = 1;
+  string denom                  = 2;
+  string contract               = 3;
   // only when updating cronos (source) tokens
   string symbol  = 4;
   uint32 decimal = 5;
@@ -81,8 +81,8 @@ message MsgUpdateTokenMappingResponse {}
 // MsgTurnBridge defines the request type
 message MsgTurnBridge {
   option (cosmos.msg.v1.signer) = "sender";
-  string sender = 1;
-  bool   enable = 2;
+  string sender                 = 1;
+  bool   enable                 = 2;
 }
 
 // MsgTurnBridgeResponse defines the response type
@@ -105,9 +105,9 @@ message MsgUpdateParamsResponse {}
 // permissions.
 message MsgUpdatePermissions {
   option (cosmos.msg.v1.signer) = "from";
-  string from        = 1;
-  string address     = 2;
-  uint64 permissions = 3;
+  string from                   = 1;
+  string address                = 2;
+  uint64 permissions            = 3;
 }
 
 // MsgUpdatePermissionsResponse defines the response type.
@@ -116,10 +116,9 @@ message MsgUpdatePermissionsResponse {}
 // MsgStoreBlockList
 message MsgStoreBlockList {
   option (cosmos.msg.v1.signer) = "from";
-  string from        = 1;
-  bytes blob = 2;
+  string from                   = 1;
+  bytes  blob                   = 2;
 }
 
 // MsgStoreBlockListResponse
-message MsgStoreBlockListResponse {
-}
+message MsgStoreBlockListResponse {}

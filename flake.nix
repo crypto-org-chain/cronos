@@ -83,7 +83,7 @@
         gomod2nix.overlays.default
         (import ./testground/benchmark/overlay.nix)
         (final: super: {
-          go = super.go_1_22;
+          go = super.go_1_23;
           test-env = final.callPackage ./nix/testenv.nix { };
           cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
             inherit rev;

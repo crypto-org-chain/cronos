@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 import subprocess
 from contextlib import contextmanager
 from enum import Enum, IntEnum
@@ -54,6 +55,7 @@ def call_hermes_cmd(
     connection_only,
     incentivized,
     version,
+    is_ibc_transfer=False,
 ):
     if connection_only:
         subprocess.check_call(
@@ -91,9 +93,9 @@ def call_hermes_cmd(
             + (
                 [
                     "--channel-version",
-                    json.dumps(version),
+                    str(version) if is_ibc_transfer else json.dumps(version),
                 ]
-                if incentivized
+                if incentivized or is_ibc_transfer
                 else []
             )
         )
@@ -149,22 +151,35 @@ def prepare_network(
     grantee=None,
     need_relayer_caller=False,
     relayer=cluster.Relayer.HERMES.value,
+    is_ibc_transfer=False,
 ):
     print("incentivized", incentivized)
     print("is_relay", is_relay)
     print("connection_only", connection_only)
     print("relayer", relayer)
     print("need_relayer_caller", need_relayer_caller)
+    print("is_ibc_transfer", is_ibc_transfer)
     is_hermes = relayer == cluster.Relayer.HERMES.value
     hermes = None
-    file = f"configs/{file}.jsonnet"
+
+    # We ignore the ibc_rly_evm settings if it is hermes relayer
+    config_file = file
+    if is_hermes:
+        if file == "ibc_rly_evm":
+            config_file = "ibc_rly"
+        if file == "ibc_timeout":
+            config_file = "ibc_timeout_hermes"
+
+    file_path = f"configs/{config_file}.jsonnet"
+
     with contextmanager(setup_custom_cronos)(
         tmp_path,
         26700,
-        Path(__file__).parent / file,
+        Path(__file__).parent / file_path,
         relayer=relayer,
     ) as cronos:
         cli = cronos.cosmos_cli()
+        path = cronos.base_dir.parent / "relayer"
         if grantee:
             granter_addr = cli.address("signer1")
             grantee_addr = cli.address(grantee)
@@ -176,6 +191,20 @@ def prepare_network(
             grant_detail = cli.query_grant(granter_addr, grantee_addr)
             assert grant_detail["granter"] == granter_addr
             assert grant_detail["grantee"] == grantee_addr
+            if not is_hermes:
+                subprocess.run(
+                    [
+                        "rly",
+                        "keys",
+                        "restore",
+                        "cronos_777-1",
+                        granter_addr,
+                        os.getenv("SIGNER1_MNEMONIC"),
+                        "--home",
+                        path,
+                    ],
+                    check=True,
+                )
 
         chainmain = Chainmain(cronos.base_dir.parent / "chainmain-1")
         # wait for grpc ready
@@ -183,9 +212,17 @@ def prepare_network(
         wait_for_port(ports.grpc_port(cronos.base_port(0)))  # cronos grpc
         wait_for_new_blocks(chainmain.cosmos_cli(), 1)
         wait_for_new_blocks(cli, 1)
+        connid = os.getenv("CONNECTION_ID", "connection-0")
 
-        version = {"fee_version": "ics29-1", "app_version": "ics20-1"}
-        path = cronos.base_dir.parent / "relayer"
+        channel_version = {
+            "version": "ics27-1",
+            "encoding": "proto3",
+            "tx_type": "sdk_multi_msg",
+            "controller_connection_id": connid,
+            "host_connection_id": connid,
+        }
+        version = "ics20-1" if is_ibc_transfer else json.dumps(channel_version)
+
         w3 = cronos.w3
         contract = None
         acc = None
@@ -208,20 +245,16 @@ def prepare_network(
                 connection_only,
                 incentivized,
                 version,
+                is_ibc_transfer,
             )
         else:
             call_rly_cmd(path, connection_only, incentivized, version)
-
-        if incentivized:
-            register_fee_payee(cronos, chainmain, contract, acc)
 
         port = None
         if is_relay:
             cronos.supervisorctl("start", "relayer-demo")
             if is_hermes:
                 port = hermes.port
-            else:
-                port = 5183
         yield IBCNetwork(cronos, chainmain, hermes, incentivized)
         if port:
             wait_for_port(port)
@@ -383,7 +416,7 @@ def get_balances(chain, addr):
 
 def ibc_multi_transfer(ibc):
     chains = [ibc.cronos.cosmos_cli(), ibc.chainmain.cosmos_cli()]
-    users = [f"user{i}" for i in range(1, 51)]
+    users = [f"user{i}" for i in range(1, 50)]
     addrs0 = [chains[0].address(user) for user in users]
     addrs1 = [chains[1].address(user) for user in users]
     denom0 = "basetcro"
@@ -423,7 +456,7 @@ def ibc_multi_transfer(ibc):
         else:
             return False
 
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
     assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
     for i, _ in enumerate(users):
         wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
@@ -528,7 +561,7 @@ def ibc_incentivized_transfer(ibc):
     assert user0_balances == expected, user0_balances
     path = f"transfer/{dst_channel}/{base_denom0}"
     denom_hash = ibc_denom(dst_channel, base_denom0)
-    denom_trace = chains[0].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
     assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
     user1_balances = get_balances(ibc.chainmain, user1)
     expected = [
@@ -832,7 +865,15 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
 
 def register_acc(cli, connid, ordering=ChannelOrder.ORDERED.value, signer="signer2"):
     print("register ica account")
-    v = json.dumps({"fee_version": "ics29-1", "app_version": ""})
+    v = json.dumps(
+        {
+            "version": "ics27-1",
+            "encoding": "proto3",
+            "tx_type": "sdk_multi_msg",
+            "controller_connection_id": connid,
+            "host_connection_id": connid,
+        }
+    )
     rsp = cli.ica_register_account(
         connid,
         from_=signer,

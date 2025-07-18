@@ -6,11 +6,11 @@
 version: v1
 name: buf.build/crypto-org-chain/cronos-thirdparty
 deps:
-  - buf.build/cosmos/cosmos-sdk:954f7b05f38440fc8250134b15adec47
-  - buf.build/cosmos/cosmos-proto:1935555c206d4afb9e94615dfd0fad31
+  - buf.build/cosmos/cosmos-sdk:05419252bcc241ea8023acf1ed4cadc5
+  - buf.build/cosmos/cosmos-proto:04467658e59e44bbb22fe568206e1f70
   - buf.build/cosmos/gogo-proto:5e5b9fdd01804356895f8f79a6f1ddc1
-  - buf.build/googleapis/googleapis:cc916c31859748a68fd229a3c8d7a2e8
-  - buf.build/cosmos/ics23:b1abd8678aab07165efd453c96796a179eb3131f
+  - buf.build/googleapis/googleapis:61b203b9a9164be9a834f58c37be6f62
+  - buf.build/cosmos/ics23:dc427cb4519143d8996361c045a29ad7
 breaking:
   use:
     - FILE

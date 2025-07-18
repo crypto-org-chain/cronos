@@ -60,8 +60,7 @@ interface IRelayerModule {
     event FungibleTokenPacket(
         address indexed receiver,
         address indexed sender,
-        string denom,
-        uint256 amount
+        Cosmos.Token[] tokens
     );
     event IbcTransfer(
         address indexed sender,
@@ -70,7 +69,7 @@ interface IRelayerModule {
         uint256 amount
     );
     event ChannelClosed();
-    event DenominationTrace(string denom);
+    // event Denomination(Cosmos.Denom denom); mmsqe
     // 29-fee
     event DistributeFee(
         address indexed receiver,

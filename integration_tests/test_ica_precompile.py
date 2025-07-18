@@ -55,7 +55,7 @@ def ibc(request, tmp_path_factory):
         name,
         incentivized=False,
         connection_only=True,
-        relayer=cluster.Relayer.RLY.value,
+        relayer=cluster.Relayer.HERMES.value,
         need_relayer_caller=True,
     )
 
@@ -227,6 +227,7 @@ def wait_for_packet_log(start, event, channel_id, seq, status):
     wait_for_fn("packet log", check_log)
 
 
+@pytest.mark.skip("skipping due to unsupported precompiled contract in hermes")
 @pytest.mark.parametrize("order", [Ordering.ORDERED.value, Ordering.UNORDERED.value])
 def test_sc_call(ibc, order):
     cli_host = ibc.chainmain.cosmos_cli()
