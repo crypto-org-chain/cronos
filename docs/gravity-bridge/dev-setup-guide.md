@@ -118,7 +118,7 @@ message DelegateKeysSignMsg {
 }
 ```
 
-Use your favorite protobuf library to encode the message, and use your favorite web3 library to do the messge signing,
+Use your favorite protobuf library to encode the message, and use your favorite web3 library to do the message signing,
 for example, this is how it could be done in python:
 
 ```python
