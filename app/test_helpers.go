@@ -16,7 +16,7 @@ import (
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	"github.com/evmos/ethermint/app"
+	"github.com/evmos/ethermint/evmd"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/errors"
@@ -70,7 +70,7 @@ var DefaultConsensusParams = &tmproto.ConsensusParams{
 func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	opts := simtestutil.AppOptionsMap{
-		flags.FlagHome:            app.DefaultNodeHome,
+		flags.FlagHome:            evmd.DefaultNodeHome,
 		server.FlagInvCheckPeriod: invCheckPeriod,
 	}
 	app := New(

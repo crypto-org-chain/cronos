@@ -62,10 +62,10 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	ethparams "github.com/ethereum/go-ethereum/params"
-	evmapp "github.com/evmos/ethermint/app"
-	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
+	evmd "github.com/evmos/ethermint/evmd"
+	evmante "github.com/evmos/ethermint/evmd/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -379,12 +379,14 @@ func New(
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
+		logger.Info("NewPriorityMempool is enabled")
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			SignerExtractor: evmd.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
 	} else {
+		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
@@ -1026,9 +1028,9 @@ func New(
 		}
 		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
-		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
+		app.SetTxExecutor(evmd.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
 	} else {
-		app.SetTxExecutor(evmapp.DefaultTxExecutor)
+		app.SetTxExecutor(evmd.DefaultTxExecutor)
 	}
 
 	return app
@@ -1083,6 +1085,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
+		UnorderedTx:       true,
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)

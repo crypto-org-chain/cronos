@@ -6,7 +6,7 @@ index 678ccc0a..ba64a7fe 100644
  		},
  		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
  		PendingTxListener: app.onPendingTx,
-+		UnsafeUnorderedTx: true,
++		UnorderedTx: true,
  	}
  
  	anteHandler, err := evmante.NewAnteHandler(options)
