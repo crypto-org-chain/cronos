@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
+	cronosmempool "github.com/crypto-org-chain/cronos/v2/mempool"
 	"io"
 	"io/fs"
 	"math"
@@ -111,7 +113,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	mempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	sigtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -380,8 +381,8 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled")
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
-			TxPriority:      mempool.NewDefaultTxPriority(),
+		mpool = cronosmempool.NewPriorityMempool(cronosmempool.PriorityNonceMempoolConfig[int64]{
+			TxPriority:      cronosmempool.NewDefaultTxPriority(),
 			SignerExtractor: evmd.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
@@ -1085,7 +1086,6 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
-		UnorderedTx:       true,
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)

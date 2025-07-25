@@ -46,6 +46,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
+require github.com/huandu/skiplist v1.2.1
+
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.116.0 // indirect
@@ -171,7 +173,6 @@ require (
 	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
 	github.com/holiman/bloomfilter/v2 v2.0.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
-	github.com/huandu/skiplist v1.2.1 // indirect
 	github.com/huin/goupnp v1.0.3 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
@@ -294,7 +295,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
 	// develop
-	github.com/evmos/ethermint => github.com/thomas-nguy/ethermint v0.4.2-0.20250718083428-9a50d76faef1
+	github.com/evmos/ethermint => github.com/thomas-nguy/ethermint v0.4.2-0.20250723053847-ed0ffe0b2039
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

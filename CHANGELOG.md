@@ -14,7 +14,6 @@
 * [#1826](https://github.com/crypto-org-chain/cronos/pull/1826) Update linter and tidy up code.
 * [#1838](https://github.com/crypto-org-chain/cronos/pull/1838) Priority nonce mempool support.
 
-
 *Jun 20, 2025*
 
 ## v1.4.8

@@ -5,11 +5,6 @@
   benchmark-testcase,
 }:
 let
-  patched-cronosd = cronos-matrix.cronosd.overrideAttrs (oldAttrs: {
-    patches = oldAttrs.patches or [ ] ++ [ ./testground-cronosd.patch ];
-  });
-in
-let
   tmpDir = runCommandLocal "tmp" { } ''
     mkdir -p $out/tmp/
   '';
