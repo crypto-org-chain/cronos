@@ -407,12 +407,14 @@ func New(
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
+		logger.Info("NewPriorityMempool is enabled with capacity ", maxTxs)
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
 	} else {
+		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
