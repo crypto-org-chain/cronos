@@ -689,8 +689,8 @@ github.com/VictoriaMetrics/fastcache v1.12.2 h1:N0y9ASrJ0F6h0QaC3o6uJb3NIZ9VKLjC
 github.com/VictoriaMetrics/fastcache v1.12.2/go.mod h1:AmC+Nzz1+3G2eCPapF6UcsnkThDcMsQicp4xDukwJYI=
 github.com/VividCortex/gohistogram v1.0.0 h1:6+hBz+qvs0JOrrNhhmR7lFxo5sINxBCGXrdtl/UvroE=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
-github.com/XinyuCRO/go-ethereum v1.10.24-0.20250521023618-159d931d189a h1:TGUo5LEAloj41k43blG2cT+0lJC6KzmFjDn2ZZe65Xs=
-github.com/XinyuCRO/go-ethereum v1.10.24-0.20250521023618-159d931d189a/go.mod h1:mf8YiHIb0GR4x4TipcvBUPxJLw1mFdmxzoDi11sDRoI=
+github.com/XinyuCRO/go-ethereum v1.10.24-0.20250731033020-e43cae873037 h1:+xFTEurEBQprh/P59iH/aF0WSp981g3XoYs82/lVGrc=
+github.com/XinyuCRO/go-ethereum v1.10.24-0.20250731033020-e43cae873037/go.mod h1:mf8YiHIb0GR4x4TipcvBUPxJLw1mFdmxzoDi11sDRoI=
 github.com/adlio/schema v1.3.6 h1:k1/zc2jNfeiZBA5aFTRy37jlBIuCkXCm0XmvpzCKI9I=
 github.com/adlio/schema v1.3.6/go.mod h1:qkxwLgPBd1FgLRHYVCmQT/rrBr3JH38J9LjmVzWNudg=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
@@ -912,8 +912,8 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20250731025643-44efdc840b1e h1:afH/OzD/RSq3syzuonJwODzePMTSgOdoepeLpv/gvxc=
-github.com/crypto-org-chain/ethermint v0.6.1-0.20250731025643-44efdc840b1e/go.mod h1:bOAbj3w4ExDZ2dUr7JllHrmpAkW+gB4QCkV+LFoXrA4=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250731102644-41c881d9837c h1:u1Zd1K0u1DfIAJnC5o1lb7W9mYeEJtZwFn/hlJDDtX4=
+github.com/crypto-org-chain/ethermint v0.6.1-0.20250731102644-41c881d9837c/go.mod h1:E/3Zebg3nLeeRd7vxOOP0w0jQaOwsOzZj2OXgkhomBc=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 h1:6KPEi8dWkDSBddQb4NAvEXmNnTXymF3yVeTaT4Hz1iU=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/danieljoos/wincred v1.2.1 h1:dl9cBrupW8+r5250DYkYxocLeZ1Y4vB1kxgtjxw8GQs=

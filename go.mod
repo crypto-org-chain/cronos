@@ -303,9 +303,9 @@ replace (
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	// github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
-	github.com/ethereum/go-ethereum => github.com/XinyuCRO/go-ethereum v1.10.24-0.20250521023618-159d931d189a
+	github.com/ethereum/go-ethereum => github.com/XinyuCRO/go-ethereum v1.10.24-0.20250731033020-e43cae873037
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250731025643-44efdc840b1e
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250731102644-41c881d9837c
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
