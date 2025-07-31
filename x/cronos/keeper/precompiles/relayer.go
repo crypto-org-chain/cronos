@@ -161,7 +161,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 			requiredGas = GasWhenReceiverChainIsSource
 		}
 	}
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
@@ -197,12 +197,11 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, errors.New("fail to unpack input arguments")
 	}
 	converter := cronosevents.RelayerConvertEvent
-
 	input := args[0].([]byte)
 	e := &Executor{
 		cdc:       bc.cdc,
 		stateDB:   stateDB,
-		caller:    contract.CallerAddress,
+		caller:    contract.Caller(),
 		contract:  precompileAddr,
 		input:     input,
 		converter: converter,

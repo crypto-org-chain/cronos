@@ -15,7 +15,7 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	evmante "github.com/evmos/ethermint/app/ante"
+	evmante "github.com/evmos/ethermint/evmd/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 

@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"math/big"
-
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -65,7 +63,8 @@ func newFuncAddLogToReceipt(receipt *ethtypes.Receipt) func(contractAddress comm
 
 		// Compute block bloom filter and set to the receipt
 		bloom := receipt.Bloom.Big()
-		bloom.Or(bloom, big.NewInt(0).SetBytes(ethtypes.LogsBloom([]*ethtypes.Log{newLog})))
+		logsBloom := ethtypes.CreateBloom(&ethtypes.Receipt{Logs: []*ethtypes.Log{newLog}})
+		bloom.Or(bloom, logsBloom.Big())
 		receipt.Bloom = ethtypes.BytesToBloom(bloom.Bytes())
 
 		receipt.Logs = append(receipt.Logs, newLog)

@@ -123,7 +123,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		if err := bc.checkBlockedAddr(addr); err != nil {
 			return nil, err
 		}
-		denom := EVMDenom(contract.CallerAddress)
+		denom := EVMDenom(contract.Caller())
 		amt := sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount))
 		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
 			if err := bc.bankKeeper.IsSendEnabledCoins(ctx, amt); err != nil {
@@ -179,7 +179,7 @@ func (bc *BankContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) (
 		if err := bc.checkBlockedAddr(to); err != nil {
 			return nil, err
 		}
-		denom := EVMDenom(contract.CallerAddress)
+		denom := EVMDenom(contract.Caller())
 		amt := sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount))
 		err = stateDB.ExecuteNativeAction(precompileAddr, nil, func(ctx sdk.Context) error {
 			if err := bc.bankKeeper.IsSendEnabledCoins(ctx, amt); err != nil {

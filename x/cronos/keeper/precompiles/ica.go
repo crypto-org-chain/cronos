@@ -123,7 +123,7 @@ func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([
 	}
 	stateDB := evm.StateDB.(ExtStateDB)
 	precompileAddr := ic.Address()
-	caller := contract.CallerAddress
+	caller := contract.Caller()
 	owner := sdk.AccAddress(caller.Bytes()).String()
 	converter := cronosevents.IcaConvertEvent
 	var execErr error
