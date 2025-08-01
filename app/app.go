@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"github.com/evmos/ethermint/evmd"
 	"io"
 	"io/fs"
 	"math"
@@ -379,12 +380,14 @@ func New(
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
+		logger.Info("NewPriorityMempool is enabled")
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			SignerExtractor: evmd.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
 	} else {
+		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
@@ -1027,9 +1030,9 @@ func New(
 		}
 		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
-		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
+		app.SetTxExecutor(evmd.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
 	} else {
-		app.SetTxExecutor(evmapp.DefaultTxExecutor)
+		app.SetTxExecutor(evmd.DefaultTxExecutor)
 	}
 
 	return app
