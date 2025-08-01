@@ -70,7 +70,7 @@ var DefaultConsensusParams = &tmproto.ConsensusParams{
 func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	db := dbm.NewMemDB()
 	opts := simtestutil.AppOptionsMap{
-		flags.FlagHome:            app.DefaultNodeHome,
+		flags.FlagHome:            evmd.DefaultNodeHome,
 		server.FlagInvCheckPeriod: invCheckPeriod,
 	}
 	app := New(
