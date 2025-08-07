@@ -1038,10 +1038,20 @@ def test_tx_replacement(cronos):
     nonce = get_account_nonce(w3)
     txhash = replace_transaction(
         w3,
-        {"to": ADDRS["community"], "value": 1, "gasPrice": gas_price, "nonce": nonce,
-         "from": ADDRS["validator"]},
-        {"to": ADDRS["community"], "value": 5, "gasPrice": gas_price*2, "nonce": nonce,
-         "from": ADDRS["validator"]},
+        {
+            "to": ADDRS["community"],
+            "value": 1,
+            "gasPrice": gas_price,
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
+        {
+            "to": ADDRS["community"],
+            "value": 5,
+            "gasPrice": gas_price * 2,
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
         KEYS["validator"],
     )["transactionHash"]
     tx1 = w3.eth.get_transaction(txhash)
