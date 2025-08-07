@@ -1036,6 +1036,7 @@ def test_tx_replacement(cronos):
     w3 = cronos.w3
     gas_price = w3.eth.gas_price
     nonce = get_account_nonce(w3)
+    initial_balance = w3.eth.get_balance(ADDRS["community"])
     txhash = replace_transaction(
         w3,
         {
@@ -1056,3 +1057,4 @@ def test_tx_replacement(cronos):
     )["transactionHash"]
     tx1 = w3.eth.get_transaction(txhash)
     assert tx1["transactionIndex"] == 0
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
