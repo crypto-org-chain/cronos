@@ -25,10 +25,12 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
+    get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
+    replace_transaction,
     send_transaction,
     send_txs,
     sign_transaction,
@@ -37,7 +39,7 @@ from .utils import (
     w3_wait_for_block,
     wait_for_block,
     wait_for_new_blocks,
-    wait_for_port, replace_transaction, get_account_nonce,
+    wait_for_port,
 )
 
 
@@ -1036,10 +1038,11 @@ def test_tx_replacement(cronos):
     nonce = get_account_nonce(w3)
     txhash = replace_transaction(
         w3,
-        {"to": ADDRS["community"], "value": 1, "gasPrice": gas_price, "nonce": nonce, "from": ADDRS["validator"]},
-        {"to": ADDRS["community"], "value": 5, "gasPrice": gas_price*2, "nonce": nonce, "from": ADDRS["validator"]},
+        {"to": ADDRS["community"], "value": 1, "gasPrice": gas_price, "nonce": nonce,
+         "from": ADDRS["validator"]},
+        {"to": ADDRS["community"], "value": 5, "gasPrice": gas_price*2, "nonce": nonce,
+         "from": ADDRS["validator"]},
         KEYS["validator"],
     )["transactionHash"]
     tx1 = w3.eth.get_transaction(txhash)
     assert tx1["transactionIndex"] == 0
-
