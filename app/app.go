@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"github.com/evmos/ethermint/ante/cache"
 	"io"
 	"io/fs"
 	"math"
@@ -1086,6 +1087,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
+		AnteCache:         cache.NewAnteCache(),
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)

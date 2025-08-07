@@ -37,7 +37,7 @@ from .utils import (
     w3_wait_for_block,
     wait_for_block,
     wait_for_new_blocks,
-    wait_for_port,
+    wait_for_port, replace_transaction, get_account_nonce,
 )
 
 
@@ -1028,3 +1028,18 @@ def test_textual(cronos):
         sign_mode="textual",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
+
+
+def test_tx_replacement(cronos):
+    w3 = cronos.w3
+    gas_price = w3.eth.gas_price
+    nonce = get_account_nonce(w3)
+    txhash = replace_transaction(
+        w3,
+        {"to": ADDRS["community"], "value": 1, "gasPrice": gas_price, "nonce": nonce, "from": ADDRS["validator"]},
+        {"to": ADDRS["community"], "value": 5, "gasPrice": gas_price*2, "nonce": nonce, "from": ADDRS["validator"]},
+        KEYS["validator"],
+    )["transactionHash"]
+    tx1 = w3.eth.get_transaction(txhash)
+    assert tx1["transactionIndex"] == 0
+

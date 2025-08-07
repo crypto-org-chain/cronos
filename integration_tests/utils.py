@@ -451,10 +451,22 @@ def sign_transaction(w3, tx, key=KEYS["validator"]):
     return acct.sign_transaction(tx)
 
 
+def get_account_nonce(w3, key=KEYS["validator"]):
+    acct = Account.from_key(key)
+    return w3.eth.get_transaction_count(acct.address)
+
+
 def send_transaction(w3, tx, key=KEYS["validator"]):
     signed = sign_transaction(w3, tx, key)
     txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
     return w3.eth.wait_for_transaction_receipt(txhash)
+
+
+def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
+    signed = sign_transaction(w3, old_tx, key)
+    old_tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    new_txhash = w3.eth.replace_transaction(old_tx_hash, new_tx)
+    return w3.eth.wait_for_transaction_receipt(new_txhash)
 
 
 def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
