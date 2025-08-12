@@ -314,9 +314,9 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.4.2-0.20250808021800-3c8476dee692"
-    hash = "sha256-BTpXueGmykxZNIjR947fB/eHtplfZkLaCrdWOGQTRVw="
-    replaced = "github.com/thomas-nguy/ethermint"
+    version = "v0.6.1-0.20250812061456-67a47478d691"
+    hash = "sha256-oaDYuJXlt6N8YSH8Eciv/lQCJVMIO4BDREhrkGWqcDc="
+    replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
     hash = "sha256-QsKMy3MsvjbYNcA9jP8w6c3wpmWDZ0079bybAEzmXR0="
@@ -686,8 +686,8 @@ schema = 3
     version = "v0.3.12"
     hash = "sha256-91VBZNb3L2TZkEETF1AE4wnraLoGxKeofUbC5ZiWVHk="
   [mod."github.com/tklauser/numcpus"]
-    version = "v0.4.0"
-    hash = "sha256-ndE82nOb3agubhEV7aRzEqqTlN4DPbKFHEm2+XZLn8k="
+    version = "v0.6.1"
+    hash = "sha256-8eFcw4YI0w6+GPhU5xMMQjiio94q/O5PpNO3QsvXve0="
   [mod."github.com/twitchyliquid64/golang-asm"]
     version = "v0.15.1"
     hash = "sha256-HLk6oUe7EoITrNvP0y8D6BtIgIcmDZYtb/xl/dufIoY="

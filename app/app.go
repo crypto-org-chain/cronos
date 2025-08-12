@@ -65,7 +65,7 @@ import (
 	"github.com/evmos/ethermint/ante/cache"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
-	"github.com/evmos/ethermint/evmd"
+	evmapp "github.com/evmos/ethermint/evmd"
 	evmante "github.com/evmos/ethermint/evmd/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
@@ -112,7 +112,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/types/mempool"
+	mempool "github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	sigtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -383,7 +383,7 @@ func New(
 		logger.Info("NewPriorityMempool is enabled")
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: evmd.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
 	} else {
@@ -1031,9 +1031,9 @@ func New(
 		}
 		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
-		app.SetTxExecutor(evmd.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
+		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
 	} else {
-		app.SetTxExecutor(evmd.DefaultTxExecutor)
+		app.SetTxExecutor(evmapp.DefaultTxExecutor)
 	}
 
 	return app
