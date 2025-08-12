@@ -73,7 +73,9 @@ func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error
 			total += 1
 		}
 	}
-	panic(fmt.Errorf("debug YSG %s total: %d\n", bankStoreKey, total))
+	if total > 10000 {
+		panic(fmt.Errorf("debug YSG %s total: %d\n", bankStoreKey, total))
+	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 
