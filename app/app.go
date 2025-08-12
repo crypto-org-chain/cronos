@@ -62,6 +62,7 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	ethparams "github.com/ethereum/go-ethereum/params"
+	"github.com/evmos/ethermint/ante/cache"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
 	evmapp "github.com/evmos/ethermint/evmd"
@@ -379,12 +380,14 @@ func New(
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
+		logger.Info("NewPriorityMempool is enabled")
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
 	} else {
+		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
@@ -962,6 +965,7 @@ func New(
 	app.SetEndBlocker(app.EndBlocker)
 	if err := app.setAnteHandler(txConfig,
 		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
+		cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)),
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
@@ -1036,7 +1040,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, mempoolMaxTxs int, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1084,6 +1088,7 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, bl
 		},
 		ExtraDecorators:   []sdk.AnteDecorator{blockAddressDecorator},
 		PendingTxListener: app.onPendingTx,
+		AnteCache:         cache.NewAnteCache(mempoolMaxTxs),
 	}
 
 	anteHandler, err := evmante.NewAnteHandler(options)
