@@ -1,6 +1,6 @@
 module github.com/crypto-org-chain/cronos/v2
 
-go 1.23.10
+go 1.23.12
 
 require (
 	cosmossdk.io/api v0.9.2
@@ -302,10 +302,10 @@ replace (
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
-	// github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
-	github.com/ethereum/go-ethereum => github.com/XinyuCRO/go-ethereum v1.10.24-0.20250731033020-e43cae873037
+	// release/v1.15
+	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250812022812-0af6c9899f11
 	// develop
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250731102644-41c881d9837c
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.6.1-0.20250812033036-79e177241f87
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

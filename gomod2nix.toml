@@ -307,15 +307,15 @@ schema = 3
     version = "v2.1.0"
     hash = "sha256-ZHAbUWu8EfYyFMjFPKfiqFRMnG7VrPNkGFCpYzs2Euo="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.24-0.20250731033020-e43cae873037"
-    hash = "sha256-MYM3JfVpg4ZU3DXYWv9+oFHEAR9d94qj8sSkgzUXHaQ="
-    replaced = "github.com/XinyuCRO/go-ethereum"
+    version = "v1.10.20-0.20250812022812-0af6c9899f11"
+    hash = "sha256-lhWHBFR62qcItksCkDNl+Io0OOvkKS8t91Zm1fU6CMg="
+    replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/ethereum/go-verkle"]
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20250731102644-41c881d9837c"
-    hash = "sha256-4E7Ru4+1nV0NRn6rzOTgGWo6dTEo4K7EVG47VBLPkQ8="
+    version = "v0.6.1-0.20250812033036-79e177241f87"
+    hash = "sha256-9qik8unxBcJ7u71770JL+zNbMGdQSCnUsJUXLiX+jpA="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
