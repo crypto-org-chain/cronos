@@ -822,9 +822,9 @@ def test_failed_transfer_tx(cronos):
             assert receipt.gasUsed == result["gas"]
         else:
             assert rsp["result"] == {
-                "failed": False,
+                "failed": True,
                 "gas": 21000,
-                "returnValue": "",
+                "returnValue": "0x",
                 "structLogs": [],
             }
 

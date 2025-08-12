@@ -11,11 +11,11 @@ import sources.nixpkgs {
       dapptools-master = sources.dapptools-master;
     })
     (_: pkgs: {
-      go = pkgs.go_1_22;
+      go = pkgs.go_1_23;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo122Module;
+        buildGoModule = pkgs.buildGo123Module;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };

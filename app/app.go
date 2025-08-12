@@ -62,10 +62,10 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 	ethparams "github.com/ethereum/go-ethereum/params"
-	evmapp "github.com/evmos/ethermint/app"
-	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
+	evmapp "github.com/evmos/ethermint/evmd"
+	evmante "github.com/evmos/ethermint/evmd/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
@@ -637,6 +637,7 @@ func New(
 				return cronosprecompiles.NewIcaContract(ctx, app.ICAControllerKeeper, &app.CronosKeeper, appCodec, gasConfig)
 			},
 		},
+		cast.ToUint64(appOpts.Get(server.FlagQueryGasLimit)),
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
