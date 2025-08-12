@@ -1058,3 +1058,19 @@ def test_tx_replacement(cronos):
     tx1 = w3.eth.get_transaction(txhash)
     assert tx1["transactionIndex"] == 0
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+
+    # check that already accepted transaction cannot be replaced
+    txhash_noreplacemenet = send_transaction(
+        w3,
+        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
+        KEYS["validator"],
+    )["transactionHash"]
+    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
+    assert tx2["transactionIndex"] == 0
+
+    with pytest.raises(ValueError) as exc:
+        w3.eth.replace_transaction(
+            txhash_noreplacemenet,
+            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+        )
+    assert "has already been mined" in str(exc)
