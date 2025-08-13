@@ -2,8 +2,6 @@ package versiondb
 
 import (
 	"context"
-	"fmt"
-
 	abci "github.com/cometbft/cometbft/abci/types"
 
 	"cosmossdk.io/store/types"
@@ -30,13 +28,5 @@ func (fss *StreamingService) ListenFinalizeBlock(ctx context.Context, req abci.R
 }
 
 func (fss *StreamingService) ListenCommit(ctx context.Context, res abci.ResponseCommit, changeSet []*types.StoreKVPair) error {
-	accStoreKey := "acc"
-	total := 0
-	for _, kv := range changeSet {
-		if kv.StoreKey == accStoreKey {
-			total += 1
-		}
-	}
-	panic(fmt.Errorf("%s total: %d\n", accStoreKey, total))
 	return fss.versionStore.PutAtVersion(fss.currentBlockNumber, changeSet)
 }

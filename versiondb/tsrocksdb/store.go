@@ -66,16 +66,6 @@ func (s Store) SetLatestVersion(version int64) error {
 
 // PutAtVersion implements VersionStore interface
 func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error {
-	bankStoreKey := "bank"
-	total := 0
-	for _, kv := range changeSet {
-		if kv.StoreKey == bankStoreKey {
-			total += 1
-		}
-	}
-	if total > 10000 {
-		panic(fmt.Errorf("debug YSG %s total: %d\n", bankStoreKey, total))
-	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 

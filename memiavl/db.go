@@ -741,7 +741,7 @@ func (db *DB) rewriteSnapshotBackground() error {
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 	db.snapshotRewriteCancel = cancel
-
+	panic(fmt.Errorf("YSG debug rewriteSnapshotBackground"))
 	cloned := db.copy(0)
 	wal := db.wal
 	go func() {
