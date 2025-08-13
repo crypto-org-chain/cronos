@@ -704,6 +704,7 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height
 func (db *DB) rewriteIfApplicable(height int64) {
+	return
 	if height%int64(db.snapshotInterval) != 0 {
 		return
 	}
