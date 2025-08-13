@@ -739,13 +739,13 @@ func (db *DB) rewriteSnapshotBackground() error {
 
 	stack := debug.Stack()
 
+	cloned := db.copy(0)
+	cloned.logger.Info("YSG debug stack %s", string(stack))
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 	db.snapshotRewriteCancel = cancel
-	cloned := db.copy(0)
-	cloned.logger.Info("YSG debug stack %s", string(stack))
 	wal := db.wal
 	go func() {
 		defer close(ch)
