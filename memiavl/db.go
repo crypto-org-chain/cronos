@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -737,15 +736,14 @@ func (db *DB) rewriteSnapshotBackground() error {
 		return errors.New("there's another ongoing snapshot rewriting process")
 	}
 
-	stack := debug.Stack()
-
-	cloned := db.copy(0)
-	cloned.logger.Info("YSG debug stack %s", string(stack))
 	ctx, cancel := context.WithCancel(context.Background())
 
+	panic(fmt.Errorf("YSG debug rewriteSnapshotBackground %s", db.dir))
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 	db.snapshotRewriteCancel = cancel
+
+	cloned := db.copy(0)
 	wal := db.wal
 	go func() {
 		defer close(ch)
