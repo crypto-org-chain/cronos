@@ -1,4 +1,4 @@
-// Package extsort implements external sorting algorithm, it has several differnet design choices compared with alternatives like https://github.com/lanrat/extsort:
+// Package extsort implements external sorting algorithm, it has several different design choices compared with alternatives like https://github.com/lanrat/extsort:
 //   - apply efficient compressions(delta encoding + snappy) to the chunk files to reduce IO cost,
 //     since the items are sorted, delta encoding should be effective to it, and snappy is pretty efficient.
 //   - chunks are stored in separate temporary files, so the chunk sorting and saving can run in parallel (eats more ram though).
@@ -25,7 +25,7 @@ type Options struct {
 	DeltaEncoding bool
 	// if apply snappy compression to the items in sorted chunk
 	SnappyCompression bool
-	// Maxiumum uncompressed size of the sorted chunk
+	// Maximum uncompressed size of the sorted chunk
 	MaxChunkSize int64
 	// function that compares two items
 	LesserFunc LesserFunc
