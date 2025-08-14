@@ -189,7 +189,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				// Consensus fields: These fields are defined by the Yellow Paper
 				"status":            status,
 				"cumulativeGasUsed": hexutil.Uint64(cumulativeGasUsed + msgCumulativeGasUsed),
-				"logsBloom":         ethtypes.BytesToBloom(ethtypes.LogsBloom(logs)),
+				"logsBloom":         ethtypes.CreateBloom(&ethtypes.Receipt{Logs: logs}),
 				"logs":              logs,
 
 				// Implementation fields: These fields are added by geth when processing a transaction.
@@ -322,7 +322,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 			// Consensus fields: These fields are defined by the Yellow Paper
 			"status":            status,
 			"cumulativeGasUsed": hexutil.Uint64(cumulativeGasUsed),
-			"logsBloom":         ethtypes.BytesToBloom(ethtypes.LogsBloom(logs)),
+			"logsBloom":         ethtypes.CreateBloom(&ethtypes.Receipt{Logs: logs}),
 			"logs":              logs,
 
 			// Implementation fields: These fields are added by geth when processing a transaction.
@@ -360,7 +360,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 		idx := len(receipts) - 1
 		receipts[idx]["status"] = hexutil.Uint(ethtypes.ReceiptStatusFailed)
 		receipts[idx]["logs"] = []*ethtypes.Log{}
-		receipts[idx]["logsBloom"] = ethtypes.BytesToBloom(ethtypes.LogsBloom(nil))
+		receipts[idx]["logsBloom"] = ethtypes.CreateBloom(&ethtypes.Receipt{Logs: []*ethtypes.Log{}})
 		receipts[idx]["contractAddress"] = nil
 		// the fee is deducted by the gas limit, so we patch the gasUsed to gasLimit
 		refundedGas := msgs[idx].GetGas() - uint64(receipts[idx]["gasUsed"].(hexutil.Uint64))

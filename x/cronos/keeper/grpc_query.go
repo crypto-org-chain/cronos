@@ -69,7 +69,7 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	blockHeight := big.NewInt(req.BlockNumber)
 	homestead := ethCfg.IsHomestead(blockHeight)
 	istanbul := ethCfg.IsIstanbul(blockHeight)
-	shanghai := ethCfg.IsShanghai(uint64(req.BlockTime.Unix()))
+	shanghai := ethCfg.IsShanghai(blockHeight, uint64(req.BlockTime.Unix()))
 	evmDenom := params.EvmDenom
 	baseFee := k.evmKeeper.GetBaseFee(ctx, ethCfg)
 
