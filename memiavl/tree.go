@@ -14,7 +14,12 @@ import (
 )
 
 var treeCounter atomic.Int32
-var logger = log.NewNopLogger()
+
+var logger log.Logger
+
+func init() {
+	logger = log.NewNopLogger()
+}
 
 var emptyHash = sha256.New().Sum(nil)
 

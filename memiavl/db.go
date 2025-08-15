@@ -315,7 +315,7 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 // which will be persisted to the WAL in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 
-	db.logger.Info("YSG Debug", "dbCounter", dbCounter.Add(1), "len", len(upgrades))
+	logger.Info("YSG Debug", "dbCounter", dbCounter.Add(1), "len", len(upgrades))
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
