@@ -9,9 +9,12 @@ import (
 	"sync/atomic"
 
 	"github.com/cosmos/iavl/cache"
+
+	"cosmossdk.io/log"
 )
 
 var treeCounter atomic.Int32
+var logger = log.NewNopLogger()
 
 var emptyHash = sha256.New().Sum(nil)
 

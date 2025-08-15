@@ -72,7 +72,8 @@ func (s Store) SetLatestVersion(version int64) error {
 // PutAtVersion implements VersionStore interface
 func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error {
 	if version == UpgradeHeight {
-		panic("PutAtVersion")
+		fmt.Printf("PutAtVersion UpgradeHeight %d\n", len(changeSet))
+		panic("PutAtVersion UpgradeHeight")
 	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
