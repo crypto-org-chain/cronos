@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"math"
 
+	"sync/atomic"
+
 	"github.com/cosmos/iavl/cache"
 )
+
+var treeCounter atomic.Int32
 
 var emptyHash = sha256.New().Sum(nil)
 
@@ -136,7 +140,7 @@ func (t *Tree) ApplyChangeSet(changeSet ChangeSet) {
 			t.set(pair.Key, pair.Value)
 		}
 	}
-	panic("Tree ApplyChangeSet")
+	fmt.Printf("YSG treeCounter: %d\n", treeCounter.Add(1))
 }
 
 func (t *Tree) set(key, value []byte) {

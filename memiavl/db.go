@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alitto/pond"
@@ -24,6 +25,8 @@ const (
 )
 
 var errReadOnly = errors.New("db is read-only")
+
+var dbCounter atomic.Int32
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -311,6 +314,8 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 // ApplyUpgrades wraps MultiTree.ApplyUpgrades, it also append the upgrades in a pending log,
 // which will be persisted to the WAL in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
+
+	fmt.Printf("YSG dbCounter %d\n", dbCounter.Add(1))
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
