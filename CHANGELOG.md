@@ -5,7 +5,7 @@
 ### State Machine Breaking
 
 * [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
-* [#1731](https://github.com/crypto-org-chain/cronos/pull/1845) Remove active precompiles from VMContext
+* [#1845](https://github.com/crypto-org-chain/cronos/pull/1845) Remove active precompiles from VMContext
 
 
 ### Improvements
