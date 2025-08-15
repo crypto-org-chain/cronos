@@ -136,6 +136,7 @@ func (t *Tree) ApplyChangeSet(changeSet ChangeSet) {
 			t.set(pair.Key, pair.Value)
 		}
 	}
+	panic("Tree ApplyChangeSet")
 }
 
 func (t *Tree) set(key, value []byte) {
@@ -168,6 +169,7 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 	}
 
 	t.version++
+	panic(fmt.Errorf("tree version: %d, hash: %s", t.version, hash))
 	return hash, int64(t.version), nil
 }
 
