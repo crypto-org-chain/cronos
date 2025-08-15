@@ -19,6 +19,8 @@ const (
 	latestVersionKey = "s/latest"
 
 	ImportCommitBatchSize = 10000
+
+	UpgradeHeight = 24836000
 )
 
 var (
@@ -59,6 +61,9 @@ func NewStoreWithDB(db *grocksdb.DB, cfHandle *grocksdb.ColumnFamilyHandle) Stor
 }
 
 func (s Store) SetLatestVersion(version int64) error {
+	if version == UpgradeHeight {
+		panic("SetLatestVersion")
+	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 	return s.db.Put(defaultWriteOpts, []byte(latestVersionKey), ts[:])
@@ -66,6 +71,9 @@ func (s Store) SetLatestVersion(version int64) error {
 
 // PutAtVersion implements VersionStore interface
 func (s Store) PutAtVersion(version int64, changeSet []*types.StoreKVPair) error {
+	if version == UpgradeHeight {
+		panic("PutAtVersion")
+	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 
@@ -154,6 +162,9 @@ func (s Store) ReverseIteratorAtVersion(storeKey string, start, end []byte, vers
 
 // FeedChangeSet is used to migrate legacy change sets into versiondb
 func (s Store) FeedChangeSet(version int64, store string, changeSet *iavl.ChangeSet) error {
+	if version == UpgradeHeight {
+		panic("FeedChangeSet")
+	}
 	var ts [TimestampSize]byte
 	binary.LittleEndian.PutUint64(ts[:], uint64(version))
 
@@ -177,6 +188,9 @@ func (s Store) FeedChangeSet(version int64, store string, changeSet *iavl.Change
 
 // Import loads the initial version of the state
 func (s Store) Import(version int64, ch <-chan versiondb.ImportEntry) error {
+	if version == UpgradeHeight {
+		panic("Import")
+	}
 	batch := grocksdb.NewWriteBatch()
 	defer batch.Destroy()
 

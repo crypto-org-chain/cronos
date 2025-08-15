@@ -704,7 +704,6 @@ func (db *DB) reloadMultiTree(mtree *MultiTree) error {
 
 // rewriteIfApplicable execute the snapshot rewrite strategy according to current height
 func (db *DB) rewriteIfApplicable(height int64) {
-	return
 	if height%int64(db.snapshotInterval) != 0 {
 		return
 	}
@@ -739,7 +738,6 @@ func (db *DB) rewriteSnapshotBackground() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	panic(fmt.Errorf("YSG debug rewriteSnapshotBackground %s", db.dir))
 	ch := make(chan snapshotResult)
 	db.snapshotRewriteChan = ch
 	db.snapshotRewriteCancel = cancel
