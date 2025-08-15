@@ -140,7 +140,7 @@ func (t *Tree) ApplyChangeSet(changeSet ChangeSet) {
 			t.set(pair.Key, pair.Value)
 		}
 	}
-	fmt.Printf("YSG treeCounter: %d\n", treeCounter.Add(1))
+	logger.Info("YSG debug", "treeCounter", treeCounter.Add(1))
 }
 
 func (t *Tree) set(key, value []byte) {
@@ -173,7 +173,7 @@ func (t *Tree) SaveVersion(updateHash bool) ([]byte, int64, error) {
 	}
 
 	t.version++
-	panic(fmt.Errorf("tree version: %d, hash: %s", t.version, hash))
+	logger.Info("YSG debug", "treeVersion", t.version)
 	return hash, int64(t.version), nil
 }
 

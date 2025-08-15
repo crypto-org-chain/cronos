@@ -15,6 +15,8 @@ import (
 
 	"github.com/alitto/pond"
 	"github.com/tidwall/wal"
+
+	"cosmossdk.io/log"
 )
 
 const (
@@ -27,6 +29,8 @@ const (
 var errReadOnly = errors.New("db is read-only")
 
 var dbCounter atomic.Int32
+
+var logger = log.NewNopLogger()
 
 // DB implements DB-like functionalities on top of MultiTree:
 // - async snapshot rewriting
@@ -315,7 +319,7 @@ func (db *DB) SetInitialVersion(initialVersion int64) error {
 // which will be persisted to the WAL in next Commit call.
 func (db *DB) ApplyUpgrades(upgrades []*TreeNameUpgrade) error {
 
-	fmt.Printf("YSG dbCounter %d\n", dbCounter.Add(1))
+	logger.Info("YSG Debug", "dbCounter", dbCounter.Add(1))
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
