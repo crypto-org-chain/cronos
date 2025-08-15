@@ -314,8 +314,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20250815090753-0c0f827db994"
-    hash = "sha256-kdRYx+HUVgI2rqEz5ulI0Jj/VQ2sjwoXkjq2TsjmXWY="
+    version = "v0.6.1-0.20250815095024-2170dc3d1f70"
+    hash = "sha256-P575ewtcl726uJhxPzWhBQBNEiUCr4yGW+br8oegY8c="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
