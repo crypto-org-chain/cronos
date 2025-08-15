@@ -6,6 +6,7 @@
 
 * [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
 * [#1845](https://github.com/crypto-org-chain/cronos/pull/1845) Remove active precompiles from VMContext
+* [#1846](https://github.com/crypto-org-chain/cronos/pull/1846) Enforce app creator returning application implement AppWithPendingTxStream during compilation phase 
 
 
 ### Improvements
