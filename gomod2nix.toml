@@ -44,8 +44,8 @@ schema = 3
     version = "v1.0.2"
     hash = "sha256-ZgO21iLMf6JN740JQizNI0v1mogNUTc77CXrUVSvDcg="
   [mod."cosmossdk.io/log"]
-    version = "v1.5.1"
-    hash = "sha256-0k5Njvo59BHi923/+frZmPZnzc7ebXaMi0+MpNFLu0A="
+    version = "v1.6.1"
+    hash = "sha256-wz5TjyHP+24VL57msJLVepTqNChSE2WMW9Dt33AyPWo="
   [mod."cosmossdk.io/math"]
     version = "v1.5.3"
     hash = "sha256-8jBAGa0D9EYBzn9SxiJNZwj3ChFtX03oow8BEP7dIU4="
@@ -149,11 +149,11 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-F+EqvufC+KBslZV/vL8ph6MqDoVD5ic5rVaM27reDqo="
   [mod."github.com/bytedance/sonic"]
-    version = "v1.13.2"
-    hash = "sha256-IF2qmt4IxTwivMWHUJC8sg6d85/ORb2SWvJ54fvoAMI="
+    version = "v1.14.0"
+    hash = "sha256-caxXESTGRVGIOMyhgZTVxjVTyoT7LkGdPjQh17H7S7Y="
   [mod."github.com/bytedance/sonic/loader"]
-    version = "v0.2.4"
-    hash = "sha256-rv9LnePpm4OspSVbfSoVbohXzhu+dxE1BH1gm3mTmTc="
+    version = "v0.3.0"
+    hash = "sha256-nYgehtTjd3INGcLqwKKzXEmjIbKYlpeDnYwewH/pskQ="
   [mod."github.com/cenkalti/backoff/v4"]
     version = "v4.3.0"
     hash = "sha256-wfVjNZsGG1WoNC5aL+kdcy6QXPgZo4THAevZ1787md8="
@@ -314,8 +314,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20250815070734-9e6b13895396"
-    hash = "sha256-SXP+pNlpGKMZoslrM8qFkdu082PpsES8fniPhF1ClYo="
+    version = "v0.6.1-0.20250818034006-1a6e81479555"
+    hash = "sha256-ypTfKXMAOOMHQ90jVCkpWNtFF+Vw8sfHMxqiqnO653s="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -749,8 +749,8 @@ schema = 3
     version = "v2.4.2"
     hash = "sha256-oC8RWdf1zbMYCtmR0ATy/kCkhIwPR9UqFZSMOKLVF/A="
   [mod."golang.org/x/arch"]
-    version = "v0.15.0"
-    hash = "sha256-EsCsTDmn+j3S8yzV4n2WJyDuYBDwIlj29M9OBxWNMGQ="
+    version = "v0.17.0"
+    hash = "sha256-avV63nZlJxuo3/LLBKQ2a96Nn1wflNtc1Dr7GSPbHAs="
   [mod."golang.org/x/crypto"]
     version = "v0.41.0"
     hash = "sha256-o5Di0lsFmYnXl7a5MBTqmN9vXMCRpE9ay71C1Ar8jEY="
