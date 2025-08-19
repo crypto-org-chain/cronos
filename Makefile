@@ -139,7 +139,7 @@ lint:
 	golangci-lint run --output.text.path stdout --path-prefix=./
 
 lint-fix:
-	golangci-lint run --fix --output.text.path stdout --issues-exit-code=0
+	golangci-lint run --fix --issues-exit-code=0
 
 lint-py:
 	flake8 --show-source --count --statistics \
