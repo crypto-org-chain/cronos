@@ -4,6 +4,8 @@
 
 ## UNRELEASED
 
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize endblocker removing unnecessary address conversion.
+
 ## v1.4.9
 
 ### Bug Fixes
