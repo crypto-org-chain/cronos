@@ -149,10 +149,13 @@ func (rs *Store) LastCommitID() types.CommitID {
 		if err != nil {
 			panic(fmt.Errorf("failed to get latest version: %w", err))
 		}
-		return types.CommitID{Version: v}
+		return types.CommitID{Version: v - 1}
 	}
 
-	return rs.lastCommitInfo.CommitID()
+	// does it have any side impact
+	commitID := rs.lastCommitInfo.CommitID()
+	commitID.Version -= 1
+	return commitID
 }
 
 // Implements interface Committer
