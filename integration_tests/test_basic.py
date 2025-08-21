@@ -25,11 +25,13 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
+    fund_acc,
     get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
+    remove_cancun_prague_params,
     replace_transaction,
     send_transaction,
     send_txs,
@@ -669,11 +671,38 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-def test_suicide(cluster):
+def test_suicide_pre_cancun(cronos):
     """
     test compliance of contract suicide
     - within the tx, after contract suicide, the code is still available.
     - after the tx, the code is not available.
+    """
+    remove_cancun_prague_params(cronos)
+    w3 = cronos.w3
+    destroyee = deploy_contract(
+        w3,
+        contract_path("Destroyee", "TestSuicide.sol"),
+    )
+    destroyer = deploy_contract(
+        w3,
+        contract_path("Destroyer", "TestSuicide.sol"),
+    )
+    assert len(w3.eth.get_code(destroyee.address)) > 0
+    assert len(w3.eth.get_code(destroyer.address)) > 0
+
+    tx = destroyer.functions.check_codesize_after_suicide(
+        destroyee.address
+    ).build_transaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    assert len(w3.eth.get_code(destroyee.address)) == 0
+
+
+def test_suicide_post_cancun(cluster):
+    """
+    after EIP-6780, SELFDESTRUCT will recover all funds to the target
+    but not delete the account, except when called in the same transaction as creation
     """
     w3 = cluster.w3
     destroyee = deploy_contract(
@@ -684,6 +713,11 @@ def test_suicide(cluster):
         w3,
         contract_path("Destroyer", "TestSuicide.sol"),
     )
+
+    balance_wanted = 1000000000000000000
+    fund_acc(w3, destroyee, balance_wanted)
+    assert w3.eth.get_balance(destroyee.address) == balance_wanted
+    assert w3.eth.get_balance(destroyer.address) == 0
 
     old_code_destroyee = w3.eth.get_code(destroyee.address)
     old_code_destroyer = w3.eth.get_code(destroyer.address)
@@ -696,9 +730,9 @@ def test_suicide(cluster):
     receipt = send_transaction(w3, tx)
     assert receipt.status == 1
 
-    # per EIP-6780, SELFDESTRUCT will recover all funds to the target
-    # but not delete the account, except when called in the same transaction as creation
     assert w3.eth.get_code(destroyee.address) == old_code_destroyee
+    assert w3.eth.get_balance(destroyee.address) == 0
+    assert w3.eth.get_balance(destroyer.address) == balance_wanted
 
 
 def test_batch_tx(cronos):

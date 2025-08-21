@@ -846,3 +846,34 @@ def assert_gov_params(cli, old_param):
     expedited_param = get_expedited_params(old_param)
     for key, value in expedited_param.items():
         assert param[key] == value, param
+
+
+def fund_acc(w3, acc, fund=3000000000000000000):
+    addr = acc.address
+    if w3.eth.get_balance(addr, "latest") == 0:
+        tx = {"to": addr, "value": fund, "gasPrice": w3.eth.gas_price}
+        send_transaction(w3, tx)
+        assert w3.eth.get_balance(addr, "latest") == fund
+
+
+def remove_cancun_prague_params(cronos):
+    cli = cronos.cosmos_cli()
+    p = cli.query_params("evm")
+    del p["chain_config"]["cancun_time"]
+    del p["chain_config"]["prague_time"]
+    authority = module_address("gov")
+    msg = "/ethermint.evm.v1.MsgUpdateParams"
+    submit_gov_proposal(
+        cronos,
+        msg,
+        messages=[
+            {
+                "@type": msg,
+                "authority": authority,
+                "params": p,
+            }
+        ],
+    )
+    p = cli.query_params("evm")
+    assert not p["chain_config"]["cancun_time"]
+    assert not p["chain_config"]["prague_time"]
