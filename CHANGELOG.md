@@ -17,7 +17,7 @@
 * [#1826](https://github.com/crypto-org-chain/cronos/pull/1826) Update linter and tidy up code.
 * [#1807](https://github.com/crypto-org-chain/cronos/pull/1807) Update go-ethereum version to [v1.15.11](https://github.com/ethereum/go-ethereum/releases/tag/v1.15.11).
 * [#1840](https://github.com/crypto-org-chain/cronos/pull/1840) Tx replacement support.
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
+* [#1851](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
 
 *Jun 20, 2025*
 
