@@ -857,11 +857,12 @@ def fund_acc(w3, acc, fund=3000000000000000000):
 
 
 def remove_cancun_prague_params(cronos):
+    from .cosmoscli import module_address as cosmos_module_address
     cli = cronos.cosmos_cli()
     p = cli.query_params("evm")
     del p["chain_config"]["cancun_time"]
     del p["chain_config"]["prague_time"]
-    authority = module_address("gov")
+    authority = cosmos_module_address("gov")
     msg = "/ethermint.evm.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
