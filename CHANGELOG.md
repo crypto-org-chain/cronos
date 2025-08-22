@@ -21,8 +21,7 @@
 
 ### Bug fixes
 
-* [#1853](https://github.com/crypto-org-chain/cronos/pull/1853) Fix version not found during pruning.
-
+* [#1858](https://github.com/crypto-org-chain/cronos/pull/1858) Fix version not found during pruning.
 
 *Jun 20, 2025*
 
