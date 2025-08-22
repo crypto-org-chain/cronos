@@ -24,6 +24,13 @@ jobs:
         with:
           go-version: '1.22.7'
       - uses: actions/checkout@v4
+      - name: cleanup old nix build users
+        if: runner.os == 'macOS'
+        run: |
+          set -eux
+          for u in $(dscl . -list /Users | grep _nixbld || true); do
+            sudo dscl . -delete /Users/$u || true
+          done
       - uses: cachix/install-nix-action@6a9a9e84a173d90b3ffb42c5ddaf9ea033fad011 # v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
