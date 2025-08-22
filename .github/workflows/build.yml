@@ -23,6 +23,7 @@ jobs:
       - uses: cachix/install-nix-action@6a9a9e84a173d90b3ffb42c5ddaf9ea033fad011 # v23
         with:
           nix_path: nixpkgs=channel:nixos-22.11
+          install_options: --no-daemon
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - id: changed-files
