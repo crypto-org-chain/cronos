@@ -187,8 +187,9 @@ schema = 3
     version = "v1.7.0"
     hash = "sha256-ZkEUImxBBo8Q/6c7tVR0rybpLbtlplzvgfLl5xvtV00="
   [mod."github.com/cosmos/iavl"]
-    version = "v1.2.4-0.20241218014611-3b0ad9922f9f"
-    hash = "sha256-WbNyKZmKBr2R1YaVfGVdSH9dX6AqFynOwd2dmpTX3ZI="
+    version = "v1.2.6"
+    hash = "sha256-9kLtVepU5b3m2Sne8pBQNvF9LxM374LEmvuLWeYBfFU="
+    replaced = "github.com/cosmos/iavl"
   [mod."github.com/cosmos/ibc-go/modules/apps/callbacks"]
     version = "v0.0.0-20250312150146-53eaba19375d"
     hash = "sha256-mL+g8WB+fLUlTKMnrdn8rTgw2gqXsHlky3/BTsyfek0="
