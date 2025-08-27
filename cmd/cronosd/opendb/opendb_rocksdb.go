@@ -61,7 +61,11 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	// Range properties
 	rangeSize := db.GetProperty("rocksdb.size-all-mem-tables")
 	numFiles := db.GetProperty("rocksdb.num-files-at-level0")
-	numKeysRange := db.GetApproximateSizes([]Range{{Start: prefix, End: endPrefix}})
+	numKeysRange, err := db.GetApproximateSizes([]grocksdb.Range{{Start: prefix, Limit: endPrefix}})
+	if err != nil {
+		fmt.Println("Error getting approximate sizes:", err)
+		return nil, err
+	}
 
 	fmt.Printf("ValidatorQueue range size: %s\n", rangeSize)
 	fmt.Printf("L0 files: %s\n", numFiles)
