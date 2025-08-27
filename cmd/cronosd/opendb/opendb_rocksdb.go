@@ -4,6 +4,7 @@
 package opendb
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -52,6 +53,17 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	  // --- 1️⃣ Print tombstone stats ---
+	  numDeletes := db.GetProperty("rocksdb.num-deletes")
+	  numDeletesMem := db.GetProperty("rocksdb.num-deletes-imm-mem-tables")
+	  numDeletesActive := db.GetProperty("rocksdb.num-deletes-active-mem-tables")
+  
+	  fmt.Println("Tombstone stats:")
+	  fmt.Println("Total deletes:", numDeletes)
+	  fmt.Println("Deletes in immutable memtables:", numDeletesMem)
+	  fmt.Println("Deletes in active memtable:", numDeletesActive)
+
 
 	ro := grocksdb.NewDefaultReadOptions()
 	wo := grocksdb.NewDefaultWriteOptions()
