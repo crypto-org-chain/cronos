@@ -95,6 +95,10 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
+	// THIS IS THE KEY: Set memtable flush trigger for scan operations
+	if hasMemtableOpScanFlushTrigger(opts) {
+		opts.SetMemtableOpScanFlushTrigger(100000) // Flush after 100K ops during scans
+	}
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
@@ -122,6 +126,36 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
+
+	// TOMBSTONE MANAGEMENT: Key configurations to handle tombstones efficiently
+	// Trigger compaction on deletes - helps with tombstone accumulation
+	opts.SetCompactionStyle(grocksdb.LeveledCompactionStyle) // Ensure leveled compaction
+
+	// Periodic compaction to clean up old tombstones (24 hours)
+	opts.SetPeriodicCompactionSeconds(60)
+
+	// // TTL compaction - removes stale data including tombstones (7 days)
+	// opts.SetTtl(604800)
+
+	// // Enable more aggressive compaction for delete-heavy workloads
+	// opts.SetLevel0FileNumCompactionTrigger(4) // Default is 4, but being explicit
+	// opts.SetLevel0SlowdownWritesTrigger(20)   // Slowdown writes when L0 gets too many files
+	// opts.SetLevel0StopWritesTrigger(36)       // Stop writes when L0 is overwhelmed
+
+	// // Compaction priority - optimize for tombstone cleanup
+	// opts.SetCompactionPri(grocksdb.MinOverlappingRatioPri)
+
+	// // More frequent memtable flushes to prevent tombstone buildup in memory
+	// opts.SetMaxWriteBufferNumber(6)        // Allow more memtables
+	// opts.SetMinWriteBufferNumberToMerge(2) // Merge fewer memtables before flush
+
+	// // Force more frequent compaction to clean tombstones sooner
+	// opts.SetMaxBytesForLevelBase(256 << 20) // 256MB for L1 (smaller = more frequent compaction)
+	// opts.SetMaxBytesForLevelMultiplier(4)   // 4x growth instead of 10x (more frequent compaction)
+
+	// // Target smaller file sizes for better compaction efficiency with tombstones
+	// opts.SetTargetFileSizeBase(32 << 20) // 32MB files instead of default 64MB
+	// opts.SetTargetFileSizeMultiplier(2)  // Already set, but ensuring tombstones get compacted faster
 
 	// heavier compression option at bottommost level,
 	// 110k dict bytes is default in zstd library,
