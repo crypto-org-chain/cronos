@@ -129,9 +129,9 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// TOMBSTONE MANAGEMENT: Key configurations to handle tombstones efficiently
 	// Trigger compaction on deletes - helps with tombstone accumulation
-	opts.SetCompactionStyle(grocksdb.LeveledCompactionStyle) // Ensure leveled compaction
+	opts.SetCompactionStyle(grocksdb.LevelCompactionStyle) // Ensure leveled compaction
 
-	// Periodic compaction to clean up old tombstones (24 hours)
+	// Periodic compaction to clean up old tombstones (1 min)
 	opts.SetPeriodicCompactionSeconds(60)
 
 	// // TTL compaction - removes stale data including tombstones (7 days)
