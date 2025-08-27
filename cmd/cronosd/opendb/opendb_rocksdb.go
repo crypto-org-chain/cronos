@@ -54,16 +54,18 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 		return nil, err
 	}
 
-	  // --- 1️⃣ Print tombstone stats ---
-	  numDeletes := db.GetProperty("rocksdb.num-deletes")
-	  numDeletesMem := db.GetProperty("rocksdb.num-deletes-imm-mem-tables")
-	  numDeletesActive := db.GetProperty("rocksdb.num-deletes-active-mem-tables")
-  
-	  fmt.Println("Tombstone stats:")
-	  fmt.Println("Total deletes:", numDeletes)
-	  fmt.Println("Deletes in immutable memtables:", numDeletesMem)
-	  fmt.Println("Deletes in active memtable:", numDeletesActive)
+	// Check properties for specific key range
+	prefix := []byte{0x43}            // 0x43
+	endPrefix := append(prefix, 0xFF) // 0x43FF...
 
+	// Range properties
+	rangeSize := db.GetProperty("rocksdb.size-all-mem-tables")
+	numFiles := db.GetProperty("rocksdb.num-files-at-level0")
+	numKeysRange := db.GetApproximateSizes([]Range{{Start: prefix, End: endPrefix}})
+
+	fmt.Printf("ValidatorQueue range size: %s\n", rangeSize)
+	fmt.Printf("L0 files: %s\n", numFiles)
+	fmt.Printf("Approximate keys in range: %v\n", numKeysRange)
 
 	ro := grocksdb.NewDefaultReadOptions()
 	wo := grocksdb.NewDefaultWriteOptions()
