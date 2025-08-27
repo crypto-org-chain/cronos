@@ -96,9 +96,9 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
 	// THIS IS THE KEY: Set memtable flush trigger for scan operations
-	if hasMemtableOpScanFlushTrigger(opts) {
-		opts.SetMemtableOpScanFlushTrigger(100000) // Flush after 100K ops during scans
-	}
+	// if hasMemtableOpScanFlushTrigger(opts) {
+	// 	opts.SetMemtableOpScanFlushTrigger(100000) // Flush after 100K ops during scans
+	// }
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
