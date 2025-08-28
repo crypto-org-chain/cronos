@@ -12,9 +12,14 @@ import (
 )
 
 func main() {
-	fmt.Println(http.ListenAndServe("localhost:6060", nil))
-	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
-		os.Exit(1)
-	}
+    go func() {
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            fmt.Println("pprof server error:", err)
+        }
+    }()
+
+    rootCmd := cmd.NewRootCmd()
+    if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
+        os.Exit(1)
+    }
 }
