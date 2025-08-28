@@ -109,6 +109,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 		// only enable dynamic-level-bytes on new db, don't override for existing db
 		opts.SetLevelCompactionDynamicLevelBytes(true)
 	}
+	opts.SetInfoLogLevel(0)
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
