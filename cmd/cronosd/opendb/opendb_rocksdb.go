@@ -1,5 +1,4 @@
-//go:build rocksdb
-// +build rocksdb
+
 
 package opendb
 
@@ -148,11 +147,13 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
 
+	opts.SetPrefixExtractor(grocksdb.NewFixedPrefixTransform(1)) 
+
 	// // TTL compaction - removes stale data including tombstones (7 days)
 	// opts.SetTtl(604800)
 
 	// // Enable more aggressive compaction for delete-heavy workloads
-	// opts.SetLevel0FileNumCompactionTrigger(4) // Default is 4, but being explicit
+
 	// opts.SetLevel0SlowdownWritesTrigger(20)   // Slowdown writes when L0 gets too many files
 	// opts.SetLevel0StopWritesTrigger(36)       // Stop writes when L0 is overwhelmed
 
