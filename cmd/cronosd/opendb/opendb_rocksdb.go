@@ -72,6 +72,8 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	fmt.Printf("Approximate keys in range: %v\n", numKeysRange)
 
 	ro := grocksdb.NewDefaultReadOptions()
+	ro.SetReadaheadSize(4 * 1024 * 1024) // 4MB read-ahead for iterators
+	ro.SetFillCache(true)
 	wo := grocksdb.NewDefaultWriteOptions()
 	woSync := grocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
@@ -145,13 +147,6 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
-
-	// TOMBSTONE MANAGEMENT: Key configurations to handle tombstones efficiently
-	// Trigger compaction on deletes - helps with tombstone accumulation
-	opts.SetCompactionStyle(grocksdb.LevelCompactionStyle) // Ensure leveled compaction
-
-	// Periodic compaction to clean up old tombstones (1 min)
-	opts.SetPeriodicCompactionSeconds(60)
 
 	// // TTL compaction - removes stale data including tombstones (7 days)
 	// opts.SetTtl(604800)
