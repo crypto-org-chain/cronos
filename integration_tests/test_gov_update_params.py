@@ -17,6 +17,8 @@ def test_evm_update_param(cronos, tmp_path):
     p = cli.query_params("evm")
     del p["chain_config"]["merge_netsplit_block"]
     del p["chain_config"]["shanghai_time"]
+    del p["chain_config"]["cancun_time"]
+    del p["chain_config"]["prague_time"]
     authority = module_address("gov")
     msg = "/ethermint.evm.v1.MsgUpdateParams"
     submit_gov_proposal(
@@ -33,6 +35,8 @@ def test_evm_update_param(cronos, tmp_path):
     p = cli.query_params("evm")
     assert not p["chain_config"]["merge_netsplit_block"]
     assert not p["chain_config"]["shanghai_time"]
+    assert not p["chain_config"]["cancun_time"]
+    assert not p["chain_config"]["prague_time"]
     invalid_msg = "invalid opcode: PUSH0"
     with pytest.raises(ValueError) as e_info:
         contract.caller.randomTokenId()
