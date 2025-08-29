@@ -41,7 +41,7 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
@@ -98,7 +98,7 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.only_changed == 'false'
         with:
           name: cronos
@@ -121,7 +121,7 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         with:
           name: cronos
           # github don't pass secrets for pull request from fork repos,

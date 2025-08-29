@@ -19,7 +19,7 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -64,7 +64,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.MAC_CODE_SIGN_CERT }}
           p12-password: ${{ secrets.MAC_CODE_SIGN_CERT_PASS }}
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
