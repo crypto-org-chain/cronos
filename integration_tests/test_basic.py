@@ -50,7 +50,7 @@ def test_ica_enabled(cronos, tmp_path):
     msg = "/cosmos.gov.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        msg,
+        tmp_path,
         messages=[
             {
                 "@type": msg,
@@ -70,7 +70,7 @@ def test_ica_enabled(cronos, tmp_path):
     msg = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        msg,
+        tmp_path,
         messages=[
             {
                 "@type": msg,
@@ -82,6 +82,7 @@ def test_ica_enabled(cronos, tmp_path):
         expedited=True,
     )
     p = cli.query_ica_params()
+    assert not p["controller_enabled"]
 
 
 def test_basic(cluster):
