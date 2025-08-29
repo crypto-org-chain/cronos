@@ -4,7 +4,6 @@
 package opendb
 
 import (
-	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
