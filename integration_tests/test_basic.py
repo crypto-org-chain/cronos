@@ -47,13 +47,12 @@ def test_ica_enabled(cronos, tmp_path):
     param1 = get_expedited_params(param0)
     # governance module account as signer
     authority = module_address("gov")
-    msg = "/cosmos.gov.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
         tmp_path,
         messages=[
             {
-                "@type": msg,
+                "@type": "/cosmos.gov.v1.MsgUpdateParams",
                 "authority": authority,
                 "params": {
                     **param0,
@@ -67,13 +66,13 @@ def test_ica_enabled(cronos, tmp_path):
     p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
-    msg = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
+    type = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
         tmp_path,
         messages=[
             {
-                "@type": msg,
+                "@type": type,
                 "signer": authority,
                 "params": p,
             }
