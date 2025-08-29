@@ -17,8 +17,7 @@ import (
 const (
 	MetadataFileName = "__metadata"
 
-	ChainMainHeight        = 10006000
-	ChainMainUpgradeHeight = 24836000
+	ChainMainV6UpgradeHeight = 24836000
 )
 
 type NamedTree struct {
@@ -306,7 +305,10 @@ func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
 		})
 	}
 
-	if version >= ChainMainHeight && version < ChainMainUpgradeHeight {
+	// Notice that this code is hacky and intended only for the chain-main upgrade to v6.
+	// If you find a commitId mismatch when the version < ChainMainV6UpgradeHeight,
+	// you need to add this code.
+	if version == ChainMainV6UpgradeHeight-1 {
 		var specialInfo StoreInfo
 		specialInfo.Name = "mem_capability"
 		infos = append(infos, specialInfo)
