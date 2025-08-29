@@ -54,6 +54,7 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	}
 
 	ro := grocksdb.NewDefaultReadOptions()
+	ro.SetReadaheadSize(4 * 1024 * 1024) // 4MB read-ahead for iterators
 	wo := grocksdb.NewDefaultWriteOptions()
 	woSync := grocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
@@ -122,6 +123,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
+
 
 	// heavier compression option at bottommost level,
 	// 110k dict bytes is default in zstd library,
