@@ -54,23 +54,6 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 		return nil, err
 	}
 
-	// Check properties for specific key range
-	prefix := []byte{0x43}            // 0x43
-	endPrefix := append(prefix, 0xFF) // 0x43FF...
-
-	// Range properties
-	rangeSize := db.GetProperty("rocksdb.size-all-mem-tables")
-	numFiles := db.GetProperty("rocksdb.num-files-at-level0")
-	numKeysRange, err := db.GetApproximateSizes([]grocksdb.Range{{Start: prefix, Limit: endPrefix}})
-	if err != nil {
-		fmt.Println("Error getting approximate sizes:", err)
-		return nil, err
-	}
-
-	fmt.Printf("ValidatorQueue range size: %s\n", rangeSize)
-	fmt.Printf("L0 files: %s\n", numFiles)
-	fmt.Printf("Approximate keys in range: %v\n", numKeysRange)
-
 	ro := grocksdb.NewDefaultReadOptions()
 	ro.SetReadaheadSize(4 * 1024 * 1024) // 4MB read-ahead for iterators
 	ro.SetFillCache(true)
@@ -111,15 +94,10 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 		// only enable dynamic-level-bytes on new db, don't override for existing db
 		opts.SetLevelCompactionDynamicLevelBytes(true)
 	}
-	opts.SetInfoLogLevel(0)
 	opts.SetCreateIfMissing(true)
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
-	// THIS IS THE KEY: Set memtable flush trigger for scan operations
-	// if hasMemtableOpScanFlushTrigger(opts) {
-	// 	opts.SetMemtableOpScanFlushTrigger(100000) // Flush after 100K ops during scans
-	// }
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
@@ -147,32 +125,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
-	
 
-	opts.SetPrefixExtractor(grocksdb.NewFixedPrefixTransform(9))
-
-	// // TTL compaction - removes stale data including tombstones (7 days)
-	// opts.SetTtl(604800)
-
-	// // Enable more aggressive compaction for delete-heavy workloads
-
-	// opts.SetLevel0SlowdownWritesTrigger(20)   // Slowdown writes when L0 gets too many files
-	// opts.SetLevel0StopWritesTrigger(36)       // Stop writes when L0 is overwhelmed
-
-	// // Compaction priority - optimize for tombstone cleanup
-	// opts.SetCompactionPri(grocksdb.MinOverlappingRatioPri)
-
-	// // More frequent memtable flushes to prevent tombstone buildup in memory
-	// opts.SetMaxWriteBufferNumber(6)        // Allow more memtables
-	// opts.SetMinWriteBufferNumberToMerge(2) // Merge fewer memtables before flush
-
-	// // Force more frequent compaction to clean tombstones sooner
-	// opts.SetMaxBytesForLevelBase(256 << 20) // 256MB for L1 (smaller = more frequent compaction)
-	// opts.SetMaxBytesForLevelMultiplier(4)   // 4x growth instead of 10x (more frequent compaction)
-
-	// // Target smaller file sizes for better compaction efficiency with tombstones
-	// opts.SetTargetFileSizeBase(32 << 20) // 32MB files instead of default 64MB
-	// opts.SetTargetFileSizeMultiplier(2)  // Already set, but ensuring tombstones get compacted faster
 
 	// heavier compression option at bottommost level,
 	// 110k dict bytes is default in zstd library,
