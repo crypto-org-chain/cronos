@@ -70,6 +70,13 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	fmt.Printf("ValidatorQueue range size: %s\n", rangeSize)
 	fmt.Printf("L0 files: %s\n", numFiles)
 	fmt.Printf("Approximate keys in range: %v\n", numKeysRange)
+	
+
+	fmt.Println("Compacting range...")
+
+	db.CompactRange(grocksdb.Range{Start: prefix, Limit: []byte{0x44} })
+
+	fmt.Println("Compaction finished")
 
 	ro := grocksdb.NewDefaultReadOptions()
 	ro.SetReadaheadSize(4 * 1024 * 1024) // 4MB read-ahead for iterators
@@ -148,7 +155,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
 
-	opts.SetPrefixExtractor(grocksdb.NewFixedPrefixTransform(1)) 
+	opts.SetPrefixExtractor(grocksdb.NewFixedPrefixTransform(9)) 
 
 	// // TTL compaction - removes stale data including tombstones (7 days)
 	// opts.SetTtl(604800)
