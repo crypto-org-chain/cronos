@@ -17,6 +17,7 @@ import (
 const (
 	MetadataFileName = "__metadata"
 
+	ChainMainHeight        = 10006000
 	ChainMainUpgradeHeight = 24836000
 )
 
@@ -305,7 +306,7 @@ func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
 		})
 	}
 
-	if version < ChainMainUpgradeHeight {
+	if version >= ChainMainHeight && version < ChainMainUpgradeHeight {
 		var specialInfo StoreInfo
 		specialInfo.Name = "mem_capability"
 		infos = append(infos, specialInfo)
