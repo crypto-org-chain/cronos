@@ -14,7 +14,11 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const MetadataFileName = "__metadata"
+const (
+	MetadataFileName = "__metadata"
+
+	ChainMainUpgradeHeight = 24836000
+)
 
 type NamedTree struct {
 	*Tree
@@ -299,6 +303,12 @@ func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
 				Hash:    entry.RootHash(),
 			},
 		})
+	}
+
+	if version < ChainMainUpgradeHeight {
+		var specialInfo StoreInfo
+		specialInfo.Name = "mem_capability"
+		infos = append(infos, specialInfo)
 	}
 
 	return &CommitInfo{
