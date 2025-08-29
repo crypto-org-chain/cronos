@@ -433,8 +433,8 @@ schema = 3
     version = "v0.5.2"
     hash = "sha256-N9GOKYo7tK6XQUFhvhImtL7PZW/mr4C4Manx/yPVvcQ="
   [mod."github.com/hashicorp/go-getter"]
-    version = "v1.7.8"
-    hash = "sha256-3ISgkCNTZSC8Z6HrmBN0FmYrG08awMO4HSAvRtaIlbw="
+    version = "v1.7.9"
+    hash = "sha256-wWMsgh5pxMdSDqUy2A0z6CT+kxmJwypieL0SLnPtBw8="
   [mod."github.com/hashicorp/go-hclog"]
     version = "v1.6.3"
     hash = "sha256-BK2s+SH1tQyUaXCH4kC0/jgqiSu638UFbwamfKjFOYg="
@@ -534,9 +534,6 @@ schema = 3
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
-  [mod."github.com/mitchellh/go-testing-interface"]
-    version = "v1.14.1"
-    hash = "sha256-TMGi38D13BEVN5cpeKDzKRIgLclm4ErOG+JEyqJrN/c="
   [mod."github.com/mitchellh/mapstructure"]
     version = "v1.5.0"
     hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
