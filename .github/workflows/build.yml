@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
@@ -32,7 +32,7 @@ jobs:
             **/*.go
             *.mod
             *.sum
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
@@ -42,7 +42,7 @@ jobs:
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: "cronosd-tarball-${{ matrix.os }}"
           path: "*.tar.gz"
@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
@@ -65,7 +65,7 @@ jobs:
             **/*.go
             *.mod
             *.sum
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
@@ -104,7 +104,7 @@ jobs:
           files: |
             go.mod
             go.sum
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
@@ -119,7 +119,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.changed == 1
         with:
           name: gomod2nix.toml
@@ -138,13 +138,13 @@ jobs:
         with:
           files: |
             contracts
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
           name: cronos
@@ -162,7 +162,7 @@ jobs:
           set +e
           (git diff --no-ext-diff --exit-code)
           echo "name=changed::$?" >> $GITHUB_OUTPUT
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.changes.outputs.changed == 1
         with:
           name: contracts_out

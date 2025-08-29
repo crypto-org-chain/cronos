@@ -14,12 +14,12 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -55,7 +55,7 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v23
+      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           extra_nix_config: |
@@ -64,7 +64,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.MAC_CODE_SIGN_CERT }}
           p12-password: ${{ secrets.MAC_CODE_SIGN_CERT_PASS }}
-      - uses: cachix/cachix-action@v12
+      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         with:
           name: cronos
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"

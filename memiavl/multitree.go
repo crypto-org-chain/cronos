@@ -14,7 +14,11 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const MetadataFileName = "__metadata"
+const (
+	MetadataFileName = "__metadata"
+
+	ChainMainV6UpgradeHeight = 24836000
+)
 
 type NamedTree struct {
 	*Tree
@@ -299,6 +303,15 @@ func (t *MultiTree) buildCommitInfo(version int64) *CommitInfo {
 				Hash:    entry.RootHash(),
 			},
 		})
+	}
+
+	// Notice that this code is hacky and intended only for the chain-main upgrade to v6.
+	// If you find a commitId mismatch when the version < ChainMainV6UpgradeHeight,
+	// you need to add this code.
+	if version == ChainMainV6UpgradeHeight-1 {
+		var specialInfo StoreInfo
+		specialInfo.Name = "mem_capability"
+		infos = append(infos, specialInfo)
 	}
 
 	return &CommitInfo{
