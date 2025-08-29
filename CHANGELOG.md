@@ -19,6 +19,10 @@
 * [#1840](https://github.com/crypto-org-chain/cronos/pull/1840) Tx replacement support.
 * [#1851](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
 
+### Bug fixes
+
+* [#1858](https://github.com/crypto-org-chain/cronos/pull/1858) Fix version not found during pruning.
+
 *Jun 20, 2025*
 
 ## v1.4.8
