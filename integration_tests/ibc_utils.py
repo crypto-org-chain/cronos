@@ -457,7 +457,11 @@ def ibc_multi_transfer(ibc):
             return False
 
     denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
+    print("denom_trace", denom_trace)
+
+    assert denom_trace["base"] == denom0
+    assert denom_trace["trace"] == [{"port_id": "transfer", "channel_id": channel1}]
+
     for i, _ in enumerate(users):
         wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
 
