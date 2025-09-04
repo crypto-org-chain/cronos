@@ -33,18 +33,22 @@ poetry2nix.mkPoetryEnv {
     ) buildSystems)
     // {
       typing-extensions = super.typing-extensions.overridePythonAttrs (old: {
-        postPatch = (old.postPatch or "") + ''
-          sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
-          substituteInPlace pyproject.toml \
-            --replace-warn 'license = "PSF-2.0"' 'license = { text = "PSF-2.0" }'
-        '';
+        postPatch =
+          (old.postPatch or "")
+          + ''
+            sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
+            substituteInPlace pyproject.toml \
+              --replace-warn 'license = "PSF-2.0"' 'license = { text = "PSF-2.0" }'
+          '';
       });
       types-requests = super.types-requests.overridePythonAttrs (old: {
-        postPatch = (old.postPatch or "") + ''
-          sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
-          substituteInPlace pyproject.toml \
-            --replace-warn 'license = "Apache-2.0"' 'license = { text = "Apache-2.0" }'
-        '';
+        postPatch =
+          (old.postPatch or "")
+          + ''
+            sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
+            substituteInPlace pyproject.toml \
+              --replace-warn 'license = "Apache-2.0"' 'license = { text = "Apache-2.0" }'
+          '';
       });
     }
   );

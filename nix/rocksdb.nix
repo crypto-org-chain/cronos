@@ -72,8 +72,7 @@ stdenv.mkDerivation (finalAttrs: {
     "-DROCKSDB_INSTALL_ON_WINDOWS=YES" # harmless elsewhere
     (lib.optional sse42Support "-DFORCE_SSE42=1")
     "-DFAIL_ON_WARNINGS=NO"
-  ]
-  ++ lib.optional (!enableShared) "-DROCKSDB_BUILD_SHARED=0";
+  ] ++ lib.optional (!enableShared) "-DROCKSDB_BUILD_SHARED=0";
 
   # otherwise "cc1: error: -Wformat-security ignored without -Wformat [-Werror=format-security]"
   hardeningDisable = lib.optional stdenv.hostPlatform.isWindows "format";
@@ -103,28 +102,30 @@ stdenv.mkDerivation (finalAttrs: {
       sed -e 's/ZSTD_INCLUDE_DIRS/zstd_INCLUDE_DIRS/' -i CMakeLists.txt
     '';
 
-  preInstall = ''
-    mkdir -p $tools/bin
-    cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
-  ''
-  + lib.optionalString stdenv.isDarwin ''
-    ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib {}
-  ''
-  + lib.optionalString (stdenv.isLinux && enableShared) ''
-    ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
-  '';
+  preInstall =
+    ''
+      mkdir -p $tools/bin
+      cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
+    ''
+    + lib.optionalString stdenv.isDarwin ''
+      ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib {}
+    ''
+    + lib.optionalString (stdenv.isLinux && enableShared) ''
+      ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
+    '';
 
   # Old version doesn't ship the .pc file, new version puts wrong paths in there.
-  postFixup = ''
-    if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
-      substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
-        --replace '="''${prefix}//' '="/'
-    fi
-  ''
-  + lib.optionalString stdenv.isDarwin ''
-    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
-    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" "$out/lib/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib
-  '';
+  postFixup =
+    ''
+      if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
+        substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
+          --replace '="''${prefix}//' '="/'
+      fi
+    ''
+    + lib.optionalString stdenv.isDarwin ''
+      ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
+      ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" "$out/lib/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib
+    '';
 
   meta = with lib; {
     homepage = "https://rocksdb.org";
