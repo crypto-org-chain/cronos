@@ -49,7 +49,7 @@ def test_versiondb_migration(cronos: Cronos):
     changeset_dir = tempfile.mkdtemp(dir=cronos.base_dir)
     print("dump to:", changeset_dir)
 
-    # only restore to an intermidiate version to test version mismatch behavior
+    # only restore to an intermediate version to test version mismatch behavior
     print(cli1.changeset_dump(changeset_dir, end_version=block1 + 1))
 
     snapshot_dir = tempfile.mkdtemp(dir=cronos.base_dir)

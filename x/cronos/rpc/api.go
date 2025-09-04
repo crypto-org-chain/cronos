@@ -204,7 +204,7 @@ func (api *CronosAPI) GetTransactionReceiptsByBlock(blockNrOrHash rpctypes.Block
 				"blockNumber":      hexutil.Uint64(blockNumber),
 				"transactionIndex": hexutil.Uint64(txIndex),
 
-				// sender and receiver (contract or EOA) addreses
+				// sender and receiver (contract or EOA) addresses
 				"from": from,
 				"to":   txData.To(),
 				"type": hexutil.Uint(txData.Type()),
@@ -338,7 +338,7 @@ func (api *CronosAPI) ReplayBlock(blockNrOrHash rpctypes.BlockNumberOrHash, post
 			"blockNumber":      hexutil.Uint64(blockNumber),
 			"transactionIndex": hexutil.Uint64(txIndex),
 
-			// sender and receiver (contract or EOA) addreses
+			// sender and receiver (contract or EOA) addresses
 			"from": from,
 			"to":   txData.GetTo(),
 		}
