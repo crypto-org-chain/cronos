@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+*Sep 4, 2025*
+
+## v1.5.0
+
 ### State Machine Breaking
 
 * [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
