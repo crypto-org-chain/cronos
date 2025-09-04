@@ -231,7 +231,7 @@ def exec(c, tmp_path_factory):
         w3,
         CONTRACTS["Random"],
     )
-    with pytest.raises(exceptions.Web3ValueError) as e_info:
+    with pytest.raises(exceptions.Web3RPCError) as e_info:
         random_contract.caller.randomTokenId()
     assert "invalid memory address or nil pointer dereference" in str(e_info.value)
     contract = deploy_contract(w3, CONTRACTS["TestERC20A"])
