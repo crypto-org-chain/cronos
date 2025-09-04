@@ -15,19 +15,20 @@ flake8-isort = "^6.1"
 pep8-naming = "^0.13"
 protobuf = "^4.25"
 python-dateutil = "^2.8"
-web3 = "^6.15"
+web3 = "^7.13.0"
 python-dotenv = "^1.0"
 pystarport = { git = "https://github.com/crypto-com/pystarport.git", branch = "main" }
 websockets = "^12.0"
 toml = "^0"
 jsonnet = "^0"
-eth-account = "^0.11"
+eth-account = "^0.13"
 cprotobuf = "^0.1.11"
 flaky = "^3.7"
 eth-bloom = "^3.0"
 eth-hash = "^0"
 pyyaml = "^6.0.2rc1"
 pytest-timeout = "^2.3.1"
+aiohttp = "3.9.4"
 
 [tool.poetry.dev-dependencies]
 

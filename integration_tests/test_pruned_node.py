@@ -45,7 +45,7 @@ def test_pruned_node(cronos):
         {"from": ADDRS["validator"]}
     )
     signed = sign_transaction(w3, tx, KEYS["validator"])
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
     exp_gas_used = 51384
 
     print("wait for prunning happens")
