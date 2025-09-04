@@ -21,7 +21,8 @@ let
     "grocksdb_no_link"
     "pebbledb"
     "objstore"
-  ] ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
+  ]
+  ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
   ldflags = lib.concatStringsSep "\n" ([
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
