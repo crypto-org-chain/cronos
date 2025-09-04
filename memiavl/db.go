@@ -1044,7 +1044,7 @@ func traverseSnapshots(dir string, ascending bool, callback func(int64) (bool, e
 	return nil
 }
 
-// atomicRemoveDir is equavalent to `mv snapshot snapshot-tmp && rm -r snapshot-tmp`
+// atomicRemoveDir is equivalent to `mv snapshot snapshot-tmp && rm -r snapshot-tmp`
 func atomicRemoveDir(path string) error {
 	tmpPath := path + TmpSuffix
 	if err := os.Rename(path, tmpPath); err != nil {
