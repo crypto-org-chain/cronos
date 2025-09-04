@@ -11,7 +11,10 @@ poetry2nix.mkPoetryEnv {
     let
       buildSystems = {
         pystarport = [ "poetry-core" ];
-        cprotobuf = [ "setuptools" ];
+        cprotobuf = [
+          "setuptools"
+          "poetry-core"
+        ];
         durations = [ "setuptools" ];
         multitail2 = [ "setuptools" ];
         pytest-github-actions-annotate-failures = [ "setuptools" ];
