@@ -13,7 +13,7 @@ from pystarport import cluster, ports
 from web3 import Web3, exceptions
 
 from .cosmoscli import CosmosCLI, module_address
-from .network import Geth
+from .network import Geth, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -674,14 +674,22 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-def test_suicide_pre_cancun(cronos):
+@pytest.fixture(scope="module")
+def custom_cronos(tmp_path_factory):
+    path = tmp_path_factory.mktemp("pre_cancun")
+    # init with genesis binary
+    cfg = Path(__file__).parent / ("configs/default.jsonnet")
+    yield from setup_custom_cronos(path, 26530, cfg)
+
+
+def test_suicide_pre_cancun(custom_cronos):
     """
     test compliance of contract suicide
     - within the tx, after contract suicide, the code is still available.
     - after the tx, the code is not available.
     """
-    remove_cancun_prague_params(cronos)
-    w3 = cronos.w3
+    remove_cancun_prague_params(custom_cronos)
+    w3 = custom_cronos.w3
     destroyee = deploy_contract(
         w3,
         contract_path("Destroyee", "TestSuicide.sol"),
