@@ -6,10 +6,11 @@
     "typechain": "npx hardhat typechain"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "@typechain/ethers-v5": "^5.0.0",
+    "account-abstraction": "github:eth-infinitism/account-abstraction#v0.8.0",
     "hardhat-typechain": "^0.3.5",
     "ts-generator": "^0.1.1",
-    "typechain": "^4.0.3",
-    "@typechain/ethers-v5": "^5.0.0",
-    "@openzeppelin/contracts": "^4.7.0"
+    "typechain": "^4.0.3"
   }
 }
