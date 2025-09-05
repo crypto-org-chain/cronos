@@ -9,7 +9,7 @@ module.exports = {
           optimizer: {
             enabled: true
           },
-          evmVersion: "cancun"
+          evmVersion: "prague"
         }
       },
       {
