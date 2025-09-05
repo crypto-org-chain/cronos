@@ -42,7 +42,11 @@ def send_eip7702_transaction(w3, account, target_address):
     # Verify the code was set correctly
     code = w3.eth.get_code(account.address, "latest")
     expected_code = address_to_delegation(target_address)
-    expected_code_hex = HexBytes(expected_code)
+    expected_code_hex = (
+        HexBytes(expected_code)
+        if target_address != "0x0000000000000000000000000000000000000000"
+        else HexBytes("0x")
+    )
     assert code == expected_code_hex, f"Expected code {expected_code_hex}, got {code}"
 
     # Verify the nonce was incremented correctly
@@ -55,17 +59,22 @@ def send_eip7702_transaction(w3, account, target_address):
 def test_eip7702_basic(cronos):
     w3 = cronos.w3
 
-    account_code = "0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9"
+    target_address = "0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9"
 
     # use an new account for the test
     # genisis accounts are default BaseAccount, with no code hash storage
     acc = derive_new_account(n=2)
     fund_acc(w3, acc)
 
-    send_eip7702_transaction(w3, acc, account_code)
+    send_eip7702_transaction(w3, acc, target_address)
 
 
 def test_eip7702_simple_7702_account(cronos):
+    """
+    Try to replicate the test in https://eip7702.io/examples#transaction-batching
+    delegate the account to the Simple7702Account contract
+    then use the account to execute batch transactions
+    """
     w3 = cronos.w3
 
     account_impl = deploy_contract(
@@ -78,19 +87,26 @@ def test_eip7702_simple_7702_account(cronos):
 
     send_eip7702_transaction(w3, account, account_impl.address)
 
-    # after the account is delegated, it can act like an Simple7702Account contract
-    # the EOA now can execute batch transactions on itself
+    acct1 = derive_new_account(n=100)
+    acct2 = derive_new_account(n=101)
+    acct1_balance = 1
+    acct2_balance = 2
+    balance = w3.eth.get_balance(acct1.address)
+    assert balance == 0
+    balance = w3.eth.get_balance(acct2.address)
+    assert balance == 0
+
     account_contract = get_contract(w3, account.address, CONTRACTS["Simple7702Account"])
     tx = account_contract.functions.executeBatch(
         [
             {
-                "target": "0x0000000000000000000000000000000000001234",
-                "value": 1,
+                "target": acct1.address,
+                "value": acct1_balance,
                 "data": "0x",
             },
             {
-                "target": "0x0000000000000000000000000000000000001235",
-                "value": 2,
+                "target": acct2.address,
+                "value": acct2_balance,
                 "data": "0x",
             },
         ]
@@ -103,17 +119,25 @@ def test_eip7702_simple_7702_account(cronos):
         }
     )
 
-    balance = w3.eth.get_balance("0x0000000000000000000000000000000000001234")
-    assert balance == 0
-    balance = w3.eth.get_balance("0x0000000000000000000000000000000000001235")
-    assert balance == 0
-
     signed_tx = account.sign_transaction(tx)
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     assert receipt.status == 1
 
-    balance = w3.eth.get_balance("0x0000000000000000000000000000000000001234")
-    assert balance == 1
-    balance = w3.eth.get_balance("0x0000000000000000000000000000000000001235")
-    assert balance == 2
+    balance = w3.eth.get_balance(acct1.address)
+    assert balance == acct1_balance
+    balance = w3.eth.get_balance(acct2.address)
+    assert balance == acct2_balance
+
+    # revoke the delegation, the code hash of the account should be
+    # 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
+    send_eip7702_transaction(w3, account, "0x0000000000000000000000000000000000000000")
+
+    utils = deploy_contract(
+        w3,
+        CONTRACTS["Utils"],
+    )
+    code_hash = utils.functions.getCodeHash(account.address).call()
+    assert code_hash == HexBytes(
+        "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    )

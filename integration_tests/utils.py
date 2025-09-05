@@ -66,6 +66,7 @@ TEST_CONTRACTS = {
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
     "Simple7702Account": "Simple7702Account.sol",
+    "Utils": "Utils.sol",
 }
 
 
