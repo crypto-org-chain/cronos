@@ -63,7 +63,7 @@ def test_block_overflow(custom_cronos):
                 }
             )
             signed = sign_transaction(w3, tx, key_from)
-            raw_transactions.append(signed.rawTransaction)
+            raw_transactions.append(signed.raw_transaction)
 
         # wait block update
         block_num_0 = wait_for_new_blocks(custom_cronos.cosmos_cli(), 1, sleep=0.1)

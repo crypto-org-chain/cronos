@@ -1,4 +1,5 @@
 import pytest
+from web3 import exceptions
 
 from .cosmoscli import module_address
 from .utils import CONTRACTS, deploy_contract, submit_gov_proposal
@@ -38,10 +39,10 @@ def test_evm_update_param(cronos, tmp_path):
     assert not p["chain_config"]["cancun_time"]
     assert not p["chain_config"]["prague_time"]
     invalid_msg = "invalid opcode: PUSH0"
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(exceptions.Web3RPCError) as e_info:
         contract.caller.randomTokenId()
     assert invalid_msg in str(e_info.value)
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(exceptions.Web3RPCError) as e_info:
         deploy_contract(cronos.w3, CONTRACTS["Greeter"])
     assert invalid_msg in str(e_info.value)
 
