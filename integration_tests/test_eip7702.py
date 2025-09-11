@@ -42,7 +42,7 @@ def send_eip7702_transaction(
         }
     )
     tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
     if not verify:
         return receipt
