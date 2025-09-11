@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from hexbytes import HexBytes
 
 from integration_tests.utils import (
@@ -15,7 +17,9 @@ def address_to_delegation(address: str):
     return DELEGATION_PREFIX + address[2:]
 
 
-def send_eip7702_transaction(w3, account, target_address):
+def send_eip7702_transaction(
+    w3, account, target_address, verify=True, provider="cronos"
+):
     nonce = w3.eth.get_transaction_count(account.address)
     auth = {
         "chainId": w3.eth.chain_id,
@@ -23,37 +27,45 @@ def send_eip7702_transaction(w3, account, target_address):
         "nonce": nonce + 1,
     }
     signed_auth = account.sign_authorization(auth)
-    tx = account.sign_transaction(
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    signed_tx = account.sign_transaction(
         {
             "chainId": w3.eth.chain_id,
             "type": 4,
             "to": account.address,
-            "value": 0,
-            "gas": 100000,
-            "maxFeePerGas": 1000000000000,
-            "maxPriorityFeePerGas": 10000,
+            "gas": 50000,
+            "maxFeePerGas": base_fee,
+            "maxPriorityFeePerGas": 1,
             "nonce": nonce,
             "authorizationList": [signed_auth],
+            "data": b"",
         }
     )
-    tx_hash = w3.eth.send_raw_transaction(tx.raw_transaction)
-    w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+
+    if not verify:
+        return receipt
 
     # Verify the code was set correctly
-    code = w3.eth.get_code(account.address, "latest")
+    code = w3.eth.get_code(account.address)
     expected_code = address_to_delegation(target_address)
     expected_code_hex = (
         HexBytes(expected_code)
         if target_address != "0x0000000000000000000000000000000000000000"
         else HexBytes("0x")
     )
-    assert code == expected_code_hex, f"Expected code {expected_code_hex}, got {code}"
+    assert (
+        code == expected_code_hex
+    ), f"Expected code {expected_code_hex}, got {code}, {provider}"
 
     # Verify the nonce was incremented correctly
     new_nonce = w3.eth.get_transaction_count(account.address)
-    assert new_nonce == nonce + 2, f"Expected nonce {nonce + 2}, got {new_nonce}"
+    assert (
+        new_nonce == nonce + 2
+    ), f"Expected nonce {nonce + 2}, got {new_nonce}, {provider}"
 
-    return tx_hash
+    return receipt
 
 
 def test_eip7702_basic(cronos):
@@ -141,3 +153,29 @@ def test_eip7702_simple_7702_account(cronos):
     assert code_hash == HexBytes(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
     )
+
+
+def test_eip7702_delegate_contract_without_fallback(cronos, geth):
+    """
+    Test when EOA delegate to a contract without fallback/receive
+    EVM try to execute the contract with empty input, the tx will be failed
+    But the code will be set
+    """
+
+    def process(w3, provider):
+        acc = derive_new_account(n=10)
+        fund_acc(w3, acc)
+        counter_address = deploy_contract(w3, CONTRACTS["Counter"]).address
+
+        # the code is checked inside this function
+        receipt = send_eip7702_transaction(
+            w3, acc, counter_address, verify=True, provider=provider
+        )
+
+        return receipt
+
+    providers = [(cronos.w3, "cronos"), (geth.w3, "geth")]
+    with ThreadPoolExecutor(len(providers)) as exec:
+        tasks = [exec.submit(process, w3, provider) for w3, provider in providers]
+        res = [future.result() for future in as_completed(tasks)]
+        assert res[0]["status"] == res[1]["status"] == 0, res
