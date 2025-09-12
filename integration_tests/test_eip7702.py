@@ -27,15 +27,14 @@ def send_eip7702_transaction(
         "nonce": nonce + 1,
     }
     signed_auth = account.sign_authorization(auth)
-    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     signed_tx = account.sign_transaction(
         {
             "chainId": w3.eth.chain_id,
             "type": 4,
             "to": account.address,
             "gas": 50000,
-            "maxFeePerGas": base_fee,
-            "maxPriorityFeePerGas": 1,
+            "maxFeePerGas": 10000000000000,
+            "maxPriorityFeePerGas": 10000,
             "nonce": nonce,
             "authorizationList": [signed_auth],
             "data": b"",
