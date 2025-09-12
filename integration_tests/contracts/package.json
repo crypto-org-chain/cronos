@@ -14,6 +14,6 @@
     "typechain": "^4.0.3"
   },
   "overrides": {
-    "axios": "^1.8.2"
+    "axios": "^1.12.0"
   }
 }
