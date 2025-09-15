@@ -693,8 +693,8 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-3YhWBtSwRLGwm7vNwqumphZG3uLBW1vwT9QkQ8JuSjU="
   [mod."github.com/ulikunitz/xz"]
-    version = "v0.5.11"
-    hash = "sha256-SUyrjc2wyN3cTGKe5JdBEXjtZC1rJySRxJHVUZ59row="
+    version = "v0.5.14"
+    hash = "sha256-21oXcIVmFyw+ukGQtflly0wpqaqh1jE0C9hLDSFYR7E="
   [mod."github.com/zbiljic/go-filelock"]
     version = "v0.0.0-20170914061330-1dbf7103ab7d"
     hash = "sha256-JqNj/Wg8nGFSmndgYC7+FZzL2zG7rwOQMjlqYs3ZGvw="
