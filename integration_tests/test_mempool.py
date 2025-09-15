@@ -110,7 +110,7 @@ def test_mempool_nonce(cronos_mempool):
         tx = {
             "to": ADDRS["community"],
             "value": 1,
-            "gas": 4121000,
+            "gas": 10021000,
             "data": "0x" + "00" * tx_bytes,
             "nonce": nonce,
         }
