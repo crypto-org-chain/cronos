@@ -315,9 +315,9 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20250918004400-f674c513792f"
-    hash = "sha256-yEImj2V1KAtnQ56HRxjL1vFtpygO997JXWKeE6A0wxk="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.4.2-0.20250915061653-5b1c6f8c9364"
+    hash = "sha256-rnDxEw29h5J9s0GJdbbaZBH1tggqahwlcMNua57J1Yk="
+    replaced = "github.com/thomas-nguy/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
     hash = "sha256-QsKMy3MsvjbYNcA9jP8w6c3wpmWDZ0079bybAEzmXR0="
@@ -631,8 +631,8 @@ schema = 3
     version = "v1.10.0"
     hash = "sha256-dQ6Qqf26IZsa6XsGKP7GDuCj+WmSsBmkBwGTDfue/rk="
   [mod."github.com/spf13/cobra"]
-    version = "v1.9.1"
-    hash = "sha256-dzEqquABE3UqZmJuj99244QjvfojS8cFlsPr/MXQGj0="
+    version = "v1.10.1"
+    hash = "sha256-OP6wdqk4dvBD8U5aicTkySHZ2s0LWnBo2TST2SmgcpM="
   [mod."github.com/spf13/pflag"]
     version = "v1.0.10"
     hash = "sha256-uDPnWjHpSrzXr17KEYEA1yAbizfcsfo5AyztY2tS6ZU="
