@@ -67,9 +67,9 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 	ethCfg := params.ChainConfig.EthereumConfig(chainID)
 
 	blockHeight := big.NewInt(req.BlockNumber)
-	homestead := ethCfg.IsHomestead(blockHeight)
-	istanbul := ethCfg.IsIstanbul(blockHeight)
-	shanghai := ethCfg.IsShanghai(blockHeight, uint64(req.BlockTime.Unix()))
+	blockTime := uint64(req.BlockTime.Unix())
+	rules := ethCfg.Rules(blockHeight, ethCfg.MergeNetsplitBlock != nil, blockTime)
+
 	evmDenom := params.EvmDenom
 	baseFee := k.evmKeeper.GetBaseFee(ctx, ethCfg)
 
@@ -80,7 +80,7 @@ func (k Keeper) ReplayBlock(goCtx context.Context, req *types.ReplayBlockRequest
 		if _, err := msg.GetSenderLegacy(ethtypes.LatestSignerForChainID(chainID)); err != nil {
 			return nil, err
 		}
-		fees, err := evmkeeper.VerifyFee(msg, evmDenom, baseFee, homestead, istanbul, shanghai, ctx.IsCheckTx())
+		fees, err := evmkeeper.VerifyFee(msg, evmDenom, baseFee, rules, ctx.IsCheckTx())
 		if err != nil {
 			return nil, errorsmod.Wrapf(err, "failed to verify the fees")
 		}

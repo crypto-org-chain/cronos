@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+*Sep 4, 2025*
+
+## v1.5.0
+
 ### State Machine Breaking
 
 * [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
@@ -18,6 +22,12 @@
 * [#1807](https://github.com/crypto-org-chain/cronos/pull/1807) Update go-ethereum version to [v1.15.11](https://github.com/ethereum/go-ethereum/releases/tag/v1.15.11).
 * [#1840](https://github.com/crypto-org-chain/cronos/pull/1840) Tx replacement support.
 * [#1851](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
+* [#1863](https://github.com/crypto-org-chain/cronos/pull/1863) Support EIP-7702 transaction type
+* [#1867](https://github.com/crypto-org-chain/cronos/pull/1867) Add authorizationList from `eth_getTransactionByHash` response for EIP-7702 transactions
+
+### Bug fixes
+
+* [#1858](https://github.com/crypto-org-chain/cronos/pull/1858) Fix version not found during pruning.
 
 *Jun 20, 2025*
 
