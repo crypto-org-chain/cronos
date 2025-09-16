@@ -63,6 +63,7 @@ TEST_CONTRACTS = {
     "TestICA": "TestICA.sol",
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
+    "TestBlockTxProperties": "TestBlockTxProperties.sol",
 }
 
 
@@ -90,6 +91,8 @@ CONTRACTS = {
 CONTRACT_ABIS = {
     "IRelayerModule": Path(__file__).parent.parent / "build/IRelayerModule.abi",
     "IICAModule": Path(__file__).parent.parent / "build/IICAModule.abi",
+    "TestBlockTxProperties": Path(__file__).parent.parent
+    / "build/TestBlockTxProperties.abi",
 }
 
 

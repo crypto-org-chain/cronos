@@ -10,6 +10,7 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
+from web3._utils.events import get_event_data
 
 from .cosmoscli import CosmosCLI, module_address
 from .network import Geth
@@ -1113,3 +1114,94 @@ def test_tx_replacement(cronos):
             {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
         )
     assert "has already been mined" in str(exc)
+
+
+def test_block_tx_properties(cronos):
+    """
+    test block tx properties on cronos network
+    - deploy test contract
+    - call contract
+    - check all values are correct in log
+    """
+    w3 = cronos.w3
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestBlockTxProperties"],
+    )
+
+    tx = contract.functions.emitTxDetails().build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
+
+    assert receipt.status == 1
+    assert len(receipt.logs) == 1
+
+    assert contract.address == receipt.logs[0]["address"]
+    event_signature = HexBytes(
+        abi.event_signature_to_log_topic(
+            "TxDetailsEvent(address,address,uint256,bytes,uint256,uint256,bytes4)"
+        )
+    )
+    assert event_signature == receipt.logs[0]["topics"][0]
+    validator_hex_address = HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"]))
+    assert validator_hex_address == receipt.logs[0]["topics"][1]
+    assert validator_hex_address == receipt.logs[0]["topics"][2]
+
+    event_abi = {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "origin",
+                "type": "address",
+            },
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address",
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256",
+            },
+            {
+                "indexed": False,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes",
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "price",
+                "type": "uint256",
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "gas",
+                "type": "uint256",
+            },
+            {
+                "indexed": False,
+                "internalType": "bytes4",
+                "name": "sig",
+                "type": "bytes4",
+            },
+        ],
+        "name": "TxDetailsEvent",
+        "type": "event",
+    }
+    decoded = get_event_data(w3.codec, event_abi, receipt.logs[0])
+    assert decoded["args"]["origin"] == ADDRS["validator"]
+    assert decoded["args"]["sender"] == ADDRS["validator"]
+    assert decoded["args"]["value"] == 0
+    assert decoded["args"]["data"] != 0
+    assert decoded["args"]["price"] > 0
+    assert decoded["args"]["gas"] == 3633
+    assert decoded["args"]["sig"] != 0
