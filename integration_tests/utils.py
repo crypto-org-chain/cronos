@@ -63,6 +63,7 @@ TEST_CONTRACTS = {
     "TestICA": "TestICA.sol",
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
+    "TestBlockTxProperties": "TestBlockTxProperties.sol",
 }
 
 
