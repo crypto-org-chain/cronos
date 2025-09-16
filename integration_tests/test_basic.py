@@ -1148,60 +1148,13 @@ def test_block_tx_properties(cronos):
     assert validator_hex_address == receipt.logs[0]["topics"][1]
     assert validator_hex_address == receipt.logs[0]["topics"][2]
 
-    event_abi = {
-        "anonymous": False,
-        "inputs": [
-            {
-                "indexed": True,
-                "internalType": "address",
-                "name": "origin",
-                "type": "address",
-            },
-            {
-                "indexed": True,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address",
-            },
-            {
-                "indexed": False,
-                "internalType": "uint256",
-                "name": "value",
-                "type": "uint256",
-            },
-            {
-                "indexed": False,
-                "internalType": "bytes",
-                "name": "data",
-                "type": "bytes",
-            },
-            {
-                "indexed": False,
-                "internalType": "uint256",
-                "name": "price",
-                "type": "uint256",
-            },
-            {
-                "indexed": False,
-                "internalType": "uint256",
-                "name": "gas",
-                "type": "uint256",
-            },
-            {
-                "indexed": False,
-                "internalType": "bytes4",
-                "name": "sig",
-                "type": "bytes4",
-            },
-        ],
-        "name": "TxDetailsEvent",
-        "type": "event",
-    }
-    decoded = get_event_data(w3.codec, event_abi, receipt.logs[0])
-    assert decoded["args"]["origin"] == ADDRS["validator"]
-    assert decoded["args"]["sender"] == ADDRS["validator"]
-    assert decoded["args"]["value"] == 0
-    assert decoded["args"]["data"] == bytes.fromhex("8e091b5e")
-    assert decoded["args"]["price"] > 0
-    assert decoded["args"]["gas"] == 3633
-    assert decoded["args"]["sig"] == bytes.fromhex("8e091b5e")
+    # check event values
+    tx_details_event = contract.events.TxDetailsEvent().process_receipt(receipt)
+    data = tx_details_event[0]["args"]
+    assert data["origin"] == ADDRS["validator"]
+    assert data["sender"] == ADDRS["validator"]
+    assert data["value"] == 0
+    assert data["data"] == bytes.fromhex("8e091b5e")
+    assert data["price"] > 0
+    assert data["gas"] == 3633
+    assert data["sig"] == bytes.fromhex("8e091b5e")
