@@ -10,7 +10,6 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
-from web3._utils.events import get_event_data
 
 from .cosmoscli import CosmosCLI, module_address
 from .network import Geth
