@@ -1201,7 +1201,7 @@ def test_block_tx_properties(cronos):
     assert decoded["args"]["origin"] == ADDRS["validator"]
     assert decoded["args"]["sender"] == ADDRS["validator"]
     assert decoded["args"]["value"] == 0
-    assert decoded["args"]["data"] != 0
+    assert decoded["args"]["data"] == bytes.fromhex("8e091b5e")
     assert decoded["args"]["price"] > 0
     assert decoded["args"]["gas"] == 3633
-    assert decoded["args"]["sig"] != 0
+    assert decoded["args"]["sig"] == bytes.fromhex("8e091b5e")
