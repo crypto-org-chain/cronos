@@ -10,9 +10,10 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
+from web3 import Web3, exceptions
 
 from .cosmoscli import CosmosCLI, module_address
-from .network import Geth
+from .network import Geth, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -118,7 +119,7 @@ def test_events(cluster, suspend_capture):
         w3,
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
-        exp_gas_used=641641,
+        exp_gas_used=564532,
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
@@ -158,7 +159,7 @@ def test_minimal_gas_price(cronos):
         "to": "0x0000000000000000000000000000000000000000",
         "value": 10000,
     }
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.Web3RPCError):
         send_transaction(
             w3,
             {**tx, "gasPrice": 1},
@@ -431,7 +432,7 @@ def test_transaction(cronos):
     initial_block_number = w3.eth.get_block_number()
 
     # tx already in mempool
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -445,7 +446,7 @@ def test_transaction(cronos):
     assert "tx already in mempool" in str(exc)
 
     # invalid sequence
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -459,7 +460,7 @@ def test_transaction(cronos):
     assert "invalid sequence" in str(exc)
 
     # out of gas
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -473,7 +474,7 @@ def test_transaction(cronos):
     assert "out of gas" in str(exc)
 
     # insufficient fee
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -569,7 +570,9 @@ def assert_receipt_transaction_and_block(w3, futures):
     assert len(block_receipts) == 4
     for i, block_receipt in enumerate(block_receipts):
         assert block_receipt["blockNumber"] == hex(receipts[i]["blockNumber"])
-        assert block_receipt["transactionHash"] == receipts[i]["transactionHash"].hex()
+        assert block_receipt["transactionHash"] == Web3.to_hex(
+            receipts[i]["transactionHash"]
+        )
         assert block_receipt["cumulativeGasUsed"] == hex(
             receipts[i]["cumulativeGasUsed"]
         )
@@ -671,14 +674,22 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-def test_suicide_pre_cancun(cronos):
+@pytest.fixture(scope="module")
+def custom_cronos(tmp_path_factory):
+    path = tmp_path_factory.mktemp("pre_cancun")
+    # init with genesis binary
+    cfg = Path(__file__).parent / ("configs/default.jsonnet")
+    yield from setup_custom_cronos(path, 26530, cfg)
+
+
+def test_suicide_pre_cancun(custom_cronos):
     """
     test compliance of contract suicide
     - within the tx, after contract suicide, the code is still available.
     - after the tx, the code is not available.
     """
-    remove_cancun_prague_params(cronos)
-    w3 = cronos.w3
+    remove_cancun_prague_params(custom_cronos)
+    w3 = custom_cronos.w3
     destroyee = deploy_contract(
         w3,
         contract_path("Destroyee", "TestSuicide.sol"),
@@ -788,7 +799,7 @@ def test_batch_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
+        w3.provider.make_request("debug_traceTransaction", [Web3.to_hex(h)])["result"]
         for h in tx_hashes
     ]
 
@@ -854,7 +865,8 @@ def test_failed_transfer_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [h.hex()]) for h in tx_hashes
+        w3.provider.make_request("debug_traceTransaction", [Web3.to_hex(h)])
+        for h in tx_hashes
     ]
     for rsp, receipt in zip(rsps, receipts):
         if receipt.status == 1:
@@ -1041,7 +1053,7 @@ def test_block_stm_delete(cronos):
             "nonce": nonce + n,
         }
         signed = sign_transaction(w3, tx, acc.key)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
         txhashes.append(txhash)
     for txhash in txhashes[0 : total - 1]:
         res = w3.eth.wait_for_transaction_receipt(txhash)
@@ -1107,7 +1119,7 @@ def test_tx_replacement(cronos):
     tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
     assert tx2["transactionIndex"] == 0
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3ValueError) as exc:
         w3.eth.replace_transaction(
             txhash_noreplacemenet,
             {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
