@@ -1,15 +1,15 @@
 {
     "chain-main": {
-        "branch": "jt/ibc-go-v10",
+        "branch": "release/v7",
         "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
         "homepage": "https://crypto.org",
-        "owner": "JayT106",
+        "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "293428e4d63c0fd10ffda4c07636b0f1401d648b",
-        "sha256": "0zrdjgvgh02281894ap9msc0rmlz3v4sxpqx55hjskyyahm6hf8d",
+        "rev": "d3ef39afd014cc39a57ac5391b5ac27cc3e9370e",
+        "sha256": "1vg6v1vs01n4pwnzda8ycn05c8k9k6hwwklibw9q3rad54kk7jm3",
         "type": "tarball",
-        "url": "https://github.com/JayT106/chain-main/archive/refs/tags/ibc-go-v10/chain-main_devel_Darwin_arm64.tar.gz",
-        "url_template": "https://github.com/JayT106/chain-main/archive/refs/tags/ibc-go-v10/chain-main_devel_Darwin_arm64.tar.gz"
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/d3ef39afd014cc39a57ac5391b5ac27cc3e9370e.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
         "branch": "master",
