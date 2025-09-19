@@ -1,7 +1,10 @@
 package main
 
 import (
+	_ "net/http/pprof" 
 	"os"
+    "net/http"
+	"fmt"
 
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/crypto-org-chain/cronos/v2/app"
@@ -9,8 +12,14 @@ import (
 )
 
 func main() {
-	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
-		os.Exit(1)
-	}
+    go func() {
+        if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+            fmt.Println("pprof server error:", err)
+        }
+    }()
+
+    rootCmd := cmd.NewRootCmd()
+    if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
+        os.Exit(1)
+    }
 }
