@@ -185,6 +185,11 @@ func initRootCmd(
 		rootCmd.AddCommand(changeSetCmd)
 	}
 
+	dumpRootCmd := DumpRootCmd()
+	if dumpRootCmd != nil {
+		rootCmd.AddCommand(dumpRootCmd)
+	}
+
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
 		server.StatusCommand(),
