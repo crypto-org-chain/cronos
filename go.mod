@@ -253,7 +253,7 @@ require (
 replace (
 	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254
 	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254
-	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.0.0-20250919101543-dd1902cc9876
+	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.0.0-20250922070833-692150e53406
 )
 
 replace (
