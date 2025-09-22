@@ -3,6 +3,8 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"sort"
+
 	consensusparamtypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
@@ -11,7 +13,6 @@ import (
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
-	"sort"
 
 	dbm "github.com/cosmos/cosmos-db"
 	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
@@ -63,7 +64,7 @@ func DumpRootGroupCmd(storeNames []string) *cobra.Command {
 
 func DumpMemIavlRoot(storeNames []string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dump-memiavl-root",
+		Use:   "dump-memiavl-root [dir]",
 		Short: "dump mem-iavl root at version [dir]",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
