@@ -54,7 +54,7 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 
 	ro := grocksdb.NewDefaultReadOptions()
 	ro.SetAsyncIO(true)
-	ro.SetReadaheadSize(16 * 1024 * 1024) // 16MB read-ahead for iterators
+	ro.SetReadaheadSize(128* 1024 * 1024) // 128MB read-ahead for iterators
 	wo := grocksdb.NewDefaultWriteOptions()
 	woSync := grocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
