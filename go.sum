@@ -1013,8 +1013,8 @@ github.com/prometheus/procfs v0.1.3/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.3.0/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4OA4YeYWdaU=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/randy-cro/cosmos-sdk v0.0.0-20250922082216-cd61c5db15c7 h1:zynbRsrWO1l8N0vetRKxktWpJ6swP3pyWvsfgmGVwyo=
-github.com/randy-cro/cosmos-sdk v0.0.0-20250922082216-cd61c5db15c7/go.mod h1:8/AdT5lF3ILCCl/sDQXyBgzWGtcmD1tInWyhYeREVPA=
+github.com/randy-cro/cosmos-sdk v0.0.0-20250922085509-612e30b17846 h1:Gwstknswp4alLkvD5v3AAmNhfPCtMND9YJPHgbGS/9o=
+github.com/randy-cro/cosmos-sdk v0.0.0-20250922085509-612e30b17846/go.mod h1:8/AdT5lF3ILCCl/sDQXyBgzWGtcmD1tInWyhYeREVPA=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
