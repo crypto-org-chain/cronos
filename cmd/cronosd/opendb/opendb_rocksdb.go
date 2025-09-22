@@ -1,4 +1,5 @@
-
+//go:build rocksdb
+// +build rocksdb
 
 package opendb
 
