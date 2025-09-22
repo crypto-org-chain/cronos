@@ -100,6 +100,8 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
+	bbto.SetCacheIndexAndFilterBlocks(true)
+	bbto.SetPinL0FilterAndIndexBlocksInCache(true)
 
 	bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
 
