@@ -274,7 +274,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20240926023215-d2275b4afb9a
 	// release/v1.4.x-2
-	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20250923101955-be46a4f40c2f
+	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20250923103512-6d231cdb3cd3
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0

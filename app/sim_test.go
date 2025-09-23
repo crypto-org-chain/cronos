@@ -13,7 +13,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
-	evmante "github.com/evmos/ethermint/evmd/ante"
+	evmante "github.com/evmos/ethermint/app/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 

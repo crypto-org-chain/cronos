@@ -17,6 +17,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/evmos/ethermint/app"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/errors"
@@ -36,7 +37,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 
-	"github.com/crypto-org-chain/cronos/v2/app"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 )
 

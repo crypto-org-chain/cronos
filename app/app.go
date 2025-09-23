@@ -140,10 +140,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	ethparams "github.com/ethereum/go-ethereum/params"
 
+	evmapp "github.com/evmos/ethermint/app"
+	evmante "github.com/evmos/ethermint/app/ante"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
-	evmapp "github.com/evmos/ethermint/evmd"
-	evmante "github.com/evmos/ethermint/evmd/ante"
 	srvflags "github.com/evmos/ethermint/server/flags"
 	ethermint "github.com/evmos/ethermint/types"
 	"github.com/evmos/ethermint/x/evm"
