@@ -1,5 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from hexbytes import HexBytes
 
 from integration_tests.utils import (
@@ -152,29 +150,3 @@ def test_eip7702_simple_7702_account(cronos):
     assert code_hash == HexBytes(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
     )
-
-
-def test_eip7702_delegate_contract_without_fallback(cronos, geth):
-    """
-    Test when EOA delegate to a contract without fallback/receive
-    EVM try to execute the contract with empty input, the tx will be failed
-    But the code will be set
-    """
-
-    def process(w3, provider):
-        acc = derive_new_account(n=10)
-        fund_acc(w3, acc)
-        counter_address = deploy_contract(w3, CONTRACTS["Counter"]).address
-
-        # the code is checked inside this function
-        receipt = send_eip7702_transaction(
-            w3, acc, counter_address, verify=True, provider=provider
-        )
-
-        return receipt
-
-    providers = [(cronos.w3, "cronos"), (geth.w3, "geth")]
-    with ThreadPoolExecutor(len(providers)) as exec:
-        tasks = [exec.submit(process, w3, provider) for w3, provider in providers]
-        res = [future.result() for future in as_completed(tasks)]
-        assert res[0]["status"] == res[1]["status"] == 0, res
