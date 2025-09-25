@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from hexbytes import HexBytes
 
 from integration_tests.utils import (
@@ -150,3 +152,63 @@ def test_eip7702_simple_7702_account(cronos):
     assert code_hash == HexBytes(
         "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
     )
+
+
+def test_eip7702_state_wont_be_cleared_if_reset_delegation(cronos, geth):
+    """
+    Test the storage won't be cleared if the delegation is reset
+    """
+
+    def process(w3):
+        simple_counter = deploy_contract(
+            w3,
+            CONTRACTS["Simple7702Counter"],
+        )
+
+        acc = derive_new_account(n=102)
+        fund_acc(w3, acc)
+
+        send_eip7702_transaction(w3, acc, simple_counter.address)
+
+        account_contract = get_contract(w3, acc.address, CONTRACTS["Simple7702Counter"])
+        tx = account_contract.functions.increase().build_transaction(
+            {
+                "from": acc.address,
+                "nonce": w3.eth.get_transaction_count(acc.address),
+                "gas": 1000000,
+                "gasPrice": w3.eth.gas_price,
+            }
+        )
+        signed_tx = acc.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        assert receipt.status == 1
+
+        # increase the counter to 1, the storage should be 1
+        expected_storage = HexBytes(
+            "0x0000000000000000000000000000000000000000000000000000000000000001"
+        )
+
+        storage = w3.eth.get_storage_at(acc.address, 0)
+        assert storage == expected_storage
+
+        # the storage should not be cleared if the delegation is reset
+        send_eip7702_transaction(w3, acc, "0x0000000000000000000000000000000000000000")
+        storage = w3.eth.get_storage_at(acc.address, 0)
+        assert storage == expected_storage
+
+        simple_7702_account = deploy_contract(
+            w3,
+            CONTRACTS["Simple7702Account"],
+        )
+
+        # delegate to the simple 7702 account, won't update the underlying storage
+        send_eip7702_transaction(w3, acc, simple_7702_account.address)
+        storage = w3.eth.get_storage_at(acc.address, 0)
+        assert storage == expected_storage
+
+    providers = [cronos.w3, geth.w3]
+    with ThreadPoolExecutor(len(providers)) as exec:
+        tasks = [exec.submit(process, w3) for w3 in providers]
+        res = [future.result() for future in as_completed(tasks)]
+        assert len(res) == len(providers)
