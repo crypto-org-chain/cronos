@@ -547,7 +547,7 @@ func New(
 		authAddr,
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
-		stakingtypes.QueueLastProcessedState{},
+		stakingkeeper.QueueLastProcessedState{},
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec,
