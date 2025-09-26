@@ -1715,8 +1715,8 @@ github.com/tendermint/go-amino v0.16.0 h1:GyhmgQKvqF82e2oZeuMSp9JTN0N09emoSZlb2l
 github.com/tendermint/go-amino v0.16.0/go.mod h1:TQU0M1i/ImAo+tYpZi73AU3V/dKeCoMC9Sphe2ZwGME=
 github.com/test-go/testify v1.1.4 h1:Tf9lntrKUMHiXQ07qBScBTSA0dhYQlu83hswqelv1iE=
 github.com/test-go/testify v1.1.4/go.mod h1:rH7cfJo/47vWGdi4GPj16x3/t1xGOj2YxzmNQzk2ghU=
-github.com/thomas-nguy/ethermint v0.4.2-0.20250924014045-fd18c2d3ddda h1:pau/3ehU+pexq2y23ri0fM5/2pbny+J9kLA+iYAljoA=
-github.com/thomas-nguy/ethermint v0.4.2-0.20250924014045-fd18c2d3ddda/go.mod h1:M7ssH6+kZaVxYiRyrLoFY6/0j+Bsmok31XdIRehKnHM=
+github.com/thomas-nguy/ethermint v0.4.2-0.20250926062850-72d3c5eecb65 h1:+RZxNrkl6wj73epray4ueiV3OpRh+1tr9I0qNEN3a1s=
+github.com/thomas-nguy/ethermint v0.4.2-0.20250926062850-72d3c5eecb65/go.mod h1:M7ssH6+kZaVxYiRyrLoFY6/0j+Bsmok31XdIRehKnHM=
 github.com/tidwall/gjson v1.10.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
