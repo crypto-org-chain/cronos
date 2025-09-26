@@ -197,8 +197,8 @@ func AddTestAddrs(app *App, ctx sdk.Context, accNum int, accAmt sdkmath.Int) []s
 	return addTestAddrs(app, ctx, accNum, accAmt, createRandomAccounts)
 }
 
-// AddTestAddrs constructs and returns accNum amount of accounts with an
-// initial balance of accAmt in random order
+// AddTestAddrsIncremental constructs and returns accNum amount of accounts with an
+// initial balance of accAmt in incremental order
 func AddTestAddrsIncremental(app *App, ctx sdk.Context, accNum int, accAmt sdkmath.Int) []sdk.AccAddress {
 	return addTestAddrs(app, ctx, accNum, accAmt, createIncrementalAccounts)
 }
