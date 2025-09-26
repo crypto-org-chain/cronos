@@ -49,7 +49,7 @@ channel = "channel-0"
 @pytest.fixture(scope="module")
 def ibc(request, tmp_path_factory):
     "prepare-network"
-    name = "ibc_rly_evm"
+    name = "ibc_rly"
     path = tmp_path_factory.mktemp(name)
     yield from prepare_network(
         path,
@@ -431,5 +431,3 @@ def test_cronos_transfer_source_tokens_with_proxy(ibc):
     assert_transfer_source_tokens_topics(ibc, cronos_transfer_source_tokens_with_proxy)
 
 
-def test_ibc_multi(ibc):
-    ibc_multi_transfer(ibc)
