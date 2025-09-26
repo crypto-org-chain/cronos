@@ -13,7 +13,6 @@ from .ibc_utils import (
     hermes_transfer,
     ibc_denom,
     ibc_incentivized_transfer,
-    ibc_multi_transfer,
     ibc_transfer,
     prepare_network,
     rly_transfer,
@@ -429,5 +428,3 @@ def test_cronos_transfer_source_tokens(ibc):
 @pytest.mark.skip("skipping due to unsupported precompiled contract in hermes")
 def test_cronos_transfer_source_tokens_with_proxy(ibc):
     assert_transfer_source_tokens_topics(ibc, cronos_transfer_source_tokens_with_proxy)
-
-
