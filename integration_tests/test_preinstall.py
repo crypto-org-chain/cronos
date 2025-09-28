@@ -36,8 +36,6 @@ def test_preinstalls(cronos: Cronos):
     )
 
     create2code = w3.eth.get_code(create2address)
-    print(f"Contract address: {create2address}")
-    print(f"Contract bytecode: {create2code.hex()[:70]}...")
     assert create2code == HexBytes(
         "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         "e03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
