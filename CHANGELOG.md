@@ -4,9 +4,7 @@
 
 ## UNRELEASED
 
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker by retrieving iterators in parallel and reducing range of iteration.
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Upgrade to RocksDB version 10.4.2 and enable asyncIO.
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker removing unnecessary address conversion.
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker by retrieving iterators in parallel and reducing range of iteration. Upgrade to RocksDB version 10.4.2 and enable asyncIO. Optimize staking endblocker removing unnecessary address conversion.
 
 ## v1.4.9
 
