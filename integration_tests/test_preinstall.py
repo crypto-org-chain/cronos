@@ -14,11 +14,12 @@ def test_preinstalls(cronos: Cronos):
     create2code = w3.eth.get_code(create2address)
     assert create2code == HexBytes("0x")
 
+    create2code = "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    "e03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
     create2_preinstall = {
         "name": "Create2",
         "address": create2address,
-        "code": "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-        "e03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3",
+        "code": create2code,
     }
 
     msg = "/ethermint.evm.v1.MsgRegisterPreinstalls"
@@ -36,7 +37,4 @@ def test_preinstalls(cronos: Cronos):
     )
 
     create2code = w3.eth.get_code(create2address)
-    assert create2code == HexBytes(
-        "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-        "e03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3"
-    )
+    assert create2code == HexBytes(create2code)
