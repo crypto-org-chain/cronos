@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
-	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
+	icagenesistypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/genesis/types"
+	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -378,10 +377,6 @@ type ExportFeemarketParams struct {
 }
 
 func Migrate(appState genutiltypes.AppMap, clientCtx client.Context) (genutiltypes.AppMap, error) {
-	// Add feeibc with default genesis.
-	if appState[ibcfeetypes.ModuleName] == nil {
-		appState[ibcfeetypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(ibcfeetypes.DefaultGenesisState())
-	}
 	// Add interchainaccounts with default genesis.
 	if appState[icatypes.ModuleName] == nil {
 		appState[icatypes.ModuleName] = clientCtx.Codec.MustMarshalJSON(icagenesistypes.DefaultGenesis())

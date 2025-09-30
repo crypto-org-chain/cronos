@@ -24,17 +24,18 @@ const DefaultGasCap uint64 = 25000000
 func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value *big.Int, gasLimit uint64) (*core.Message, *evmtypes.MsgEthereumTxResponse, error) {
 	nonce := k.evmKeeper.GetNonce(ctx, types.EVMModuleAddress)
 	msg := &core.Message{
-		From:              types.EVMModuleAddress,
-		To:                to,
-		Nonce:             nonce,
-		Value:             value, // amount
-		GasLimit:          gasLimit,
-		GasPrice:          big.NewInt(0),
-		GasFeeCap:         nil,
-		GasTipCap:         nil, // gasPrice
-		Data:              data,
-		AccessList:        nil,   // accessList
-		SkipAccountChecks: false, // isFake
+		From:             types.EVMModuleAddress,
+		To:               to,
+		Nonce:            nonce,
+		Value:            value, // amount
+		GasLimit:         gasLimit,
+		GasPrice:         big.NewInt(0),
+		GasFeeCap:        nil,
+		GasTipCap:        nil, // gasPrice
+		Data:             data,
+		AccessList:       nil, // accessList
+		SkipNonceChecks:  false,
+		SkipFromEOACheck: false,
 	}
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {

@@ -5,14 +5,13 @@ import (
 	"math/big"
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	"github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
-	connectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	"github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
+	connectiontypes "github.com/cosmos/ibc-go/v10/modules/core/03-connection/types"
+	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -36,7 +35,7 @@ type BankKeeper interface {
 // TransferKeeper defines the expected interface needed to transfer coin through IBC.
 type TransferKeeper interface {
 	Transfer(goCtx context.Context, msg *types.MsgTransfer) (*types.MsgTransferResponse, error)
-	GetDenomTrace(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.DenomTrace, bool)
+	GetDenom(ctx sdk.Context, denomTraceHash tmbytes.HexBytes) (types.Denom, bool)
 }
 
 // AccountKeeper defines the expected account keeper interface
@@ -59,7 +58,7 @@ type EvmLogHandler interface {
 // EvmKeeper defines the interface for evm keeper
 type EvmKeeper interface {
 	GetNonce(ctx sdk.Context, addr common.Address) uint64
-	ApplyMessage(ctx sdk.Context, msg *core.Message, tracer vm.EVMLogger, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
+	ApplyMessage(ctx sdk.Context, msg *core.Message, tracer *tracing.Hooks, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
 	GetParams(ctx sdk.Context) evmtypes.Params
 
 	// to replay the messages
@@ -93,9 +92,4 @@ type IbcKeeper interface {
 	Acknowledgement(goCtx context.Context, msg *channeltypes.MsgAcknowledgement) (*channeltypes.MsgAcknowledgementResponse, error)
 	Timeout(goCtx context.Context, msg *channeltypes.MsgTimeout) (*channeltypes.MsgTimeoutResponse, error)
 	TimeoutOnClose(goCtx context.Context, msg *channeltypes.MsgTimeoutOnClose) (*channeltypes.MsgTimeoutOnCloseResponse, error)
-}
-
-type IbcFeeKeeper interface {
-	RegisterPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterPayee) (*ibcfeetypes.MsgRegisterPayeeResponse, error)
-	RegisterCounterpartyPayee(goCtx context.Context, msg *ibcfeetypes.MsgRegisterCounterpartyPayee) (*ibcfeetypes.MsgRegisterCounterpartyPayeeResponse, error)
 }

@@ -35,7 +35,6 @@ ifeq ($(LEDGER_ENABLED),true)
             build_tags += ledger
         endif
     else
-        UNAME_S = $(shell uname -s)
         ifeq ($(UNAME_S),OpenBSD)
             $(warning OpenBSD detected, disabling ledger support (https://github.com/cosmos/cosmos-sdk/issues/1988))
         else
@@ -46,6 +45,14 @@ ifeq ($(LEDGER_ENABLED),true)
                 build_tags += ledger
             endif
         endif
+    endif
+endif
+
+ifeq ($(shell uname -s),Darwin)
+    GEN_BINDING_FLAGS := --system x86_64-darwin
+else
+    ifeq ($(shell uname -s),Linux)
+        GEN_BINDING_FLAGS := --system x86_64-linux
     endif
 endif
 
@@ -132,7 +139,7 @@ lint:
 	golangci-lint run --output.text.path stdout --path-prefix=./
 
 lint-fix:
-	golangci-lint run --fix --output.text.path stdout --issues-exit-code=0
+	golangci-lint run --fix --issues-exit-code=0 --path-prefix=./
 
 lint-py:
 	flake8 --show-source --count --statistics \
@@ -265,7 +272,7 @@ gen-cronos-contracts:
 	@nix-shell ./contracts/shell.nix --pure --run ./scripts/gen-cronos-contracts
 
 gen-bindings-contracts:
-	@nix-shell ./nix/gen-binding-shell.nix --pure --run ./scripts/gen-bindings-contracts
+	@nix-shell ./nix/gen-binding-shell.nix $(GEN_BINDING_FLAGS) --pure --run ./scripts/gen-bindings-contracts
 
 .PHONY: gen-cronos-contracts gen-bindings-contracts test-cronos-contracts
 
@@ -324,3 +331,7 @@ proto-check-breaking:
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
+
+vulncheck: $(BUILDDIR)/
+	GOBIN=$(BUILDDIR) go install golang.org/x/vuln/cmd/govulncheck@latest
+	$(BUILDDIR)/govulncheck ./...

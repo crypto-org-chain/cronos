@@ -23970,7 +23970,7 @@ definitions:
     title: >-
       BatchTx represents a batch of transactions going from Cosmos to Ethereum.
 
-      Batch txs are are identified by a unique hash and the token contract that
+      Batch txs are identified by a unique hash and the token contract that
       is
 
       shared by all the SendToEthereum
@@ -24078,7 +24078,7 @@ definitions:
           BatchTx represents a batch of transactions going from Cosmos to
           Ethereum.
 
-          Batch txs are are identified by a unique hash and the token contract
+          Batch txs are identified by a unique hash and the token contract
           that is
 
           shared by all the SendToEthereum
@@ -24136,7 +24136,7 @@ definitions:
             BatchTx represents a batch of transactions going from Cosmos to
             Ethereum.
 
-            Batch txs are are identified by a unique hash and the token contract
+            Batch txs are identified by a unique hash and the token contract
             that is
 
             shared by all the SendToEthereum
@@ -25172,7 +25172,7 @@ definitions:
             BatchTx represents a batch of transactions going from Cosmos to
             Ethereum.
 
-            Batch txs are are identified by a unique hash and the token contract
+            Batch txs are identified by a unique hash and the token contract
             that is
 
             shared by all the SendToEthereum

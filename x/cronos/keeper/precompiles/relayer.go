@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
@@ -19,7 +18,6 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
@@ -107,20 +105,18 @@ func init() {
 type RelayerContract struct {
 	BaseContract
 
-	cdc          codec.Codec
-	ibcKeeper    types.IbcKeeper
-	ibcFeeKeeper types.IbcFeeKeeper
-	logger       log.Logger
-	isHomestead  bool
-	isIstanbul   bool
-	isShanghai   bool
+	cdc         codec.Codec
+	ibcKeeper   types.IbcKeeper
+	logger      log.Logger
+	isHomestead bool
+	isIstanbul  bool
+	isShanghai  bool
 }
 
-func NewRelayerContract(ibcKeeper types.IbcKeeper, ibcFeeKeeper types.IbcFeeKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
+func NewRelayerContract(ibcKeeper types.IbcKeeper, cdc codec.Codec, rules params.Rules, logger log.Logger) vm.PrecompiledContract {
 	return &RelayerContract{
 		BaseContract: NewBaseContract(relayerContractAddress),
 		ibcKeeper:    ibcKeeper,
-		ibcFeeKeeper: ibcFeeKeeper,
 		cdc:          cdc,
 		isHomestead:  rules.IsHomestead,
 		isIstanbul:   rules.IsIstanbul,
@@ -160,11 +156,12 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
 			panic(err)
 		}
-		if ibctransfertypes.ReceiverChainIsSource(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel(), data.Denom) {
+		denom := ibctransfertypes.ExtractDenomFromPath(data.Denom)
+		if denom.HasPrefix(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel()) {
 			requiredGas = GasWhenReceiverChainIsSource
 		}
 	}
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
@@ -200,37 +197,11 @@ func (bc *RelayerContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool
 		return nil, errors.New("fail to unpack input arguments")
 	}
 	converter := cronosevents.RelayerConvertEvent
-	if method.Name == RegisterPayee || method.Name == RegisterCounterpartyPayee {
-		execErr := stateDB.ExecuteNativeAction(precompileAddr, converter, func(ctx sdk.Context) error {
-			portID := args[0].(string)
-			channelID := args[1].(string)
-			caller := sdk.AccAddress(contract.CallerAddress.Bytes()).String()
-			if method.Name == RegisterPayee {
-				payeeAddr := sdk.AccAddress(args[2].(common.Address).Bytes()).String()
-				_, err := bc.ibcFeeKeeper.RegisterPayee(
-					ctx,
-					ibcfeetypes.NewMsgRegisterPayee(portID, channelID, caller, payeeAddr),
-				)
-				return err
-			} else {
-				counterpartyPayeeAddr := args[2].(string)
-				_, err := bc.ibcFeeKeeper.RegisterCounterpartyPayee(
-					ctx,
-					ibcfeetypes.NewMsgRegisterCounterpartyPayee(portID, channelID, caller, counterpartyPayeeAddr),
-				)
-				return err
-			}
-		})
-		if execErr != nil {
-			return nil, execErr
-		}
-		return method.Outputs.Pack(true)
-	}
 	input := args[0].([]byte)
 	e := &Executor{
 		cdc:       bc.cdc,
 		stateDB:   stateDB,
-		caller:    contract.CallerAddress,
+		caller:    contract.Caller(),
 		contract:  precompileAddr,
 		input:     input,
 		converter: converter,

@@ -26,10 +26,14 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
+    fund_acc,
+    get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
+    remove_cancun_prague_params,
+    replace_transaction,
     send_transaction,
     send_txs,
     sign_transaction,
@@ -48,12 +52,13 @@ def test_ica_enabled(cronos, tmp_path):
     param1 = get_expedited_params(param0)
     # governance module account as signer
     authority = module_address("gov")
+    msg = "/cosmos.gov.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/cosmos.gov.v1.MsgUpdateParams",
+                "@type": msg,
                 "authority": authority,
                 "params": {
                     **param0,
@@ -67,13 +72,13 @@ def test_ica_enabled(cronos, tmp_path):
     p = cli.query_ica_params()
     assert p["controller_enabled"]
     p["controller_enabled"] = False
-    type = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
+    msg = "/ibc.applications.interchain_accounts.controller.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": type,
+                "@type": msg,
                 "signer": authority,
                 "params": p,
             }
@@ -667,13 +672,14 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-def test_suicide(cluster):
+def test_suicide_pre_cancun(cronos):
     """
     test compliance of contract suicide
     - within the tx, after contract suicide, the code is still available.
     - after the tx, the code is not available.
     """
-    w3 = cluster.w3
+    remove_cancun_prague_params(cronos)
+    w3 = cronos.w3
     destroyee = deploy_contract(
         w3,
         contract_path("Destroyee", "TestSuicide.sol"),
@@ -692,6 +698,42 @@ def test_suicide(cluster):
     assert receipt.status == 1
 
     assert len(w3.eth.get_code(destroyee.address)) == 0
+
+
+def test_suicide_post_cancun(cluster):
+    """
+    after EIP-6780, SELFDESTRUCT will recover all funds to the target
+    but not delete the account, except when called in the same transaction as creation
+    """
+    w3 = cluster.w3
+    destroyee = deploy_contract(
+        w3,
+        contract_path("Destroyee", "TestSuicide.sol"),
+    )
+    destroyer = deploy_contract(
+        w3,
+        contract_path("Destroyer", "TestSuicide.sol"),
+    )
+
+    balance_wanted = 1000000000000000000
+    fund_acc(w3, destroyee, balance_wanted)
+    assert w3.eth.get_balance(destroyee.address) == balance_wanted
+    assert w3.eth.get_balance(destroyer.address) == 0
+
+    old_code_destroyee = w3.eth.get_code(destroyee.address)
+    old_code_destroyer = w3.eth.get_code(destroyer.address)
+    assert len(old_code_destroyee) > 0
+    assert len(old_code_destroyer) > 0
+
+    tx = destroyer.functions.check_codesize_after_suicide(
+        destroyee.address
+    ).build_transaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    assert w3.eth.get_code(destroyee.address) == old_code_destroyee
+    assert w3.eth.get_balance(destroyee.address) == 0
+    assert w3.eth.get_balance(destroyer.address) == balance_wanted
 
 
 def test_batch_tx(cronos):
@@ -750,6 +792,9 @@ def test_batch_tx(cronos):
         receipts[2].cumulativeGasUsed
         == receipts[0].gasUsed + receipts[1].gasUsed + receipts[2].gasUsed
     )
+
+    # check nonce
+    assert w3.eth.get_transaction_count(sender) == nonce + 3
 
     # check traceTransaction
     rsps = [
@@ -867,9 +912,9 @@ def test_failed_transfer_tx(cronos):
             assert receipt.gasUsed == result["gas"]
         else:
             assert rsp["result"] == {
-                "failed": False,
+                "failed": True,
                 "gas": 21000,
-                "returnValue": "",
+                "returnValue": "0x",
                 "structLogs": [],
             }
 
@@ -986,12 +1031,12 @@ def test_replay_protection(cronos):
 
 
 @pytest.mark.gov
-def test_submit_any_proposal(cronos, tmp_path):
-    submit_any_proposal(cronos, tmp_path)
+def test_submit_any_proposal(cronos):
+    submit_any_proposal(cronos)
 
 
 @pytest.mark.gov
-def test_submit_send_enabled(cronos, tmp_path):
+def test_submit_send_enabled(cronos):
     # check bank send enable
     cli = cronos.cosmos_cli()
     denoms = ["basetcro", "stake"]
@@ -1001,12 +1046,13 @@ def test_submit_send_enabled(cronos, tmp_path):
         {"denom": "stake", "enabled": True},
     ]
     authority = module_address("gov")
+    msg = "/cosmos.bank.v1beta1.MsgSetSendEnabled"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/cosmos.bank.v1beta1.MsgSetSendEnabled",
+                "@type": msg,
                 "authority": authority,
                 "sendEnabled": send_enable,
             }
@@ -1072,3 +1118,91 @@ def test_textual(cronos):
         sign_mode="textual",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
+
+
+def test_tx_replacement(cronos):
+    w3 = cronos.w3
+    gas_price = w3.eth.gas_price
+    nonce = get_account_nonce(w3)
+    initial_balance = w3.eth.get_balance(ADDRS["community"])
+    txhash = replace_transaction(
+        w3,
+        {
+            "to": ADDRS["community"],
+            "value": 1,
+            "gasPrice": gas_price,
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
+        {
+            "to": ADDRS["community"],
+            "value": 5,
+            "gasPrice": gas_price * 2,
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
+        KEYS["validator"],
+    )["transactionHash"]
+    tx1 = w3.eth.get_transaction(txhash)
+    assert tx1["transactionIndex"] == 0
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+
+    # check that already accepted transaction cannot be replaced
+    txhash_noreplacemenet = send_transaction(
+        w3,
+        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
+        KEYS["validator"],
+    )["transactionHash"]
+    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
+    assert tx2["transactionIndex"] == 0
+
+    with pytest.raises(ValueError) as exc:
+        w3.eth.replace_transaction(
+            txhash_noreplacemenet,
+            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+        )
+    assert "has already been mined" in str(exc)
+
+
+def test_block_tx_properties(cronos):
+    """
+    test block tx properties on cronos network
+    - deploy test contract
+    - call contract
+    - check all values are correct in log
+    """
+    w3 = cronos.w3
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestBlockTxProperties"],
+    )
+
+    tx = contract.functions.emitTxDetails().build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
+
+    assert receipt.status == 1
+    assert len(receipt.logs) == 1
+
+    assert contract.address == receipt.logs[0]["address"]
+    event_signature = HexBytes(
+        abi.event_signature_to_log_topic(
+            "TxDetailsEvent(address,address,uint256,bytes,uint256,uint256,bytes4)"
+        )
+    )
+    assert event_signature == receipt.logs[0]["topics"][0]
+    validator_hex_address = HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"]))
+    assert validator_hex_address == receipt.logs[0]["topics"][1]
+    assert validator_hex_address == receipt.logs[0]["topics"][2]
+
+    # check event values
+    tx_details_event = contract.events.TxDetailsEvent().process_receipt(receipt)
+    data = tx_details_event[0]["args"]
+    assert data["origin"] == ADDRS["validator"]
+    assert data["sender"] == ADDRS["validator"]
+    assert data["value"] == 0
+    assert data["data"] == bytes.fromhex("8e091b5e")
+    assert data["price"] > 0
+    assert data["gas"] == 3633
+    assert data["sig"] == bytes.fromhex("8e091b5e")

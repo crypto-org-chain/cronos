@@ -1,6 +1,6 @@
 import pytest
 
-from .ibc_utils import RATIO, assert_ready, get_balance, ibc_transfer, prepare_network
+from .ibc_utils import RATIO, get_balance, ibc_transfer, prepare_network
 from .utils import wait_for_fn
 
 pytestmark = pytest.mark.ibc_timeout
@@ -11,7 +11,13 @@ def ibc(request, tmp_path_factory):
     "prepare-network"
     name = "ibc_timeout"
     path = tmp_path_factory.mktemp(name)
-    yield from prepare_network(path, name, grantee="signer3")
+    yield from prepare_network(
+        path,
+        name,
+        grantee="signer3",
+        is_ibc_transfer=True,
+        incentivized=False,
+    )
 
 
 def test_ibc(ibc):
@@ -23,7 +29,6 @@ def test_cronos_transfer_timeout(ibc):
     test sending basetcro from cronos to crypto-org-chain using cli transfer_tokens.
     depends on `test_ibc` to send the original coins.
     """
-    assert_ready(ibc)
     dst_addr = ibc.chainmain.cosmos_cli().address("signer2")
     dst_amount = 2
     dst_denom = "basecro"

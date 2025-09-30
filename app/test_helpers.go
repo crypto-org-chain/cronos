@@ -16,7 +16,7 @@ import (
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	"github.com/evmos/ethermint/app"
+	app "github.com/evmos/ethermint/evmd"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/errors"
@@ -198,7 +198,7 @@ func AddTestAddrs(app *App, ctx sdk.Context, accNum int, accAmt sdkmath.Int) []s
 }
 
 // AddTestAddrsIncremental constructs and returns accNum amount of accounts with an
-// initial balance of accAmt in incremental order
+// initial balance of accAmt in random order
 func AddTestAddrsIncremental(app *App, ctx sdk.Context, accNum int, accAmt sdkmath.Int) []sdk.AccAddress {
 	return addTestAddrs(app, ctx, accNum, accAmt, createIncrementalAccounts)
 }

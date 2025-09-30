@@ -12,12 +12,11 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
-	evmante "github.com/evmos/ethermint/app/ante"
+	"github.com/evmos/ethermint/ante/cache"
+	evmante "github.com/evmos/ethermint/evmd/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 
@@ -78,6 +77,7 @@ func NewSimApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*baseapp.Bas
 		EvmKeeper:       app.EvmKeeper,
 		FeeMarketKeeper: app.FeeMarketKeeper,
 		MaxTxGasWanted:  0,
+		AnteCache:       cache.NewAnteCache(0),
 	})
 	if err != nil {
 		return nil, err
@@ -238,12 +238,10 @@ func TestAppImportExport(t *testing.T) {
 		{app.keys[paramtypes.StoreKey], newApp.keys[paramtypes.StoreKey], [][]byte{}},
 		{app.keys[govtypes.StoreKey], newApp.keys[govtypes.StoreKey], [][]byte{}},
 		{app.keys[evidencetypes.StoreKey], newApp.keys[evidencetypes.StoreKey], [][]byte{}},
-		{app.keys[capabilitytypes.StoreKey], newApp.keys[capabilitytypes.StoreKey], [][]byte{}},
 		{app.keys[evmtypes.StoreKey], newApp.keys[evmtypes.StoreKey], [][]byte{}},
 		{app.keys[cronosmoduletypes.StoreKey], newApp.keys[cronosmoduletypes.StoreKey], [][]byte{}},
 		{app.keys[ibcexported.StoreKey], newApp.keys[ibcexported.StoreKey], [][]byte{}},
 		{app.keys[ibctransfertypes.StoreKey], newApp.keys[ibctransfertypes.StoreKey], [][]byte{}},
-		{app.keys[ibcfeetypes.StoreKey], newApp.keys[ibcfeetypes.StoreKey], [][]byte{}},
 	}
 
 	for _, skp := range storeKeysPrefixes {

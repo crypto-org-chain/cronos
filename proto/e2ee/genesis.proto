@@ -8,7 +8,7 @@ option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
 // EncryptionKeyEntry is a type that contains the owner and the public key.
 message EncryptionKeyEntry {
   string address = 1;
-  string key = 2;
+  string key     = 2;
 }
 
 // GenesisState defines the e2ee module's genesis state.

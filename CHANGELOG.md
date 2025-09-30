@@ -1,17 +1,38 @@
 # Changelog
 
-
-
 ## UNRELEASED
 
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker by retrieving iterators in parallel and reducing range of iteration. Upgrade to RocksDB version 10.4.2 and enable asyncIO. Optimize staking endblocker removing unnecessary address conversion.
 
-## v1.4.9
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker by retrieving iterators in parallel, reducing range of iteration and removing unnecessary address conversion. Upgrade to RocksDB version 10.4.2 and enable asyncIO.
+* [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
+* [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
 
-### Bug Fixes
+*Sep 4, 2025*
 
-* [#1830](https://github.com/crypto-org-chain/cronos/pull/1830) Add sanity check for rpc call Trace_Tx and Trace_call.
-* [#1853](https://github.com/crypto-org-chain/cronos/pull/1853) Fix version not found during pruning.
+## v1.5.0
+
+### State Machine Breaking
+
+* [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
+* [#1845](https://github.com/crypto-org-chain/cronos/pull/1845) Remove active precompiles from VMContext
+* [#1846](https://github.com/crypto-org-chain/cronos/pull/1846) Enforce app creator returning application implement AppWithPendingTxStream during compilation phase 
+
+
+### Improvements
+
+* [#1841](https://github.com/crypto-org-chain/cronos/pull/1841) Ci: use `golangci-lint run --fix`.
+* [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
+* [#1824](https://github.com/crypto-org-chain/cronos/pull/1824) Rework on github actions.
+* [#1826](https://github.com/crypto-org-chain/cronos/pull/1826) Update linter and tidy up code.
+* [#1807](https://github.com/crypto-org-chain/cronos/pull/1807) Update go-ethereum version to [v1.15.11](https://github.com/ethereum/go-ethereum/releases/tag/v1.15.11).
+* [#1840](https://github.com/crypto-org-chain/cronos/pull/1840) Tx replacement support.
+* [#1851](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
+* [#1863](https://github.com/crypto-org-chain/cronos/pull/1863) Support EIP-7702 transaction type
+* [#1867](https://github.com/crypto-org-chain/cronos/pull/1867) Add authorizationList from `eth_getTransactionByHash` response for EIP-7702 transactions
+
+### Bug fixes
+
+* [#1858](https://github.com/crypto-org-chain/cronos/pull/1858) Fix version not found during pruning.
 
 *Jun 20, 2025*
 
@@ -19,7 +40,7 @@
 
 ### Improvements
 
-* [#1817](https://github.com/crypto-org-chain/cronos/pull/1817) Add support for eth_getBlockReceipts.
+* [#1823](https://github.com/crypto-org-chain/cronos/pull/1823) Add support for eth_getBlockReceipts.
 
 *Apr 24, 2025*
 
@@ -27,7 +48,7 @@
 
 ### Bug Fixes
 
-* [#1796](https://github.com/crypto-org-chain/cronos/pull/1796) Upgrade cosmos sdk to latest to include bug fix.
+* [#1797](https://github.com/crypto-org-chain/cronos/pull/1797) Upgrade cosmos sdk to latest to include bug fix
 
 
 *Apr 9, 2025*

@@ -21,13 +21,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
-  version = "10.4.2";
+  version = "9.11.2";
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = finalAttrs.pname;
     rev = "v${finalAttrs.version}";
-    hash = "sha256-mKh6zsmxsiUix4LX+npiytmKvLbo6WNA9y4Ns/EY+bE=";
+    hash = "sha256-D/FZJw1zwDXvCRHxCxyNxarHlDi5xtt8MddUOr4Pv2c=";
   };
 
   nativeBuildInputs = [

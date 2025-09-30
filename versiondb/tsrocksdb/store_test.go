@@ -20,7 +20,7 @@ func TestTSVersionDB(t *testing.T) {
 	})
 }
 
-// TestUserTimestamp tests the behaviors of user-defined timestamp feature of rocksdb
+// TestUserTimestampBasic tests the behaviors of user-defined timestamp feature of rocksdb
 func TestUserTimestampBasic(t *testing.T) {
 	key := []byte("hello")
 	writeOpts := grocksdb.NewDefaultWriteOptions()

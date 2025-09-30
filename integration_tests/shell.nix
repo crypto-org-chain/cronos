@@ -7,6 +7,7 @@ pkgs.mkShell {
     (pkgs.callPackage ../. { coverage = true; }) # cronosd
     pkgs.start-scripts
     pkgs.go-ethereum
+    pkgs.go
     pkgs.cosmovisor
     pkgs.nodejs
     pkgs.test-env
@@ -15,7 +16,7 @@ pkgs.mkShell {
     pkgs.rly
   ];
   shellHook = ''
-    mkdir ./coverage
+    mkdir -p ./coverage
     export GOCOVERDIR=./coverage
     export TMPDIR=/tmp
   '';

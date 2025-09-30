@@ -17,13 +17,16 @@ def test_evm_update_param(cronos, tmp_path):
     p = cli.query_params("evm")
     del p["chain_config"]["merge_netsplit_block"]
     del p["chain_config"]["shanghai_time"]
+    del p["chain_config"]["cancun_time"]
+    del p["chain_config"]["prague_time"]
     authority = module_address("gov")
+    msg = "/ethermint.evm.v1.MsgUpdateParams"
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/ethermint.evm.v1.MsgUpdateParams",
+                "@type": msg,
                 "authority": authority,
                 "params": p,
             }
@@ -32,6 +35,8 @@ def test_evm_update_param(cronos, tmp_path):
     p = cli.query_params("evm")
     assert not p["chain_config"]["merge_netsplit_block"]
     assert not p["chain_config"]["shanghai_time"]
+    assert not p["chain_config"]["cancun_time"]
+    assert not p["chain_config"]["prague_time"]
     invalid_msg = "invalid opcode: PUSH0"
     with pytest.raises(ValueError) as e_info:
         contract.caller.randomTokenId()
@@ -41,7 +46,7 @@ def test_evm_update_param(cronos, tmp_path):
     assert invalid_msg in str(e_info.value)
 
 
-def test_gov_update_params(cronos, tmp_path):
+def test_gov_update_params(cronos):
     params = {
         "cronos_admin": "crc12luku6uxehhak02py4rcz65zu0swh7wjsrw0pp",
         "enable_auto_deployment": False,
@@ -50,13 +55,14 @@ def test_gov_update_params(cronos, tmp_path):
         "ibc_timeout": "96400000000000",
         "max_callback_gas": "400000",
     }
+    msg = "/cronos.MsgUpdateParams"
     authority = module_address("gov")
     submit_gov_proposal(
         cronos,
-        tmp_path,
+        msg,
         messages=[
             {
-                "@type": "/cronos.MsgUpdateParams",
+                "@type": msg,
                 "authority": authority,
                 "params": params,
             }

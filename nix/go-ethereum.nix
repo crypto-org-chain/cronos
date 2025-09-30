@@ -17,16 +17,19 @@ let
 in
 buildGoModule rec {
   pname = "go-ethereum";
-  version = "1.11.6";
+  # Use the old estimateGas implementation
+  # https://github.com/crypto-org-chain/go-ethereum/commits/release/1.15-estimateGas/
+  version = "1c9b194657000b1593a6162a0d889b801548bf27";
 
   src = fetchFromGitHub {
-    owner = "ethereum";
+    owner = "crypto-org-chain";
     repo = pname;
-    rev = "v${version}";
-    sha256 = "sha256-mZ11xan3MGgaUORbiQczKrXSrxzjvQMhZbpHnEal11Y=";
+    rev = version;
+    sha256 = "sha256-+uAvVB3uoE7dRfm3hrJOZeuboyeU4RJYD0uUxEYH3X0=";
   };
 
-  vendorHash = "sha256-rjSGR2ie5sFK2OOo4HUZ6+hrDlQuUDtyTKn0sh8jFBY=";
+  proxyVendor = true;
+  vendorHash = "sha256-R9Qg6estiyjMAwN6tvuN9ZuE7+JqjEy+qYOPAg5lIJY=";
 
   doCheck = false;
 
@@ -43,15 +46,13 @@ buildGoModule rec {
   subPackages = [
     "cmd/abidump"
     "cmd/abigen"
-    "cmd/bootnode"
-    "cmd/checkpoint-admin"
+    "cmd/blsync"
     "cmd/clef"
     "cmd/devp2p"
+    "cmd/era"
     "cmd/ethkey"
     "cmd/evm"
-    "cmd/faucet"
     "cmd/geth"
-    "cmd/p2psim"
     "cmd/rlpdump"
     "cmd/utils"
   ];
