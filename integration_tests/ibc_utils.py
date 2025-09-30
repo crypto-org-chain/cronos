@@ -3,7 +3,6 @@ import hashlib
 import json
 import os
 import subprocess
-import time
 from contextlib import contextmanager
 from enum import Enum, IntEnum
 from pathlib import Path
@@ -448,8 +447,6 @@ def ibc_multi_transfer(ibc):
         assert balance == old_balance1, balance
         balance = chains[0].balance(addrs0[i], denom0)
         assert balance == old_balance0 - amount, balance
-
-    time.sleep(10)
 
     def assert_trace_balance(addr):
         balance = chains[1].balances(addr)

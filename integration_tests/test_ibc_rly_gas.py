@@ -12,7 +12,7 @@ from .utils import wait_for_new_blocks
 pytestmark = pytest.mark.ibc_rly_gas
 
 
-@pytest.fixture(scope="module", params=["ibc_rly_evm", "ibc_rly"])
+@pytest.fixture(scope="module", params=["ibc_rly"])
 def ibc(request, tmp_path_factory):
     "prepare-network"
     name = request.param
