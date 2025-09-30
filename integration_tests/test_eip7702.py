@@ -93,7 +93,7 @@ def test_eip7702_simple_7702_account(cronos):
         CONTRACTS["Simple7702Account"],
     )
 
-    account = derive_new_account(n=2)
+    account = derive_new_account(n=3)
     fund_acc(w3, account)
 
     send_eip7702_transaction(w3, account, account_impl.address)
