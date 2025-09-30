@@ -28,7 +28,7 @@
           config = { };
         };
       in
-      {
+      rec {
         packages.default = pkgs.benchmark-testcase;
         apps = {
           default = {

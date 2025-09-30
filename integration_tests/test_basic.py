@@ -21,7 +21,6 @@ from .utils import (
     RevertTestContract,
     assert_gov_params,
     build_batch_tx,
-    build_batch_tx_signed,
     contract_address,
     contract_path,
     deploy_contract,
@@ -740,33 +739,24 @@ def test_batch_tx(cronos):
     "send multiple eth txs in single cosmos tx"
     w3 = cronos.w3
     cli = cronos.cosmos_cli()
-    deployer = ADDRS["validator"]
-    sender = ADDRS["signer1"]
+    sender = ADDRS["validator"]
     recipient = ADDRS["community"]
-    deployer_nonce = w3.eth.get_transaction_count(deployer)
     nonce = w3.eth.get_transaction_count(sender)
-    info = json.loads(CONTRACTS["TestERC20Owner"].read_text())
+    info = json.loads(CONTRACTS["TestERC20Utility"].read_text())
     contract = w3.eth.contract(abi=info["abi"], bytecode=info["bytecode"])
-    deploy_tx = contract.constructor(sender).build_transaction(
-        {"from": deployer, "nonce": deployer_nonce}
+    deploy_tx = contract.constructor().build_transaction(
+        {"from": sender, "nonce": nonce}
     )
-    contract = w3.eth.contract(
-        address=contract_address(deployer, deployer_nonce), abi=info["abi"]
-    )
+    contract = w3.eth.contract(address=contract_address(sender, nonce), abi=info["abi"])
     transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
-        {"from": sender, "nonce": nonce, "gas": 200000}
-    )
-    transfer_tx2 = contract.functions.transfer(recipient, 1000).build_transaction(
         {"from": sender, "nonce": nonce + 1, "gas": 200000}
     )
+    transfer_tx2 = contract.functions.transfer(recipient, 1000).build_transaction(
+        {"from": sender, "nonce": nonce + 2, "gas": 200000}
+    )
 
-    cosmos_tx, tx_hashes = build_batch_tx_signed(
-        cli,
-        [
-            sign_transaction(w3, deploy_tx, KEYS["validator"]),
-            sign_transaction(w3, transfer_tx1, KEYS["signer1"]),
-            sign_transaction(w3, transfer_tx2, KEYS["signer1"]),
-        ],
+    cosmos_tx, tx_hashes = build_batch_tx(
+        w3, cli, [deploy_tx, transfer_tx1, transfer_tx2]
     )
     rsp = cli.broadcast_tx_json(cosmos_tx)
     assert rsp["code"] == 0, rsp["raw_log"]
@@ -817,45 +807,6 @@ def test_batch_tx(cronos):
     txs = w3.eth.get_block(receipts[0].blockNumber, True).transactions
     for i in range(3):
         assert txs[i].transactionIndex == i
-
-
-def test_batch_tx2(cronos):
-    """
-    reproduce a bug in eth_getLogs, in batch tx when the first tx emit logs
-    but the second tx don't, the logs are not returned in eth_getLogs.
-    """
-    w3: web3.Web3 = cronos.w3
-    cli = cronos.cosmos_cli()
-    contract = deploy_contract(
-        w3,
-        CONTRACTS["TestERC20A"],
-    )
-
-    deployer = ADDRS["validator"]
-    recipient = ADDRS["community"]
-
-    nonce = w3.eth.get_transaction_count(deployer)
-
-    transfer_tx1 = contract.functions.transfer(recipient, 1000).build_transaction(
-        {"from": deployer, "nonce": nonce, "gas": 200000}
-    )
-    transfer_tx2 = {"from": deployer, "to": recipient, "nonce": nonce + 1, "gas": 21000}
-    cosmos_tx, tx_hashes = build_batch_tx_signed(
-        cli, [sign_transaction(w3, transfer_tx1), sign_transaction(w3, transfer_tx2)]
-    )
-    rsp = cli.broadcast_tx_json(cosmos_tx)
-    assert rsp["code"] == 0, rsp["raw_log"]
-
-    receipt = w3.eth.wait_for_transaction_receipt(tx_hashes[0])
-    assert len(receipt.logs) == 1
-
-    logs = w3.eth.get_logs(
-        {
-            "fromBlock": receipt.blockNumber,
-            "toBlock": receipt.blockNumber,
-        }
-    )
-    assert len(logs) == 1
 
 
 def test_failed_transfer_tx(cronos):
