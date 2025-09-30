@@ -315,8 +315,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.4.2-0.20250928143611-828d652ae910"
-    hash = "sha256-cBQTqHomf+KcTPSeGeUG8FVGGeZ1M0eT1ZxvfsJx7o8="
+    version = "v0.4.2-0.20250930075755-202679eb894d"
+    hash = "sha256-lPbfOYZXIj0lv3Ihn/RoMCXPrzr9601I9R9UE5QViJA="
     replaced = "github.com/thomas-nguy/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -693,8 +693,8 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-3YhWBtSwRLGwm7vNwqumphZG3uLBW1vwT9QkQ8JuSjU="
   [mod."github.com/ulikunitz/xz"]
-    version = "v0.5.14"
-    hash = "sha256-21oXcIVmFyw+ukGQtflly0wpqaqh1jE0C9hLDSFYR7E="
+    version = "v0.5.15"
+    hash = "sha256-L5KYLue5U14bxUuNyhZ6lIjbda6eCQsx1V6gToqfRdk="
   [mod."github.com/zbiljic/go-filelock"]
     version = "v0.0.0-20170914061330-1dbf7103ab7d"
     hash = "sha256-JqNj/Wg8nGFSmndgYC7+FZzL2zG7rwOQMjlqYs3ZGvw="
