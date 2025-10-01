@@ -28,7 +28,7 @@ def ibc(request, tmp_path_factory):
 records = []
 
 
-def test_ibc(ibc):
+def test_ibc_rly_gas(ibc):
     # chainmain-1 relayer -> cronos_777-1 signer2
     cli = ibc.cronos.cosmos_cli()
     wait_for_new_blocks(cli, 1)
