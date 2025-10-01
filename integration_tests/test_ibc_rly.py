@@ -243,7 +243,7 @@ def filter_logs_since(w3, start, name, seq):
     )
 
 
-def test_ibc(ibc):
+def test_ibc_rly(ibc):
     # chainmain-1 relayer -> cronos_777-1 signer2
     w3 = ibc.cronos.w3
     wait_for_new_blocks(ibc.cronos.cosmos_cli(), 1)
