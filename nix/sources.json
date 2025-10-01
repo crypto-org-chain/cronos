@@ -1,14 +1,14 @@
 {
     "chain-main": {
-        "branch": "release/v7",
+        "branch": "master",
         "description": "Crypto.org Chain⛓: Croeseid Testnet and beyond development",
         "homepage": "https://crypto.org",
         "owner": "crypto-org-chain",
         "repo": "chain-main",
-        "rev": "d3ef39afd014cc39a57ac5391b5ac27cc3e9370e",
-        "sha256": "1vg6v1vs01n4pwnzda8ycn05c8k9k6hwwklibw9q3rad54kk7jm3",
+        "rev": "1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3",
+        "sha256": "01cg1jfg4l2d6g2spxf3c2375zj0siv8wg1lssafv7ry51f3zyqz",
         "type": "tarball",
-        "url": "https://github.com/crypto-org-chain/chain-main/archive/d3ef39afd014cc39a57ac5391b5ac27cc3e9370e.tar.gz",
+        "url": "https://github.com/crypto-org-chain/chain-main/archive/1baff8aed447abcad5c8d2ea4f92d7ae00d8b8b3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "dapptools": {
