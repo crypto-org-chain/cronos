@@ -462,7 +462,6 @@ def ibc_multi_transfer(ibc):
     assert denom["trace"] == [{"port_id": "transfer", "channel_id": channel1}]
 
     for i, _ in enumerate(users):
-        print(f"user{i+1} -> {addrs1[i]}")
         addr = addrs1[i]
 
         def check_balance(addr=addr):
@@ -493,7 +492,6 @@ def ibc_multi_transfer(ibc):
             assert rsp["code"] == 0, rsp["raw_log"]
 
         for i, _ in enumerate(users):
-            print(f"user{i+1} -> {addrs0[i]}")
             addr = addrs0[i]
 
             def check_balance(addr=addr):
