@@ -1611,10 +1611,10 @@ github.com/prometheus/procfs v0.3.0/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0learggepc=
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
-github.com/randy-cro/cosmos-sdk v0.50.6-0.20251002064944-b0f05096bfb3 h1:zPwgihkA3CD2ysUdI/Enf08yi5W8hLaFLSz+mtdaTJ0=
-github.com/randy-cro/cosmos-sdk v0.50.6-0.20251002064944-b0f05096bfb3/go.mod h1:8/AdT5lF3ILCCl/sDQXyBgzWGtcmD1tInWyhYeREVPA=
-github.com/randy-cro/ethermint v0.0.0-20251002070138-a83b79f06eba h1:bpANNJ43mWxuVZ7AtpWX4GmBIsQB4bQ3zQY4LxHSb+I=
-github.com/randy-cro/ethermint v0.0.0-20251002070138-a83b79f06eba/go.mod h1:RWPo/OZveNfmZG9P2W9PMB922YdQh858mfDmzQUG8LA=
+github.com/randy-cro/cosmos-sdk v0.50.6-0.20251002095114-8daabd22efec h1:3gV6pqij5mtlAllmf3I5UapSc/Yf98ebJ9M4vf6K4+Y=
+github.com/randy-cro/cosmos-sdk v0.50.6-0.20251002095114-8daabd22efec/go.mod h1:8/AdT5lF3ILCCl/sDQXyBgzWGtcmD1tInWyhYeREVPA=
+github.com/randy-cro/ethermint v0.0.0-20251002100658-9804b2ee60dc h1:1qcFprMC4HSPvqEItmrLmQGC7vxGn+limxNgAxZ9bJQ=
+github.com/randy-cro/ethermint v0.0.0-20251002100658-9804b2ee60dc/go.mod h1:3IwovINeZjwicqhbtnmvIbj29kHQp1jOada2vOXQNlY=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
