@@ -1,4 +1,4 @@
-module github.com/crypto-org-chain/cronos/v2
+module github.com/crypto-org-chain/cronos
 
 go 1.23.12
 

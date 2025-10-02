@@ -15,7 +15,7 @@ import (
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"

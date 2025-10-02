@@ -163,7 +163,7 @@ release-dry-run:
 ###                                Sim Test                                 ###
 ###############################################################################
 
-SIMAPP = github.com/crypto-org-chain/cronos/v2/app
+SIMAPP = github.com/crypto-org-chain/cronos/app
 
 # Install the runsim binary with a temporary workaround of entering an outside
 # directory as the "go get" command ignores the -mod option and will polute the
