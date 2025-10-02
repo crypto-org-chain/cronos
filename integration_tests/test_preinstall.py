@@ -1,7 +1,8 @@
 from hexbytes import HexBytes
 
+from .cosmoscli import module_address
 from .network import Cronos
-from .utils import module_address, submit_gov_proposal
+from .utils import submit_gov_proposal
 
 
 def test_preinstalls(cronos: Cronos):
