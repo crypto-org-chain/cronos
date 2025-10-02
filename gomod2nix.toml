@@ -216,8 +216,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20250930042656-8f71d3b30ae3"
-    hash = "sha256-arWgp18sO9ZHVP16IDhFsbIEIEnfBy9sBUdWJgJo3a0="
+    version = "v0.50.6-0.20251002064944-b0f05096bfb3"
+    hash = "sha256-sPSZHd3EbgVx9JOBihwUThJFMi+qJ42gXyOhNzQzzoI="
     replaced = "github.com/randy-cro/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -315,8 +315,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20250930043354-370a06cbfee5"
-    hash = "sha256-iz1A4BJRMV0msva2AJ2WM57Rl5ADye+X1ZjqmE2m9nk="
+    version = "v0.0.0-20251002070138-a83b79f06eba"
+    hash = "sha256-QtJFAfx2WC7shA1ffpIB05POXJOa73ybsCiNzAzzoyk="
     replaced = "github.com/randy-cro/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
