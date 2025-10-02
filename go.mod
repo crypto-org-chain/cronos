@@ -307,7 +307,7 @@ replace (
 
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// develop
-	github.com/evmos/ethermint => github.com/thomas-nguy/ethermint v0.4.2-0.20250930075755-202679eb894d
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20251002045626-63f3de0a10b2
 
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
