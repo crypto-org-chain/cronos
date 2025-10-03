@@ -17,7 +17,6 @@ def test_eip2935(cronos: Cronos):
         w3,
         CONTRACTS["TestEip2935"],
     )
-    w3_wait_for_block(w3, w3.eth.block_number + 10, timeout=30)
     start = w3.eth.block_number
     w3_wait_for_block(w3, start + 10, timeout=30)
     for i in range(0, 4):
