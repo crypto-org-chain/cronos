@@ -124,7 +124,7 @@ config {
       clients: {
         enabled: true,
         refresh: true,
-        misbehaviour: true,
+        misbehaviour: false,
       },
       connections: {
         enabled: true,

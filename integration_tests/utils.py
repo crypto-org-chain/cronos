@@ -226,7 +226,7 @@ def submit_gov_proposal(cronos, msg, **kwargs):
     )
     assert rsp["code"] == 0, rsp["raw_log"]
     approve_proposal(cronos, rsp["events"], msg=msg)
-    print("check params have been updated now")
+    print("proposal has passed now")
 
 
 def wait_for_port(port, host="127.0.0.1", timeout=40.0):
