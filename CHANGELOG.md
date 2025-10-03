@@ -5,6 +5,7 @@
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Add integration tests for preinstalls
+* [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Add integration tests for eip2935
 
 *Sep 4, 2025*
 
