@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker by retrieving iterators in parallel, reducing range of iteration and removing unnecessary address conversion. Upgrade to RocksDB version 10.4.2 and enable asyncIO.
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
 
