@@ -11,6 +11,7 @@ import pytest
 import requests
 from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
+from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
 from .utils import (
@@ -230,7 +231,7 @@ def exec(c, tmp_path_factory):
         w3,
         CONTRACTS["Random"],
     )
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(exceptions.Web3RPCError) as e_info:
         random_contract.caller.randomTokenId()
     assert "invalid memory address or nil pointer dereference" in str(e_info.value)
     contract = deploy_contract(w3, CONTRACTS["TestERC20A"])

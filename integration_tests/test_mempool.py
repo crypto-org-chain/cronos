@@ -42,7 +42,7 @@ def test_mempool(cronos_mempool):
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
     tx = contract.functions.setGreeting("world").build_transaction()
     signed = sign_transaction(w3, tx)
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
     w3.eth.wait_for_transaction_receipt(txhash)
     # check tx in mempool
     new_txs = filter.get_new_entries()
@@ -118,7 +118,7 @@ def test_mempool_nonce(cronos_mempool):
             "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, KEYS["validator"])
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
         return txhash
 
     for i in range(3):
