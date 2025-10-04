@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	"github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	"github.com/crypto-org-chain/cronos/x/e2ee/types"
 
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/store/prefix"

@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	"github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
-	"github.com/crypto-org-chain/cronos/v2/x/e2ee/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	"github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
+	"github.com/crypto-org-chain/cronos/x/e2ee/keeper"
+	"github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"

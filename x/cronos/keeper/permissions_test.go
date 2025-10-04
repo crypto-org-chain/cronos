@@ -1,7 +1,7 @@
 package keeper_test
 
 import (
-	. "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	. "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 

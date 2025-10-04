@@ -3,7 +3,7 @@ package e2ee;
 
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/e2ee/types";
 
 // EncryptionKeyEntry is a type that contains the owner and the public key.
 message EncryptionKeyEntry {
