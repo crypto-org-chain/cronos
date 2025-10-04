@@ -148,7 +148,10 @@ lint-py:
 lint-nix:
 	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" | xargs nixfmt -c
 
-.PHONY: lint lint-fix lint-py
+lint-nix-fix:
+	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" | xargs nixfmt
+
+.PHONY: lint-install lint lint-fix lint-py lint-nix lint-nix-fix
 
 ###############################################################################
 ###                                Releasing                                ###
