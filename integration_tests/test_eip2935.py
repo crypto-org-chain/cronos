@@ -15,7 +15,7 @@ def cronos_eip2935(tmp_path_factory):
     """
     yield from setup_custom_cronos(
         tmp_path_factory.mktemp("eip2935"),
-        27000,
+        28000,
         Path(__file__).parent / "configs/eip2935.jsonnet",
     )
 
