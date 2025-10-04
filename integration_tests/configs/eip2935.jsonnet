@@ -106,6 +106,7 @@
         evm: {
           params: {
             evm_denom: 'basetcro',
+            header_hash_num: '5',
           },
         },
         cronos: {

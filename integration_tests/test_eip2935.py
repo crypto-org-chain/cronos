@@ -1,15 +1,30 @@
+from pathlib import Path
+
+import pytest
 from hexbytes import HexBytes
 
 from .cosmoscli import module_address
-from .network import Cronos
+from .network import Cronos, setup_custom_cronos
 from .utils import CONTRACTS, deploy_contract, submit_gov_proposal, w3_wait_for_block
 
 
-def test_eip2935(cronos: Cronos):
+@pytest.fixture(scope="module")
+def cronos_eip2935(tmp_path_factory):
+    """start-cronos
+    set evm's param header_hash_num to 5
+    """
+    yield from setup_custom_cronos(
+        tmp_path_factory.mktemp("eip2935"),
+        27000,
+        Path(__file__).parent / "configs/eip2935.jsonnet",
+    )
+
+
+def test_eip2935(cronos_eip2935: Cronos):
     """
     check eip2935
     """
-    w3 = cronos.w3
+    w3 = cronos_eip2935.w3
 
     # Set header_hash_num to 5 in genesis, e.g we persist only the latest 5 block hashes
     # Check that there is no history if query < current_block_number - 5
@@ -42,7 +57,7 @@ def test_eip2935(cronos: Cronos):
     msg = "/ethermint.evm.v1.MsgRegisterPreinstalls"
     authority = module_address("gov")
     submit_gov_proposal(
-        cronos,
+        cronos_eip2935,
         msg,
         messages=[
             {
