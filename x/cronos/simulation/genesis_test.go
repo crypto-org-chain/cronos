@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/simulation"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/simulation"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/math"

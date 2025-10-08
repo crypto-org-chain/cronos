@@ -8,7 +8,7 @@ import "gogoproto/gogo.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "cronos/cronos.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
 // Msg defines the Cronos Msg service
 service Msg {

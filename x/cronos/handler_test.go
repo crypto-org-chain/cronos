@@ -6,9 +6,9 @@ import (
 	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/crypto-org-chain/cronos/v2/app"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
 
