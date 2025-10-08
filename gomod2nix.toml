@@ -315,8 +315,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20251002045626-63f3de0a10b2"
-    hash = "sha256-lpXYx7Q2NZnhmnT4Z9V7EMxovVZrV1cLjj5hLhtl5/w="
+    version = "v0.22.1-0.20251007011737-164da0caf703"
+    hash = "sha256-lWvRrVuhssOIMCv07iXwJLfN2gFRgsbK8HBiqMBTMew="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -669,8 +669,8 @@ schema = 3
     version = "v1.1.1"
     hash = "sha256-M2klhPId3Q3T3VGkSbOkYl/2nLHnsG+yMbXkPkyrRdg="
   [mod."github.com/tidwall/pretty"]
-    version = "v1.2.0"
-    hash = "sha256-esRQGsn2Ee/CiySlwyuOICSLdqUkH4P7u8qXszos8Yc="
+    version = "v1.2.1"
+    hash = "sha256-S0uTDDGD8qr415Ut7QinyXljCp0TkL4zOIrlJ+9OMl8="
   [mod."github.com/tidwall/sjson"]
     version = "v1.2.5"
     hash = "sha256-OYGNolkmL7E1Qs2qrQ3IVpQp5gkcHNU/AB/z2O+Myps="
@@ -792,8 +792,8 @@ schema = 3
     version = "v1.75.1"
     hash = "sha256-t5w9BLW8P3SuxHRSAqsVBn8kddzCDKVijh4oxatLIps="
   [mod."google.golang.org/protobuf"]
-    version = "v1.36.9"
-    hash = "sha256-i4zQhGFR6KprA5elLw33bA1VdMLAnL+Du3gBmrea+3Y="
+    version = "v1.36.10"
+    hash = "sha256-gUrj1qSpjcpRKCBnrYlKMm+P0OSh7B/8EBREstwhD1w="
   [mod."gopkg.in/yaml.v2"]
     version = "v2.4.0"
     hash = "sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0="

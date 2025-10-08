@@ -24,4 +24,6 @@ message Params {
   bool allow_unprotected_txs = 6;
   // header_hash_num is the number of header hash to persist.
   uint64 header_hash_num = 7;
+  // historyServeWindow for EIP 2935
+  uint64 history_serve_window = 8;
 }
