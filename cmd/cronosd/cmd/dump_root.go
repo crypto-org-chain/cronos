@@ -84,6 +84,7 @@ func DumpMemIavlRoot(storeNames []string) *cobra.Command {
 				return err
 			}
 			defer db.Close()
+			sort.Strings(storeNames)
 			for _, storeName := range storeNames {
 				tree := db.TreeByName(storeName)
 				if tree != nil {
@@ -184,6 +185,7 @@ func DumpIavlRoot(storeNames []string) *cobra.Command {
 			}
 
 			var infos []types.StoreInfo
+			sort.Strings(storeNames)
 			for _, storeName := range storeNames {
 				info, ok := infoMaps[storeName]
 				if !ok {
