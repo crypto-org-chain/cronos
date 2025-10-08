@@ -506,6 +506,7 @@ func New(
 		authAddr,
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
+		1000, // TODO: should this be configurable?
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec,
