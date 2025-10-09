@@ -49,7 +49,9 @@ import (
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
+
 	// force register the extension json-rpc.
+	"github.com/crypto-org-chain/cronos/v2/app/preconfirmation"
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
@@ -57,6 +59,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -395,8 +398,10 @@ func New(
 		app.SetMempool(mpool)
 
 		// Re-use the default prepare proposal handler, extend the transaction validation logic
+		// with priority transaction support via PriorityTxSelector
+		// This selector will prioritize transactions marked with PRIORITY: in their memo field
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+		defaultProposalHandler.SetTxSelector(preconfirmation.NewPriorityTxSelector(
 			baseapp.NewDefaultTxSelector(),
 			txDecoder,
 			blockProposalHandler.ValidateTransaction,
