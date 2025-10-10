@@ -12,7 +12,7 @@ import (
 // Priority transaction constants
 const (
 	// Default priority boost for marked transactions
-	DefaultPriorityBoost int64 = 1_000_000
+	DefaultPriorityBoost int64 = 1_000_000_000
 
 	// PriorityTxPrefix is the prefix in tx memo to mark a transaction as high priority
 	PriorityTxPrefix = "PRIORITY:"
@@ -69,8 +69,8 @@ func hasEthereumPriorityMemo(tx sdk.Tx) bool {
 }
 
 // GetPriorityLevel extracts the priority level from memo if specified
-// Format: "PRIORITY:LEVEL" where LEVEL is a number (1-10)
-// Returns 0 if not specified or invalid
+// Format: "PRIORITY:LEVEL" where LEVEL is a number, only level 1 is supported
+// Returns 0 if not specified or invalid, otherwise returns 1
 // This supports both standard Cosmos transactions and Ethereum transactions
 func GetPriorityLevel(tx sdk.Tx) int {
 	if tx == nil {

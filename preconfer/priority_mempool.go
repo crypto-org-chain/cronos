@@ -33,7 +33,7 @@ type EnhancedPriorityMempoolConfig struct {
 	TxDecoder sdk.TxDecoder
 
 	// PriorityBoost is the priority increase for marked transactions
-	// Default is 1000000 if not specified
+	// Default is 1_000_000_000 if not specified
 	PriorityBoost int64
 
 	// Logger for mempool operations
@@ -43,7 +43,7 @@ type EnhancedPriorityMempoolConfig struct {
 // NewEnhancedPriorityMempool creates a new enhanced priority mempool
 func NewEnhancedPriorityMempool(cfg EnhancedPriorityMempoolConfig) *EnhancedPriorityMempool {
 	if cfg.PriorityBoost == 0 {
-		cfg.PriorityBoost = 1000000 // Default high priority boost
+		cfg.PriorityBoost = DefaultPriorityBoost
 	}
 
 	if cfg.Logger == nil {
