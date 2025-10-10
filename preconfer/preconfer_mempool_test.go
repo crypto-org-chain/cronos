@@ -51,7 +51,7 @@ func (mm *mockMempool) Remove(tx sdk.Tx) error {
 	return nil
 }
 
-func TestPreconferMempool_Insert(t *testing.T) {
+func TestMempool_Insert(t *testing.T) {
 	ctx := context.Background()
 	baseMpool := newMockMempool()
 
@@ -59,7 +59,7 @@ func TestPreconferMempool_Insert(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewPreconferMempool(PreconferMempoolConfig{
+	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -81,7 +81,7 @@ func TestPreconferMempool_Insert(t *testing.T) {
 	})
 }
 
-func TestPreconferMempool_Remove(t *testing.T) {
+func TestMempool_Remove(t *testing.T) {
 	ctx := context.Background()
 	baseMpool := newMockMempool()
 
@@ -89,7 +89,7 @@ func TestPreconferMempool_Remove(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewPreconferMempool(PreconferMempoolConfig{
+	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -108,7 +108,7 @@ func TestPreconferMempool_Remove(t *testing.T) {
 	})
 }
 
-func TestPreconferMempool_CountTx(t *testing.T) {
+func TestMempool_CountTx(t *testing.T) {
 	ctx := context.Background()
 	baseMpool := newMockMempool()
 
@@ -116,7 +116,7 @@ func TestPreconferMempool_CountTx(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewPreconferMempool(PreconferMempoolConfig{
+	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -137,7 +137,7 @@ func TestPreconferMempool_CountTx(t *testing.T) {
 	})
 }
 
-func TestPreconferMempool_GetSetPriorityBoost(t *testing.T) {
+func TestMempool_GetSetPriorityBoost(t *testing.T) {
 	baseMpool := newMockMempool()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
@@ -145,7 +145,7 @@ func TestPreconferMempool_GetSetPriorityBoost(t *testing.T) {
 	}
 
 	initialBoost := int64(1000000)
-	mpool := NewPreconferMempool(PreconferMempoolConfig{
+	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: initialBoost,
@@ -170,7 +170,7 @@ func TestPreconferMempool_GetSetPriorityBoost(t *testing.T) {
 	})
 }
 
-func TestPreconferMempool_DefaultConfig(t *testing.T) {
+func TestMempool_DefaultConfig(t *testing.T) {
 	baseMpool := newMockMempool()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
@@ -178,7 +178,7 @@ func TestPreconferMempool_DefaultConfig(t *testing.T) {
 	}
 
 	t.Run("Default priority boost when zero", func(t *testing.T) {
-		mpool := NewPreconferMempool(PreconferMempoolConfig{
+		mpool := NewMempool(MempoolConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 0, // Should use default
@@ -188,7 +188,7 @@ func TestPreconferMempool_DefaultConfig(t *testing.T) {
 	})
 
 	t.Run("Nil logger uses nop logger", func(t *testing.T) {
-		mpool := NewPreconferMempool(PreconferMempoolConfig{
+		mpool := NewMempool(MempoolConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -198,7 +198,7 @@ func TestPreconferMempool_DefaultConfig(t *testing.T) {
 	})
 }
 
-func TestPreconferMempool_GetStats(t *testing.T) {
+func TestMempool_GetStats(t *testing.T) {
 	ctx := context.Background()
 	baseMpool := newMockMempool()
 
@@ -206,7 +206,7 @@ func TestPreconferMempool_GetStats(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewPreconferMempool(PreconferMempoolConfig{
+	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -215,7 +215,7 @@ func TestPreconferMempool_GetStats(t *testing.T) {
 
 	t.Run("Get stats empty mempool", func(t *testing.T) {
 		stats := mpool.GetStats()
-		require.Contains(t, stats, "PreconferMempool")
+		require.Contains(t, stats, "Mempool")
 		require.Contains(t, stats, "count=0")
 		require.Contains(t, stats, "boost=1000000")
 	})

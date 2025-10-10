@@ -393,10 +393,10 @@ func New(
 			MaxTx:           maxTxs,
 		})
 
-		// Wrap with PreconferMempool if preconfer is enabled
+		// Wrap with preconfer Mempool if preconfer is enabled
 		if preconferEnabled {
-			logger.Info("Wrapping mempool with PreconferMempool for priority transaction support")
-			mpool = preconfer.NewPreconferMempool(preconfer.PreconferMempoolConfig{
+			logger.Info("Wrapping mempool with preconfer.Mempool for priority transaction support")
+			mpool = preconfer.NewMempool(preconfer.MempoolConfig{
 				BaseMempool:   baseMpool,
 				TxDecoder:     txDecoder,
 				PriorityBoost: preconfer.DefaultPriorityBoost,

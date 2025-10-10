@@ -10,11 +10,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-var _ mempool.Mempool = &PreconferMempool{}
+var _ mempool.Mempool = &Mempool{}
 
-// PreconferMempool wraps the standard mempool and enhances it
+// Mempool wraps the standard mempool and enhances it
 // to give marked transactions higher priority
-type PreconferMempool struct {
+type Mempool struct {
 	mempool.Mempool
 	txDecoder sdk.TxDecoder
 	logger    log.Logger
@@ -24,8 +24,8 @@ type PreconferMempool struct {
 	priorityBoost int64
 }
 
-// PreconferMempoolConfig configuration for the preconfer mempool
-type PreconferMempoolConfig struct {
+// MempoolConfig configuration for the preconfer mempool
+type MempoolConfig struct {
 	// BaseMempool is the underlying mempool implementation
 	BaseMempool mempool.Mempool
 
@@ -40,8 +40,8 @@ type PreconferMempoolConfig struct {
 	Logger log.Logger
 }
 
-// NewPreconferMempool creates a new preconfer mempool
-func NewPreconferMempool(cfg PreconferMempoolConfig) *PreconferMempool {
+// NewMempool creates a new preconfer mempool
+func NewMempool(cfg MempoolConfig) *Mempool {
 	if cfg.PriorityBoost == 0 {
 		cfg.PriorityBoost = DefaultPriorityBoost
 	}
@@ -50,7 +50,7 @@ func NewPreconferMempool(cfg PreconferMempoolConfig) *PreconferMempool {
 		cfg.Logger = log.NewNopLogger()
 	}
 
-	return &PreconferMempool{
+	return &Mempool{
 		Mempool:       cfg.BaseMempool,
 		txDecoder:     cfg.TxDecoder,
 		logger:        cfg.Logger,
@@ -72,7 +72,7 @@ func (ptw *PriorityTxWrapper) GetPriority() int64 {
 // Insert adds a transaction to the mempool
 // Note: Priority boosting is handled by the TxPriority implementation
 // This method simply passes through to the underlying mempool
-func (epm *PreconferMempool) Insert(ctx context.Context, tx sdk.Tx) error {
+func (epm *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	// Check if this is a priority transaction for logging
 	isPriority := IsMarkedPriorityTx(tx)
 
@@ -89,17 +89,17 @@ func (epm *PreconferMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 
 // Select returns an iterator of transactions in priority order
 // Priority transactions will naturally come first due to their boosted priority
-func (epm *PreconferMempool) Select(ctx context.Context, txs [][]byte) mempool.Iterator {
+func (epm *Mempool) Select(ctx context.Context, txs [][]byte) mempool.Iterator {
 	return epm.Mempool.Select(ctx, txs)
 }
 
 // CountTx returns the number of transactions in the mempool
-func (epm *PreconferMempool) CountTx() int {
+func (epm *Mempool) CountTx() int {
 	return epm.Mempool.CountTx()
 }
 
 // Remove removes a transaction from the mempool
-func (epm *PreconferMempool) Remove(tx sdk.Tx) error {
+func (epm *Mempool) Remove(tx sdk.Tx) error {
 	// Try to remove the original tx or wrapped tx
 	err := epm.Mempool.Remove(tx)
 	if err != nil {
@@ -112,12 +112,12 @@ func (epm *PreconferMempool) Remove(tx sdk.Tx) error {
 }
 
 // GetPriorityBoost returns the configured priority boost value
-func (epm *PreconferMempool) GetPriorityBoost() int64 {
+func (epm *Mempool) GetPriorityBoost() int64 {
 	return epm.priorityBoost
 }
 
 // SetPriorityBoost allows dynamic adjustment of the priority boost
-func (epm *PreconferMempool) SetPriorityBoost(boost int64) {
+func (epm *Mempool) SetPriorityBoost(boost int64) {
 	if boost < 0 {
 		epm.logger.Warn("attempted to set negative priority boost", "boost", boost)
 		return
@@ -127,7 +127,7 @@ func (epm *PreconferMempool) SetPriorityBoost(boost int64) {
 }
 
 // GetStats returns mempool statistics
-func (epm *PreconferMempool) GetStats() string {
-	return fmt.Sprintf("PreconferMempool{count=%d, boost=%d}",
+func (epm *Mempool) GetStats() string {
+	return fmt.Sprintf("Mempool{count=%d, boost=%d}",
 		epm.CountTx(), epm.priorityBoost)
 }
