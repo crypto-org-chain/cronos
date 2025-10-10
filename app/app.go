@@ -43,13 +43,15 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
+
+	// force register the extension json-rpc.
+	"github.com/crypto-org-chain/cronos/v2/preconfer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
-	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
@@ -57,6 +59,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -376,16 +379,32 @@ func New(
 
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
+	// Check if preconfer (priority tx selector) is enabled in app.toml
+	preconferEnabled := cast.ToBool(appOpts.Get("preconfer.enable"))
+
 	var mpool mempool.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled")
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		baseMpool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
+
+		// Wrap with preconfer Mempool if preconfer is enabled
+		if preconferEnabled {
+			logger.Info("Wrapping mempool with preconfer.Mempool for priority transaction support")
+			mpool = preconfer.NewMempool(preconfer.MempoolConfig{
+				BaseMempool:   baseMpool,
+				TxDecoder:     txDecoder,
+				PriorityBoost: preconfer.DefaultPriorityBoost,
+				Logger:        logger,
+			})
+		} else {
+			mpool = baseMpool
+		}
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
@@ -394,13 +413,26 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		// Re-use the default prepare proposal handler, extend the transaction validation logic
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			txDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+
+		if preconferEnabled {
+			// Re-use the default prepare proposal handler, extend the transaction validation logic
+			// with priority transaction support via PriorityTxSelector
+			// This selector will prioritize transactions marked with PRIORITY: in their memo field
+			logger.Info("Priority transaction selector (preconfer) enabled")
+			defaultProposalHandler.SetTxSelector(preconfer.NewPriorityTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		} else {
+			logger.Info("Priority transaction selector (preconfer) disabled, using default tx selector")
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		}
 
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 
