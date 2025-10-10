@@ -272,6 +272,7 @@ func initAppConfig() (string, interface{}) {
 
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
+		Preconfer PreconferConfig          `mapstructure:"preconfer"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -280,9 +281,10 @@ func initAppConfig() (string, interface{}) {
 		Config:    cfg.(servercfg.Config),
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
+		Preconfer: DefaultPreconferConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + DefaultPreconferTemplate, customAppConfig
 }
 
 // newApp creates the application

@@ -395,15 +395,28 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		// Re-use the default prepare proposal handler, extend the transaction validation logic
-		// with priority transaction support via PriorityTxSelector
-		// This selector will prioritize transactions marked with PRIORITY: in their memo field
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
-		defaultProposalHandler.SetTxSelector(preconfer.NewPriorityTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			txDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+
+		// Check if preconfer (priority tx selector) is enabled in app.toml
+		preconferEnabled := cast.ToBool(appOpts.Get("preconfer.enable"))
+		if preconferEnabled {
+			// Re-use the default prepare proposal handler, extend the transaction validation logic
+			// with priority transaction support via PriorityTxSelector
+			// This selector will prioritize transactions marked with PRIORITY: in their memo field
+			logger.Info("Priority transaction selector (preconfer) enabled")
+			defaultProposalHandler.SetTxSelector(preconfer.NewPriorityTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		} else {
+			logger.Info("Priority transaction selector (preconfer) disabled, using default tx selector")
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		}
 
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 
