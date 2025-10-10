@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -366,7 +367,7 @@ func (s *PriorityTxService) estimateInclusionTime(position uint32) uint32 {
 	const txsPerBlock = 100
 
 	blocksAhead := (position + txsPerBlock - 1) / txsPerBlock
-	return uint32(blocksAhead * blockTime)
+	return blocksAhead * blockTime
 }
 
 // cleanupExpiredPreconfirmations periodically removes expired preconfirmations

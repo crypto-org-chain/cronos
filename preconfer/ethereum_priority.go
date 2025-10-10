@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // GetEthereumTxMemo extracts memo from the first Ethereum transaction in a tx
@@ -90,8 +91,7 @@ func GetTransactionType(tx sdk.Tx) string {
 	return "unknown"
 }
 
-// GetEthereumTxInfo returns detailed information about Ethereum transactions
-// Useful for debugging and monitoring
+// EthereumTxInfo contains information about Ethereum transactions
 type EthereumTxInfo struct {
 	HasEthereumTx   bool
 	EthereumTxCount int

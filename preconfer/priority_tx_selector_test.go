@@ -14,9 +14,8 @@ import (
 // mockTx is a mock transaction for testing
 type mockTx struct {
 	sdk.Tx
-	memo     string
-	priority int64
-	msgs     []sdk.Msg
+	memo string
+	msgs []sdk.Msg
 }
 
 func (mt *mockTx) GetMemo() string {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Ensure PriorityTxGRPCServer implements the gRPC service interface
@@ -280,7 +281,7 @@ type PaginationResponse struct {
 	NextOffset uint64
 }
 
-// HTTP REST handler
+// PriorityTxRESTHandler is the REST handler for priority transactions
 type PriorityTxRESTHandler struct {
 	grpcServer *PriorityTxGRPCServer
 }
@@ -299,7 +300,7 @@ func (h *PriorityTxRESTHandler) HandleSubmitPriorityTx(ctx sdk.Context, txBytes 
 		PriorityLevel: priorityLevel,
 	}
 
-	return h.grpcServer.SubmitPriorityTx(sdk.WrapSDKContext(ctx), req)
+	return h.grpcServer.SubmitPriorityTx(ctx, req)
 }
 
 // HandleGetPriorityTxStatus handles HTTP GET requests for tx status
@@ -308,14 +309,14 @@ func (h *PriorityTxRESTHandler) HandleGetPriorityTxStatus(ctx sdk.Context, txHas
 		TxHash: txHash,
 	}
 
-	return h.grpcServer.GetPriorityTxStatus(sdk.WrapSDKContext(ctx), req)
+	return h.grpcServer.GetPriorityTxStatus(ctx, req)
 }
 
 // HandleGetMempoolStats handles HTTP GET requests for mempool stats
 func (h *PriorityTxRESTHandler) HandleGetMempoolStats(ctx sdk.Context) (*GetPriorityMempoolStatsResponse, error) {
 	req := &GetPriorityMempoolStatsRequest{}
 
-	return h.grpcServer.GetPriorityMempoolStats(sdk.WrapSDKContext(ctx), req)
+	return h.grpcServer.GetPriorityMempoolStats(ctx, req)
 }
 
 // HandleListPriorityTxs handles HTTP GET requests for listing priority txs
@@ -327,5 +328,5 @@ func (h *PriorityTxRESTHandler) HandleListPriorityTxs(ctx sdk.Context, limit uin
 		IncludePreconfirmations: includePreconf,
 	}
 
-	return h.grpcServer.ListPriorityTxs(sdk.WrapSDKContext(ctx), req)
+	return h.grpcServer.ListPriorityTxs(ctx, req)
 }

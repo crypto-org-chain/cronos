@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/log"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

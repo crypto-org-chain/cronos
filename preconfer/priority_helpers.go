@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // Priority transaction constants
@@ -140,7 +141,7 @@ func getEthereumTxPriorityLevel(tx sdk.Tx) int {
 
 // CalculateBoostedPriority calculates the final priority for a transaction
 // considering both base priority and any priority markers
-func CalculateBoostedPriority(tx sdk.Tx, basePriority int64, maxBoost int64) int64 {
+func CalculateBoostedPriority(tx sdk.Tx, basePriority, maxBoost int64) int64 {
 	if !IsMarkedPriorityTx(tx) {
 		return basePriority
 	}

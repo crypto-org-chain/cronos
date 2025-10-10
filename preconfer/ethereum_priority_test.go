@@ -3,10 +3,10 @@ package preconfer
 import (
 	"testing"
 
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 // mockEthereumTx creates a mock Ethereum transaction for testing
