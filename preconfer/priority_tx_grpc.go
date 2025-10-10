@@ -95,14 +95,14 @@ func (s *PriorityTxGRPCServer) GetPriorityTxStatus(
 	return resp, nil
 }
 
-// GetPriorityMempoolStats returns mempool statistics
-func (s *PriorityTxGRPCServer) GetPriorityMempoolStats(
+// GetMempoolStats returns mempool statistics
+func (s *PriorityTxGRPCServer) GetMempoolStats(
 	ctx context.Context,
-	req *GetPriorityMempoolStatsRequest,
-) (*GetPriorityMempoolStatsResponse, error) {
+	req *GetMempoolStatsRequest,
+) (*GetMempoolStatsResponse, error) {
 	stats := s.service.GetMempoolStats()
 
-	return &GetPriorityMempoolStatsResponse{
+	return &GetMempoolStatsResponse{
 		TotalTxs:         stats.TotalTxs,
 		PriorityTxs:      stats.PriorityTxs,
 		NormalTxs:        stats.NormalTxs,
@@ -234,11 +234,11 @@ const (
 	TxStatus_TX_STATUS_EXPIRED      TxStatus = 5
 )
 
-// GetPriorityMempoolStatsRequest is the request for mempool statistics
-type GetPriorityMempoolStatsRequest struct{}
+// GetMempoolStatsRequest is the request for mempool statistics
+type GetMempoolStatsRequest struct{}
 
-// GetPriorityMempoolStatsResponse is the response for mempool statistics
-type GetPriorityMempoolStatsResponse struct {
+// GetMempoolStatsResponse is the response for mempool statistics
+type GetMempoolStatsResponse struct {
 	TotalTxs         uint32
 	PriorityTxs      uint32
 	NormalTxs        uint32
@@ -313,10 +313,10 @@ func (h *PriorityTxRESTHandler) HandleGetPriorityTxStatus(ctx sdk.Context, txHas
 }
 
 // HandleGetMempoolStats handles HTTP GET requests for mempool stats
-func (h *PriorityTxRESTHandler) HandleGetMempoolStats(ctx sdk.Context) (*GetPriorityMempoolStatsResponse, error) {
-	req := &GetPriorityMempoolStatsRequest{}
+func (h *PriorityTxRESTHandler) HandleGetMempoolStats(ctx sdk.Context) (*GetMempoolStatsResponse, error) {
+	req := &GetMempoolStatsRequest{}
 
-	return h.grpcServer.GetPriorityMempoolStats(ctx, req)
+	return h.grpcServer.GetMempoolStats(ctx, req)
 }
 
 // HandleListPriorityTxs handles HTTP GET requests for listing priority txs
