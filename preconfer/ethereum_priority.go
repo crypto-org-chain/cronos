@@ -147,8 +147,8 @@ func ValidateEthereumTxMemo(memo string) error {
 			if err != nil {
 				return fmt.Errorf("invalid priority level format in memo: %s", memo)
 			}
-			if level < 1 || level > 10 {
-				return fmt.Errorf("invalid priority level in memo: %s (must be 1-10)", memo)
+			if level != 1 {
+				return fmt.Errorf("invalid priority level in memo: %s (must be 1)", memo)
 			}
 		}
 	}

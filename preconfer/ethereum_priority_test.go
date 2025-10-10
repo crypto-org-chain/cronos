@@ -22,42 +22,12 @@ func (m *mockEthereumTx) GetMsgs() []sdk.Msg {
 func TestIsMarkedPriorityTx_EthereumTx(t *testing.T) {
 	t.Run("Ethereum tx with PRIORITY: memo", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "PRIORITY:5",
+			Memo: "PRIORITY:1",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
 		result := IsMarkedPriorityTx(tx)
-		require.True(t, result, "Ethereum tx with PRIORITY:5 should be marked as priority")
-	})
-
-	t.Run("Ethereum tx with HIGH_PRIORITY memo", func(t *testing.T) {
-		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "HIGH_PRIORITY",
-		}
-		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
-
-		result := IsMarkedPriorityTx(tx)
-		require.True(t, result, "Ethereum tx with HIGH_PRIORITY should be marked as priority")
-	})
-
-	t.Run("Ethereum tx with URGENT memo", func(t *testing.T) {
-		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "URGENT",
-		}
-		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
-
-		result := IsMarkedPriorityTx(tx)
-		require.True(t, result, "Ethereum tx with URGENT should be marked as priority")
-	})
-
-	t.Run("Ethereum tx with [PRIORITY] marker", func(t *testing.T) {
-		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "Important transaction [PRIORITY]",
-		}
-		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
-
-		result := IsMarkedPriorityTx(tx)
-		require.True(t, result, "Ethereum tx with [PRIORITY] marker should be marked as priority")
+		require.True(t, result, "Ethereum tx with PRIORITY:1 should be marked as priority")
 	})
 
 	t.Run("Ethereum tx without priority memo", func(t *testing.T) {
@@ -80,14 +50,14 @@ func TestIsMarkedPriorityTx_EthereumTx(t *testing.T) {
 		require.False(t, result, "Ethereum tx with empty memo should not be marked as priority")
 	})
 
-	t.Run("Ethereum tx with lowercase priority", func(t *testing.T) {
+	t.Run("Ethereum tx with lowercase priority (converted to uppercase)", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "priority:3",
+			Memo: "priority:1",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
 		result := IsMarkedPriorityTx(tx)
-		require.True(t, result, "Ethereum tx with lowercase priority should be recognized")
+		require.True(t, result, "Ethereum tx with lowercase priority should be recognized (converted to uppercase)")
 	})
 }
 
@@ -102,24 +72,24 @@ func TestGetPriorityLevel_EthereumTx(t *testing.T) {
 		require.Equal(t, 1, level)
 	})
 
-	t.Run("Extract priority level 5", func(t *testing.T) {
+	t.Run("Extract priority level 1", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "PRIORITY:5",
+			Memo: "PRIORITY:1",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
 		level := GetPriorityLevel(tx)
-		require.Equal(t, 5, level)
+		require.Equal(t, 1, level)
 	})
 
-	t.Run("Extract priority level 10", func(t *testing.T) {
+	t.Run("Invalid priority level (level 10 not supported)", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
 			Memo: "PRIORITY:10",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
 		level := GetPriorityLevel(tx)
-		require.Equal(t, 10, level)
+		require.Equal(t, 1, level, "Level 10 is invalid, should return 1")
 	})
 
 	t.Run("Invalid priority level (too high)", func(t *testing.T) {
@@ -245,7 +215,7 @@ func TestGetTransactionType(t *testing.T) {
 func TestGetEthereumTxInfo(t *testing.T) {
 	t.Run("Ethereum tx with priority memo", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "PRIORITY:5",
+			Memo: "PRIORITY:1",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
@@ -253,8 +223,8 @@ func TestGetEthereumTxInfo(t *testing.T) {
 		require.True(t, info.HasEthereumTx)
 		require.Equal(t, 1, info.EthereumTxCount)
 		require.True(t, info.HasPriorityMemo)
-		require.Equal(t, 5, info.PriorityLevel)
-		require.Equal(t, "PRIORITY:5", info.Memo)
+		require.Equal(t, 1, info.PriorityLevel)
+		require.Equal(t, "PRIORITY:1", info.Memo)
 	})
 
 	t.Run("Ethereum tx without priority memo", func(t *testing.T) {
@@ -283,7 +253,7 @@ func TestGetEthereumTxInfo(t *testing.T) {
 
 func TestValidateEthereumTxMemo(t *testing.T) {
 	t.Run("Valid short memo", func(t *testing.T) {
-		err := ValidateEthereumTxMemo("PRIORITY:5")
+		err := ValidateEthereumTxMemo("PRIORITY:1")
 		require.NoError(t, err)
 	})
 
@@ -307,7 +277,7 @@ func TestValidateEthereumTxMemo(t *testing.T) {
 	})
 
 	t.Run("Invalid priority level", func(t *testing.T) {
-		err := ValidateEthereumTxMemo("PRIORITY:20")
+		err := ValidateEthereumTxMemo("PRIORITY:2")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid priority level")
 	})
@@ -321,7 +291,7 @@ func TestValidateEthereumTxMemo(t *testing.T) {
 func TestCalculateBoostedPriority_EthereumTx(t *testing.T) {
 	t.Run("Ethereum tx with priority gets boost", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "PRIORITY:5",
+			Memo: "PRIORITY:1",
 		}
 		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
 
@@ -329,7 +299,7 @@ func TestCalculateBoostedPriority_EthereumTx(t *testing.T) {
 		maxBoost := int64(1000000)
 
 		boostedPriority := CalculateBoostedPriority(tx, basePriority, maxBoost)
-		expectedBoost := basePriority + (maxBoost * 5 / 10)
+		expectedBoost := basePriority + maxBoost // Level 1 gets full boost
 
 		require.Equal(t, expectedBoost, boostedPriority)
 	})

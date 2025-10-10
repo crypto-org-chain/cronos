@@ -14,11 +14,6 @@ const (
 	// Default priority boost for marked transactions
 	DefaultPriorityBoost int64 = 1_000_000
 
-	// Alternative priority markers
-	PriorityTxMarker1 = "PRIORITY:"
-	PriorityTxMarker2 = "HIGH_PRIORITY"
-	PriorityTxMarker3 = "URGENT"
-
 	// PriorityTxPrefix is the prefix in tx memo to mark a transaction as high priority
 	PriorityTxPrefix = "PRIORITY:"
 )
@@ -53,11 +48,7 @@ func IsMarkedPriorityTx(tx sdk.Tx) bool {
 
 // hasPriorityMarker checks if a memo string contains priority markers
 func hasPriorityMarker(memo string) bool {
-	return strings.HasPrefix(memo, PriorityTxMarker1) ||
-		strings.HasPrefix(memo, PriorityTxMarker2) ||
-		strings.HasPrefix(memo, PriorityTxMarker3) ||
-		strings.Contains(memo, "[PRIORITY]") ||
-		strings.Contains(memo, "[HIGH_PRIORITY]")
+	return strings.HasPrefix(memo, PriorityTxPrefix)
 }
 
 // hasEthereumPriorityMemo checks if any Ethereum tx in the transaction has priority memo
@@ -104,6 +95,7 @@ func GetPriorityLevel(tx sdk.Tx) int {
 }
 
 // extractLevelFromMemo extracts priority level from memo string
+// Note: Only level 1 is supported
 func extractLevelFromMemo(memo string) int {
 	if !strings.HasPrefix(memo, PriorityTxPrefix) {
 		return 0
@@ -113,11 +105,15 @@ func extractLevelFromMemo(memo string) int {
 	levelStr := strings.TrimPrefix(memo, PriorityTxPrefix)
 	levelStr = strings.TrimSpace(levelStr)
 
-	// Parse level (1-10)
+	// Parse level (only 1 is supported)
 	var level int
+	if levelStr == "" {
+		return 1 // Default level if not specified
+	}
+
 	_, err := fmt.Sscanf(levelStr, "%d", &level)
-	if err != nil || level < 1 || level > 10 {
-		return 1 // Default level if not specified or invalid
+	if err != nil || level != 1 {
+		return 1 // Always return 1 for priority transactions
 	}
 
 	return level
@@ -141,18 +137,12 @@ func getEthereumTxPriorityLevel(tx sdk.Tx) int {
 
 // CalculateBoostedPriority calculates the final priority for a transaction
 // considering both base priority and any priority markers
+// Note: Only level 1 is supported, so boost is always maxBoost
 func CalculateBoostedPriority(tx sdk.Tx, basePriority, maxBoost int64) int64 {
 	if !IsMarkedPriorityTx(tx) {
 		return basePriority
 	}
 
-	level := GetPriorityLevel(tx)
-	if level == 0 {
-		level = 1
-	}
-
-	// Calculate boost based on level (1-10)
-	boost := (maxBoost * int64(level)) / 10
-
-	return basePriority + boost
+	// Since only level 1 is supported, always apply full boost
+	return basePriority + maxBoost
 }

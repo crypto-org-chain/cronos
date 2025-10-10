@@ -25,32 +25,12 @@ func TestIsMarkedPriorityTx(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "transaction with HIGH_PRIORITY marker",
-			tx:       &mockTx{memo: "HIGH_PRIORITY"},
-			expected: true,
-		},
-		{
-			name:     "transaction with URGENT marker",
-			tx:       &mockTx{memo: "URGENT"},
-			expected: true,
-		},
-		{
-			name:     "transaction with [PRIORITY] marker",
-			tx:       &mockTx{memo: "some text [PRIORITY] more text"},
-			expected: true,
-		},
-		{
-			name:     "transaction with [HIGH_PRIORITY] marker",
-			tx:       &mockTx{memo: "some text [HIGH_PRIORITY] more text"},
-			expected: true,
-		},
-		{
 			name:     "transaction without priority marker",
 			tx:       &mockTx{memo: "regular transaction"},
 			expected: false,
 		},
 		{
-			name:     "transaction with lowercase priority (should work)",
+			name:     "transaction with lowercase priority (converted to uppercase)",
 			tx:       &mockTx{memo: "priority:1"},
 			expected: true,
 		},
@@ -86,14 +66,14 @@ func TestGetPriorityLevel(t *testing.T) {
 			expected: 1,
 		},
 		{
-			name:     "priority level 5",
-			tx:       &mockTx{memo: "PRIORITY:5"},
-			expected: 5,
+			name:     "priority level 1",
+			tx:       &mockTx{memo: "PRIORITY:1"},
+			expected: 1,
 		},
 		{
-			name:     "priority level 10",
+			name:     "priority level 10 (invalid, returns 1)",
 			tx:       &mockTx{memo: "PRIORITY:10"},
-			expected: 10,
+			expected: 1,
 		},
 		{
 			name:     "priority without level",
@@ -106,8 +86,8 @@ func TestGetPriorityLevel(t *testing.T) {
 			expected: 1, // Default level
 		},
 		{
-			name:     "priority level out of range (too high)",
-			tx:       &mockTx{memo: "PRIORITY:20"},
+			name:     "priority level out of range (not 1)",
+			tx:       &mockTx{memo: "PRIORITY:2"},
 			expected: 1, // Default level
 		},
 		{
@@ -149,16 +129,10 @@ func TestCalculateBoostedPriority(t *testing.T) {
 			name:         "priority level 1",
 			tx:           &mockTx{memo: "PRIORITY:1"},
 			basePriority: 100,
-			expected:     100 + (maxBoost * 1 / 10),
+			expected:     100 + maxBoost,
 		},
 		{
-			name:         "priority level 5",
-			tx:           &mockTx{memo: "PRIORITY:5"},
-			basePriority: 100,
-			expected:     100 + (maxBoost * 5 / 10),
-		},
-		{
-			name:         "priority level 10 (maximum)",
+			name:         "priority level 10 (invalid, treated as level 1)",
 			tx:           &mockTx{memo: "PRIORITY:10"},
 			basePriority: 100,
 			expected:     100 + maxBoost,
@@ -167,7 +141,7 @@ func TestCalculateBoostedPriority(t *testing.T) {
 			name:         "priority without level (default level 1)",
 			tx:           &mockTx{memo: "PRIORITY:"},
 			basePriority: 100,
-			expected:     100 + (maxBoost * 1 / 10),
+			expected:     100 + maxBoost,
 		},
 	}
 

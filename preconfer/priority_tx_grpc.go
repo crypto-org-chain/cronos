@@ -38,8 +38,8 @@ func (s *PriorityTxGRPCServer) SubmitPriorityTx(
 		return nil, status.Error(codes.InvalidArgument, "empty transaction bytes")
 	}
 
-	if req.PriorityLevel < 1 || req.PriorityLevel > 10 {
-		return nil, status.Error(codes.InvalidArgument, "priority level must be between 1 and 10")
+	if req.PriorityLevel != 1 {
+		return nil, status.Error(codes.InvalidArgument, "priority level must be 1")
 	}
 
 	// Submit transaction

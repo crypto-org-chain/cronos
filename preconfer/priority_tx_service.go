@@ -113,8 +113,8 @@ func (s *PriorityTxService) SubmitPriorityTx(
 	priorityLevel uint32,
 ) (*SubmitPriorityTxResult, error) {
 	// Validate priority level
-	if priorityLevel < 1 || priorityLevel > 10 {
-		return nil, fmt.Errorf("invalid priority level: must be between 1 and 10")
+	if priorityLevel != 1 {
+		return nil, fmt.Errorf("invalid priority level: must be 1")
 	}
 
 	// Decode transaction

@@ -17,7 +17,7 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 
 	// Setup service
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -30,7 +30,7 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 
 	t.Run("Submit valid priority transaction", func(t *testing.T) {
 		txBytes := []byte("valid_priority_tx")
-		priorityLevel := uint32(5)
+		priorityLevel := uint32(1)
 
 		result, err := service.SubmitPriorityTx(ctx, txBytes, priorityLevel)
 
@@ -45,7 +45,7 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 
 	t.Run("Reject invalid priority level", func(t *testing.T) {
 		txBytes := []byte("test_tx")
-		priorityLevel := uint32(15) // Invalid: > 10
+		priorityLevel := uint32(2) // Invalid: must be 1
 
 		result, err := service.SubmitPriorityTx(ctx, txBytes, priorityLevel)
 
@@ -58,7 +58,7 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 		// Note: Empty bytes can still be decoded by mock decoder
 		// In production, this would fail at the decoder level
 		txBytes := []byte("valid_tx")
-		priorityLevel := uint32(5)
+		priorityLevel := uint32(1)
 
 		result, err := service.SubmitPriorityTx(ctx, txBytes, priorityLevel)
 
@@ -68,12 +68,12 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 	})
 
 	t.Run("Multiple priority transactions", func(t *testing.T) {
-		// Submit multiple transactions with different priorities
+		// Submit multiple transactions (all with priority level 1)
 		results := make([]*SubmitPriorityTxResult, 3)
 
 		for i := 0; i < 3; i++ {
 			txBytes := []byte("tx_" + string(rune('0'+i)))
-			priorityLevel := uint32(i + 1) // Priority: 1, 2, 3
+			priorityLevel := uint32(1) // Only level 1 is supported
 
 			result, err := service.SubmitPriorityTx(ctx, txBytes, priorityLevel)
 			require.NoError(t, err)
@@ -87,10 +87,6 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 			require.Greater(t, results[i].MempoolPosition, uint32(0))
 			require.Greater(t, results[i].EstimatedInclusionTime, uint32(0))
 		}
-
-		// Higher priority (results[2] with priority 3) should have
-		// lower or equal position than lower priority (results[0] with priority 1)
-		require.LessOrEqual(t, results[2].MempoolPosition, results[0].MempoolPosition)
 	})
 }
 
@@ -98,7 +94,7 @@ func TestPriorityTxService_GetTxStatus(t *testing.T) {
 	ctx := context.Background()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -112,7 +108,7 @@ func TestPriorityTxService_GetTxStatus(t *testing.T) {
 	t.Run("Get status of submitted transaction", func(t *testing.T) {
 		// Submit transaction
 		txBytes := []byte("test_tx")
-		result, err := service.SubmitPriorityTx(ctx, txBytes, 5)
+		result, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 		require.NoError(t, err)
 
 		// Get status
@@ -134,7 +130,7 @@ func TestPriorityTxService_GetTxStatus(t *testing.T) {
 	t.Run("Status updates after inclusion", func(t *testing.T) {
 		// Submit transaction
 		txBytes := []byte("test_tx_2")
-		result, err := service.SubmitPriorityTx(ctx, txBytes, 5)
+		result, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 		require.NoError(t, err)
 
 		// Mark as included
@@ -154,7 +150,7 @@ func TestPriorityTxService_GetMempoolStats(t *testing.T) {
 	ctx := context.Background()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -175,7 +171,7 @@ func TestPriorityTxService_GetMempoolStats(t *testing.T) {
 		// Submit multiple transactions
 		for i := 0; i < 3; i++ {
 			txBytes := []byte("tx_" + string(rune('0'+i)))
-			_, err := service.SubmitPriorityTx(ctx, txBytes, uint32(i+1))
+			_, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 			require.NoError(t, err)
 		}
 
@@ -191,7 +187,7 @@ func TestPriorityTxService_ListPriorityTxs(t *testing.T) {
 	ctx := context.Background()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -212,7 +208,7 @@ func TestPriorityTxService_ListPriorityTxs(t *testing.T) {
 		expectedCount := 5
 		for i := 0; i < expectedCount; i++ {
 			txBytes := []byte("tx_" + string(rune('0'+i)))
-			_, err := service.SubmitPriorityTx(ctx, txBytes, uint32(i+1))
+			_, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 			require.NoError(t, err)
 		}
 
@@ -232,7 +228,7 @@ func TestPriorityTxService_ListPriorityTxs(t *testing.T) {
 		// Submit more transactions
 		for i := 0; i < 10; i++ {
 			txBytes := []byte("tx_extra_" + string(rune('0'+i)))
-			_, err := service.SubmitPriorityTx(ctx, txBytes, uint32(5))
+			_, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 			require.NoError(t, err)
 		}
 
@@ -247,7 +243,7 @@ func TestPriorityTxService_Preconfirmation(t *testing.T) {
 	ctx := context.Background()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -260,21 +256,21 @@ func TestPriorityTxService_Preconfirmation(t *testing.T) {
 
 	t.Run("Preconfirmation is created", func(t *testing.T) {
 		txBytes := []byte("test_tx")
-		result, err := service.SubmitPriorityTx(ctx, txBytes, 5)
+		result, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 		require.NoError(t, err)
 
 		preconf := result.Preconfirmation
 		require.NotNil(t, preconf)
 		require.Equal(t, result.TxHash, preconf.TxHash)
 		require.Equal(t, "cronosvaloper1test", preconf.Validator)
-		require.Equal(t, uint32(5), preconf.PriorityLevel)
+		require.Equal(t, uint32(1), preconf.PriorityLevel)
 		require.NotEmpty(t, preconf.Signature)
 		require.True(t, preconf.ExpiresAt.After(time.Now()))
 	})
 
 	t.Run("Preconfirmation expires", func(t *testing.T) {
 		txBytes := []byte("test_tx_expire")
-		result, err := service.SubmitPriorityTx(ctx, txBytes, 5)
+		result, err := service.SubmitPriorityTx(ctx, txBytes, 1)
 		require.NoError(t, err)
 
 		// Wait for expiration
@@ -291,7 +287,7 @@ func TestPriorityTxService_EstimatePosition(t *testing.T) {
 	ctx := context.Background()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		return &mockTx{memo: "PRIORITY:5"}, nil
+		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
 	service := NewPriorityTxService(PriorityTxServiceConfig{
@@ -304,12 +300,12 @@ func TestPriorityTxService_EstimatePosition(t *testing.T) {
 
 	t.Run("Higher priority gets better position", func(t *testing.T) {
 		// Submit low priority
-		result1, err := service.SubmitPriorityTx(ctx, []byte("tx1"), 3)
+		result1, err := service.SubmitPriorityTx(ctx, []byte("tx1"), 1)
 		require.NoError(t, err)
 		require.Greater(t, result1.MempoolPosition, uint32(0))
 
 		// Submit high priority
-		result2, err := service.SubmitPriorityTx(ctx, []byte("tx2"), 8)
+		result2, err := service.SubmitPriorityTx(ctx, []byte("tx2"), 1)
 		require.NoError(t, err)
 		require.Greater(t, result2.MempoolPosition, uint32(0))
 
@@ -326,7 +322,7 @@ func TestPriorityTxService_EstimatePosition(t *testing.T) {
 		// Submit multiple transactions
 		results := make([]*SubmitPriorityTxResult, 3)
 		for i := 0; i < 3; i++ {
-			result, err := service.SubmitPriorityTx(ctx, []byte("tx_"+string(rune('0'+i))), 5)
+			result, err := service.SubmitPriorityTx(ctx, []byte("tx_"+string(rune('0'+i))), 1)
 			require.NoError(t, err)
 			results[i] = result
 		}
