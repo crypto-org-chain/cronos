@@ -367,7 +367,12 @@ func DumpVersionDBChangeSetCmd(defaultStores []string) *cobra.Command {
 				return err
 			}
 
-			for _, storeKey := range defaultStores {
+			stores, err := GetStoresOrDefault(cmd, defaultStores)
+			if err != nil {
+				return err
+			}
+
+			for _, storeKey := range stores {
 				for version := startVersion; version < endVersion; version++ {
 					it, err := versionDB.IteratorAtVersion(storeKey, nil, nil, &version)
 					if err != nil {
@@ -416,5 +421,8 @@ func DumpVersionDBChangeSetCmd(defaultStores []string) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Int64(flagStartVersion, 0, "The start version")
+	cmd.Flags().Int64(flagEndVersion, 0, "The end version, exclusive, default to latestVersion+1")
+	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
 	return cmd
 }
