@@ -1,4 +1,4 @@
-package preconfirmation
+package preconfer
 
 import (
 	"testing"

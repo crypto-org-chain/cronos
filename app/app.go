@@ -51,7 +51,7 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
 
 	// force register the extension json-rpc.
-	"github.com/crypto-org-chain/cronos/v2/app/preconfirmation"
+	"github.com/crypto-org-chain/cronos/v2/preconfer"
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
@@ -401,7 +401,7 @@ func New(
 		// with priority transaction support via PriorityTxSelector
 		// This selector will prioritize transactions marked with PRIORITY: in their memo field
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
-		defaultProposalHandler.SetTxSelector(preconfirmation.NewPriorityTxSelector(
+		defaultProposalHandler.SetTxSelector(preconfer.NewPriorityTxSelector(
 			baseapp.NewDefaultTxSelector(),
 			txDecoder,
 			blockProposalHandler.ValidateTransaction,
