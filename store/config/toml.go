@@ -30,3 +30,17 @@ snapshot-interval = {{ .MemIAVL.SnapshotInterval }}
 # CacheSize defines the size of the cache for each memiavl store, default to 1000.
 cache-size = {{ .MemIAVL.CacheSize }}
 `
+
+// DefaultModulesConfigTemplate defines the configuration template for the modules configuration
+const DefaultModulesConfigTemplate = `
+###############################################################################
+###                        Modules                                          ###
+###############################################################################
+
+[staking]
+# cache-size defines the maximum number of time-based queue entries to cache
+# for unbonding validators, unbonding delegations, and redelegations.
+# A value of 0 means no cache (all reads go directly to the store).
+# Higher values can improve performance but use more memory.
+cache-size = {{ .Staking.CacheSize }}
+`
