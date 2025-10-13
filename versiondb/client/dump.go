@@ -375,14 +375,21 @@ func DumpVersionDBChangeSetCmd(defaultStores []string) *cobra.Command {
 			}
 
 			for _, storeKey := range stores {
+				// Create store directory
+				storeDir := filepath.Join(outDir, storeKey)
+				if err := os.MkdirAll(storeDir, os.ModePerm); err != nil {
+					return err
+				}
+
 				for version := startVersion; version < endVersion; version++ {
 					it, err := versionDB.IteratorAtVersion(storeKey, nil, nil, &version)
 					if err != nil {
 						return err
 					}
 
-					fmt.Printf("begin dumping versiondb changeset %s at version %d\n", storeKey, version)
-					kvsFile := filepath.Join(outDir, fmt.Sprintf("%s-%d", storeKey, version))
+					fmt.Printf("begin store %s version %d\n", storeKey, version)
+					// Use same path structure as dump command: <outDir>/<storeName>/block-<version>
+					kvsFile := filepath.Join(storeDir, fmt.Sprintf("block-%d", version))
 					fpKvs, err := createFile(kvsFile)
 					if err != nil {
 						return err
@@ -417,7 +424,7 @@ func DumpVersionDBChangeSetCmd(defaultStores []string) *cobra.Command {
 					if err != nil {
 						return err
 					}
-					fmt.Printf("finish dumping versiondb changeset %s at version %d\n", storeKey, version)
+					fmt.Printf("  Wrote %d changes\n", len(changeset.Pairs))
 				}
 			}
 			return nil
