@@ -284,7 +284,7 @@ require (
 replace (
 	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254
 	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254
-	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.50.6-0.20251013094202-f6adffd5af73 // TODO: to change if merged
+	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.50.6-0.20251014040727-e0c38388c433 // TODO: to change if merged
 )
 
 replace (
@@ -306,7 +306,7 @@ replace (
 	// release/v1.15
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// release/v0.22.x
-	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20251013094409-379e3e8f4467 // TODO: update once merged into main repo
+	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20251014041552-630e9eeb253c // TODO: update once merged into main repo
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
