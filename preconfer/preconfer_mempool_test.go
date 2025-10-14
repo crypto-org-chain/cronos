@@ -14,7 +14,9 @@ import (
 
 // mockMempool is a simple mock mempool for testing
 type mockMempool struct {
-	txs []sdk.Tx
+	txs                   []sdk.Tx
+	lastInsertedPriority  int64
+	lastInsertedGasWanted uint64
 }
 
 func newMockMempool() *mockMempool {
@@ -24,11 +26,20 @@ func newMockMempool() *mockMempool {
 }
 
 func (mm *mockMempool) Insert(ctx context.Context, tx sdk.Tx) error {
+	// Capture the priority from context for testing
+	if sdkCtx, ok := ctx.(sdk.Context); ok {
+		mm.lastInsertedPriority = sdkCtx.Priority()
+	}
 	mm.txs = append(mm.txs, tx)
 	return nil
 }
 
 func (mm *mockMempool) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
+	// Capture the priority and gas from context for testing
+	if sdkCtx, ok := ctx.(sdk.Context); ok {
+		mm.lastInsertedPriority = sdkCtx.Priority()
+	}
+	mm.lastInsertedGasWanted = gasWanted
 	mm.txs = append(mm.txs, tx)
 	return nil
 }
@@ -52,32 +63,45 @@ func (mm *mockMempool) Remove(tx sdk.Tx) error {
 }
 
 func TestMempool_Insert(t *testing.T) {
-	ctx := context.Background()
+	// Create SDK context with base priority
+	basePriority := int64(100)
+	ctx := sdk.Context{}.WithPriority(basePriority)
+
 	baseMpool := newMockMempool()
 
 	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
+	priorityBoost := int64(1000000)
 	mpool := NewMempool(MempoolConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
-		PriorityBoost: 1000000,
+		PriorityBoost: priorityBoost,
 		Logger:        log.NewNopLogger(),
 	})
 
-	t.Run("Insert priority transaction", func(t *testing.T) {
+	t.Run("Insert priority transaction with boosted priority", func(t *testing.T) {
 		priorityTx := &mockTx{memo: "PRIORITY:1"}
 		err := mpool.Insert(ctx, priorityTx)
 		require.NoError(t, err)
 		require.Equal(t, 1, mpool.CountTx())
+
+		// Verify priority was boosted
+		expectedPriority := basePriority + priorityBoost
+		require.Equal(t, expectedPriority, baseMpool.lastInsertedPriority,
+			"Priority transaction should have boosted priority")
 	})
 
-	t.Run("Insert normal transaction", func(t *testing.T) {
+	t.Run("Insert normal transaction with original priority", func(t *testing.T) {
 		normalTx := &mockTx{memo: "normal"}
 		err := mpool.Insert(ctx, normalTx)
 		require.NoError(t, err)
 		require.Equal(t, 2, mpool.CountTx())
+
+		// Verify priority was NOT boosted
+		require.Equal(t, basePriority, baseMpool.lastInsertedPriority,
+			"Normal transaction should keep original priority")
 	})
 }
 
@@ -230,16 +254,107 @@ func TestMempool_GetStats(t *testing.T) {
 	})
 }
 
-func TestPriorityTxWrapper(t *testing.T) {
-	t.Run("PriorityTxWrapper returns boosted priority", func(t *testing.T) {
-		baseTx := &mockTx{memo: "test"}
-		boostedPriority := int64(1000100)
-
-		wrapper := &PriorityTxWrapper{
-			Tx:              baseTx,
-			boostedPriority: boostedPriority,
+func TestMempool_BaseMempoolType(t *testing.T) {
+	t.Run("Check base mempool type with mock", func(t *testing.T) {
+		baseMpool := newMockMempool()
+		txDecoder := func(txBytes []byte) (sdk.Tx, error) {
+			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		require.Equal(t, boostedPriority, wrapper.GetPriority())
+		mpool := NewMempool(MempoolConfig{
+			BaseMempool:   baseMpool,
+			TxDecoder:     txDecoder,
+			PriorityBoost: 1000000,
+			Logger:        log.NewNopLogger(),
+		})
+
+		// Verify we can get the base mempool
+		base := mpool.GetBaseMempool()
+		require.NotNil(t, base)
+		require.Equal(t, baseMpool, base)
+
+		// Check type
+		typeName := mpool.GetBaseMempoolType()
+		require.Equal(t, "*preconfer.mockMempool", typeName)
+
+		// This is a mock, not a PriorityNonceMempool
+		require.False(t, mpool.IsPriorityNonceMempool())
+	})
+
+	t.Run("Check with actual PriorityNonceMempool", func(t *testing.T) {
+		// Create an actual PriorityNonceMempool
+		baseMpool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+			TxPriority:      mempool.NewDefaultTxPriority(),
+			SignerExtractor: mempool.NewDefaultSignerExtractionAdapter(),
+			MaxTx:           100,
+		})
+
+		txDecoder := func(txBytes []byte) (sdk.Tx, error) {
+			return &mockTx{memo: string(txBytes)}, nil
+		}
+
+		mpool := NewMempool(MempoolConfig{
+			BaseMempool:   baseMpool,
+			TxDecoder:     txDecoder,
+			PriorityBoost: 1000000,
+			Logger:        log.NewNopLogger(),
+		})
+
+		// Verify type
+		typeName := mpool.GetBaseMempoolType()
+		require.Equal(t, PriorityNonceMempoolType, typeName)
+
+		// Should be recognized as PriorityNonceMempool
+		require.True(t, mpool.IsPriorityNonceMempool(),
+			"Should correctly identify PriorityNonceMempool as base")
+	})
+}
+
+func TestMempool_InsertWithGasWanted(t *testing.T) {
+	// Create SDK context with base priority
+	basePriority := int64(100)
+	ctx := sdk.Context{}.WithPriority(basePriority)
+
+	baseMpool := newMockMempool()
+
+	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
+		return &mockTx{memo: string(txBytes)}, nil
+	}
+
+	priorityBoost := int64(1000000)
+	mpool := NewMempool(MempoolConfig{
+		BaseMempool:   baseMpool,
+		TxDecoder:     txDecoder,
+		PriorityBoost: priorityBoost,
+		Logger:        log.NewNopLogger(),
+	})
+
+	t.Run("Insert priority transaction with gas wanted and boosted priority", func(t *testing.T) {
+		priorityTx := &mockTx{memo: "PRIORITY:1"}
+		gasWanted := uint64(100000)
+		err := mpool.InsertWithGasWanted(ctx, priorityTx, gasWanted)
+		require.NoError(t, err)
+		require.Equal(t, 1, mpool.CountTx())
+
+		// Verify priority was boosted
+		expectedPriority := basePriority + priorityBoost
+		require.Equal(t, expectedPriority, baseMpool.lastInsertedPriority,
+			"Priority transaction should have boosted priority")
+		require.Equal(t, gasWanted, baseMpool.lastInsertedGasWanted,
+			"Gas wanted should be passed through")
+	})
+
+	t.Run("Insert normal transaction with gas wanted and original priority", func(t *testing.T) {
+		normalTx := &mockTx{memo: "normal"}
+		gasWanted := uint64(50000)
+		err := mpool.InsertWithGasWanted(ctx, normalTx, gasWanted)
+		require.NoError(t, err)
+		require.Equal(t, 2, mpool.CountTx())
+
+		// Verify priority was NOT boosted
+		require.Equal(t, basePriority, baseMpool.lastInsertedPriority,
+			"Normal transaction should keep original priority")
+		require.Equal(t, gasWanted, baseMpool.lastInsertedGasWanted,
+			"Gas wanted should be passed through")
 	})
 }

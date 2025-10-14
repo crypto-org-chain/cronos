@@ -43,7 +43,6 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
-
 	// force register the extension json-rpc.
 	"github.com/crypto-org-chain/cronos/v2/preconfer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
@@ -59,7 +58,6 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
-
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -402,6 +400,16 @@ func New(
 				PriorityBoost: preconfer.DefaultPriorityBoost,
 				Logger:        logger,
 			})
+
+			// Verify and log the mempool configuration
+			preconfer.LogMempoolConfiguration(mpool, logger)
+
+			// Validate that the mempool is correctly configured
+			if err := preconfer.ValidatePreconferMempool(mpool); err != nil {
+				logger.Error("Preconfer mempool validation failed", "error", err)
+				panic(fmt.Sprintf("Invalid preconfer mempool configuration: %v", err))
+			}
+			logger.Info("✓ Preconfer mempool validation passed")
 		} else {
 			mpool = baseMpool
 		}

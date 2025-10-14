@@ -50,41 +50,68 @@ func NewMempool(cfg MempoolConfig) *Mempool {
 		cfg.Logger = log.NewNopLogger()
 	}
 
-	return &Mempool{
+	m := &Mempool{
 		Mempool:       cfg.BaseMempool,
 		txDecoder:     cfg.TxDecoder,
 		logger:        cfg.Logger,
 		priorityBoost: cfg.PriorityBoost,
 	}
+
+	// Log the base mempool type for verification
+	cfg.Logger.Info("preconfer.Mempool initialized",
+		"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
+		"priority_boost", cfg.PriorityBoost)
+
+	return m
 }
 
-// PriorityTxWrapper wraps a transaction to modify its priority
-type PriorityTxWrapper struct {
-	sdk.Tx
-	boostedPriority int64
-}
-
-// GetPriority returns the boosted priority for marked transactions
-func (ptw *PriorityTxWrapper) GetPriority() int64 {
-	return ptw.boostedPriority
-}
-
-// Insert adds a transaction to the mempool
-// Note: Priority boosting is handled by the TxPriority implementation
-// This method simply passes through to the underlying mempool
+// Insert adds a transaction to the mempool with priority boosting.
+// If the transaction is marked as a priority transaction, its priority
+// is boosted by adding priorityBoost to the context's priority value.
 func (epm *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
-	// Check if this is a priority transaction for logging
+	// Extract gas limit from transaction if available
+	var gasWanted uint64
+	if gasTx, ok := tx.(interface{ GetGas() uint64 }); ok {
+		gasWanted = gasTx.GetGas()
+	}
+
+	return epm.InsertWithGasWanted(ctx, tx, gasWanted)
+}
+
+// InsertWithGasWanted adds a transaction to the mempool with explicit gas wanted.
+// If the transaction is marked as a priority transaction, its priority is boosted
+// by modifying the context's priority before delegating to the base mempool.
+//
+// The PriorityNonceMempool retrieves priority using TxPriority.GetTxPriority(ctx, tx),
+// which reads from ctx.Priority(). By modifying the context's priority here, we ensure
+// the boosted priority is properly indexed in the underlying mempool's skip list.
+func (epm *Mempool) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
+	// Check if this is a priority transaction
 	isPriority := IsMarkedPriorityTx(tx)
 
 	if isPriority {
+		// Log priority transaction insertion
 		if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
-			epm.logger.Debug("inserting priority transaction", "memo", txWithMemo.GetMemo())
+			epm.logger.Debug("inserting priority transaction",
+				"memo", txWithMemo.GetMemo(),
+				"gas", gasWanted,
+				"boost", epm.priorityBoost)
 		}
+
+		// Boost the priority by modifying the context
+		// The base mempool will read this boosted priority value
+		sdkCtx := sdk.UnwrapSDKContext(ctx)
+		currentPriority := sdkCtx.Priority()
+		boostedPriority := currentPriority + epm.priorityBoost
+
+		// Create a new context with the boosted priority
+		sdkCtx = sdkCtx.WithPriority(boostedPriority)
+		ctx = sdkCtx
 	}
 
-	// Insert using the base mempool
-	// Priority is determined by the TxPriority implementation
-	return epm.Mempool.Insert(ctx, tx)
+	// Delegate to base mempool's InsertWithGasWanted
+	// InsertWithGasWanted is part of the mempool.Mempool interface
+	return epm.Mempool.InsertWithGasWanted(ctx, tx, gasWanted)
 }
 
 // Select returns an iterator of transactions in priority order
@@ -100,15 +127,7 @@ func (epm *Mempool) CountTx() int {
 
 // Remove removes a transaction from the mempool
 func (epm *Mempool) Remove(tx sdk.Tx) error {
-	// Try to remove the original tx or wrapped tx
-	err := epm.Mempool.Remove(tx)
-	if err != nil {
-		// If removal failed, it might be wrapped, try unwrapping
-		if wrapper, ok := tx.(*PriorityTxWrapper); ok {
-			return epm.Mempool.Remove(wrapper.Tx)
-		}
-	}
-	return err
+	return epm.Mempool.Remove(tx)
 }
 
 // GetPriorityBoost returns the configured priority boost value
@@ -130,4 +149,22 @@ func (epm *Mempool) SetPriorityBoost(boost int64) {
 func (epm *Mempool) GetStats() string {
 	return fmt.Sprintf("Mempool{count=%d, boost=%d}",
 		epm.CountTx(), epm.priorityBoost)
+}
+
+// GetBaseMempool returns the underlying base mempool
+// This is useful for type checking and verification
+func (epm *Mempool) GetBaseMempool() mempool.Mempool {
+	return epm.Mempool
+}
+
+// IsPriorityNonceMempool checks if the base mempool is a PriorityNonceMempool
+func (epm *Mempool) IsPriorityNonceMempool() bool {
+	typeName := fmt.Sprintf("%T", epm.Mempool)
+	// Check if it's a PriorityNonceMempool (the type will be *mempool.PriorityNonceMempool[int64])
+	return typeName == PriorityNonceMempoolType
+}
+
+// GetBaseMempoolType returns the type name of the base mempool
+func (epm *Mempool) GetBaseMempoolType() string {
+	return fmt.Sprintf("%T", epm.Mempool)
 }
