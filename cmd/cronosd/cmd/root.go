@@ -10,7 +10,7 @@ import (
 	cmtcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
 	rosettaCmd "github.com/cosmos/rosetta/cmd"
-	storeconfig "github.com/crypto-org-chain/cronos/store/config"
+	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
@@ -270,7 +270,7 @@ func initAppConfig() (string, interface{}) {
 	type CustomAppConfig struct {
 		servercfg.Config
 
-		MemIAVL   storeconfig.MemIAVLConfig `mapstructure:"memiavl"`
+		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
 	}
 
@@ -278,11 +278,11 @@ func initAppConfig() (string, interface{}) {
 
 	customAppConfig := CustomAppConfig{
 		Config:    cfg.(servercfg.Config),
-		MemIAVL:   storeconfig.DefaultMemIAVLConfig(),
+		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
 	}
 
-	return tpl + storeconfig.DefaultConfigTemplate + storeconfig.DefaultModulesConfigTemplate + DefaultVersionDBTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
 }
 
 // newApp creates the application
