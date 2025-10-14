@@ -126,7 +126,6 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// in iavl tree, we almost always query existing keys
 	opts.SetOptimizeFiltersForHits(true)
 
-
 	// heavier compression option at bottommost level,
 	// 110k dict bytes is default in zstd library,
 	// train bytes is recommended to be set at 100x dict bytes.
