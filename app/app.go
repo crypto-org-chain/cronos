@@ -317,6 +317,9 @@ type App struct {
 
 	CronosKeeper cronoskeeper.Keeper
 
+	// preconfer mempool for whitelist management
+	preconferMempool *preconfer.Mempool
+
 	// the module manager
 	ModuleManager      *module.Manager
 	BasicModuleManager module.BasicManager
@@ -384,6 +387,7 @@ func New(
 	preconferWhitelist := cast.ToStringSlice(appOpts.Get("preconfer.whitelist"))
 
 	var mpool mempool.Mempool
+	var preconferMempoolRef *preconfer.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -399,7 +403,7 @@ func New(
 			logger.Info("Wrapping mempool with preconfer.Mempool for priority transaction support",
 				"whitelist_enabled", len(preconferWhitelist) > 0,
 				"whitelist_count", len(preconferWhitelist))
-			mpool = preconfer.NewMempool(preconfer.MempoolConfig{
+			preconferMpool := preconfer.NewMempool(preconfer.MempoolConfig{
 				BaseMempool:        baseMpool,
 				TxDecoder:          txDecoder,
 				PriorityBoost:      preconfer.DefaultPriorityBoost,
@@ -409,14 +413,18 @@ func New(
 			})
 
 			// Verify and log the mempool configuration
-			preconfer.LogMempoolConfiguration(mpool, logger)
+			preconfer.LogMempoolConfiguration(preconferMpool, logger)
 
 			// Validate that the mempool is correctly configured
-			if err := preconfer.ValidatePreconferMempool(mpool); err != nil {
+			if err := preconfer.ValidatePreconferMempool(preconferMpool); err != nil {
 				logger.Error("Preconfer mempool validation failed", "error", err)
 				panic(fmt.Sprintf("Invalid preconfer mempool configuration: %v", err))
 			}
 			logger.Info("✓ Preconfer mempool validation passed")
+
+			mpool = preconferMpool
+			// Store reference for gRPC service registration later
+			preconferMempoolRef = preconferMpool
 		} else {
 			mpool = baseMpool
 		}
@@ -492,6 +500,7 @@ func New(
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
+		preconferMempool:     preconferMempoolRef,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -997,6 +1006,13 @@ func New(
 		panic(err)
 	}
 	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), reflectionSvc)
+
+	// Register preconfer whitelist gRPC service if preconfer is enabled
+	if app.preconferMempool != nil {
+		whitelistServer := preconfer.NewWhitelistGRPCServer(app.preconferMempool)
+		preconfer.RegisterWhitelistServiceServer(app.GRPCQueryRouter(), whitelistServer)
+		logger.Info("Preconfer whitelist gRPC service registered")
+	}
 
 	app.sm.RegisterStoreDecoders()
 
