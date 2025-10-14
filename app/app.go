@@ -43,6 +43,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
+
 	// force register the extension json-rpc.
 	"github.com/crypto-org-chain/cronos/v2/preconfer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
@@ -58,6 +59,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -379,6 +381,7 @@ func New(
 
 	// Check if preconfer (priority tx selector) is enabled in app.toml
 	preconferEnabled := cast.ToBool(appOpts.Get("preconfer.enable"))
+	preconferWhitelist := cast.ToStringSlice(appOpts.Get("preconfer.whitelist"))
 
 	var mpool mempool.Mempool
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
@@ -393,12 +396,16 @@ func New(
 
 		// Wrap with preconfer Mempool if preconfer is enabled
 		if preconferEnabled {
-			logger.Info("Wrapping mempool with preconfer.Mempool for priority transaction support")
+			logger.Info("Wrapping mempool with preconfer.Mempool for priority transaction support",
+				"whitelist_enabled", len(preconferWhitelist) > 0,
+				"whitelist_count", len(preconferWhitelist))
 			mpool = preconfer.NewMempool(preconfer.MempoolConfig{
-				BaseMempool:   baseMpool,
-				TxDecoder:     txDecoder,
-				PriorityBoost: preconfer.DefaultPriorityBoost,
-				Logger:        logger,
+				BaseMempool:        baseMpool,
+				TxDecoder:          txDecoder,
+				PriorityBoost:      preconfer.DefaultPriorityBoost,
+				Logger:             logger,
+				WhitelistAddresses: preconferWhitelist,
+				SignerExtractor:    evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			})
 
 			// Verify and log the mempool configuration

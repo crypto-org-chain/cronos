@@ -3,8 +3,11 @@ package preconfer
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 
 	"cosmossdk.io/log"
+	"github.com/ethereum/go-ethereum/common"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -22,6 +25,15 @@ type Mempool struct {
 	// Priority boost for marked transactions
 	// This value is added to the transaction's base priority
 	priorityBoost int64
+
+	// Whitelist for priority boosting
+	// If empty, all addresses can use priority boosting
+	// If non-empty, only whitelisted addresses can boost priority
+	whitelistMu sync.RWMutex
+	whitelist   map[string]bool
+
+	// SignerExtractor for extracting signer addresses from transactions
+	signerExtractor mempool.SignerExtractionAdapter
 }
 
 // MempoolConfig configuration for the preconfer mempool
@@ -38,6 +50,14 @@ type MempoolConfig struct {
 
 	// Logger for mempool operations
 	Logger log.Logger
+
+	// WhitelistAddresses is the list of addresses allowed to boost priority
+	// If empty, all addresses are allowed
+	WhitelistAddresses []string
+
+	// SignerExtractor for extracting signer addresses from transactions
+	// If not provided, uses NewDefaultSignerExtractionAdapter
+	SignerExtractor mempool.SignerExtractionAdapter
 }
 
 // NewMempool creates a new preconfer mempool
@@ -50,17 +70,38 @@ func NewMempool(cfg MempoolConfig) *Mempool {
 		cfg.Logger = log.NewNopLogger()
 	}
 
-	m := &Mempool{
-		Mempool:       cfg.BaseMempool,
-		txDecoder:     cfg.TxDecoder,
-		logger:        cfg.Logger,
-		priorityBoost: cfg.PriorityBoost,
+	if cfg.SignerExtractor == nil {
+		cfg.SignerExtractor = mempool.NewDefaultSignerExtractionAdapter()
 	}
 
-	// Log the base mempool type for verification
-	cfg.Logger.Info("preconfer.Mempool initialized",
-		"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
-		"priority_boost", cfg.PriorityBoost)
+	// Initialize whitelist map
+	whitelist := make(map[string]bool)
+	for _, addr := range cfg.WhitelistAddresses {
+		whitelist[addr] = true
+	}
+
+	m := &Mempool{
+		Mempool:         cfg.BaseMempool,
+		txDecoder:       cfg.TxDecoder,
+		logger:          cfg.Logger,
+		priorityBoost:   cfg.PriorityBoost,
+		whitelist:       whitelist,
+		signerExtractor: cfg.SignerExtractor,
+	}
+
+	// Log the base mempool type and whitelist configuration
+	if len(whitelist) == 0 {
+		cfg.Logger.Info("preconfer.Mempool initialized",
+			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
+			"priority_boost", cfg.PriorityBoost,
+			"whitelist", "disabled (all addresses allowed)")
+	} else {
+		cfg.Logger.Info("preconfer.Mempool initialized",
+			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
+			"priority_boost", cfg.PriorityBoost,
+			"whitelist", "enabled",
+			"whitelist_count", len(whitelist))
+	}
 
 	return m
 }
@@ -85,28 +126,40 @@ func (epm *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
 // The PriorityNonceMempool retrieves priority using TxPriority.GetTxPriority(ctx, tx),
 // which reads from ctx.Priority(). By modifying the context's priority here, we ensure
 // the boosted priority is properly indexed in the underlying mempool's skip list.
+//
+// Priority boosting is only applied if:
+// 1. The transaction is marked with PRIORITY: prefix
+// 2. The sender is whitelisted (or whitelist is empty/disabled)
 func (epm *Mempool) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
 	// Check if this is a priority transaction
 	isPriority := IsMarkedPriorityTx(tx)
 
 	if isPriority {
-		// Log priority transaction insertion
-		if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
-			epm.logger.Debug("inserting priority transaction",
-				"memo", txWithMemo.GetMemo(),
-				"gas", gasWanted,
-				"boost", epm.priorityBoost)
+		// Check if sender is authorized to boost priority
+		isAuthorized := epm.isAddressWhitelisted(tx)
+
+		if isAuthorized {
+			// Log priority transaction insertion
+			if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
+				epm.logger.Debug("inserting priority transaction",
+					"memo", txWithMemo.GetMemo(),
+					"gas", gasWanted,
+					"boost", epm.priorityBoost)
+			}
+
+			// Boost the priority by modifying the context
+			// The base mempool will read this boosted priority value
+			sdkCtx := sdk.UnwrapSDKContext(ctx)
+			currentPriority := sdkCtx.Priority()
+			boostedPriority := currentPriority + epm.priorityBoost
+
+			// Create a new context with the boosted priority
+			sdkCtx = sdkCtx.WithPriority(boostedPriority)
+			ctx = sdkCtx
+		} else {
+			epm.logger.Debug("priority transaction rejected - sender not whitelisted",
+				"tx", fmt.Sprintf("%v", tx))
 		}
-
-		// Boost the priority by modifying the context
-		// The base mempool will read this boosted priority value
-		sdkCtx := sdk.UnwrapSDKContext(ctx)
-		currentPriority := sdkCtx.Priority()
-		boostedPriority := currentPriority + epm.priorityBoost
-
-		// Create a new context with the boosted priority
-		sdkCtx = sdkCtx.WithPriority(boostedPriority)
-		ctx = sdkCtx
 	}
 
 	// Delegate to base mempool's InsertWithGasWanted
@@ -167,4 +220,136 @@ func (epm *Mempool) IsPriorityNonceMempool() bool {
 // GetBaseMempoolType returns the type name of the base mempool
 func (epm *Mempool) GetBaseMempoolType() string {
 	return fmt.Sprintf("%T", epm.Mempool)
+}
+
+// isAddressWhitelisted checks if the transaction sender is authorized for priority boosting
+// Returns true if:
+// - Whitelist is empty (everyone allowed)
+// - Sender address is in the whitelist
+func (epm *Mempool) isAddressWhitelisted(tx sdk.Tx) bool {
+	epm.whitelistMu.RLock()
+	defer epm.whitelistMu.RUnlock()
+
+	// If whitelist is empty, allow everyone
+	if len(epm.whitelist) == 0 {
+		return true
+	}
+
+	// Extract signer addresses from transaction
+	signers, err := epm.signerExtractor.GetSigners(tx)
+	if err != nil {
+		epm.logger.Debug("failed to extract signers", "error", err)
+		return false
+	}
+
+	if len(signers) == 0 {
+		epm.logger.Debug("transaction has no signers")
+		return false
+	}
+
+	// Check if the first signer is whitelisted
+	// (following the same pattern as PriorityNonceMempool)
+	firstSigner := signers[0].Signer
+
+	// Convert AccAddress to Ethereum address format (0x...)
+	// AccAddress in Cronos is the 20-byte Ethereum address
+	ethAddr := common.BytesToAddress(firstSigner).Hex()
+
+	// Also check bech32 format for backward compatibility
+	bech32Addr := firstSigner.String()
+
+	// Check both formats (case-insensitive for Ethereum addresses)
+	for whitelistAddr := range epm.whitelist {
+		// Check if it's an Ethereum address format (0x...)
+		if strings.HasPrefix(strings.ToLower(whitelistAddr), "0x") {
+			if strings.EqualFold(whitelistAddr, ethAddr) {
+				return true
+			}
+		} else {
+			// Bech32 format comparison
+			if whitelistAddr == bech32Addr {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// AddToWhitelist adds an address to the whitelist
+func (epm *Mempool) AddToWhitelist(address string) {
+	epm.whitelistMu.Lock()
+	defer epm.whitelistMu.Unlock()
+
+	epm.whitelist[address] = true
+	epm.logger.Info("address added to whitelist",
+		"address", address,
+		"whitelist_count", len(epm.whitelist))
+}
+
+// RemoveFromWhitelist removes an address from the whitelist
+func (epm *Mempool) RemoveFromWhitelist(address string) {
+	epm.whitelistMu.Lock()
+	defer epm.whitelistMu.Unlock()
+
+	delete(epm.whitelist, address)
+	epm.logger.Info("address removed from whitelist",
+		"address", address,
+		"whitelist_count", len(epm.whitelist))
+}
+
+// IsWhitelisted checks if an address is in the whitelist
+func (epm *Mempool) IsWhitelisted(address string) bool {
+	epm.whitelistMu.RLock()
+	defer epm.whitelistMu.RUnlock()
+
+	return epm.whitelist[address]
+}
+
+// GetWhitelist returns a copy of the current whitelist
+func (epm *Mempool) GetWhitelist() []string {
+	epm.whitelistMu.RLock()
+	defer epm.whitelistMu.RUnlock()
+
+	addresses := make([]string, 0, len(epm.whitelist))
+	for addr := range epm.whitelist {
+		addresses = append(addresses, addr)
+	}
+	return addresses
+}
+
+// ClearWhitelist removes all addresses from the whitelist
+// After this, all addresses will be allowed to boost priority
+func (epm *Mempool) ClearWhitelist() {
+	epm.whitelistMu.Lock()
+	defer epm.whitelistMu.Unlock()
+
+	epm.whitelist = make(map[string]bool)
+	epm.logger.Info("whitelist cleared - all addresses now allowed")
+}
+
+// WhitelistCount returns the number of addresses in the whitelist
+func (epm *Mempool) WhitelistCount() int {
+	epm.whitelistMu.RLock()
+	defer epm.whitelistMu.RUnlock()
+
+	return len(epm.whitelist)
+}
+
+// SetWhitelist replaces the entire whitelist with a new set of addresses
+func (epm *Mempool) SetWhitelist(addresses []string) {
+	epm.whitelistMu.Lock()
+	defer epm.whitelistMu.Unlock()
+
+	epm.whitelist = make(map[string]bool)
+	for _, addr := range addresses {
+		epm.whitelist[addr] = true
+	}
+
+	if len(addresses) == 0 {
+		epm.logger.Info("whitelist set to empty - all addresses now allowed")
+	} else {
+		epm.logger.Info("whitelist updated",
+			"whitelist_count", len(epm.whitelist))
+	}
 }
