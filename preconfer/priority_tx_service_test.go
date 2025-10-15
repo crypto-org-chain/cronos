@@ -391,3 +391,36 @@ func TestTxStatusType_String(t *testing.T) {
 		})
 	}
 }
+
+func TestPriorityTxService_GracefulShutdown(t *testing.T) {
+	service := NewPriorityTxService(PriorityTxServiceConfig{
+		Mempool:   newMockMempool(),
+		TxDecoder: func(txBytes []byte) (sdk.Tx, error) { return &mockTx{}, nil },
+		Logger:    log.NewNopLogger(),
+	})
+
+	// Submit a transaction to ensure service is working
+	ctx := context.Background()
+	result, err := service.SubmitPriorityTx(ctx, []byte("test_tx"), 1)
+	require.NoError(t, err)
+	require.True(t, result.Accepted)
+
+	// Stop the service
+	stopped := make(chan struct{})
+	go func() {
+		service.Stop()
+		close(stopped)
+	}()
+
+	// Wait for shutdown to complete with timeout
+	select {
+	case <-stopped:
+		// Success - shutdown completed
+	case <-time.After(5 * time.Second):
+		t.Fatal("service did not stop within timeout")
+	}
+
+	// Verify context is canceled
+	require.Error(t, service.ctx.Err())
+	require.Equal(t, context.Canceled, service.ctx.Err())
+}

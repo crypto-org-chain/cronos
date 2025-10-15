@@ -38,6 +38,11 @@ type PriorityTxService struct {
 	// Configuration
 	validatorAddress  string
 	preconfirmTimeout time.Duration
+
+	// Shutdown management
+	ctx    context.Context
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 // PreconfirmationInfo stores preconfirmation details
@@ -114,6 +119,8 @@ func NewPriorityTxService(cfg PriorityTxServiceConfig) *PriorityTxService {
 		cfg.Logger = log.NewNopLogger()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	service := &PriorityTxService{
 		app:               cfg.App,
 		mempool:           cfg.Mempool,
@@ -123,6 +130,9 @@ func NewPriorityTxService(cfg PriorityTxServiceConfig) *PriorityTxService {
 		preconfirmTimeout: cfg.PreconfirmTimeout,
 		preconfirmations:  make(map[string]*PreconfirmationInfo),
 		txTracker:         make(map[string]*TxTrackingInfo),
+		ctx:               ctx,
+		cancel:            cancel,
+		done:              make(chan struct{}),
 	}
 
 	// Start cleanup goroutine
@@ -392,29 +402,45 @@ func (s *PriorityTxService) countPriorityTxsInMempool() uint32 {
 
 // cleanupExpiredPreconfirmations periodically removes expired preconfirmations
 func (s *PriorityTxService) cleanupExpiredPreconfirmations() {
+	defer close(s.done)
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		s.preconfirmationMutex.Lock()
-		s.txTrackerLock.Lock()
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.logger.Info("cleanup goroutine shutting down")
+			return
+		case <-ticker.C:
+			s.preconfirmationMutex.Lock()
+			s.txTrackerLock.Lock()
 
-		now := time.Now()
-		for txHash, preconf := range s.preconfirmations {
-			if now.After(preconf.ExpiresAt) {
-				delete(s.preconfirmations, txHash)
+			now := time.Now()
+			for txHash, preconf := range s.preconfirmations {
+				if now.After(preconf.ExpiresAt) {
+					delete(s.preconfirmations, txHash)
 
-				if info, exists := s.txTracker[txHash]; exists && info.Status == TxStatusPreconfirmed {
-					info.Status = TxStatusExpired
+					if info, exists := s.txTracker[txHash]; exists && info.Status == TxStatusPreconfirmed {
+						info.Status = TxStatusExpired
+					}
+
+					s.logger.Debug("cleaned up expired preconfirmation", "tx_hash", txHash)
 				}
-
-				s.logger.Debug("cleaned up expired preconfirmation", "tx_hash", txHash)
 			}
-		}
 
-		s.txTrackerLock.Unlock()
-		s.preconfirmationMutex.Unlock()
+			s.txTrackerLock.Unlock()
+			s.preconfirmationMutex.Unlock()
+		}
 	}
+}
+
+// Stop gracefully shuts down the service and waits for cleanup goroutine to finish
+func (s *PriorityTxService) Stop() {
+	s.logger.Info("stopping priority tx service")
+	s.cancel()
+	<-s.done
+	s.logger.Info("priority tx service stopped")
 }
 
 // Result types
