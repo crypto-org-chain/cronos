@@ -4,6 +4,7 @@
 
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
+* [#1887](https://github.com/crypto-org-chain/cronos/pull/1887) fix: patch cometbft for GHSA-hrhf-2vcr-ghch
 
 *Sep 4, 2025*
 
