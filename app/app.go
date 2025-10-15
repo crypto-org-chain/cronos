@@ -496,15 +496,29 @@ func New(
 		// Get validator address from config (optional)
 		validatorAddr := cast.ToString(appOpts.Get("preconfer.validator_address"))
 
+		// Get preconfirmation timeout from config with default of 30 seconds
+		preconfirmTimeout := 30 * time.Second
+		if timeoutStr := cast.ToString(appOpts.Get("preconfer.preconfirm_timeout")); timeoutStr != "" {
+			if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
+				preconfirmTimeout = parsedTimeout
+				logger.Info("Using configured preconfirmation timeout", "timeout", preconfirmTimeout)
+			} else {
+				logger.Error("Invalid preconfirm_timeout format, using default",
+					"configured", timeoutStr,
+					"default", preconfirmTimeout,
+					"error", err)
+			}
+		}
+
 		priorityTxServiceRef = preconfer.NewPriorityTxService(preconfer.PriorityTxServiceConfig{
 			App:               bApp,
 			Mempool:           preconferMempoolRef,
 			TxDecoder:         txDecoder,
 			Logger:            logger.With("module", "priority_tx_service"),
 			ValidatorAddress:  validatorAddr,
-			PreconfirmTimeout: 30 * time.Second,
+			PreconfirmTimeout: preconfirmTimeout,
 		})
-		logger.Info("Priority transaction service initialized")
+		logger.Info("Priority transaction service initialized", "preconfirm_timeout", preconfirmTimeout)
 	}
 
 	app := &App{
