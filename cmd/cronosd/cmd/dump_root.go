@@ -7,7 +7,6 @@ import (
 
 	consensusparamtypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
-	ibcfeetypes "github.com/cosmos/ibc-go/v8/modules/apps/29-fee/types"
 	"github.com/crypto-org-chain/cronos/v2/app"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
@@ -15,11 +14,11 @@ import (
 	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
 
 	dbm "github.com/cosmos/cosmos-db"
-	capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
-	icacontrollertypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/controller/types"
-	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
-	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
-	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	// capabilitytypes "github.com/cosmos/ibc-go/modules/capability/types"
+	icacontrollertypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/controller/types"
+	icahosttypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/host/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	"github.com/crypto-org-chain/cronos/memiavl"
 	"github.com/spf13/cobra"
 
@@ -41,7 +40,7 @@ import (
 )
 
 func DumpRootCmd() *cobra.Command {
-	keys, _, _, _ := app.StoreKeys()
+	keys, _, _ := app.StoreKeys()
 	storeNames := make([]string, 0, len(keys))
 	for name := range keys {
 		storeNames = append(storeNames, name)
@@ -130,11 +129,11 @@ func DumpIavlRoot(storeNames []string) *cobra.Command {
 		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey,
-		evidencetypes.StoreKey, capabilitytypes.StoreKey, consensusparamtypes.StoreKey,
+		evidencetypes.StoreKey, consensusparamtypes.StoreKey,
 		feegrant.StoreKey, crisistypes.StoreKey,
 		// ibc keys
 		ibcexported.StoreKey, ibctransfertypes.StoreKey,
-		ibcfeetypes.StoreKey,
+		//ibcfeetypes.StoreKey,
 		// ica keys
 		icacontrollertypes.StoreKey,
 		icahosttypes.StoreKey,
