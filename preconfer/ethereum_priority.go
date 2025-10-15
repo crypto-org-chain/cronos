@@ -60,7 +60,7 @@ func IsEthereumTx(tx sdk.Tx) bool {
 // Useful for logging and monitoring
 func GetTransactionType(tx sdk.Tx) string {
 	if tx == nil {
-		return "unknown"
+		return StatusUnknown
 	}
 
 	msgs := tx.GetMsgs()
@@ -88,7 +88,7 @@ func GetTransactionType(tx sdk.Tx) string {
 		return "mixed"
 	}
 
-	return "unknown"
+	return StatusUnknown
 }
 
 // EthereumTxInfo contains information about Ethereum transactions

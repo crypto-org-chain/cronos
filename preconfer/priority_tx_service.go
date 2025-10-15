@@ -15,6 +15,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
+const (
+	// StatusUnknown is the string representation for unknown status
+	StatusUnknown = "unknown"
+)
+
 // PriorityTxService handles priority transaction submissions and preconfirmations
 type PriorityTxService struct {
 	app       *baseapp.BaseApp
@@ -73,7 +78,7 @@ const (
 func (s TxStatusType) String() string {
 	switch s {
 	case TxStatusUnknown:
-		return "unknown"
+		return StatusUnknown
 	case TxStatusPending:
 		return "pending"
 	case TxStatusPreconfirmed:
