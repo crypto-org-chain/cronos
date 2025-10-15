@@ -6,6 +6,7 @@
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) Support 4byteTracer for tracer
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
+* [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
 
 *Sep 4, 2025*
 
