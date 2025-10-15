@@ -26,6 +26,9 @@ func NewPriorityTxGRPCServer(service *PriorityTxService) *PriorityTxGRPCServer {
 	}
 }
 
+// Currently only priority level 1 is supported
+const SupportedPriorityLevel = 1
+
 // SubmitPriorityTx handles priority transaction submission via gRPC
 func (s *PriorityTxGRPCServer) SubmitPriorityTx(
 	ctx context.Context,
@@ -39,8 +42,8 @@ func (s *PriorityTxGRPCServer) SubmitPriorityTx(
 		return nil, status.Error(codes.InvalidArgument, "empty transaction bytes")
 	}
 
-	if req.PriorityLevel != 1 {
-		return nil, status.Error(codes.InvalidArgument, "priority level must be 1")
+	if req.PriorityLevel != SupportedPriorityLevel {
+		return nil, status.Errorf(codes.InvalidArgument, "priority level must be %d", SupportedPriorityLevel)
 	}
 
 	// Submit transaction

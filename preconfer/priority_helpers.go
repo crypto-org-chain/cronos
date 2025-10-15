@@ -2,6 +2,7 @@ package preconfer
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
@@ -79,7 +80,7 @@ func GetPriorityLevel(tx sdk.Tx) int {
 
 	// Method 1: Try to get from TxWithMemo interface (standard Cosmos tx)
 	if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
-		memo := txWithMemo.GetMemo()
+		memo := strings.ToUpper(strings.TrimSpace(txWithMemo.GetMemo()))
 		if level := extractLevelFromMemo(memo); level > 0 {
 			return level
 		}
@@ -125,7 +126,8 @@ func getEthereumTxPriorityLevel(tx sdk.Tx) int {
 	for _, msg := range msgs {
 		if ethMsg, ok := msg.(*evmtypes.MsgEthereumTx); ok {
 			if ethMsg.Memo != "" {
-				level := extractLevelFromMemo(ethMsg.Memo)
+				memo := strings.ToUpper(strings.TrimSpace(ethMsg.Memo))
+				level := extractLevelFromMemo(memo)
 				if level > 0 {
 					return level
 				}
@@ -144,5 +146,9 @@ func CalculateBoostedPriority(tx sdk.Tx, basePriority, maxBoost int64) int64 {
 	}
 
 	// Since only level 1 is supported, always apply full boost
+	// Check for overflow before adding
+	if maxBoost > math.MaxInt64-basePriority {
+		return math.MaxInt64
+	}
 	return basePriority + maxBoost
 }
