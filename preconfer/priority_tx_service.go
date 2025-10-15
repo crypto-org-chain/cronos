@@ -190,7 +190,7 @@ func (s *PriorityTxService) SubmitPriorityTx(
 	position := s.countPriorityTxsInMempool() + 1
 
 	// Track transaction
-	s.trackTransaction(txHash, txBytes, preconf)
+	s.trackTransaction(txHash, txBytes, preconf, position)
 
 	s.logger.Info("priority transaction accepted",
 		"tx_hash", txHash,
@@ -219,12 +219,24 @@ func (s *PriorityTxService) GetTxStatus(txHash string) (*TxTrackingInfo, error) 
 		}, nil
 	}
 
-	// Update status if preconfirmation expired
-	if info.Preconfirmation != nil && time.Now().After(info.Preconfirmation.ExpiresAt) {
-		info.Status = TxStatusExpired
+	// Create a copy to avoid mutating shared state under read lock
+	infoCopy := &TxTrackingInfo{
+		TxHash:          info.TxHash,
+		Status:          info.Status,
+		InMempool:       info.InMempool,
+		BlockHeight:     info.BlockHeight,
+		MempoolPosition: info.MempoolPosition,
+		Preconfirmation: info.Preconfirmation,
+		Timestamp:       info.Timestamp,
+		TxBytes:         info.TxBytes,
 	}
 
-	return info, nil
+	// Update status in the copy if preconfirmation expired
+	if infoCopy.Preconfirmation != nil && time.Now().After(infoCopy.Preconfirmation.ExpiresAt) {
+		infoCopy.Status = TxStatusExpired
+	}
+
+	return infoCopy, nil
 }
 
 // GetMempoolStats returns statistics about the mempool
@@ -254,7 +266,17 @@ func (s *PriorityTxService) GetMempoolStats() *MempoolStats {
 	}
 
 	stats.PriorityTxs = priorityCount
-	stats.NormalTxs = stats.TotalTxs - priorityCount
+	// Defensively clamp to prevent underflow
+	if priorityCount >= stats.TotalTxs {
+		if priorityCount > stats.TotalTxs {
+			s.logger.Warn("Priority count unexpectedly exceeds total transactions",
+				"priorityCount", priorityCount,
+				"totalTxs", stats.TotalTxs)
+		}
+		stats.NormalTxs = 0
+	} else {
+		stats.NormalTxs = stats.TotalTxs - priorityCount
+	}
 	stats.PreconfirmedTxs = preconfirmedCount
 
 	if priorityCount > 0 {
@@ -342,7 +364,7 @@ func (s *PriorityTxService) signPreconfirmation(txHash string, priorityLevel uin
 }
 
 // trackTransaction adds a transaction to the tracking system
-func (s *PriorityTxService) trackTransaction(txHash string, txBytes []byte, preconf *PreconfirmationInfo) {
+func (s *PriorityTxService) trackTransaction(txHash string, txBytes []byte, preconf *PreconfirmationInfo, position uint32) {
 	s.txTrackerLock.Lock()
 	defer s.txTrackerLock.Unlock()
 
@@ -350,6 +372,7 @@ func (s *PriorityTxService) trackTransaction(txHash string, txBytes []byte, prec
 		TxHash:          txHash,
 		Status:          TxStatusPreconfirmed,
 		InMempool:       true,
+		MempoolPosition: position,
 		Preconfirmation: preconf,
 		Timestamp:       time.Now(),
 		TxBytes:         txBytes,
@@ -411,10 +434,13 @@ func (s *PriorityTxService) cleanupExpiredPreconfirmations() {
 		select {
 		case <-s.ctx.Done():
 			s.logger.Info("cleanup goroutine shutting down")
+			ticker.Stop()
 			return
 		case <-ticker.C:
-			s.preconfirmationMutex.Lock()
+			// Acquire locks in consistent order: txTrackerLock first, then preconfirmationMutex
+			// This prevents deadlock with other code paths
 			s.txTrackerLock.Lock()
+			s.preconfirmationMutex.Lock()
 
 			now := time.Now()
 			for txHash, preconf := range s.preconfirmations {
@@ -429,8 +455,9 @@ func (s *PriorityTxService) cleanupExpiredPreconfirmations() {
 				}
 			}
 
-			s.txTrackerLock.Unlock()
+			// Unlock in reverse order
 			s.preconfirmationMutex.Unlock()
+			s.txTrackerLock.Unlock()
 		}
 	}
 }
