@@ -33,7 +33,7 @@ type PreconferConfig struct {
 
 func DefaultPreconferConfig() PreconferConfig {
 	return PreconferConfig{
-		Enable:            true,       // Enabled by default for backward compatibility
+		Enable:            true,       // Enabled by default
 		ValidatorAddress:  "",         // Empty by default, optional
 		PreconfirmTimeout: "30s",      // Default 30 seconds
 		Whitelist:         []string{}, // Empty by default, allows all addresses

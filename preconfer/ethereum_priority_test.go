@@ -72,16 +72,6 @@ func TestGetPriorityLevel_EthereumTx(t *testing.T) {
 		require.Equal(t, 1, level)
 	})
 
-	t.Run("Extract priority level 1", func(t *testing.T) {
-		ethMsg := &evmtypes.MsgEthereumTx{
-			Memo: "PRIORITY:1",
-		}
-		tx := &mockEthereumTx{msgs: []sdk.Msg{ethMsg}}
-
-		level := GetPriorityLevel(tx)
-		require.Equal(t, 1, level)
-	})
-
 	t.Run("Invalid priority level (level 10 not supported)", func(t *testing.T) {
 		ethMsg := &evmtypes.MsgEthereumTx{
 			Memo: "PRIORITY:10",

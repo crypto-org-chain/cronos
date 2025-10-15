@@ -53,9 +53,8 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid priority level")
 	})
 
-	t.Run("Accept valid transaction with empty bytes", func(t *testing.T) {
-		// Note: Empty bytes can still be decoded by mock decoder
-		// In production, this would fail at the decoder level
+	t.Run("Accept valid transaction", func(t *testing.T) {
+		// Submit a valid transaction with proper priority level
 		txBytes := []byte("valid_tx")
 		priorityLevel := uint32(1)
 

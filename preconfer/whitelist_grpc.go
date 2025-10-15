@@ -113,6 +113,9 @@ type WhitelistGRPCServer struct {
 
 // NewWhitelistGRPCServer creates a new whitelist gRPC server
 func NewWhitelistGRPCServer(mempool *Mempool) *WhitelistGRPCServer {
+	if mempool == nil {
+		panic("mempool cannot be nil")
+	}
 	return &WhitelistGRPCServer{
 		mempool: mempool,
 	}
@@ -125,10 +128,6 @@ func (s *WhitelistGRPCServer) AddToWhitelist(
 ) (*AddToWhitelistResponse, error) {
 	if req == nil || req.Address == "" {
 		return nil, status.Error(codes.InvalidArgument, "address is required")
-	}
-
-	if s.mempool == nil {
-		return nil, status.Error(codes.Internal, "mempool not available")
 	}
 
 	s.mempool.AddToWhitelist(req.Address)
@@ -149,10 +148,6 @@ func (s *WhitelistGRPCServer) RemoveFromWhitelist(
 		return nil, status.Error(codes.InvalidArgument, "address is required")
 	}
 
-	if s.mempool == nil {
-		return nil, status.Error(codes.Internal, "mempool not available")
-	}
-
 	s.mempool.RemoveFromWhitelist(req.Address)
 
 	return &RemoveFromWhitelistResponse{
@@ -167,10 +162,6 @@ func (s *WhitelistGRPCServer) GetWhitelist(
 	ctx context.Context,
 	req *GetWhitelistRequest,
 ) (*GetWhitelistResponse, error) {
-	if s.mempool == nil {
-		return nil, status.Error(codes.Internal, "mempool not available")
-	}
-
 	addresses := s.mempool.GetWhitelist()
 
 	return &GetWhitelistResponse{
@@ -184,10 +175,6 @@ func (s *WhitelistGRPCServer) ClearWhitelist(
 	ctx context.Context,
 	req *ClearWhitelistRequest,
 ) (*ClearWhitelistResponse, error) {
-	if s.mempool == nil {
-		return nil, status.Error(codes.Internal, "mempool not available")
-	}
-
 	s.mempool.ClearWhitelist()
 
 	return &ClearWhitelistResponse{
@@ -203,10 +190,6 @@ func (s *WhitelistGRPCServer) SetWhitelist(
 ) (*SetWhitelistResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
-	}
-
-	if s.mempool == nil {
-		return nil, status.Error(codes.Internal, "mempool not available")
 	}
 
 	s.mempool.SetWhitelist(req.Addresses)

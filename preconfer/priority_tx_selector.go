@@ -55,8 +55,10 @@ func (pts *PriorityTxSelector) IsPriorityTxBytes(txBz []byte) bool {
 // Priority transactions are always selected first if they pass validation
 func (pts *PriorityTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte, gasWanted uint64) bool {
 	// First validate the transaction
-	if err := pts.ValidateTx(memTx, txBz); err != nil {
-		return false
+	if pts.ValidateTx != nil {
+		if err := pts.ValidateTx(memTx, txBz); err != nil {
+			return false
+		}
 	}
 
 	// Check if it's a priority transaction

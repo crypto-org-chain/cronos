@@ -300,11 +300,29 @@ func (epm *Mempool) RemoveFromWhitelist(address string) {
 }
 
 // IsWhitelisted checks if an address is in the whitelist
+// Returns true only if the address is explicitly in the whitelist map
+// Returns false if the whitelist is empty or the address is not in it
 func (epm *Mempool) IsWhitelisted(address string) bool {
 	epm.whitelistMu.RLock()
 	defer epm.whitelistMu.RUnlock()
 
-	return epm.whitelist[address]
+	// Check both formats (case-insensitive for Ethereum addresses)
+	for whitelistAddr := range epm.whitelist {
+		// Check if it's an Ethereum address format (0x...)
+		if strings.HasPrefix(strings.ToLower(whitelistAddr), "0x") {
+			// Case-insensitive comparison for Ethereum addresses
+			if strings.HasPrefix(strings.ToLower(address), "0x") && strings.EqualFold(whitelistAddr, address) {
+				return true
+			}
+		} else {
+			// Exact comparison for bech32 format
+			if whitelistAddr == address {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // GetWhitelist returns a copy of the current whitelist

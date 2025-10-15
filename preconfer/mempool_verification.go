@@ -106,7 +106,7 @@ func LogMempoolConfiguration(m mempool.Mempool, logger log.Logger) {
 	} else {
 		logger.Info("Not using preconfer.Mempool wrapper")
 		typeName := fmt.Sprintf("%T", m)
-		if typeName == "*mempool.PriorityNonceMempool[int64]" {
+		if typeName == PriorityNonceMempoolType {
 			logger.Info("Using direct PriorityNonceMempool (no priority boosting)")
 		} else {
 			logger.Info("Using mempool type", "type", typeName)

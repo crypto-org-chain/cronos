@@ -66,11 +66,6 @@ func TestGetPriorityLevel(t *testing.T) {
 			expected: 1,
 		},
 		{
-			name:     "priority level 1",
-			tx:       &mockTx{memo: "PRIORITY:1"},
-			expected: 1,
-		},
-		{
 			name:     "priority level 10 (invalid, returns 1)",
 			tx:       &mockTx{memo: "PRIORITY:10"},
 			expected: 1,
