@@ -192,7 +192,7 @@ func initRootCmd(
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
-		preconfer.PreconferCommand(),
+		preconfer.Command(),
 	)
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)

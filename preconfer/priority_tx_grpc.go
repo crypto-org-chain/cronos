@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // Ensure PriorityTxGRPCServer implements the gRPC service interface
-// var _ types.PriorityTxServiceServer = &PriorityTxGRPCServer{}
+var _ PriorityTxServiceServer = &PriorityTxGRPCServer{}
 
 // PriorityTxGRPCServer implements the gRPC server for priority transactions
 type PriorityTxGRPCServer struct {
@@ -329,4 +330,118 @@ func (h *PriorityTxRESTHandler) HandleListPriorityTxs(ctx sdk.Context, limit uin
 	}
 
 	return h.grpcServer.ListPriorityTxs(ctx, req)
+}
+
+// PriorityTxServiceServer defines the gRPC service interface for priority transactions
+type PriorityTxServiceServer interface {
+	SubmitPriorityTx(context.Context, *SubmitPriorityTxRequest) (*SubmitPriorityTxResponse, error)
+	GetPriorityTxStatus(context.Context, *GetPriorityTxStatusRequest) (*GetPriorityTxStatusResponse, error)
+	GetMempoolStats(context.Context, *GetMempoolStatsRequest) (*GetMempoolStatsResponse, error)
+	ListPriorityTxs(context.Context, *ListPriorityTxsRequest) (*ListPriorityTxsResponse, error)
+}
+
+// RegisterPriorityTxServiceServer registers the priority tx service with a gRPC server
+func RegisterPriorityTxServiceServer(s interface {
+	RegisterService(*grpc.ServiceDesc, interface{})
+}, srv PriorityTxServiceServer,
+) {
+	s.RegisterService(&PriorityTxServiceDesc, srv)
+}
+
+// PriorityTxServiceDesc is the gRPC service descriptor for priority transactions
+var PriorityTxServiceDesc = grpc.ServiceDesc{
+	ServiceName: "preconfer.PriorityTxService",
+	HandlerType: (*PriorityTxServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SubmitPriorityTx",
+			Handler:    _PriorityTxService_SubmitPriorityTx_Handler,
+		},
+		{
+			MethodName: "GetPriorityTxStatus",
+			Handler:    _PriorityTxService_GetPriorityTxStatus_Handler,
+		},
+		{
+			MethodName: "GetMempoolStats",
+			Handler:    _PriorityTxService_GetMempoolStats_Handler,
+		},
+		{
+			MethodName: "ListPriorityTxs",
+			Handler:    _PriorityTxService_ListPriorityTxs_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "preconfer/priority_tx.proto",
+}
+
+func _PriorityTxService_SubmitPriorityTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitPriorityTxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriorityTxServiceServer).SubmitPriorityTx(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/preconfer.PriorityTxService/SubmitPriorityTx",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriorityTxServiceServer).SubmitPriorityTx(ctx, req.(*SubmitPriorityTxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PriorityTxService_GetPriorityTxStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPriorityTxStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriorityTxServiceServer).GetPriorityTxStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/preconfer.PriorityTxService/GetPriorityTxStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriorityTxServiceServer).GetPriorityTxStatus(ctx, req.(*GetPriorityTxStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PriorityTxService_GetMempoolStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMempoolStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriorityTxServiceServer).GetMempoolStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/preconfer.PriorityTxService/GetMempoolStats",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriorityTxServiceServer).GetMempoolStats(ctx, req.(*GetMempoolStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PriorityTxService_ListPriorityTxs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPriorityTxsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PriorityTxServiceServer).ListPriorityTxs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/preconfer.PriorityTxService/ListPriorityTxs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PriorityTxServiceServer).ListPriorityTxs(ctx, req.(*ListPriorityTxsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }

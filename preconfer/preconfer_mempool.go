@@ -6,8 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"cosmossdk.io/log"
 	"github.com/ethereum/go-ethereum/common"
+
+	"cosmossdk.io/log"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"

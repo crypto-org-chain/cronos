@@ -11,8 +11,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
-// PreconferCommand creates the preconfer command with subcommands
-func PreconferCommand() *cobra.Command {
+// Command creates the preconfer command with subcommands
+func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "preconfer",
 		Short: "Preconfer (priority transaction) management commands",

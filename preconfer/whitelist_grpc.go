@@ -14,7 +14,7 @@ import (
 // Whitelist gRPC request/response types
 
 type AddToWhitelistRequest struct {
-	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address,proto3"`
 }
 
 func (m *AddToWhitelistRequest) Reset()         { *m = AddToWhitelistRequest{} }
@@ -22,9 +22,9 @@ func (m *AddToWhitelistRequest) String() string { return fmt.Sprintf("Address: %
 func (*AddToWhitelistRequest) ProtoMessage()    {}
 
 type AddToWhitelistResponse struct {
-	Success        bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message        string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	WhitelistCount int32  `protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3" json:"whitelist_count,omitempty"`
+	Success        bool   `json:"success,omitempty"         protobuf:"varint,1,opt,name=success,proto3"`
+	Message        string `json:"message,omitempty"         protobuf:"bytes,2,opt,name=message,proto3"`
+	WhitelistCount int32  `json:"whitelist_count,omitempty" protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3"`
 }
 
 func (m *AddToWhitelistResponse) Reset()         { *m = AddToWhitelistResponse{} }
@@ -32,7 +32,7 @@ func (m *AddToWhitelistResponse) String() string { return m.Message }
 func (*AddToWhitelistResponse) ProtoMessage()    {}
 
 type RemoveFromWhitelistRequest struct {
-	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address,proto3"`
 }
 
 func (m *RemoveFromWhitelistRequest) Reset()         { *m = RemoveFromWhitelistRequest{} }
@@ -40,9 +40,9 @@ func (m *RemoveFromWhitelistRequest) String() string { return fmt.Sprintf("Addre
 func (*RemoveFromWhitelistRequest) ProtoMessage()    {}
 
 type RemoveFromWhitelistResponse struct {
-	Success        bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message        string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	WhitelistCount int32  `protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3" json:"whitelist_count,omitempty"`
+	Success        bool   `json:"success,omitempty"         protobuf:"varint,1,opt,name=success,proto3"`
+	Message        string `json:"message,omitempty"         protobuf:"bytes,2,opt,name=message,proto3"`
+	WhitelistCount int32  `json:"whitelist_count,omitempty" protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3"`
 }
 
 func (m *RemoveFromWhitelistResponse) Reset()         { *m = RemoveFromWhitelistResponse{} }
@@ -56,8 +56,8 @@ func (m *GetWhitelistRequest) String() string { return "" }
 func (*GetWhitelistRequest) ProtoMessage()    {}
 
 type GetWhitelistResponse struct {
-	Addresses []string `protobuf:"bytes,1,rep,name=addresses,proto3" json:"addresses,omitempty"`
-	Count     int32    `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	Addresses []string `json:"addresses,omitempty" protobuf:"bytes,1,rep,name=addresses,proto3"`
+	Count     int32    `json:"count,omitempty"     protobuf:"varint,2,opt,name=count,proto3"`
 }
 
 func (m *GetWhitelistResponse) Reset()         { *m = GetWhitelistResponse{} }
@@ -71,8 +71,8 @@ func (m *ClearWhitelistRequest) String() string { return "" }
 func (*ClearWhitelistRequest) ProtoMessage()    {}
 
 type ClearWhitelistResponse struct {
-	Success bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Success bool   `json:"success,omitempty" protobuf:"varint,1,opt,name=success,proto3"`
+	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message,proto3"`
 }
 
 func (m *ClearWhitelistResponse) Reset()         { *m = ClearWhitelistResponse{} }
@@ -80,7 +80,7 @@ func (m *ClearWhitelistResponse) String() string { return m.Message }
 func (*ClearWhitelistResponse) ProtoMessage()    {}
 
 type SetWhitelistRequest struct {
-	Addresses []string `protobuf:"bytes,1,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	Addresses []string `json:"addresses,omitempty" protobuf:"bytes,1,rep,name=addresses,proto3"`
 }
 
 func (m *SetWhitelistRequest) Reset()         { *m = SetWhitelistRequest{} }
@@ -88,9 +88,9 @@ func (m *SetWhitelistRequest) String() string { return fmt.Sprintf("Addresses: %
 func (*SetWhitelistRequest) ProtoMessage()    {}
 
 type SetWhitelistResponse struct {
-	Success        bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message        string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	WhitelistCount int32  `protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3" json:"whitelist_count,omitempty"`
+	Success        bool   `json:"success,omitempty"         protobuf:"varint,1,opt,name=success,proto3"`
+	Message        string `json:"message,omitempty"         protobuf:"bytes,2,opt,name=message,proto3"`
+	WhitelistCount int32  `json:"whitelist_count,omitempty" protobuf:"varint,3,opt,name=whitelist_count,json=whitelistCount,proto3"`
 }
 
 func (m *SetWhitelistResponse) Reset()         { *m = SetWhitelistResponse{} }

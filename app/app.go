@@ -15,6 +15,7 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
+	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -43,7 +44,6 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
-
 	// force register the extension json-rpc.
 	"github.com/crypto-org-chain/cronos/v2/preconfer"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
@@ -59,7 +59,6 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
-
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -320,6 +319,9 @@ type App struct {
 	// preconfer mempool for whitelist management
 	preconferMempool *preconfer.Mempool
 
+	// priority tx service for preconfirmation
+	priorityTxService *preconfer.PriorityTxService
+
 	// the module manager
 	ModuleManager      *module.Manager
 	BasicModuleManager module.BasicManager
@@ -487,6 +489,24 @@ func New(
 	keys, tkeys, okeys := StoreKeys()
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
+
+	// Create priority tx service if preconfer is enabled
+	var priorityTxServiceRef *preconfer.PriorityTxService
+	if preconferMempoolRef != nil {
+		// Get validator address from config (optional)
+		validatorAddr := cast.ToString(appOpts.Get("preconfer.validator_address"))
+
+		priorityTxServiceRef = preconfer.NewPriorityTxService(preconfer.PriorityTxServiceConfig{
+			App:               bApp,
+			Mempool:           preconferMempoolRef,
+			TxDecoder:         txDecoder,
+			Logger:            logger.With("module", "priority_tx_service"),
+			ValidatorAddress:  validatorAddr,
+			PreconfirmTimeout: 30 * time.Second,
+		})
+		logger.Info("Priority transaction service initialized")
+	}
+
 	app := &App{
 		BaseApp:              bApp,
 		cdc:                  cdc,
@@ -501,6 +521,7 @@ func New(
 		blockProposalHandler: blockProposalHandler,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 		preconferMempool:     preconferMempoolRef,
+		priorityTxService:    priorityTxServiceRef,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -1012,6 +1033,13 @@ func New(
 		whitelistServer := preconfer.NewWhitelistGRPCServer(app.preconferMempool)
 		preconfer.RegisterWhitelistServiceServer(app.GRPCQueryRouter(), whitelistServer)
 		logger.Info("Preconfer whitelist gRPC service registered")
+	}
+
+	// Register priority tx gRPC service if preconfer is enabled
+	if app.priorityTxService != nil {
+		priorityTxServer := preconfer.NewPriorityTxGRPCServer(app.priorityTxService)
+		preconfer.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), priorityTxServer)
+		logger.Info("Priority transaction gRPC service registered")
 	}
 
 	app.sm.RegisterStoreDecoders()
