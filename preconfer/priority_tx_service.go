@@ -69,6 +69,26 @@ const (
 	TxStatusExpired
 )
 
+// String returns the string representation of the transaction status
+func (s TxStatusType) String() string {
+	switch s {
+	case TxStatusUnknown:
+		return "unknown"
+	case TxStatusPending:
+		return "pending"
+	case TxStatusPreconfirmed:
+		return "preconfirmed"
+	case TxStatusIncluded:
+		return "included"
+	case TxStatusRejected:
+		return "rejected"
+	case TxStatusExpired:
+		return "expired"
+	default:
+		return fmt.Sprintf("unknown(%d)", s)
+	}
+}
+
 // PriorityTxServiceConfig configuration for the service
 type PriorityTxServiceConfig struct {
 	App               *baseapp.BaseApp
@@ -151,26 +171,23 @@ func (s *PriorityTxService) SubmitPriorityTx(
 	// Create preconfirmation
 	preconf := s.createPreconfirmation(txHash, priorityLevel)
 
+	// Calculate mempool position before tracking (count existing + 1 for this tx)
+	position := s.countPriorityTxsInMempool() + 1
+
 	// Track transaction
 	s.trackTransaction(txHash, txBytes, preconf)
-
-	// Calculate mempool position and estimated inclusion time
-	position := s.estimateMempoolPosition(txHash, priorityLevel)
-	estimatedTime := s.estimateInclusionTime(position)
 
 	s.logger.Info("priority transaction accepted",
 		"tx_hash", txHash,
 		"priority_level", priorityLevel,
 		"position", position,
-		"estimated_time", estimatedTime,
 	)
 
 	return &SubmitPriorityTxResult{
-		TxHash:                 txHash,
-		Accepted:               true,
-		Preconfirmation:        preconf,
-		MempoolPosition:        position,
-		EstimatedInclusionTime: estimatedTime,
+		TxHash:          txHash,
+		Accepted:        true,
+		Preconfirmation: preconf,
+		MempoolPosition: position,
 	}, nil
 }
 
@@ -341,33 +358,31 @@ func (s *PriorityTxService) isTxInMempool(txHash string) bool {
 	return false
 }
 
-// estimateMempoolPosition estimates the position of a transaction in the mempool
-func (s *PriorityTxService) estimateMempoolPosition(txHash string, priorityLevel uint32) uint32 {
-	// Simplified estimation: higher priority = lower position
-	// In production, this should query the actual mempool
+// countPriorityTxsInMempool counts the number of priority transactions currently in mempool
+// These are transactions that have received the priority boost (DefaultPriorityBoost = 1_000_000_000)
+// and are waiting to be included in a block
+func (s *PriorityTxService) countPriorityTxsInMempool() uint32 {
 	s.txTrackerLock.RLock()
 	defer s.txTrackerLock.RUnlock()
 
-	var position uint32 = 1
+	// Count transactions that are:
+	// 1. Currently in the mempool (InMempool = true)
+	// 2. Have a preconfirmation (meaning they were submitted as priority level 1 txs)
+	// 3. These transactions have their priority boosted by DefaultPriorityBoost in the mempool
+	var count uint32
 	for _, info := range s.txTracker {
 		if info.InMempool && info.Preconfirmation != nil {
-			if info.Preconfirmation.PriorityLevel > priorityLevel {
-				position++
-			}
+			count++
 		}
 	}
 
-	return position
-}
+	s.logger.Debug("counted priority transactions in mempool",
+		"count", count,
+		"total_mempool_txs", s.mempool.CountTx(),
+		"priority_boost", DefaultPriorityBoost,
+	)
 
-// estimateInclusionTime estimates time until block inclusion in seconds
-func (s *PriorityTxService) estimateInclusionTime(position uint32) uint32 {
-	// Assume ~6 second block time and ~100 txs per block
-	const blockTime = 6
-	const txsPerBlock = 100
-
-	blocksAhead := (position + txsPerBlock - 1) / txsPerBlock
-	return blocksAhead * blockTime
+	return count
 }
 
 // cleanupExpiredPreconfirmations periodically removes expired preconfirmations
@@ -401,12 +416,11 @@ func (s *PriorityTxService) cleanupExpiredPreconfirmations() {
 
 // SubmitPriorityTxResult is the result of submitting a priority transaction
 type SubmitPriorityTxResult struct {
-	TxHash                 string
-	Accepted               bool
-	Reason                 string
-	Preconfirmation        *PreconfirmationInfo
-	MempoolPosition        uint32
-	EstimatedInclusionTime uint32
+	TxHash          string
+	Accepted        bool
+	Reason          string
+	Preconfirmation *PreconfirmationInfo
+	MempoolPosition uint32
 }
 
 // MempoolStats contains mempool statistics

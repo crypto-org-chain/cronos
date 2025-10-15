@@ -51,11 +51,10 @@ func (s *PriorityTxGRPCServer) SubmitPriorityTx(
 
 	// Build response
 	resp := &SubmitPriorityTxResponse{
-		TxHash:                 result.TxHash,
-		Accepted:               result.Accepted,
-		Reason:                 result.Reason,
-		MempoolPosition:        result.MempoolPosition,
-		EstimatedInclusionTime: result.EstimatedInclusionTime,
+		TxHash:          result.TxHash,
+		Accepted:        result.Accepted,
+		Reason:          result.Reason,
+		MempoolPosition: result.MempoolPosition,
 	}
 
 	// Add preconfirmation if available
@@ -82,7 +81,7 @@ func (s *PriorityTxGRPCServer) GetPriorityTxStatus(
 	}
 
 	resp := &GetPriorityTxStatusResponse{
-		Status:          convertTxStatusToProto(info.Status),
+		Status:          info.Status.String(),
 		InMempool:       info.InMempool,
 		BlockHeight:     info.BlockHeight,
 		MempoolPosition: info.MempoolPosition,
@@ -161,23 +160,6 @@ func convertPreconfirmationToProto(preconf *PreconfirmationInfo) *Preconfirmatio
 	}
 }
 
-func convertTxStatusToProto(status TxStatusType) TxStatus {
-	switch status {
-	case TxStatusPending:
-		return TxStatus_TX_STATUS_PENDING
-	case TxStatusPreconfirmed:
-		return TxStatus_TX_STATUS_PRECONFIRMED
-	case TxStatusIncluded:
-		return TxStatus_TX_STATUS_INCLUDED
-	case TxStatusRejected:
-		return TxStatus_TX_STATUS_REJECTED
-	case TxStatusExpired:
-		return TxStatus_TX_STATUS_EXPIRED
-	default:
-		return TxStatus_TX_STATUS_UNKNOWN
-	}
-}
-
 // Request and Response types (these would normally be generated from proto)
 // For now, we define them here
 
@@ -190,12 +172,11 @@ type SubmitPriorityTxRequest struct {
 
 // SubmitPriorityTxResponse is the response for a priority transaction submission
 type SubmitPriorityTxResponse struct {
-	TxHash                 string
-	Accepted               bool
-	Reason                 string
-	Preconfirmation        *Preconfirmation
-	MempoolPosition        uint32
-	EstimatedInclusionTime uint32
+	TxHash          string
+	Accepted        bool
+	Reason          string
+	Preconfirmation *Preconfirmation
+	MempoolPosition uint32
 }
 
 // Preconfirmation represents an early confirmation
@@ -215,25 +196,13 @@ type GetPriorityTxStatusRequest struct {
 
 // GetPriorityTxStatusResponse is the response for tx status query
 type GetPriorityTxStatusResponse struct {
-	Status          TxStatus
+	Status          string
 	InMempool       bool
 	BlockHeight     int64
 	MempoolPosition uint32
 	Preconfirmation *Preconfirmation
 	Timestamp       int64
 }
-
-// TxStatus represents the status of a transaction
-type TxStatus int32
-
-const (
-	TxStatus_TX_STATUS_UNKNOWN      TxStatus = 0
-	TxStatus_TX_STATUS_PENDING      TxStatus = 1
-	TxStatus_TX_STATUS_PRECONFIRMED TxStatus = 2
-	TxStatus_TX_STATUS_INCLUDED     TxStatus = 3
-	TxStatus_TX_STATUS_REJECTED     TxStatus = 4
-	TxStatus_TX_STATUS_EXPIRED      TxStatus = 5
-)
 
 // GetMempoolStatsRequest is the request for mempool statistics
 type GetMempoolStatsRequest struct{}

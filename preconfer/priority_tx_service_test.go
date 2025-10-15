@@ -40,7 +40,6 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 		require.NotEmpty(t, result.TxHash)
 		require.NotNil(t, result.Preconfirmation)
 		require.Equal(t, priorityLevel, result.Preconfirmation.PriorityLevel)
-		require.Greater(t, result.EstimatedInclusionTime, uint32(0))
 	})
 
 	t.Run("Reject invalid priority level", func(t *testing.T) {
@@ -85,7 +84,6 @@ func TestPriorityTxService_SubmitPriorityTx(t *testing.T) {
 		// All transactions should be accepted and have positions
 		for i := 0; i < 3; i++ {
 			require.Greater(t, results[i].MempoolPosition, uint32(0))
-			require.Greater(t, results[i].EstimatedInclusionTime, uint32(0))
 		}
 	})
 }
@@ -298,40 +296,24 @@ func TestPriorityTxService_EstimatePosition(t *testing.T) {
 		PreconfirmTimeout: 30 * time.Second,
 	})
 
-	t.Run("Higher priority gets better position", func(t *testing.T) {
-		// Submit low priority
+	t.Run("Position increases with each submission", func(t *testing.T) {
+		// Submit first transaction
 		result1, err := service.SubmitPriorityTx(ctx, []byte("tx1"), 1)
 		require.NoError(t, err)
-		require.Greater(t, result1.MempoolPosition, uint32(0))
+		require.Equal(t, uint32(1), result1.MempoolPosition)
+		require.True(t, result1.Accepted)
 
-		// Submit high priority
+		// Submit second transaction - should be position 2
 		result2, err := service.SubmitPriorityTx(ctx, []byte("tx2"), 1)
 		require.NoError(t, err)
-		require.Greater(t, result2.MempoolPosition, uint32(0))
-
-		// Both should be accepted
-		require.True(t, result1.Accepted)
+		require.Equal(t, uint32(2), result2.MempoolPosition)
 		require.True(t, result2.Accepted)
 
-		// Note: In our simple estimation, both might get position 1
-		// because we're counting txs with higher priority
-		// This is acceptable for the test
-	})
-
-	t.Run("Estimated inclusion time increases with position", func(t *testing.T) {
-		// Submit multiple transactions
-		results := make([]*SubmitPriorityTxResult, 3)
-		for i := 0; i < 3; i++ {
-			result, err := service.SubmitPriorityTx(ctx, []byte("tx_"+string(rune('0'+i))), 1)
-			require.NoError(t, err)
-			results[i] = result
-		}
-
-		// All should have reasonable inclusion times
-		for _, result := range results {
-			require.Greater(t, result.EstimatedInclusionTime, uint32(0))
-			require.Less(t, result.EstimatedInclusionTime, uint32(3600)) // Less than 1 hour
-		}
+		// Submit third transaction - should be position 3
+		result3, err := service.SubmitPriorityTx(ctx, []byte("tx3"), 1)
+		require.NoError(t, err)
+		require.Equal(t, uint32(3), result3.MempoolPosition)
+		require.True(t, result3.Accepted)
 	})
 }
 
@@ -357,4 +339,55 @@ func TestCalculateTxHash(t *testing.T) {
 
 		require.NotEqual(t, hash1, hash2)
 	})
+}
+
+func TestTxStatusType_String(t *testing.T) {
+	tests := []struct {
+		name   string
+		status TxStatusType
+		want   string
+	}{
+		{
+			name:   "Unknown status",
+			status: TxStatusUnknown,
+			want:   "unknown",
+		},
+		{
+			name:   "Pending status",
+			status: TxStatusPending,
+			want:   "pending",
+		},
+		{
+			name:   "Preconfirmed status",
+			status: TxStatusPreconfirmed,
+			want:   "preconfirmed",
+		},
+		{
+			name:   "Included status",
+			status: TxStatusIncluded,
+			want:   "included",
+		},
+		{
+			name:   "Rejected status",
+			status: TxStatusRejected,
+			want:   "rejected",
+		},
+		{
+			name:   "Expired status",
+			status: TxStatusExpired,
+			want:   "expired",
+		},
+		{
+			name:   "Invalid status",
+			status: TxStatusType(99),
+			want:   "unknown(99)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.status.String()
+			require.Equal(t, tt.want, got)
+		})
+	}
 }
