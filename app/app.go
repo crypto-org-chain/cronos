@@ -498,6 +498,7 @@ func New(
 		panic(err)
 	}
 	app.txConfig = txConfig
+	stakingCacheSize := cast.ToInt(appOpts.Get(server.FlagStakingCacheSize))
 	app.StakingKeeper = stakingkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[stakingtypes.StoreKey]),
@@ -506,6 +507,7 @@ func New(
 		authAddr,
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
+		stakingCacheSize,
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec,

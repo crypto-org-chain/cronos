@@ -228,7 +228,7 @@ func TestAppImportExport(t *testing.T) {
 			app.keys[stakingtypes.StoreKey], newApp.keys[stakingtypes.StoreKey],
 			[][]byte{
 				stakingtypes.UnbondingQueueKey, stakingtypes.RedelegationQueueKey, stakingtypes.ValidatorQueueKey,
-				stakingtypes.HistoricalInfoKey, stakingtypes.UnbondingIDKey, stakingtypes.UnbondingIndexKey, stakingtypes.UnbondingTypeKey, stakingtypes.ValidatorUpdatesKey,
+				stakingtypes.HistoricalInfoKey, stakingtypes.ValidatorUpdatesKey,
 			},
 		}, // ordering may change but it doesn't matter
 		{app.keys[slashingtypes.StoreKey], newApp.keys[slashingtypes.StoreKey], [][]byte{}},

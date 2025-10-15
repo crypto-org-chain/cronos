@@ -33,7 +33,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/linxGnu/grocksdb v1.9.10-0.20250331012329-9d5f074653d1
+	github.com/linxGnu/grocksdb v1.10.2
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
@@ -284,7 +284,7 @@ require (
 replace (
 	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254
 	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20250424063720-28ea58ae20d8
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20251015030247-d8ed3ff5806b
 )
 
 replace (
@@ -306,7 +306,7 @@ replace (
 	// release/v1.15
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// release/v0.22.x
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20250917021453-86f043d7a76a
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20251015052624-86bca6e73a88
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
