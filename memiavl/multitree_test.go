@@ -155,7 +155,7 @@ func TestMultiTreeWriteSnapshotSuccessWithContext(t *testing.T) {
 }
 
 func TestMultiTreeWriteSnapshotConcurrentCancellation(t *testing.T) {
-	mtree := NewEmptyMultiTree(0, 0, TestAppChainID)
+	mtree := NewEmptyMultiTree(0, 0)
 
 	stores := []string{"store1", "store2", "store3", "store4", "store5", "store6", "store7", "store8"}
 	var upgrades []*TreeNameUpgrade
@@ -233,7 +233,7 @@ func TestMultiTreeWriteSnapshotEmptyTree(t *testing.T) {
 	err = mtree.WriteSnapshotWithContext(ctx, snapshotDir, pool)
 	require.NoError(t, err)
 
-	mtree2, err := LoadMultiTree(snapshotDir, false, 0, TestAppChainID)
+	mtree2, err := LoadMultiTree(snapshotDir, false, 0)
 	require.NoError(t, err)
 	defer mtree2.Close()
 
