@@ -912,8 +912,6 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20251007011737-164da0caf703 h1:O0DF++IbEl5TAknuXtAcxFTocZ8zO8DlZRUMIo9HnLA=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20251007011737-164da0caf703/go.mod h1:GVopiVE4ftDRfAm3e6qj7URhNTa3Tv3JrCbfO/s8P/I=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 h1:6KPEi8dWkDSBddQb4NAvEXmNnTXymF3yVeTaT4Hz1iU=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd h1:ebSnzvM9yKVGFjvoGly7LFQQCS2HuOWMCvQyByJ52Gs=
@@ -1344,6 +1342,8 @@ github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 h1:W9WBk7
 github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839/go.mod h1:xaLFMmpvUxqXtVkUJfg9QmT88cDaCJ3ZKgdZ78oO8Qo=
 github.com/jackpal/go-nat-pmp v1.0.2 h1:KzKSgb7qkJvOUTqYl9/Hg/me3pWgBmERKrTGD7BdWus=
 github.com/jackpal/go-nat-pmp v1.0.2/go.mod h1:QPH045xvCAeXUZOxsnwmrtiCoxIr9eob+4orBN1SBKc=
+github.com/jayt106/ethermint v0.4.2-0.20251009173213-ea3c6b3c5940 h1:SYUdJnJOfiZfOduMGsJBgnvMLwWZJe9CNFGRWOAzu50=
+github.com/jayt106/ethermint v0.4.2-0.20251009173213-ea3c6b3c5940/go.mod h1:GVopiVE4ftDRfAm3e6qj7URhNTa3Tv3JrCbfO/s8P/I=
 github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jhump/protoreflect v1.9.0 h1:npqHz788dryJiR/l6K/RUQAyh2SwV91+d1dnh4RjO9w=

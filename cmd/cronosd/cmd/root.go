@@ -13,6 +13,7 @@ import (
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
+	"github.com/crypto-org-chain/cronos/v2/executionbook"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"
@@ -191,6 +192,7 @@ func initRootCmd(
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
+		executionbook.Command(),
 	)
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
@@ -272,6 +274,7 @@ func initAppConfig() (string, interface{}) {
 
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
+		Preconfer PreconferConfig          `mapstructure:"preconfer"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -280,9 +283,10 @@ func initAppConfig() (string, interface{}) {
 		Config:    cfg.(servercfg.Config),
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
+		Preconfer: DefaultPreconferConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + DefaultPreconferTemplate, customAppConfig
 }
 
 // newApp creates the application

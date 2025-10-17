@@ -15,6 +15,7 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
+	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -43,13 +44,15 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos/store"
 	"github.com/crypto-org-chain/cronos/v2/client/docs"
+
+	// force register the extension json-rpc.
+	"github.com/crypto-org-chain/cronos/v2/executionbook"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/v2/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/middleware"
-	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/v2/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/v2/x/e2ee"
@@ -57,6 +60,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/v2/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -314,6 +318,12 @@ type App struct {
 
 	CronosKeeper cronoskeeper.Keeper
 
+	// preconfer mempool for whitelist management
+	preconferMempool *executionbook.ExecutionBook
+
+	// priority tx service for preconfirmation
+	priorityTxService *executionbook.PriorityTxService
+
 	// the module manager
 	ModuleManager      *module.Manager
 	BasicModuleManager module.BasicManager
@@ -376,16 +386,52 @@ func New(
 
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
+	// Check if preconfer (priority tx selector) is enabled in app.toml
+	preconferEnabled := cast.ToBool(appOpts.Get("preconfer.enable"))
+	preconferWhitelist := cast.ToStringSlice(appOpts.Get("preconfer.whitelist"))
+
 	var mpool mempool.Mempool
+	var preconferMempoolRef *executionbook.ExecutionBook
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled")
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		baseMpool := mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           maxTxs,
 		})
+
+		// Wrap with preconfer ExecutionBook if preconfer is enabled
+		if preconferEnabled {
+			logger.Info("Wrapping mempool with executionbook.ExecutionBook for priority transaction support",
+				"whitelist_enabled", len(preconferWhitelist) > 0,
+				"whitelist_count", len(preconferWhitelist))
+			preconferMpool := executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
+				BaseMempool:        baseMpool,
+				TxDecoder:          txDecoder,
+				PriorityBoost:      executionbook.DefaultPriorityBoost,
+				Logger:             logger,
+				WhitelistAddresses: preconferWhitelist,
+				SignerExtractor:    evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			})
+
+			// Verify and log the mempool configuration
+			executionbook.LogMempoolConfiguration(preconferMpool, logger)
+
+			// Validate that the mempool is correctly configured
+			if err := executionbook.ValidatePreconferMempool(preconferMpool); err != nil {
+				logger.Error("Preconfer mempool validation failed", "error", err)
+				panic(fmt.Sprintf("Invalid preconfer mempool configuration: %v", err))
+			}
+			logger.Info("✓ Preconfer mempool validation passed")
+
+			mpool = preconferMpool
+			// Store reference for gRPC service registration later
+			preconferMempoolRef = preconferMpool
+		} else {
+			mpool = baseMpool
+		}
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
@@ -394,13 +440,26 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		// Re-use the default prepare proposal handler, extend the transaction validation logic
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			txDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+
+		if preconferEnabled {
+			// Re-use the default prepare proposal handler, extend the transaction validation logic
+			// with priority transaction support via PriorityTxSelector
+			// This selector will prioritize transactions marked with PRIORITY: in their memo field
+			logger.Info("Priority transaction selector (preconfer) enabled")
+			defaultProposalHandler.SetTxSelector(executionbook.NewPriorityTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		} else {
+			logger.Info("Priority transaction selector (preconfer) disabled, using default tx selector")
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		}
 
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 
@@ -432,6 +491,38 @@ func New(
 	keys, tkeys, okeys := StoreKeys()
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
+
+	// Create priority tx service if preconfer is enabled
+	var priorityTxServiceRef *executionbook.PriorityTxService
+	if preconferMempoolRef != nil {
+		// Get validator address from config (optional)
+		validatorAddr := cast.ToString(appOpts.Get("preconfer.validator_address"))
+
+		// Get preconfirmation timeout from config with default of 30 seconds
+		preconfirmTimeout := 30 * time.Second
+		if timeoutStr := cast.ToString(appOpts.Get("preconfer.preconfirm_timeout")); timeoutStr != "" {
+			if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
+				preconfirmTimeout = parsedTimeout
+				logger.Info("Using configured preconfirmation timeout", "timeout", preconfirmTimeout)
+			} else {
+				logger.Error("Invalid preconfirm_timeout format, using default",
+					"configured", timeoutStr,
+					"default", preconfirmTimeout,
+					"error", err)
+			}
+		}
+
+		priorityTxServiceRef = executionbook.NewPriorityTxService(executionbook.PriorityTxServiceConfig{
+			App:               bApp,
+			Mempool:           preconferMempoolRef,
+			TxDecoder:         txDecoder,
+			Logger:            logger.With("module", "priority_tx_service"),
+			ValidatorAddress:  validatorAddr,
+			PreconfirmTimeout: preconfirmTimeout,
+		})
+		logger.Info("Priority transaction service initialized", "preconfirm_timeout", preconfirmTimeout)
+	}
+
 	app := &App{
 		BaseApp:              bApp,
 		cdc:                  cdc,
@@ -445,6 +536,8 @@ func New(
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
+		preconferMempool:     preconferMempoolRef,
+		priorityTxService:    priorityTxServiceRef,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -950,6 +1043,20 @@ func New(
 		panic(err)
 	}
 	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), reflectionSvc)
+
+	// Register preconfer whitelist gRPC service if preconfer is enabled
+	if app.preconferMempool != nil {
+		whitelistServer := executionbook.NewWhitelistGRPCServer(app.preconferMempool)
+		executionbook.RegisterWhitelistServiceServer(app.GRPCQueryRouter(), whitelistServer)
+		logger.Info("Preconfer whitelist gRPC service registered")
+	}
+
+	// Register priority tx gRPC service if preconfer is enabled
+	if app.priorityTxService != nil {
+		priorityTxServer := executionbook.NewPriorityTxGRPCServer(app.priorityTxService)
+		executionbook.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), priorityTxServer)
+		logger.Info("Priority transaction gRPC service registered")
+	}
 
 	app.sm.RegisterStoreDecoders()
 
