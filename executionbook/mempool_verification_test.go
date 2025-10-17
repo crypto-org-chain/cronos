@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func TestVerifyMempool(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		preconferMpool := NewMempool(MempoolConfig{
+		preconferMpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -30,7 +30,7 @@ func TestVerifyMempool(t *testing.T) {
 		verification := VerifyMempool(preconferMpool, logger)
 
 		require.True(t, verification.IsPreconferMempool)
-		require.Equal(t, "*preconfer.mockMempool", verification.BaseMempoolType)
+		require.Equal(t, "*executionbook.mockMempool", verification.BaseMempoolType)
 		require.False(t, verification.IsPriorityNonceMempool)
 		require.Equal(t, int64(1000000), verification.PriorityBoost)
 		require.True(t, verification.SupportsInsertWithGasWanted)
@@ -47,7 +47,7 @@ func TestVerifyMempool(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		preconferMpool := NewMempool(MempoolConfig{
+		preconferMpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -94,7 +94,7 @@ func TestValidatePreconferMempool(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		preconferMpool := NewMempool(MempoolConfig{
+		preconferMpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -114,7 +114,7 @@ func TestValidatePreconferMempool(t *testing.T) {
 
 		err := ValidatePreconferMempool(baseMpool)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "not a preconfer.Mempool")
+		require.Contains(t, err.Error(), "not a preconfer.ExecutionBook")
 	})
 
 	t.Run("Invalid - base mempool is not PriorityNonceMempool", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestValidatePreconferMempool(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		preconferMpool := NewMempool(MempoolConfig{
+		preconferMpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -146,8 +146,8 @@ func TestValidatePreconferMempool(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		// Manually create with zero boost (bypassing the NewMempool default)
-		preconferMpool := &Mempool{
+		// Manually create with zero boost (bypassing the NewExecutionBook default)
+		preconferMpool := &ExecutionBook{
 			Mempool:       baseMpool,
 			txDecoder:     txDecoder,
 			logger:        logger,
@@ -176,7 +176,7 @@ func TestLogMempoolConfiguration(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		preconferMpool := NewMempool(MempoolConfig{
+		preconferMpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,

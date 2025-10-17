@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func TestMempool_Insert(t *testing.T) {
 	}
 
 	priorityBoost := int64(1000000)
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: priorityBoost,
@@ -113,7 +113,7 @@ func TestMempool_Remove(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -140,7 +140,7 @@ func TestMempool_CountTx(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -169,7 +169,7 @@ func TestMempool_GetSetPriorityBoost(t *testing.T) {
 	}
 
 	initialBoost := int64(1000000)
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: initialBoost,
@@ -202,7 +202,7 @@ func TestMempool_DefaultConfig(t *testing.T) {
 	}
 
 	t.Run("Default priority boost when zero", func(t *testing.T) {
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 0, // Should use default
@@ -212,7 +212,7 @@ func TestMempool_DefaultConfig(t *testing.T) {
 	})
 
 	t.Run("Nil logger uses nop logger", func(t *testing.T) {
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -230,7 +230,7 @@ func TestMempool_GetStats(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -261,7 +261,7 @@ func TestMempool_BaseMempoolType(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -275,7 +275,7 @@ func TestMempool_BaseMempoolType(t *testing.T) {
 
 		// Check type
 		typeName := mpool.GetBaseMempoolType()
-		require.Equal(t, "*preconfer.mockMempool", typeName)
+		require.Equal(t, "*executionbook.mockMempool", typeName)
 
 		// This is a mock, not a PriorityNonceMempool
 		require.False(t, mpool.IsPriorityNonceMempool())
@@ -293,7 +293,7 @@ func TestMempool_BaseMempoolType(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: 1000000,
@@ -322,7 +322,7 @@ func TestMempool_InsertWithGasWanted(t *testing.T) {
 	}
 
 	priorityBoost := int64(1000000)
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: priorityBoost,

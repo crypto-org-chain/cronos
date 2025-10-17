@@ -13,7 +13,7 @@ import (
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
 	"github.com/crypto-org-chain/cronos/v2/app"
 	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
-	"github.com/crypto-org-chain/cronos/v2/preconfer"
+	"github.com/crypto-org-chain/cronos/v2/executionbook"
 	"github.com/crypto-org-chain/cronos/v2/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"
@@ -192,7 +192,7 @@ func initRootCmd(
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
-		preconfer.Command(),
+		executionbook.Command(),
 	)
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)

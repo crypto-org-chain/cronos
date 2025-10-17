@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"testing"
@@ -44,7 +44,7 @@ func TestMempool_Whitelist_DefaultBehavior(t *testing.T) {
 	testAddr := "0x1234567890123456789012345678901234567890"
 
 	// Create mempool with no whitelist
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: priorityBoost,
@@ -74,7 +74,7 @@ func TestMempool_Whitelist_AddRemove(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -126,7 +126,7 @@ func TestMempool_Whitelist_SetWhitelist(t *testing.T) {
 		return &mockTx{memo: string(txBytes)}, nil
 	}
 
-	mpool := NewMempool(MempoolConfig{
+	mpool := NewExecutionBook(ExecutionBookConfig{
 		BaseMempool:   baseMpool,
 		TxDecoder:     txDecoder,
 		PriorityBoost: 1000000,
@@ -168,7 +168,7 @@ func TestMempool_Whitelist_PriorityBoosting(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:        baseMpool,
 			TxDecoder:          txDecoder,
 			PriorityBoost:      priorityBoost,
@@ -196,7 +196,7 @@ func TestMempool_Whitelist_PriorityBoosting(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:        baseMpool,
 			TxDecoder:          txDecoder,
 			PriorityBoost:      priorityBoost,
@@ -223,7 +223,7 @@ func TestMempool_Whitelist_PriorityBoosting(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:        baseMpool,
 			TxDecoder:          txDecoder,
 			PriorityBoost:      priorityBoost,
@@ -259,7 +259,7 @@ func TestMempool_Whitelist_DynamicUpdate(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:   baseMpool,
 			TxDecoder:     txDecoder,
 			PriorityBoost: priorityBoost,
@@ -302,7 +302,7 @@ func TestMempool_Whitelist_DynamicUpdate(t *testing.T) {
 			return &mockTx{memo: string(txBytes)}, nil
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:        baseMpool,
 			TxDecoder:          txDecoder,
 			PriorityBoost:      priorityBoost,
@@ -345,7 +345,7 @@ func TestMempool_Whitelist_InitialConfiguration(t *testing.T) {
 			"0x7777777777777777777777777777777777777777",
 		}
 
-		mpool := NewMempool(MempoolConfig{
+		mpool := NewExecutionBook(ExecutionBookConfig{
 			BaseMempool:        baseMpool,
 			TxDecoder:          txDecoder,
 			PriorityBoost:      1000000,

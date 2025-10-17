@@ -1,6 +1,6 @@
-# Preconfer Package
+# ExecutionBook Package
 
-The `preconfer` package implements a priority transaction system with preconfirmation capabilities for the Cronos blockchain. It allows validators to provide early confirmations for high-priority transactions before they are included in a block.
+The `executionbook` package implements a priority transaction system with preconfirmation capabilities for the Cronos blockchain. It allows validators to provide early confirmations for high-priority transactions before they are included in a block.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ The preconfer system provides:
 ┌─────────────────────────────────────────────────────────────┐
 │                   Mempool Layer                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │         Preconfer Mempool                             │   │
+│  │         Preconfer ExecutionBook                        │   │
 │  │  - Priority boost application                         │   │
 │  │  - Whitelist enforcement                              │   │
 │  │  - Transaction selection                              │   │
@@ -137,7 +137,7 @@ const (
 - `GetMempoolStats()` - Get mempool statistics
 - `ListPriorityTxs(limit)` - List priority transactions
 
-### 2. Preconfer Mempool (`preconfer_mempool.go`)
+### 2. Preconfer ExecutionBook (`execution_book.go`)
 
 Enhanced mempool wrapper that applies priority boosting.
 
@@ -151,7 +151,7 @@ Enhanced mempool wrapper that applies priority boosting.
 **Configuration:**
 
 ```go
-type MempoolConfig struct {
+type ExecutionBookConfig struct {
     BaseMempool        mempool.Mempool
     TxDecoder          sdk.TxDecoder
     PriorityBoost      int64
@@ -238,18 +238,18 @@ whitelist = []
 ### Programmatic Configuration
 
 ```go
-// Create preconfer mempool
-mempoolConfig := preconfer.MempoolConfig{
+// Create execution book
+mempoolConfig := executionbook.ExecutionBookConfig{
     BaseMempool:        baseMempool,
     TxDecoder:          txDecoder,
     PriorityBoost:      1_000_000_000,
     Logger:             logger,
     WhitelistAddresses: []string{"0x1234...", "0x5678..."},
 }
-preconferMempool := preconfer.NewMempool(mempoolConfig)
+preconferMempool := executionbook.NewExecutionBook(mempoolConfig)
 
 // Create priority tx service
-serviceConfig := preconfer.PriorityTxServiceConfig{
+serviceConfig := executionbook.PriorityTxServiceConfig{
     App:               app.BaseApp,
     Mempool:           preconferMempool,
     TxDecoder:         txDecoder,
@@ -257,11 +257,11 @@ serviceConfig := preconfer.PriorityTxServiceConfig{
     ValidatorAddress:  "cronosvaloper1...",
     PreconfirmTimeout: 30 * time.Second,
 }
-service := preconfer.NewPriorityTxService(serviceConfig)
+service := executionbook.NewPriorityTxService(serviceConfig)
 
 // Register gRPC service
-grpcServer := preconfer.NewPriorityTxGRPCServer(service)
-preconfer.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), grpcServer)
+grpcServer := executionbook.NewPriorityTxGRPCServer(service)
+executionbook.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), grpcServer)
 ```
 
 ---
@@ -290,9 +290,9 @@ dynamicFeeTx := &types.ExtensionOptionsDynamicFeeTx{
 #### Via gRPC API
 
 ```go
-client := preconfer.NewPriorityTxServiceClient(conn)
+client := executionbook.NewPriorityTxServiceClient(conn)
 
-req := &preconfer.SubmitPriorityTxRequest{
+req := &executionbook.SubmitPriorityTxRequest{
     TxBytes:       txBytes,
     PriorityLevel: 1,  // Must be 1 (only priority level currently supported)
 }
@@ -329,7 +329,7 @@ cronosd preconfer mempool-stats
 ### Querying Transaction Status
 
 ```go
-statusResp, err := client.GetPriorityTxStatus(ctx, &preconfer.GetPriorityTxStatusRequest{
+statusResp, err := client.GetPriorityTxStatus(ctx, &executionbook.GetPriorityTxStatusRequest{
     TxHash: "ABC123...",
 })
 
@@ -451,8 +451,8 @@ The package includes comprehensive tests:
 ### Key Test Files
 
 - `priority_tx_service_test.go` - Service layer tests
-- `preconfer_mempool_test.go` - Mempool tests
-- `preconfer_mempool_whitelist_test.go` - Whitelist tests
+- `execution_book_test.go` - ExecutionBook tests
+- `execution_book_whitelist_test.go` - Whitelist tests
 - `priority_tx_selector_test.go` - Selector tests
 - `priority_helpers_test.go` - Helper function tests
 - `ethereum_priority_test.go` - Ethereum support tests
@@ -517,7 +517,7 @@ When a priority transaction is inserted into the mempool:
 4. **Mempool Insert**: Insert with boosted priority into base mempool
 
 ```go
-func (m *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
+func (m *ExecutionBook) Insert(ctx context.Context, tx sdk.Tx) error {
     if IsMarkedPriorityTx(tx) && m.isAddressWhitelisted(tx) {
         sdkCtx := sdk.UnwrapSDKContext(ctx)
         boostedPriority := sdkCtx.Priority() + m.priorityBoost
@@ -582,12 +582,12 @@ Unknown → Pending → Preconfirmed → Included
 The whitelist uses Ethereum addresses (0x...) for access control:
 
 ```go
-type Mempool struct {
+type ExecutionBook struct {
     whitelistMu sync.RWMutex
     whitelist   map[string]bool  // address -> enabled
 }
 
-func (m *Mempool) isAddressWhitelisted(tx sdk.Tx) bool {
+func (m *ExecutionBook) isAddressWhitelisted(tx sdk.Tx) bool {
     // If whitelist is empty, all addresses allowed
     if len(m.whitelist) == 0 {
         return true

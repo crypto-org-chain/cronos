@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"fmt"
@@ -30,8 +30,8 @@ func VerifyMempool(m mempool.Mempool, logger log.Logger) MempoolVerification {
 		SupportsInsertWithGasWanted: true, // All mempools should support this
 	}
 
-	// Check if it's a preconfer.Mempool
-	if preconferMempool, ok := m.(*Mempool); ok {
+	// Check if it's a preconfer.ExecutionBook
+	if preconferMempool, ok := m.(*ExecutionBook); ok {
 		verification.IsPreconferMempool = true
 		verification.BaseMempoolType = preconferMempool.GetBaseMempoolType()
 		verification.IsPriorityNonceMempool = preconferMempool.IsPriorityNonceMempool()
@@ -44,7 +44,7 @@ func VerifyMempool(m mempool.Mempool, logger log.Logger) MempoolVerification {
 			"priority_boost", verification.PriorityBoost,
 		)
 	} else {
-		// Not wrapped by preconfer.Mempool
+		// Not wrapped by preconfer.ExecutionBook
 		verification.IsPreconferMempool = false
 
 		// Check if it's a direct PriorityNonceMempool
@@ -64,21 +64,21 @@ func VerifyMempool(m mempool.Mempool, logger log.Logger) MempoolVerification {
 // ValidatePreconferMempool checks if the mempool is properly configured
 // for preconfer functionality and returns an error if not
 func ValidatePreconferMempool(m mempool.Mempool) error {
-	preconferMempool, ok := m.(*Mempool)
+	preconferMempool, ok := m.(*ExecutionBook)
 	if !ok {
-		return fmt.Errorf("mempool is not a preconfer.Mempool, got type: %T", m)
+		return fmt.Errorf("mempool is not a preconfer.ExecutionBook, got type: %T", m)
 	}
 
 	if !preconferMempool.IsPriorityNonceMempool() {
 		return fmt.Errorf(
-			"preconfer.Mempool is not wrapping a PriorityNonceMempool, got type: %s",
+			"preconfer.ExecutionBook is not wrapping a PriorityNonceMempool, got type: %s",
 			preconferMempool.GetBaseMempoolType(),
 		)
 	}
 
 	if preconferMempool.GetPriorityBoost() <= 0 {
 		return fmt.Errorf(
-			"preconfer.Mempool has invalid priority boost: %d",
+			"preconfer.ExecutionBook has invalid priority boost: %d",
 			preconferMempool.GetPriorityBoost(),
 		)
 	}
@@ -91,8 +91,8 @@ func LogMempoolConfiguration(m mempool.Mempool, logger log.Logger) {
 	logger.Info("=== Mempool Configuration ===")
 	logger.Info("Mempool type", "type", fmt.Sprintf("%T", m))
 
-	if preconferMempool, ok := m.(*Mempool); ok {
-		logger.Info("✓ Using preconfer.Mempool wrapper")
+	if preconferMempool, ok := m.(*ExecutionBook); ok {
+		logger.Info("✓ Using preconfer.ExecutionBook wrapper")
 		logger.Info("Base mempool type", "type", preconferMempool.GetBaseMempoolType())
 		logger.Info("Priority boost", "boost", preconferMempool.GetPriorityBoost())
 
@@ -104,7 +104,7 @@ func LogMempoolConfiguration(m mempool.Mempool, logger log.Logger) {
 			logger.Warn("⚠ Priority boosting may not work as expected")
 		}
 	} else {
-		logger.Info("Not using preconfer.Mempool wrapper")
+		logger.Info("Not using preconfer.ExecutionBook wrapper")
 		typeName := fmt.Sprintf("%T", m)
 		if typeName == PriorityNonceMempoolType {
 			logger.Info("Using direct PriorityNonceMempool (no priority boosting)")

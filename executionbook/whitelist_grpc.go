@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"context"
@@ -108,11 +108,11 @@ type WhitelistServiceServer interface {
 
 // WhitelistGRPCServer implements the gRPC server for whitelist management
 type WhitelistGRPCServer struct {
-	mempool *Mempool
+	mempool *ExecutionBook
 }
 
 // NewWhitelistGRPCServer creates a new whitelist gRPC server
-func NewWhitelistGRPCServer(mempool *Mempool) *WhitelistGRPCServer {
+func NewWhitelistGRPCServer(mempool *ExecutionBook) *WhitelistGRPCServer {
 	if mempool == nil {
 		panic("mempool cannot be nil")
 	}

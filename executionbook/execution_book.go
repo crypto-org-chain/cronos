@@ -1,4 +1,4 @@
-package preconfer
+package executionbook
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-var _ mempool.Mempool = &Mempool{}
+var _ mempool.Mempool = &ExecutionBook{}
 
-// Mempool wraps the standard mempool and enhances it
+// ExecutionBook wraps the standard mempool and enhances it
 // to give marked transactions higher priority
-type Mempool struct {
+type ExecutionBook struct {
 	mempool.Mempool
 	txDecoder sdk.TxDecoder
 	logger    log.Logger
@@ -37,8 +37,8 @@ type Mempool struct {
 	signerExtractor mempool.SignerExtractionAdapter
 }
 
-// MempoolConfig configuration for the preconfer mempool
-type MempoolConfig struct {
+// ExecutionBookConfig configuration for the preconfer mempool
+type ExecutionBookConfig struct {
 	// BaseMempool is the underlying mempool implementation
 	BaseMempool mempool.Mempool
 
@@ -61,8 +61,8 @@ type MempoolConfig struct {
 	SignerExtractor mempool.SignerExtractionAdapter
 }
 
-// NewMempool creates a new preconfer mempool
-func NewMempool(cfg MempoolConfig) *Mempool {
+// NewExecutionBook creates a new preconfer mempool
+func NewExecutionBook(cfg ExecutionBookConfig) *ExecutionBook {
 	if cfg.PriorityBoost == 0 {
 		cfg.PriorityBoost = DefaultPriorityBoost
 	}
@@ -81,7 +81,7 @@ func NewMempool(cfg MempoolConfig) *Mempool {
 		whitelist[addr] = true
 	}
 
-	m := &Mempool{
+	m := &ExecutionBook{
 		Mempool:         cfg.BaseMempool,
 		txDecoder:       cfg.TxDecoder,
 		logger:          cfg.Logger,
@@ -92,12 +92,12 @@ func NewMempool(cfg MempoolConfig) *Mempool {
 
 	// Log the base mempool type and whitelist configuration
 	if len(whitelist) == 0 {
-		cfg.Logger.Info("preconfer.Mempool initialized",
+		cfg.Logger.Info("preconfer.ExecutionBook initialized",
 			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
 			"priority_boost", cfg.PriorityBoost,
 			"whitelist", "disabled (all addresses allowed)")
 	} else {
-		cfg.Logger.Info("preconfer.Mempool initialized",
+		cfg.Logger.Info("preconfer.ExecutionBook initialized",
 			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
 			"priority_boost", cfg.PriorityBoost,
 			"whitelist", "enabled",
@@ -110,7 +110,7 @@ func NewMempool(cfg MempoolConfig) *Mempool {
 // Insert adds a transaction to the mempool with priority boosting.
 // If the transaction is marked as a priority transaction, its priority
 // is boosted by adding priorityBoost to the context's priority value.
-func (epm *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
+func (epm *ExecutionBook) Insert(ctx context.Context, tx sdk.Tx) error {
 	// Extract gas limit from transaction if available
 	var gasWanted uint64
 	if gasTx, ok := tx.(interface{ GetGas() uint64 }); ok {
@@ -131,7 +131,7 @@ func (epm *Mempool) Insert(ctx context.Context, tx sdk.Tx) error {
 // Priority boosting is only applied if:
 // 1. The transaction is marked with PRIORITY: prefix
 // 2. The sender is whitelisted (or whitelist is empty/disabled)
-func (epm *Mempool) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
+func (epm *ExecutionBook) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
 	// Check if this is a priority transaction
 	isPriority := IsMarkedPriorityTx(tx)
 
@@ -170,27 +170,27 @@ func (epm *Mempool) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWante
 
 // Select returns an iterator of transactions in priority order
 // Priority transactions will naturally come first due to their boosted priority
-func (epm *Mempool) Select(ctx context.Context, txs [][]byte) mempool.Iterator {
+func (epm *ExecutionBook) Select(ctx context.Context, txs [][]byte) mempool.Iterator {
 	return epm.Mempool.Select(ctx, txs)
 }
 
 // CountTx returns the number of transactions in the mempool
-func (epm *Mempool) CountTx() int {
+func (epm *ExecutionBook) CountTx() int {
 	return epm.Mempool.CountTx()
 }
 
 // Remove removes a transaction from the mempool
-func (epm *Mempool) Remove(tx sdk.Tx) error {
+func (epm *ExecutionBook) Remove(tx sdk.Tx) error {
 	return epm.Mempool.Remove(tx)
 }
 
 // GetPriorityBoost returns the configured priority boost value
-func (epm *Mempool) GetPriorityBoost() int64 {
+func (epm *ExecutionBook) GetPriorityBoost() int64 {
 	return epm.priorityBoost
 }
 
 // SetPriorityBoost allows dynamic adjustment of the priority boost
-func (epm *Mempool) SetPriorityBoost(boost int64) {
+func (epm *ExecutionBook) SetPriorityBoost(boost int64) {
 	if boost < 0 {
 		epm.logger.Warn("attempted to set negative priority boost", "boost", boost)
 		return
@@ -200,26 +200,26 @@ func (epm *Mempool) SetPriorityBoost(boost int64) {
 }
 
 // GetStats returns mempool statistics
-func (epm *Mempool) GetStats() string {
+func (epm *ExecutionBook) GetStats() string {
 	return fmt.Sprintf("Mempool{count=%d, boost=%d}",
 		epm.CountTx(), epm.priorityBoost)
 }
 
 // GetBaseMempool returns the underlying base mempool
 // This is useful for type checking and verification
-func (epm *Mempool) GetBaseMempool() mempool.Mempool {
+func (epm *ExecutionBook) GetBaseMempool() mempool.Mempool {
 	return epm.Mempool
 }
 
 // IsPriorityNonceMempool checks if the base mempool is a PriorityNonceMempool
-func (epm *Mempool) IsPriorityNonceMempool() bool {
+func (epm *ExecutionBook) IsPriorityNonceMempool() bool {
 	typeName := fmt.Sprintf("%T", epm.Mempool)
 	// Check if it's a PriorityNonceMempool (the type will be *mempool.PriorityNonceMempool[int64])
 	return typeName == PriorityNonceMempoolType
 }
 
 // GetBaseMempoolType returns the type name of the base mempool
-func (epm *Mempool) GetBaseMempoolType() string {
+func (epm *ExecutionBook) GetBaseMempoolType() string {
 	return fmt.Sprintf("%T", epm.Mempool)
 }
 
@@ -227,7 +227,7 @@ func (epm *Mempool) GetBaseMempoolType() string {
 // Returns true if:
 // - Whitelist is empty (everyone allowed)
 // - Sender address is in the whitelist
-func (epm *Mempool) isAddressWhitelisted(tx sdk.Tx) bool {
+func (epm *ExecutionBook) isAddressWhitelisted(tx sdk.Tx) bool {
 	epm.whitelistMu.RLock()
 	defer epm.whitelistMu.RUnlock()
 
@@ -278,7 +278,7 @@ func (epm *Mempool) isAddressWhitelisted(tx sdk.Tx) bool {
 }
 
 // AddToWhitelist adds an address to the whitelist
-func (epm *Mempool) AddToWhitelist(address string) {
+func (epm *ExecutionBook) AddToWhitelist(address string) {
 	epm.whitelistMu.Lock()
 	defer epm.whitelistMu.Unlock()
 
@@ -289,7 +289,7 @@ func (epm *Mempool) AddToWhitelist(address string) {
 }
 
 // RemoveFromWhitelist removes an address from the whitelist
-func (epm *Mempool) RemoveFromWhitelist(address string) {
+func (epm *ExecutionBook) RemoveFromWhitelist(address string) {
 	epm.whitelistMu.Lock()
 	defer epm.whitelistMu.Unlock()
 
@@ -302,7 +302,7 @@ func (epm *Mempool) RemoveFromWhitelist(address string) {
 // IsWhitelisted checks if an address is in the whitelist
 // Returns true only if the address is explicitly in the whitelist map
 // Returns false if the whitelist is empty or the address is not in it
-func (epm *Mempool) IsWhitelisted(address string) bool {
+func (epm *ExecutionBook) IsWhitelisted(address string) bool {
 	epm.whitelistMu.RLock()
 	defer epm.whitelistMu.RUnlock()
 
@@ -326,7 +326,7 @@ func (epm *Mempool) IsWhitelisted(address string) bool {
 }
 
 // GetWhitelist returns a copy of the current whitelist
-func (epm *Mempool) GetWhitelist() []string {
+func (epm *ExecutionBook) GetWhitelist() []string {
 	epm.whitelistMu.RLock()
 	defer epm.whitelistMu.RUnlock()
 
@@ -339,7 +339,7 @@ func (epm *Mempool) GetWhitelist() []string {
 
 // ClearWhitelist removes all addresses from the whitelist
 // After this, all addresses will be allowed to boost priority
-func (epm *Mempool) ClearWhitelist() {
+func (epm *ExecutionBook) ClearWhitelist() {
 	epm.whitelistMu.Lock()
 	defer epm.whitelistMu.Unlock()
 
@@ -348,7 +348,7 @@ func (epm *Mempool) ClearWhitelist() {
 }
 
 // WhitelistCount returns the number of addresses in the whitelist
-func (epm *Mempool) WhitelistCount() int {
+func (epm *ExecutionBook) WhitelistCount() int {
 	epm.whitelistMu.RLock()
 	defer epm.whitelistMu.RUnlock()
 
@@ -356,7 +356,7 @@ func (epm *Mempool) WhitelistCount() int {
 }
 
 // SetWhitelist replaces the entire whitelist with a new set of addresses
-func (epm *Mempool) SetWhitelist(addresses []string) {
+func (epm *ExecutionBook) SetWhitelist(addresses []string) {
 	epm.whitelistMu.Lock()
 	defer epm.whitelistMu.Unlock()
 
