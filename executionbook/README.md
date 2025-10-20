@@ -1,883 +1,393 @@
 # ExecutionBook Package
 
-The `executionbook` package implements a priority transaction system with preconfirmation capabilities for the Cronos blockchain. It allows validators to provide early confirmations for high-priority transactions before they are included in a block.
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Components](#components)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-- [Testing](#testing)
-- [Implementation Details](#implementation-details)
-
----
-
 ## Overview
 
-The preconfer system provides:
-
-1. **Priority Transaction Handling**: Transactions with `PRIORITY:` prefix in memo receive priority boost
-2. **Preconfirmations**: Early, non-binding confirmations from validators
-3. **Whitelist Support**: Optional access control for priority boosting
-4. **gRPC API**: Service for submitting and querying priority transactions
-5. **CLI Commands**: Command-line interface for preconfer operations
-
-### Key Features
-
-- **Priority Boost**: Transactions marked with priority receive a boost of `1,000,000,000` to their priority
-- **Preconfirmation Timeout**: Configurable timeout (default 30s) for preconfirmation expiry
-- **Position Tracking**: Real-time tracking of transaction position in mempool
-- **Status Management**: Track transaction lifecycle from pending to included
-- **Ethereum Support**: Full support for Ethereum-style transactions
-
----
+The `executionbook` package implements a **sequencer-based transaction ordering system** for Cronos. Unlike traditional blockchain mempools where validators select and order transactions, this system allows **off-chain sequencers** to pre-execute transactions and guarantee their inclusion in blocks in a specific order.
 
 ## Architecture
 
-### Component Overview
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Application Layer                        │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              PriorityTxService                        │   │
-│  │  - Submit priority transactions                       │   │
-│  │  - Create preconfirmations                            │   │
-│  │  - Track transaction status                           │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      gRPC Layer                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │         PriorityTxGRPCServer                          │   │
-│  │  - SubmitPriorityTx                                   │   │
-│  │  - GetPriorityTxStatus                                │   │
-│  │  - GetMempoolStats                                    │   │
-│  │  - ListPriorityTxs                                    │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   Mempool Layer                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │         Preconfer ExecutionBook                        │   │
-│  │  - Priority boost application                         │   │
-│  │  - Whitelist enforcement                              │   │
-│  │  - Transaction selection                              │   │
-│  └──────────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │         PriorityTxSelector                            │   │
-│  │  - Priority transaction ordering                      │   │
-│  │  - Fast proposal selection                            │   │
-│  └──────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────┐
+│  Sequencer  │  (Off-chain: Executes transactions with sequence numbers)
+│  (Off-chain)│
+└──────┬──────┘
+       │
+       ↓ (Forwards pre-executed transactions)
+┌──────────────┐
+│   Relayer    │
+└──────┬───────┘
+       │
+       ↓ (Submits to execution book via gRPC)
+┌─────────────────┐
+│ Execution Book  │  (Stores tx hashes + sequence numbers)
+│                 │  (Validates sequencer signatures)
+└────────┬────────┘
+         │
+         ↓ (Provides transactions in order)
+┌──────────────────┐
+│ Proposal Handler │  (Builds blocks ONLY from execution book)
+└────────┬─────────┘
+         │
+         ↓
+┌────────────────┐
+│ Block Inclusion│
+└────────────────┘
 ```
 
-### Transaction Lifecycle
+## Key Components
 
-```
-1. Submit
-   ↓
-2. Validate Priority Level (must be 1)
-   ↓
-3. Check Whitelist (if enabled)
-   ↓
-4. Apply Priority Boost (+1,000,000,000)
-   ↓
-5. Create Preconfirmation
-   ↓
-6. Insert into Mempool
-   ↓
-7. Track Status
-   ↓
-8. Include in Block
-```
+### 1. ExecutionBook
 
----
+The core storage and validation system for sequencer transactions.
 
-## Components
-
-### 1. Priority Transaction Service (`priority_tx_service.go`)
-
-Core service for managing priority transactions and preconfirmations.
-
-**Key Types:**
-
-```go
-type PriorityTxService struct {
-    app               *baseapp.BaseApp
-    mempool           mempool.Mempool
-    txDecoder         sdk.TxDecoder
-    logger            log.Logger
-    validatorAddress  string
-    preconfirmTimeout time.Duration
-}
-
-type TxStatusType int
-const (
-    TxStatusUnknown TxStatusType = iota
-    TxStatusPending
-    TxStatusPreconfirmed
-    TxStatusIncluded
-    TxStatusRejected
-    TxStatusExpired
-)
-```
+**Features:**
+- Stores transaction hashes with sequence numbers
+- Validates sequencer signatures using public keys
+- Enforces strict sequence ordering (no gaps allowed)
+- Maintains per-block sequence numbering (resets each block)
+- Tracks transaction inclusion status
 
 **Key Methods:**
-
-- `SubmitPriorityTx(ctx, txBytes, priorityLevel)` - Submit priority transaction
-- `GetTxStatus(txHash)` - Get transaction status
-- `GetMempoolStats()` - Get mempool statistics
-- `ListPriorityTxs(limit)` - List priority transactions
-
-### 2. Preconfer ExecutionBook (`execution_book.go`)
-
-Enhanced mempool wrapper that applies priority boosting.
-
-**Key Features:**
-
-- Wraps any standard Cosmos SDK mempool
-- Applies configurable priority boost (default: 1,000,000,000)
-- Enforces whitelist for priority boosting (optional)
-- Preserves base mempool functionality
-
-**Configuration:**
-
 ```go
-type ExecutionBookConfig struct {
-    BaseMempool        mempool.Mempool
-    TxDecoder          sdk.TxDecoder
-    PriorityBoost      int64
-    Logger             log.Logger
-    WhitelistAddresses []string
-    SignerExtractor    mempool.SignerExtractionAdapter
-}
+// Submit a sequencer transaction
+func (eb *ExecutionBook) SubmitSequencerTx(
+    txHash string,
+    sequenceNumber uint64,
+    signature []byte,
+    sequencerID string,
+) error
+
+// Get transactions in sequence order
+func (eb *ExecutionBook) GetOrderedTransactions() []*SequencerTransaction
+
+// Mark transactions as included in a block
+func (eb *ExecutionBook) MarkIncluded(txHashes []string, blockHeight int64)
+
+// Clean up included transactions
+func (eb *ExecutionBook) CleanupIncludedTransactions() int
+
+// Reset sequence for new block
+func (eb *ExecutionBook) ResetSequence(blockHeight int64)
 ```
 
-### 3. Priority Transaction Selector (`priority_tx_selector.go`)
+### 2. Sequencer Authentication
 
-Custom proposal handler for priority transaction ordering.
+Sequencers are identified by their public keys and must sign each transaction submission.
 
-**Capabilities:**
+**Signature Format:**
+```
+Message = SHA256("SEQUENCER_TX|" + txHash + "|" + sequenceNumber)
+Signature = Sign(Message, sequencerPrivateKey)
+```
 
-- Ensures priority transactions are selected first
-- Handles both standard and fast proposal selection
-- Maintains gas limits and block constraints
+**Supported Key Types:**
+- Ed25519
+- secp256k1
 
-### 4. gRPC Server (`priority_tx_grpc.go`)
+**Managing Sequencers:**
+```go
+// Add a new sequencer
+book.AddSequencer("sequencer_id", publicKey)
 
-gRPC service implementation for external access.
+// Remove a sequencer
+book.RemoveSequencer("sequencer_id")
+```
+
+### 3. Sequence Number Management
+
+Sequence numbers enforce strict transaction ordering:
+
+- **Per-block sequence**: Numbers reset to 0 at each block height
+- **No gaps allowed**: Each transaction must have exactly `nextSequence`
+- **Strict ordering**: Transactions are processed in sequence order
+- **Rejection**: Out-of-order or duplicate submissions are rejected
+
+**Example:**
+```
+Block N:
+  - Submit tx1 with sequence 0 ✓
+  - Submit tx2 with sequence 1 ✓
+  - Submit tx3 with sequence 5 ✗ (gap from 1 to 5)
+  - Submit tx4 with sequence 2 ✓
+
+Block N+1:
+  - Sequence resets to 0
+  - Submit tx5 with sequence 0 ✓
+```
+
+### 4. ProposalHandler
+
+Custom block building logic that creates blocks **ONLY** from execution book transactions.
+
+**Features:**
+- Replaces default mempool-based block building
+- Uses `PrepareProposal` to build blocks from execution book
+- Uses `ProcessProposal` to validate proposed blocks
+- Automatically cleans up included transactions after block commit
+
+**Integration:**
+```go
+handler := executionbook.NewProposalHandler(executionbook.ProposalHandlerConfig{
+    Book:      book,
+    TxDecoder: txDecoder,
+    Logger:    logger,
+})
+
+// Set ABCI handlers
+app.SetPrepareProposal(handler.PrepareProposalHandler())
+app.SetProcessProposal(handler.ProcessProposalHandler())
+
+// Hook into block commit
+app.SetPostBlockCommit(func(blockHeight int64, txHashes []string) {
+    handler.OnBlockCommit(blockHeight, txHashes)
+})
+```
+
+### 5. gRPC API
+
+REST/gRPC interface for relayers to submit sequencer transactions.
 
 **Endpoints:**
 
-- `SubmitPriorityTx` - Submit a priority transaction
-- `GetPriorityTxStatus` - Query transaction status
-- `GetMempoolStats` - Get mempool statistics
-- `ListPriorityTxs` - List pending priority transactions
-
-### 5. Whitelist Management (`whitelist_grpc.go`)
-
-Manage whitelist for priority boosting access control.
-
-**Features:**
-
-- Add/remove addresses from whitelist
-- Set entire whitelist
-- Query whitelist status
-- Query if address is whitelisted
-
-### 6. CLI Commands (`cli.go`)
-
-Command-line interface for preconfer operations.
-
-**Available Commands:**
-
-```bash
-cronosd preconfer submit-priority-tx <tx-file> [priority-level]
-cronosd preconfer get-status <tx-hash>
-cronosd preconfer list-priority-txs [limit]
-cronosd preconfer mempool-stats
-cronosd preconfer whitelist add <address>
-cronosd preconfer whitelist remove <address>
-cronosd preconfer whitelist list
-```
-
----
-
-## Configuration
-
-### App Configuration (`app.toml`)
-
-```toml
-[preconfer]
-# Enable the priority transaction selector
-enable = true
-
-# Validator address for signing preconfirmations (optional)
-# Format: Bech32 validator address (e.g., cronosvaloper1...)
-validator_address = ""
-
-# Preconfirmation timeout duration (default: "30s")
-# Time before a preconfirmation expires
-# Accepts Go duration format: "10s", "1m", "90s", "1m30s", etc.
-preconfirm_timeout = "30s"
-
-# Whitelist for priority boosting (optional)
-# If empty, all addresses can use priority boosting
-# If non-empty, only listed addresses can boost priority
-whitelist = []
-```
-
-### Programmatic Configuration
-
+#### Submit Sequencer Transaction
 ```go
-// Create execution book
-mempoolConfig := executionbook.ExecutionBookConfig{
-    BaseMempool:        baseMempool,
-    TxDecoder:          txDecoder,
-    PriorityBoost:      1_000_000_000,
-    Logger:             logger,
-    WhitelistAddresses: []string{"0x1234...", "0x5678..."},
-}
-preconferMempool := executionbook.NewExecutionBook(mempoolConfig)
-
-// Load validator private key for signing preconfirmations (optional)
-// Supports Ed25519 (default) and secp256k1
-privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "ed25519")
-if err != nil {
-    log.Fatal(err)
+message SubmitSequencerTxRequest {
+    string tx_hash = 1;
+    uint64 sequence_number = 2;
+    bytes signature = 3;
+    string sequencer_id = 4;
 }
 
-// Create priority tx service
-serviceConfig := executionbook.PriorityTxServiceConfig{
-    App:               app.BaseApp,
-    Mempool:           preconferMempool,
-    TxDecoder:         txDecoder,
-    Logger:            logger,
-    ValidatorAddress:  "cronosvaloper1...",
-    ValidatorPrivKey:  privKey, // Optional: for cryptographic signing
-    PreconfirmTimeout: 30 * time.Second,
+message SubmitSequencerTxResponse {
+    bool success = 1;
+    string message = 2;
 }
-service := executionbook.NewPriorityTxService(serviceConfig)
-
-// Register gRPC service
-grpcServer := executionbook.NewPriorityTxGRPCServer(service)
-executionbook.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), grpcServer)
 ```
 
----
+#### Get Statistics
+```go
+message GetStatsRequest {}
+
+message GetStatsResponse {
+    int32 total_transactions = 1;
+    int32 pending_transactions = 2;
+    int32 included_transactions = 3;
+    uint64 next_sequence = 4;
+    int64 current_block_height = 5;
+    int32 sequencer_count = 6;
+}
+```
 
 ## Usage
 
-### Submitting Priority Transactions
-
-#### Via Transaction Memo
-
-Add `PRIORITY:` prefix to transaction memo:
+### Creating an ExecutionBook
 
 ```go
-// Cosmos SDK transaction
-tx := txBuilder.GetTx()
-txBuilder.SetMemo("PRIORITY: urgent transaction")
+import (
+    "github.com/crypto-org-chain/cronos/v2/executionbook"
+    "github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+)
 
-// Ethereum transaction (using ExtensionOptionsDynamicFeeTx)
-dynamicFeeTx := &types.ExtensionOptionsDynamicFeeTx{
-    Memo: "PRIORITY: urgent eth tx",
-}
-```
+// Generate sequencer keys
+seq1PrivKey := ed25519.GenPrivKey()
+seq1PubKey := seq1PrivKey.PubKey()
 
-**Note**: All priority transactions receive the same boost. There is no distinction between different priority levels when using the memo prefix.
-
-#### Via gRPC API
-
-```go
-client := executionbook.NewPriorityTxServiceClient(conn)
-
-req := &executionbook.SubmitPriorityTxRequest{
-    TxBytes:       txBytes,
-    PriorityLevel: 1,  // Must be 1 (only priority level currently supported)
-}
-
-resp, err := client.SubmitPriorityTx(ctx, req)
-if err != nil {
-    return err
-}
-
-fmt.Printf("Transaction submitted: %s\n", resp.TxHash)
-fmt.Printf("Mempool position: %d\n", resp.MempoolPosition)
-if resp.Preconfirmation != nil {
-    fmt.Printf("Preconfirmed by: %s\n", resp.Preconfirmation.Validator)
-    fmt.Printf("Expires at: %v\n", time.Unix(resp.Preconfirmation.ExpiresAt, 0))
-}
-```
-
-#### Via CLI
-
-```bash
-# Submit priority transaction (priority level must be 1)
-cronosd preconfer submit-priority-tx tx.json 1
-
-# Check status
-cronosd preconfer get-status ABC123...
-
-# List pending priority transactions
-cronosd preconfer list-priority-txs 10
-
-# Check mempool statistics
-cronosd preconfer mempool-stats
-```
-
-### Querying Transaction Status
-
-```go
-statusResp, err := client.GetPriorityTxStatus(ctx, &executionbook.GetPriorityTxStatusRequest{
-    TxHash: "ABC123...",
+// Create execution book
+book := executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
+    Logger: logger,
+    SequencerPubKeys: map[string]cryptotypes.PubKey{
+        "sequencer_1": seq1PubKey,
+        "sequencer_2": seq2PubKey,
+    },
 })
-
-fmt.Printf("Status: %s\n", statusResp.Status) // "pending", "preconfirmed", "included", etc.
-fmt.Printf("In mempool: %v\n", statusResp.InMempool)
-fmt.Printf("Block height: %d\n", statusResp.BlockHeight)
 ```
 
-### Managing Whitelist
-
-```bash
-# Add address to whitelist
-cronosd preconfer whitelist add 0x1234567890123456789012345678901234567890
-
-# Remove address from whitelist
-cronosd preconfer whitelist remove 0x1234567890123456789012345678901234567890
-
-# List whitelisted addresses
-cronosd preconfer whitelist list
-
-# Check if address is whitelisted
-cronosd preconfer whitelist is-whitelisted 0x1234567890123456789012345678901234567890
-```
-
----
-
-## API Reference
-
-### SubmitPriorityTxRequest
+### Submitting Transactions (Relayer)
 
 ```go
-type SubmitPriorityTxRequest struct {
-    TxBytes          []byte
-    PriorityLevel    uint32  // Must be 1
-    WaitForInclusion bool    // Wait for block inclusion
-}
-```
+// Transaction hash from sequencer
+txHash := "0xabcd1234..."
+sequenceNumber := uint64(0)
+sequencerID := "sequencer_1"
 
-### SubmitPriorityTxResponse
-
-```go
-type SubmitPriorityTxResponse struct {
-    TxHash          string
-    Accepted        bool
-    Reason          string
-    Preconfirmation *Preconfirmation
-    MempoolPosition uint32
-}
-```
-
-### GetPriorityTxStatusResponse
-
-```go
-type GetPriorityTxStatusResponse struct {
-    Status          string  // "pending", "preconfirmed", "included", etc.
-    InMempool       bool
-    BlockHeight     int64
-    MempoolPosition uint32
-    Preconfirmation *Preconfirmation
-    Timestamp       int64
-}
-```
-
-### Preconfirmation
-
-```go
-type Preconfirmation struct {
-    TxHash        string
-    Timestamp     int64
-    Validator     string
-    PriorityLevel uint32  // Always 1 (only level currently supported)
-    Signature     []byte
-    ExpiresAt     int64
-}
-```
-
-### GetMempoolStatsResponse
-
-```go
-type GetMempoolStatsResponse struct {
-    TotalTxs         uint32
-    PriorityTxs      uint32
-    PreconfirmedTxs  uint32
-    AvgWaitTime      uint32
-    OldestTxTime     int64
-}
-```
-
----
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all preconfer tests
-go test -v ./preconfer/...
-
-# Run specific test
-go test -v ./preconfer/... -run TestPriorityTxService_SubmitPriorityTx
-
-# Run with coverage
-go test -v -coverprofile=coverage.out ./preconfer/...
-go tool cover -html=coverage.out
-```
-
-### Test Coverage
-
-The package includes comprehensive tests:
-
-- **Unit Tests**: All components have unit tests
-- **Integration Tests**: End-to-end workflow tests
-- **Mempool Tests**: Priority boosting and whitelist tests
-- **gRPC Tests**: API endpoint tests
-- **Selector Tests**: Transaction selection tests
-
-**Current Coverage**: ~85% code coverage
-
-### Key Test Files
-
-- `priority_tx_service_test.go` - Service layer tests
-- `execution_book_test.go` - ExecutionBook tests
-- `execution_book_whitelist_test.go` - Whitelist tests
-- `priority_tx_selector_test.go` - Selector tests
-- `priority_helpers_test.go` - Helper function tests
-- `ethereum_priority_test.go` - Ethereum support tests
-
----
-
-## Implementation Details
-
-### Priority Levels
-
-**Current Implementation**: Single priority level (1)
-
-All priority transactions receive the same boost. Future versions may support multiple priority levels with different boost values.
-
-```go
-const (
-    DefaultPriorityBoost int64 = 1_000_000_000
-)
-```
-
-### Transaction Marking
-
-Transactions are marked as priority in two ways:
-
-1. **Memo Prefix**: Add `PRIORITY:` to transaction memo
-2. **Ethereum Extension**: Use `ExtensionOptionsDynamicFeeTx` memo field
-
-**Detection Logic:**
-
-```go
-func IsMarkedPriorityTx(tx sdk.Tx) bool {
-    // Check standard memo
-    if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
-        if strings.HasPrefix(txWithMemo.GetMemo(), "PRIORITY:") {
-            return true
-        }
-    }
-    
-    // Check Ethereum extension
-    for _, msg := range tx.GetMsgs() {
-        if ethTx, ok := msg.(*evmtypes.MsgEthereumTx); ok {
-            if ext := ethTx.GetExtensionOptions(); len(ext) > 0 {
-                // Check extension for priority marker
-                if hasPriorityInExtension(ext) {
-                    return true
-                }
-            }
-        }
-    }
-    
-    return false
-}
-```
-
-### Priority Boost Mechanism
-
-When a priority transaction is inserted into the mempool:
-
-1. **Validation**: Check if transaction is marked as priority
-2. **Whitelist Check**: Verify sender is authorized (if whitelist enabled)
-3. **Priority Boost**: Add `DefaultPriorityBoost` to transaction's priority
-4. **Mempool Insert**: Insert with boosted priority into base mempool
-
-```go
-func (m *ExecutionBook) Insert(ctx context.Context, tx sdk.Tx) error {
-    if IsMarkedPriorityTx(tx) && m.isAddressWhitelisted(tx) {
-        sdkCtx := sdk.UnwrapSDKContext(ctx)
-        boostedPriority := sdkCtx.Priority() + m.priorityBoost
-        ctx = sdkCtx.WithPriority(boostedPriority)
-    }
-    return m.Mempool.Insert(ctx, tx)
-}
-```
-
-### Preconfirmation Flow
-
-1. **Transaction Submission**: Client submits priority transaction
-2. **Validation**: Service validates priority level and format
-3. **Mempool Insert**: Transaction inserted with priority boost
-4. **Preconfirmation Creation**:
-   - Generate preconfirmation with timestamp
-   - Set expiration time (current + timeout)
-   - Sign with validator key (if configured)
-5. **Response**: Return preconfirmation to client
-6. **Tracking**: Service tracks transaction status
-7. **Expiration**: Cleanup expired preconfirmations
-
-### Cryptographic Signing
-
-Preconfirmations can be cryptographically signed to ensure authenticity and prevent tampering.
-
-**Supported Key Types:**
-- **Ed25519** (default) - Standard for Cosmos SDK validators
-- **secp256k1** - Alternative signing algorithm
-
-**Message Format:**
-
-```
-PRECONFIRM | txHash | priorityLevel (4 bytes) | validatorAddress
-```
-
-The message is hashed with SHA-256 before signing.
-
-**Loading Private Keys:**
-
-```go
-// Load Ed25519 key from 32-byte hex string (will derive public key)
-privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "ed25519")
-
-// Load secp256k1 key
-privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "secp256k1")
-
-// Load from raw bytes (32 bytes for Ed25519, 32 bytes for secp256k1)
-privKey, err := executionbook.LoadPrivKeyFromBytes(keyBytes, "ed25519")
-```
-
-**Verifying Signatures:**
-
-```go
-// Get validator's public key
-pubKey := service.GetPublicKey()
-
-// Verify signature
-isValid := service.VerifyPreconfirmationSignature(
+// Create signature (done by sequencer)
+signature, err := executionbook.CreateSequencerSignature(
     txHash, 
-    priorityLevel, 
-    signature, 
-    pubKey,
+    sequenceNumber, 
+    sequencerPrivKey,
 )
-```
 
-**Security Considerations:**
-
-- Private keys should be stored securely (HSM, key management service, etc.)
-- If no private key is configured, preconfirmations will be unsigned
-- Signatures are **non-binding** - they provide authenticity but not consensus guarantees
-- Clients should verify signatures against the validator's public key
-- The service logs whether signing is enabled on initialization
-
-### Position Calculation
-
-Position in mempool is calculated by counting priority transactions:
-
-```go
-func (s *PriorityTxService) countPriorityTxsInMempool() uint32 {
-    var count uint32
-    for _, info := range s.txTracker {
-        if info.InMempool && info.Preconfirmation != nil {
-            count++
-        }
-    }
-    return count
+// Submit to execution book
+err = book.SubmitSequencerTx(txHash, sequenceNumber, signature, sequencerID)
+if err != nil {
+    // Handle error (invalid signature, wrong sequence, etc.)
 }
 ```
 
-Position is calculated **before** adding the current transaction:
-```go
-position := s.countPriorityTxsInMempool() + 1
-```
-
-### Status Transitions
-
-```
-Unknown → Pending → Preconfirmed → Included
-                                 ↘ Rejected
-                                 ↘ Expired
-```
-
-**Status Strings:**
-- `"unknown"` - Initial/unknown status
-- `"pending"` - Submitted to mempool
-- `"preconfirmed"` - Preconfirmation issued
-- `"included"` - Included in block
-- `"rejected"` - Transaction rejected
-- `"expired"` - Preconfirmation expired
-
-### Whitelist Implementation
-
-The whitelist uses Ethereum addresses (0x...) for access control:
+### Building Blocks (Validator)
 
 ```go
-type ExecutionBook struct {
-    whitelistMu sync.RWMutex
-    whitelist   map[string]bool  // address -> enabled
-}
+// Get ordered transactions for block proposal
+sequencerTxs := book.GetOrderedTransactions()
 
-func (m *ExecutionBook) isAddressWhitelisted(tx sdk.Tx) bool {
-    // If whitelist is empty, all addresses allowed
-    if len(m.whitelist) == 0 {
-        return true
-    }
-    
-    // Extract signer address and check whitelist
-    signers := m.signerExtractor.GetSigners(tx)
-    for _, signer := range signers {
-        addr := common.BytesToAddress(signer).Hex()
-        if m.whitelist[strings.ToLower(addr)] {
-            return true
-        }
-    }
-    
-    return false
+for _, tx := range sequencerTxs {
+    fmt.Printf("Include tx %s (sequence %d) from sequencer %s\n",
+        tx.TxHash, tx.SequenceNumber, tx.SequencerID)
 }
 ```
 
-### Ethereum Transaction Support
-
-Full support for Ethereum-style transactions:
-
-- **MsgEthereumTx**: Native Ethereum transaction type
-- **Dynamic Fee Transactions**: EIP-1559 support
-- **Extension Options**: Priority marker in extensions
-- **Memo Support**: Use extension memo for priority marking
-
-**Ethereum Transaction Info:**
+### After Block Commit
 
 ```go
-type EthereumTxInfo struct {
-    HasEthereumTx   bool
-    EthereumTxCount int
-    CosmosMessages  int
-    TotalMessages   int
-}
+// Mark transactions as included
+txHashes := []string{"hash1", "hash2", "hash3"}
+book.MarkIncluded(txHashes, blockHeight)
+
+// Clean up included transactions
+cleaned := book.CleanupIncludedTransactions()
+fmt.Printf("Cleaned up %d transactions\n", cleaned)
+
+// Reset sequence for next block
+book.ResetSequence(nextBlockHeight)
 ```
 
-### Transaction Type Detection
+## CLI Commands
+
+The package provides CLI commands for managing the execution book:
+
+```bash
+# List registered sequencers
+cronosd executionbook sequencer list
+
+# Get execution book statistics
+cronosd executionbook stats
+```
+
+## Transaction Lifecycle
+
+1. **Sequencer Execution**: Off-chain sequencer executes transaction and assigns sequence number
+2. **Relayer Submission**: Relayer submits (txHash, sequenceNumber, signature) to execution book
+3. **Validation**: ExecutionBook validates signature and sequence order
+4. **Storage**: Transaction stored in execution book if valid
+5. **Block Building**: Validator uses ProposalHandler to build block from execution book
+6. **Inclusion**: Transactions included in block in sequence order
+7. **Cleanup**: After block commit, included transactions are removed from book
+
+## Sequence Number Reset
+
+Sequence numbers reset to 0 at the start of each block:
 
 ```go
-func GetTransactionType(tx sdk.Tx) string {
-    // Returns: "ethereum", "cosmos", "mixed", "empty", or "unknown"
-    
-    hasEthTx := false
-    hasOtherTx := false
-    
-    for _, msg := range tx.GetMsgs() {
-        if _, ok := msg.(*evmtypes.MsgEthereumTx); ok {
-            hasEthTx = true
-        } else {
-            hasOtherTx = true
-        }
-    }
-    
-    if hasEthTx && !hasOtherTx {
-        return "ethereum"
-    } else if !hasEthTx && hasOtherTx {
-        return "cosmos"
-    } else if hasEthTx && hasOtherTx {
-        return "mixed"
-    }
-    
-    return StatusUnknown
-}
+// At block height 100
+book.SubmitSequencerTx("tx1", 0, sig, "seq1") // ✓
+book.SubmitSequencerTx("tx2", 1, sig, "seq1") // ✓
+
+// Block committed, reset for block 101
+book.ResetSequence(101)
+
+// Now sequence starts from 0 again
+book.SubmitSequencerTx("tx3", 0, sig, "seq1") // ✓
 ```
-
-### Cleanup and Maintenance
-
-**Expired Preconfirmations:**
-
-The service runs a background goroutine to clean up expired preconfirmations:
-
-```go
-func (s *PriorityTxService) cleanupExpiredPreconfirmations() {
-    ticker := time.NewTicker(10 * time.Second)
-    defer ticker.Stop()
-    
-    for range ticker.C {
-        now := time.Now()
-        s.preconfirmationMutex.Lock()
-        
-        for txHash, preconf := range s.preconfirmations {
-            if now.After(preconf.ExpiresAt) {
-                delete(s.preconfirmations, txHash)
-                // Update status to expired
-            }
-        }
-        
-        s.preconfirmationMutex.Unlock()
-    }
-}
-```
-
----
-
-## Constants
-
-```go
-const (
-    // DefaultPriorityBoost is the priority increase for marked transactions
-    DefaultPriorityBoost int64 = 1_000_000_000
-    
-    // StatusUnknown is the string representation for unknown status
-    StatusUnknown = "unknown"
-    
-    // Default preconfirmation timeout
-    DefaultPreconfirmTimeout = 30 * time.Second
-)
-```
-
----
 
 ## Error Handling
 
-The package uses standard Go error patterns:
+The execution book performs extensive validation:
+
+- **Unknown Sequencer**: Submission from unregistered sequencer is rejected
+- **Invalid Signature**: Cryptographic signature verification failure
+- **Sequence Gap**: Submitted sequence number != expected next sequence
+- **Duplicate Transaction**: Same transaction hash already submitted
+- **Already Included**: Transaction already included in a block
+
+Example error handling:
 
 ```go
-// Service errors
-var (
-    ErrInvalidPriorityLevel = errors.New("invalid priority level: must be 1")
-    ErrTxNotFound          = errors.New("transaction not found")
-    ErrNotWhitelisted      = errors.New("address not whitelisted for priority boosting")
-)
-
-// gRPC errors
-status.Error(codes.InvalidArgument, "tx hash is required")
-status.Error(codes.Internal, "failed to get tx status")
-status.Error(codes.NotFound, "transaction not found")
+err := book.SubmitSequencerTx(txHash, seq, sig, seqID)
+if err != nil {
+    switch {
+    case strings.Contains(err.Error(), "unknown sequencer"):
+        // Sequencer not registered
+    case strings.Contains(err.Error(), "invalid sequencer signature"):
+        // Signature verification failed
+    case strings.Contains(err.Error(), "sequence number mismatch"):
+        // Wrong sequence number (gap detected)
+    case strings.Contains(err.Error(), "already submitted"):
+        // Duplicate submission
+    }
+}
 ```
 
----
+## Statistics and Monitoring
 
-## Performance Considerations
+Get real-time statistics:
 
-### Mempool Performance
-
-- **Priority Boost**: O(1) operation, no performance impact
-- **Whitelist Check**: O(1) map lookup
-- **Transaction Selection**: Handled by base mempool's ordering
-
-### Service Performance
-
-- **Tracking**: In-memory map with RWMutex for concurrent access
-- **Cleanup**: Background goroutine runs every 10 seconds
-- **Position Calculation**: O(n) where n is number of tracked transactions
-
-### Optimization Tips
-
-1. **Whitelist Size**: Keep whitelist reasonably sized (<1000 addresses)
-2. **Cleanup Frequency**: Adjust cleanup interval based on load
-3. **Tracking Limit**: Consider adding limits on tracked transactions
-4. **Memory Usage**: Monitor memory with many pending transactions
-
----
+```go
+stats := book.GetStats()
+fmt.Printf("Total transactions: %d\n", stats.TotalTransactions)
+fmt.Printf("Pending transactions: %d\n", stats.PendingTransactions)
+fmt.Printf("Included transactions: %d\n", stats.IncludedTransactions)
+fmt.Printf("Next sequence number: %d\n", stats.NextSequence)
+fmt.Printf("Current block height: %d\n", stats.CurrentBlockHeight)
+fmt.Printf("Registered sequencers: %d\n", stats.SequencerCount)
+```
 
 ## Security Considerations
 
-### Preconfirmation Security
+### Sequencer Key Management
 
-⚠️ **Important**: Preconfirmations are **non-binding**:
+- **Keep private keys secure**: Sequencer private keys control transaction ordering
+- **Key rotation**: Support for adding/removing sequencers dynamically
+- **Multi-sequencer**: Can register multiple sequencers for redundancy
 
-- Not consensus-guaranteed
-- Validator may go offline
-- Block may be reorganized
-- Should be used for UX, not security
+### Signature Verification
 
-### Whitelist Security
+- All transactions require valid sequencer signatures
+- Signatures are verified before accepting transactions
+- Message format is deterministic to prevent replay attacks
 
-- Uses Ethereum address format (0x...)
-- Case-insensitive comparison
-- Thread-safe with RWMutex
-- Empty whitelist = all allowed (default)
+### Sequence Enforcement
 
-### DoS Prevention
+- Strict ordering prevents transaction reordering attacks
+- No gaps allowed ensures complete transaction sets
+- Per-block reset prevents long-running sequence issues
 
-- Single priority level limits abuse
-- Whitelist can restrict access
-- Standard mempool limits apply
-- No guaranteed inclusion
+## Testing
 
----
+The package includes comprehensive tests:
+
+```bash
+# Run all executionbook tests
+go test ./executionbook/...
+
+# Run specific test suites
+go test ./executionbook/... -run TestExecutionBook
+go test ./executionbook/... -run TestProposalHandler
+go test ./executionbook/... -run TestSequencerGRPC
+```
 
 ## Future Enhancements
 
-Possible improvements for future versions:
+Potential improvements for production:
 
-1. **Multiple Priority Levels**: Support different priority tiers
-2. **Dynamic Pricing**: Fee-based priority levels
-3. **Preconfirmation Aggregation**: Multi-validator preconfirmations
-4. **Metrics**: Prometheus metrics for monitoring
-5. **Rate Limiting**: Per-address rate limits
-6. **Priority Decay**: Time-based priority reduction
-7. **Guaranteed Inclusion**: Consensus-backed guarantees
+1. **Transaction Pool Integration**: Store actual transaction bytes, not just hashes
+2. **Gas Limit Handling**: Respect block gas limits during proposal preparation
+3. **MEV Protection**: Additional sequencer-level MEV protection mechanisms
+4. **Sequencer Rotation**: Automatic sequencer rotation based on governance
+5. **Cross-Chain Integration**: Bridge support for cross-chain sequencing
+6. **Monitoring**: Prometheus metrics for execution book performance
+7. **Persistence**: Persistent storage for transaction history
 
----
+## Migration from Priority Transaction System
 
-## Troubleshooting
+This package **completely replaces** the old priority transaction system:
 
-### Common Issues
+- ❌ No more priority transaction prefixes
+- ❌ No more mempool-based transaction selection
+- ❌ No more whitelist management
+- ✅ All blocks built from sequencer transactions
+- ✅ Guaranteed ordering and inclusion
+- ✅ Off-chain execution before on-chain finalization
 
-**Transaction not getting priority boost:**
-- Check memo has `PRIORITY:` prefix
-- Verify address is whitelisted (if enabled)
-- Confirm preconfer is enabled in config
+## License
 
-**Preconfirmation not created:**
-- Check validator address is configured
-- Verify transaction is valid
-- Ensure priority level is 1
-
-**Whitelist not working:**
-- Use Ethereum address format (0x...)
-- Check address is in whitelist
-- Verify whitelist is not empty
-
-### Debug Logging
-
-Enable debug logging to troubleshoot:
-
-```toml
-[log]
-level = "debug"
-```
-
-Look for log messages:
-- `"inserting priority transaction"` - Priority boost applied
-- `"priority transaction rejected"` - Whitelist rejection
-- `"counted priority transactions in mempool"` - Position calculation
-- `"priority transaction accepted"` - Successful submission
-
-**Last Updated**: October 15, 2025
-
+This package is part of Cronos and follows the project's license.

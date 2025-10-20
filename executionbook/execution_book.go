@@ -1,374 +1,401 @@
 package executionbook
 
 import (
-	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
-	"strings"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/common"
+	"time"
 
 	"cosmossdk.io/log"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/mempool"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 )
 
-var _ mempool.Mempool = &ExecutionBook{}
+// SequencerTransaction represents a transaction executed by the sequencer
+type SequencerTransaction struct {
+	TxHash         []byte // 32-byte transaction hash
+	SequenceNumber uint64
+	Signature      []byte // Max 65 bytes for secp256k1/Ed25519
+	SequencerID    string // Identifier of the sequencer that executed this
+	Timestamp      time.Time
+	BlockHeight    uint64 // Block where it should be included
+	Included       bool   // Whether it has been included in a block
+}
 
-// ExecutionBook wraps the standard mempool and enhances it
-// to give marked transactions higher priority
+// ExecutionBook stores and tracks sequencer-executed transactions
 type ExecutionBook struct {
-	mempool.Mempool
-	txDecoder sdk.TxDecoder
-	logger    log.Logger
+	// Map of txHash -> SequencerTransaction
+	transactions map[string]*SequencerTransaction
 
-	// Priority boost for marked transactions
-	// This value is added to the transaction's base priority
-	priorityBoost int64
+	// Ordered list of transactions by sequence number
+	orderedTxs []*SequencerTransaction
 
-	// Whitelist for priority boosting
-	// If empty, all addresses can use priority boosting
-	// If non-empty, only whitelisted addresses can boost priority
-	whitelistMu sync.RWMutex
-	whitelist   map[string]bool
+	// Expected next sequence number (global sequence, continuously incrementing)
+	nextSequence uint64
 
-	// SignerExtractor for extracting signer addresses from transactions
-	signerExtractor mempool.SignerExtractionAdapter
+	// Current block height being built
+	currentBlockHeight uint64
+
+	// Sequencer public keys for signature verification
+	// Map of sequencerID -> public key
+	sequencerPubKeys map[string]cryptotypes.PubKey
+
+	// Mutex for thread-safe access
+	mu sync.RWMutex
+
+	logger log.Logger
 }
 
-// ExecutionBookConfig configuration for the preconfer mempool
+// ExecutionBookConfig configuration for the execution book
 type ExecutionBookConfig struct {
-	// BaseMempool is the underlying mempool implementation
-	BaseMempool mempool.Mempool
-
-	// TxDecoder for decoding transaction bytes
-	TxDecoder sdk.TxDecoder
-
-	// PriorityBoost is the priority increase for marked transactions
-	// Default is 1_000_000_000 if not specified
-	PriorityBoost int64
-
-	// Logger for mempool operations
-	Logger log.Logger
-
-	// WhitelistAddresses is the list of addresses allowed to boost priority
-	// If empty, all addresses are allowed
-	WhitelistAddresses []string
-
-	// SignerExtractor for extracting signer addresses from transactions
-	// If not provided, uses NewDefaultSignerExtractionAdapter
-	SignerExtractor mempool.SignerExtractionAdapter
+	Logger           log.Logger
+	SequencerPubKeys map[string]cryptotypes.PubKey // Map of sequencerID -> pubkey
 }
 
-// NewExecutionBook creates a new preconfer mempool
+// NewExecutionBook creates a new execution book
 func NewExecutionBook(cfg ExecutionBookConfig) *ExecutionBook {
-	if cfg.PriorityBoost == 0 {
-		cfg.PriorityBoost = DefaultPriorityBoost
-	}
-
 	if cfg.Logger == nil {
 		cfg.Logger = log.NewNopLogger()
 	}
 
-	if cfg.SignerExtractor == nil {
-		cfg.SignerExtractor = mempool.NewDefaultSignerExtractionAdapter()
+	if cfg.SequencerPubKeys == nil {
+		cfg.SequencerPubKeys = make(map[string]cryptotypes.PubKey)
 	}
 
-	// Initialize whitelist map
-	whitelist := make(map[string]bool)
-	for _, addr := range cfg.WhitelistAddresses {
-		whitelist[addr] = true
+	book := &ExecutionBook{
+		transactions:       make(map[string]*SequencerTransaction),
+		orderedTxs:         make([]*SequencerTransaction, 0),
+		nextSequence:       0,
+		currentBlockHeight: 0,
+		sequencerPubKeys:   cfg.SequencerPubKeys,
+		logger:             cfg.Logger,
 	}
 
-	m := &ExecutionBook{
-		Mempool:         cfg.BaseMempool,
-		txDecoder:       cfg.TxDecoder,
-		logger:          cfg.Logger,
-		priorityBoost:   cfg.PriorityBoost,
-		whitelist:       whitelist,
-		signerExtractor: cfg.SignerExtractor,
-	}
+	cfg.Logger.Info("ExecutionBook initialized",
+		"sequencer_count", len(cfg.SequencerPubKeys))
 
-	// Log the base mempool type and whitelist configuration
-	if len(whitelist) == 0 {
-		cfg.Logger.Info("preconfer.ExecutionBook initialized",
-			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
-			"priority_boost", cfg.PriorityBoost,
-			"whitelist", "disabled (all addresses allowed)")
-	} else {
-		cfg.Logger.Info("preconfer.ExecutionBook initialized",
-			"base_mempool_type", fmt.Sprintf("%T", cfg.BaseMempool),
-			"priority_boost", cfg.PriorityBoost,
-			"whitelist", "enabled",
-			"whitelist_count", len(whitelist))
-	}
-
-	return m
+	return book
 }
 
-// Insert adds a transaction to the mempool with priority boosting.
-// If the transaction is marked as a priority transaction, its priority
-// is boosted by adding priorityBoost to the context's priority value.
-func (epm *ExecutionBook) Insert(ctx context.Context, tx sdk.Tx) error {
-	// Extract gas limit from transaction if available
-	var gasWanted uint64
-	if gasTx, ok := tx.(interface{ GetGas() uint64 }); ok {
-		gasWanted = gasTx.GetGas()
+// SubmitSequencerTx submits a sequencer transaction to the execution book
+// Returns error if signature is invalid or sequence number is out of order
+func (eb *ExecutionBook) SubmitSequencerTx(
+	txHash []byte,
+	sequenceNumber uint64,
+	signature []byte,
+	sequencerID string,
+) error {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
+
+	// Validate txHash length (must be exactly 32 bytes)
+	if len(txHash) != 32 {
+		return fmt.Errorf("invalid tx hash length: expected 32 bytes, got %d", len(txHash))
 	}
 
-	return epm.InsertWithGasWanted(ctx, tx, gasWanted)
+	// Validate signature length (max 65 bytes for secp256k1/Ed25519)
+	if len(signature) > 65 {
+		return fmt.Errorf("signature too long: max 65 bytes, got %d", len(signature))
+	}
+	if len(signature) == 0 {
+		return fmt.Errorf("signature cannot be empty")
+	}
+
+	// Verify sequencer is known
+	sequencerPubKey, exists := eb.sequencerPubKeys[sequencerID]
+	if !exists {
+		return fmt.Errorf("unknown sequencer: %s", sequencerID)
+	}
+
+	// Verify signature
+	if !eb.verifySequencerSignature(txHash, sequenceNumber, signature, sequencerPubKey) {
+		return fmt.Errorf("invalid sequencer signature for tx %x", txHash)
+	}
+
+	// Check if transaction already exists
+	txHashStr := hex.EncodeToString(txHash)
+	if _, exists := eb.transactions[txHashStr]; exists {
+		return fmt.Errorf("transaction %x already submitted", txHash)
+	}
+
+	// Enforce strict sequence ordering - must be exactly the next expected sequence
+	if sequenceNumber != eb.nextSequence {
+		return fmt.Errorf("sequence number mismatch: expected %d, got %d (no gaps allowed)",
+			eb.nextSequence, sequenceNumber)
+	}
+
+	// Create transaction entry
+	tx := &SequencerTransaction{
+		TxHash:         txHash,
+		SequenceNumber: sequenceNumber,
+		Signature:      signature,
+		SequencerID:    sequencerID,
+		Timestamp:      time.Now(),
+		BlockHeight:    eb.currentBlockHeight,
+		Included:       false,
+	}
+
+	// Store transaction
+	eb.transactions[txHashStr] = tx
+	eb.orderedTxs = append(eb.orderedTxs, tx)
+
+	// Increment next expected sequence (global sequence, never resets)
+	eb.nextSequence++
+
+	eb.logger.Debug("Sequencer transaction submitted",
+		"tx_hash", hex.EncodeToString(txHash),
+		"sequence", sequenceNumber,
+		"sequencer_id", sequencerID,
+		"next_sequence", eb.nextSequence)
+
+	return nil
 }
 
-// InsertWithGasWanted adds a transaction to the mempool with explicit gas wanted.
-// If the transaction is marked as a priority transaction, its priority is boosted
-// by modifying the context's priority before delegating to the base mempool.
-//
-// The PriorityNonceMempool retrieves priority using TxPriority.GetTxPriority(ctx, tx),
-// which reads from ctx.Priority(). By modifying the context's priority here, we ensure
-// the boosted priority is properly indexed in the underlying mempool's skip list.
-//
-// Priority boosting is only applied if:
-// 1. The transaction is marked with PRIORITY: prefix
-// 2. The sender is whitelisted (or whitelist is empty/disabled)
-func (epm *ExecutionBook) InsertWithGasWanted(ctx context.Context, tx sdk.Tx, gasWanted uint64) error {
-	// Check if this is a priority transaction
-	isPriority := IsMarkedPriorityTx(tx)
+// GetOrderedTransactions returns transactions in sequence order for block building
+// Only returns transactions that haven't been included yet
+func (eb *ExecutionBook) GetOrderedTransactions() []*SequencerTransaction {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
 
-	if isPriority {
-		// Check if sender is authorized to boost priority
-		isAuthorized := epm.isAddressWhitelisted(tx)
-
-		if isAuthorized {
-			// Log priority transaction insertion
-			if txWithMemo, ok := tx.(sdk.TxWithMemo); ok {
-				epm.logger.Debug("inserting priority transaction",
-					"memo", txWithMemo.GetMemo(),
-					"gas", gasWanted,
-					"boost", epm.priorityBoost)
-			}
-
-			// Boost the priority by modifying the context
-			// The base mempool will read this boosted priority value
-			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			currentPriority := sdkCtx.Priority()
-			boostedPriority := currentPriority + epm.priorityBoost
-
-			// Create a new context with the boosted priority
-			sdkCtx = sdkCtx.WithPriority(boostedPriority)
-			ctx = sdkCtx
-		} else {
-			epm.logger.Debug("priority transaction rejected - sender not whitelisted",
-				"tx", fmt.Sprintf("%v", tx))
+	// Return only non-included transactions in order
+	result := make([]*SequencerTransaction, 0, len(eb.orderedTxs))
+	for _, tx := range eb.orderedTxs {
+		if !tx.Included {
+			result = append(result, tx)
 		}
 	}
 
-	// Delegate to base mempool's InsertWithGasWanted
-	// InsertWithGasWanted is part of the mempool.Mempool interface
-	return epm.Mempool.InsertWithGasWanted(ctx, tx, gasWanted)
+	return result
 }
 
-// Select returns an iterator of transactions in priority order
-// Priority transactions will naturally come first due to their boosted priority
-func (epm *ExecutionBook) Select(ctx context.Context, txs [][]byte) mempool.Iterator {
-	return epm.Mempool.Select(ctx, txs)
-}
+// MarkIncluded marks transactions as included in a block
+// This should be called after block commit
+func (eb *ExecutionBook) MarkIncluded(txHashes [][]byte, blockHeight uint64) {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
 
-// CountTx returns the number of transactions in the mempool
-func (epm *ExecutionBook) CountTx() int {
-	return epm.Mempool.CountTx()
-}
+	for _, txHash := range txHashes {
+		txHashStr := hex.EncodeToString(txHash)
+		if tx, exists := eb.transactions[txHashStr]; exists {
+			tx.Included = true
+			tx.BlockHeight = blockHeight
 
-// Remove removes a transaction from the mempool
-func (epm *ExecutionBook) Remove(tx sdk.Tx) error {
-	return epm.Mempool.Remove(tx)
-}
-
-// GetPriorityBoost returns the configured priority boost value
-func (epm *ExecutionBook) GetPriorityBoost() int64 {
-	return epm.priorityBoost
-}
-
-// SetPriorityBoost allows dynamic adjustment of the priority boost
-func (epm *ExecutionBook) SetPriorityBoost(boost int64) {
-	if boost < 0 {
-		epm.logger.Warn("attempted to set negative priority boost", "boost", boost)
-		return
+			eb.logger.Debug("Transaction marked as included",
+				"tx_hash", hex.EncodeToString(txHash),
+				"block_height", blockHeight)
+		}
 	}
-	epm.priorityBoost = boost
-	epm.logger.Info("priority boost updated", "new_boost", boost)
 }
 
-// GetStats returns mempool statistics
-func (epm *ExecutionBook) GetStats() string {
-	return fmt.Sprintf("Mempool{count=%d, boost=%d}",
-		epm.CountTx(), epm.priorityBoost)
-}
+// CleanupIncludedTransactions removes transactions that have been included
+// This is called after block finalization to free memory
+func (eb *ExecutionBook) CleanupIncludedTransactions() int {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
 
-// GetBaseMempool returns the underlying base mempool
-// This is useful for type checking and verification
-func (epm *ExecutionBook) GetBaseMempool() mempool.Mempool {
-	return epm.Mempool
-}
+	cleanedCount := 0
 
-// IsPriorityNonceMempool checks if the base mempool is a PriorityNonceMempool
-func (epm *ExecutionBook) IsPriorityNonceMempool() bool {
-	typeName := fmt.Sprintf("%T", epm.Mempool)
-	// Check if it's a PriorityNonceMempool (the type will be *mempool.PriorityNonceMempool[int64])
-	return typeName == PriorityNonceMempoolType
-}
-
-// GetBaseMempoolType returns the type name of the base mempool
-func (epm *ExecutionBook) GetBaseMempoolType() string {
-	return fmt.Sprintf("%T", epm.Mempool)
-}
-
-// isAddressWhitelisted checks if the transaction sender is authorized for priority boosting
-// Returns true if:
-// - Whitelist is empty (everyone allowed)
-// - Sender address is in the whitelist
-func (epm *ExecutionBook) isAddressWhitelisted(tx sdk.Tx) bool {
-	epm.whitelistMu.RLock()
-	defer epm.whitelistMu.RUnlock()
-
-	// If whitelist is empty, allow everyone
-	if len(epm.whitelist) == 0 {
-		return true
+	// Remove included transactions
+	for txHash, tx := range eb.transactions {
+		if tx.Included {
+			delete(eb.transactions, txHash)
+			cleanedCount++
+		}
 	}
 
-	// Extract signer addresses from transaction
-	signers, err := epm.signerExtractor.GetSigners(tx)
+	// Rebuild ordered list without included transactions
+	newOrdered := make([]*SequencerTransaction, 0)
+	for _, tx := range eb.orderedTxs {
+		if !tx.Included {
+			newOrdered = append(newOrdered, tx)
+		}
+	}
+	eb.orderedTxs = newOrdered
+
+	if cleanedCount > 0 {
+		eb.logger.Info("Cleaned up included transactions",
+			"count", cleanedCount,
+			"remaining", len(eb.transactions))
+	}
+
+	return cleanedCount
+}
+
+// UpdateBlockHeight updates the current block height being built
+// Note: Sequence numbers are global and do NOT reset per block
+// This should be called at the start of each new block
+func (eb *ExecutionBook) UpdateBlockHeight(blockHeight uint64) {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
+
+	eb.currentBlockHeight = blockHeight
+
+	eb.logger.Debug("Block height updated",
+		"block_height", blockHeight,
+		"next_sequence", eb.nextSequence)
+}
+
+// GetNextSequence returns the expected next sequence number
+func (eb *ExecutionBook) GetNextSequence() uint64 {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+	return eb.nextSequence
+}
+
+// GetTransactionCount returns the number of pending transactions
+func (eb *ExecutionBook) GetTransactionCount() int {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	count := 0
+	for _, tx := range eb.transactions {
+		if !tx.Included {
+			count++
+		}
+	}
+	return count
+}
+
+// GetTransaction returns a transaction by hash
+func (eb *ExecutionBook) GetTransaction(txHash []byte) (*SequencerTransaction, bool) {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	txHashStr := hex.EncodeToString(txHash)
+	tx, exists := eb.transactions[txHashStr]
+	return tx, exists
+}
+
+// AddSequencer adds a new sequencer public key for verification
+func (eb *ExecutionBook) AddSequencer(sequencerID string, pubKey cryptotypes.PubKey) {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
+
+	eb.sequencerPubKeys[sequencerID] = pubKey
+
+	eb.logger.Info("Sequencer added",
+		"sequencer_id", sequencerID,
+		"key_type", pubKey.Type())
+}
+
+// RemoveSequencer removes a sequencer
+func (eb *ExecutionBook) RemoveSequencer(sequencerID string) {
+	eb.mu.Lock()
+	defer eb.mu.Unlock()
+
+	delete(eb.sequencerPubKeys, sequencerID)
+
+	eb.logger.Info("Sequencer removed",
+		"sequencer_id", sequencerID)
+}
+
+// verifySequencerSignature verifies the sequencer's signature on a transaction
+func (eb *ExecutionBook) verifySequencerSignature(
+	txHash []byte,
+	sequenceNumber uint64,
+	signature []byte,
+	pubKey cryptotypes.PubKey,
+) bool {
+	if pubKey == nil || len(signature) == 0 {
+		return false
+	}
+
+	// Create canonical message for signing
+	// Format: SEQUENCER_TX | txHash | sequenceNumber
+	msg := eb.createSequencerMessage(txHash, sequenceNumber)
+
+	// Verify signature
+	return pubKey.VerifySignature(msg, signature)
+}
+
+// createSequencerMessage creates the canonical message format for sequencer signing
+func (eb *ExecutionBook) createSequencerMessage(txHash []byte, sequenceNumber uint64) []byte {
+	// Create deterministic message format
+	// Structure: SEQUENCER_TX | txHash | sequenceNumber
+
+	msg := []byte("SEQUENCER_TX|")
+	msg = append(msg, txHash...)
+	msg = append(msg, '|')
+
+	// Add sequence number as 8 bytes (uint64)
+	seqBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(seqBytes, sequenceNumber)
+	msg = append(msg, seqBytes...)
+
+	// Hash the message for signing
+	hash := sha256.Sum256(msg)
+	return hash[:]
+}
+
+// CreateSequencerSignature is a helper for sequencers to create signatures
+// This can be used by the sequencer or relayer for testing
+func CreateSequencerSignature(
+	txHash []byte,
+	sequenceNumber uint64,
+	privKey cryptotypes.PrivKey,
+) ([]byte, error) {
+	if privKey == nil {
+		return nil, fmt.Errorf("private key is nil")
+	}
+
+	// Create message
+	msg := []byte("SEQUENCER_TX|")
+	msg = append(msg, txHash...)
+	msg = append(msg, '|')
+
+	seqBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(seqBytes, sequenceNumber)
+	msg = append(msg, seqBytes...)
+
+	// Hash and sign
+	hash := sha256.Sum256(msg)
+	signature, err := privKey.Sign(hash[:])
 	if err != nil {
-		epm.logger.Debug("failed to extract signers", "error", err)
-		return false
+		return nil, fmt.Errorf("failed to sign: %w", err)
 	}
 
-	if len(signers) == 0 {
-		epm.logger.Debug("transaction has no signers")
-		return false
-	}
+	return signature, nil
+}
 
-	// Check if the first signer is whitelisted
-	// (following the same pattern as PriorityNonceMempool)
-	firstSigner := signers[0].Signer
+// GetStats returns statistics about the execution book
+func (eb *ExecutionBook) GetStats() ExecutionBookStats {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
 
-	// Convert AccAddress to Ethereum address format (0x...)
-	// AccAddress in Cronos is the 20-byte Ethereum address
-	ethAddr := common.BytesToAddress(firstSigner).Hex()
+	pending := 0
+	included := 0
 
-	// Also check bech32 format for backward compatibility
-	bech32Addr := firstSigner.String()
-
-	// Check both formats (case-insensitive for Ethereum addresses)
-	for whitelistAddr := range epm.whitelist {
-		// Check if it's an Ethereum address format (0x...)
-		if strings.HasPrefix(strings.ToLower(whitelistAddr), "0x") {
-			if strings.EqualFold(whitelistAddr, ethAddr) {
-				return true
-			}
+	for _, tx := range eb.transactions {
+		if tx.Included {
+			included++
 		} else {
-			// Bech32 format comparison
-			if whitelistAddr == bech32Addr {
-				return true
-			}
+			pending++
 		}
 	}
 
-	return false
-}
-
-// AddToWhitelist adds an address to the whitelist
-func (epm *ExecutionBook) AddToWhitelist(address string) {
-	epm.whitelistMu.Lock()
-	defer epm.whitelistMu.Unlock()
-
-	epm.whitelist[address] = true
-	epm.logger.Info("address added to whitelist",
-		"address", address,
-		"whitelist_count", len(epm.whitelist))
-}
-
-// RemoveFromWhitelist removes an address from the whitelist
-func (epm *ExecutionBook) RemoveFromWhitelist(address string) {
-	epm.whitelistMu.Lock()
-	defer epm.whitelistMu.Unlock()
-
-	delete(epm.whitelist, address)
-	epm.logger.Info("address removed from whitelist",
-		"address", address,
-		"whitelist_count", len(epm.whitelist))
-}
-
-// IsWhitelisted checks if an address is in the whitelist
-// Returns true only if the address is explicitly in the whitelist map
-// Returns false if the whitelist is empty or the address is not in it
-func (epm *ExecutionBook) IsWhitelisted(address string) bool {
-	epm.whitelistMu.RLock()
-	defer epm.whitelistMu.RUnlock()
-
-	// Check both formats (case-insensitive for Ethereum addresses)
-	for whitelistAddr := range epm.whitelist {
-		// Check if it's an Ethereum address format (0x...)
-		if strings.HasPrefix(strings.ToLower(whitelistAddr), "0x") {
-			// Case-insensitive comparison for Ethereum addresses
-			if strings.HasPrefix(strings.ToLower(address), "0x") && strings.EqualFold(whitelistAddr, address) {
-				return true
-			}
-		} else {
-			// Exact comparison for bech32 format
-			if whitelistAddr == address {
-				return true
-			}
-		}
+	return ExecutionBookStats{
+		TotalTransactions:    len(eb.transactions),
+		PendingTransactions:  pending,
+		IncludedTransactions: included,
+		NextSequence:         eb.nextSequence,
+		CurrentBlockHeight:   eb.currentBlockHeight,
+		SequencerCount:       len(eb.sequencerPubKeys),
 	}
-
-	return false
 }
 
-// GetWhitelist returns a copy of the current whitelist
-func (epm *ExecutionBook) GetWhitelist() []string {
-	epm.whitelistMu.RLock()
-	defer epm.whitelistMu.RUnlock()
-
-	addresses := make([]string, 0, len(epm.whitelist))
-	for addr := range epm.whitelist {
-		addresses = append(addresses, addr)
-	}
-	return addresses
+// ExecutionBookStats contains statistics about the execution book
+type ExecutionBookStats struct {
+	TotalTransactions    int
+	PendingTransactions  int
+	IncludedTransactions int
+	NextSequence         uint64
+	CurrentBlockHeight   uint64
+	SequencerCount       int
 }
 
-// ClearWhitelist removes all addresses from the whitelist
-// After this, all addresses will be allowed to boost priority
-func (epm *ExecutionBook) ClearWhitelist() {
-	epm.whitelistMu.Lock()
-	defer epm.whitelistMu.Unlock()
-
-	epm.whitelist = make(map[string]bool)
-	epm.logger.Info("whitelist cleared - all addresses now allowed")
-}
-
-// WhitelistCount returns the number of addresses in the whitelist
-func (epm *ExecutionBook) WhitelistCount() int {
-	epm.whitelistMu.RLock()
-	defer epm.whitelistMu.RUnlock()
-
-	return len(epm.whitelist)
-}
-
-// SetWhitelist replaces the entire whitelist with a new set of addresses
-func (epm *ExecutionBook) SetWhitelist(addresses []string) {
-	epm.whitelistMu.Lock()
-	defer epm.whitelistMu.Unlock()
-
-	epm.whitelist = make(map[string]bool)
-	for _, addr := range addresses {
-		epm.whitelist[addr] = true
-	}
-
-	if len(addresses) == 0 {
-		epm.logger.Info("whitelist set to empty - all addresses now allowed")
-	} else {
-		epm.logger.Info("whitelist updated",
-			"whitelist_count", len(epm.whitelist))
-	}
+// CalculateTxHash is a helper to calculate transaction hash from bytes
+func CalculateTxHash(txBytes []byte) []byte {
+	hash := sha256.Sum256(txBytes)
+	return hash[:]
 }

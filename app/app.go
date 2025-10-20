@@ -15,7 +15,6 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
-	"time"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -108,6 +107,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -318,11 +318,11 @@ type App struct {
 
 	CronosKeeper cronoskeeper.Keeper
 
-	// preconfer mempool for whitelist management
-	preconferMempool *executionbook.ExecutionBook
+	// execution book for sequencer transaction management
+	executionBook *executionbook.ExecutionBook
 
-	// priority tx service for preconfirmation
-	priorityTxService *executionbook.PriorityTxService
+	// proposal handler for sequencer integration
+	sequencerProposalHandler *executionbook.ProposalHandler
 
 	// the module manager
 	ModuleManager      *module.Manager
@@ -386,12 +386,13 @@ func New(
 
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
-	// Check if preconfer (priority tx selector) is enabled in app.toml
-	preconferEnabled := cast.ToBool(appOpts.Get("preconfer.enable"))
-	preconferWhitelist := cast.ToStringSlice(appOpts.Get("preconfer.whitelist"))
+	// Check if sequencer mode is enabled in app.toml
+	sequencerEnabled := cast.ToBool(appOpts.Get("sequencer.enable"))
 
 	var mpool mempool.Mempool
-	var preconferMempoolRef *executionbook.ExecutionBook
+	var executionBookRef *executionbook.ExecutionBook
+	var sequencerProposalHandlerRef *executionbook.ProposalHandler
+
 	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -402,39 +403,38 @@ func New(
 			MaxTx:           maxTxs,
 		})
 
-		// Wrap with preconfer ExecutionBook if preconfer is enabled
-		if preconferEnabled {
-			logger.Info("Wrapping mempool with executionbook.ExecutionBook for priority transaction support",
-				"whitelist_enabled", len(preconferWhitelist) > 0,
-				"whitelist_count", len(preconferWhitelist))
-			preconferMpool := executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
-				BaseMempool:        baseMpool,
-				TxDecoder:          txDecoder,
-				PriorityBoost:      executionbook.DefaultPriorityBoost,
-				Logger:             logger,
-				WhitelistAddresses: preconferWhitelist,
-				SignerExtractor:    evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
-			})
-
-			// Verify and log the mempool configuration
-			executionbook.LogMempoolConfiguration(preconferMpool, logger)
-
-			// Validate that the mempool is correctly configured
-			if err := executionbook.ValidatePreconferMempool(preconferMpool); err != nil {
-				logger.Error("Preconfer mempool validation failed", "error", err)
-				panic(fmt.Sprintf("Invalid preconfer mempool configuration: %v", err))
-			}
-			logger.Info("✓ Preconfer mempool validation passed")
-
-			mpool = preconferMpool
-			// Store reference for gRPC service registration later
-			preconferMempoolRef = preconferMpool
-		} else {
-			mpool = baseMpool
-		}
+		mpool = baseMpool
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
+	}
+
+	// Initialize ExecutionBook if sequencer mode is enabled
+	if sequencerEnabled {
+		logger.Info("Initializing ExecutionBook for sequencer transaction management")
+
+		// TODO: Load sequencer public keys from configuration
+		// For now, initialize with empty sequencer keys - they can be added at runtime
+		sequencerPubKeys := make(map[string]cryptotypes.PubKey)
+
+		executionBookRef = executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
+			Logger:           logger.With("module", "execution_book"),
+			SequencerPubKeys: sequencerPubKeys,
+		})
+
+		// Create a wrapper to adapt SDK's TxDecoder to executionbook.TxDecoder
+		txDecoderWrapper := func(txBytes []byte) (interface{}, error) {
+			return txDecoder(txBytes)
+		}
+
+		// Initialize the proposal handler for sequencer integration
+		sequencerProposalHandlerRef = executionbook.NewProposalHandler(executionbook.ProposalHandlerConfig{
+			Book:      executionBookRef,
+			TxDecoder: txDecoderWrapper,
+			Logger:    logger.With("module", "sequencer_proposal_handler"),
+		})
+
+		logger.Info("ExecutionBook and ProposalHandler initialized successfully")
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
@@ -442,30 +442,25 @@ func New(
 
 		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
 
-		if preconferEnabled {
-			// Re-use the default prepare proposal handler, extend the transaction validation logic
-			// with priority transaction support via PriorityTxSelector
-			// This selector will prioritize transactions marked with PRIORITY: in their memo field
-			logger.Info("Priority transaction selector (preconfer) enabled")
-			defaultProposalHandler.SetTxSelector(executionbook.NewPriorityTxSelector(
-				baseapp.NewDefaultTxSelector(),
-				txDecoder,
-				blockProposalHandler.ValidateTransaction,
-			))
-		} else {
-			logger.Info("Priority transaction selector (preconfer) disabled, using default tx selector")
-			defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-				baseapp.NewDefaultTxSelector(),
-				txDecoder,
-				blockProposalHandler.ValidateTransaction,
-			))
-		}
+		// Use custom transaction selector for extended transaction validation
+		logger.Info("Using custom transaction selector")
+		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+			baseapp.NewDefaultTxSelector(),
+			txDecoder,
+			blockProposalHandler.ValidateTransaction,
+		))
 
 		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
-
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
+
+		// TODO: Integrate sequencer proposal handler with BaseApp's proposal handlers
+		// This requires adapting the handler signatures to match SDK's Context-based handlers
+		if sequencerEnabled && sequencerProposalHandlerRef != nil {
+			logger.Info("Sequencer proposal handler initialized but not yet integrated with BaseApp")
+			logger.Info("TODO: Implement Context-aware wrapper for sequencer proposal handlers")
+		}
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
@@ -492,52 +487,21 @@ func New(
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
 
-	// Create priority tx service if preconfer is enabled
-	var priorityTxServiceRef *executionbook.PriorityTxService
-	if preconferMempoolRef != nil {
-		// Get validator address from config (optional)
-		validatorAddr := cast.ToString(appOpts.Get("preconfer.validator_address"))
-
-		// Get preconfirmation timeout from config with default of 30 seconds
-		preconfirmTimeout := 30 * time.Second
-		if timeoutStr := cast.ToString(appOpts.Get("preconfer.preconfirm_timeout")); timeoutStr != "" {
-			if parsedTimeout, err := time.ParseDuration(timeoutStr); err == nil {
-				preconfirmTimeout = parsedTimeout
-				logger.Info("Using configured preconfirmation timeout", "timeout", preconfirmTimeout)
-			} else {
-				logger.Error("Invalid preconfirm_timeout format, using default",
-					"configured", timeoutStr,
-					"default", preconfirmTimeout,
-					"error", err)
-			}
-		}
-
-		priorityTxServiceRef = executionbook.NewPriorityTxService(executionbook.PriorityTxServiceConfig{
-			App:               bApp,
-			Mempool:           preconferMempoolRef,
-			TxDecoder:         txDecoder,
-			Logger:            logger.With("module", "priority_tx_service"),
-			ValidatorAddress:  validatorAddr,
-			PreconfirmTimeout: preconfirmTimeout,
-		})
-		logger.Info("Priority transaction service initialized", "preconfirm_timeout", preconfirmTimeout)
-	}
-
 	app := &App{
-		BaseApp:              bApp,
-		cdc:                  cdc,
-		txConfig:             txConfig,
-		txDecoder:            txDecoder,
-		appCodec:             appCodec,
-		interfaceRegistry:    interfaceRegistry,
-		invCheckPeriod:       invCheckPeriod,
-		keys:                 keys,
-		tkeys:                tkeys,
-		okeys:                okeys,
-		blockProposalHandler: blockProposalHandler,
-		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
-		preconferMempool:     preconferMempoolRef,
-		priorityTxService:    priorityTxServiceRef,
+		BaseApp:                  bApp,
+		cdc:                      cdc,
+		txConfig:                 txConfig,
+		txDecoder:                txDecoder,
+		appCodec:                 appCodec,
+		interfaceRegistry:        interfaceRegistry,
+		invCheckPeriod:           invCheckPeriod,
+		keys:                     keys,
+		tkeys:                    tkeys,
+		okeys:                    okeys,
+		blockProposalHandler:     blockProposalHandler,
+		dummyCheckTx:             cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
+		executionBook:            executionBookRef,
+		sequencerProposalHandler: sequencerProposalHandlerRef,
 	}
 
 	app.SetDisableBlockGasMeter(true)
@@ -1044,18 +1008,12 @@ func New(
 	}
 	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), reflectionSvc)
 
-	// Register preconfer whitelist gRPC service if preconfer is enabled
-	if app.preconferMempool != nil {
-		whitelistServer := executionbook.NewWhitelistGRPCServer(app.preconferMempool)
-		executionbook.RegisterWhitelistServiceServer(app.GRPCQueryRouter(), whitelistServer)
-		logger.Info("Preconfer whitelist gRPC service registered")
-	}
-
-	// Register priority tx gRPC service if preconfer is enabled
-	if app.priorityTxService != nil {
-		priorityTxServer := executionbook.NewPriorityTxGRPCServer(app.priorityTxService)
-		executionbook.RegisterPriorityTxServiceServer(app.GRPCQueryRouter(), priorityTxServer)
-		logger.Info("Priority transaction gRPC service registered")
+	// Register sequencer gRPC service if sequencer mode is enabled
+	if app.executionBook != nil {
+		_ = executionbook.NewSequencerGRPCServer(app.executionBook)
+		// TODO: Register gRPC service once protobuf definitions are added
+		// executionbook.RegisterSequencerServiceServer(app.GRPCQueryRouter(), sequencerServer)
+		logger.Info("Sequencer service initialized (gRPC registration pending protobuf generation)")
 	}
 
 	app.sm.RegisterStoreDecoders()
