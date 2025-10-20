@@ -112,6 +112,9 @@ func TestConfigConsistency(t *testing.T) {
 	// Sequencer should be disabled by default
 	require.False(t, sequencerConfig.Enable)
 
+	// QuickBlockGasFraction should be 0.2 by default
+	require.Equal(t, 0.2, sequencerConfig.QuickBlockGasFraction)
+
 	// VersionDB should be disabled by default
 	require.False(t, versionDBConfig.Enable)
 }
@@ -167,5 +170,45 @@ func TestSequencerBookSize(t *testing.T) {
 		}
 		// Configuration allows negative values; ExecutionBook treats them as unlimited
 		require.Equal(t, -1, config.BookSize)
+	})
+}
+
+func TestSequencerQuickBlockGasFraction(t *testing.T) {
+	t.Run("Default QuickBlockGasFraction is 0.2", func(t *testing.T) {
+		config := DefaultSequencerConfig()
+		require.Equal(t, 0.2, config.QuickBlockGasFraction)
+	})
+
+	t.Run("QuickBlockGasFraction can be set", func(t *testing.T) {
+		config := SequencerConfig{
+			Enable:                true,
+			Keys:                  []SequencerKeyConfig{},
+			BookSize:              0,
+			QuickBlockGasFraction: 0.3,
+		}
+		require.Equal(t, 0.3, config.QuickBlockGasFraction)
+	})
+
+	t.Run("QuickBlockGasFraction edge cases", func(t *testing.T) {
+		// Very small value
+		config1 := SequencerConfig{
+			Enable:                true,
+			Keys:                  []SequencerKeyConfig{},
+			QuickBlockGasFraction: 0.01,
+		}
+		require.Equal(t, 0.01, config1.QuickBlockGasFraction)
+
+		// Large value (close to 1.0)
+		config2 := SequencerConfig{
+			Enable:                true,
+			Keys:                  []SequencerKeyConfig{},
+			QuickBlockGasFraction: 0.99,
+		}
+		require.Equal(t, 0.99, config2.QuickBlockGasFraction)
+	})
+
+	t.Run("Template contains QuickBlockGasFraction", func(t *testing.T) {
+		require.Contains(t, DefaultSequencerTemplate, "quick_block_gas_fraction")
+		require.Contains(t, DefaultSequencerTemplate, "{{ .Sequencer.QuickBlockGasFraction }}")
 	})
 }

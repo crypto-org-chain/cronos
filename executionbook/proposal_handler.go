@@ -2,27 +2,39 @@ package executionbook
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 // ProposalHandler handles block proposals using sequencer transactions
 type ProposalHandler struct {
-	book      *ExecutionBook
-	txDecoder TxDecoder
-	logger    log.Logger
+	book                  *ExecutionBook
+	txDecoder             TxDecoder
+	txEncoder             TxEncoder
+	mempool               mempool.Mempool
+	quickBlockGasFraction float64 // Fraction of maxBlockGas for QuickBlockGasFraction txs (e.g., 0.2 for 1/5)
+	logger                log.Logger
 }
 
 // TxDecoder is a function that decodes transaction bytes
 type TxDecoder func(txBytes []byte) (interface{}, error)
 
+// TxEncoder is a function that encodes transaction to bytes
+type TxEncoder func(tx sdk.Tx) ([]byte, error)
+
 // ProposalHandlerConfig configuration for the proposal handler
 type ProposalHandlerConfig struct {
-	Book      *ExecutionBook
-	TxDecoder TxDecoder
-	Logger    log.Logger
+	Book                  *ExecutionBook
+	TxDecoder             TxDecoder
+	TxEncoder             TxEncoder       // Optional: for encoding transactions from mempool
+	Mempool               mempool.Mempool // Optional: mempool for fetching regular transactions
+	QuickBlockGasFraction float64         // Optional: fraction of maxBlockGas for QuickBlockGasFraction txs (default 0.2 = 1/5)
+	Logger                log.Logger
 }
 
 // NewProposalHandler creates a new proposal handler
@@ -37,70 +49,116 @@ func NewProposalHandler(cfg ProposalHandlerConfig) *ProposalHandler {
 		cfg.Logger = log.NewNopLogger()
 	}
 
+	// Default quickBlockGasFraction gas limit to 1/5 (0.2)
+	quickBlockGasFraction := cfg.QuickBlockGasFraction
+	if quickBlockGasFraction <= 0 || quickBlockGasFraction >= 1.0 {
+		quickBlockGasFraction = 0.2 // Default to 1/5
+	}
+
 	return &ProposalHandler{
-		book:      cfg.Book,
-		txDecoder: cfg.TxDecoder,
-		logger:    cfg.Logger,
+		book:                  cfg.Book,
+		txDecoder:             cfg.TxDecoder,
+		txEncoder:             cfg.TxEncoder,
+		mempool:               cfg.Mempool,
+		quickBlockGasFraction: quickBlockGasFraction,
+		logger:                cfg.Logger,
 	}
 }
 
-// PrepareProposalHandler prepares a block proposal using ONLY sequencer transactions
-// This overrides the default block building to use transactions from the execution book
+// PrepareProposalHandler prepares a block proposal from sequencer transactions
+// Sequencer transactions get up to quickBlockGasFraction of maxBlockGas
 func (h *ProposalHandler) PrepareProposalHandler() func(*abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	return func(req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		ctx := sdk.Context{}.WithContext(context.Background())
+		var maxBlockGas int64
+		if b := ctx.ConsensusParams().Block; b != nil {
+			maxBlockGas = int64(b.MaxGas)
+		}
+
 		h.logger.Info("Preparing block proposal from execution book",
 			"height", req.Height,
-			"max_tx_bytes", req.MaxTxBytes)
+			"max_tx_bytes", req.MaxTxBytes,
+			"quick_block_gas_fraction", h.quickBlockGasFraction)
 
 		// Update block height (sequence numbers are global and don't reset)
 		h.book.UpdateBlockHeight(uint64(req.Height))
 
-		// Get ordered transactions from execution book
-		sequencerTxs := h.book.GetOrderedTransactions()
+		// Calculate gas limits based on configuration
+		var quickBlockGasLimit uint64
+		if maxBlockGas < 0 {
+			// Unlimited gas
+			quickBlockGasLimit = ^uint64(0)
+		} else {
+			quickBlockGasLimit = uint64(float64(maxBlockGas) * h.quickBlockGasFraction)
+		}
 
-		h.logger.Debug("Retrieved sequencer transactions",
-			"count", len(sequencerTxs),
-			"height", req.Height)
+		h.logger.Debug("QuickBlockGasLimit:", quickBlockGasLimit)
 
-		// Build transaction list for the block
-		// We need to fetch the actual transaction bytes for each sequencer transaction
 		var txsToInclude [][]byte
 		var totalBytes int64
+		var totalGas uint64
+		sequencerTxCount := 0
+
+		sequencerTxs := h.book.GetOrderedTransactions()
+		h.logger.Debug("Retrieved sequencer transactions", "count", len(sequencerTxs))
 
 		for _, seqTx := range sequencerTxs {
-			// In a real implementation, you would need to:
-			// 1. Fetch the actual transaction bytes from a transaction pool or cache
-			// 2. Validate the transaction
-			// 3. Check gas limits and other constraints
+			// Try to fetch transaction bytes from cache or mempool
+			txBytes := h.getTransactionBytes(seqTx.TxHash)
+			if txBytes == nil {
+				h.logger.Warn("Sequencer transaction bytes not found, skipping",
+					"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+					"sequence", seqTx.SequenceNumber)
+				continue
+			}
 
-			// For now, we log that we would include this transaction
-			h.logger.Debug("Would include sequencer transaction",
-				"tx_hash", seqTx.TxHash,
+			// Decode transaction to get gas
+			tx, err := h.txDecoder(txBytes)
+			if err != nil {
+				h.logger.Warn("Failed to decode sequencer transaction",
+					"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+					"error", err)
+				continue
+			}
+
+			var txGas uint64
+			if gasTx, ok := tx.(mempool.GasTx); ok {
+				txGas = gasTx.GetGas()
+			}
+
+			// Check if adding this tx would exceed limits
+			if totalBytes+int64(len(txBytes)) > req.MaxTxBytes {
+				h.logger.Debug("Sequencer tx would exceed max bytes", "current_bytes", totalBytes)
+				break
+			}
+
+			if totalGas+txGas > quickBlockGasLimit {
+				h.logger.Debug("Sequencer tx would exceed quick block gas limit",
+					"current_gas", totalGas,
+					"tx_gas", txGas,
+					"sequencer_limit", quickBlockGasLimit)
+				break
+			}
+
+			// Add transaction
+			txsToInclude = append(txsToInclude, txBytes)
+			totalBytes += int64(len(txBytes))
+			totalGas += txGas
+			sequencerTxCount++
+
+			h.logger.Debug("Added sequencer transaction",
+				"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
 				"sequence", seqTx.SequenceNumber,
-				"sequencer_id", seqTx.SequencerID)
-
-			// TODO: Implement actual transaction fetching
-			// txBytes := h.fetchTransactionBytes(seqTx.TxHash)
-			// if txBytes == nil {
-			//     h.logger.Warn("Transaction bytes not found", "tx_hash", seqTx.TxHash)
-			//     continue
-			// }
-
-			// Check if adding this tx would exceed max bytes
-			// if totalBytes + int64(len(txBytes)) > req.MaxTxBytes {
-			//     h.logger.Debug("Reached max tx bytes", "included_txs", len(txsToInclude))
-			//     break
-			// }
-
-			// txsToInclude = append(txsToInclude, txBytes)
-			// totalBytes += int64(len(txBytes))
+				"gas", txGas,
+				"total_gas", totalGas)
 		}
 
 		h.logger.Info("Block proposal prepared",
 			"height", req.Height,
-			"tx_count", len(txsToInclude),
+			"total_tx_count", len(txsToInclude),
+			"sequencer_tx_count", sequencerTxCount,
 			"total_bytes", totalBytes,
-			"sequencer_tx_count", len(sequencerTxs))
+			"total_gas", totalGas)
 
 		return &abci.ResponsePrepareProposal{
 			Txs: txsToInclude,
@@ -225,4 +283,40 @@ func (h *ProposalHandler) ValidateSequencerTransaction(txBytes []byte, seqTx *Se
 // bytesEqual compares two byte slices for equality
 func bytesEqual(a, b []byte) bool {
 	return bytes.Equal(a, b)
+}
+
+// getTransactionBytes fetches transaction bytes from mempool
+func (h *ProposalHandler) getTransactionBytes(txHash []byte) []byte {
+	// If mempool is available, try to find the transaction there
+	if h.mempool != nil {
+		ctx := sdk.Context{}.WithContext(context.Background())
+		iterator := h.mempool.Select(ctx, nil)
+		for iterator != nil {
+			memTx := iterator.Tx()
+
+			// Get the actual SDK transaction from memTx
+			sdkTx := memTx.Tx
+
+			// Try to encode the transaction
+			txBytes, err := h.encodeTx(sdkTx)
+			if err == nil {
+				// Check if this is the transaction we're looking for
+				if bytes.Equal(CalculateTxHash(txBytes), txHash) {
+					return txBytes
+				}
+			}
+
+			iterator = iterator.Next()
+		}
+	}
+
+	return nil
+}
+
+// encodeTx encodes an SDK transaction to bytes
+func (h *ProposalHandler) encodeTx(tx sdk.Tx) ([]byte, error) {
+	if h.txEncoder == nil {
+		return nil, fmt.Errorf("tx encoder not configured")
+	}
+	return h.txEncoder(tx)
 }

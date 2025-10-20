@@ -550,14 +550,37 @@ func New(
 			return txDecoder(txBytes)
 		}
 
+		// Create a wrapper to adapt SDK's TxEncoder to executionbook.TxEncoder
+		txEncoderWrapper := func(tx sdk.Tx) ([]byte, error) {
+			return txConfig.TxEncoder()(tx)
+		}
+
+		// Get quick block gas fraction configuration (default 0.2 = 1/5)
+		quickBlockGasFraction := 0.2
+		if appOpts.Get("sequencer.quick_block_gas_fraction") != nil {
+			if fraction, ok := appOpts.Get("sequencer.quick_block_gas_fraction").(float64); ok {
+				if fraction > 0 && fraction < 1.0 {
+					quickBlockGasFraction = fraction
+				} else {
+					logger.Warn("Invalid quick_block_gas_fraction value, using default",
+						"value", fraction,
+						"default", 0.2)
+				}
+			}
+		}
+
 		// Initialize the proposal handler for sequencer integration
 		sequencerProposalHandlerRef = executionbook.NewProposalHandler(executionbook.ProposalHandlerConfig{
-			Book:      executionBookRef,
-			TxDecoder: txDecoderWrapper,
-			Logger:    logger.With("module", "sequencer_proposal_handler"),
+			Book:                  executionBookRef,
+			TxDecoder:             txDecoderWrapper,
+			TxEncoder:             txEncoderWrapper,
+			Mempool:               mpool,
+			QuickBlockGasFraction: quickBlockGasFraction,
+			Logger:                logger.With("module", "sequencer_proposal_handler"),
 		})
 
-		logger.Info("ExecutionBook and ProposalHandler initialized successfully")
+		logger.Info("ExecutionBook and ProposalHandler initialized successfully",
+			"quick_block_gas_fraction", quickBlockGasFraction)
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
