@@ -435,16 +435,19 @@ func New(
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
+	optimisticExecutionEnabled := true
 
 	var cacheSize int
-	if !blockSTMEnabled {
-		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
+	if !blockSTMEnabled && !optimisticExecutionEnabled {
+		// only enable memiavl cache if neither block-stm nor optimistic execution is enabled,
 		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	}
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	// enable optimistic execution
-	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	if optimisticExecutionEnabled {
+		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
+	}
 
 	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 	bApp := baseapp.NewBaseApp(Name, logger, db, txConfig.TxDecoder(), baseAppOptions...)
