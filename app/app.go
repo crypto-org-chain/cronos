@@ -107,6 +107,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
@@ -165,6 +166,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ethsecp256k1 "github.com/evmos/ethermint/crypto/ethsecp256k1"
 )
 
 const (
@@ -257,6 +259,105 @@ func StoreKeys() (
 	okeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectStoreKey)
 
 	return keys, tkeys, okeys
+}
+
+// parseSequencerPubKey parses a public key from a hex-encoded string
+// Supports both Ed25519 (32 bytes) and ECDSA (33 bytes compressed or 65 bytes uncompressed) keys
+func parseSequencerPubKey(keyType, keyHex string) (cryptotypes.PubKey, error) {
+	keyBytes, err := hex.DecodeString(keyHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode hex public key: %w", err)
+	}
+
+	switch keyType {
+	case "ed25519":
+		if len(keyBytes) != ed25519.PubKeySize {
+			return nil, fmt.Errorf("invalid ed25519 public key length: expected %d, got %d",
+				ed25519.PubKeySize, len(keyBytes))
+		}
+		return &ed25519.PubKey{Key: keyBytes}, nil
+
+	case "ecdsa", "eth_secp256k1":
+		// ECDSA keys can be 33 bytes (compressed) or 65 bytes (uncompressed)
+		if len(keyBytes) != ethsecp256k1.PubKeySize && len(keyBytes) != 65 {
+			return nil, fmt.Errorf("invalid ecdsa public key length: expected 33 (compressed) or 65 (uncompressed) bytes, got %d",
+				len(keyBytes))
+		}
+		return &ethsecp256k1.PubKey{Key: keyBytes}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported key type: %s (supported: ed25519, ecdsa)", keyType)
+	}
+}
+
+// loadSequencerPubKeys loads sequencer public keys from app configuration
+// Configuration format in app.toml:
+//
+//	[[sequencer.keys]]
+//	id = "sequencer1"
+//	type = "ed25519"
+//	pubkey = "hex_encoded_public_key"
+func loadSequencerPubKeys(appOpts servertypes.AppOptions, logger log.Logger) (map[string]cryptotypes.PubKey, error) {
+	sequencerPubKeys := make(map[string]cryptotypes.PubKey)
+
+	// Try to get sequencer keys from configuration
+	sequencerKeysRaw := appOpts.Get("sequencer.keys")
+	if sequencerKeysRaw == nil {
+		logger.Info("No sequencer keys configured, ExecutionBook will start with empty sequencer set")
+		return sequencerPubKeys, nil
+	}
+
+	// Parse sequencer keys configuration
+	// Expected format: []map[string]interface{} with "id", "type", and "pubkey" fields
+	sequencerKeysList, ok := sequencerKeysRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("sequencer.keys must be an array")
+	}
+
+	for i, keyRaw := range sequencerKeysList {
+		keyMap, ok := keyRaw.(map[string]interface{})
+		if !ok {
+			logger.Error("Invalid sequencer key configuration at index", "index", i)
+			continue
+		}
+
+		id, ok := keyMap["id"].(string)
+		if !ok || id == "" {
+			logger.Error("Sequencer key missing 'id' field at index", "index", i)
+			continue
+		}
+
+		keyType, ok := keyMap["type"].(string)
+		if !ok || keyType == "" {
+			logger.Error("Sequencer key missing 'type' field", "id", id)
+			continue
+		}
+
+		pubkeyHex, ok := keyMap["pubkey"].(string)
+		if !ok || pubkeyHex == "" {
+			logger.Error("Sequencer key missing 'pubkey' field", "id", id)
+			continue
+		}
+
+		// Parse the public key
+		pubKey, err := parseSequencerPubKey(keyType, pubkeyHex)
+		if err != nil {
+			logger.Error("Failed to parse sequencer public key",
+				"id", id,
+				"type", keyType,
+				"error", err)
+			continue
+		}
+
+		sequencerPubKeys[id] = pubKey
+		logger.Info("Loaded sequencer public key",
+			"id", id,
+			"type", keyType,
+			"key_size", len(pubKey.Bytes()))
+	}
+
+	logger.Info("Loaded sequencer public keys", "count", len(sequencerPubKeys))
+	return sequencerPubKeys, nil
 }
 
 var (
@@ -413,9 +514,16 @@ func New(
 	if sequencerEnabled {
 		logger.Info("Initializing ExecutionBook for sequencer transaction management")
 
-		// TODO: Load sequencer public keys from configuration
-		// For now, initialize with empty sequencer keys - they can be added at runtime
-		sequencerPubKeys := make(map[string]cryptotypes.PubKey)
+		// Load sequencer public keys from configuration
+		sequencerPubKeys, err := loadSequencerPubKeys(appOpts, logger)
+		if err != nil {
+			logger.Error("Failed to load sequencer public keys", "error", err)
+			panic(fmt.Sprintf("Failed to load sequencer public keys: %v", err))
+		}
+
+		if len(sequencerPubKeys) == 0 {
+			logger.Warn("ExecutionBook initialized with no sequencer keys - keys can be added at runtime via CLI")
+		}
 
 		executionBookRef = executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
 			Logger:           logger.With("module", "execution_book"),
