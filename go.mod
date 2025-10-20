@@ -17,7 +17,7 @@ require (
 	cosmossdk.io/x/upgrade v0.2.0
 	filippo.io/age v1.2.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.38.17
+	github.com/cometbft/cometbft v0.38.19
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.53.0
@@ -297,7 +297,7 @@ replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	// v0.38.x
-	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20250203071505-1964da4a0cac
+	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20251014161156-b0e778b18408
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
