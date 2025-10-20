@@ -29,12 +29,16 @@ type SequencerConfig struct {
 	Enable bool `mapstructure:"enable"`
 	// Keys is a list of sequencer public keys for signature verification.
 	Keys []SequencerKeyConfig `mapstructure:"keys"`
+	// BookSize defines the maximum number of pending transactions allowed in the ExecutionBook.
+	// 0 means unlimited.
+	BookSize int `mapstructure:"booksize"`
 }
 
 func DefaultSequencerConfig() SequencerConfig {
 	return SequencerConfig{
-		Enable: false,                  // Disabled by default
-		Keys:   []SequencerKeyConfig{}, // Empty by default
+		Enable:   false,                  // Disabled by default
+		Keys:     []SequencerKeyConfig{}, // Empty by default
+		BookSize: 0,                      // Unlimited by default
 	}
 }
 
@@ -47,6 +51,10 @@ var DefaultSequencerTemplate = `
 # Enable defines if the sequencer-based transaction ordering should be enabled.
 # When enabled, the ExecutionBook will manage transactions from registered sequencers.
 enable = {{ .Sequencer.Enable }}
+
+# BookSize defines the maximum number of pending transactions allowed in the ExecutionBook.
+# Set to 0 for unlimited (default). When the limit is reached, new transactions will be rejected.
+booksize = {{ .Sequencer.BookSize }}
 
 # Sequencer public keys for signature verification.
 # Each sequencer must be registered with its public key before it can submit transactions.

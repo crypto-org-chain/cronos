@@ -132,6 +132,7 @@ func TestSequencerConfigWithKeys(t *testing.T) {
 				PubKey: "02a1b2c3d4e5f6789012345678901234567890123456789012345678901234ab",
 			},
 		},
+		BookSize: 100,
 	}
 
 	require.True(t, config.Enable)
@@ -140,4 +141,31 @@ func TestSequencerConfigWithKeys(t *testing.T) {
 	require.Equal(t, "ed25519", config.Keys[0].Type)
 	require.Equal(t, "seq2", config.Keys[1].ID)
 	require.Equal(t, "ecdsa", config.Keys[1].Type)
+	require.Equal(t, 100, config.BookSize)
+}
+
+func TestSequencerBookSize(t *testing.T) {
+	t.Run("Default BookSize is 0 (unlimited)", func(t *testing.T) {
+		config := DefaultSequencerConfig()
+		require.Equal(t, 0, config.BookSize)
+	})
+
+	t.Run("BookSize can be set", func(t *testing.T) {
+		config := SequencerConfig{
+			Enable:   true,
+			Keys:     []SequencerKeyConfig{},
+			BookSize: 500,
+		}
+		require.Equal(t, 500, config.BookSize)
+	})
+
+	t.Run("Negative BookSize", func(t *testing.T) {
+		config := SequencerConfig{
+			Enable:   true,
+			Keys:     []SequencerKeyConfig{},
+			BookSize: -1,
+		}
+		// Configuration allows negative values; ExecutionBook treats them as unlimited
+		require.Equal(t, -1, config.BookSize)
+	})
 }

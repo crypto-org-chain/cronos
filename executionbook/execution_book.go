@@ -4,7 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -41,16 +44,43 @@ type ExecutionBook struct {
 	// Map of sequencerID -> public key
 	sequencerPubKeys map[string]cryptotypes.PubKey
 
+	// State file path for persistence
+	stateFilePath string
+
+	// Maximum number of pending transactions (0 = unlimited)
+	bookSize int
+
 	// Mutex for thread-safe access
 	mu sync.RWMutex
 
 	logger log.Logger
 }
 
+// ExecutionBookState represents the persisted state
+type ExecutionBookState struct {
+	Transactions       []*PersistedTransaction `json:"transactions"`
+	NextSequence       uint64                  `json:"next_sequence"`
+	CurrentBlockHeight uint64                  `json:"current_block_height"`
+	SavedAt            time.Time               `json:"saved_at"`
+}
+
+// PersistedTransaction is the serializable version of SequencerTransaction
+type PersistedTransaction struct {
+	TxHash         string    `json:"tx_hash"`
+	SequenceNumber uint64    `json:"sequence_number"`
+	Signature      string    `json:"signature"`
+	SequencerID    string    `json:"sequencer_id"`
+	Timestamp      time.Time `json:"timestamp"`
+	BlockHeight    uint64    `json:"block_height"`
+	Included       bool      `json:"included"`
+}
+
 // ExecutionBookConfig configuration for the execution book
 type ExecutionBookConfig struct {
 	Logger           log.Logger
 	SequencerPubKeys map[string]cryptotypes.PubKey // Map of sequencerID -> pubkey
+	StateFilePath    string                        // Path to state file for persistence (optional)
+	BookSize         int                           // Maximum pending transactions (0 = unlimited)
 }
 
 // NewExecutionBook creates a new execution book
@@ -69,11 +99,35 @@ func NewExecutionBook(cfg ExecutionBookConfig) *ExecutionBook {
 		nextSequence:       0,
 		currentBlockHeight: 0,
 		sequencerPubKeys:   cfg.SequencerPubKeys,
+		stateFilePath:      cfg.StateFilePath,
+		bookSize:           cfg.BookSize,
 		logger:             cfg.Logger,
 	}
 
+	// Try to recover state from file if path is provided
+	if cfg.StateFilePath != "" {
+		if err := book.LoadState(); err != nil {
+			cfg.Logger.Warn("Failed to load ExecutionBook state, starting fresh",
+				"error", err,
+				"state_file", cfg.StateFilePath)
+		} else {
+			cfg.Logger.Info("ExecutionBook state recovered from file",
+				"state_file", cfg.StateFilePath,
+				"next_sequence", book.nextSequence,
+				"current_block_height", book.currentBlockHeight,
+				"transaction_count", len(book.transactions))
+		}
+	}
+
+	bookSizeStr := "unlimited"
+	if cfg.BookSize > 0 {
+		bookSizeStr = fmt.Sprintf("%d", cfg.BookSize)
+	}
+
 	cfg.Logger.Info("ExecutionBook initialized",
-		"sequencer_count", len(cfg.SequencerPubKeys))
+		"sequencer_count", len(cfg.SequencerPubKeys),
+		"persistence_enabled", cfg.StateFilePath != "",
+		"book_size", bookSizeStr)
 
 	return book
 }
@@ -119,6 +173,19 @@ func (eb *ExecutionBook) SubmitSequencerTx(
 		return fmt.Errorf("transaction %x already submitted", txHash)
 	}
 
+	// Check book size limit (if enabled)
+	if eb.bookSize > 0 {
+		pendingCount := 0
+		for _, tx := range eb.transactions {
+			if !tx.Included {
+				pendingCount++
+			}
+		}
+		if pendingCount >= eb.bookSize {
+			return fmt.Errorf("execution book is full: %d/%d pending transactions", pendingCount, eb.bookSize)
+		}
+	}
+
 	// Enforce strict sequence ordering - must be exactly the next expected sequence
 	if sequenceNumber != eb.nextSequence {
 		return fmt.Errorf("sequence number mismatch: expected %d, got %d (no gaps allowed)",
@@ -148,6 +215,13 @@ func (eb *ExecutionBook) SubmitSequencerTx(
 		"sequence", sequenceNumber,
 		"sequencer_id", sequencerID,
 		"next_sequence", eb.nextSequence)
+
+	// Save state after adding transaction
+	go func() {
+		if err := eb.SaveState(); err != nil {
+			eb.logger.Error("Failed to save state after transaction submission", "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -217,6 +291,13 @@ func (eb *ExecutionBook) CleanupIncludedTransactions() int {
 		eb.logger.Info("Cleaned up included transactions",
 			"count", cleanedCount,
 			"remaining", len(eb.transactions))
+
+		// Save state after cleanup
+		go func() {
+			if err := eb.SaveState(); err != nil {
+				eb.logger.Error("Failed to save state after cleanup", "error", err)
+			}
+		}()
 	}
 
 	return cleanedCount
@@ -234,6 +315,13 @@ func (eb *ExecutionBook) UpdateBlockHeight(blockHeight uint64) {
 	eb.logger.Debug("Block height updated",
 		"block_height", blockHeight,
 		"next_sequence", eb.nextSequence)
+
+	// Save state after block height update
+	go func() {
+		if err := eb.SaveState(); err != nil {
+			eb.logger.Error("Failed to save state after block height update", "error", err)
+		}
+	}()
 }
 
 // GetNextSequence returns the expected next sequence number
@@ -398,4 +486,137 @@ type ExecutionBookStats struct {
 func CalculateTxHash(txBytes []byte) []byte {
 	hash := sha256.Sum256(txBytes)
 	return hash[:]
+}
+
+// SaveState persists the current state to disk
+func (eb *ExecutionBook) SaveState() error {
+	if eb.stateFilePath == "" {
+		return nil // Persistence not enabled
+	}
+
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	// Create persisted state
+	state := ExecutionBookState{
+		Transactions:       make([]*PersistedTransaction, 0, len(eb.orderedTxs)),
+		NextSequence:       eb.nextSequence,
+		CurrentBlockHeight: eb.currentBlockHeight,
+		SavedAt:            time.Now(),
+	}
+
+	// Convert transactions to persistable format
+	for _, tx := range eb.orderedTxs {
+		state.Transactions = append(state.Transactions, &PersistedTransaction{
+			TxHash:         hex.EncodeToString(tx.TxHash),
+			SequenceNumber: tx.SequenceNumber,
+			Signature:      hex.EncodeToString(tx.Signature),
+			SequencerID:    tx.SequencerID,
+			Timestamp:      tx.Timestamp,
+			BlockHeight:    tx.BlockHeight,
+			Included:       tx.Included,
+		})
+	}
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %w", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(eb.stateFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create state directory: %w", err)
+	}
+
+	// Write to temp file first, then rename (atomic operation)
+	tempFile := eb.stateFilePath + ".tmp"
+	if err := os.WriteFile(tempFile, data, 0644); err != nil {
+		return fmt.Errorf("failed to write state file: %w", err)
+	}
+
+	if err := os.Rename(tempFile, eb.stateFilePath); err != nil {
+		return fmt.Errorf("failed to rename state file: %w", err)
+	}
+
+	eb.logger.Debug("ExecutionBook state saved",
+		"file", eb.stateFilePath,
+		"next_sequence", eb.nextSequence,
+		"transaction_count", len(eb.transactions))
+
+	return nil
+}
+
+// LoadState loads the state from disk
+func (eb *ExecutionBook) LoadState() error {
+	if eb.stateFilePath == "" {
+		return nil // Persistence not enabled
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(eb.stateFilePath); os.IsNotExist(err) {
+		return fmt.Errorf("state file does not exist")
+	}
+
+	// Read state file
+	data, err := os.ReadFile(eb.stateFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read state file: %w", err)
+	}
+
+	// Unmarshal state
+	var state ExecutionBookState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return fmt.Errorf("failed to unmarshal state: %w", err)
+	}
+
+	// Restore state
+	eb.nextSequence = state.NextSequence
+	eb.currentBlockHeight = state.CurrentBlockHeight
+	eb.transactions = make(map[string]*SequencerTransaction)
+	eb.orderedTxs = make([]*SequencerTransaction, 0, len(state.Transactions))
+
+	// Restore transactions
+	for _, ptx := range state.Transactions {
+		txHash, err := hex.DecodeString(ptx.TxHash)
+		if err != nil {
+			eb.logger.Error("Failed to decode tx hash, skipping transaction",
+				"tx_hash", ptx.TxHash,
+				"error", err)
+			continue
+		}
+
+		signature, err := hex.DecodeString(ptx.Signature)
+		if err != nil {
+			eb.logger.Error("Failed to decode signature, skipping transaction",
+				"tx_hash", ptx.TxHash,
+				"error", err)
+			continue
+		}
+
+		tx := &SequencerTransaction{
+			TxHash:         txHash,
+			SequenceNumber: ptx.SequenceNumber,
+			Signature:      signature,
+			SequencerID:    ptx.SequencerID,
+			Timestamp:      ptx.Timestamp,
+			BlockHeight:    ptx.BlockHeight,
+			Included:       ptx.Included,
+		}
+
+		// Add to maps
+		txHashStr := hex.EncodeToString(txHash)
+		eb.transactions[txHashStr] = tx
+		eb.orderedTxs = append(eb.orderedTxs, tx)
+	}
+
+	eb.logger.Info("ExecutionBook state loaded successfully",
+		"file", eb.stateFilePath,
+		"next_sequence", eb.nextSequence,
+		"current_block_height", eb.currentBlockHeight,
+		"transaction_count", len(eb.transactions),
+		"saved_at", state.SavedAt)
+
+	return nil
 }

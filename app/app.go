@@ -525,9 +525,24 @@ func New(
 			logger.Warn("ExecutionBook initialized with no sequencer keys - keys can be added at runtime via CLI")
 		}
 
+		// Set state file path for persistence
+		stateFilePath := filepath.Join(homePath, "data", "execution_book_state.json")
+
+		// Get book size configuration (default 0 = unlimited)
+		bookSize := 0
+		if appOpts.Get("sequencer.booksize") != nil {
+			if bs, ok := appOpts.Get("sequencer.booksize").(int64); ok {
+				bookSize = int(bs)
+			} else if bs, ok := appOpts.Get("sequencer.booksize").(int); ok {
+				bookSize = bs
+			}
+		}
+
 		executionBookRef = executionbook.NewExecutionBook(executionbook.ExecutionBookConfig{
 			Logger:           logger.With("module", "execution_book"),
 			SequencerPubKeys: sequencerPubKeys,
+			StateFilePath:    stateFilePath,
+			BookSize:         bookSize,
 		})
 
 		// Create a wrapper to adapt SDK's TxDecoder to executionbook.TxDecoder
