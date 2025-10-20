@@ -9,8 +9,8 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
-	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 
 	"cosmossdk.io/errors"

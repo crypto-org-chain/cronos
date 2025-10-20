@@ -14,7 +14,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
-	cronosmoduletypes "github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/evmos/ethermint/ante/cache"
 	evmante "github.com/evmos/ethermint/evmd/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"

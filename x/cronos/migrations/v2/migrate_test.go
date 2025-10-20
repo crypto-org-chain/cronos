@@ -3,9 +3,9 @@ package v2_test
 import (
 	"testing"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/exported"
-	v2 "github.com/crypto-org-chain/cronos/v2/x/cronos/migrations/v2"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/exported"
+	v2 "github.com/crypto-org-chain/cronos/x/cronos/migrations/v2"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/require"
 
 	simappparams "cosmossdk.io/simapp/params"

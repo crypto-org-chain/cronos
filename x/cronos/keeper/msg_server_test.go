@@ -1,8 +1,8 @@
 package keeper_test
 
 import (
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
