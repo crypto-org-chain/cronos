@@ -9,6 +9,7 @@ import (
 
 	"cosmossdk.io/log"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -243,11 +244,15 @@ func TestPriorityTxService_Preconfirmation(t *testing.T) {
 		return &mockTx{memo: "PRIORITY:1"}, nil
 	}
 
+	// Generate a test key for signing
+	testPrivKey := ed25519.GenPrivKey()
+
 	service := NewPriorityTxService(PriorityTxServiceConfig{
 		Mempool:           newMockMempool(),
 		TxDecoder:         txDecoder,
 		Logger:            log.NewNopLogger(),
 		ValidatorAddress:  "cronosvaloper1test",
+		ValidatorPrivKey:  testPrivKey,     // Add private key for signing
 		PreconfirmTimeout: 1 * time.Second, // Short timeout for testing
 	})
 

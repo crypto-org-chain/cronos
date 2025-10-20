@@ -248,6 +248,13 @@ mempoolConfig := executionbook.ExecutionBookConfig{
 }
 preconferMempool := executionbook.NewExecutionBook(mempoolConfig)
 
+// Load validator private key for signing preconfirmations (optional)
+// Supports Ed25519 (default) and secp256k1
+privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "ed25519")
+if err != nil {
+    log.Fatal(err)
+}
+
 // Create priority tx service
 serviceConfig := executionbook.PriorityTxServiceConfig{
     App:               app.BaseApp,
@@ -255,6 +262,7 @@ serviceConfig := executionbook.PriorityTxServiceConfig{
     TxDecoder:         txDecoder,
     Logger:            logger,
     ValidatorAddress:  "cronosvaloper1...",
+    ValidatorPrivKey:  privKey, // Optional: for cryptographic signing
     PreconfirmTimeout: 30 * time.Second,
 }
 service := executionbook.NewPriorityTxService(serviceConfig)
@@ -539,6 +547,58 @@ func (m *ExecutionBook) Insert(ctx context.Context, tx sdk.Tx) error {
 5. **Response**: Return preconfirmation to client
 6. **Tracking**: Service tracks transaction status
 7. **Expiration**: Cleanup expired preconfirmations
+
+### Cryptographic Signing
+
+Preconfirmations can be cryptographically signed to ensure authenticity and prevent tampering.
+
+**Supported Key Types:**
+- **Ed25519** (default) - Standard for Cosmos SDK validators
+- **secp256k1** - Alternative signing algorithm
+
+**Message Format:**
+
+```
+PRECONFIRM | txHash | priorityLevel (4 bytes) | validatorAddress
+```
+
+The message is hashed with SHA-256 before signing.
+
+**Loading Private Keys:**
+
+```go
+// Load Ed25519 key from 32-byte hex string (will derive public key)
+privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "ed25519")
+
+// Load secp256k1 key
+privKey, err := executionbook.LoadPrivKeyFromHex("your_private_key_hex", "secp256k1")
+
+// Load from raw bytes (32 bytes for Ed25519, 32 bytes for secp256k1)
+privKey, err := executionbook.LoadPrivKeyFromBytes(keyBytes, "ed25519")
+```
+
+**Verifying Signatures:**
+
+```go
+// Get validator's public key
+pubKey := service.GetPublicKey()
+
+// Verify signature
+isValid := service.VerifyPreconfirmationSignature(
+    txHash, 
+    priorityLevel, 
+    signature, 
+    pubKey,
+)
+```
+
+**Security Considerations:**
+
+- Private keys should be stored securely (HSM, key management service, etc.)
+- If no private key is configured, preconfirmations will be unsigned
+- Signatures are **non-binding** - they provide authenticity but not consensus guarantees
+- Clients should verify signatures against the validator's public key
+- The service logs whether signing is enabled on initialization
 
 ### Position Calculation
 

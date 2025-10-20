@@ -3,6 +3,7 @@ package executionbook
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -11,6 +12,9 @@ import (
 	"cosmossdk.io/log"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -37,6 +41,7 @@ type PriorityTxService struct {
 
 	// Configuration
 	validatorAddress  string
+	validatorPrivKey  cryptotypes.PrivKey // Private key for signing preconfirmations
 	preconfirmTimeout time.Duration
 
 	// Shutdown management
@@ -106,6 +111,7 @@ type PriorityTxServiceConfig struct {
 	TxDecoder         sdk.TxDecoder
 	Logger            log.Logger
 	ValidatorAddress  string
+	ValidatorPrivKey  cryptotypes.PrivKey // Optional: Private key for signing preconfirmations
 	PreconfirmTimeout time.Duration
 }
 
@@ -127,12 +133,21 @@ func NewPriorityTxService(cfg PriorityTxServiceConfig) *PriorityTxService {
 		txDecoder:         cfg.TxDecoder,
 		logger:            cfg.Logger,
 		validatorAddress:  cfg.ValidatorAddress,
+		validatorPrivKey:  cfg.ValidatorPrivKey,
 		preconfirmTimeout: cfg.PreconfirmTimeout,
 		preconfirmations:  make(map[string]*PreconfirmationInfo),
 		txTracker:         make(map[string]*TxTrackingInfo),
 		ctx:               ctx,
 		cancel:            cancel,
 		done:              make(chan struct{}),
+	}
+
+	// Log whether signing is enabled
+	if service.validatorPrivKey != nil {
+		service.logger.Info("Priority tx service initialized with cryptographic signing enabled",
+			"key_type", service.validatorPrivKey.Type())
+	} else {
+		service.logger.Info("Priority tx service initialized without signing (preconfirmations will be unsigned)")
 	}
 
 	// Start cleanup goroutine
@@ -353,14 +368,74 @@ func (s *PriorityTxService) createPreconfirmation(txHash string, priorityLevel u
 	return preconf
 }
 
-// signPreconfirmation creates a signature for the preconfirmation
-// TODO: Implement actual signing with validator's key
+// signPreconfirmation creates a cryptographic signature for the preconfirmation
+// using the validator's private key (Ed25519 or secp256k1).
+// Returns nil if no private key is configured.
 func (s *PriorityTxService) signPreconfirmation(txHash string, priorityLevel uint32) []byte {
-	// For now, return a placeholder signature
-	// In production, this should sign with the validator's private key
-	data := fmt.Sprintf("%s:%d:%s", txHash, priorityLevel, s.validatorAddress)
-	hash := sha256.Sum256([]byte(data))
+	// If no private key is configured, return nil (unsigned preconfirmation)
+	if s.validatorPrivKey == nil {
+		return nil
+	}
+
+	// Create the message to sign
+	// Format: txHash | priorityLevel | validatorAddress | timestamp
+	msg := s.createPreconfirmationMessage(txHash, priorityLevel)
+
+	// Sign the message hash with the validator's private key
+	signature, err := s.validatorPrivKey.Sign(msg)
+	if err != nil {
+		s.logger.Error("Failed to sign preconfirmation",
+			"tx_hash", txHash,
+			"error", err)
+		return nil
+	}
+
+	s.logger.Debug("Preconfirmation signed",
+		"tx_hash", txHash,
+		"priority_level", priorityLevel,
+		"key_type", s.validatorPrivKey.Type(),
+		"signature_len", len(signature))
+
+	return signature
+}
+
+// createPreconfirmationMessage creates the canonical message format for signing
+// This ensures consistent message format for both signing and verification
+func (s *PriorityTxService) createPreconfirmationMessage(txHash string, priorityLevel uint32) []byte {
+	// Create a deterministic message format
+	// Structure: PRECONFIRM | txHash | priorityLevel | validatorAddress
+
+	msg := []byte("PRECONFIRM|")
+	msg = append(msg, []byte(txHash)...)
+	msg = append(msg, '|')
+
+	// Add priority level as 4 bytes
+	priorityBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(priorityBytes, priorityLevel)
+	msg = append(msg, priorityBytes...)
+	msg = append(msg, '|')
+
+	msg = append(msg, []byte(s.validatorAddress)...)
+
+	// Hash the message for signing
+	hash := sha256.Sum256(msg)
 	return hash[:]
+}
+
+// VerifyPreconfirmationSignature verifies a preconfirmation signature
+// This can be used by clients to verify the authenticity of a preconfirmation
+func (s *PriorityTxService) VerifyPreconfirmationSignature(
+	txHash string,
+	priorityLevel uint32,
+	signature []byte,
+	pubKey cryptotypes.PubKey,
+) bool {
+	if pubKey == nil || len(signature) == 0 {
+		return false
+	}
+
+	msg := s.createPreconfirmationMessage(txHash, priorityLevel)
+	return pubKey.VerifySignature(msg, signature)
 }
 
 // trackTransaction adds a transaction to the tracking system
@@ -499,4 +574,57 @@ type PriorityTxInfoResult struct {
 	SizeBytes       uint32
 	Preconfirmation *PreconfirmationInfo
 	Position        uint32
+}
+
+// Key loading utilities
+
+// LoadPrivKeyFromBytes loads a private key from raw bytes
+// For Ed25519: expects 64 bytes (32-byte private key + 32-byte public key) or 32 bytes (private key only, will derive public key)
+// For secp256k1: expects 32 bytes (private key)
+// Defaults to Ed25519 if keyType is not specified
+func LoadPrivKeyFromBytes(keyBytes []byte, keyType string) (cryptotypes.PrivKey, error) {
+	switch keyType {
+	case "ed25519", "":
+		// Ed25519 is the default for Cosmos SDK validators
+		if len(keyBytes) == 32 {
+			// If only private key is provided, we need to derive the public key
+			// Cosmos SDK Ed25519 PrivKey expects the full 64 bytes (private + public)
+			privKey := ed25519.GenPrivKeyFromSecret(keyBytes)
+			return privKey, nil
+		} else if len(keyBytes) == 64 {
+			// Full key provided (private + public)
+			return &ed25519.PrivKey{Key: keyBytes}, nil
+		} else {
+			return nil, fmt.Errorf("invalid Ed25519 key length: expected 32 or 64 bytes, got %d", len(keyBytes))
+		}
+	case "secp256k1":
+		if len(keyBytes) != 32 {
+			return nil, fmt.Errorf("invalid secp256k1 key length: expected 32 bytes, got %d", len(keyBytes))
+		}
+		return &secp256k1.PrivKey{Key: keyBytes}, nil
+	default:
+		return nil, fmt.Errorf("unsupported key type: %s (supported: ed25519, secp256k1)", keyType)
+	}
+}
+
+// LoadPrivKeyFromHex loads a private key from a hex-encoded string
+func LoadPrivKeyFromHex(hexKey, keyType string) (cryptotypes.PrivKey, error) {
+	keyBytes, err := hex.DecodeString(hexKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex key: %w", err)
+	}
+	return LoadPrivKeyFromBytes(keyBytes, keyType)
+}
+
+// GetPublicKey returns the public key for the validator if a private key is configured
+func (s *PriorityTxService) GetPublicKey() cryptotypes.PubKey {
+	if s.validatorPrivKey == nil {
+		return nil
+	}
+	return s.validatorPrivKey.PubKey()
+}
+
+// IsSigningEnabled returns whether the service is configured with a private key for signing
+func (s *PriorityTxService) IsSigningEnabled() bool {
+	return s.validatorPrivKey != nil
 }
