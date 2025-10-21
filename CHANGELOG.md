@@ -12,7 +12,6 @@
 
 * [#1884](https://github.com/crypto-org-chain/cronos/pull/1884) Patch comet bft (GHSA-hrhf-2vcr-ghch)
 
-
 ## v1.4.10
 
 * [#1853](https://github.com/crypto-org-chain/cronos/pull/1853) Fix version not found during pruning.
