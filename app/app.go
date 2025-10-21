@@ -494,7 +494,11 @@ func New(
 	var executionBookRef *executionbook.ExecutionBook
 	var sequencerProposalHandlerRef *executionbook.ProposalHandler
 
-	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
+	// When sequencer is enabled, always use NoOpMempool since transactions come from the sequencer
+	if sequencerEnabled {
+		logger.Info("Sequencer mode enabled - using NoOpMempool")
+		mpool = mempool.NoOpMempool{}
+	} else if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled")
@@ -583,29 +587,72 @@ func New(
 			"quick_block_gas_fraction", quickBlockGasFraction)
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
+
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
+		// Choose proposal handler based on whether sequencer is enabled
+		if sequencerEnabled && sequencerProposalHandlerRef != nil && executionBookRef != nil {
+			logger.Info("Using sequencer-based proposal handler")
 
-		// Use custom transaction selector for extended transaction validation
-		logger.Info("Using custom transaction selector")
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			txDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+			// Configure sequencer proposal handler with transaction selector
+			logger.Info("Using custom transaction selector for sequencer")
+			sequencerProposalHandlerRef.SetTxSelector(NewExtTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
 
-		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
-		// The default process proposal handler do nothing when the mempool is noop,
-		// so we just implement a new one.
-		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
+			// Enable fast prepare proposal mode
+			sequencerProposalHandlerRef.SetFastPrepareProposal(true)
+			logger.Info("Fast prepare proposal mode enabled for sequencer")
 
-		// TODO: Integrate sequencer proposal handler with BaseApp's proposal handlers
-		// This requires adapting the handler signatures to match SDK's Context-based handlers
-		if sequencerEnabled && sequencerProposalHandlerRef != nil {
-			logger.Info("Sequencer proposal handler initialized but not yet integrated with BaseApp")
-			logger.Info("TODO: Implement Context-aware wrapper for sequencer proposal handlers")
+			// Get the handler functions from sequencer proposal handler
+			sequencerPrepareHandler := sequencerProposalHandlerRef.PrepareProposalHandler()
+			sequencerProcessHandler := sequencerProposalHandlerRef.ProcessProposalHandler()
+
+			// Create SDK-compatible wrappers that match the Context-aware signature
+			prepareProposalWrapper := func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+				// The sequencer handler creates its own context, so we call it directly
+				return sequencerPrepareHandler(req)
+			}
+
+			processProposalWrapper := func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
+				// Store transaction hashes in ProposalHandler for later use in OnBlockCommit
+				if req.Txs != nil {
+					txHashes := make([][]byte, len(req.Txs))
+					for i, txBytes := range req.Txs {
+						txHash := executionbook.CalculateTxHash(txBytes)
+						txHashes[i] = txHash
+					}
+					sequencerProposalHandlerRef.SetLastProcessedTxHashes(txHashes)
+				}
+
+				// The sequencer handler doesn't need the context
+				return sequencerProcessHandler(req)
+			}
+
+			app.SetPrepareProposal(prepareProposalWrapper)
+			app.SetProcessProposal(processProposalWrapper)
+
+			logger.Info("Sequencer proposal handler integrated successfully")
+		} else {
+			logger.Info("Using default proposal handler")
+
+			defaultProposalHandler := baseapp.NewDefaultProposalHandlerFast(mpool, app)
+
+			// Use custom transaction selector for extended transaction validation
+			logger.Info("Using custom transaction selector")
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(
+				baseapp.NewDefaultTxSelector(),
+				txDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+
+			app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+			// The default process proposal handler do nothing when the mempool is noop,
+			// so we just implement a new one.
+			app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 		}
 	})
 
@@ -1341,12 +1388,44 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	if err := app.RefreshBlockList(ctx); err != nil {
 		app.Logger().Error("failed to update blocklist", "error", err)
 	}
+
+	// Call sequencer OnBlockCommit if sequencer mode is enabled
+	if app.sequencerProposalHandler != nil && ctx.BlockHeight() > 0 {
+		// Get transaction hashes from finalized block
+		// Note: In the current implementation, we get them from the block's transaction bytes
+		txHashes := app.getBlockTxHashes(ctx)
+
+		if len(txHashes) > 0 {
+			if err := app.sequencerProposalHandler.OnBlockCommit(uint64(ctx.BlockHeight()), txHashes); err != nil {
+				app.Logger().Error("Failed to call sequencer OnBlockCommit",
+					"height", ctx.BlockHeight(),
+					"error", err)
+			}
+		}
+	}
+
 	return rsp, err
 }
 
 func (app *App) RefreshBlockList(ctx sdk.Context) error {
 	// refresh blocklist
 	return app.blockProposalHandler.SetBlockList(app.CronosKeeper.GetBlockList(ctx))
+}
+
+// getBlockTxHashes returns transaction hashes from the last processed block
+func (app *App) getBlockTxHashes(ctx sdk.Context) [][]byte {
+	if app.sequencerProposalHandler == nil {
+		return nil
+	}
+
+	// Get transaction hashes from ProposalHandler
+	txHashes := app.sequencerProposalHandler.GetLastProcessedTxHashes()
+
+	app.Logger().Debug("Getting block transaction hashes",
+		"height", ctx.BlockHeight(),
+		"tx_count", len(txHashes))
+
+	return txHashes
 }
 
 // InitChainer application update at chain initialization

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 
 	"cosmossdk.io/log"
 	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -17,7 +19,11 @@ type ProposalHandler struct {
 	txDecoder             TxDecoder
 	txEncoder             TxEncoder
 	mempool               mempool.Mempool
-	quickBlockGasFraction float64 // Fraction of maxBlockGas for QuickBlockGasFraction txs (e.g., 0.2 for 1/5)
+	txSelector            baseapp.TxSelector // Transaction selector for validation
+	quickBlockGasFraction float64            // Fraction of maxBlockGas for QuickBlockGasFraction txs (e.g., 0.2 for 1/5)
+	fastPrepareProposal   bool               // Enable fast prepare proposal mode
+	lastProcessedTxHashes [][]byte           // Last processed transaction hashes (for OnBlockCommit)
+	mu                    sync.Mutex         // Mutex for thread-safe access to lastProcessedTxHashes
 	logger                log.Logger
 }
 
@@ -60,9 +66,21 @@ func NewProposalHandler(cfg ProposalHandlerConfig) *ProposalHandler {
 		txDecoder:             cfg.TxDecoder,
 		txEncoder:             cfg.TxEncoder,
 		mempool:               cfg.Mempool,
+		txSelector:            baseapp.NewDefaultTxSelector(),
 		quickBlockGasFraction: quickBlockGasFraction,
+		fastPrepareProposal:   false, // Default to false, can be enabled via SetFastPrepareProposal
 		logger:                cfg.Logger,
 	}
+}
+
+// SetTxSelector sets the TxSelector function on the ProposalHandler.
+func (h *ProposalHandler) SetTxSelector(ts baseapp.TxSelector) {
+	h.txSelector = ts
+}
+
+// SetFastPrepareProposal enables fast prepare proposal mode
+func (h *ProposalHandler) SetFastPrepareProposal(enabled bool) {
+	h.fastPrepareProposal = enabled
 }
 
 // PrepareProposalHandler prepares a block proposal from sequencer transactions
@@ -75,10 +93,14 @@ func (h *ProposalHandler) PrepareProposalHandler() func(*abci.RequestPrepareProp
 			maxBlockGas = int64(b.MaxGas)
 		}
 
+		// Clear the tx selector on function exit
+		defer h.txSelector.Clear()
+
 		h.logger.Info("Preparing block proposal from execution book",
 			"height", req.Height,
 			"max_tx_bytes", req.MaxTxBytes,
-			"quick_block_gas_fraction", h.quickBlockGasFraction)
+			"quick_block_gas_fraction", h.quickBlockGasFraction,
+			"fast_prepare_proposal", h.fastPrepareProposal)
 
 		// Update block height (sequence numbers are global and don't reset)
 		h.book.UpdateBlockHeight(uint64(req.Height))
@@ -94,6 +116,23 @@ func (h *ProposalHandler) PrepareProposalHandler() func(*abci.RequestPrepareProp
 
 		h.logger.Debug("QuickBlockGasLimit:", quickBlockGasLimit)
 
+		// Build transaction hash map from either mempool or req.Txs (for NoOpMempool)
+		// This avoids repeated mempool iteration (O(m) instead of O(n*m))
+		txHashMap := h.buildTxHashMap()
+
+		// If mempool is empty (e.g., NoOpMempool), use transactions from req.Txs
+		// CometBFT provides transactions via gossip in this field
+		if len(txHashMap) == 0 && len(req.Txs) > 0 {
+			h.logger.Debug("Mempool empty, building hash map from req.Txs", "tx_count", len(req.Txs))
+			txHashMap = make(map[string][]byte)
+			for _, txBytes := range req.Txs {
+				txHash := CalculateTxHash(txBytes)
+				txHashMap[string(txHash)] = txBytes
+			}
+		}
+
+		h.logger.Debug("Built transaction hash map", "tx_count", len(txHashMap))
+
 		var txsToInclude [][]byte
 		var totalBytes int64
 		var totalGas uint64
@@ -102,55 +141,87 @@ func (h *ProposalHandler) PrepareProposalHandler() func(*abci.RequestPrepareProp
 		sequencerTxs := h.book.GetOrderedTransactions()
 		h.logger.Debug("Retrieved sequencer transactions", "count", len(sequencerTxs))
 
-		for _, seqTx := range sequencerTxs {
-			// Try to fetch transaction bytes from cache or mempool
-			txBytes := h.getTransactionBytes(seqTx.TxHash)
-			if txBytes == nil {
-				h.logger.Warn("Sequencer transaction bytes not found, skipping",
-					"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
-					"sequence", seqTx.SequenceNumber)
-				continue
+		// If fast prepare proposal is enabled, use SelectTxForProposalFast for batch validation
+		if h.fastPrepareProposal {
+			// Build ordered transaction bytes array
+			var orderedTxBytes [][]byte
+			for _, seqTx := range sequencerTxs {
+				txBytes, found := txHashMap[string(seqTx.TxHash)]
+				if found {
+					orderedTxBytes = append(orderedTxBytes, txBytes)
+				} else {
+					h.logger.Warn("Sequencer transaction bytes not found, skipping",
+						"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+						"sequence", seqTx.SequenceNumber)
+				}
 			}
 
-			// Decode transaction to get gas
-			tx, err := h.txDecoder(txBytes)
-			if err != nil {
-				h.logger.Warn("Failed to decode sequencer transaction",
-					"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
-					"error", err)
-				continue
+			// Use TxSelector for fast validation
+			txsToInclude = h.txSelector.SelectTxForProposalFast(ctx, orderedTxBytes)
+			sequencerTxCount = len(txsToInclude)
+
+			// Calculate total bytes and gas for logging
+			for _, txBytes := range txsToInclude {
+				totalBytes += int64(len(txBytes))
+				if tx, err := h.txDecoder(txBytes); err == nil {
+					if gasTx, ok := tx.(mempool.GasTx); ok {
+						totalGas += gasTx.GetGas()
+					}
+				}
 			}
 
-			var txGas uint64
-			if gasTx, ok := tx.(mempool.GasTx); ok {
-				txGas = gasTx.GetGas()
-			}
-
-			// Check if adding this tx would exceed limits
-			if totalBytes+int64(len(txBytes)) > req.MaxTxBytes {
-				h.logger.Debug("Sequencer tx would exceed max bytes", "current_bytes", totalBytes)
-				break
-			}
-
-			if totalGas+txGas > quickBlockGasLimit {
-				h.logger.Debug("Sequencer tx would exceed quick block gas limit",
-					"current_gas", totalGas,
-					"tx_gas", txGas,
-					"sequencer_limit", quickBlockGasLimit)
-				break
-			}
-
-			// Add transaction
-			txsToInclude = append(txsToInclude, txBytes)
-			totalBytes += int64(len(txBytes))
-			totalGas += txGas
-			sequencerTxCount++
-
-			h.logger.Debug("Added sequencer transaction",
-				"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
-				"sequence", seqTx.SequenceNumber,
-				"gas", txGas,
+			h.logger.Debug("Fast proposal selection completed",
+				"selected_txs", len(txsToInclude),
+				"total_bytes", totalBytes,
 				"total_gas", totalGas)
+		} else {
+			// Standard validation path - validate each transaction individually
+			for _, seqTx := range sequencerTxs {
+				// Lookup transaction bytes from hash map (O(1) instead of O(m))
+				txBytes, found := txHashMap[string(seqTx.TxHash)]
+				if !found {
+					h.logger.Warn("Sequencer transaction bytes not found, skipping",
+						"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+						"sequence", seqTx.SequenceNumber)
+					continue
+				}
+
+				// Decode transaction to get gas
+				tx, err := h.txDecoder(txBytes)
+				if err != nil {
+					h.logger.Warn("Failed to decode sequencer transaction",
+						"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+						"error", err)
+					continue
+				}
+
+				var txGas uint64
+				if gasTx, ok := tx.(mempool.GasTx); ok {
+					txGas = gasTx.GetGas()
+				}
+
+				// Use TxSelector for validation if available
+				sdkTx, _ := tx.(sdk.Tx)
+				stop := h.txSelector.SelectTxForProposal(ctx, uint64(req.MaxTxBytes), uint64(quickBlockGasLimit), sdkTx, txBytes, txGas)
+				if stop {
+					h.logger.Debug("TxSelector indicated to stop adding transactions")
+					break
+				}
+
+				// Add transaction from selector's selected list
+				totalBytes += int64(len(txBytes))
+				totalGas += txGas
+				sequencerTxCount++
+
+				h.logger.Debug("Added sequencer transaction",
+					"tx_hash", fmt.Sprintf("%x", seqTx.TxHash),
+					"sequence", seqTx.SequenceNumber,
+					"gas", txGas,
+					"total_gas", totalGas)
+			}
+
+			// Get selected transactions from selector
+			txsToInclude = h.txSelector.SelectedTxs(ctx)
 		}
 
 		h.logger.Info("Block proposal prepared",
@@ -286,31 +357,37 @@ func bytesEqual(a, b []byte) bool {
 }
 
 // getTransactionBytes fetches transaction bytes from mempool
-func (h *ProposalHandler) getTransactionBytes(txHash []byte) []byte {
-	// If mempool is available, try to find the transaction there
-	if h.mempool != nil {
-		ctx := sdk.Context{}.WithContext(context.Background())
-		iterator := h.mempool.Select(ctx, nil)
-		for iterator != nil {
-			memTx := iterator.Tx()
+// buildTxHashMap builds a map of transaction hash -> transaction bytes
+// by iterating the mempool once. This is more efficient than calling
+// getTransactionBytes repeatedly (O(m) instead of O(n*m))
+func (h *ProposalHandler) buildTxHashMap() map[string][]byte {
+	txHashMap := make(map[string][]byte)
 
-			// Get the actual SDK transaction from memTx
-			sdkTx := memTx.Tx
-
-			// Try to encode the transaction
-			txBytes, err := h.encodeTx(sdkTx)
-			if err == nil {
-				// Check if this is the transaction we're looking for
-				if bytes.Equal(CalculateTxHash(txBytes), txHash) {
-					return txBytes
-				}
-			}
-
-			iterator = iterator.Next()
-		}
+	if h.mempool == nil {
+		return txHashMap
 	}
 
-	return nil
+	ctx := sdk.Context{}.WithContext(context.Background())
+	iterator := h.mempool.Select(ctx, nil)
+
+	for iterator != nil {
+		memTx := iterator.Tx()
+
+		// Get the actual SDK transaction from memTx
+		sdkTx := memTx.Tx
+
+		// Try to encode the transaction
+		txBytes, err := h.encodeTx(sdkTx)
+		if err == nil {
+			// Calculate hash and store in map
+			txHash := CalculateTxHash(txBytes)
+			txHashMap[string(txHash)] = txBytes
+		}
+
+		iterator = iterator.Next()
+	}
+
+	return txHashMap
 }
 
 // encodeTx encodes an SDK transaction to bytes
@@ -319,4 +396,27 @@ func (h *ProposalHandler) encodeTx(tx sdk.Tx) ([]byte, error) {
 		return nil, fmt.Errorf("tx encoder not configured")
 	}
 	return h.txEncoder(tx)
+}
+
+// SetLastProcessedTxHashes stores the transaction hashes from the last processed block
+func (h *ProposalHandler) SetLastProcessedTxHashes(txHashes [][]byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.lastProcessedTxHashes = txHashes
+
+	h.logger.Debug("Stored last processed tx hashes",
+		"count", len(txHashes))
+}
+
+// GetLastProcessedTxHashes returns a copy of the last processed transaction hashes
+func (h *ProposalHandler) GetLastProcessedTxHashes() [][]byte {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Make a copy to avoid concurrent modification issues
+	txHashes := make([][]byte, len(h.lastProcessedTxHashes))
+	copy(txHashes, h.lastProcessedTxHashes)
+
+	return txHashes
 }
