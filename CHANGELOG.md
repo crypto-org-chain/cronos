@@ -6,7 +6,7 @@
 
 ## v1.4.12
 
-* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators. Upgrade RocksDB to `v10.4.2` and enable asyncIO.
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators.
 
 ## v1.4.11
 
