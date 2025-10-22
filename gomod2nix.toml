@@ -264,8 +264,8 @@ schema = 3
     hash = "sha256-ozwVS2BhAoz+OOisAyMhgg+lq8FdQjf90xoOq9cxtGw="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/evmos/ethermint"]
-    version = "v0.6.1-0.20251021095308-b55c0f03f7a6"
-    hash = "sha256-nnsR70+JtwYFKtq1SJJCLgRBnxsC2N2VC/987yhC9HI="
+    version = "v0.6.1-0.20251021134829-d4e4ddbb063c"
+    hash = "sha256-a2F2Q/xm3CgAo46p/shVLq+9mH5nHGBrFLUh9WYXBgE="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.16.0"

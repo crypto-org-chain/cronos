@@ -435,17 +435,18 @@ func New(
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
-	optimisticExecutionEnabled := true
+	// default enable optimisticExecution
+	optimisticExecutionDisabled := cast.ToString(appOpts.Get(srvflags.EVMOptimisticExecution)) == "disable"
 
 	var cacheSize int
-	if !blockSTMEnabled && !optimisticExecutionEnabled {
+	if !blockSTMEnabled && optimisticExecutionDisabled {
 		// only enable memiavl cache if neither block-stm nor optimistic execution is enabled,
 		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	}
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
 	// enable optimistic execution
-	if optimisticExecutionEnabled {
+	if !optimisticExecutionDisabled {
 		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
 
