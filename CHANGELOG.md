@@ -4,12 +4,23 @@
 
 ## UNRELEASED
 
+## v1.4.12
+
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators.
+
+## v1.4.11
+
+* [#1884](https://github.com/crypto-org-chain/cronos/pull/1884) Patch comet bft (GHSA-hrhf-2vcr-ghch)
+
+## v1.4.10
+
+* [#1853](https://github.com/crypto-org-chain/cronos/pull/1853) Fix version not found during pruning.
+
 ## v1.4.9
 
 ### Bug Fixes
 
 * [#1830](https://github.com/crypto-org-chain/cronos/pull/1830) Add sanity check for rpc call Trace_Tx and Trace_call.
-* [#1853](https://github.com/crypto-org-chain/cronos/pull/1853) Fix version not found during pruning.
 
 *Jun 20, 2025*
 
