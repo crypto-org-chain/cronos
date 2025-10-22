@@ -340,3 +340,98 @@ func getFirstVersion(db dbm.DB, iavlVersion int) (int64, error) {
 
 	return 0, itr.Error()
 }
+
+// DumpVersionDBChangeSetCmd only dumps write entries; delete entries cannot be retrieved because RocksDB does not support this.
+// Note: Do not use for restore
+// it is only used for checking data write errors, such as https://github.com/crypto-org-chain/cronos/issues/1683
+func DumpVersionDBChangeSetCmd(defaultStores []string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dump-versiondb [dir] [outDir]",
+		Short: "dump versiondb changeset at version [dir] [outDir], don't use for restore",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := args[0]
+			outDir := args[1]
+
+			startVersion, err := cmd.Flags().GetInt64(flagStartVersion)
+			if err != nil {
+				return err
+			}
+			endVersion, err := cmd.Flags().GetInt64(flagEndVersion)
+			if err != nil {
+				return err
+			}
+			versionDB, err := tsrocksdb.NewStore(dir)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
+				return err
+			}
+
+			stores, err := GetStoresOrDefault(cmd, defaultStores)
+			if err != nil {
+				return err
+			}
+
+			for _, storeKey := range stores {
+				// Create store directory
+				storeDir := filepath.Join(outDir, storeKey)
+				if err := os.MkdirAll(storeDir, os.ModePerm); err != nil {
+					return err
+				}
+
+				for version := startVersion; version < endVersion; version++ {
+					it, err := versionDB.IteratorAtVersion(storeKey, nil, nil, &version)
+					if err != nil {
+						return err
+					}
+
+					fmt.Printf("begin store %s version %d\n", storeKey, version)
+					// Use same path structure as dump command: <outDir>/<storeName>/block-<version>
+					kvsFile := filepath.Join(storeDir, fmt.Sprintf("block-%d", version))
+					fpKvs, err := createFile(kvsFile)
+					if err != nil {
+						return err
+					}
+					kvsWriter := bufio.NewWriter(fpKvs)
+
+					var pairs []*iavl.KVPair
+					for ; it.Valid(); it.Next() {
+						if binary.LittleEndian.Uint64(it.Timestamp()) != uint64(version) {
+							continue
+						}
+						key := make([]byte, len(it.Key()))
+						copy(key, it.Key())
+						value := make([]byte, len(it.Value()))
+						copy(value, it.Value())
+						pair := &iavl.KVPair{Key: key, Value: value}
+						pairs = append(pairs, pair)
+					}
+					if err := it.Close(); err != nil {
+						return err
+					}
+					changeset := &iavl.ChangeSet{Pairs: pairs}
+					err = WriteChangeSet(kvsWriter, version, changeset)
+					if err != nil {
+						return err
+					}
+					err = kvsWriter.Flush()
+					if err != nil {
+						return err
+					}
+					err = fpKvs.Close()
+					if err != nil {
+						return err
+					}
+					fmt.Printf("  Wrote %d changes\n", len(changeset.Pairs))
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().Int64(flagStartVersion, 0, "The start version")
+	cmd.Flags().Int64(flagEndVersion, 0, "The end version, exclusive, default to latestVersion+1")
+	cmd.Flags().String(flagStores, "", "list of store names, default to the current store list in application")
+	return cmd
+}
