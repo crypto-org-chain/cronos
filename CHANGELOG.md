@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 
+* [#1893](https://github.com/crypto-org-chain/cronos/pull/1893) Normalize cache validator queue key to be UTC.
 * [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators. Upgrade RocksDB to `v10.4.2` and enable asyncIO.
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
