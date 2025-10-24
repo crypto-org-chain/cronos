@@ -5,7 +5,7 @@
 ## UNRELEASED
 
 ## v1.4.12
-
+* [#1890](https://github.com/crypto-org-chain/cronos/pull/1890) fix: disable memiavl cache when optimistic execution is enabled.
 * [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators.
 
 ## v1.4.11
