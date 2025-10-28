@@ -366,7 +366,7 @@ func New(
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
-	// this line is used by starport scaffolding # stargate/app/newArgument
+// this line is used by starport scaffolding # stargate/app/newArgument
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -435,7 +435,6 @@ func New(
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
-	// default enable optimisticExecution
 	optimisticExecutionDisabled := cast.ToString(appOpts.Get(srvflags.EVMOptimisticExecution)) == "disable"
 
 	var cacheSize int
@@ -445,7 +444,7 @@ func New(
 	}
 	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
 
-	// enable optimistic execution
+	// The default value of optimisticExecution is enabled.
 	if !optimisticExecutionDisabled {
 		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
@@ -741,7 +740,7 @@ func New(
 
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(
-		// register the governance hooks
+			// register the governance hooks
 		),
 	)
 
