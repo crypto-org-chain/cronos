@@ -1,26 +1,61 @@
 # Database Migration Tool
 
-This package provides a CLI tool for migrating Cronos application databases between different backend types (e.g., LevelDB to RocksDB).
+This package provides a CLI tool for migrating Cronos databases between different backend types (e.g., LevelDB to RocksDB).
 
 ## Features
 
+- **Multiple Database Support**: Migrate application and/or CometBFT databases
 - **Multiple Backend Support**: Migrate between LevelDB, RocksDB, PebbleDB, and MemDB
 - **Batch Processing**: Configurable batch size for optimal performance
 - **Progress Tracking**: Real-time progress reporting with statistics
 - **Data Verification**: Optional post-migration verification to ensure data integrity
 - **Configurable RocksDB Options**: Use project-specific RocksDB configurations
-- **Safe Migration**: Creates migrated database in a temporary location to avoid data loss
+- **Safe Migration**: Creates migrated databases in temporary locations to avoid data loss
+
+## Supported Databases
+
+### Application Database
+- **application.db** - Chain state (accounts, contracts, balances, etc.)
+
+### CometBFT Databases
+- **blockstore.db** - Block data (headers, commits, evidence)
+- **state.db** - Latest state (validator sets, consensus params)
+- **tx_index.db** - Transaction indexing for lookups
+- **evidence.db** - Misbehavior evidence
+
+Use the `--db-type` flag to select which databases to migrate:
+- `app` (default): Application database only
+- `cometbft`: CometBFT databases only
+- `all`: Both application and CometBFT databases
 
 ## Usage
 
 ### Basic Migration
 
-Migrate from LevelDB to RocksDB:
-
+#### Migrate Application Database Only
 ```bash
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type app \
+  --home ~/.cronos
+```
+
+#### Migrate CometBFT Databases Only
+```bash
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type cometbft \
+  --home ~/.cronos
+```
+
+#### Migrate All Databases
+```bash
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type all \
   --home ~/.cronos
 ```
 
@@ -32,6 +67,7 @@ Enable verification to ensure data integrity:
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type all \
   --verify \
   --home ~/.cronos
 ```
@@ -66,6 +102,7 @@ cronosd migrate-db \
 |------|-------------|---------|
 | `--source-backend` | Source database backend type (goleveldb, rocksdb, pebbledb, memdb) | goleveldb |
 | `--target-backend` | Target database backend type (goleveldb, rocksdb, pebbledb, memdb) | rocksdb |
+| `--db-type` | Database type to migrate (app, cometbft, all) | app |
 | `--target-home` | Target home directory (if different from source) | Same as --home |
 | `--batch-size` | Number of key-value pairs to process in each batch | 10000 |
 | `--verify` | Verify migration by comparing source and target databases | true |
@@ -93,25 +130,59 @@ The migration tool follows these steps:
 
 ### After Migration
 
-The migrated database is created with a temporary suffix to prevent accidental overwrites:
+The migrated databases are created with a temporary suffix to prevent accidental overwrites:
 
 ```
-Original:  ~/.cronos/data/application.db
-Migrated:  ~/.cronos/data/application.db.migrate-temp
+Application Database:
+  Original:  ~/.cronos/data/application.db
+  Migrated:  ~/.cronos/data/application.db.migrate-temp
+
+CometBFT Databases:
+  Original:  ~/.cronos/data/blockstore.db
+  Migrated:  ~/.cronos/data/blockstore.db.migrate-temp
+  (same pattern for state, tx_index, evidence)
 ```
 
 **Manual Steps Required:**
 
 1. Verify the migration was successful
-2. Backup the original database
-3. Replace the original database with the migrated one:
+2. Replace the original databases with the migrated ones
+
+   **Option A: Using the swap script (recommended):**
+   ```bash
+   # Preview changes
+   ./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+     --home ~/.cronos \
+     --db-type all \
+     --dry-run
+   
+   # Perform swap with automatic backup
+   ./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+     --home ~/.cronos \
+     --db-type all
+   ```
+   
+   **Option B: Manual replacement:**
    ```bash
    cd ~/.cronos/data
+   
+   # For application database
    mv application.db application.db.backup
    mv application.db.migrate-temp application.db
+   
+   # For CometBFT databases (if migrated)
+   for db in blockstore state tx_index evidence; do
+     if [ -d "${db}.db.migrate-temp" ]; then
+       mv ${db}.db ${db}.db.backup
+       mv ${db}.db.migrate-temp ${db}.db
+     fi
+   done
    ```
-4. Update `app.toml` to use the new backend type
-5. Restart your node
+
+3. Update configuration files:
+   - `app.toml`: Set `app-db-backend` to new backend type
+   - `config.toml`: Set `db_backend` to new backend type (if CometBFT databases were migrated)
+4. Restart your node
 
 ## Examples
 
@@ -143,7 +214,78 @@ mv application.db.migrate-temp application.db
 systemctl start cronosd
 ```
 
-### Example 2: Migration with Custom Batch Size
+### Example 2: Migrate All Databases (with Swap Script)
+
+For a complete migration of all node databases using the automated swap script:
+
+```bash
+# Stop the node
+systemctl stop cronosd
+
+# Run migration
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type all \
+  --verify \
+  --home ~/.cronos
+
+# Use the swap script to replace databases (includes automatic backup)
+./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+  --home ~/.cronos \
+  --db-type all
+
+# Update config files
+# Edit app.toml: app-db-backend = "rocksdb"
+# Edit config.toml: db_backend = "rocksdb"
+
+# Restart the node
+systemctl start cronosd
+```
+
+### Example 2b: Migrate All Databases (Manual Method)
+
+For a complete migration with manual database replacement:
+
+```bash
+# Stop the node
+systemctl stop cronosd
+
+# Backup all databases
+cd ~/.cronos/data
+for db in application blockstore state tx_index evidence; do
+  if [ -d "${db}.db" ]; then
+    cp -r ${db}.db ${db}.db.backup-$(date +%Y%m%d)
+  fi
+done
+
+# Run migration
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type all \
+  --verify \
+  --home ~/.cronos
+
+# Replace the databases
+cd ~/.cronos/data
+mkdir -p backups
+for db in application blockstore state tx_index evidence; do
+  if [ -d "${db}.db" ]; then
+    mv ${db}.db backups/
+    mv ${db}.db.migrate-temp ${db}.db
+  fi
+done
+
+# Update config files
+# Edit app.toml: app-db-backend = "rocksdb"
+# Edit config.toml: db_backend = "rocksdb"
+
+# Restart the node
+systemctl start cronosd
+```
+
+### Example 3: Migration with Custom Batch Size
 
 For slower disks or limited memory, reduce batch size:
 
@@ -151,12 +293,13 @@ For slower disks or limited memory, reduce batch size:
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type all \
   --batch-size 1000 \
   --verify \
   --home ~/.cronos
 ```
 
-### Example 3: Large Database Migration
+### Example 4: Large Database Migration
 
 For very large databases, disable verification for faster migration:
 
@@ -164,6 +307,7 @@ For very large databases, disable verification for faster migration:
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type all \
   --batch-size 50000 \
   --verify=false \
   --home ~/.cronos
@@ -273,6 +417,7 @@ type MigrateOptions struct {
     Logger         log.Logger          // Logger for progress reporting
     RocksDBOptions interface{}         // RocksDB options (if applicable)
     Verify         bool                // Enable post-migration verification
+    DBName         string              // Database name (application, blockstore, state, tx_index, evidence)
 }
 ```
 

@@ -1,5 +1,16 @@
 # Database Migration Tool - Quick Start Guide
 
+## Overview
+
+The `migrate-db` command supports migrating:
+- **Application database** (`application.db`) - Your chain state
+- **CometBFT databases** (`blockstore.db`, `state.db`, `tx_index.db`, `evidence.db`) - Consensus data
+
+Use the `--db-type` flag to choose what to migrate:
+- `app` (default): Application database only
+- `cometbft`: CometBFT databases only  
+- `all`: Both application and CometBFT databases
+
 ## Prerequisites
 
 - Cronos node stopped
@@ -19,24 +30,48 @@ sudo systemctl stop cronosd
 pkill cronosd
 ```
 
-### 2. Backup Your Database
+### 2. Backup Your Databases
 
 ```bash
-# Create timestamped backup
+# Backup application database
 BACKUP_NAME="application.db.backup-$(date +%Y%m%d-%H%M%S)"
 cp -r ~/.cronos/data/application.db ~/.cronos/data/$BACKUP_NAME
 
-# Verify backup
-du -sh ~/.cronos/data/$BACKUP_NAME
+# If migrating CometBFT databases too
+for db in blockstore state tx_index evidence; do
+  cp -r ~/.cronos/data/${db}.db ~/.cronos/data/${db}.db.backup-$(date +%Y%m%d-%H%M%S)
+done
+
+# Verify backups
+du -sh ~/.cronos/data/*.backup-*
 ```
 
 ### 3. Run Migration
 
-#### LevelDB to RocksDB (Most Common)
+#### Application Database Only (Default)
 ```bash
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type app \
+  --home ~/.cronos
+```
+
+#### CometBFT Databases Only
+```bash
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type cometbft \
+  --home ~/.cronos
+```
+
+#### All Databases (Recommended)
+```bash
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type all \
   --home ~/.cronos
 ```
 
@@ -45,11 +80,13 @@ cronosd migrate-db \
 cronosd migrate-db \
   --source-backend rocksdb \
   --target-backend goleveldb \
+  --db-type all \
   --home ~/.cronos
 ```
 
 ### 4. Verify Migration Output
 
+#### Single Database Migration
 Look for:
 ```
 ================================================================================
@@ -61,8 +98,60 @@ Errors:         0
 Duration:       5m30s
 ```
 
-### 5. Replace Original Database
+#### Multiple Database Migration (db-type=all)
+Look for:
+```
+4:30PM INF Starting migration database=application
+4:30PM INF Migration completed database=application processed_keys=21 total_keys=21
+4:30PM INF Starting migration database=blockstore
+4:30PM INF Migration completed database=blockstore processed_keys=1523 total_keys=1523
+...
 
+================================================================================
+ALL MIGRATIONS COMPLETED SUCCESSFULLY
+================================================================================
+Database Type:  all
+Total Keys:     3241
+Processed Keys: 3241
+Errors:         0
+```
+
+### 5. Replace Original Databases
+
+#### Using the Swap Script (Recommended)
+
+The easiest way to replace databases is using the provided script:
+
+```bash
+# Preview what will happen (dry run)
+./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+  --home ~/.cronos \
+  --db-type all \
+  --dry-run
+
+# Perform the actual swap
+./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+  --home ~/.cronos \
+  --db-type all
+```
+
+The script will:
+- ✅ Create timestamped backups (using fast `mv` operation)
+- ✅ Replace originals with migrated databases
+- ✅ Show summary with next steps
+- ⚡ Faster than copying (no disk space duplication)
+
+**Script Options:**
+```bash
+--home DIR           # Node home directory (default: ~/.cronos)
+--db-type TYPE       # Database type: app, cometbft, all (default: app)
+--backup-suffix STR  # Custom backup name (default: backup-YYYYMMDD-HHMMSS)
+--dry-run            # Preview without making changes
+```
+
+#### Manual Replacement (Alternative)
+
+##### Application Database Only
 ```bash
 cd ~/.cronos/data
 
@@ -76,8 +165,32 @@ mv application.db.migrate-temp application.db
 ls -lh application.db
 ```
 
+##### All Databases
+```bash
+cd ~/.cronos/data
+
+# Backup originals
+mkdir -p backups
+for db in application blockstore state tx_index evidence; do
+  if [ -d "${db}.db" ]; then
+    mv ${db}.db backups/${db}.db.old
+  fi
+done
+
+# Replace with migrated databases
+for db in application blockstore state tx_index evidence; do
+  if [ -d "${db}.db.migrate-temp" ]; then
+    mv ${db}.db.migrate-temp ${db}.db
+  fi
+done
+
+# Verify
+ls -lh *.db
+```
+
 ### 6. Update Configuration
 
+#### Application Database
 Edit `~/.cronos/config/app.toml`:
 
 ```toml
@@ -86,6 +199,18 @@ app-db-backend = "goleveldb"
 
 # To:
 app-db-backend = "rocksdb"
+```
+
+#### CometBFT Databases
+Edit `~/.cronos/config/config.toml`:
+
+```toml
+[consensus]
+# Change from:
+db_backend = "goleveldb"
+
+# To:
+db_backend = "rocksdb"
 ```
 
 ### 7. Start Node
@@ -111,13 +236,52 @@ tail -f ~/.cronos/logs/cronos.log
 journalctl -u cronosd -f
 ```
 
+## Quick Complete Workflow
+
+For the fastest migration experience:
+
+```bash
+# 1. Stop node
+systemctl stop cronosd
+
+# 2. Run migration
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --db-type all \
+  --home ~/.cronos
+
+# 3. Swap databases (with automatic backup)
+./cmd/cronosd/dbmigrate/swap-migrated-db.sh \
+  --home ~/.cronos \
+  --db-type all
+
+# 4. Update configs (edit app.toml and config.toml)
+
+# 5. Start node
+systemctl start cronosd
+```
+
 ## Common Options
+
+### Migrate Specific Database Type
+```bash
+# Application only
+cronosd migrate-db --db-type app ...
+
+# CometBFT only
+cronosd migrate-db --db-type cometbft ...
+
+# All databases
+cronosd migrate-db --db-type all ...
+```
 
 ### Skip Verification (Faster)
 ```bash
 cronosd migrate-db \
   --source-backend goleveldb \
   --target-backend rocksdb \
+  --db-type all \
   --verify=false \
   --home ~/.cronos
 ```
@@ -287,6 +451,7 @@ sudo systemctl start cronosd
 
 ## Estimated Migration Times
 
+### Single Database (Application)
 Based on typical disk speeds:
 
 | Database Size | HDD (100MB/s) | SSD (500MB/s) | NVMe (3GB/s) |
@@ -297,6 +462,16 @@ Based on typical disk speeds:
 | 500 GB       | ~2.5 hours    | ~25 minutes   | ~4 minutes   |
 
 *Note: Times include verification. Add 50% time for verification disabled.*
+
+### All Databases (app + cometbft)
+Multiply by approximate factor based on your database sizes:
+- **Application**: Usually largest (state data)
+- **Blockstore**: Medium-large (block history)
+- **State**: Small-medium (latest state)
+- **TX Index**: Medium-large (transaction lookups)
+- **Evidence**: Small (misbehavior evidence)
+
+**Example:** For a typical node with 100GB application.db and 50GB of CometBFT databases combined, expect ~40 minutes on SSD with verification.
 
 ## Getting Help
 

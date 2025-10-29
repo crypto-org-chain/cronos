@@ -37,6 +37,8 @@ type MigrateOptions struct {
 	RocksDBOptions interface{}
 	// Verify enables post-migration verification
 	Verify bool
+	// DBName is the name of the database to migrate (e.g., "application", "blockstore", "state")
+	DBName string
 }
 
 // MigrationStats tracks migration progress and statistics
@@ -81,7 +83,13 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 		StartTime: time.Now(),
 	}
 
+	// Default to "application" if DBName is not specified
+	if opts.DBName == "" {
+		opts.DBName = "application"
+	}
+
 	opts.Logger.Info("Starting database migration",
+		"database", opts.DBName,
 		"source_backend", opts.SourceBackend,
 		"target_backend", opts.TargetBackend,
 		"source_home", opts.SourceHome,
@@ -90,7 +98,7 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// Open source database in read-only mode
 	sourceDataDir := filepath.Join(opts.SourceHome, "data")
-	sourceDB, err := dbm.NewDB("application", opts.SourceBackend, sourceDataDir)
+	sourceDB, err := dbm.NewDB(opts.DBName, opts.SourceBackend, sourceDataDir)
 	if err != nil {
 		return stats, fmt.Errorf("failed to open source database: %w", err)
 	}
@@ -106,14 +114,14 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// For migration, we need to ensure we don't accidentally overwrite an existing DB
 	// We'll create a temporary directory first
-	tempTargetDir := filepath.Join(targetDataDir, "application.db.migrate-temp")
-	finalTargetDir := filepath.Join(targetDataDir, "application.db")
+	tempTargetDir := filepath.Join(targetDataDir, opts.DBName+".db.migrate-temp")
+	finalTargetDir := filepath.Join(targetDataDir, opts.DBName+".db")
 
 	var targetDB dbm.DB
 	if opts.TargetBackend == dbm.RocksDBBackend {
 		targetDB, err = openRocksDBForMigration(tempTargetDir, opts.RocksDBOptions)
 	} else {
-		targetDB, err = dbm.NewDB("application.migrate-temp", opts.TargetBackend, targetDataDir)
+		targetDB, err = dbm.NewDB(opts.DBName+".migrate-temp", opts.TargetBackend, targetDataDir)
 	}
 	if err != nil {
 		return stats, fmt.Errorf("failed to create target database: %w", err)
@@ -161,6 +169,9 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// Verification step if requested
 	if opts.Verify {
+		// Wait a moment to ensure databases are fully closed and released
+		time.Sleep(100 * time.Millisecond)
+
 		opts.Logger.Info("Starting verification...")
 		if err := verifyMigration(sourceDataDir, tempTargetDir, opts); err != nil {
 			return stats, fmt.Errorf("verification failed: %w", err)
@@ -259,8 +270,15 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 
 // verifyMigration compares source and target databases to ensure data integrity
 func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
+	// Determine database name from the directory path
+	// Extract the database name from sourceDir (e.g., "blockstore" from "/path/to/blockstore.db")
+	dbName := opts.DBName
+	if dbName == "" {
+		dbName = "application"
+	}
+
 	// Reopen databases for verification
-	sourceDB, err := dbm.NewDB("application", opts.SourceBackend, sourceDir)
+	sourceDB, err := dbm.NewDB(dbName, opts.SourceBackend, sourceDir)
 	if err != nil {
 		return fmt.Errorf("failed to open source database for verification: %w", err)
 	}
@@ -270,7 +288,7 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 	if opts.TargetBackend == dbm.RocksDBBackend {
 		targetDB, err = openRocksDBForRead(targetDir)
 	} else {
-		targetDB, err = dbm.NewDB("application.migrate-temp", opts.TargetBackend, filepath.Dir(targetDir))
+		targetDB, err = dbm.NewDB(dbName+".migrate-temp", opts.TargetBackend, filepath.Dir(targetDir))
 	}
 	if err != nil {
 		return fmt.Errorf("failed to open target database for verification: %w", err)
