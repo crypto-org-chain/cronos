@@ -265,6 +265,15 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 		}
 	}
 
+	// Flush memtable to SST files for RocksDB
+	if opts.TargetBackend == dbm.RocksDBBackend {
+		opts.Logger.Info("Flushing RocksDB memtable to SST files...")
+		if err := flushRocksDB(targetDB); err != nil {
+			return fmt.Errorf("failed to flush RocksDB: %w", err)
+		}
+		opts.Logger.Info("Flush completed")
+	}
+
 	return itr.Error()
 }
 

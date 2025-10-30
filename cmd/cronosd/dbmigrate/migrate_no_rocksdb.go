@@ -18,3 +18,10 @@ func openRocksDBForMigration(dir string, opts interface{}) (dbm.DB, error) {
 func openRocksDBForRead(dir string) (dbm.DB, error) {
 	return nil, fmt.Errorf("rocksdb support not enabled, rebuild with -tags rocksdb")
 }
+
+// flushRocksDB is a stub that does nothing when rocksdb is not available
+func flushRocksDB(db dbm.DB) error {
+	// This should never be called since migrate.go checks TargetBackend == RocksDBBackend
+	// But we need the stub for compilation
+	return nil
+}

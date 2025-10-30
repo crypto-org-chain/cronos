@@ -56,3 +56,16 @@ func openRocksDBForRead(dir string) (dbm.DB, error) {
 
 	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
 }
+
+// flushRocksDB explicitly flushes the memtable to SST files
+func flushRocksDB(db dbm.DB) error {
+	// Type assert to get the underlying RocksDB instance
+	if rocksDB, ok := db.(*dbm.RocksDB); ok {
+		opts := grocksdb.NewDefaultFlushOptions()
+		defer opts.Destroy()
+		opts.SetWait(true) // Wait for flush to complete
+
+		return rocksDB.DB().Flush(opts)
+	}
+	return nil // Not a RocksDB instance, nothing to flush
+}
