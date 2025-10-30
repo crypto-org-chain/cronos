@@ -6,6 +6,7 @@
 
 ## v1.5.2
 
+* [#1892](https://github.com/crypto-org-chain/cronos/pull/1892) fix: disable memiavl cache when optimistic execution is enabled.
 * [#1893](https://github.com/crypto-org-chain/cronos/pull/1893) Normalize cache validator queue key to be UTC.
 * [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators. Upgrade RocksDB to `v10.4.2` and enable asyncIO.
 
