@@ -1,0 +1,167 @@
+syntax = "proto3";
+package attestation.v1;
+
+import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+import "attestation/v1/tx.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/v2/relayer/types";
+
+// Query defines the gRPC querier service.
+service Query {
+  // GetBlockAttestation queries a specific block attestation
+  rpc GetBlockAttestation(QueryGetBlockAttestationRequest) returns (QueryGetBlockAttestationResponse) {
+    option (google.api.http).get = "/attestation/v1/attestation/{attestation_id}";
+  }
+
+  // GetBlockFinalityStatus queries the finality status of a block
+  rpc GetBlockFinalityStatus(QueryGetBlockFinalityStatusRequest) returns (QueryGetBlockFinalityStatusResponse) {
+    option (google.api.http).get = "/attestation/v1/finality/{chain_id}/{block_height}";
+  }
+
+  // GetPendingForcedTxs queries pending forced transactions for a target chain
+  rpc GetPendingForcedTxs(QueryGetPendingForcedTxsRequest) returns (QueryGetPendingForcedTxsResponse) {
+    option (google.api.http).get = "/attestation/v1/forced_txs/{target_chain_id}/pending";
+  }
+
+  // GetForcedTx queries a specific forced transaction
+  rpc GetForcedTx(QueryGetForcedTxRequest) returns (QueryGetForcedTxResponse) {
+    option (google.api.http).get = "/attestation/v1/forced_tx/{forced_tx_id}";
+  }
+}
+
+// QueryGetBlockAttestationRequest is the request for GetBlockAttestation
+message QueryGetBlockAttestationRequest {
+  // Attestation ID
+  uint64 attestation_id = 1;
+}
+
+// QueryGetBlockAttestationResponse is the response for GetBlockAttestation
+message QueryGetBlockAttestationResponse {
+  // Block attestation data
+  BlockAttestationRecord attestation = 1;
+}
+
+// BlockAttestationRecord stores the complete attestation record
+message BlockAttestationRecord {
+  // Attestation ID
+  uint64 attestation_id = 1;
+
+  // Source chain ID
+  string chain_id = 2;
+
+  // Block height
+  uint64 block_height = 3;
+
+  // Relayer address
+  string relayer = 4;
+
+  // Attestation data
+  BlockAttestationData data = 5;
+
+  // Finality status
+  bool finalized = 6;
+
+  // Finality timestamp (0 if not finalized)
+  int64 finalized_at = 7;
+
+  // Creation timestamp
+  int64 created_at = 8;
+}
+
+// QueryGetBlockFinalityStatusRequest is the request for GetBlockFinalityStatus
+message QueryGetBlockFinalityStatusRequest {
+  // Chain ID
+  string chain_id = 1;
+
+  // Block height
+  uint64 block_height = 2;
+}
+
+// QueryGetBlockFinalityStatusResponse is the response for GetBlockFinalityStatus
+message QueryGetBlockFinalityStatusResponse {
+  // Whether the block is finalized
+  bool finalized = 1;
+
+  // Finality timestamp
+  int64 finalized_at = 2;
+
+  // Attestation ID
+  uint64 attestation_id = 3;
+
+  // Finality proof
+  bytes finality_proof = 4;
+}
+
+// QueryGetPendingForcedTxsRequest is the request for GetPendingForcedTxs
+message QueryGetPendingForcedTxsRequest {
+  // Target chain ID
+  string target_chain_id = 1;
+
+  // Optional: minimum priority to filter
+  uint32 min_priority = 2;
+
+  // Optional: specific transaction type filter
+  ForcedTxType tx_type = 3;
+}
+
+// QueryGetPendingForcedTxsResponse is the response for GetPendingForcedTxs
+message QueryGetPendingForcedTxsResponse {
+  // List of pending forced transactions
+  repeated ForcedTxRecord forced_txs = 1;
+}
+
+// ForcedTxRecord stores the complete forced transaction record
+message ForcedTxRecord {
+  // Forced transaction ID
+  uint64 forced_tx_id = 1;
+
+  // Submitter address
+  string submitter = 2;
+
+  // Target chain ID
+  string target_chain_id = 3;
+
+  // Target chain type
+  string target_chain_type = 4;
+
+  // Priority
+  uint32 priority = 5;
+
+  // Transaction type
+  ForcedTxType tx_type = 6;
+
+  // Transaction data
+  bytes transaction_data = 7;
+
+  // Deadline
+  uint64 deadline = 8;
+
+  // Metadata
+  string metadata = 9;
+
+  // Submission timestamp
+  int64 submitted_at = 10;
+
+  // Execution status
+  bool executed = 11;
+
+  // Execution timestamp (0 if not executed)
+  int64 executed_at = 12;
+
+  // Execution transaction hash
+  bytes execution_tx_hash = 13;
+}
+
+// QueryGetForcedTxRequest is the request for GetForcedTx
+message QueryGetForcedTxRequest {
+  // Forced transaction ID
+  uint64 forced_tx_id = 1;
+}
+
+// QueryGetForcedTxResponse is the response for GetForcedTx
+message QueryGetForcedTxResponse {
+  // Forced transaction record
+  ForcedTxRecord forced_tx = 1;
+}
+

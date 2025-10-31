@@ -1,0 +1,27 @@
+{
+  "source_chain_id": "cronos_25-1",
+  "source_rpc": "http://localhost:26657",
+  "source_grpc": "localhost:9090",
+  
+  "attestation_chain_id": "attestation-1",
+  "attestation_rpc": "http://localhost:36657",
+  "attestation_grpc": "localhost:19090",
+  
+  "relayer_mnemonic": "word1 word2 word3 ... word24",
+  "relayer_address": "cronos1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  
+  "block_batch_size": 10,
+  "max_retries": 3,
+  "retry_delay": "5s",
+  
+  "block_poll_interval": "2s",
+  "finality_poll_interval": "5s",
+  "forced_tx_poll_interval": "3s",
+  
+  "gas_adjustment": 1.5,
+  "gas_prices": "0.025stake",
+  
+  "finality_store_type": "leveldb",
+  "finality_store_path": "./data/finality"
+}
+

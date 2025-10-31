@@ -1,0 +1,149 @@
+syntax = "proto3";
+package attestation.v1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+import "amino/amino.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/v2/relayer/types";
+
+// Msg defines the attestation Msg service.
+service Msg {
+  // SubmitBlockAttestation submits block finalization data from an EVM chain
+  rpc SubmitBlockAttestation(MsgSubmitBlockAttestation) returns (MsgSubmitBlockAttestationResponse);
+
+  // SubmitBatchBlockAttestation submits multiple block attestations
+  rpc SubmitBatchBlockAttestation(MsgSubmitBatchBlockAttestation) returns (MsgSubmitBatchBlockAttestationResponse);
+
+  // SubmitForcedTransaction submits a forced transaction to be executed on target chain
+  rpc SubmitForcedTransaction(MsgSubmitForcedTransaction) returns (MsgSubmitForcedTransactionResponse);
+}
+
+// MsgSubmitBlockAttestation represents block data forwarded from EVM chain
+message MsgSubmitBlockAttestation {
+  option (amino.name) = "attestation/SubmitBlockAttestation";
+
+  // Relayer submitting the attestation
+  string relayer = 1;
+
+  // Source chain ID (e.g., "cronos_25-1")
+  string chain_id = 2;
+
+  // Block height
+  uint64 block_height = 3;
+
+  // ABCI RequestFinalizeBlock data (encoded)
+  bytes request_finalize_block = 4;
+
+  // ABCI ResponseFinalizeBlock data (encoded)
+  bytes response_finalize_block = 5;
+
+  // Block timestamp
+  int64 timestamp = 6;
+
+  // Relayer signature over the block data
+  bytes signature = 7;
+}
+
+// MsgSubmitBlockAttestationResponse is the response for submitting block attestation
+message MsgSubmitBlockAttestationResponse {
+  // Attestation ID assigned by the chain
+  uint64 attestation_id = 1;
+
+  // Whether the block achieved finality immediately
+  bool finalized = 2;
+}
+
+// MsgSubmitBatchBlockAttestation submits multiple block attestations
+message MsgSubmitBatchBlockAttestation {
+  option (amino.name) = "attestation/SubmitBatchBlockAttestation";
+
+  // Relayer submitting the attestations
+  string relayer = 1;
+
+  // Source chain ID
+  string chain_id = 2;
+
+  // List of block attestations
+  repeated BlockAttestationData attestations = 3;
+}
+
+// BlockAttestationData contains the data for a single block attestation
+message BlockAttestationData {
+  // Block height
+  uint64 block_height = 1;
+
+  // ABCI RequestFinalizeBlock data (encoded)
+  bytes request_finalize_block = 2;
+
+  // ABCI ResponseFinalizeBlock data (encoded)
+  bytes response_finalize_block = 3;
+
+  // Block timestamp
+  int64 timestamp = 4;
+}
+
+// MsgSubmitBatchBlockAttestationResponse is the response for batch submission
+message MsgSubmitBatchBlockAttestationResponse {
+  // List of attestation IDs
+  repeated uint64 attestation_ids = 1;
+
+  // Number of blocks that achieved immediate finality
+  uint32 finalized_count = 2;
+}
+
+// MsgSubmitForcedTransaction wraps a standard Cosmos transaction for forced execution
+message MsgSubmitForcedTransaction {
+  option (amino.name) = "attestation/SubmitForcedTransaction";
+
+  // Address submitting the forced transaction
+  string submitter = 1;
+
+  // Target chain ID where the transaction should be executed
+  string target_chain_id = 2;
+
+  // Target chain type (e.g., "evm", "cosmos")
+  string target_chain_type = 3;
+
+  // Priority level (0-255, higher = more urgent)
+  uint32 priority = 4;
+
+  // Transaction type
+  ForcedTxType tx_type = 5;
+
+  // Serialized transaction data (chain-specific format)
+  bytes transaction_data = 6;
+
+  // Deadline block height (0 = no deadline)
+  uint64 deadline = 7;
+
+  // Optional metadata
+  string metadata = 8;
+}
+
+// ForcedTxType defines the type of forced transaction
+enum ForcedTxType {
+  option (gogoproto.goproto_enum_prefix) = false;
+
+  // Normal forced transaction
+  FORCED_TX_TYPE_NORMAL = 0 [(gogoproto.enumvalue_customname) = "ForcedTxTypeNormal"];
+
+  // Governance-related operation
+  FORCED_TX_TYPE_GOVERNANCE = 1 [(gogoproto.enumvalue_customname) = "ForcedTxTypeGovernance"];
+
+  // Escape hatch / emergency withdrawal
+  FORCED_TX_TYPE_ESCAPE_HATCH = 2 [(gogoproto.enumvalue_customname) = "ForcedTxTypeEscapeHatch"];
+
+  // Emergency system operation
+  FORCED_TX_TYPE_EMERGENCY = 3 [(gogoproto.enumvalue_customname) = "ForcedTxTypeEmergency"];
+}
+
+// MsgSubmitForcedTransactionResponse is the response for forced transaction submission
+message MsgSubmitForcedTransactionResponse {
+  // Unique ID for the forced transaction
+  uint64 forced_tx_id = 1;
+
+  // Estimated execution block height
+  uint64 estimated_execution_height = 2;
+}
+
