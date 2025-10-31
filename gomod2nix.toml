@@ -200,12 +200,9 @@ schema = 3
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.15.0"
     hash = "sha256-hNtUoPsgrsc9MhU7AONKMOB6k4bEbg757BSXVp7G5EA="
-  [mod."github.com/consensys/bavard"]
-    version = "v0.1.27"
-    hash = "sha256-qRbdMAIcsg/2RCkmyfUtsFc/R99n50epZtTjX6QaWac="
   [mod."github.com/consensys/gnark-crypto"]
-    version = "v0.16.0"
-    hash = "sha256-Yq7cCmfiNdnX5Vl0oW9/wioxi9hOkXBWCB4pvHu4/fw="
+    version = "v0.18.1"
+    hash = "sha256-8NFI8oeqRkMBnKdGUpGZfwt3gr4nmzmE3yoasQ3zZkg="
   [mod."github.com/cosmos/btcutil"]
     version = "v1.0.5"
     hash = "sha256-t572Sr5iiHcuMKLMWa2i+LBAt192oa+G1oA371tG/eI="
@@ -537,9 +534,6 @@ schema = 3
   [mod."github.com/mitchellh/mapstructure"]
     version = "v1.5.0"
     hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
-  [mod."github.com/mmcloughlin/addchain"]
-    version = "v0.4.0"
-    hash = "sha256-zSWSSUElCVFH5mydFlF2mzn4Wsm1WHASRxQ5TKa+To8="
   [mod."github.com/mtibben/percent"]
     version = "v0.2.1"
     hash = "sha256-Zj1lpCP6mKQ0UUTMs2By4LC414ou+iJzKkK+eBHfEcc="
@@ -809,9 +803,6 @@ schema = 3
   [mod."pgregory.net/rapid"]
     version = "v1.2.0"
     hash = "sha256-GT8thcMb5IH7KSFiK7p2IpThK9daDvZwqOGAP8eELko="
-  [mod."rsc.io/tmplfunc"]
-    version = "v0.0.3"
-    hash = "sha256-Kii+7DxaSzzn2NphVcEk0W42TXMBFINtm3+B2t7e0cc="
   [mod."sigs.k8s.io/yaml"]
     version = "v1.6.0"
     hash = "sha256-49hg7IVPzwxeovp+HTMiWa/10NMMTSTjAdCmIv6p9dw="
