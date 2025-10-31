@@ -6,10 +6,18 @@ The `migrate-db` command supports migrating:
 - **Application database** (`application.db`) - Your chain state
 - **CometBFT databases** (`blockstore.db`, `state.db`, `tx_index.db`, `evidence.db`) - Consensus data
 
-Use the `--db-type` flag to choose what to migrate:
+### Database Selection
+
+**Option 1: Use `--db-type` flag** (migrate predefined groups):
 - `app` (default): Application database only
 - `cometbft`: CometBFT databases only  
 - `all`: Both application and CometBFT databases
+
+**Option 2: Use `--databases` flag** (migrate specific databases):
+- Comma-separated list of database names
+- Valid names: `application`, `blockstore`, `state`, `tx_index`, `evidence`
+- Example: `--databases blockstore,tx_index`
+- Takes precedence over `--db-type` if both are specified
 
 ## Prerequisites
 
@@ -81,6 +89,23 @@ cronosd migrate-db \
   --source-backend rocksdb \
   --target-backend goleveldb \
   --db-type all \
+  --home ~/.cronos
+```
+
+#### Specific Databases Only
+```bash
+# Migrate only blockstore and tx_index
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --databases blockstore,tx_index \
+  --home ~/.cronos
+
+# Migrate application and state databases
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --databases application,state \
   --home ~/.cronos
 ```
 

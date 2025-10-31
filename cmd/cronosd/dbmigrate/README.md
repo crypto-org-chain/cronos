@@ -96,6 +96,26 @@ cronosd migrate-db \
   --home ~/.cronos
 ```
 
+### Migrate Specific Databases
+
+Migrate only specific databases using the `--databases` flag:
+
+```bash
+# Migrate only blockstore and tx_index databases
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --databases blockstore,tx_index \
+  --home ~/.cronos
+
+# Migrate application and state databases
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --databases application,state \
+  --home ~/.cronos
+```
+
 ## Command-Line Flags
 
 | Flag | Description | Default |
@@ -103,6 +123,7 @@ cronosd migrate-db \
 | `--source-backend` | Source database backend type (goleveldb, rocksdb, pebbledb, memdb) | goleveldb |
 | `--target-backend` | Target database backend type (goleveldb, rocksdb, pebbledb, memdb) | rocksdb |
 | `--db-type` | Database type to migrate (app, cometbft, all) | app |
+| `--databases` | Comma-separated list of specific databases (e.g., 'blockstore,tx_index'). Valid: application, blockstore, state, tx_index, evidence. Takes precedence over --db-type | (empty) |
 | `--target-home` | Target home directory (if different from source) | Same as --home |
 | `--batch-size` | Number of key-value pairs to process in each batch | 10000 |
 | `--verify` | Verify migration by comparing source and target databases | true |
@@ -299,7 +320,30 @@ cronosd migrate-db \
   --home ~/.cronos
 ```
 
-### Example 4: Large Database Migration
+### Example 4: Migrate Specific Databases
+
+Migrate only the databases you need:
+
+```bash
+# Migrate only transaction indexing and block storage
+cronosd migrate-db \
+  --source-backend goleveldb \
+  --target-backend rocksdb \
+  --databases tx_index,blockstore \
+  --verify \
+  --home ~/.cronos
+
+# Manually replace the databases
+cd ~/.cronos/data
+mv tx_index.db tx_index.db.backup
+mv tx_index.db.migrate-temp tx_index.db
+mv blockstore.db blockstore.db.backup
+mv blockstore.db.migrate-temp blockstore.db
+
+# Update config.toml: db_backend = "rocksdb"
+```
+
+### Example 5: Large Database Migration
 
 For very large databases, disable verification for faster migration:
 

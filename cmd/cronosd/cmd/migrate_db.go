@@ -19,6 +19,7 @@ const (
 	flagBatchSize     = "batch-size"
 	flagVerify        = "verify"
 	flagDBType        = "db-type"
+	flagDatabases     = "databases"
 )
 
 // Database type constants
@@ -27,6 +28,15 @@ const (
 	DBTypeCometBFT = "cometbft"
 	DBTypeAll      = "all"
 )
+
+// Valid database names
+var validDatabaseNames = map[string]bool{
+	"application": true,
+	"blockstore":  true,
+	"state":       true,
+	"tx_index":    true,
+	"evidence":    true,
+}
 
 // MigrateDBCmd returns a command to migrate database from one backend to another
 func MigrateDBCmd() *cobra.Command {
@@ -45,10 +55,18 @@ The migration process:
 4. Optionally verifies the migration
 5. Creates the target database(s) in a temporary location
 
-Database types:
+Database types (--db-type):
   - app: Application database only (application.db)
   - cometbft: CometBFT databases only (blockstore.db, state.db, tx_index.db, evidence.db)
   - all: Both application and CometBFT databases
+
+Specific databases (--databases):
+You can also specify individual databases as a comma-separated list:
+  - application: Chain state
+  - blockstore: Block data
+  - state: Latest state
+  - tx_index: Transaction indexing
+  - evidence: Misbehavior evidence
 
 IMPORTANT: 
 - Always backup your databases before migration
@@ -58,14 +76,20 @@ IMPORTANT:
 - Stop your node before running this command
 
 Examples:
-  # Migrate application database only
+  # Migrate application database only (using --db-type)
   cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type app --home ~/.cronos
 
-  # Migrate CometBFT databases only
+  # Migrate CometBFT databases only (using --db-type)
   cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type cometbft --home ~/.cronos
 
-  # Migrate all databases
+  # Migrate all databases (using --db-type)
   cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type all --home ~/.cronos
+
+  # Migrate specific databases (using --databases)
+  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases blockstore,tx_index --home ~/.cronos
+
+  # Migrate multiple specific databases
+  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases application,blockstore,state --home ~/.cronos
 
   # Migrate with verification
   cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type all --verify --home ~/.cronos
@@ -81,6 +105,7 @@ Examples:
 			batchSize := ctx.Viper.GetInt(flagBatchSize)
 			verify := ctx.Viper.GetBool(flagVerify)
 			dbType := ctx.Viper.GetString(flagDBType)
+			databases := ctx.Viper.GetString(flagDatabases)
 
 			// Parse backend types
 			sourceBackendType, err := parseBackendType(sourceBackend)
@@ -101,9 +126,41 @@ Examples:
 				targetHome = homeDir
 			}
 
-			// Validate db-type
-			if dbType != DBTypeApp && dbType != DBTypeCometBFT && dbType != DBTypeAll {
-				return fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)
+			// Determine which databases to migrate
+			var dbNames []string
+
+			// If --databases flag is provided, use it (takes precedence over --db-type)
+			if databases != "" {
+				// Parse comma-separated database names
+				dbList := strings.Split(databases, ",")
+				for _, dbName := range dbList {
+					dbName = strings.TrimSpace(dbName)
+					if dbName == "" {
+						continue
+					}
+					if !validDatabaseNames[dbName] {
+						return fmt.Errorf("invalid database name: %s (valid names: application, blockstore, state, tx_index, evidence)", dbName)
+					}
+					dbNames = append(dbNames, dbName)
+				}
+				if len(dbNames) == 0 {
+					return fmt.Errorf("no valid databases specified in --databases flag")
+				}
+			} else {
+				// Fall back to --db-type flag
+				// Validate db-type
+				if dbType != DBTypeApp && dbType != DBTypeCometBFT && dbType != DBTypeAll {
+					return fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)
+				}
+
+				switch dbType {
+				case DBTypeApp:
+					dbNames = []string{"application"}
+				case DBTypeCometBFT:
+					dbNames = []string{"blockstore", "state", "tx_index", "evidence"}
+				case DBTypeAll:
+					dbNames = []string{"application", "blockstore", "state", "tx_index", "evidence"}
+				}
 			}
 
 			logger.Info("Database migration configuration",
@@ -111,7 +168,7 @@ Examples:
 				"target_home", targetHome,
 				"source_backend", sourceBackend,
 				"target_backend", targetBackend,
-				"db_type", dbType,
+				"databases", dbNames,
 				"batch_size", batchSize,
 				"verify", verify,
 			)
@@ -121,17 +178,6 @@ Examples:
 			if targetBackendType == dbm.RocksDBBackend {
 				// Use the same RocksDB options as the application (implemented in build-tagged files)
 				rocksDBOpts = prepareRocksDBOptions()
-			}
-
-			// Determine which databases to migrate
-			var dbNames []string
-			switch dbType {
-			case DBTypeApp:
-				dbNames = []string{"application"}
-			case DBTypeCometBFT:
-				dbNames = []string{"blockstore", "state", "tx_index", "evidence"}
-			case DBTypeAll:
-				dbNames = []string{"application", "blockstore", "state", "tx_index", "evidence"}
 			}
 
 			// Migrate each database
@@ -180,7 +226,11 @@ Examples:
 			fmt.Println("\n" + strings.Repeat("=", 80))
 			fmt.Println("ALL MIGRATIONS COMPLETED SUCCESSFULLY")
 			fmt.Println(strings.Repeat("=", 80))
-			fmt.Printf("Database Type:  %s\n", dbType)
+			if databases != "" {
+				fmt.Printf("Databases:      %s\n", strings.Join(dbNames, ", "))
+			} else {
+				fmt.Printf("Database Type:  %s\n", dbType)
+			}
 			fmt.Printf("Total Keys:     %d\n", totalStats.TotalKeys.Load())
 			fmt.Printf("Processed Keys: %d\n", totalStats.ProcessedKeys.Load())
 			fmt.Printf("Errors:         %d\n", totalStats.ErrorCount.Load())
@@ -205,6 +255,7 @@ Examples:
 	cmd.Flags().Int(flagBatchSize, dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
 	cmd.Flags().Bool(flagVerify, true, "Verify migration by comparing source and target databases")
 	cmd.Flags().String(flagDBType, DBTypeApp, "Database type to migrate: app (application.db only), cometbft (CometBFT databases only), all (both)")
+	cmd.Flags().String(flagDatabases, "", "Comma-separated list of specific databases to migrate (e.g., 'blockstore,tx_index'). Valid names: application, blockstore, state, tx_index, evidence. If specified, this flag takes precedence over --db-type")
 
 	return cmd
 }
