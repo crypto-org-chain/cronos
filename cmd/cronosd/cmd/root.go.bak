@@ -10,12 +10,11 @@ import (
 	cmtcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
 	rosettaCmd "github.com/cosmos/rosetta/cmd"
-	"github.com/crypto-org-chain/cronos/app"
-	config2 "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
-	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
-	"github.com/crypto-org-chain/cronos/x/cronos"
-	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
+	"github.com/crypto-org-chain/cronos/v2/app"
+	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
+	"github.com/crypto-org-chain/cronos/v2/x/cronos"
+	e2eecli "github.com/crypto-org-chain/cronos/v2/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"
 	"github.com/evmos/ethermint/crypto/hd"
 	ethermintserver "github.com/evmos/ethermint/server"
@@ -193,6 +192,7 @@ func initRootCmd(
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
 		DatabaseCmd(), // Database management commands (migrate, patch)
+		InspectDBCmd(), // Database inspection for debugging
 	)
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
@@ -274,7 +274,6 @@ func initAppConfig() (string, interface{}) {
 
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
-		Cronos    config2.CronosConfig     `mapstructure:"cronos"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -283,10 +282,9 @@ func initAppConfig() (string, interface{}) {
 		Config:    cfg.(servercfg.Config),
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
-		Cronos:    config2.DefaultCronosConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
 }
 
 // newApp creates the application

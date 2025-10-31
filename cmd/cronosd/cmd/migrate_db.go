@@ -20,6 +20,7 @@ const (
 	flagVerify        = "verify"
 	flagDBType        = "db-type"
 	flagDatabases     = "databases"
+	flagHeight        = "height"
 )
 
 // Database type constants
@@ -38,11 +39,12 @@ var validDatabaseNames = map[string]bool{
 	"evidence":    true,
 }
 
-// MigrateDBCmd returns a command to migrate database from one backend to another
+// MigrateDBCmd returns the legacy migrate-db command (for backward compatibility)
 func MigrateDBCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "migrate-db",
-		Short: "Migrate databases from one backend to another (e.g., leveldb to rocksdb)",
+		Use:        "migrate-db",
+		Short:      "Migrate databases from one backend to another (e.g., leveldb to rocksdb)",
+		Deprecated: "Use 'database migrate' or 'db migrate' instead",
 		Long: `Migrate databases from one backend to another.
 
 This command migrates databases from a source backend to a target backend.
@@ -67,6 +69,14 @@ You can also specify individual databases as a comma-separated list:
   - state: Latest state
   - tx_index: Transaction indexing
   - evidence: Misbehavior evidence
+
+Height Filtering (--height):
+For blockstore.db and tx_index.db, you can specify heights to migrate:
+  - Range: --height 10000-20000 (migrate heights 10000 to 20000)
+  - Single: --height 123456 (migrate only height 123456)
+  - Multiple: --height 123456,234567,999999 (migrate specific heights)
+  - Only applies to blockstore and tx_index databases
+  - Other databases will ignore height filtering
 
 IMPORTANT: 
 - Always backup your databases before migration
@@ -93,6 +103,15 @@ Examples:
 
   # Migrate with verification
   cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type all --verify --home ~/.cronos
+
+  # Migrate blockstore with height range
+  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases blockstore --height 1000000-2000000 --home ~/.cronos
+
+  # Migrate single block height
+  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases blockstore --height 123456 --home ~/.cronos
+
+  # Migrate specific heights
+  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases blockstore,tx_index --height 100000,200000,300000 --home ~/.cronos
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
@@ -106,6 +125,7 @@ Examples:
 			verify := ctx.Viper.GetBool(flagVerify)
 			dbType := ctx.Viper.GetString(flagDBType)
 			databases := ctx.Viper.GetString(flagDatabases)
+			heightFlag := ctx.Viper.GetString(flagHeight)
 
 			// Parse backend types
 			sourceBackendType, err := parseBackendType(sourceBackend)
@@ -163,7 +183,35 @@ Examples:
 				}
 			}
 
-			logger.Info("Database migration configuration",
+			// Parse height flag
+			heightRange, err := dbmigrate.ParseHeightFlag(heightFlag)
+			if err != nil {
+				return fmt.Errorf("invalid height flag: %w", err)
+			}
+
+			// Validate height range
+			if err := heightRange.Validate(); err != nil {
+				return fmt.Errorf("invalid height specification: %w", err)
+			}
+
+			// Warn if height specification is provided but not applicable
+			if !heightRange.IsEmpty() {
+				hasHeightSupport := false
+				for _, dbName := range dbNames {
+					if dbName == "blockstore" || dbName == "tx_index" {
+						hasHeightSupport = true
+						break
+					}
+				}
+				if !hasHeightSupport {
+					logger.Warn("Height specification provided but will be ignored (only applies to blockstore and tx_index databases)",
+						"databases", dbNames,
+						"height", heightRange.String(),
+					)
+				}
+			}
+
+			logArgs := []interface{}{
 				"source_home", homeDir,
 				"target_home", targetHome,
 				"source_backend", sourceBackend,
@@ -171,7 +219,11 @@ Examples:
 				"databases", dbNames,
 				"batch_size", batchSize,
 				"verify", verify,
-			)
+			}
+			if !heightRange.IsEmpty() {
+				logArgs = append(logArgs, "height_range", heightRange.String())
+			}
+			logger.Info("Database migration configuration", logArgs...)
 
 			// Prepare RocksDB options if target is RocksDB
 			var rocksDBOpts interface{}
@@ -195,6 +247,7 @@ Examples:
 					RocksDBOptions: rocksDBOpts,
 					Verify:         verify,
 					DBName:         dbName,
+					HeightRange:    heightRange,
 				}
 
 				stats, err := dbmigrate.Migrate(opts)
@@ -249,14 +302,23 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String(flagSourceBackend, "goleveldb", "Source database backend type (goleveldb, rocksdb)")
-	cmd.Flags().String(flagTargetBackend, "rocksdb", "Target database backend type (goleveldb, rocksdb)")
-	cmd.Flags().String(flagTargetHome, "", "Target home directory (default: same as --home)")
-	cmd.Flags().Int(flagBatchSize, dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
-	cmd.Flags().Bool(flagVerify, true, "Verify migration by comparing source and target databases")
-	cmd.Flags().String(flagDBType, DBTypeApp, "Database type to migrate: app (application.db only), cometbft (CometBFT databases only), all (both)")
-	cmd.Flags().String(flagDatabases, "", "Comma-separated list of specific databases to migrate (e.g., 'blockstore,tx_index'). Valid names: application, blockstore, state, tx_index, evidence. If specified, this flag takes precedence over --db-type")
+	cmd.Flags().StringP(flagSourceBackend, "s", "goleveldb", "Source database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagTargetBackend, "t", "rocksdb", "Target database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagTargetHome, "o", "", "Target home directory (default: same as --home)")
+	cmd.Flags().IntP(flagBatchSize, "b", dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
+	cmd.Flags().BoolP(flagVerify, "v", true, "Verify migration by comparing source and target databases")
+	cmd.Flags().StringP(flagDBType, "y", DBTypeApp, "Database type to migrate: app (application.db only), cometbft (CometBFT databases only), all (both)")
+	cmd.Flags().StringP(flagDatabases, "d", "", "Comma-separated list of specific databases to migrate (e.g., 'blockstore,tx_index'). Valid names: application, blockstore, state, tx_index, evidence. If specified, this flag takes precedence over --db-type")
+	cmd.Flags().StringP(flagHeight, "H", "", "Height specification for blockstore/tx_index: range (10000-20000), single (123456), or multiple (123456,234567,999999). Only applies to blockstore and tx_index databases")
 
+	return cmd
+}
+
+// MigrateCmd returns the migrate subcommand (for database command group)
+func MigrateCmd() *cobra.Command {
+	cmd := MigrateDBCmd()
+	cmd.Use = "migrate"
+	cmd.Deprecated = ""
 	return cmd
 }
 

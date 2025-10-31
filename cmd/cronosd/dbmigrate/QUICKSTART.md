@@ -1,6 +1,14 @@
-# Database Migration Tool - Quick Start Guide
+# Database Tools - Quick Start Guide
 
-## Overview
+This guide covers two commands:
+- **`migrate-db`**: Full database migration between backends
+- **`patchdb`**: Patch specific block heights into existing databases
+
+---
+
+## Part 1: migrate-db (Full Migration)
+
+### Overview
 
 The `migrate-db` command supports migrating:
 - **Application database** (`application.db`) - Your chain state
@@ -537,6 +545,213 @@ Include:
 3. **Remove old backup**: After confirming stability
 4. **Update documentation**: Note the backend change
 5. **Update monitoring**: If tracking database metrics
+
+---
+
+## Part 2: patchdb (Patch Specific Heights)
+
+### Overview
+
+The `patchdb` command patches specific block heights from a source database into an **existing** target database.
+
+**Use cases**:
+- Fix missing blocks
+- Repair corrupted blocks
+- Backfill specific heights
+- Add blocks without full resync
+
+**Key differences from migrate-db**:
+- Target database MUST already exist
+- Only patches specified heights (required)
+- Only supports `blockstore` and `tx_index`
+- Updates existing database (doesn't create new one)
+
+### Prerequisites
+
+- Both nodes stopped
+- **Target database must exist**
+- Backup of target database
+- Source database with the blocks you need
+
+### Quick Start: Patch Missing Block
+
+#### 1. Stop Nodes
+
+```bash
+# Stop both source and target nodes
+sudo systemctl stop cronosd
+```
+
+#### 2. Backup Target Database
+
+```bash
+# Always backup before patching!
+BACKUP_NAME="blockstore.db.backup-$(date +%Y%m%d-%H%M%S)"
+cp -r ~/.cronos/data/blockstore.db ~/.cronos/data/$BACKUP_NAME
+```
+
+#### 3. Patch the Block
+
+**Single block**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 123456 \
+  --source-home ~/.cronos-archive \
+  --target-path ~/.cronos/data/blockstore.db
+```
+
+**Range of blocks**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 1000000-1001000 \
+  --source-home ~/.cronos-archive \
+  --target-path ~/.cronos/data/blockstore.db
+```
+
+**Multiple specific blocks**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 100000,200000,300000 \
+  --source-home ~/.cronos-archive \
+  --target-path ~/.cronos/data/blockstore.db
+```
+
+**Both databases at once** (recommended):
+```bash
+cronosd patchdb \
+  --database blockstore,tx_index \
+  --height 1000000-1001000 \
+  --source-home ~/.cronos-archive \
+  --target-path ~/.cronos/data
+```
+
+#### 4. Verify and Restart
+
+```bash
+# Check the logs from patchdb output
+# Look for: "DATABASE PATCH COMPLETED SUCCESSFULLY"
+
+# Start node
+sudo systemctl start cronosd
+
+# Verify node is working
+cronosd status
+```
+
+### Common patchdb Scenarios
+
+#### Scenario 1: Missing Blocks
+
+**Problem**: Node missing blocks 5000000-5000100
+
+**Solution**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 5000000-5000100 \
+  --source-home /mnt/archive-node \
+  --target-path ~/.cronos/data/blockstore.db \
+  --source-backend rocksdb \
+  --target-backend rocksdb
+```
+
+#### Scenario 2: Corrupted Block
+
+**Problem**: Block 3000000 is corrupted
+
+**Solution**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 3000000 \
+  --source-home /backup/cronos \
+  --target-path ~/.cronos/data/blockstore.db
+```
+
+#### Scenario 3: Backfill Historical Data
+
+**Problem**: Pruned node needs specific checkpoint heights
+
+**Solution**:
+```bash
+cronosd patchdb \
+  --database blockstore \
+  --height 1000000,2000000,3000000,4000000 \
+  --source-home /archive/cronos \
+  --target-path ~/.cronos/data/blockstore.db
+```
+
+#### Scenario 4: Patch Both Databases Efficiently
+
+**Problem**: Missing blocks in both blockstore and tx_index
+
+**Solution** (patch both at once):
+```bash
+cronosd patchdb \
+  --database blockstore,tx_index \
+  --height 5000000-5000100 \
+  --source-home /mnt/archive-node \
+  --target-path ~/.cronos/data \
+  --source-backend rocksdb \
+  --target-backend rocksdb
+```
+
+### patchdb Flags Reference
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--database` | ✅ Yes | - | Database(s) to patch: `blockstore`, `tx_index`, or `blockstore,tx_index` |
+| `--height` | ✅ Yes | - | Heights: range (10-20), single (100), or multiple (10,20,30) |
+| `--source-home` | ✅ Yes | - | Source home directory |
+| `--target-path` | No | source data dir | For single DB: exact path. For multiple: data directory |
+| `--source-backend` | No | goleveldb | Source database backend |
+| `--target-backend` | No | rocksdb | Target database backend |
+| `--batch-size` | No | 10000 | Batch size for writing |
+
+### patchdb Troubleshooting
+
+**Error: "target database does not exist"**
+```bash
+# Solution: Target must exist first
+# Either create it or use migrate-db to initialize it
+```
+
+**Error: "height range is required"**
+```bash
+# Solution: patchdb requires --height flag
+cronosd patchdb --height 123456 ...
+```
+
+**Error: "database X does not support height-based patching"**
+```bash
+# Solution: Only blockstore and tx_index are supported
+# Use migrate-db for application, state, or evidence databases
+```
+
+**No keys found for specified heights**
+```bash
+# Check source database has those heights
+# Verify correct --source-home path
+# Ensure correct database name
+```
+
+### When to Use Which Command
+
+| Situation | Use Command | Why |
+|-----------|-------------|-----|
+| Changing backend (goleveldb → rocksdb) | `migrate-db` | Full migration |
+| Missing a few blocks | `patchdb` | Surgical fix |
+| Corrupted block data | `patchdb` | Replace specific blocks |
+| Need entire database on new backend | `migrate-db` | Complete migration |
+| Backfilling specific heights | `patchdb` | Efficient for specific blocks |
+| Migrating application.db | `migrate-db` | patchdb doesn't support it |
+| Target DB doesn't exist yet | `migrate-db` | Creates new DB |
+| Target DB exists, need specific heights | `patchdb` | Updates existing |
+
+---
 
 ## Additional Resources
 

@@ -39,6 +39,8 @@ type MigrateOptions struct {
 	Verify bool
 	// DBName is the name of the database to migrate (e.g., "application", "blockstore", "state")
 	DBName string
+	// HeightRange specifies the range of heights to migrate (only for blockstore and tx_index)
+	HeightRange HeightRange
 }
 
 // MigrationStats tracks migration progress and statistics
@@ -88,13 +90,25 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 		opts.DBName = "application"
 	}
 
-	opts.Logger.Info("Starting database migration",
+	// Validate height range if specified
+	if err := opts.HeightRange.Validate(); err != nil {
+		return stats, fmt.Errorf("invalid height range: %w", err)
+	}
+
+	logArgs := []interface{}{
 		"database", opts.DBName,
 		"source_backend", opts.SourceBackend,
 		"target_backend", opts.TargetBackend,
 		"source_home", opts.SourceHome,
 		"target_home", opts.TargetHome,
-	)
+	}
+
+	// Add height range to log if specified
+	if !opts.HeightRange.IsEmpty() {
+		logArgs = append(logArgs, "height_range", opts.HeightRange.String())
+	}
+
+	opts.Logger.Info("Starting database migration", logArgs...)
 
 	// Open source database in read-only mode
 	sourceDataDir := filepath.Join(opts.SourceHome, "data")
@@ -135,16 +149,44 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// Count total keys first for progress reporting
 	opts.Logger.Info("Counting total keys...")
-	totalKeys, err := countKeys(sourceDB)
-	if err != nil {
-		return stats, fmt.Errorf("failed to count keys: %w", err)
+	var totalKeys int64
+
+	// Use height-filtered counting if height range is specified
+	if !opts.HeightRange.IsEmpty() && supportsHeightFiltering(opts.DBName) {
+		totalKeys, err = countKeysWithHeightFilter(sourceDB, opts.DBName, opts.HeightRange)
+		if err != nil {
+			return stats, fmt.Errorf("failed to count keys with height filter: %w", err)
+		}
+		opts.Logger.Info("Total keys to migrate", "count", totalKeys, "height_range", opts.HeightRange.String())
+	} else {
+		totalKeys, err = countKeys(sourceDB)
+		if err != nil {
+			return stats, fmt.Errorf("failed to count keys: %w", err)
+		}
+		opts.Logger.Info("Total keys to migrate", "count", totalKeys)
 	}
+
 	stats.TotalKeys.Store(totalKeys)
-	opts.Logger.Info("Total keys to migrate", "count", totalKeys)
 
 	// Perform the migration
-	if err := migrateData(sourceDB, targetDB, opts, stats); err != nil {
-		return stats, fmt.Errorf("migration failed: %w", err)
+	// Use height-filtered migration if height range is specified and database supports it
+	if !opts.HeightRange.IsEmpty() && supportsHeightFiltering(opts.DBName) {
+		if err := migrateDataWithHeightFilter(sourceDB, targetDB, opts, stats); err != nil {
+			return stats, fmt.Errorf("migration failed: %w", err)
+		}
+	} else {
+		if err := migrateData(sourceDB, targetDB, opts, stats); err != nil {
+			return stats, fmt.Errorf("migration failed: %w", err)
+		}
+	}
+
+	// Flush memtable to SST files for RocksDB
+	if opts.TargetBackend == dbm.RocksDBBackend {
+		opts.Logger.Info("Flushing RocksDB memtable to SST files...")
+		if err := flushRocksDB(targetDB); err != nil {
+			return stats, fmt.Errorf("failed to flush RocksDB: %w", err)
+		}
+		opts.Logger.Info("Flush completed")
 	}
 
 	// Close databases before verification to release locks
@@ -203,7 +245,52 @@ func countKeys(db dbm.DB) (int64, error) {
 	return count, itr.Error()
 }
 
-// migrateData performs the actual data migration
+// countKeysWithHeightFilter counts keys using bounded iterators for the specified height range
+func countKeysWithHeightFilter(db dbm.DB, dbName string, heightRange HeightRange) (int64, error) {
+	var iterators []dbm.Iterator
+	var err error
+
+	// Get bounded iterators based on database type
+	switch dbName {
+	case "blockstore":
+		iterators, err = getBlockstoreIterators(db, heightRange)
+	case "tx_index":
+		itr, err := getTxIndexIterator(db, heightRange)
+		if err != nil {
+			return 0, err
+		}
+		iterators = []dbm.Iterator{itr}
+	default:
+		// Fall back to full counting for unsupported databases
+		return countKeys(db)
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	// Ensure all iterators are closed
+	defer func() {
+		for _, itr := range iterators {
+			itr.Close()
+		}
+	}()
+
+	// Count keys from each iterator
+	var count int64
+	for _, itr := range iterators {
+		for ; itr.Valid(); itr.Next() {
+			count++
+		}
+		if err := itr.Error(); err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+// migrateData performs the actual data migration without height filtering
 func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
 	itr, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
@@ -211,6 +298,57 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 	}
 	defer itr.Close()
 
+	return migrateWithIterator(itr, targetDB, opts, stats)
+}
+
+// migrateDataWithHeightFilter performs data migration using bounded iterators for height filtering
+func migrateDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
+	var iterators []dbm.Iterator
+	var err error
+
+	// Get bounded iterators based on database type
+	switch opts.DBName {
+	case "blockstore":
+		iterators, err = getBlockstoreIterators(sourceDB, opts.HeightRange)
+	case "tx_index":
+		itr, err := getTxIndexIterator(sourceDB, opts.HeightRange)
+		if err != nil {
+			return err
+		}
+		iterators = []dbm.Iterator{itr}
+	default:
+		// Fall back to full migration for unsupported databases
+		return migrateData(sourceDB, targetDB, opts, stats)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to create height-filtered iterators: %w", err)
+	}
+
+	// Ensure all iterators are closed
+	defer func() {
+		for _, itr := range iterators {
+			itr.Close()
+		}
+	}()
+
+	// Migrate data from each iterator
+	for _, itr := range iterators {
+		if err := migrateWithIterator(itr, targetDB, opts, stats); err != nil {
+			return err
+		}
+	}
+
+	opts.Logger.Info("Height-filtered migration completed",
+		"height_range", opts.HeightRange.String(),
+		"migrated_keys", stats.ProcessedKeys.Load(),
+	)
+
+	return nil
+}
+
+// migrateWithIterator migrates data from a single iterator
+func migrateWithIterator(itr dbm.Iterator, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
 	batch := targetDB.NewBatch()
 	defer batch.Close()
 
@@ -263,15 +401,6 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 		if err := batch.Write(); err != nil {
 			return fmt.Errorf("failed to write final batch: %w", err)
 		}
-	}
-
-	// Flush memtable to SST files for RocksDB
-	if opts.TargetBackend == dbm.RocksDBBackend {
-		opts.Logger.Info("Flushing RocksDB memtable to SST files...")
-		if err := flushRocksDB(targetDB); err != nil {
-			return fmt.Errorf("failed to flush RocksDB: %w", err)
-		}
-		opts.Logger.Info("Flush completed")
 	}
 
 	return itr.Error()
