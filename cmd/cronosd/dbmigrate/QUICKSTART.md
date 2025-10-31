@@ -1,30 +1,32 @@
 # Database Tools - Quick Start Guide
 
-This guide covers two commands:
-- **`migrate-db`**: Full database migration between backends
-- **`patchdb`**: Patch specific block heights into existing databases
+This guide covers two commands under the `database` (or `db`) command group:
+- **`database migrate`**: Full database migration between backends
+- **`database patch`**: Patch specific block heights into existing databases
+
+> **Command Aliases**: You can use `cronosd database` or `cronosd db` interchangeably.
 
 ---
 
-## Part 1: migrate-db (Full Migration)
+## Part 1: database migrate (Full Migration)
 
 ### Overview
 
-The `migrate-db` command supports migrating:
+The `database migrate` command supports migrating:
 - **Application database** (`application.db`) - Your chain state
 - **CometBFT databases** (`blockstore.db`, `state.db`, `tx_index.db`, `evidence.db`) - Consensus data
 
 ### Database Selection
 
-**Option 1: Use `--db-type` flag** (migrate predefined groups):
+**Option 1: Use `--db-type` (or `-y`) flag** (migrate predefined groups):
 - `app` (default): Application database only
 - `cometbft`: CometBFT databases only  
 - `all`: Both application and CometBFT databases
 
-**Option 2: Use `--databases` flag** (migrate specific databases):
+**Option 2: Use `--databases` (or `-d`) flag** (migrate specific databases):
 - Comma-separated list of database names
 - Valid names: `application`, `blockstore`, `state`, `tx_index`, `evidence`
-- Example: `--databases blockstore,tx_index`
+- Example: `--databases blockstore,tx_index` or `-d blockstore,tx_index`
 - Takes precedence over `--db-type` if both are specified
 
 ## Prerequisites
@@ -66,54 +68,54 @@ du -sh ~/.cronos/data/*.backup-*
 
 #### Application Database Only (Default)
 ```bash
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --db-type app \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -y app \
   --home ~/.cronos
 ```
 
 #### CometBFT Databases Only
 ```bash
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --db-type cometbft \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -y cometbft \
   --home ~/.cronos
 ```
 
 #### All Databases (Recommended)
 ```bash
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --db-type all \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -y all \
   --home ~/.cronos
 ```
 
 #### RocksDB to LevelDB
 ```bash
-cronosd migrate-db \
-  --source-backend rocksdb \
-  --target-backend goleveldb \
-  --db-type all \
+cronosd database migrate \
+  -s rocksdb \
+  -t goleveldb \
+  -y all \
   --home ~/.cronos
 ```
 
 #### Specific Databases Only
 ```bash
 # Migrate only blockstore and tx_index
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore,tx_index \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -d blockstore,tx_index \
   --home ~/.cronos
 
 # Migrate application and state databases
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases application,state \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -d application,state \
   --home ~/.cronos
 ```
 
@@ -278,10 +280,10 @@ For the fastest migration experience:
 systemctl stop cronosd
 
 # 2. Run migration
-cronosd migrate-db \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --db-type all \
+cronosd database migrate \
+  -s goleveldb \
+  -t rocksdb \
+  -y all \
   --home ~/.cronos
 
 # 3. Swap databases (with automatic backup)
@@ -300,18 +302,18 @@ systemctl start cronosd
 ### Migrate Specific Database Type
 ```bash
 # Application only
-cronosd migrate-db --db-type app ...
+cronosd database migrate -y app ...
 
 # CometBFT only
-cronosd migrate-db --db-type cometbft ...
+cronosd database migrate -y cometbft ...
 
 # All databases
-cronosd migrate-db --db-type all ...
+cronosd database migrate -y all ...
 ```
 
 ### Skip Verification (Faster)
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -322,14 +324,14 @@ cronosd migrate-db \
 ### Custom Batch Size
 ```bash
 # Smaller batches for low memory
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --batch-size 1000 \
   --home ~/.cronos
 
 # Larger batches for high-end systems
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --batch-size 50000 \
@@ -339,7 +341,7 @@ cronosd migrate-db \
 ### Migrate to Different Location
 ```bash
 # Useful for moving to faster disk
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --target-home /mnt/nvme/cronos \
@@ -352,12 +354,12 @@ cronosd migrate-db \
 
 **Solution 1: Increase Batch Size**
 ```bash
-cronosd migrate-db --batch-size 50000 ...
+cronosd database migrate --batch-size 50000 ...
 ```
 
 **Solution 2: Disable Verification**
 ```bash
-cronosd migrate-db --verify=false ...
+cronosd database migrate --verify=false ...
 ```
 
 ### Out of Disk Space
@@ -393,7 +395,7 @@ rm -rf ~/.cronos/data/application.db.migrate-temp
 cp -r ~/.cronos/data/application.db.backup-* ~/.cronos/data/application.db
 
 # Try again with different options
-cronosd migrate-db --batch-size 1000 --verify=false ...
+cronosd database migrate --batch-size 1000 --verify=false ...
 ```
 
 ### RocksDB Build Error
@@ -548,11 +550,11 @@ Include:
 
 ---
 
-## Part 2: patchdb (Patch Specific Heights)
+## Part 2: database patch (Patch Specific Heights)
 
 ### Overview
 
-The `patchdb` command patches specific block heights from a source database into an **existing** target database.
+The `database patch` command patches specific block heights from a source database into an **existing** target database.
 
 **Use cases**:
 - Fix missing blocks
@@ -560,11 +562,12 @@ The `patchdb` command patches specific block heights from a source database into
 - Backfill specific heights
 - Add blocks without full resync
 
-**Key differences from migrate-db**:
+**Key differences from `database migrate`**:
 - Target database MUST already exist
 - Only patches specified heights (required)
 - Only supports `blockstore` and `tx_index`
 - Updates existing database (doesn't create new one)
+- CometBFT uses **string-encoded heights** in keys (e.g., `C:38307809`)
 
 ### Prerequisites
 
@@ -594,44 +597,44 @@ cp -r ~/.cronos/data/blockstore.db ~/.cronos/data/$BACKUP_NAME
 
 **Single block**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 123456 \
-  --source-home ~/.cronos-archive \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd database patch \
+  -d blockstore \
+  -H 123456 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db
 ```
 
 **Range of blocks**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 1000000-1001000 \
-  --source-home ~/.cronos-archive \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd database patch \
+  -d blockstore \
+  -H 1000000-1001000 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db
 ```
 
 **Multiple specific blocks**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 100000,200000,300000 \
-  --source-home ~/.cronos-archive \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd database patch \
+  -d blockstore \
+  -H 100000,200000,300000 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db
 ```
 
 **Both databases at once** (recommended):
 ```bash
-cronosd patchdb \
-  --database blockstore,tx_index \
-  --height 1000000-1001000 \
-  --source-home ~/.cronos-archive \
-  --target-path ~/.cronos/data
+cronosd database patch \
+  -d blockstore,tx_index \
+  -H 1000000-1001000 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data
 ```
 
 #### 4. Verify and Restart
 
 ```bash
-# Check the logs from patchdb output
+# Check the logs from database patch output
 # Look for: "DATABASE PATCH COMPLETED SUCCESSFULLY"
 
 # Start node
@@ -641,7 +644,7 @@ sudo systemctl start cronosd
 cronosd status
 ```
 
-### Common patchdb Scenarios
+### Common Patching Scenarios
 
 #### Scenario 1: Missing Blocks
 
@@ -649,13 +652,13 @@ cronosd status
 
 **Solution**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 5000000-5000100 \
-  --source-home /mnt/archive-node \
-  --target-path ~/.cronos/data/blockstore.db \
-  --source-backend rocksdb \
-  --target-backend rocksdb
+cronosd database patch \
+  -d blockstore \
+  -H 5000000-5000100 \
+  -f /mnt/archive-node \
+  -p ~/.cronos/data/blockstore.db \
+  -s rocksdb \
+  -t rocksdb
 ```
 
 #### Scenario 2: Corrupted Block
@@ -664,11 +667,11 @@ cronosd patchdb \
 
 **Solution**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 3000000 \
-  --source-home /backup/cronos \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd database patch \
+  -d blockstore \
+  -H 3000000 \
+  -f /backup/cronos \
+  -p ~/.cronos/data/blockstore.db
 ```
 
 #### Scenario 3: Backfill Historical Data
@@ -677,11 +680,11 @@ cronosd patchdb \
 
 **Solution**:
 ```bash
-cronosd patchdb \
-  --database blockstore \
-  --height 1000000,2000000,3000000,4000000 \
-  --source-home /archive/cronos \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd database patch \
+  -d blockstore \
+  -H 1000000,2000000,3000000,4000000 \
+  -f /archive/cronos \
+  -p ~/.cronos/data/blockstore.db
 ```
 
 #### Scenario 4: Patch Both Databases Efficiently
@@ -690,39 +693,39 @@ cronosd patchdb \
 
 **Solution** (patch both at once):
 ```bash
-cronosd patchdb \
-  --database blockstore,tx_index \
-  --height 5000000-5000100 \
-  --source-home /mnt/archive-node \
-  --target-path ~/.cronos/data \
-  --source-backend rocksdb \
-  --target-backend rocksdb
+cronosd database patch \
+  -d blockstore,tx_index \
+  -H 5000000-5000100 \
+  -f /mnt/archive-node \
+  -p ~/.cronos/data \
+  -s rocksdb \
+  -t rocksdb
 ```
 
-### patchdb Flags Reference
+### Patch Flags Reference
 
-| Flag | Required | Default | Description |
-|------|----------|---------|-------------|
-| `--database` | ✅ Yes | - | Database(s) to patch: `blockstore`, `tx_index`, or `blockstore,tx_index` |
-| `--height` | ✅ Yes | - | Heights: range (10-20), single (100), or multiple (10,20,30) |
-| `--source-home` | ✅ Yes | - | Source home directory |
-| `--target-path` | No | source data dir | For single DB: exact path. For multiple: data directory |
-| `--source-backend` | No | goleveldb | Source database backend |
-| `--target-backend` | No | rocksdb | Target database backend |
-| `--batch-size` | No | 10000 | Batch size for writing |
+| Flag | Short | Required | Default | Description |
+|------|-------|----------|---------|-------------|
+| `--database` | `-d` | ✅ Yes | - | Database(s) to patch: `blockstore`, `tx_index`, or `blockstore,tx_index` |
+| `--height` | `-H` | ✅ Yes | - | Heights: range (10-20), single (100), or multiple (10,20,30) |
+| `--source-home` | `-f` | ✅ Yes | - | Source home directory |
+| `--target-path` | `-p` | No | source data dir | For single DB: exact path. For multiple: data directory |
+| `--source-backend` | `-s` | No | goleveldb | Source database backend |
+| `--target-backend` | `-t` | No | rocksdb | Target database backend |
+| `--batch-size` | `-b` | No | 10000 | Batch size for writing |
 
-### patchdb Troubleshooting
+### Patch Troubleshooting
 
 **Error: "target database does not exist"**
 ```bash
 # Solution: Target must exist first
-# Either create it or use migrate-db to initialize it
+# Either create it or use database migrate to initialize it
 ```
 
 **Error: "height range is required"**
 ```bash
 # Solution: patchdb requires --height flag
-cronosd patchdb --height 123456 ...
+cronosd database patch --height 123456 ...
 ```
 
 **Error: "database X does not support height-based patching"**

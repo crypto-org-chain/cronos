@@ -1,13 +1,16 @@
 # Database Migration Tools
 
-This package provides CLI tools for managing Cronos databases:
+This package provides CLI tools for managing Cronos databases under the `database` (or `db`) command group:
 
-- **`migrate-db`**: Full database migration between backends
-- **`patchdb`**: Patch specific block heights into existing databases
+- **`database migrate`** (or `db migrate`): Full database migration between backends
+- **`database patch`** (or `db patch`): Patch specific block heights into existing databases
 
-## migrate-db: Full Database Migration
+> **Alias**: You can use `cronosd database` or `cronosd db` interchangeably.  
+> **Short Flags**: All flags have short alternatives (e.g., `-s`, `-t`, `-d`, `-H`)
 
-The `migrate-db` command is used for migrating entire databases between different backend types (e.g., LevelDB to RocksDB).
+## database migrate: Full Database Migration
+
+The `database migrate` command is used for migrating entire databases between different backend types (e.g., LevelDB to RocksDB).
 
 ### Features
 
@@ -21,19 +24,20 @@ The `migrate-db` command is used for migrating entire databases between differen
 
 ---
 
-## patchdb: Patch Specific Heights
+## database patch: Patch Specific Heights
 
-The `patchdb` command is used for patching specific block heights from a source database into an existing target database. Unlike `migrate-db`, it **updates an existing database** rather than creating a new one.
+The `database patch` command is used for patching specific block heights from a source database into an existing target database. Unlike `database migrate`, it **updates an existing database** rather than creating a new one.
 
 ### Key Differences
 
-| Feature | migrate-db | patchdb |
-|---------|------------|---------|
+| Feature | `database migrate` | `database patch` |
+|---------|-------------------|------------------|
 | **Purpose** | Full database migration | Patch specific heights |
 | **Target** | Creates new database | Updates existing database |
 | **Height Filter** | Optional | Required |
 | **Supported DBs** | All databases | blockstore, tx_index only |
 | **Use Case** | Moving entire database | Adding/fixing specific blocks |
+| **Key Format** | All backends | String-encoded heights (CometBFT) |
 
 ### Use Cases
 
@@ -45,22 +49,29 @@ The `patchdb` command is used for patching specific block heights from a source 
 ### Quick Example
 
 ```bash
-# Patch a single missing block
-cronosd patchdb \
-  --database blockstore \
-  --height 123456 \
-  --source-home ~/.cronos-archive \
-  --target-path ~/.cronos/data/blockstore.db
+# Patch a single missing block (with short flags)
+cronosd database patch \
+  -d blockstore \
+  -H 123456 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db
 
 # Patch a range of blocks
-cronosd patchdb \
-  --database blockstore \
-  --height 1000000-2000000 \
-  --source-home ~/backup/cronos \
-  --target-path ~/.cronos/data/blockstore.db
+cronosd db patch \
+  -d blockstore \
+  -H 1000000-2000000 \
+  -f ~/backup/cronos \
+  -p ~/.cronos/data/blockstore.db
+
+# Patch both blockstore and tx_index at once
+cronosd db patch \
+  -d blockstore,tx_index \
+  -H 1000000-2000000 \
+  -f ~/backup/cronos \
+  -p ~/.cronos/data
 
 # Patch specific heights
-cronosd patchdb \
+cronosd database patch \
   --database tx_index \
   --height 100000,200000,300000 \
   --source-home ~/.cronos-old \
@@ -93,7 +104,7 @@ Use the `--db-type` flag to select which databases to migrate:
 
 #### Migrate Application Database Only
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type app \
@@ -102,7 +113,7 @@ cronosd migrate-db \
 
 #### Migrate CometBFT Databases Only
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type cometbft \
@@ -111,7 +122,7 @@ cronosd migrate-db \
 
 #### Migrate All Databases
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -123,7 +134,7 @@ cronosd migrate-db \
 Enable verification to ensure data integrity:
 
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -136,7 +147,7 @@ cronosd migrate-db \
 Migrate to a different directory:
 
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --target-home /mnt/new-storage \
@@ -148,7 +159,7 @@ cronosd migrate-db \
 Adjust batch size for performance tuning:
 
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --batch-size 50000 \
@@ -161,14 +172,14 @@ Migrate only specific databases using the `--databases` flag:
 
 ```bash
 # Migrate only blockstore and tx_index databases
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases blockstore,tx_index \
   --home ~/.cronos
 
 # Migrate application and state databases
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases application,state \
@@ -181,7 +192,7 @@ For `blockstore.db` and `tx_index.db`, you can specify a height range to migrate
 
 ```bash
 # Migrate blockstore for heights 1000000 to 2000000
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases blockstore \
@@ -190,7 +201,7 @@ cronosd migrate-db \
   --home ~/.cronos
 
 # Migrate tx_index for heights from 5000000 onwards
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases tx_index \
@@ -198,7 +209,7 @@ cronosd migrate-db \
   --home ~/.cronos
 
 # Migrate blockstore up to height 1000000
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases blockstore \
@@ -206,7 +217,7 @@ cronosd migrate-db \
   --home ~/.cronos
 
 # Migrate both blockstore and tx_index with same height range
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases blockstore,tx_index \
@@ -320,7 +331,7 @@ systemctl stop cronosd
 cp -r ~/.cronos/data/application.db ~/.cronos/data/application.db.backup-$(date +%Y%m%d)
 
 # Run migration
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --verify \
@@ -347,7 +358,7 @@ For a complete migration of all node databases using the automated swap script:
 systemctl stop cronosd
 
 # Run migration
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -384,7 +395,7 @@ for db in application blockstore state tx_index evidence; do
 done
 
 # Run migration
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -414,7 +425,7 @@ systemctl start cronosd
 For slower disks or limited memory, reduce batch size:
 
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -429,7 +440,7 @@ Migrate only the databases you need:
 
 ```bash
 # Migrate only transaction indexing and block storage
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases tx_index,blockstore \
@@ -459,7 +470,7 @@ cp -r ~/.cronos/data/blockstore.db ~/.cronos/data/blockstore.db.backup-$(date +%
 cp -r ~/.cronos/data/tx_index.db ~/.cronos/data/tx_index.db.backup-$(date +%Y%m%d)
 
 # Migrate heights 1000000 to 2000000
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --databases blockstore,tx_index \
@@ -484,7 +495,7 @@ cronosd migrate-db \
 For very large databases, disable verification for faster migration:
 
 ```bash
-cronosd migrate-db \
+cronosd database migrate \
   --source-backend goleveldb \
   --target-backend rocksdb \
   --db-type all \
@@ -543,7 +554,7 @@ If verification fails, check:
 Reduce batch size:
 
 ```bash
-cronosd migrate-db --batch-size 1000 ...
+cronosd database migrate --batch-size 1000 ...
 ```
 
 ## Testing
@@ -617,7 +628,7 @@ type MigrationStats struct {
 
 ### Overview
 
-Both `migrate-db` and `patchdb` support height-based filtering for `blockstore` and `tx_index` databases. This allows you to:
+Both `database migrate` and `database patch` support height-based filtering for `blockstore` and `tx_index` databases. This allows you to:
 
 - Migrate or patch only specific block heights
 - Efficiently process ranges without scanning entire database
@@ -675,23 +686,27 @@ Example: Patching heights 1M-1.1M from a 5M block database
 
 #### Blockstore Keys
 
-CometBFT uses height-encoded prefixes in blockstore keys:
+**Cronos CometBFT uses STRING-ENCODED heights in blockstore keys:**
 
 ```
-H:<height>         - Block metadata (8-byte big-endian height)
-P:<height>:<part>  - Block parts
-C:<height>         - Commit at height
-SC:<height>        - Seen commit
+H:<height>         - Block metadata (height as string)
+P:<height>:<part>  - Block parts (height as string, part as number)
+C:<height>         - Commit at height (height as string)
+SC:<height>        - Seen commit (height as string)
+BH:<hash>          - Block header by hash (no height)
 BS:H               - Block store height (metadata, no height encoding)
 ```
 
-Example keys:
+Example keys for height 38307809:
 ```
-H:\x00\x00\x00\x00\x00\x0f\x42\x40  # Height 1,000,000
-P:\x00\x00\x00\x00\x00\x0f\x42\x40:0
-C:\x00\x00\x00\x00\x00\x0f\x42\x40
-SC:\x00\x00\x00\x00\x00\x0f\x42\x40
+H:38307809         # Block metadata
+P:38307809:0       # Block parts (part 0)
+C:38307809         # Commit
+SC:38307809        # Seen commit
+BH:0362b5c81d...   # Block header by hash
 ```
+
+> **Important**: Unlike standard CometBFT, Cronos uses **ASCII string-encoded heights**, not binary encoding.
 
 #### TX Index Keys
 
@@ -710,21 +725,23 @@ tx.height/0001000000/ABCD1234...
 
 #### Blockstore Bounded Iterators
 
-Creates separate iterators for each prefix type:
+Creates separate iterators for each prefix type using string-encoded heights:
 
 ```go
 // H: prefix - block metadata
-startKey := []byte("H:") + encodeHeight(startHeight)
-endKey := []byte("H:") + encodeHeight(endHeight+1)
+startKey := []byte(fmt.Sprintf("H:%d", startHeight))    // e.g., "H:1000000"
+endKey := []byte(fmt.Sprintf("H:%d", endHeight+1))      // e.g., "H:1000001"
 iterator1 := db.Iterator(startKey, endKey)
 
 // P: prefix - block parts
-startKey := []byte("P:") + encodeHeight(startHeight)
-endKey := []byte("P:") + encodeHeight(endHeight+1)
+startKey := []byte(fmt.Sprintf("P:%d", startHeight))    // e.g., "P:1000000"
+endKey := []byte(fmt.Sprintf("P:%d", endHeight+1))      // e.g., "P:1000001"
 iterator2 := db.Iterator(startKey, endKey)
 
 // ... similar for C: and SC: prefixes
 ```
+
+> **Note**: Heights are encoded as ASCII strings, not binary. This is a Cronos-specific format.
 
 **Note**: Metadata keys like `BS:H` are NOT included when using height filtering (they don't have height encoding).
 
@@ -763,11 +780,11 @@ for ; iterator.Valid(); iterator.Next() {
 
 ---
 
-## patchdb Command (Detailed Documentation)
+## database patch Command (Detailed Documentation)
 
 ### Overview
 
-The `patchdb` command patches specific block heights from a source database into an **existing** target database.
+The `database patch` command patches specific block heights from a source database into an **existing** target database.
 
 **Key characteristics**:
 - Target database MUST already exist
@@ -823,7 +840,7 @@ sudo systemctl stop cronosd
 cp -r ~/.cronos/data/blockstore.db ~/.cronos/data/blockstore.db.backup
 
 # 3. Patch the block
-cronosd patchdb \
+cronosd database patch \
   --database blockstore \
   --height 5000000 \
   --source-home /mnt/archive-node \
@@ -840,7 +857,7 @@ sudo systemctl start cronosd
 **Scenario**: Network partition caused missing blocks 1,000,000 to 1,001,000.
 
 ```bash
-cronosd patchdb \
+cronosd database patch \
   --database blockstore \
   --height 1000000-1001000 \
   --source-home ~/backup/cronos \
@@ -852,7 +869,7 @@ cronosd patchdb \
 **Scenario**: Pruned node needs specific governance proposal heights.
 
 ```bash
-cronosd patchdb \
+cronosd database patch \
   --database blockstore \
   --height 1000000,2000000,3000000,4000000,5000000 \
   --source-home /archive/cronos \
@@ -864,7 +881,7 @@ cronosd patchdb \
 **Scenario**: Patch from goleveldb backup to rocksdb production.
 
 ```bash
-cronosd patchdb \
+cronosd database patch \
   --database blockstore \
   --height 4500000-4600000 \
   --source-home /backup/cronos-goleveldb \
@@ -879,7 +896,7 @@ cronosd patchdb \
 **Scenario**: Rebuild transaction index for specific heights.
 
 ```bash
-cronosd patchdb \
+cronosd database patch \
   --database tx_index \
   --height 3000000-3100000 \
   --source-home ~/.cronos-archive \
@@ -891,7 +908,7 @@ cronosd patchdb \
 **Scenario**: Missing blocks in both blockstore and tx_index (most efficient).
 
 ```bash
-cronosd patchdb \
+cronosd database patch \
   --database blockstore,tx_index \
   --height 5000000-5000100 \
   --source-home ~/.cronos-archive \
@@ -947,7 +964,7 @@ ldb --db=/source/blockstore.db scan --from=H: --max_keys=10
 
 #### Monitor Progress
 
-The `patchdb` command logs progress every 5 seconds:
+The `database patch` command logs progress every 5 seconds:
 
 ```
 INFO  Patching progress  processed=5000 total=10000 progress=50.00% errors=0
@@ -981,11 +998,11 @@ journalctl -u cronosd -f
 Error: target database does not exist: /path/to/blockstore.db
 ```
 
-**Solution**: Create the target database first or use `migrate-db` to initialize it:
+**Solution**: Create the target database first or use `database migrate` to initialize it:
 
 ```bash
 # Option 1: Use migrate-db to create empty database
-cronosd migrate-db --db-type cometbft --home ~/.cronos
+cronosd database migrate --db-type cometbft --home ~/.cronos
 
 # Option 2: Copy from another node
 cp -r /other-node/data/blockstore.db ~/.cronos/data/
@@ -1000,7 +1017,7 @@ Error: height range is required for patching
 **Solution**: Always specify `--height` flag:
 
 ```bash
-cronosd patchdb --height 123456 ...
+cronosd database patch --height 123456 ...
 ```
 
 **3. "database X does not support height-based patching"**
@@ -1009,11 +1026,11 @@ cronosd patchdb --height 123456 ...
 Error: database application does not support height-based patching
 ```
 
-**Solution**: Use `migrate-db` for non-height-encoded databases:
+**Solution**: Use `database migrate` for non-height-encoded databases:
 
 ```bash
 # For application, state, evidence databases
-cronosd migrate-db --db-type app ...
+cronosd database migrate --db-type app ...
 ```
 
 **4. "No keys found in source database for specified heights"**
@@ -1056,10 +1073,10 @@ Adjust `--batch-size` based on your system:
 
 ```bash
 # For fast NVMe
-cronosd patchdb --batch-size 20000 ...
+cronosd database patch --batch-size 20000 ...
 
 # For slow HDD
-cronosd patchdb --batch-size 5000 ...
+cronosd database patch --batch-size 5000 ...
 ```
 
 #### Monitoring Performance
@@ -1083,7 +1100,7 @@ du -sh ~/.cronos/data/blockstore.db
 
 ```bash
 # Patch both databases in a single command
-cronosd patchdb \
+cronosd database patch \
   --database blockstore,tx_index \
   --height 1000000-2000000 \
   --source-home ~/archive \
@@ -1100,14 +1117,14 @@ cronosd patchdb \
 
 ```bash
 # Patch blockstore
-cronosd patchdb \
+cronosd database patch \
   --database blockstore \
   --height 1000000-2000000 \
   --source-home ~/archive \
   --target-path ~/.cronos/data/blockstore.db
 
 # Patch tx_index for same range
-cronosd patchdb \
+cronosd database patch \
   --database tx_index \
   --height 1000000-2000000 \
   --source-home ~/archive \
@@ -1213,7 +1230,7 @@ If patching fails midway, there's no automatic rollback.
 
 Only `blockstore` and `tx_index` supported.
 
-**Reason**: These are the only databases with height-encoded keys. Use `migrate-db` for others.
+**Reason**: These are the only databases with height-encoded keys. Use `database migrate` for others.
 
 ### FAQ
 
@@ -1235,11 +1252,11 @@ A: No, patchdb doesn't have verification mode. Ensure source data is valid befor
 
 **Q: Can I use patchdb for application.db?**
 
-A: No, only blockstore and tx_index are supported. Use `migrate-db` for application.db.
+A: No, only blockstore and tx_index are supported. Use `database migrate` for application.db.
 
 **Q: What if my target database doesn't exist yet?**
 
-A: Use `migrate-db` to create it first, then use `patchdb` to add specific heights.
+A: Use `database migrate` to create it first, then use `database patch` to add specific heights.
 
 **Q: How long does patching take?**
 
