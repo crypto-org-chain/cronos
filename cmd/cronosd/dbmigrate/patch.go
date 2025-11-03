@@ -1,9 +1,11 @@
 package dbmigrate
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tmstore "github.com/cometbft/cometbft/proto/tendermint/store"
@@ -13,17 +15,34 @@ import (
 	"cosmossdk.io/log"
 )
 
+// ConflictResolution represents how to handle key conflicts
+type ConflictResolution int
+
+const (
+	// ConflictAsk prompts user for each conflict
+	ConflictAsk ConflictResolution = iota
+	// ConflictSkip skips conflicting keys
+	ConflictSkip
+	// ConflictReplace replaces conflicting keys
+	ConflictReplace
+	// ConflictReplaceAll replaces all conflicting keys without asking
+	ConflictReplaceAll
+)
+
 // PatchOptions contains options for patching databases
 type PatchOptions struct {
-	SourceHome     string          // Source home directory
-	TargetPath     string          // Target database path (exact path to patch)
-	SourceBackend  dbm.BackendType // Source backend type
-	TargetBackend  dbm.BackendType // Target backend type
-	BatchSize      int             // Batch size for writing
-	Logger         log.Logger      // Logger
-	RocksDBOptions interface{}     // RocksDB specific options
-	DBName         string          // Database name (blockstore, tx_index, etc.)
-	HeightRange    HeightRange     // Height range/specific heights to patch
+	SourceHome         string             // Source home directory
+	TargetPath         string             // Target database path (exact path to patch)
+	SourceBackend      dbm.BackendType    // Source backend type
+	TargetBackend      dbm.BackendType    // Target backend type
+	BatchSize          int                // Batch size for writing
+	Logger             log.Logger         // Logger
+	RocksDBOptions     interface{}        // RocksDB specific options
+	DBName             string             // Database name (blockstore, tx_index, etc.)
+	HeightRange        HeightRange        // Height range/specific heights to patch
+	ConflictStrategy   ConflictResolution // How to handle key conflicts
+	SkipConflictChecks bool               // Skip checking for conflicts (faster, overwrites all)
+	DryRun             bool               // If true, simulate operation without writing
 }
 
 // PatchDatabase patches specific heights from source to target database
@@ -58,12 +77,17 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 		return stats, fmt.Errorf("target database does not exist: %s (use migrate-db to create new databases)", opts.TargetPath)
 	}
 
+	if opts.DryRun {
+		logger.Info("DRY RUN MODE - No changes will be made")
+	}
+
 	logger.Info("Opening databases for patching",
 		"source_db", sourceDBPath,
 		"source_backend", opts.SourceBackend,
 		"target_db", opts.TargetPath,
 		"target_backend", opts.TargetBackend,
 		"height_range", opts.HeightRange.String(),
+		"dry_run", opts.DryRun,
 	)
 
 	// Open source database (read-only)
@@ -268,8 +292,12 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 
 	batchCount := 0
 	processedCount := int64(0)
+	skippedCount := int64(0)
 	lastLogTime := time.Now()
 	const logInterval = 5 * time.Second
+
+	// Track current conflict resolution strategy (may change during execution)
+	currentStrategy := opts.ConflictStrategy
 
 	for ; it.Valid(); it.Next() {
 		key := it.Key()
@@ -301,40 +329,105 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 			}
 		}
 
-		// Copy key-value to batch
-		if err := batch.Set(key, value); err != nil {
-			stats.ErrorCount.Add(1)
-			logger.Error("Failed to set key in batch", "error", err)
+		// Check for key conflicts if not skipping checks
+		shouldWrite := true
+		if !opts.SkipConflictChecks {
+			existingValue, err := targetDB.Get(key)
+			if err != nil {
+				stats.ErrorCount.Add(1)
+				logger.Error("Failed to check existing key", "error", err)
+				continue
+			}
+
+			// Key exists in target database (Get returns nil if key doesn't exist)
+			if existingValue != nil {
+				// Handle conflict based on strategy
+				switch currentStrategy {
+				case ConflictAsk:
+					// Prompt user for decision
+					decision, newStrategy, err := promptKeyConflict(key, existingValue, value, opts.DBName, opts.HeightRange)
+					if err != nil {
+						return fmt.Errorf("failed to get user input: %w", err)
+					}
+
+					// If user chose "replace all", update strategy
+					if newStrategy != ConflictAsk {
+						currentStrategy = newStrategy
+						logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
+					}
+
+					shouldWrite = decision
+					if !decision {
+						skippedCount++
+					}
+
+				case ConflictSkip:
+					shouldWrite = false
+					skippedCount++
+					logger.Debug("Skipping existing key", "key_prefix", formatKeyPrefix(key, 20))
+
+				case ConflictReplace, ConflictReplaceAll:
+					shouldWrite = true
+					logger.Debug("Replacing existing key", "key_prefix", formatKeyPrefix(key, 20))
+				}
+			}
+		}
+
+		if !shouldWrite {
 			continue
 		}
 
-		// Debug log for each key patched
-		logger.Debug("Patched key to target database",
-			"key_size", len(key),
-			"value_size", len(value),
-			"batch_count", batchCount,
-		)
+		// In dry-run mode, just count what would be written
+		if opts.DryRun {
+			// Debug log for what would be patched
+			logger.Debug("[DRY RUN] Would patch key",
+				"key_prefix", formatKeyPrefix(key, 40),
+				"key_size", len(key),
+				"value_size", len(value),
+			)
+		} else {
+			// Copy key-value to batch (actual write)
+			if err := batch.Set(key, value); err != nil {
+				stats.ErrorCount.Add(1)
+				logger.Error("Failed to set key in batch", "error", err)
+				continue
+			}
+
+			// Debug log for each key patched
+			logger.Debug("Patched key to target database",
+				"key_size", len(key),
+				"value_size", len(value),
+				"batch_count", batchCount,
+			)
+		}
 
 		batchCount++
 		processedCount++
 
-		// Write batch when it reaches the batch size
+		// Write batch when it reaches the batch size (skip in dry-run)
 		if batchCount >= opts.BatchSize {
-			logger.Debug("Writing batch to target database",
-				"batch_size", batchCount,
-				"total_processed", stats.ProcessedKeys.Load()+int64(batchCount),
-			)
+			if opts.DryRun {
+				logger.Debug("[DRY RUN] Would write batch",
+					"batch_size", batchCount,
+					"total_processed", stats.ProcessedKeys.Load()+int64(batchCount),
+				)
+			} else {
+				logger.Debug("Writing batch to target database",
+					"batch_size", batchCount,
+					"total_processed", stats.ProcessedKeys.Load()+int64(batchCount),
+				)
 
-			if err := batch.Write(); err != nil {
-				return fmt.Errorf("failed to write batch: %w", err)
+				if err := batch.Write(); err != nil {
+					return fmt.Errorf("failed to write batch: %w", err)
+				}
+
+				// Close and create new batch
+				batch.Close()
+				batch = targetDB.NewBatch()
 			}
 
 			stats.ProcessedKeys.Add(int64(batchCount))
 			batchCount = 0
-
-			// Close and create new batch
-			batch.Close()
-			batch = targetDB.NewBatch()
 		}
 
 		// Periodic logging
@@ -342,6 +435,7 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 			progress := float64(stats.ProcessedKeys.Load()) / float64(stats.TotalKeys.Load()) * 100
 			logger.Info("Patching progress",
 				"processed", stats.ProcessedKeys.Load(),
+				"skipped", skippedCount,
 				"total", stats.TotalKeys.Load(),
 				"progress", fmt.Sprintf("%.2f%%", progress),
 				"errors", stats.ErrorCount.Load(),
@@ -350,12 +444,24 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 		}
 	}
 
-	// Write remaining batch
+	// Write remaining batch (skip in dry-run)
 	if batchCount > 0 {
-		if err := batch.Write(); err != nil {
-			return fmt.Errorf("failed to write final batch: %w", err)
+		if opts.DryRun {
+			logger.Debug("[DRY RUN] Would write final batch", "batch_size", batchCount)
+		} else {
+			if err := batch.Write(); err != nil {
+				return fmt.Errorf("failed to write final batch: %w", err)
+			}
 		}
 		stats.ProcessedKeys.Add(int64(batchCount))
+	}
+
+	if skippedCount > 0 {
+		logger.Info("Skipped conflicting keys", "count", skippedCount)
+	}
+
+	if opts.DryRun {
+		logger.Info("[DRY RUN] Simulation complete - no changes were made")
 	}
 
 	if err := it.Error(); err != nil {
@@ -426,4 +532,81 @@ func UpdateBlockStoreHeight(targetPath string, backend dbm.BackendType, newHeigh
 	}
 
 	return nil
+}
+
+// promptKeyConflict prompts the user to decide what to do with a conflicting key
+// Returns: (shouldWrite bool, newStrategy ConflictResolution, error)
+func promptKeyConflict(key, existingValue, newValue []byte, dbName string, heightRange HeightRange) (bool, ConflictResolution, error) {
+	// Extract height if possible for display
+	var heightStr string
+	switch dbName {
+	case "blockstore":
+		if height, ok := extractHeightFromBlockstoreKey(key); ok {
+			heightStr = fmt.Sprintf(" (height: %d)", height)
+		}
+	case "tx_index":
+		if height, ok := extractHeightFromTxIndexKey(key); ok {
+			heightStr = fmt.Sprintf(" (height: %d)", height)
+		}
+	}
+
+	// Display key information
+	fmt.Println("\n" + strings.Repeat("=", 80))
+	fmt.Println("KEY CONFLICT DETECTED")
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Printf("Database:      %s\n", dbName)
+	fmt.Printf("Key:           %s%s\n", formatKeyPrefix(key, 40), heightStr)
+	fmt.Printf("Existing size: %d bytes\n", len(existingValue))
+	fmt.Printf("New size:      %d bytes\n", len(newValue))
+	fmt.Println(strings.Repeat("-", 80))
+
+	// Prompt for action
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Action? [(r)eplace, (s)kip, (R)eplace all, (S)kip all]: ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return false, ConflictAsk, fmt.Errorf("failed to read input: %w", err)
+		}
+
+		input = strings.TrimSpace(input)
+		inputLower := strings.ToLower(input)
+
+		switch {
+		case input == "R":
+			return true, ConflictReplaceAll, nil
+		case input == "S":
+			return false, ConflictSkip, nil
+		case inputLower == "r" || inputLower == "replace":
+			return true, ConflictAsk, nil
+		case inputLower == "s" || inputLower == "skip":
+			return false, ConflictAsk, nil
+		default:
+			fmt.Println("Invalid input. Please enter r, s, R, or S.")
+		}
+	}
+}
+
+// formatKeyPrefix formats a key for display, truncating if necessary
+func formatKeyPrefix(key []byte, maxLen int) string {
+	if len(key) <= maxLen {
+		return string(key)
+	}
+	return string(key[:maxLen]) + "..."
+}
+
+// formatStrategy returns a human-readable string for a conflict resolution strategy
+func formatStrategy(strategy ConflictResolution) string {
+	switch strategy {
+	case ConflictAsk:
+		return "ask"
+	case ConflictSkip:
+		return "skip all"
+	case ConflictReplace:
+		return "replace"
+	case ConflictReplaceAll:
+		return "replace all"
+	default:
+		return "unknown"
+	}
 }

@@ -21,6 +21,7 @@ const (
 	flagPatchDatabase      = "database"
 	flagPatchHeight        = "height"
 	flagPatchBatchSize     = "batch-size"
+	flagPatchDryRun        = "dry-run"
 )
 
 // PatchDBCmd returns the legacy patchdb command (for backward compatibility)
@@ -112,6 +113,7 @@ Examples:
 			databases := ctx.Viper.GetString(flagPatchDatabase)
 			heightFlag := ctx.Viper.GetString(flagPatchHeight)
 			batchSize := ctx.Viper.GetInt(flagPatchBatchSize)
+			dryRun := ctx.Viper.GetBool(flagPatchDryRun)
 
 			// Validate required flags
 			if sourceHome == "" {
@@ -214,15 +216,18 @@ Examples:
 
 				// Perform the patch operation
 				opts := dbmigrate.PatchOptions{
-					SourceHome:     sourceHome,
-					TargetPath:     dbTargetPath,
-					SourceBackend:  sourceBackendType,
-					TargetBackend:  targetBackendType,
-					BatchSize:      batchSize,
-					Logger:         logger,
-					RocksDBOptions: rocksDBOpts,
-					DBName:         dbName,
-					HeightRange:    heightRange,
+					SourceHome:         sourceHome,
+					TargetPath:         dbTargetPath,
+					SourceBackend:      sourceBackendType,
+					TargetBackend:      targetBackendType,
+					BatchSize:          batchSize,
+					Logger:             logger,
+					RocksDBOptions:     rocksDBOpts,
+					DBName:             dbName,
+					HeightRange:        heightRange,
+					ConflictStrategy:   dbmigrate.ConflictAsk, // Ask user for each conflict
+					SkipConflictChecks: false,                 // Enable conflict checking
+					DryRun:             dryRun,                // Dry run mode
 				}
 
 				stats, err := dbmigrate.PatchDatabase(opts)
@@ -252,14 +257,29 @@ Examples:
 
 			// Print summary
 			fmt.Println("\n" + strings.Repeat("=", 80))
-			fmt.Println("DATABASE PATCH COMPLETED SUCCESSFULLY")
+			if dryRun {
+				fmt.Println("DATABASE PATCH DRY RUN COMPLETED")
+			} else {
+				fmt.Println("DATABASE PATCH COMPLETED SUCCESSFULLY")
+			}
 			fmt.Println(strings.Repeat("=", 80))
+			if dryRun {
+				fmt.Println("Mode:           DRY RUN (no changes made)")
+			}
 			fmt.Printf("Databases:      %s\n", strings.Join(validDBNames, ", "))
 			fmt.Printf("Height:         %s\n", heightRange.String())
-			fmt.Printf("Keys Patched:   %d\n", totalKeysPatched)
+			if dryRun {
+				fmt.Printf("Keys Found:     %d\n", totalKeysPatched)
+			} else {
+				fmt.Printf("Keys Patched:   %d\n", totalKeysPatched)
+			}
 			fmt.Printf("Errors:         %d\n", totalErrors)
 			fmt.Printf("Total Duration: %s\n", totalDuration)
-			fmt.Println("\nThe target database(s) have been updated with the specified heights.")
+			if dryRun {
+				fmt.Println("\nThis was a dry run. No changes were made to the target database(s).")
+			} else {
+				fmt.Println("\nThe target database(s) have been updated with the specified heights.")
+			}
 			fmt.Println(strings.Repeat("=", 80))
 
 			return nil
@@ -273,6 +293,7 @@ Examples:
 	cmd.Flags().StringP(flagPatchDatabase, "d", "", "Database(s) to patch: blockstore, tx_index, or both comma-separated (e.g., blockstore,tx_index) (required)")
 	cmd.Flags().StringP(flagPatchHeight, "H", "", "Height specification: range (10000-20000), single (123456), or multiple (123456,234567) (required)")
 	cmd.Flags().IntP(flagPatchBatchSize, "b", dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
+	cmd.Flags().BoolP(flagPatchDryRun, "n", false, "Dry run mode: simulate the operation without making any changes")
 
 	// Mark required flags
 	cmd.MarkFlagRequired(flagPatchSourceHome)
