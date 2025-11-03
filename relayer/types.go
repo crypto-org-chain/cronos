@@ -8,14 +8,24 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// BlockData represents ABCI block data to be forwarded to attestation layer
+// BlockData represents block data to be forwarded to attestation layer
 type BlockData struct {
-	ChainID               string                      `json:"chain_id"`
-	BlockHeight           uint64                      `json:"block_height"`
-	RequestFinalizeBlock  *abci.RequestFinalizeBlock  `json:"request_finalize_block"`
-	ResponseFinalizeBlock *abci.ResponseFinalizeBlock `json:"response_finalize_block"`
-	Timestamp             int64                       `json:"timestamp"`
-	Signature             []byte                      `json:"signature,omitempty"`
+	ChainID     string `json:"chain_id"`
+	BlockHeight uint64 `json:"block_height"`
+	Timestamp   int64  `json:"timestamp"`
+
+	// Block data from CometBFT
+	BlockHash   []byte      `json:"block_hash"`
+	AppHash     []byte      `json:"app_hash"`
+	BlockHeader interface{} `json:"block_header"` // *types.Header
+
+	// Block results data from CometBFT
+	TxResults             []*abci.ExecTxResult   `json:"tx_results,omitempty"`
+	FinalizeBlockEvents   []abci.Event           `json:"finalize_block_events,omitempty"`
+	ValidatorUpdates      []abci.ValidatorUpdate `json:"validator_updates,omitempty"`
+	ConsensusParamUpdates interface{}            `json:"consensus_param_updates,omitempty"` // *types.ConsensusParams
+
+	Signature []byte `json:"signature,omitempty"`
 }
 
 // FinalityInfo represents finality information from attestation layer
@@ -69,8 +79,8 @@ type ChainMonitor interface {
 	// GetLatestHeight returns the latest block height
 	GetLatestHeight(ctx context.Context) (uint64, error)
 
-	// GetABCIBlock retrieves ABCI block data for a specific height
-	GetABCIBlock(ctx context.Context, height uint64) (*BlockData, error)
+	// GetBlock retrieves block data for a specific height
+	GetBlock(ctx context.Context, height uint64) (*BlockData, error)
 
 	// SubscribeNewBlocks subscribes to new block events
 	SubscribeNewBlocks(ctx context.Context) (<-chan *BlockData, error)

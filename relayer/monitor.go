@@ -88,32 +88,46 @@ func (cm *chainMonitor) GetLatestHeight(ctx context.Context) (uint64, error) {
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
-// GetABCIBlock retrieves ABCI block data for a specific height
-func (cm *chainMonitor) GetABCIBlock(ctx context.Context, height uint64) (*BlockData, error) {
-	cm.logger.Debug("Fetching ABCI block", "height", height, "chain", cm.chainName)
+// GetBlock retrieves block data for a specific height
+func (cm *chainMonitor) GetBlock(ctx context.Context, height uint64) (*BlockData, error) {
+	cm.logger.Debug("Fetching block", "height", height, "chain", cm.chainName)
 
-	// Get block for timestamp
+	// Get block
 	h := int64(height)
 	block, err := cm.client.Block(ctx, &h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block: %w", err)
 	}
 
-	// Construct BlockData
+	// Get block results
+	blockResults, err := cm.client.BlockResults(ctx, &h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block results: %w", err)
+	}
+
+	// Construct BlockData from Block and BlockResults
 	blockData := &BlockData{
 		ChainID:     cm.chainID,
 		BlockHeight: height,
 		Timestamp:   block.Block.Time.Unix(),
-		// Note: RequestFinalizeBlock is not available from RPC
-		// ResponseFinalizeBlock would need to be reconstructed from block results
-		RequestFinalizeBlock:  nil,
-		ResponseFinalizeBlock: nil,
+		// Block data
+		BlockHash:   block.BlockID.Hash,
+		AppHash:     block.Block.AppHash,
+		BlockHeader: block.Block.Header,
+		// Block results data
+		TxResults:             blockResults.TxsResults,
+		FinalizeBlockEvents:   blockResults.FinalizeBlockEvents,
+		ValidatorUpdates:      blockResults.ValidatorUpdates,
+		ConsensusParamUpdates: blockResults.ConsensusParamUpdates,
 	}
 
-	cm.logger.Debug("Fetched ABCI block",
+	cm.logger.Debug("Fetched block",
 		"height", height,
 		"chain", cm.chainName,
 		"timestamp", blockData.Timestamp,
+		"block_hash", fmt.Sprintf("%X", blockData.BlockHash),
+		"app_hash", fmt.Sprintf("%X", blockData.AppHash),
+		"tx_count", len(blockData.TxResults),
 	)
 
 	return blockData, nil

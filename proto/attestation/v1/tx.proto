@@ -1,9 +1,9 @@
 syntax = "proto3";
 package attestation.v1;
 
-import "gogoproto/gogo.proto";
-import "cosmos_proto/cosmos.proto";
 import "amino/amino.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/v2/relayer/types";
 
@@ -19,7 +19,7 @@ service Msg {
   rpc SubmitForcedTransaction(MsgSubmitForcedTransaction) returns (MsgSubmitForcedTransactionResponse);
 }
 
-// MsgSubmitBlockAttestation represents block data forwarded from EVM chain
+// MsgSubmitBlockAttestation represents block data forwarded from a Cosmos chain
 message MsgSubmitBlockAttestation {
   option (amino.name) = "attestation/SubmitBlockAttestation";
 
@@ -32,17 +32,32 @@ message MsgSubmitBlockAttestation {
   // Block height
   uint64 block_height = 3;
 
-  // ABCI RequestFinalizeBlock data (encoded)
-  bytes request_finalize_block = 4;
-
-  // ABCI ResponseFinalizeBlock data (encoded)
-  bytes response_finalize_block = 5;
-
   // Block timestamp
-  int64 timestamp = 6;
+  int64 timestamp = 4;
+
+  // Block hash
+  bytes block_hash = 5;
+
+  // Application hash
+  bytes app_hash = 6;
+
+  // Block header (encoded)
+  bytes block_header = 7;
+
+  // Transaction results (encoded)
+  bytes tx_results = 8;
+
+  // FinalizeBlock events (encoded)
+  bytes finalize_block_events = 9;
+
+  // Validator updates (encoded)
+  bytes validator_updates = 10;
+
+  // Consensus parameter updates (encoded)
+  bytes consensus_param_updates = 11;
 
   // Relayer signature over the block data
-  bytes signature = 7;
+  bytes signature = 12;
 }
 
 // MsgSubmitBlockAttestationResponse is the response for submitting block attestation
@@ -73,14 +88,29 @@ message BlockAttestationData {
   // Block height
   uint64 block_height = 1;
 
-  // ABCI RequestFinalizeBlock data (encoded)
-  bytes request_finalize_block = 2;
-
-  // ABCI ResponseFinalizeBlock data (encoded)
-  bytes response_finalize_block = 3;
-
   // Block timestamp
-  int64 timestamp = 4;
+  int64 timestamp = 2;
+
+  // Block hash
+  bytes block_hash = 3;
+
+  // Application hash
+  bytes app_hash = 4;
+
+  // Block header (encoded)
+  bytes block_header = 5;
+
+  // Transaction results (encoded)
+  bytes tx_results = 6;
+
+  // FinalizeBlock events (encoded)
+  bytes finalize_block_events = 7;
+
+  // Validator updates (encoded)
+  bytes validator_updates = 8;
+
+  // Consensus parameter updates (encoded)
+  bytes consensus_param_updates = 9;
 }
 
 // MsgSubmitBatchBlockAttestationResponse is the response for batch submission
@@ -146,4 +176,3 @@ message MsgSubmitForcedTransactionResponse {
   // Estimated execution block height
   uint64 estimated_execution_height = 2;
 }
-
