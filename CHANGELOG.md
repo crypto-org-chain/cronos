@@ -2,7 +2,12 @@
 
 ## UNRELEASED
 
+
 *Oct 30, 2025*
+
+## v1.5.3
+
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Check authorisation list for blocklisted address.
 
 ## v1.5.2
 
