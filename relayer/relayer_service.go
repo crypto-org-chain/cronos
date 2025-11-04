@@ -101,18 +101,7 @@ func NewRelayerService(
 	}
 	rs.attestationMonitor = attestationMonitor
 
-	// Create block forwarder
-	blockForwarder, err := NewBlockForwarder(
-		attestationClientCtx,
-		config,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create block forwarder: %w", err)
-	}
-	rs.blockForwarder = blockForwarder
-
-	// Create finality monitor
+	// Create finality monitor (before block forwarder so it can be passed in)
 	finalityMonitor, err := NewFinalityMonitor(
 		attestationClient,
 		config,
@@ -123,6 +112,18 @@ func NewRelayerService(
 		return nil, fmt.Errorf("failed to create finality monitor: %w", err)
 	}
 	rs.finalityMonitor = finalityMonitor
+
+	// Create block forwarder (with finality monitor for tracking)
+	blockForwarder, err := NewBlockForwarder(
+		attestationClientCtx,
+		config,
+		logger,
+		finalityMonitor,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create block forwarder: %w", err)
+	}
+	rs.blockForwarder = blockForwarder
 
 	// Create forced TX monitor
 	forcedTxMonitor, err := NewForcedTxMonitor(

@@ -93,9 +93,6 @@ type BlockForwarder interface {
 
 	// BatchForwardBlocks forwards multiple blocks
 	BatchForwardBlocks(ctx context.Context, blocks []*BlockData) ([]uint64, error)
-
-	// GetAttestationStatus checks if a block has been attested
-	GetAttestationStatus(ctx context.Context, chainID string, height uint64) (*AttestationStatus, error)
 }
 
 // AttestationStatus represents the attestation status of a block
@@ -113,6 +110,15 @@ type FinalityMonitor interface {
 
 	// Stop stops the monitor
 	Stop() error
+
+	// TrackAttestation tracks a submitted attestation (called by block forwarder)
+	TrackAttestation(txHash string, attestationID uint64, chainID string, blockHeight uint64)
+
+	// TrackBatchAttestation tracks a batch attestation (called by block forwarder)
+	TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight uint64, endHeight uint64)
+
+	// GetPendingAttestations returns the count of pending attestations
+	GetPendingAttestations() int
 
 	// SubscribeFinality subscribes to finality events
 	SubscribeFinality(ctx context.Context) (<-chan *FinalityInfo, error)
@@ -199,6 +205,9 @@ type Config struct {
 	GasAdjustment float64      `json:"gas_adjustment"`
 	GasPrices     sdk.DecCoins `json:"gas_prices"`
 
+	// Transaction broadcast configuration
+	BroadcastMode string `json:"broadcast_mode"` // "sync" or "async"
+
 	// Data store configuration
 	FinalityStoreType string `json:"finality_store_type"` // "memory", "leveldb", "rocksdb"
 	FinalityStorePath string `json:"finality_store_path"`
@@ -214,6 +223,7 @@ func DefaultConfig() *Config {
 		FinalityPollInterval: 5 * time.Second,
 		ForcedTxPollInterval: 3 * time.Second,
 		GasAdjustment:        1.5,
+		BroadcastMode:        "async", // Use async mode for better performance
 		FinalityStoreType:    "leveldb",
 	}
 }

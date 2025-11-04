@@ -20,6 +20,7 @@
   
   "gas_adjustment": 1.5,
   "gas_prices": "0.025stake",
+  "broadcast_mode": "async",
   
   "finality_store_type": "leveldb",
   "finality_store_path": "./data/finality"
