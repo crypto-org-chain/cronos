@@ -10,10 +10,10 @@ from .utils import (
     KEYS,
     deploy_contract,
     get_account_nonce,
-    send_txs,
-    send_transaction,
-    sign_transaction,
     replace_transaction,
+    send_transaction,
+    send_txs,
+    sign_transaction,
     wait_for_new_blocks,
 )
 
