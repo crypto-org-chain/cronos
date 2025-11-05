@@ -23,11 +23,9 @@ type RelayerService struct {
 	attestationMonitor ChainMonitor
 
 	// Components
-	blockForwarder   BlockForwarder
-	finalityMonitor  FinalityMonitor
-	finalityStore    FinalityStore
-	forcedTxMonitor  ForcedTxMonitor
-	forcedTxExecutor ForcedTxExecutor
+	blockForwarder  BlockForwarder
+	finalityMonitor FinalityMonitor
+	finalityStore   FinalityStore
 
 	// Control
 	ctx       context.Context
@@ -126,30 +124,6 @@ func NewRelayerService(
 	}
 	rs.blockForwarder = blockForwarder
 
-	// Create forced TX monitor
-	forcedTxMonitor, err := NewForcedTxMonitor(
-		attestationClient,
-		attestationClientCtx,
-		config,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create forced tx monitor: %w", err)
-	}
-	rs.forcedTxMonitor = forcedTxMonitor
-
-	// Create forced TX executor
-	forcedTxExecutor, err := NewForcedTxExecutor(
-		sourceClientCtx,
-		attestationClientCtx,
-		config,
-		logger,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create forced tx executor: %w", err)
-	}
-	rs.forcedTxExecutor = forcedTxExecutor
-
 	return rs, nil
 }
 
@@ -193,15 +167,10 @@ func (rs *RelayerService) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start finality monitor: %w", err)
 	}
 
-	if err := rs.forcedTxMonitor.Start(rs.ctx); err != nil {
-		return fmt.Errorf("failed to start forced tx monitor: %w", err)
-	}
-
 	// Start worker goroutines
-	rs.wg.Add(3)
+	rs.wg.Add(2)
 	go rs.blockForwardingWorker()
 	go rs.finalityRelayWorker()
-	go rs.forcedTxWorker()
 
 	rs.running = true
 	rs.updateStatus(func(s *RelayerStatus) {
@@ -255,10 +224,6 @@ func (rs *RelayerService) Stop() error {
 		rs.logger.Error("Failed to stop finality monitor", "error", err)
 	}
 
-	if err := rs.forcedTxMonitor.Stop(); err != nil {
-		rs.logger.Error("Failed to stop forced tx monitor", "error", err)
-	}
-
 	// Close finality store
 	if err := rs.finalityStore.Close(); err != nil {
 		rs.logger.Error("Failed to close finality store", "error", err)
@@ -294,10 +259,29 @@ func (rs *RelayerService) blockForwardingWorker() {
 	defer batchTicker.Stop()
 
 	var pendingBlocks []*types.EventDataNewBlock
+	var lastForwardedHeight uint64
+
+	// Initialize from checkpoint if available
+	if rs.finalityMonitor != nil {
+		if checkpointMgr := rs.getCheckpointManager(); checkpointMgr != nil {
+			lastFinalityHeight := checkpointMgr.GetLastFinalityBlockHeight()
+			if lastFinalityHeight > 0 {
+				lastForwardedHeight = lastFinalityHeight
+				rs.logger.Info("Initialized last forwarded height from checkpoint",
+					"height", lastForwardedHeight,
+				)
+			}
+		}
+	}
 
 	for {
 		select {
 		case <-rs.ctx.Done():
+			// Forward any remaining blocks before shutdown
+			if len(pendingBlocks) > 0 {
+				rs.logger.Info("Forwarding remaining blocks before shutdown", "count", len(pendingBlocks))
+				rs.forwardBlockBatch(pendingBlocks)
+			}
 			rs.logger.Info("Block forwarding worker stopped")
 			return
 
@@ -306,17 +290,41 @@ func (rs *RelayerService) blockForwardingWorker() {
 				continue
 			}
 
+			blockHeight := uint64(block.Block.Height)
+
 			rs.logger.Debug("New block received",
-				"height", block.Block.Height,
+				"height", blockHeight,
 				"chain_id", block.Block.Header.ChainID,
 			)
 
-			// Add to batch
+			// Detect and fill gaps
+			if lastForwardedHeight > 0 && blockHeight > lastForwardedHeight+1 {
+				gap := blockHeight - lastForwardedHeight - 1
+				rs.logger.Warn("Gap detected in block stream, filling missing blocks",
+					"last_forwarded", lastForwardedHeight,
+					"received_height", blockHeight,
+					"gap_size", gap,
+				)
+
+				// Query and fill missing blocks
+				missingBlocks := rs.fillBlockGap(lastForwardedHeight+1, blockHeight-1)
+				if len(missingBlocks) > 0 {
+					pendingBlocks = append(pendingBlocks, missingBlocks...)
+					rs.logger.Info("Added missing blocks to batch",
+						"count", len(missingBlocks),
+						"start", lastForwardedHeight+1,
+						"end", blockHeight-1,
+					)
+				}
+			}
+
+			// Add current block to batch
 			pendingBlocks = append(pendingBlocks, block)
 
 			// Forward immediately if batch is full
 			if len(pendingBlocks) >= int(rs.config.BlockBatchSize) {
 				rs.forwardBlockBatch(pendingBlocks)
+				lastForwardedHeight = uint64(pendingBlocks[len(pendingBlocks)-1].Block.Height)
 				pendingBlocks = nil
 			}
 
@@ -324,16 +332,68 @@ func (rs *RelayerService) blockForwardingWorker() {
 			// Forward pending blocks on timer
 			if len(pendingBlocks) > 0 {
 				rs.forwardBlockBatch(pendingBlocks)
+				lastForwardedHeight = uint64(pendingBlocks[len(pendingBlocks)-1].Block.Height)
 				pendingBlocks = nil
 			}
 		}
 	}
 }
 
+// fillBlockGap queries and returns missing blocks between startHeight and endHeight (inclusive)
+func (rs *RelayerService) fillBlockGap(startHeight, endHeight uint64) []*types.EventDataNewBlock {
+	if startHeight > endHeight {
+		return nil
+	}
+
+	rs.logger.Info("Querying missing blocks to fill gap",
+		"start_height", startHeight,
+		"end_height", endHeight,
+		"count", endHeight-startHeight+1,
+	)
+
+	var missingBlocks []*types.EventDataNewBlock
+
+	for height := startHeight; height <= endHeight; height++ {
+		block, err := rs.sourceMonitor.GetBlock(rs.ctx, height)
+		if err != nil {
+			rs.logger.Error("Failed to query missing block",
+				"height", height,
+				"error", err,
+			)
+			// Continue trying to get other blocks
+			continue
+		}
+
+		missingBlocks = append(missingBlocks, block)
+	}
+
+	rs.logger.Info("Successfully queried missing blocks",
+		"requested", endHeight-startHeight+1,
+		"retrieved", len(missingBlocks),
+	)
+
+	return missingBlocks
+}
+
 // forwardBlockBatch forwards a batch of blocks
 func (rs *RelayerService) forwardBlockBatch(blocks []*types.EventDataNewBlock) {
 	if len(blocks) == 0 {
 		return
+	}
+
+	// Verify blocks are in ascending order
+	for i := 1; i < len(blocks); i++ {
+		prevHeight := uint64(blocks[i-1].Block.Height)
+		currHeight := uint64(blocks[i].Block.Height)
+		if currHeight != prevHeight+1 {
+			rs.logger.Error("Blocks in batch are not in continuous ascending order",
+				"prev_height", prevHeight,
+				"curr_height", currHeight,
+				"expected", prevHeight+1,
+			)
+			// Don't forward invalid batch
+			return
+		}
 	}
 
 	firstHeight := uint64(blocks[0].Block.Height)
@@ -412,125 +472,6 @@ func (rs *RelayerService) finalityRelayWorker() {
 	}
 }
 
-// forcedTxWorker monitors and executes forced transactions
-func (rs *RelayerService) forcedTxWorker() {
-	defer rs.wg.Done()
-
-	rs.logger.Info("Forced transaction worker started")
-
-	// Subscribe to forced tx events
-	forcedTxCh, err := rs.forcedTxMonitor.SubscribeForcedTx(rs.ctx)
-	if err != nil {
-		rs.logger.Error("Failed to subscribe to forced tx events", "error", err)
-		rs.updateStatusError(err)
-		return
-	}
-
-	// Periodic poll for pending forced txs
-	pollTicker := time.NewTicker(rs.config.ForcedTxPollInterval)
-	defer pollTicker.Stop()
-
-	for {
-		select {
-		case <-rs.ctx.Done():
-			rs.logger.Info("Forced transaction worker stopped")
-			return
-
-		case tx := <-forcedTxCh:
-			if tx == nil {
-				continue
-			}
-
-			rs.logger.Info("New forced transaction received",
-				"forced_tx_id", tx.ForcedTxID,
-				"target_chain", tx.TargetChainID,
-				"priority", tx.Priority,
-				"type", tx.TxType,
-			)
-
-			// Execute with retry
-			if err := rs.executeForcedTxWithRetry(tx); err != nil {
-				rs.logger.Error("Failed to execute forced tx",
-					"forced_tx_id", tx.ForcedTxID,
-					"error", err,
-				)
-				rs.updateStatusError(err)
-				continue
-			}
-
-			rs.logger.Info("Forced transaction executed successfully",
-				"forced_tx_id", tx.ForcedTxID,
-			)
-
-			// Update status
-			rs.updateStatus(func(s *RelayerStatus) {
-				s.LastForcedTxProcessed = tx.ForcedTxID
-				s.UpdatedAt = time.Now()
-			})
-
-		case <-pollTicker.C:
-			// Periodically check for pending forced txs
-			rs.processPendingForcedTxs()
-		}
-	}
-}
-
-// executeForcedTxWithRetry executes a forced transaction with retry logic
-func (rs *RelayerService) executeForcedTxWithRetry(tx *ForcedTx) error {
-	var lastErr error
-
-	for attempt := uint(0); attempt < rs.config.MaxRetries; attempt++ {
-		err := rs.forcedTxExecutor.ExecuteForcedTx(rs.ctx, tx)
-		if err == nil {
-			return nil
-		}
-
-		lastErr = err
-		rs.logger.Warn("Forced tx execution attempt failed",
-			"forced_tx_id", tx.ForcedTxID,
-			"attempt", attempt+1,
-			"error", err,
-		)
-
-		// Wait before retry
-		select {
-		case <-rs.ctx.Done():
-			return rs.ctx.Err()
-		case <-time.After(rs.config.RetryDelay):
-			continue
-		}
-	}
-
-	return fmt.Errorf("max retries exceeded: %w", lastErr)
-}
-
-// processPendingForcedTxs checks and processes pending forced transactions
-func (rs *RelayerService) processPendingForcedTxs() {
-	pending, err := rs.forcedTxMonitor.GetPendingForcedTxs(rs.ctx, rs.config.SourceChainID)
-	if err != nil {
-		rs.logger.Error("Failed to get pending forced txs", "error", err)
-		return
-	}
-
-	if len(pending) == 0 {
-		return
-	}
-
-	rs.logger.Info("Processing pending forced transactions", "count", len(pending))
-
-	// Update status
-	rs.updateStatus(func(s *RelayerStatus) {
-		s.PendingForcedTxCount = len(pending)
-		s.UpdatedAt = time.Now()
-	})
-
-	// Execute batch
-	if err := rs.forcedTxExecutor.BatchExecuteForcedTx(rs.ctx, pending); err != nil {
-		rs.logger.Error("Failed to batch execute forced txs", "error", err)
-		rs.updateStatusError(err)
-	}
-}
-
 // GetStatus returns the current relayer status
 func (rs *RelayerService) GetStatus() RelayerStatus {
 	rs.statusMu.RLock()
@@ -568,6 +509,15 @@ func (rs *RelayerService) updateStatusError(err error) {
 		s.LastError = err.Error()
 		s.UpdatedAt = time.Now()
 	})
+}
+
+// getCheckpointManager retrieves the checkpoint manager from finality monitor (helper for internal use)
+func (rs *RelayerService) getCheckpointManager() *CheckpointManager {
+	// Type assert to access internal field
+	if fm, ok := rs.finalityMonitor.(*finalityMonitor); ok {
+		return fm.checkpointManager
+	}
+	return nil
 }
 
 // processNewBlocks processes blocks from the subscription channel

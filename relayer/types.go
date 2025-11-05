@@ -186,6 +186,9 @@ type Config struct {
 	// Data store configuration
 	FinalityStoreType string `json:"finality_store_type"` // "memory", "leveldb", "rocksdb"
 	FinalityStorePath string `json:"finality_store_path"`
+
+	// Checkpoint configuration for crash recovery
+	CheckpointPath string `json:"checkpoint_path"` // Path to checkpoint file
 }
 
 // DefaultConfig returns default configuration
@@ -238,15 +241,12 @@ type EventForcedTxSubmitted struct {
 
 // RelayerStatus represents the status of the relayer
 type RelayerStatus struct {
-	Running               bool      `json:"running"`
-	SourceChainID         string    `json:"source_chain_id"`
-	AttestationChainID    string    `json:"attestation_chain_id"`
-	LastBlockForwarded    uint64    `json:"last_block_forwarded"`
-	LastFinalityReceived  uint64    `json:"last_finality_received"`
-	LastForcedTxProcessed uint64    `json:"last_forced_tx_processed"`
-	PendingBlocksCount    int       `json:"pending_blocks_count"`
-	PendingForcedTxCount  int       `json:"pending_forced_tx_count"`
-	FinalizedBlocksCount  uint64    `json:"finalized_blocks_count"`
-	LastError             string    `json:"last_error,omitempty"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	Running              bool      `json:"running"`
+	SourceChainID        string    `json:"source_chain_id"`
+	AttestationChainID   string    `json:"attestation_chain_id"`
+	LastBlockForwarded   uint64    `json:"last_block_forwarded"`
+	LastFinalityReceived uint64    `json:"last_finality_received"`
+	FinalizedBlocksCount uint64    `json:"finalized_blocks_count"`
+	LastError            string    `json:"last_error,omitempty"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }

@@ -17,11 +17,7 @@ import (
 
 const (
 	// Event types from attestation chain
-	eventTypeBlockAttested = "attestation.v1.EventBlockAttested"
 	eventTypeBatchAttested = "attestation.v1.EventBatchBlockAttested"
-
-	// Alternative event type formats
-	eventTypeBlockAttestedAlt = "block_attested"
 
 	// Event query for subscription
 	finalityEventQuery = "tm.event = 'Tx'"
@@ -55,8 +51,10 @@ type finalityMonitor struct {
 
 	// Track pending attestations
 	pendingAttestations map[string]*pendingAttestation // key: tx_hash
-	pendingByBlock      map[string]*pendingAttestation // key: chainID:blockHeight
 	pendingMu           sync.RWMutex
+
+	// Checkpoint manager for crash recovery
+	checkpointManager *CheckpointManager
 }
 
 // NewFinalityMonitor creates a new finality monitor
@@ -66,7 +64,22 @@ func NewFinalityMonitor(
 	logger log.Logger,
 	finalityStore FinalityStore,
 ) (FinalityMonitor, error) {
-	return &finalityMonitor{
+	// Create checkpoint manager
+	checkpointPath := config.CheckpointPath
+	if checkpointPath == "" {
+		checkpointPath = "./data/relayer_checkpoint.json"
+	}
+
+	checkpointManager, err := NewCheckpointManager(
+		checkpointPath,
+		logger,
+		30*time.Second, // Auto-save every 30 seconds
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create checkpoint manager: %w", err)
+	}
+
+	fm := &finalityMonitor{
 		client:              client,
 		config:              config,
 		logger:              logger.With("component", "finality_monitor"),
@@ -74,8 +87,15 @@ func NewFinalityMonitor(
 		stopCh:              make(chan struct{}),
 		subscribers:         make([]chan *FinalityInfo, 0),
 		pendingAttestations: make(map[string]*pendingAttestation),
-		pendingByBlock:      make(map[string]*pendingAttestation),
-	}, nil
+		checkpointManager:   checkpointManager,
+	}
+
+	// Restore pending attestations from checkpoint
+	if err := fm.restoreFromCheckpoint(); err != nil {
+		logger.Warn("Failed to restore from checkpoint", "error", err)
+	}
+
+	return fm, nil
 }
 
 // TrackBatchAttestation tracks a batch attestation (called by block forwarder)
@@ -83,7 +103,7 @@ func (fm *finalityMonitor) TrackBatchAttestation(txHash string, attestationIDs [
 	fm.pendingMu.Lock()
 	defer fm.pendingMu.Unlock()
 
-	// Track the batch transaction
+	// Track the batch transaction by tx hash
 	pending := &pendingAttestation{
 		TxHash:      txHash,
 		ChainID:     chainID,
@@ -92,32 +112,26 @@ func (fm *finalityMonitor) TrackBatchAttestation(txHash string, attestationIDs [
 	}
 	fm.pendingAttestations[txHash] = pending
 
-	// Track each block in the batch
-	for i, attestationID := range attestationIDs {
-		height := startHeight + uint64(i)
-		if height > endHeight {
-			break
-		}
-
-		blockPending := &pendingAttestation{
-			TxHash:        txHash,
-			AttestationID: attestationID,
-			ChainID:       chainID,
-			BlockHeight:   height,
-			SubmittedAt:   time.Now(),
-		}
-
-		blockKey := fmt.Sprintf("%s:%d", chainID, height)
-		fm.pendingByBlock[blockKey] = blockPending
-	}
-
-	fm.logger.Debug("Tracking batch attestation",
+	fm.logger.Info("Tracking batch attestation",
 		"tx_hash", txHash,
-		"attestation_ids", attestationIDs,
 		"chain_id", chainID,
 		"start_height", startHeight,
 		"end_height", endHeight,
+		"attestation_count", len(attestationIDs),
 	)
+
+	// Save to checkpoint
+	if fm.checkpointManager != nil {
+		fm.checkpointManager.AddPendingAttestation(&PendingAttestation{
+			TxHash:         txHash,
+			AttestationIDs: attestationIDs,
+			ChainID:        chainID,
+			BlockHeight:    startHeight,
+			StartHeight:    startHeight,
+			EndHeight:      endHeight,
+			SubmittedAt:    pending.SubmittedAt,
+		})
+	}
 }
 
 // Start begins monitoring finality events
@@ -207,22 +221,10 @@ func (fm *finalityMonitor) processEvents(ctx context.Context) {
 				continue
 			}
 
-			// Extract transaction result
-			var txHash string
-
 			// Try to get tx hash from the event
 			if resultTx, ok := event.Data.(coretypes.ResultTx); ok {
-				txHash = resultTx.Hash.String()
+				txHash := resultTx.Hash.String()
 				fm.processTxResult(txHash, &resultTx.TxResult)
-			} else if eventData, ok := event.Data.(coretypes.ResultEvent); ok {
-				// Alternative event format
-				if eventData.Events != nil {
-					if txHashAttr, exists := eventData.Events["tx.hash"]; exists && len(txHashAttr) > 0 {
-						txHash = txHashAttr[0]
-					}
-				}
-				// Process transaction events if available
-				fm.processEventData(txHash, eventData)
 			}
 		}
 	}
@@ -256,140 +258,9 @@ func (fm *finalityMonitor) processTxResult(txHash string, txResult *abci.ExecTxR
 	// Process events in the transaction
 	for _, event := range txResult.Events {
 		switch event.Type {
-		case eventTypeBlockAttested, eventTypeBlockAttestedAlt:
-			fm.handleBlockAttestedEvent(txHash, event)
-
 		case eventTypeBatchAttested:
 			fm.handleBatchAttestedEvent(txHash, event)
 		}
-	}
-}
-
-// processEventData processes event data from ResultEvent
-func (fm *finalityMonitor) processEventData(txHash string, eventData coretypes.ResultEvent) {
-	// This is for alternative event formats
-	// Process based on event type
-	fm.logger.Debug("Processing event data", "tx_hash", txHash)
-}
-
-// handleBlockAttestedEvent handles EventBlockAttested
-func (fm *finalityMonitor) handleBlockAttestedEvent(txHash string, event abci.Event) {
-	fm.logger.Debug("Processing block attested event", "type", event.Type, "tx_hash", txHash)
-
-	// Parse event attributes
-	var (
-		attestationID uint64
-		chainID       string
-		blockHeight   uint64
-		relayer       string
-		finalityProof []byte
-		processedAt   int64
-	)
-
-	for _, attr := range event.Attributes {
-		key := string(attr.Key)
-		value := string(attr.Value)
-
-		switch key {
-		case "attestation_id":
-			if id, err := strconv.ParseUint(value, 10, 64); err == nil {
-				attestationID = id
-			}
-		case "chain_id":
-			chainID = value
-		case "block_height":
-			if height, err := strconv.ParseUint(value, 10, 64); err == nil {
-				blockHeight = height
-			}
-		case "relayer":
-			relayer = value
-		case "finality_proof":
-			finalityProof = []byte(value)
-		case "processed_at":
-			if ts, err := strconv.ParseInt(value, 10, 64); err == nil {
-				processedAt = ts
-			}
-		}
-	}
-
-	if processedAt == 0 {
-		processedAt = time.Now().Unix()
-	}
-
-	// Verify this matches a pending attestation
-	fm.pendingMu.Lock()
-	blockKey := fmt.Sprintf("%s:%d", chainID, blockHeight)
-	pending, exists := fm.pendingByBlock[blockKey]
-
-	if exists {
-		// Verify tx hash matches (if we have it)
-		if txHash != "" && pending.TxHash != txHash {
-			fm.logger.Warn("Transaction hash mismatch for attestation",
-				"expected_tx_hash", pending.TxHash,
-				"received_tx_hash", txHash,
-				"attestation_id", attestationID,
-				"chain_id", chainID,
-				"block_height", blockHeight,
-			)
-		}
-
-		// Verify attestation ID matches (if we have it)
-		if pending.AttestationID != 0 && pending.AttestationID != attestationID {
-			fm.logger.Warn("Attestation ID mismatch",
-				"expected_attestation_id", pending.AttestationID,
-				"received_attestation_id", attestationID,
-				"chain_id", chainID,
-				"block_height", blockHeight,
-			)
-		}
-
-		// Remove from pending
-		delete(fm.pendingByBlock, blockKey)
-		if pending.TxHash != "" {
-			delete(fm.pendingAttestations, pending.TxHash)
-		}
-
-		fm.logger.Info("Block attestation confirmed",
-			"attestation_id", attestationID,
-			"chain_id", chainID,
-			"block_height", blockHeight,
-			"tx_hash", txHash,
-			"latency", time.Since(pending.SubmittedAt),
-			"relayer", relayer,
-		)
-	} else {
-		fm.logger.Debug("Block attested (not tracked)",
-			"attestation_id", attestationID,
-			"chain_id", chainID,
-			"block_height", blockHeight,
-			"relayer", relayer,
-		)
-	}
-	fm.pendingMu.Unlock()
-
-	// The attestation chain has verified and stored the block data
-	// Mark as finalized in our store
-	finalityInfo := &FinalityInfo{
-		AttestationID:     attestationID,
-		ChainID:           chainID,
-		BlockHeight:       blockHeight,
-		Finalized:         true, // Attested = finalized
-		FinalizedAt:       processedAt,
-		FinalityProof:     finalityProof,
-		AttestationTxHash: []byte(txHash),
-	}
-
-	// Store in finality store
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := fm.finalityStore.SaveFinalityInfo(ctx, finalityInfo); err != nil {
-		fm.logger.Error("Failed to store finality info", "error", err)
-	} else {
-		fm.logger.Debug("Stored finality info", "attestation_id", attestationID)
-
-		// Notify subscribers
-		fm.notifySubscribers(finalityInfo)
 	}
 }
 
@@ -443,24 +314,25 @@ func (fm *finalityMonitor) handleBatchAttestedEvent(txHash string, event abci.Ev
 
 	// Verify this matches a pending batch attestation
 	fm.pendingMu.Lock()
+	var latency time.Duration
 	if txHash != "" {
 		if pending, exists := fm.pendingAttestations[txHash]; exists {
+			latency = time.Since(pending.SubmittedAt)
 			fm.logger.Info("Batch attestation confirmed",
 				"tx_hash", txHash,
 				"chain_id", chainID,
 				"start_height", startHeight,
 				"end_height", endHeight,
 				"block_count", blockCount,
-				"latency", time.Since(pending.SubmittedAt),
+				"latency", latency,
 			)
 			delete(fm.pendingAttestations, txHash)
-		}
-	}
 
-	// Remove individual blocks from pending
-	for height := startHeight; height <= endHeight; height++ {
-		blockKey := fmt.Sprintf("%s:%d", chainID, height)
-		delete(fm.pendingByBlock, blockKey)
+			// Remove from checkpoint
+			if fm.checkpointManager != nil {
+				fm.checkpointManager.RemovePendingAttestation(txHash, chainID, startHeight)
+			}
+		}
 	}
 	fm.pendingMu.Unlock()
 
@@ -546,13 +418,6 @@ func (fm *finalityMonitor) cleanupExpired() {
 		}
 	}
 
-	// Check each pending block
-	for blockKey, pending := range fm.pendingByBlock {
-		if now.Sub(pending.SubmittedAt) > pendingAttestationTimeout {
-			delete(fm.pendingByBlock, blockKey)
-		}
-	}
-
 	if expiredCount > 0 {
 		fm.logger.Info("Cleaned up expired attestations", "count", expiredCount)
 	}
@@ -562,7 +427,7 @@ func (fm *finalityMonitor) cleanupExpired() {
 func (fm *finalityMonitor) GetPendingAttestations() int {
 	fm.pendingMu.RLock()
 	defer fm.pendingMu.RUnlock()
-	return len(fm.pendingByBlock)
+	return len(fm.pendingAttestations)
 }
 
 // notifySubscribers sends finality info to all subscribers
@@ -603,29 +468,8 @@ func (fm *finalityMonitor) GetFinalityStatus(ctx context.Context, chainID string
 		"block_height", height,
 	)
 
-	// Check if still pending
-	fm.pendingMu.RLock()
-	blockKey := fmt.Sprintf("%s:%d", chainID, height)
-	pending, isPending := fm.pendingByBlock[blockKey]
-	fm.pendingMu.RUnlock()
-
-	if isPending {
-		fm.logger.Debug("Block attestation still pending",
-			"chain_id", chainID,
-			"block_height", height,
-			"tx_hash", pending.TxHash,
-			"pending_duration", time.Since(pending.SubmittedAt),
-		)
-		// Return pending status
-		return &FinalityInfo{
-			AttestationID: pending.AttestationID,
-			ChainID:       chainID,
-			BlockHeight:   height,
-			Finalized:     false,
-		}, nil
-	}
-
-	// Query from finality store
+	// Query from finality store directly
+	// (pending attestations are tracked by tx hash, not individual blocks)
 	return fm.finalityStore.GetFinalityInfo(ctx, chainID, height)
 }
 
@@ -678,6 +522,11 @@ func (fm *finalityMonitor) TrackBatchAttestationFinalized(
 			cancel()
 		}
 
+		// Update checkpoint with last finality height
+		if fm.checkpointManager != nil {
+			fm.checkpointManager.UpdateLastFinalityBlockHeight(blockHeight)
+		}
+
 		// Emit finality event to subscribers
 		fm.subscribersMu.RLock()
 		for _, sub := range fm.subscribers {
@@ -704,4 +553,30 @@ func (fm *finalityMonitor) TrackBatchAttestationFinalized(
 		"blocks_finalized", len(attestationIDs),
 		"finalized_count", finalizedCount,
 	)
+}
+
+// restoreFromCheckpoint restores pending attestations from checkpoint
+func (fm *finalityMonitor) restoreFromCheckpoint() error {
+	byTxHash := fm.checkpointManager.GetPendingAttestations()
+
+	fm.pendingMu.Lock()
+	defer fm.pendingMu.Unlock()
+
+	// Restore pending attestations by tx hash
+	for txHash, pa := range byTxHash {
+		fm.pendingAttestations[txHash] = &pendingAttestation{
+			TxHash:        pa.TxHash,
+			AttestationID: pa.AttestationID,
+			ChainID:       pa.ChainID,
+			BlockHeight:   pa.BlockHeight,
+			SubmittedAt:   pa.SubmittedAt,
+		}
+	}
+
+	fm.logger.Info("Restored from checkpoint",
+		"last_finality_height", fm.checkpointManager.GetLastFinalityBlockHeight(),
+		"pending_attestations", len(fm.pendingAttestations),
+	)
+
+	return nil
 }
