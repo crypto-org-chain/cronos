@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"github.com/crypto-org-chain/cronos/v2/config"
 	"io"
 	"os"
 	"slices"
@@ -272,6 +273,7 @@ func initAppConfig() (string, interface{}) {
 
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
+		Cronos    config.CronosConfig      `mapstructure:"cronos"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -280,9 +282,10 @@ func initAppConfig() (string, interface{}) {
 		Config:    cfg.(servercfg.Config),
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
+		Cronos:    config.DefaultCronosConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config.DefaultCronosConfigTemplate, customAppConfig
 }
 
 // newApp creates the application
