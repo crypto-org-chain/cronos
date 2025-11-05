@@ -1075,7 +1075,7 @@ def test_tx_replacement(cronos):
     w3 = cronos.w3
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     priority_fee = w3.eth.max_priority_fee
-    nonce = get_account_nonce(w3)
+    nonce = get_account_nonce(w3, KEYS["signer1"])
     # replace with less than 10% bump, should fail
     with pytest.raises(ValueError) as exc:
         _ = replace_transaction(
@@ -1086,7 +1086,7 @@ def test_tx_replacement(cronos):
                 "maxFeePerGas": base_fee + priority_fee,
                 "maxPriorityFeePerGas": priority_fee,
                 "nonce": nonce,
-                "from": ADDRS["validator"],
+                "from": ADDRS["signer1"],
             },
             {
                 "to": ADDRS["community"],
@@ -1094,9 +1094,9 @@ def test_tx_replacement(cronos):
                 "maxFeePerGas": int((base_fee + priority_fee) * 1.05),  # +5% bump
                 "maxPriorityFeePerGas": int(priority_fee * 1.05),
                 "nonce": nonce,
-                "from": ADDRS["validator"],
+                "from": ADDRS["signer1"],
             },
-            KEYS["validator"],
+            KEYS["signer1"],
         )["transactionHash"]
     assert "tx doesn't fit the replacement rule" in str(exc)
 
