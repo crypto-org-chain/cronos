@@ -5,6 +5,7 @@
 ### Improvements
 
 * [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Chore: cleanup release by reverting #1892, #1893 and #1850.
+* [#1901](https://github.com/crypto-org-chain/cronos/pull/1901) Feat: add mempool.feebump and disable-tx-replacement flags.
 
 
 *Oct 30, 2025*

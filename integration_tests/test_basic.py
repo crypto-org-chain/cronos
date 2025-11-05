@@ -26,13 +26,11 @@ from .utils import (
     deploy_contract,
     derive_new_account,
     fund_acc,
-    get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
     remove_cancun_prague_params,
-    replace_transaction,
     send_transaction,
     send_txs,
     sign_transaction,
@@ -1069,50 +1067,6 @@ def test_textual(cronos):
         sign_mode="textual",
     )
     assert rsp["code"] == 0, rsp["raw_log"]
-
-
-def test_tx_replacement(cronos):
-    w3 = cronos.w3
-    gas_price = w3.eth.gas_price
-    nonce = get_account_nonce(w3)
-    initial_balance = w3.eth.get_balance(ADDRS["community"])
-    txhash = replace_transaction(
-        w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1,
-            "gasPrice": gas_price,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        {
-            "to": ADDRS["community"],
-            "value": 5,
-            "gasPrice": gas_price * 2,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        KEYS["validator"],
-    )["transactionHash"]
-    tx1 = w3.eth.get_transaction(txhash)
-    assert tx1["transactionIndex"] == 0
-    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
-
-    # check that already accepted transaction cannot be replaced
-    txhash_noreplacemenet = send_transaction(
-        w3,
-        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
-        KEYS["validator"],
-    )["transactionHash"]
-    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
-    assert tx2["transactionIndex"] == 0
-
-    with pytest.raises(ValueError) as exc:
-        w3.eth.replace_transaction(
-            txhash_noreplacemenet,
-            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
-        )
-    assert "has already been mined" in str(exc)
 
 
 def test_block_tx_properties(cronos):

@@ -28,6 +28,7 @@
       },
       mempool: {
         'max-txs': 1000,
+        'feebump': 10,
       },
     },
     validators: [{
