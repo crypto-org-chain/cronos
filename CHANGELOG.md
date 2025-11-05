@@ -8,6 +8,7 @@
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
 * [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
+* [#1901](https://github.com/crypto-org-chain/cronos/pull/1901) Feat: add mempool.feebump and disable-tx-replacement flags.
 
 *Oct 30, 2025*
 

@@ -14,6 +14,7 @@ import (
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
+	config2 "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"
 	"github.com/evmos/ethermint/crypto/hd"
@@ -272,6 +273,7 @@ func initAppConfig() (string, interface{}) {
 
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
+		Cronos    config2.CronosConfig     `mapstructure:"cronos"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -280,9 +282,10 @@ func initAppConfig() (string, interface{}) {
 		Config:    cfg.(servercfg.Config),
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
+		Cronos:    config2.DefaultCronosConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate, customAppConfig
 }
 
 // newApp creates the application

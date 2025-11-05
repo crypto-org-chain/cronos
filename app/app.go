@@ -175,6 +175,9 @@ const (
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
 
+	FlagMempoolFeeBump = "mempool.feebump"
+
+	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 )
 
@@ -379,14 +382,22 @@ func New(
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
 	var mpool mempool.Mempool
-	if maxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)); maxTxs >= 0 {
+	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
+	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
+	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
-		logger.Info("NewPriorityMempool is enabled")
+		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
-			MaxTx:           maxTxs,
+			MaxTx:           mempoolMaxTxs,
+			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
+				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
+				// otherwise, the Insert will return error
+				threshold := 100 + feeBump
+				return np >= op*threshold/100
+			},
 		})
 	} else {
 		logger.Info("NoOpMempool is enabled")
@@ -423,6 +434,8 @@ func New(
 
 	// The default value of optimisticExecution is enabled.
 	if !optimisticExecutionDisabled {
+		// enable optimistic execution
+		logger.Info("Enable optimistic execution")
 		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
 
@@ -968,9 +981,19 @@ func New(
 	app.SetPreBlocker(app.PreBlocker)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
+
+	mempoolCacheMaxTxs := mempoolMaxTxs
+	if cast.ToBool(appOpts.Get(FlagDisableTxReplacement)) {
+		mempoolCacheMaxTxs = -1
+	}
+	if mempoolCacheMaxTxs >= 0 {
+		logger.Info("Tx replacement is enabled")
+	} else {
+		logger.Info("Tx replacement is disabled")
+	}
 	if err := app.setAnteHandler(txConfig,
 		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
-		cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs)),
+		mempoolCacheMaxTxs,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
 		panic(err)
