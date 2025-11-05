@@ -1073,22 +1073,52 @@ def test_textual(cronos):
 
 def test_tx_replacement(cronos):
     w3 = cronos.w3
-    gas_price = w3.eth.gas_price
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    priority_fee = w3.eth.max_priority_fee
+    nonce = get_account_nonce(w3)
+    # replace with less than 10% bump, should fail
+    with pytest.raises(ValueError) as exc:
+        _ = replace_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 1,
+                "maxFeePerGas": base_fee + priority_fee,
+                "maxPriorityFeePerGas": priority_fee,
+                "nonce": nonce,
+                "from": ADDRS["validator"],
+            },
+            {
+                "to": ADDRS["community"],
+                "value": 2,
+                "maxFeePerGas": int((base_fee + priority_fee) * 1.05),  # +5% bump
+                "maxPriorityFeePerGas": int(priority_fee * 1.05),
+                "nonce": nonce,
+                "from": ADDRS["validator"],
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    assert "tx doesn't fit the replacement rule" in str(exc)
+
+    wait_for_new_blocks(cronos.cosmos_cli(), 1)
     nonce = get_account_nonce(w3)
     initial_balance = w3.eth.get_balance(ADDRS["community"])
+    # replace with more than 10% bump, should succeed
     txhash = replace_transaction(
         w3,
         {
             "to": ADDRS["community"],
-            "value": 1,
-            "gasPrice": gas_price,
+            "value": 3,
+            "maxFeePerGas": base_fee + priority_fee,
+            "maxPriorityFeePerGas": priority_fee,
             "nonce": nonce,
             "from": ADDRS["validator"],
         },
         {
             "to": ADDRS["community"],
             "value": 5,
-            "gasPrice": gas_price * 2,
+            "maxFeePerGas": int((base_fee + priority_fee) * 1.15),  # +15% bump
+            "maxPriorityFeePerGas": int(priority_fee * 1.15),
             "nonce": nonce,
             "from": ADDRS["validator"],
         },
@@ -1101,7 +1131,12 @@ def test_tx_replacement(cronos):
     # check that already accepted transaction cannot be replaced
     txhash_noreplacemenet = send_transaction(
         w3,
-        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
+        {
+            "to": ADDRS["community"],
+            "value": 10,
+            "maxFeePerGas": base_fee + priority_fee,
+            "maxPriorityFeePerGas": priority_fee,
+        },
         KEYS["validator"],
     )["transactionHash"]
     tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
@@ -1110,7 +1145,12 @@ def test_tx_replacement(cronos):
     with pytest.raises(ValueError) as exc:
         w3.eth.replace_transaction(
             txhash_noreplacemenet,
-            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+            {
+                "to": ADDRS["community"],
+                "value": 15,
+                "maxFeePerGas": int((base_fee + priority_fee) * 1.15),  # +15% bump
+                "maxPriorityFeePerGas": int(priority_fee * 1.15),
+            },
         )
     assert "has already been mined" in str(exc)
 
