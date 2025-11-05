@@ -710,15 +710,42 @@ BH:0362b5c81d...   # Block header by hash
 
 #### TX Index Keys
 
-Transaction index uses text-based height encoding:
+Transaction index has two types of keys:
 
+**1. Height-indexed keys:**
 ```
-tx.height/<height>/<hash>
+tx.height/<height>/<index>
 ```
+- **Key format**: Height and sequential index
+- **Value**: The transaction hash (txhash)
+
+**2. Direct hash lookup keys:**
+```
+<txhash>
+```
+- **Key format**: The transaction hash itself
+- **Value**: Transaction result data (protobuf-encoded)
+
+**Important**: When patching by height, both key types are automatically patched using a two-pass approach:
+
+**Pass 1: Height-indexed keys**
+- Iterator reads `tx.height/<height>/<index>` keys within the height range
+- Patches these keys to target database
+- Collects txhashes from the values
+
+**Pass 2: Txhash lookup keys**
+- For each collected txhash, reads the `<txhash>` key from source
+- Patches the txhash keys to target database
+
+This ensures txhash keys (which are outside the iterator's range) are properly patched.
 
 Example:
 ```
-tx.height/0001000000/ABCD1234...
+# Pass 1: Height-indexed key (from iterator)
+tx.height/0001000000/0  → value: 0xABCD1234... (txhash)
+
+# Pass 2: Direct lookup key (read individually)
+0xABCD1234...  → value: <tx result data>
 ```
 
 ### Implementation Details
@@ -824,6 +851,38 @@ The `database patch` command patches specific block heights from a source databa
 --source-backend <type>    # Default: goleveldb
 --target-backend <type>    # Default: rocksdb
 --batch-size <number>      # Default: 10000
+--dry-run                  # Simulate patching without making changes
+--log_level <level>        # Log level: info, debug, etc. (default: info)
+```
+
+#### Debug Logging
+
+When using `--log_level debug`, the patch command will log detailed information about each key-value pair being patched:
+
+```bash
+# Enable debug logging to see detailed patching information
+cronosd database patch \
+  --database blockstore \
+  --height 5000000 \
+  --source-home ~/.cronos-archive \
+  --target-path ~/.cronos/data/blockstore.db \
+  --log_level debug
+```
+
+**Debug Output Includes**:
+- **Key**: The full database key (up to 80 characters)
+- **Key Size**: Size in bytes of the key
+- **Value Preview**: Preview of the value (up to 100 bytes)
+  - Text values: Displayed as-is
+  - Binary values: Displayed as hex (e.g., `0x1a2b3c...`)
+- **Value Size**: Total size in bytes of the value
+- **Batch Information**: Current batch count and progress
+
+**Example Debug Output**:
+```
+DBG Patched key to target database key=C:5000000 key_size=9 value_preview=0x0a8f01... value_size=143 batch_count=1
+DBG Patched key to target database key=P:5000000:0 key_size=13 value_preview=0x0a4d0a... value_size=77 batch_count=2
+DBG Writing batch to target database batch_size=2
 ```
 
 ### Detailed Examples

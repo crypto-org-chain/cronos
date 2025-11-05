@@ -255,7 +255,7 @@ func patchBlockstoreData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Mi
 	// Process each iterator
 	for idx, it := range iterators {
 		opts.Logger.Debug("Processing blockstore iterator", "index", idx)
-		if err := patchWithIterator(it, targetDB, opts, stats); err != nil {
+		if err := patchWithIterator(it, sourceDB, targetDB, opts, stats); err != nil {
 			return fmt.Errorf("failed to patch with iterator %d: %w", idx, err)
 		}
 	}
@@ -263,27 +263,279 @@ func patchBlockstoreData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Mi
 	return nil
 }
 
-// patchTxIndexData patches tx_index data
+// patchTxIndexData patches tx_index data with special handling for txhash keys
+// tx_index has two key types:
+//   - tx.height/<height>/<index> - indexed by height (value is the txhash)
+//   - <txhash> - direct lookup by hash (value is tx result data)
+//
+// This function handles both in two passes:
+//  1. Patch tx.height keys and collect txhashes from values
+//  2. Patch the corresponding txhash keys
 func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
-	// Get bounded iterator for tx_index
+	logger := opts.Logger
+
+	// Get bounded iterator for tx_index (only iterates over tx.height/<height>/ keys)
 	it, err := getTxIndexIterator(sourceDB, opts.HeightRange)
 	if err != nil {
 		return fmt.Errorf("failed to get tx_index iterator: %w", err)
 	}
+	defer it.Close()
 
-	opts.Logger.Info("Patching tx_index data",
+	logger.Info("Patching tx_index data",
 		"height_range", opts.HeightRange.String(),
 	)
 
-	if err := patchWithIterator(it, targetDB, opts, stats); err != nil {
-		return fmt.Errorf("failed to patch tx_index data: %w", err)
+	// Step 1: Iterate through tx.height keys and collect txhashes
+	txhashes := make([][]byte, 0, 1000) // Pre-allocate for performance
+	batch := targetDB.NewBatch()
+	defer batch.Close()
+
+	batchCount := 0
+	processedCount := int64(0)
+	skippedCount := int64(0)
+	currentStrategy := opts.ConflictStrategy
+
+	for it.Valid() {
+		key := it.Key()
+		value := it.Value()
+
+		// Additional filtering for specific heights (if needed)
+		if opts.HeightRange.HasSpecificHeights() {
+			height, hasHeight := extractHeightFromTxIndexKey(key)
+			if !hasHeight {
+				it.Next()
+				continue
+			}
+			if !opts.HeightRange.IsWithinRange(height) {
+				it.Next()
+				continue
+			}
+		}
+
+		// Check for key conflicts
+		shouldWrite := true
+		if !opts.SkipConflictChecks {
+			existingValue, err := targetDB.Get(key)
+			if err != nil {
+				stats.ErrorCount.Add(1)
+				logger.Error("Failed to check existing key", "error", err)
+				it.Next()
+				continue
+			}
+
+			if existingValue != nil {
+				switch currentStrategy {
+				case ConflictAsk:
+					decision, newStrategy, err := promptKeyConflict(key, existingValue, value, opts.DBName, opts.HeightRange)
+					if err != nil {
+						return fmt.Errorf("failed to get user input: %w", err)
+					}
+					if newStrategy != ConflictAsk {
+						currentStrategy = newStrategy
+						logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
+					}
+					shouldWrite = decision
+					if !decision {
+						skippedCount++
+					}
+
+				case ConflictSkip:
+					shouldWrite = false
+					skippedCount++
+					logger.Debug("Skipping existing key", "key", formatKeyPrefix(key, 80))
+
+				case ConflictReplace, ConflictReplaceAll:
+					shouldWrite = true
+					logger.Debug("Replacing existing key", "key", formatKeyPrefix(key, 80))
+				}
+			}
+		}
+
+		if shouldWrite {
+			// Patch the tx.height key
+			if opts.DryRun {
+				logger.Debug("[DRY RUN] Would patch tx.height key",
+					"key", formatKeyPrefix(key, 80),
+					"value_preview", formatValue(value, 100),
+				)
+			} else {
+				if err := batch.Set(key, value); err != nil {
+					stats.ErrorCount.Add(1)
+					logger.Error("Failed to set key in batch", "error", err)
+					it.Next()
+					continue
+				}
+				logger.Debug("Patched tx.height key", "key", formatKeyPrefix(key, 80))
+			}
+
+			batchCount++
+			processedCount++
+
+			// Collect txhash for later patching (value IS the txhash)
+			if len(value) > 0 {
+				// Make a copy of the value since iterator reuses memory
+				txhashCopy := make([]byte, len(value))
+				copy(txhashCopy, value)
+				txhashes = append(txhashes, txhashCopy)
+			}
+
+			// Write batch when full
+			if batchCount >= opts.BatchSize {
+				if !opts.DryRun {
+					if err := batch.Write(); err != nil {
+						return fmt.Errorf("failed to write batch: %w", err)
+					}
+					logger.Debug("Wrote batch", "batch_size", batchCount)
+					batch.Close()
+					batch = targetDB.NewBatch()
+				}
+				stats.ProcessedKeys.Add(int64(batchCount))
+				batchCount = 0
+			}
+		}
+
+		it.Next()
+	}
+
+	// Write remaining batch
+	if batchCount > 0 {
+		if !opts.DryRun {
+			if err := batch.Write(); err != nil {
+				return fmt.Errorf("failed to write final batch: %w", err)
+			}
+			logger.Debug("Wrote final batch", "batch_size", batchCount)
+		}
+		stats.ProcessedKeys.Add(int64(batchCount))
+	}
+
+	if err := it.Error(); err != nil {
+		return fmt.Errorf("iterator error: %w", err)
+	}
+
+	logger.Info("Patched tx.height keys",
+		"processed", processedCount,
+		"skipped", skippedCount,
+		"txhashes_collected", len(txhashes),
+	)
+
+	// Step 2: Patch txhash keys
+	if len(txhashes) > 0 {
+		logger.Info("Patching txhash lookup keys", "count", len(txhashes))
+		if err := patchTxHashKeys(sourceDB, targetDB, txhashes, opts, stats, currentStrategy); err != nil {
+			return fmt.Errorf("failed to patch txhash keys: %w", err)
+		}
 	}
 
 	return nil
 }
 
+// patchTxHashKeys patches txhash lookup keys from collected txhashes
+func patchTxHashKeys(sourceDB, targetDB dbm.DB, txhashes [][]byte, opts PatchOptions, stats *MigrationStats, currentStrategy ConflictResolution) error {
+	logger := opts.Logger
+	batch := targetDB.NewBatch()
+	defer batch.Close()
+
+	batchCount := 0
+	processedCount := int64(0)
+	skippedCount := int64(0)
+
+	for _, txhash := range txhashes {
+		// Read txhash value from source
+		txhashValue, err := sourceDB.Get(txhash)
+		if err != nil {
+			stats.ErrorCount.Add(1)
+			logger.Error("Failed to read txhash from source", "error", err, "txhash", formatKeyPrefix(txhash, 80))
+			continue
+		}
+		if txhashValue == nil {
+			logger.Debug("Txhash key not found in source", "txhash", formatKeyPrefix(txhash, 80))
+			continue
+		}
+
+		// Check for conflicts
+		shouldWrite := true
+		if !opts.SkipConflictChecks {
+			existingValue, err := targetDB.Get(txhash)
+			if err != nil {
+				stats.ErrorCount.Add(1)
+				logger.Error("Failed to check existing txhash", "error", err)
+				continue
+			}
+
+			if existingValue != nil {
+				switch currentStrategy {
+				case ConflictSkip:
+					shouldWrite = false
+					skippedCount++
+					logger.Debug("Skipping existing txhash", "txhash", formatKeyPrefix(txhash, 80))
+
+				case ConflictReplace, ConflictReplaceAll:
+					shouldWrite = true
+					logger.Debug("Replacing existing txhash", "txhash", formatKeyPrefix(txhash, 80))
+
+				case ConflictAsk:
+					// Use replace strategy for txhash keys to avoid double-prompting
+					shouldWrite = true
+					logger.Debug("Patching txhash (using current strategy)", "txhash", formatKeyPrefix(txhash, 80))
+				}
+			}
+		}
+
+		if shouldWrite {
+			if opts.DryRun {
+				logger.Debug("[DRY RUN] Would patch txhash key",
+					"txhash", formatKeyPrefix(txhash, 80),
+					"value_preview", formatValue(txhashValue, 100),
+				)
+			} else {
+				if err := batch.Set(txhash, txhashValue); err != nil {
+					stats.ErrorCount.Add(1)
+					logger.Error("Failed to set txhash in batch", "error", err)
+					continue
+				}
+				logger.Debug("Patched txhash key", "txhash", formatKeyPrefix(txhash, 80))
+			}
+
+			batchCount++
+			processedCount++
+
+			// Write batch when full
+			if batchCount >= opts.BatchSize {
+				if !opts.DryRun {
+					if err := batch.Write(); err != nil {
+						return fmt.Errorf("failed to write txhash batch: %w", err)
+					}
+					logger.Debug("Wrote txhash batch", "batch_size", batchCount)
+					batch.Close()
+					batch = targetDB.NewBatch()
+				}
+				stats.ProcessedKeys.Add(int64(batchCount))
+				batchCount = 0
+			}
+		}
+	}
+
+	// Write remaining batch
+	if batchCount > 0 {
+		if !opts.DryRun {
+			if err := batch.Write(); err != nil {
+				return fmt.Errorf("failed to write final txhash batch: %w", err)
+			}
+			logger.Debug("Wrote final txhash batch", "batch_size", batchCount)
+		}
+		stats.ProcessedKeys.Add(int64(batchCount))
+	}
+
+	logger.Info("Patched txhash keys",
+		"processed", processedCount,
+		"skipped", skippedCount,
+	)
+
+	return nil
+}
+
 // patchWithIterator patches data from an iterator to target database
-func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
+func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
 	defer it.Close()
 
 	logger := opts.Logger
@@ -339,6 +591,12 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 				continue
 			}
 
+			/// log the existing value and key
+			logger.Debug("Existing key",
+				"key", formatKeyPrefix(key, 80),
+				"existing_value_preview", formatValue(existingValue, 100),
+			)
+
 			// Key exists in target database (Get returns nil if key doesn't exist)
 			if existingValue != nil {
 				// Handle conflict based on strategy
@@ -364,11 +622,18 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 				case ConflictSkip:
 					shouldWrite = false
 					skippedCount++
-					logger.Debug("Skipping existing key", "key_prefix", formatKeyPrefix(key, 20))
+					logger.Debug("Skipping existing key",
+						"key", formatKeyPrefix(key, 80),
+						"existing_value_preview", formatValue(existingValue, 100),
+					)
 
 				case ConflictReplace, ConflictReplaceAll:
 					shouldWrite = true
-					logger.Debug("Replacing existing key", "key_prefix", formatKeyPrefix(key, 20))
+					logger.Debug("Replacing existing key",
+						"key", formatKeyPrefix(key, 80),
+						"old_value_preview", formatValue(existingValue, 100),
+						"new_value_preview", formatValue(value, 100),
+					)
 				}
 			}
 		}
@@ -381,8 +646,9 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 		if opts.DryRun {
 			// Debug log for what would be patched
 			logger.Debug("[DRY RUN] Would patch key",
-				"key_prefix", formatKeyPrefix(key, 40),
+				"key", formatKeyPrefix(key, 80),
 				"key_size", len(key),
+				"value_preview", formatValue(value, 100),
 				"value_size", len(value),
 			)
 		} else {
@@ -395,7 +661,9 @@ func patchWithIterator(it dbm.Iterator, targetDB dbm.DB, opts PatchOptions, stat
 
 			// Debug log for each key patched
 			logger.Debug("Patched key to target database",
+				"key", formatKeyPrefix(key, 80),
 				"key_size", len(key),
+				"value_preview", formatValue(value, 100),
 				"value_size", len(value),
 				"batch_count", batchCount,
 			)
@@ -593,6 +861,38 @@ func formatKeyPrefix(key []byte, maxLen int) string {
 		return string(key)
 	}
 	return string(key[:maxLen]) + "..."
+}
+
+// formatValue formats a value for display
+// If the value appears to be binary data, it shows a hex preview
+// Otherwise, it shows the string representation
+func formatValue(value []byte, maxLen int) string {
+	if len(value) == 0 {
+		return "<empty>"
+	}
+
+	// Check if value is mostly printable ASCII (heuristic for text vs binary)
+	printableCount := 0
+	for _, b := range value {
+		if b >= 32 && b <= 126 || b == 9 || b == 10 || b == 13 {
+			printableCount++
+		}
+	}
+
+	// If more than 80% is printable, treat as text
+	if float64(printableCount)/float64(len(value)) > 0.8 {
+		if len(value) <= maxLen {
+			return string(value)
+		}
+		return string(value[:maxLen]) + fmt.Sprintf("... (%d more bytes)", len(value)-maxLen)
+	}
+
+	// Otherwise, show as hex
+	hexPreview := fmt.Sprintf("%x", value)
+	if len(hexPreview) <= maxLen {
+		return "0x" + hexPreview
+	}
+	return "0x" + hexPreview[:maxLen] + fmt.Sprintf("... (%d total bytes)", len(value))
 }
 
 // formatStrategy returns a human-readable string for a conflict resolution strategy

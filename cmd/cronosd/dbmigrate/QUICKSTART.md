@@ -631,6 +631,26 @@ cronosd database patch \
   -p ~/.cronos/data
 ```
 
+**With debug logging** (to see detailed key/value information):
+```bash
+cronosd database patch \
+  -d blockstore \
+  -H 123456 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db \
+  --log_level debug
+```
+
+**Dry run** (preview without making changes):
+```bash
+cronosd database patch \
+  -d blockstore \
+  -H 123456 \
+  -f ~/.cronos-archive \
+  -p ~/.cronos/data/blockstore.db \
+  --dry-run
+```
+
 #### 4. Verify and Restart
 
 ```bash
@@ -701,6 +721,12 @@ cronosd database patch \
   -s rocksdb \
   -t rocksdb
 ```
+
+> **Note**: When patching `tx_index` by height, the command uses a **two-pass approach**:
+> 1. **Pass 1**: Patches `tx.height/<height>/<index>` keys from the iterator and collects txhashes
+> 2. **Pass 2**: Patches the corresponding `<txhash>` lookup keys individually
+> 
+> This ensures complete transaction index functionality, as txhash keys exist outside the iterator's height range.
 
 ### Patch Flags Reference
 
