@@ -2,9 +2,9 @@ package app
 
 import (
 	"fmt"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
 
