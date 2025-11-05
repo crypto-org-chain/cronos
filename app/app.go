@@ -112,7 +112,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	mempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	sigtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -174,6 +174,8 @@ const (
 	FlagBlockedAddresses             = "blocked-addresses"
 	FlagUnsafeIgnoreBlockListFailure = "unsafe-ignore-block-list-failure"
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
+
+	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 )
 
 var Forks = []Fork{}
@@ -410,7 +412,7 @@ func New(
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
-	optimisticExecutionDisabled := cast.ToString(appOpts.Get(srvflags.EVMOptimisticExecution)) == "disable"
+	optimisticExecutionDisabled := cast.ToBool(appOpts.Get(FlagDisableOptimisticExecution))
 
 	var cacheSize int
 	if !blockSTMEnabled && optimisticExecutionDisabled {
@@ -501,7 +503,6 @@ func New(
 		panic(err)
 	}
 	app.txConfig = txConfig
-	stakingCacheSize := cast.ToInt(appOpts.Get(server.FlagStakingCacheSize))
 	app.StakingKeeper = stakingkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[stakingtypes.StoreKey]),
@@ -510,7 +511,6 @@ func New(
 		authAddr,
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
-		stakingCacheSize,
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec,

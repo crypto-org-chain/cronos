@@ -2,11 +2,16 @@
 
 ## UNRELEASED
 
+### Improvements
+
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Chore: cleanup release by reverting #1892, #1893 and #1850.
+
 
 *Oct 30, 2025*
 
 ## v1.5.3
 
+### Bug fixes
 * [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Check authorisation list for blocklisted address.
 
 ## v1.5.2
