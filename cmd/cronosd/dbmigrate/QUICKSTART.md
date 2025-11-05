@@ -641,6 +641,8 @@ cronosd database patch \
   --log_level debug
 ```
 
+> **Note**: Debug logs automatically format binary data (like txhashes) as hex strings (e.g., `0x1a2b3c...`) for readability, while text keys (like `tx.height/123/0`) are displayed as-is.
+
 **Dry run** (preview without making changes):
 ```bash
 cronosd database patch \
@@ -722,11 +724,12 @@ cronosd database patch \
   -t rocksdb
 ```
 
-> **Note**: When patching `tx_index` by height, the command uses a **two-pass approach**:
-> 1. **Pass 1**: Patches `tx.height/<height>/<index>` keys from the iterator and collects txhashes
-> 2. **Pass 2**: Patches the corresponding `<txhash>` lookup keys individually
+> **Note**: When patching `tx_index` by height, the command uses a **three-pass approach**:
+> 1. **Pass 1**: Patches `tx.height/<height>/<index>` keys and collects CometBFT txhashes + extracts Ethereum txhashes
+> 2. **Pass 2**: Patches CometBFT `<txhash>` lookup keys
+> 3. **Pass 3**: Patches Ethereum `ethereum_tx.ethereumTxHash/<eth_txhash>` event-indexed keys
 > 
-> This ensures complete transaction index functionality, as txhash keys exist outside the iterator's height range.
+> This ensures complete transaction index functionality, including support for `eth_getTransactionReceipt` with Ethereum txhashes.
 
 ### Patch Flags Reference
 

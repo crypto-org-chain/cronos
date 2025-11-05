@@ -719,34 +719,53 @@ tx.height/<height>/<index>
 - **Key format**: Height and sequential index
 - **Value**: The transaction hash (txhash)
 
-**2. Direct hash lookup keys:**
+**2. Direct hash lookup keys (CometBFT):**
 ```
-<txhash>
+<cometbft_txhash>
 ```
-- **Key format**: The transaction hash itself
+- **Key format**: The CometBFT transaction hash itself
 - **Value**: Transaction result data (protobuf-encoded)
 
-**Important**: When patching by height, both key types are automatically patched using a two-pass approach:
+**3. Event-indexed keys (Ethereum):**
+```
+ethereum_tx.ethereumTxHash/<eth_txhash>
+```
+- **Key format**: Event attribute key + Ethereum txhash (hex, without 0x)
+- **Value**: CometBFT transaction hash (allows lookup by Ethereum txhash)
+- **Purpose**: Enables `eth_getTransactionReceipt` by Ethereum txhash
+
+**Important**: When patching by height, all three key types are automatically patched using a three-pass approach:
 
 **Pass 1: Height-indexed keys**
 - Iterator reads `tx.height/<height>/<index>` keys within the height range
 - Patches these keys to target database
-- Collects txhashes from the values
+- Collects CometBFT txhashes from the values
+- **Extracts Ethereum txhashes** from transaction result events
 
-**Pass 2: Txhash lookup keys**
-- For each collected txhash, reads the `<txhash>` key from source
+**Pass 2: CometBFT txhash lookup keys**
+- For each collected CometBFT txhash, reads the `<cometbft_txhash>` key from source
 - Patches the txhash keys to target database
 
-This ensures txhash keys (which are outside the iterator's range) are properly patched.
+**Pass 3: Ethereum event-indexed keys**
+- For each Ethereum txhash extracted in Pass 1, creates event-indexed keys
+- Patches `ethereum_tx.ethereumTxHash/<eth_txhash>` keys to target database
+- **Critical for `eth_getTransactionReceipt` to work correctly**
+
+This ensures all tx_index keys (including event-indexed keys) are properly patched.
 
 Example:
 ```
 # Pass 1: Height-indexed key (from iterator)
-tx.height/0001000000/0  → value: 0xABCD1234... (txhash)
+tx.height/0001000000/0  → value: <cometbft_txhash>
 
-# Pass 2: Direct lookup key (read individually)
-0xABCD1234...  → value: <tx result data>
+# Pass 2: CometBFT direct lookup key (read individually)
+<cometbft_txhash>  → value: <tx result data with events>
+
+# Pass 3: Ethereum event-indexed key (extracted from events)
+ethereum_tx.ethereumTxHash/a1b2c3d4...  → value: <cometbft_txhash>
 ```
+
+> **Note**: Pass 3 is only performed for transactions that contain `ethereum_tx` events. Non-EVM transactions (e.g., bank transfers, staking) will not have Ethereum txhashes.
 
 ### Implementation Details
 
@@ -871,18 +890,34 @@ cronosd database patch \
 
 **Debug Output Includes**:
 - **Key**: The full database key (up to 80 characters)
+  - Text keys: Displayed as-is (e.g., `tx.height/123/0`)
+  - Binary keys: Displayed as hex (e.g., `0x1a2b3c...` for txhashes)
 - **Key Size**: Size in bytes of the key
 - **Value Preview**: Preview of the value (up to 100 bytes)
   - Text values: Displayed as-is
-  - Binary values: Displayed as hex (e.g., `0x1a2b3c...`)
+  - Binary values: Displayed as hex (e.g., `0x0a8f01...`)
 - **Value Size**: Total size in bytes of the value
 - **Batch Information**: Current batch count and progress
 
 **Example Debug Output**:
+
+For blockstore keys (text):
 ```
 DBG Patched key to target database key=C:5000000 key_size=9 value_preview=0x0a8f01... value_size=143 batch_count=1
 DBG Patched key to target database key=P:5000000:0 key_size=13 value_preview=0x0a4d0a... value_size=77 batch_count=2
-DBG Writing batch to target database batch_size=2
+```
+
+For tx_index keys:
+```
+# Pass 1: Height-indexed keys
+DBG Patched tx.height key key=tx.height/5000000/0
+DBG Collected ethereum txhash eth_txhash=0xa1b2c3d4... cometbft_txhash=0x1a2b3c4d...
+
+# Pass 2: CometBFT txhash keys (binary)
+DBG Patched txhash key txhash=0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890
+
+# Pass 3: Ethereum event-indexed keys
+DBG Patched ethereum event key eth_txhash=0xa1b2c3d45e6f... cometbft_txhash=0x1a2b3c4d...
 ```
 
 ### Detailed Examples

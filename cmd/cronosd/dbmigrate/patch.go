@@ -2,12 +2,14 @@ package dbmigrate
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	tmstore "github.com/cometbft/cometbft/proto/tendermint/store"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
@@ -263,14 +265,16 @@ func patchBlockstoreData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Mi
 	return nil
 }
 
-// patchTxIndexData patches tx_index data with special handling for txhash keys
-// tx_index has two key types:
-//   - tx.height/<height>/<index> - indexed by height (value is the txhash)
-//   - <txhash> - direct lookup by hash (value is tx result data)
+// patchTxIndexData patches tx_index data with special handling for txhash and ethereum event keys
+// tx_index has three key types:
+//   - tx.height/<height>/<index> - indexed by height (value is the CometBFT txhash)
+//   - <cometbft_txhash> - direct lookup by hash (value is tx result data)
+//   - ethereum_tx.ethereumTxHash/<eth_txhash> - event-indexed lookup (value is CometBFT txhash)
 //
-// This function handles both in two passes:
-//  1. Patch tx.height keys and collect txhashes from values
-//  2. Patch the corresponding txhash keys
+// This function handles all three in three passes:
+//  1. Patch tx.height keys and collect CometBFT txhashes from values
+//  2. Patch the corresponding CometBFT txhash keys
+//  3. Extract Ethereum txhashes from events and patch ethereum_tx.ethereumTxHash keys
 func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
 	logger := opts.Logger
 
@@ -285,8 +289,9 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		"height_range", opts.HeightRange.String(),
 	)
 
-	// Step 1: Iterate through tx.height keys and collect txhashes
-	txhashes := make([][]byte, 0, 1000) // Pre-allocate for performance
+	// Step 1: Iterate through tx.height keys and collect CometBFT txhashes
+	txhashes := make([][]byte, 0, 1000)     // Pre-allocate for performance
+	ethTxMapping := make(map[string][]byte) // eth_txhash (hex) -> cometbft_txhash (binary)
 	batch := targetDB.NewBatch()
 	defer batch.Close()
 
@@ -371,12 +376,30 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 			batchCount++
 			processedCount++
 
-			// Collect txhash for later patching (value IS the txhash)
+			// Collect CometBFT txhash for later patching (value IS the CometBFT txhash)
 			if len(value) > 0 {
 				// Make a copy of the value since iterator reuses memory
 				txhashCopy := make([]byte, len(value))
 				copy(txhashCopy, value)
 				txhashes = append(txhashes, txhashCopy)
+
+				// Also try to extract Ethereum txhash for event-indexed keys
+				// Read the transaction result from source database
+				txResultValue, err := sourceDB.Get(txhashCopy)
+				if err == nil && txResultValue != nil {
+					// Extract ethereum txhash from events
+					ethTxHash, err := extractEthereumTxHash(txResultValue, logger)
+					if err != nil {
+						logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhashCopy, 80))
+					} else if ethTxHash != "" {
+						// Store the mapping for Pass 3
+						ethTxMapping[ethTxHash] = txhashCopy
+						logger.Debug("Collected ethereum txhash",
+							"eth_txhash", "0x"+ethTxHash,
+							"cometbft_txhash", formatKeyPrefix(txhashCopy, 80),
+						)
+					}
+				}
 			}
 
 			// Write batch when full
@@ -416,13 +439,22 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		"processed", processedCount,
 		"skipped", skippedCount,
 		"txhashes_collected", len(txhashes),
+		"ethereum_txhashes_collected", len(ethTxMapping),
 	)
 
-	// Step 2: Patch txhash keys
+	// Step 2: Patch CometBFT txhash keys
 	if len(txhashes) > 0 {
-		logger.Info("Patching txhash lookup keys", "count", len(txhashes))
+		logger.Info("Patching CometBFT txhash lookup keys", "count", len(txhashes))
 		if err := patchTxHashKeys(sourceDB, targetDB, txhashes, opts, stats, currentStrategy); err != nil {
 			return fmt.Errorf("failed to patch txhash keys: %w", err)
+		}
+	}
+
+	// Step 3: Patch Ethereum event-indexed keys
+	if len(ethTxMapping) > 0 {
+		logger.Info("Patching Ethereum event-indexed keys", "count", len(ethTxMapping))
+		if err := patchEthereumEventKeys(targetDB, ethTxMapping, opts, stats, currentStrategy); err != nil {
+			return fmt.Errorf("failed to patch ethereum event keys: %w", err)
 		}
 	}
 
@@ -527,6 +559,148 @@ func patchTxHashKeys(sourceDB, targetDB dbm.DB, txhashes [][]byte, opts PatchOpt
 	}
 
 	logger.Info("Patched txhash keys",
+		"processed", processedCount,
+		"skipped", skippedCount,
+	)
+
+	return nil
+}
+
+// extractEthereumTxHash extracts the Ethereum transaction hash from transaction result events
+// Returns the eth txhash (without 0x prefix) if found, empty string otherwise
+func extractEthereumTxHash(txResultValue []byte, logger log.Logger) (string, error) {
+	// Decode the transaction result
+	var txResult abci.TxResult
+	if err := proto.Unmarshal(txResultValue, &txResult); err != nil {
+		return "", fmt.Errorf("failed to unmarshal tx result: %w", err)
+	}
+
+	// Look for ethereum_tx event with eth_hash attribute
+	for _, event := range txResult.Result.Events {
+		if event.Type == "ethereum_tx" {
+			for _, attr := range event.Attributes {
+				if attr.Key == "ethereumTxHash" {
+					// The value is the Ethereum txhash (with or without 0x prefix)
+					ethHash := attr.Value
+					// Remove 0x prefix if present
+					if len(ethHash) >= 2 && ethHash[:2] == "0x" {
+						ethHash = ethHash[2:]
+					}
+					// Validate it's a valid hex hash (should be 64 characters)
+					if len(ethHash) != 64 {
+						return "", fmt.Errorf("invalid ethereum txhash length: %d", len(ethHash))
+					}
+					// Decode to verify it's valid hex
+					if _, err := hex.DecodeString(ethHash); err != nil {
+						return "", fmt.Errorf("invalid ethereum txhash hex: %w", err)
+					}
+					return ethHash, nil
+				}
+			}
+		}
+	}
+
+	// No ethereum_tx event found (this is normal for non-EVM transactions)
+	return "", nil
+}
+
+// patchEthereumEventKeys patches ethereum_tx.ethereumTxHash event-indexed keys
+// These keys allow looking up CometBFT transactions by Ethereum txhash
+func patchEthereumEventKeys(targetDB dbm.DB, ethTxMapping map[string][]byte, opts PatchOptions, stats *MigrationStats, currentStrategy ConflictResolution) error {
+	logger := opts.Logger
+	batch := targetDB.NewBatch()
+	defer batch.Close()
+
+	batchCount := 0
+	processedCount := int64(0)
+	skippedCount := int64(0)
+
+	for ethTxHashHex, cometbftTxHash := range ethTxMapping {
+		// Create the event-indexed key
+		// Format: ethereum_tx.ethereumTxHash/<eth_txhash>
+		// The value is the CometBFT txhash
+		eventKey := []byte("ethereum_tx.ethereumTxHash/" + ethTxHashHex)
+
+		// Check for conflicts
+		shouldWrite := true
+		if !opts.SkipConflictChecks {
+			existingValue, err := targetDB.Get(eventKey)
+			if err != nil {
+				stats.ErrorCount.Add(1)
+				logger.Error("Failed to check existing ethereum event key", "error", err)
+				continue
+			}
+
+			if existingValue != nil {
+				switch currentStrategy {
+				case ConflictSkip:
+					shouldWrite = false
+					skippedCount++
+					logger.Debug("Skipping existing ethereum event key", "eth_txhash", "0x"+ethTxHashHex)
+
+				case ConflictReplace, ConflictReplaceAll:
+					shouldWrite = true
+					logger.Debug("Replacing existing ethereum event key", "eth_txhash", "0x"+ethTxHashHex)
+
+				case ConflictAsk:
+					// Use replace strategy for event keys to avoid excessive prompting
+					shouldWrite = true
+					logger.Debug("Patching ethereum event key (using current strategy)", "eth_txhash", "0x"+ethTxHashHex)
+				}
+			}
+		}
+
+		if shouldWrite {
+			if opts.DryRun {
+				logger.Debug("[DRY RUN] Would patch ethereum event key",
+					"event_key", "ethereum_tx.ethereumTxHash/"+ethTxHashHex[:16]+"...",
+					"eth_txhash", "0x"+ethTxHashHex,
+					"cometbft_txhash", formatKeyPrefix(cometbftTxHash, 80),
+				)
+			} else {
+				if err := batch.Set(eventKey, cometbftTxHash); err != nil {
+					stats.ErrorCount.Add(1)
+					logger.Error("Failed to set ethereum event key in batch", "error", err)
+					continue
+				}
+				logger.Debug("Patched ethereum event key",
+					"event_key", "ethereum_tx.ethereumTxHash/"+ethTxHashHex[:16]+"...",
+					"eth_txhash", "0x"+ethTxHashHex,
+					"cometbft_txhash", formatKeyPrefix(cometbftTxHash, 80),
+				)
+			}
+
+			batchCount++
+			processedCount++
+
+			// Write batch when full
+			if batchCount >= opts.BatchSize {
+				if !opts.DryRun {
+					if err := batch.Write(); err != nil {
+						return fmt.Errorf("failed to write ethereum event batch: %w", err)
+					}
+					logger.Debug("Wrote ethereum event batch", "batch_size", batchCount)
+					batch.Close()
+					batch = targetDB.NewBatch()
+				}
+				stats.ProcessedKeys.Add(int64(batchCount))
+				batchCount = 0
+			}
+		}
+	}
+
+	// Write remaining batch
+	if batchCount > 0 {
+		if !opts.DryRun {
+			if err := batch.Write(); err != nil {
+				return fmt.Errorf("failed to write final ethereum event batch: %w", err)
+			}
+			logger.Debug("Wrote final ethereum event batch", "batch_size", batchCount)
+		}
+		stats.ProcessedKeys.Add(int64(batchCount))
+	}
+
+	logger.Info("Patched ethereum event keys",
 		"processed", processedCount,
 		"skipped", skippedCount,
 	)
@@ -856,11 +1030,36 @@ func promptKeyConflict(key, existingValue, newValue []byte, dbName string, heigh
 }
 
 // formatKeyPrefix formats a key for display, truncating if necessary
+// Detects binary data (like txhashes) and formats as hex
 func formatKeyPrefix(key []byte, maxLen int) string {
-	if len(key) <= maxLen {
-		return string(key)
+	if len(key) == 0 {
+		return "<empty>"
 	}
-	return string(key[:maxLen]) + "..."
+
+	// Check if key is mostly printable ASCII (heuristic for text vs binary)
+	printableCount := 0
+	for _, b := range key {
+		if (b >= 32 && b <= 126) || b == 9 || b == 10 || b == 13 || b == '/' || b == ':' {
+			printableCount++
+		}
+	}
+
+	// If more than 80% is printable, treat as text (e.g., "tx.height/123/0")
+	if float64(printableCount)/float64(len(key)) > 0.8 {
+		if len(key) <= maxLen {
+			return string(key)
+		}
+		return string(key[:maxLen]) + "..."
+	}
+
+	// Otherwise, format as hex (e.g., txhashes)
+	hexStr := fmt.Sprintf("%x", key)
+	if len(hexStr) <= maxLen {
+		return "0x" + hexStr
+	}
+	// Truncate hex string if too long
+	halfLen := (maxLen - 8) / 2 // Reserve space for "0x" and "..."
+	return "0x" + hexStr[:halfLen] + "..." + hexStr[len(hexStr)-halfLen:]
 }
 
 // formatValue formats a value for display
