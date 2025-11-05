@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"cosmossdk.io/log"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
-
-	"cosmossdk.io/log"
 
 	attestationtypes "github.com/crypto-org-chain/cronos/relayer/types"
 )
@@ -38,65 +38,16 @@ func NewBlockForwarder(
 	}, nil
 }
 
-// ForwardBlock sends block data to attestation layer
-func (bf *blockForwarder) ForwardBlock(ctx context.Context, blockData *BlockData) (uint64, error) {
-	bf.logger.Info("Forwarding block to attestation layer",
-		"chain_id", blockData.ChainID,
-		"block_height", blockData.BlockHeight,
-	)
-
-	// Create MsgSubmitBlockAttestation
-	msg, err := bf.createBlockAttestationMsg(blockData)
-	if err != nil {
-		return 0, fmt.Errorf("failed to create block attestation message: %w", err)
-	}
-
-	// Broadcast transaction
-	txResp, err := bf.broadcastTx(ctx, msg)
-	if err != nil {
-		return 0, fmt.Errorf("failed to broadcast block attestation: %w", err)
-	}
-
-	// Parse attestation ID from response
-	attestationID, err := bf.parseAttestationID(txResp)
-	if err != nil {
-		bf.logger.Warn("Failed to parse attestation ID from response",
-			"error", err,
-			"tx_hash", txResp.TxHash,
-		)
-		// Return block height as fallback
-		return blockData.BlockHeight, nil
-	}
-
-	bf.logger.Info("Block forwarded successfully",
-		"block_height", blockData.BlockHeight,
-		"attestation_id", attestationID,
-		"tx_hash", txResp.TxHash,
-	)
-
-	// Track attestation in finality monitor
-	if bf.finalityMonitor != nil {
-		bf.finalityMonitor.TrackAttestation(
-			txResp.TxHash,
-			attestationID,
-			blockData.ChainID,
-			blockData.BlockHeight,
-		)
-	}
-
-	return attestationID, nil
-}
-
 // BatchForwardBlocks forwards multiple blocks to attestation layer
-func (bf *blockForwarder) BatchForwardBlocks(ctx context.Context, blocks []*BlockData) ([]uint64, error) {
+func (bf *blockForwarder) BatchForwardBlocks(ctx context.Context, blocks []*types.EventDataNewBlock) ([]uint64, error) {
 	if len(blocks) == 0 {
 		return nil, nil
 	}
 
 	bf.logger.Info("Batch forwarding blocks to attestation layer",
 		"count", len(blocks),
-		"first_height", blocks[0].BlockHeight,
-		"last_height", blocks[len(blocks)-1].BlockHeight,
+		"first_height", blocks[0].Block.Height,
+		"last_height", blocks[len(blocks)-1].Block.Height,
 	)
 
 	// Create MsgSubmitBatchBlockAttestation
@@ -111,100 +62,74 @@ func (bf *blockForwarder) BatchForwardBlocks(ctx context.Context, blocks []*Bloc
 		return nil, fmt.Errorf("failed to broadcast batch block attestation: %w", err)
 	}
 
-	// Parse attestation IDs from response
-	attestationIDs, err := bf.parseBatchAttestationIDs(txResp)
+	// Parse MsgSubmitBatchBlockAttestationResponse from transaction response
+	batchResp, err := bf.parseBatchAttestationResponse(txResp)
 	if err != nil {
-		bf.logger.Warn("Failed to parse attestation IDs from response",
+		bf.logger.Error("Failed to parse batch attestation response",
 			"error", err,
 			"tx_hash", txResp.TxHash,
 		)
-		// Return block heights as fallback
-		ids := make([]uint64, len(blocks))
-		for i, block := range blocks {
-			ids[i] = block.BlockHeight
-		}
-		return ids, nil
+		return nil, fmt.Errorf("failed to parse batch attestation response: %w", err)
+	}
+
+	attestationIDs := batchResp.AttestationIds
+	finalizedCount := batchResp.FinalizedCount
+
+	// Verify attestation IDs are in continuously ascending order
+	if err := bf.verifyAttestationIDsOrder(attestationIDs); err != nil {
+		bf.logger.Error("Attestation IDs are not in correct order",
+			"error", err,
+			"attestation_ids", attestationIDs,
+		)
+		return nil, fmt.Errorf("invalid attestation IDs order: %w", err)
 	}
 
 	bf.logger.Info("Batch blocks forwarded successfully",
 		"count", len(blocks),
 		"attestation_ids", attestationIDs,
+		"finalized_count", finalizedCount,
 		"tx_hash", txResp.TxHash,
 	)
 
-	// Track batch attestation in finality monitor
+	// Track in finality monitor based on broadcast mode
 	if bf.finalityMonitor != nil {
-		bf.finalityMonitor.TrackBatchAttestation(
-			txResp.TxHash,
-			attestationIDs,
-			blocks[0].ChainID,
-			blocks[0].BlockHeight,
-			blocks[len(blocks)-1].BlockHeight,
-		)
+		isSyncMode := bf.config.BroadcastMode == "sync"
+
+		if isSyncMode {
+			// Sync mode: verify finalized_count matches attestation count
+			if finalizedCount != uint32(len(attestationIDs)) {
+				bf.logger.Warn("Finalized count mismatch in sync mode",
+					"finalized_count", finalizedCount,
+					"attestation_count", len(attestationIDs),
+				)
+			}
+
+			// In sync mode, blocks are already finalized
+			bf.finalityMonitor.TrackBatchAttestationFinalized(
+				txResp.TxHash,
+				attestationIDs,
+				blocks[0].Block.Header.ChainID,
+				uint64(blocks[0].Block.Height),
+				uint64(blocks[len(blocks)-1].Block.Height),
+				finalizedCount,
+			)
+		} else {
+			// Async mode: track as pending, finality confirmed later via events
+			bf.finalityMonitor.TrackBatchAttestation(
+				txResp.TxHash,
+				attestationIDs,
+				blocks[0].Block.Header.ChainID,
+				uint64(blocks[0].Block.Height),
+				uint64(blocks[len(blocks)-1].Block.Height),
+			)
+		}
 	}
 
 	return attestationIDs, nil
 }
 
-// createBlockAttestationMsg creates a MsgSubmitBlockAttestation from BlockData
-func (bf *blockForwarder) createBlockAttestationMsg(blockData *BlockData) (*attestationtypes.MsgSubmitBlockAttestation, error) {
-	// Get relayer address
-	relayerAddr := bf.clientCtx.GetFromAddress()
-	if relayerAddr == nil {
-		return nil, fmt.Errorf("relayer address not found in client context")
-	}
-
-	// Encode block header
-	blockHeaderBytes, err := bf.encodeBlockHeader(blockData.BlockHeader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode block header: %w", err)
-	}
-
-	// Encode tx results
-	txResultsBytes, err := bf.encodeTxResults(blockData.TxResults)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode tx results: %w", err)
-	}
-
-	// Encode finalize block events
-	finalizeBlockEventsBytes, err := bf.encodeEvents(blockData.FinalizeBlockEvents)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode finalize block events: %w", err)
-	}
-
-	// Encode validator updates
-	validatorUpdatesBytes, err := bf.encodeValidatorUpdates(blockData.ValidatorUpdates)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode validator updates: %w", err)
-	}
-
-	// Encode consensus param updates
-	consensusParamUpdatesBytes, err := bf.encodeConsensusParamUpdates(blockData.ConsensusParamUpdates)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode consensus param updates: %w", err)
-	}
-
-	// Create message
-	msg := &attestationtypes.MsgSubmitBlockAttestation{
-		Relayer:               relayerAddr.String(),
-		ChainId:               blockData.ChainID,
-		BlockHeight:           blockData.BlockHeight,
-		Timestamp:             blockData.Timestamp,
-		BlockHash:             blockData.BlockHash,
-		AppHash:               blockData.AppHash,
-		BlockHeader:           blockHeaderBytes,
-		TxResults:             txResultsBytes,
-		FinalizeBlockEvents:   finalizeBlockEventsBytes,
-		ValidatorUpdates:      validatorUpdatesBytes,
-		ConsensusParamUpdates: consensusParamUpdatesBytes,
-		Signature:             blockData.Signature,
-	}
-
-	return msg, nil
-}
-
-// createBatchBlockAttestationMsg creates a MsgSubmitBatchBlockAttestation from multiple BlockData
-func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*BlockData) (*attestationtypes.MsgSubmitBatchBlockAttestation, error) {
+// createBatchBlockAttestationMsg creates a MsgSubmitBatchBlockAttestation from multiple EventDataNewBlock
+func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*types.EventDataNewBlock) (*attestationtypes.MsgSubmitBatchBlockAttestation, error) {
 	// Get relayer address
 	relayerAddr := bf.clientCtx.GetFromAddress()
 	if relayerAddr == nil {
@@ -212,47 +137,78 @@ func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*BlockData) (*
 	}
 
 	// All blocks should be from the same chain
-	chainID := blocks[0].ChainID
+	chainID := blocks[0].Block.Header.ChainID
 
 	// Create attestation data for each block
 	attestations := make([]*attestationtypes.BlockAttestationData, len(blocks))
-	for i, block := range blocks {
-		if block.ChainID != chainID {
+	for i, eventData := range blocks {
+		if eventData.Block.Header.ChainID != chainID {
 			return nil, fmt.Errorf("all blocks must be from the same chain")
 		}
 
-		// Encode block data
-		blockHeaderBytes, err := bf.encodeBlockHeader(block.BlockHeader)
+		// Extract data from EventDataNewBlock
+		block := eventData.Block
+		blockID := eventData.BlockID
+		results := eventData.ResultFinalizeBlock
+
+		// Encode block header
+		blockHeaderBytes, err := bf.encodeBlockHeader(block.Header)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode block header for height %d: %w", block.BlockHeight, err)
+			return nil, fmt.Errorf("failed to encode block header for height %d: %w", block.Height, err)
 		}
 
-		txResultsBytes, err := bf.encodeTxResults(block.TxResults)
+		// Encode tx results
+		txResultsBytes, err := bf.encodeTxResults(results.TxResults)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode tx results for height %d: %w", block.BlockHeight, err)
+			return nil, fmt.Errorf("failed to encode tx results for height %d: %w", block.Height, err)
 		}
 
-		finalizeBlockEventsBytes, err := bf.encodeEvents(block.FinalizeBlockEvents)
+		// Encode finalize block events
+		finalizeBlockEventsBytes, err := bf.encodeEvents(results.Events)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode finalize block events for height %d: %w", block.BlockHeight, err)
+			return nil, fmt.Errorf("failed to encode finalize block events for height %d: %w", block.Height, err)
 		}
 
-		validatorUpdatesBytes, err := bf.encodeValidatorUpdates(block.ValidatorUpdates)
+		// Encode validator updates
+		validatorUpdatesBytes, err := bf.encodeValidatorUpdates(results.ValidatorUpdates)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode validator updates for height %d: %w", block.BlockHeight, err)
+			return nil, fmt.Errorf("failed to encode validator updates for height %d: %w", block.Height, err)
 		}
 
-		consensusParamUpdatesBytes, err := bf.encodeConsensusParamUpdates(block.ConsensusParamUpdates)
+		// Encode consensus param updates
+		consensusParamUpdatesBytes, err := bf.encodeConsensusParamUpdates(results.ConsensusParamUpdates)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode consensus param updates for height %d: %w", block.BlockHeight, err)
+			return nil, fmt.Errorf("failed to encode consensus param updates for height %d: %w", block.Height, err)
+		}
+
+		// Encode raw transaction data (for reconstruction)
+		transactionsBytes, err := bf.encodeTransactions(block.Data.Txs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode transactions for height %d: %w", block.Height, err)
+		}
+
+		// Encode evidence
+		evidenceBytes, err := bf.encodeEvidence(block.Evidence)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode evidence for height %d: %w", block.Height, err)
+		}
+
+		// Encode last commit
+		lastCommitBytes, err := bf.encodeLastCommit(block.LastCommit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode last commit for height %d: %w", block.Height, err)
 		}
 
 		attestations[i] = &attestationtypes.BlockAttestationData{
-			BlockHeight:           block.BlockHeight,
-			Timestamp:             block.Timestamp,
-			BlockHash:             block.BlockHash,
-			AppHash:               block.AppHash,
-			BlockHeader:           blockHeaderBytes,
+			// Indexing fields
+			BlockHeight: uint64(block.Height),
+			BlockHash:   blockID.Hash,
+			// Complete block structure (block_header includes timestamp and app_hash)
+			BlockHeader:  blockHeaderBytes,
+			Transactions: transactionsBytes,
+			Evidence:     evidenceBytes,
+			LastCommit:   lastCommitBytes,
+			// Execution data
 			TxResults:             txResultsBytes,
 			FinalizeBlockEvents:   finalizeBlockEventsBytes,
 			ValidatorUpdates:      validatorUpdatesBytes,
@@ -260,11 +216,26 @@ func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*BlockData) (*
 		}
 	}
 
+	// Sign the batch attestation
+	signature, err := bf.signBatchAttestation(chainID, attestations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign batch attestation: %w", err)
+	}
+
+	// Convert []*BlockAttestationData to []BlockAttestationData (dereference pointers)
+	valueAttestations := make([]attestationtypes.BlockAttestationData, len(attestations))
+	for i, att := range attestations {
+		if att != nil {
+			valueAttestations[i] = *att
+		}
+	}
+
 	// Create batch message
 	msg := &attestationtypes.MsgSubmitBatchBlockAttestation{
 		Relayer:      relayerAddr.String(),
 		ChainId:      chainID,
-		Attestations: attestations,
+		Attestations: valueAttestations,
+		Signature:    signature,
 	}
 
 	return msg, nil
@@ -362,43 +333,43 @@ func (bf *blockForwarder) broadcastTx(ctx context.Context, msg sdk.Msg) (*sdk.Tx
 	return res, nil
 }
 
-// parseAttestationID extracts the attestation ID from transaction response
-func (bf *blockForwarder) parseAttestationID(txResp *sdk.TxResponse) (uint64, error) {
-	// Look for attestation_id in events
-	for _, event := range txResp.Events {
-		if event.Type == "submit_block_attestation" || event.Type == "attestation.v1.MsgSubmitBlockAttestation" {
-			for _, attr := range event.Attributes {
-				if attr.Key == "attestation_id" {
-					var id uint64
-					if _, err := fmt.Sscanf(attr.Value, "%d", &id); err == nil {
-						return id, nil
-					}
-				}
+// parseBatchAttestationResponse extracts MsgSubmitBatchBlockAttestationResponse from transaction response
+func (bf *blockForwarder) parseBatchAttestationResponse(txResp *sdk.TxResponse) (*attestationtypes.MsgSubmitBatchBlockAttestationResponse, error) {
+	// The response should be in txResp.Data or in the Msg response
+	// Try to unmarshal from transaction result
+	if txResp.Data != "" {
+		// Data is hex-encoded
+		data, err := json.Marshal(txResp)
+		if err == nil {
+			var resp attestationtypes.MsgSubmitBatchBlockAttestationResponse
+			if err := json.Unmarshal(data, &resp); err == nil {
+				return &resp, nil
 			}
 		}
 	}
 
-	return 0, fmt.Errorf("attestation_id not found in transaction events")
+	return nil, fmt.Errorf("%s", txResp.String())
 }
 
-// parseBatchAttestationIDs extracts multiple attestation IDs from transaction response
-func (bf *blockForwarder) parseBatchAttestationIDs(txResp *sdk.TxResponse) ([]uint64, error) {
-	// Look for attestation_ids in events
-	for _, event := range txResp.Events {
-		if event.Type == "submit_batch_block_attestation" || event.Type == "attestation.v1.MsgSubmitBatchBlockAttestation" {
-			for _, attr := range event.Attributes {
-				if attr.Key == "attestation_ids" {
-					// Parse JSON array of IDs
-					var ids []uint64
-					if err := json.Unmarshal([]byte(attr.Value), &ids); err == nil {
-						return ids, nil
-					}
-				}
-			}
+// verifyAttestationIDsOrder verifies that attestation IDs are in continuously ascending order
+func (bf *blockForwarder) verifyAttestationIDsOrder(ids []uint64) error {
+	if len(ids) == 0 {
+		return fmt.Errorf("empty attestation IDs")
+	}
+
+	if len(ids) == 1 {
+		return nil // Single ID is always valid
+	}
+
+	// Check each ID is exactly 1 more than the previous
+	for i := 1; i < len(ids); i++ {
+		if ids[i] != ids[i-1]+1 {
+			return fmt.Errorf("attestation IDs not continuously ascending: ids[%d]=%d, ids[%d]=%d (expected %d)",
+				i-1, ids[i-1], i, ids[i], ids[i-1]+1)
 		}
 	}
 
-	return nil, fmt.Errorf("attestation_ids not found in transaction events")
+	return nil
 }
 
 // Encoding helper functions
@@ -456,4 +427,68 @@ func (bf *blockForwarder) encodeConsensusParamUpdates(updates interface{}) ([]by
 
 	// Encode consensus param updates as JSON
 	return json.Marshal(updates)
+}
+
+// signBatchAttestation creates a signature over the batch attestation data
+func (bf *blockForwarder) signBatchAttestation(chainID string, attestations []*attestationtypes.BlockAttestationData) ([]byte, error) {
+	// Create signing data by concatenating all attestation data
+	var signingData []byte
+
+	// Add chain ID
+	signingData = append(signingData, []byte(chainID)...)
+
+	// Add each attestation data
+	for _, att := range attestations {
+		// Marshal attestation to get deterministic bytes
+		attBytes, err := proto.Marshal(att)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal attestation for signing: %w", err)
+		}
+		signingData = append(signingData, attBytes...)
+	}
+
+	// Get key name from client context
+	keyName := bf.clientCtx.GetFromName()
+	if keyName == "" {
+		return nil, fmt.Errorf("no key name in client context")
+	}
+
+	// Sign the data (using direct mode - SIGN_MODE_DIRECT = 1)
+	signature, _, err := bf.clientCtx.Keyring.Sign(keyName, signingData, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign batch attestation: %w", err)
+	}
+
+	bf.logger.Debug("Signed batch attestation",
+		"chain_id", chainID,
+		"attestation_count", len(attestations),
+		"signature_length", len(signature),
+	)
+
+	return signature, nil
+}
+
+// encodeTransactions encodes raw transaction data
+func (bf *blockForwarder) encodeTransactions(txs types.Txs) ([]byte, error) {
+	if txs == nil || len(txs) == 0 {
+		return nil, nil
+	}
+	// Txs is []Tx where Tx is []byte
+	// Encode as array of byte arrays
+	return json.Marshal(txs)
+}
+
+// encodeEvidence encodes block evidence
+func (bf *blockForwarder) encodeEvidence(evidence types.EvidenceData) ([]byte, error) {
+	// EvidenceData contains evidence list
+	return json.Marshal(evidence)
+}
+
+// encodeLastCommit encodes the last commit (validator signatures)
+func (bf *blockForwarder) encodeLastCommit(commit *types.Commit) ([]byte, error) {
+	if commit == nil {
+		return nil, nil
+	}
+	// Commit contains block signatures from validators
+	return json.Marshal(commit)
 }

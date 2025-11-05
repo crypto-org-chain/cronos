@@ -7,6 +7,7 @@ import (
 	"time"
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 
 	"cosmossdk.io/log"
@@ -173,6 +174,17 @@ func (rs *RelayerService) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to start source monitor: %w", err)
 	}
 
+	// Subscribe to new blocks from source chain
+	rs.logger.Info("Subscribing to new blocks from source chain")
+	blockCh, err := rs.sourceMonitor.SubscribeNewBlocks(rs.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to new blocks: %w", err)
+	}
+
+	// Start block processing worker
+	rs.wg.Add(1)
+	go rs.processNewBlocks(blockCh)
+
 	if err := rs.attestationMonitor.Start(rs.ctx); err != nil {
 		return fmt.Errorf("failed to start attestation monitor: %w", err)
 	}
@@ -281,7 +293,7 @@ func (rs *RelayerService) blockForwardingWorker() {
 	batchTicker := time.NewTicker(5 * time.Second)
 	defer batchTicker.Stop()
 
-	var pendingBlocks []*BlockData
+	var pendingBlocks []*types.EventDataNewBlock
 
 	for {
 		select {
@@ -295,8 +307,8 @@ func (rs *RelayerService) blockForwardingWorker() {
 			}
 
 			rs.logger.Debug("New block received",
-				"height", block.BlockHeight,
-				"chain", block.ChainID,
+				"height", block.Block.Height,
+				"chain_id", block.Block.Header.ChainID,
 			)
 
 			// Add to batch
@@ -319,31 +331,23 @@ func (rs *RelayerService) blockForwardingWorker() {
 }
 
 // forwardBlockBatch forwards a batch of blocks
-func (rs *RelayerService) forwardBlockBatch(blocks []*BlockData) {
+func (rs *RelayerService) forwardBlockBatch(blocks []*types.EventDataNewBlock) {
 	if len(blocks) == 0 {
 		return
 	}
 
+	firstHeight := uint64(blocks[0].Block.Height)
+	lastHeight := uint64(blocks[len(blocks)-1].Block.Height)
+
 	rs.logger.Info("Forwarding block batch",
 		"count", len(blocks),
-		"first_height", blocks[0].BlockHeight,
-		"last_height", blocks[len(blocks)-1].BlockHeight,
+		"chain_id", blocks[0].Block.Header.ChainID,
+		"first_height", firstHeight,
+		"last_height", lastHeight,
 	)
 
-	var err error
-	var attestationIDs []uint64
-
-	if len(blocks) == 1 {
-		// Single block
-		var id uint64
-		id, err = rs.blockForwarder.ForwardBlock(rs.ctx, blocks[0])
-		if err == nil {
-			attestationIDs = []uint64{id}
-		}
-	} else {
-		// Batch
-		attestationIDs, err = rs.blockForwarder.BatchForwardBlocks(rs.ctx, blocks)
-	}
+	// Always use BatchForwardBlocks (works for single or multiple blocks)
+	attestationIDs, err := rs.blockForwarder.BatchForwardBlocks(rs.ctx, blocks)
 
 	if err != nil {
 		rs.logger.Error("Failed to forward blocks",
@@ -362,7 +366,7 @@ func (rs *RelayerService) forwardBlockBatch(blocks []*BlockData) {
 	// Update status
 	lastBlock := blocks[len(blocks)-1]
 	rs.updateStatus(func(s *RelayerStatus) {
-		s.LastBlockForwarded = lastBlock.BlockHeight
+		s.LastBlockForwarded = uint64(lastBlock.Block.Height)
 		s.UpdatedAt = time.Now()
 	})
 }
@@ -396,7 +400,6 @@ func (rs *RelayerService) finalityRelayWorker() {
 				"chain", finality.ChainID,
 				"height", finality.BlockHeight,
 				"attestation_id", finality.AttestationID,
-				"validator_count", finality.ValidatorCount,
 			)
 
 			// Update status
@@ -565,4 +568,75 @@ func (rs *RelayerService) updateStatusError(err error) {
 		s.LastError = err.Error()
 		s.UpdatedAt = time.Now()
 	})
+}
+
+// processNewBlocks processes blocks from the subscription channel
+func (rs *RelayerService) processNewBlocks(blockCh <-chan *types.EventDataNewBlock) {
+	defer rs.wg.Done()
+
+	rs.logger.Info("Started block processing worker")
+
+	// Batch configuration
+	batchSize := int(rs.config.BlockBatchSize)
+	if batchSize == 0 {
+		batchSize = 10 // Default batch size
+	}
+
+	batchTimeout := rs.config.BlockPollInterval
+	if batchTimeout == 0 {
+		batchTimeout = 2 * time.Second // Default batch timeout
+	}
+
+	// Buffered blocks for batching
+	var batch []*types.EventDataNewBlock
+	batchTimer := time.NewTimer(batchTimeout)
+	defer batchTimer.Stop()
+
+	for {
+		select {
+		case <-rs.ctx.Done():
+			rs.logger.Info("Context cancelled, stopping block processing")
+			// Forward any remaining blocks in batch
+			if len(batch) > 0 {
+				rs.logger.Info("Forwarding remaining blocks in batch", "count", len(batch))
+				rs.forwardBlockBatch(batch)
+			}
+			return
+
+		case blockData, ok := <-blockCh:
+			if !ok {
+				rs.logger.Warn("Block channel closed")
+				// Forward any remaining blocks
+				if len(batch) > 0 {
+					rs.logger.Info("Forwarding remaining blocks", "count", len(batch))
+					rs.forwardBlockBatch(batch)
+				}
+				return
+			}
+
+			// Add block to batch
+			batch = append(batch, blockData)
+			rs.logger.Debug("Added block to batch",
+				"height", blockData.Block.Height,
+				"batch_size", len(batch),
+			)
+
+			// Forward if batch is full
+			if len(batch) >= batchSize {
+				rs.logger.Info("Batch full, forwarding blocks", "count", len(batch))
+				rs.forwardBlockBatch(batch)
+				batch = nil // Reset batch
+				batchTimer.Reset(batchTimeout)
+			}
+
+		case <-batchTimer.C:
+			// Forward batch on timeout
+			if len(batch) > 0 {
+				rs.logger.Info("Batch timeout, forwarding blocks", "count", len(batch))
+				rs.forwardBlockBatch(batch)
+				batch = nil // Reset batch
+			}
+			batchTimer.Reset(batchTimeout)
+		}
+	}
 }

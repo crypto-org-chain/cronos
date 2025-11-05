@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	"github.com/cometbft/cometbft/types"
 
 	"cosmossdk.io/log"
 )
@@ -89,7 +91,7 @@ func (cm *chainMonitor) GetLatestHeight(ctx context.Context) (uint64, error) {
 }
 
 // GetBlock retrieves block data for a specific height
-func (cm *chainMonitor) GetBlock(ctx context.Context, height uint64) (*BlockData, error) {
+func (cm *chainMonitor) GetBlock(ctx context.Context, height uint64) (*types.EventDataNewBlock, error) {
 	cm.logger.Debug("Fetching block", "height", height, "chain", cm.chainName)
 
 	// Get block
@@ -105,46 +107,137 @@ func (cm *chainMonitor) GetBlock(ctx context.Context, height uint64) (*BlockData
 		return nil, fmt.Errorf("failed to get block results: %w", err)
 	}
 
-	// Construct BlockData from Block and BlockResults
-	blockData := &BlockData{
-		ChainID:     cm.chainID,
-		BlockHeight: height,
-		Timestamp:   block.Block.Time.Unix(),
-		// Block data
-		BlockHash:   block.BlockID.Hash,
-		AppHash:     block.Block.AppHash,
-		BlockHeader: block.Block.Header,
-		// Block results data
+	// Create EventDataNewBlock directly
+	// Convert ResultBlockResults to ResponseFinalizeBlock
+	resultFinalizeBlock := abci.ResponseFinalizeBlock{
+		Events:                blockResults.FinalizeBlockEvents,
 		TxResults:             blockResults.TxsResults,
-		FinalizeBlockEvents:   blockResults.FinalizeBlockEvents,
 		ValidatorUpdates:      blockResults.ValidatorUpdates,
 		ConsensusParamUpdates: blockResults.ConsensusParamUpdates,
+		AppHash:               blockResults.AppHash,
+	}
+
+	eventData := &types.EventDataNewBlock{
+		Block:               block.Block,
+		BlockID:             block.BlockID,
+		ResultFinalizeBlock: resultFinalizeBlock,
 	}
 
 	cm.logger.Debug("Fetched block",
 		"height", height,
 		"chain", cm.chainName,
-		"timestamp", blockData.Timestamp,
-		"block_hash", fmt.Sprintf("%X", blockData.BlockHash),
-		"app_hash", fmt.Sprintf("%X", blockData.AppHash),
-		"tx_count", len(blockData.TxResults),
+		"chain_id", block.Block.Header.ChainID,
+		"timestamp", block.Block.Time,
+		"block_hash", fmt.Sprintf("%X", block.BlockID.Hash),
+		"app_hash", fmt.Sprintf("%X", block.Block.AppHash),
+		"tx_count", len(blockResults.TxsResults),
 	)
 
-	return blockData, nil
+	return eventData, nil
 }
 
-// SubscribeNewBlocks subscribes to new block events
-func (cm *chainMonitor) SubscribeNewBlocks(ctx context.Context) (<-chan *BlockData, error) {
-	if !cm.running {
-		return nil, fmt.Errorf("chain monitor not running")
+// SubscribeNewBlocks subscribes to new block events via WebSocket
+func (cm *chainMonitor) SubscribeNewBlocks(ctx context.Context) (<-chan *types.EventDataNewBlock, error) {
+	cm.logger.Info("Subscribing to new block events", "chain", cm.chainName)
+
+	// Create channel for block data
+	blockCh := make(chan *types.EventDataNewBlock, 10) // Buffer of 10 blocks
+
+	// Subscribe to NewBlock events
+	query := "tm.event='NewBlock'"
+
+	// Start the client if not already started (WebSocket connection)
+	if !cm.client.IsRunning() {
+		if err := cm.client.Start(); err != nil {
+			close(blockCh)
+			return nil, fmt.Errorf("failed to start RPC client: %w", err)
+		}
 	}
 
-	blockCh := make(chan *BlockData, 100)
+	// Subscribe to events
+	subscription, err := cm.client.Subscribe(ctx, cm.chainName, query)
+	if err != nil {
+		close(blockCh)
+		return nil, fmt.Errorf("failed to subscribe to new block events: %w", err)
+	}
 
-	// TODO: Implement when needed for actual block monitoring
-	// Will subscribe to "tm.event='NewBlock'" and forward block data
+	cm.logger.Info("Successfully subscribed to new block events",
+		"chain", cm.chainName,
+		"query", query,
+	)
 
-	cm.logger.Warn("SubscribeNewBlocks not yet fully implemented")
+	// Start goroutine to process events
+	go func() {
+		defer close(blockCh)
+		defer func() {
+			// Unsubscribe when done
+			if err := cm.client.Unsubscribe(ctx, cm.chainName, query); err != nil {
+				cm.logger.Error("Failed to unsubscribe", "error", err, "chain", cm.chainName)
+			}
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				cm.logger.Info("Context cancelled, stopping block subscription", "chain", cm.chainName)
+				return
+
+			case result, ok := <-subscription:
+				if !ok {
+					cm.logger.Warn("Subscription channel closed", "chain", cm.chainName)
+					return
+				}
+
+				// Extract block data from event
+				if result.Data == nil {
+					cm.logger.Warn("Received nil data in event", "chain", cm.chainName)
+					continue
+				}
+
+				// Parse NewBlock event
+				newBlockEvent, ok := result.Data.(types.EventDataNewBlock)
+				if !ok {
+					cm.logger.Warn("Unexpected event data type",
+						"chain", cm.chainName,
+						"type", fmt.Sprintf("%T", result.Data),
+					)
+					continue
+				}
+
+				block := newBlockEvent.Block
+				if block == nil {
+					cm.logger.Warn("Received nil block in NewBlock event", "chain", cm.chainName)
+					continue
+				}
+
+				height := uint64(block.Height)
+
+				cm.logger.Debug("Received new block event",
+					"chain", cm.chainName,
+					"chain_id", block.Header.ChainID,
+					"height", height,
+					"hash", fmt.Sprintf("%X", block.Hash()),
+					"time", block.Time,
+				)
+
+				// Send block data to channel (non-blocking)
+				select {
+				case blockCh <- &newBlockEvent:
+					cm.logger.Debug("Sent block data to channel",
+						"chain", cm.chainName,
+						"height", height,
+					)
+				case <-ctx.Done():
+					return
+				default:
+					cm.logger.Warn("Block channel full, dropping block",
+						"chain", cm.chainName,
+						"height", height,
+					)
+				}
+			}
+		}
+	}()
 
 	return blockCh, nil
 }

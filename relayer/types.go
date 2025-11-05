@@ -4,29 +4,9 @@ import (
 	"context"
 	"time"
 
-	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-// BlockData represents block data to be forwarded to attestation layer
-type BlockData struct {
-	ChainID     string `json:"chain_id"`
-	BlockHeight uint64 `json:"block_height"`
-	Timestamp   int64  `json:"timestamp"`
-
-	// Block data from CometBFT
-	BlockHash   []byte      `json:"block_hash"`
-	AppHash     []byte      `json:"app_hash"`
-	BlockHeader interface{} `json:"block_header"` // *types.Header
-
-	// Block results data from CometBFT
-	TxResults             []*abci.ExecTxResult   `json:"tx_results,omitempty"`
-	FinalizeBlockEvents   []abci.Event           `json:"finalize_block_events,omitempty"`
-	ValidatorUpdates      []abci.ValidatorUpdate `json:"validator_updates,omitempty"`
-	ConsensusParamUpdates interface{}            `json:"consensus_param_updates,omitempty"` // *types.ConsensusParams
-
-	Signature []byte `json:"signature,omitempty"`
-}
 
 // FinalityInfo represents finality information from attestation layer
 type FinalityInfo struct {
@@ -36,8 +16,6 @@ type FinalityInfo struct {
 	Finalized         bool   `json:"finalized"`
 	FinalizedAt       int64  `json:"finalized_at"`
 	FinalityProof     []byte `json:"finality_proof,omitempty"`
-	ValidatorCount    uint32 `json:"validator_count"`
-	FinalitySignature []byte `json:"finality_signature,omitempty"`
 	AttestationTxHash []byte `json:"attestation_tx_hash"`
 }
 
@@ -80,19 +58,16 @@ type ChainMonitor interface {
 	GetLatestHeight(ctx context.Context) (uint64, error)
 
 	// GetBlock retrieves block data for a specific height
-	GetBlock(ctx context.Context, height uint64) (*BlockData, error)
+	GetBlock(ctx context.Context, height uint64) (*types.EventDataNewBlock, error)
 
 	// SubscribeNewBlocks subscribes to new block events
-	SubscribeNewBlocks(ctx context.Context) (<-chan *BlockData, error)
+	SubscribeNewBlocks(ctx context.Context) (<-chan *types.EventDataNewBlock, error)
 }
 
 // BlockForwarder forwards ABCI blocks to attestation layer
 type BlockForwarder interface {
-	// ForwardBlock sends ABCI block data to attestation layer
-	ForwardBlock(ctx context.Context, blockData *BlockData) (uint64, error)
-
-	// BatchForwardBlocks forwards multiple blocks
-	BatchForwardBlocks(ctx context.Context, blocks []*BlockData) ([]uint64, error)
+	// BatchForwardBlocks forwards blocks to attestation layer (supports single or multiple blocks)
+	BatchForwardBlocks(ctx context.Context, blocks []*types.EventDataNewBlock) ([]uint64, error)
 }
 
 // AttestationStatus represents the attestation status of a block
@@ -111,11 +86,11 @@ type FinalityMonitor interface {
 	// Stop stops the monitor
 	Stop() error
 
-	// TrackAttestation tracks a submitted attestation (called by block forwarder)
-	TrackAttestation(txHash string, attestationID uint64, chainID string, blockHeight uint64)
-
-	// TrackBatchAttestation tracks a batch attestation (called by block forwarder)
+	// TrackBatchAttestation tracks a batch attestation (called by block forwarder) - async mode
 	TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight uint64, endHeight uint64)
+
+	// TrackBatchAttestationFinalized tracks a batch attestation that's already finalized - sync mode
+	TrackBatchAttestationFinalized(txHash string, attestationIDs []uint64, chainID string, firstHeight, lastHeight uint64, finalizedCount uint32)
 
 	// GetPendingAttestations returns the count of pending attestations
 	GetPendingAttestations() int

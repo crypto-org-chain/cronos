@@ -78,31 +78,6 @@ func NewFinalityMonitor(
 	}, nil
 }
 
-// TrackAttestation tracks a submitted attestation (called by block forwarder)
-func (fm *finalityMonitor) TrackAttestation(txHash string, attestationID uint64, chainID string, blockHeight uint64) {
-	fm.pendingMu.Lock()
-	defer fm.pendingMu.Unlock()
-
-	pending := &pendingAttestation{
-		TxHash:        txHash,
-		AttestationID: attestationID,
-		ChainID:       chainID,
-		BlockHeight:   blockHeight,
-		SubmittedAt:   time.Now(),
-	}
-
-	fm.pendingAttestations[txHash] = pending
-	blockKey := fmt.Sprintf("%s:%d", chainID, blockHeight)
-	fm.pendingByBlock[blockKey] = pending
-
-	fm.logger.Debug("Tracking attestation",
-		"tx_hash", txHash,
-		"attestation_id", attestationID,
-		"chain_id", chainID,
-		"block_height", blockHeight,
-	)
-}
-
 // TrackBatchAttestation tracks a batch attestation (called by block forwarder)
 func (fm *finalityMonitor) TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight uint64, endHeight uint64) {
 	fm.pendingMu.Lock()
@@ -400,9 +375,7 @@ func (fm *finalityMonitor) handleBlockAttestedEvent(txHash string, event abci.Ev
 		BlockHeight:       blockHeight,
 		Finalized:         true, // Attested = finalized
 		FinalizedAt:       processedAt,
-		ValidatorCount:    1, // At least one validator attested
 		FinalityProof:     finalityProof,
-		FinalitySignature: finalityProof,
 		AttestationTxHash: []byte(txHash),
 	}
 
@@ -519,7 +492,6 @@ func (fm *finalityMonitor) handleBatchAttestedEvent(txHash string, event abci.Ev
 			BlockHeight:       height,
 			Finalized:         true,
 			FinalizedAt:       processedAt,
-			ValidatorCount:    1,
 			AttestationTxHash: []byte(txHash),
 		}
 
@@ -655,4 +627,81 @@ func (fm *finalityMonitor) GetFinalityStatus(ctx context.Context, chainID string
 
 	// Query from finality store
 	return fm.finalityStore.GetFinalityInfo(ctx, chainID, height)
+}
+
+// TrackBatchAttestationFinalized tracks a batch attestation that's already finalized (sync mode)
+func (fm *finalityMonitor) TrackBatchAttestationFinalized(
+	txHash string,
+	attestationIDs []uint64,
+	chainID string,
+	firstHeight, lastHeight uint64,
+	finalizedCount uint32,
+) {
+	fm.logger.Info("Tracking finalized batch attestation (sync mode)",
+		"tx_hash", txHash,
+		"chain_id", chainID,
+		"first_height", firstHeight,
+		"last_height", lastHeight,
+		"attestation_count", len(attestationIDs),
+		"finalized_count", finalizedCount,
+	)
+
+	// In sync mode, blocks are already finalized on the attestation chain
+	// We can immediately mark them as finalized and notify subscribers
+
+	finalizedAt := time.Now().Unix()
+
+	// Create finality info for each block in the batch
+	for i, attestationID := range attestationIDs {
+		blockHeight := firstHeight + uint64(i)
+
+		finalityInfo := &FinalityInfo{
+			AttestationID:     attestationID,
+			ChainID:           chainID,
+			BlockHeight:       blockHeight,
+			Finalized:         true,
+			FinalizedAt:       finalizedAt,
+			AttestationTxHash: []byte(txHash),
+		}
+
+		// Save to finality store if available
+		if fm.finalityStore != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := fm.finalityStore.SaveFinalityInfo(ctx, finalityInfo); err != nil {
+				fm.logger.Error("Failed to save finality info to store",
+					"error", err,
+					"chain_id", chainID,
+					"height", blockHeight,
+					"attestation_id", attestationID,
+				)
+			}
+			cancel()
+		}
+
+		// Emit finality event to subscribers
+		fm.subscribersMu.RLock()
+		for _, sub := range fm.subscribers {
+			select {
+			case sub <- finalityInfo:
+				fm.logger.Debug("Emitted finality event to subscriber",
+					"chain_id", chainID,
+					"height", blockHeight,
+					"attestation_id", attestationID,
+				)
+			default:
+				fm.logger.Warn("Subscriber channel full, dropping finality event",
+					"chain_id", chainID,
+					"height", blockHeight,
+				)
+			}
+		}
+		fm.subscribersMu.RUnlock()
+	}
+
+	fm.logger.Info("Finalized batch attestation tracked successfully",
+		"tx_hash", txHash,
+		"chain_id", chainID,
+		"blocks_finalized", len(attestationIDs),
+		"finalized_count", finalizedCount,
+	)
 }

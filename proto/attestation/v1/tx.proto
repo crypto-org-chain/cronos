@@ -5,68 +5,15 @@ import "amino/amino.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/relayer/types";
+option go_package = "github.com/crypto-org-chain/cronos/relayer/types";
 
 // Msg defines the attestation Msg service.
 service Msg {
-  // SubmitBlockAttestation submits block finalization data from an EVM chain
-  rpc SubmitBlockAttestation(MsgSubmitBlockAttestation) returns (MsgSubmitBlockAttestationResponse);
-
   // SubmitBatchBlockAttestation submits multiple block attestations
   rpc SubmitBatchBlockAttestation(MsgSubmitBatchBlockAttestation) returns (MsgSubmitBatchBlockAttestationResponse);
 
   // SubmitForcedTransaction submits a forced transaction to be executed on target chain
   rpc SubmitForcedTransaction(MsgSubmitForcedTransaction) returns (MsgSubmitForcedTransactionResponse);
-}
-
-// MsgSubmitBlockAttestation represents block data forwarded from a Cosmos chain
-message MsgSubmitBlockAttestation {
-  option (amino.name) = "attestation/SubmitBlockAttestation";
-
-  // Relayer submitting the attestation
-  string relayer = 1;
-
-  // Source chain ID (e.g., "cronos_25-1")
-  string chain_id = 2;
-
-  // Block height
-  uint64 block_height = 3;
-
-  // Block timestamp
-  int64 timestamp = 4;
-
-  // Block hash
-  bytes block_hash = 5;
-
-  // Application hash
-  bytes app_hash = 6;
-
-  // Block header (encoded)
-  bytes block_header = 7;
-
-  // Transaction results (encoded)
-  bytes tx_results = 8;
-
-  // FinalizeBlock events (encoded)
-  bytes finalize_block_events = 9;
-
-  // Validator updates (encoded)
-  bytes validator_updates = 10;
-
-  // Consensus parameter updates (encoded)
-  bytes consensus_param_updates = 11;
-
-  // Relayer signature over the block data
-  bytes signature = 12;
-}
-
-// MsgSubmitBlockAttestationResponse is the response for submitting block attestation
-message MsgSubmitBlockAttestationResponse {
-  // Attestation ID assigned by the chain
-  uint64 attestation_id = 1;
-
-  // Whether the block achieved finality immediately
-  bool finalized = 2;
 }
 
 // MsgSubmitBatchBlockAttestation submits multiple block attestations
@@ -80,27 +27,25 @@ message MsgSubmitBatchBlockAttestation {
   string chain_id = 2;
 
   // List of block attestations
-  repeated BlockAttestationData attestations = 3;
+  repeated BlockAttestationData attestations = 3 [(gogoproto.nullable) = false];
+
+  // Relayer signature over the batch attestation data
+  bytes signature = 4;
 }
 
 // BlockAttestationData contains the data for a single block attestation
+// Includes all data needed for full block reconstruction (DA layer)
 message BlockAttestationData {
-  // Block height
+  // Block height (for indexing, also in block_header.Header.Height)
   uint64 block_height = 1;
 
-  // Block timestamp
-  int64 timestamp = 2;
-
-  // Block hash
+  // Block hash (for fast lookups, can also compute from block_header)
   bytes block_hash = 3;
 
-  // Application hash
-  bytes app_hash = 4;
-
-  // Block header (encoded)
+  // Block header (encoded) - includes timestamp, app_hash, and all metadata
   bytes block_header = 5;
 
-  // Transaction results (encoded)
+  // Transaction results (encoded execution results)
   bytes tx_results = 6;
 
   // FinalizeBlock events (encoded)
@@ -111,6 +56,18 @@ message BlockAttestationData {
 
   // Consensus parameter updates (encoded)
   bytes consensus_param_updates = 9;
+
+  // Raw transaction data (REQUIRED FOR RECONSTRUCTION)
+  // Encoded Block.Data.Txs - the actual transaction bytes
+  bytes transactions = 10;
+
+  // Evidence data (encoded)
+  // Encoded Block.Evidence for complete block reconstruction
+  bytes evidence = 11;
+
+  // Last commit (encoded)
+  // Encoded Block.LastCommit - validator signatures from previous block
+  bytes last_commit = 12;
 }
 
 // MsgSubmitBatchBlockAttestationResponse is the response for batch submission
