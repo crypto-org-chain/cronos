@@ -19,6 +19,7 @@ from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
 DEFAULT_GAS = "250000"
+STAKING_DEFAULT_GAS = "1000000"
 
 
 class ModuleAccount(enum.Enum):
@@ -409,40 +410,71 @@ class CosmosCLI:
             )
         )
 
-    def delegate_amount(self, to_addr, amount, from_addr, gas_price=None):
-        if gas_price is None:
-            return json.loads(
-                self.raw(
-                    "tx",
-                    "staking",
-                    "delegate",
-                    to_addr,
-                    amount,
-                    "-y",
-                    home=self.data_dir,
-                    from_=from_addr,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
-                    node=self.node_rpc,
-                )
+    def get_delegations(self, which_addr):
+        """Query all delegations made from one delegator."""
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "delegations",
+                which_addr,
+                home=self.data_dir,
+                chain_id=self.chain_id,
+                node=self.node_rpc,
+                output="json",
             )
-        else:
-            return json.loads(
-                self.raw(
-                    "tx",
-                    "staking",
-                    "delegate",
-                    to_addr,
-                    amount,
-                    "-y",
-                    home=self.data_dir,
-                    from_=from_addr,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
-                    node=self.node_rpc,
-                    gas_prices=gas_price,
-                )
+        )
+
+    def get_unbonding_delegations(self, which_addr):
+        """Query all unbonding delegations from a delegator."""
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "unbonding-delegations",
+                which_addr,
+                home=self.data_dir,
+                chain_id=self.chain_id,
+                node=self.node_rpc,
+                output="json",
             )
+        ).get("unbonding_responses", [])
+
+    def get_redelegations(self, delegator_addr, src_validator_addr, dst_validator_addr):
+        """Query all redelegations from a delegator."""
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "redelegation",
+                delegator_addr,
+                src_validator_addr,
+                dst_validator_addr,
+                home=self.data_dir,
+                chain_id=self.chain_id,
+                node=self.node_rpc,
+                output="json",
+            )
+        ).get("redelegation_responses", [])
+
+    def delegate_amount(self, to_addr, amount, from_addr):
+        return json.loads(
+            self.raw(
+                "tx",
+                "staking",
+                "delegate",
+                to_addr,
+                amount,
+                "-y",
+                home=self.data_dir,
+                from_=from_addr,
+                keyring_backend="test",
+                chain_id=self.chain_id,
+                node=self.node_rpc,
+                gas_prices=DEFAULT_GAS_PRICE,
+                gas=STAKING_DEFAULT_GAS,
+            )
+        )
 
     # to_addr: croclcl1...  , from_addr: cro1...
     def unbond_amount(self, to_addr, amount, from_addr):
@@ -459,6 +491,8 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                gas=STAKING_DEFAULT_GAS,
+                gas_prices=DEFAULT_GAS_PRICE,
             )
         )
 
@@ -480,6 +514,8 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                gas=STAKING_DEFAULT_GAS,
+                gas_prices=DEFAULT_GAS_PRICE,
             )
         )
 
@@ -693,6 +729,7 @@ class CosmosCLI:
         website=None,
         security_contact=None,
         details=None,
+        min_self_delegation=None,
     ):
         """MsgEditValidator"""
         options = dict(
@@ -703,6 +740,7 @@ class CosmosCLI:
             website=website,
             security_contact=security_contact,
             details=details,
+            min_self_delegation=min_self_delegation,
         )
         return json.loads(
             self.raw(
@@ -715,6 +753,8 @@ class CosmosCLI:
                 node=self.node_rpc,
                 keyring_backend="test",
                 chain_id=self.chain_id,
+                gas_prices=DEFAULT_GAS_PRICE,
+                gas=STAKING_DEFAULT_GAS,
                 **{k: v for k, v in options.items() if v is not None},
             )
         )
