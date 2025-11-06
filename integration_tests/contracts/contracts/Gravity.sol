@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./CosmosToken.sol";
 
@@ -787,7 +787,7 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 		address[] memory _validators,
 		uint256[] memory _powers,
 		address relayerAdmin
-	) {
+	) Ownable(relayerAdmin) {
 		// CHECKS
 
 		// Check that validators, powers, and signatures (v,r,s) set is well-formed
@@ -825,7 +825,7 @@ contract Gravity is ReentrancyGuard, AccessControl, Pausable, Ownable {
 
 		// ACL
 
-		_setupRole(RELAYER_ADMIN, relayerAdmin);
+		_grantRole(RELAYER_ADMIN, relayerAdmin);
 		_setRoleAdmin(RELAYER, RELAYER_ADMIN);
 		_setRoleAdmin(RELAYER_ADMIN, RELAYER_ADMIN);
 

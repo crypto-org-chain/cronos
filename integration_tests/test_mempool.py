@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from web3 import Web3
+from web3 import Web3, exceptions
 
 from .network import setup_custom_cronos
 from .utils import (
@@ -42,7 +42,7 @@ def test_mempool(cronos_mempool):
     contract = deploy_contract(w3, CONTRACTS["Greeter"])
     tx = contract.functions.setGreeting("world").build_transaction()
     signed = sign_transaction(w3, tx)
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
     w3.eth.wait_for_transaction_receipt(txhash)
     # check tx in mempool
     new_txs = filter.get_new_entries()
@@ -118,7 +118,7 @@ def test_mempool_nonce(cronos_mempool):
             "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, KEYS["validator"])
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
         return txhash
 
     for i in range(3):
@@ -150,7 +150,7 @@ def test_tx_replacement(cronos_mempool):
     priority_fee = w3.eth.max_priority_fee
     nonce = get_account_nonce(w3)
     # replace with less than 10% bump, should fail
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         _ = replace_transaction(
             w3,
             {
@@ -171,7 +171,7 @@ def test_tx_replacement(cronos_mempool):
             },
             KEYS["validator"],
         )["transactionHash"]
-    assert "tx doesn't fit the replacement rule" in str(exc)
+    assert "fit the replacement rule" in str(exc)
 
     wait_for_new_blocks(cronos_mempool.cosmos_cli(), 1)
     nonce = get_account_nonce(w3)

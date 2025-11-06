@@ -23,9 +23,11 @@ from dateutil.parser import isoparse
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_utils import abi, to_checksum_address
+from eth_utils.abi import abi_to_signature
 from hexbytes import HexBytes
 from pystarport import ledger
-from web3._utils.contracts import abi_to_signature, find_matching_event_abi
+from web3 import Web3
+from web3._utils.contracts import find_matching_event_abi
 from web3._utils.events import get_event_data
 from web3._utils.method_formatters import receipt_formatter
 from web3._utils.transactions import fill_nonce, fill_transaction_defaults
@@ -63,6 +65,10 @@ TEST_CONTRACTS = {
     "TestICA": "TestICA.sol",
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
+    "Simple7702Account": "Simple7702Account.sol",
+    "Simple7702Counter": "Simple7702Counter.sol",
+    "Utils": "Utils.sol",
+    "Counter": "Counter.sol",
     "TestBlockTxProperties": "TestBlockTxProperties.sol",
 }
 
@@ -459,13 +465,13 @@ def get_account_nonce(w3, key=KEYS["validator"]):
 
 def send_transaction(w3, tx, key=KEYS["validator"]):
     signed = sign_transaction(w3, tx, key)
-    txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
     return w3.eth.wait_for_transaction_receipt(txhash)
 
 
 def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
     signed = sign_transaction(w3, old_tx, key)
-    old_tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    old_tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     new_txhash = w3.eth.replace_transaction(old_tx_hash, new_tx)
     return w3.eth.wait_for_transaction_receipt(new_txhash)
 
@@ -609,7 +615,9 @@ def modify_command_in_supervisor_config(ini: Path, fn, **kwargs):
 def build_batch_tx(w3, cli, txs, key=KEYS["validator"]):
     "return cosmos batch tx and eth tx hashes"
     signed_txs = [sign_transaction(w3, tx, key) for tx in txs]
-    tmp_txs = [cli.build_evm_tx(signed.rawTransaction.hex()) for signed in signed_txs]
+    tmp_txs = [
+        cli.build_evm_tx(Web3.to_hex(signed.raw_transaction)) for signed in signed_txs
+    ]
 
     msgs = [tx["body"]["messages"][0] for tx in tmp_txs]
     fee = sum(int(tx["auth_info"]["fee"]["amount"][0]["amount"]) for tx in tmp_txs)
@@ -667,7 +675,7 @@ def send_txs(w3, cli, to, keys, params):
     raw_transactions = []
     for key_from in keys:
         signed = sign_transaction(w3, tx, key_from)
-        raw_transactions.append(signed.rawTransaction)
+        raw_transactions.append(signed.raw_transaction)
 
     # wait block update
     block_num_0 = wait_for_new_blocks(cli, 1, sleep=0.1)
@@ -699,7 +707,7 @@ def multiple_send_to_cosmos(gcontract, tcontract, w3, recipient, amount, keys):
             tcontract.address, HexBytes(recipient), amount
         ).build_transaction({"from": acct_address})
         signed = sign_transaction(w3, tx, key_from)
-        raw_transactions.append(signed.rawTransaction)
+        raw_transactions.append(signed.raw_transaction)
 
     # wait for new block
     w3_wait_for_new_blocks(w3, 1)
