@@ -336,6 +336,12 @@ def exec(c, tmp_path_factory):
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
+    cli = do_upgrade("v1.6", cli.block_height() + 15)
+    check_basic_tx(c)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
     exec(custom_cronos, tmp_path_factory)
