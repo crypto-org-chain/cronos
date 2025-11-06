@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+* [#1910](https://github.com/crypto-org-chain/cronos/pull/1910) fix: Optimize staking endblocker with an in-memory KV store and standardize gas consumption for staking related messages. Temporary patch to not allow staking messages.
+
+*Jan 13, 2026*
+
+## v1.7.0
+
 ### Improvements
 
 * [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
