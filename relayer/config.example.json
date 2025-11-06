@@ -23,6 +23,15 @@
   "broadcast_mode": "async",
   
   "finality_store_type": "leveldb",
-  "finality_store_path": "./data/finality"
+  "finality_store_path": "./data/finality",
+  
+  "checkpoint_path": "./data/checkpoint.json",
+  
+  "rpc_enabled": true,
+  "rpc_config": {
+    "listen_addr": "0.0.0.0:8080",
+    "read_timeout": "15s",
+    "write_timeout": "15s",
+    "enable_cors": true
+  }
 }
-

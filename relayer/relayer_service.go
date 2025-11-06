@@ -27,6 +27,9 @@ type RelayerService struct {
 	finalityMonitor FinalityMonitor
 	finalityStore   FinalityStore
 
+	// RPC server (optional)
+	rpcServer *RPCServer
+
 	// Control
 	ctx       context.Context
 	cancel    context.CancelFunc
@@ -124,6 +127,17 @@ func NewRelayerService(
 	}
 	rs.blockForwarder = blockForwarder
 
+	// Create RPC server if enabled
+	if config.RPCEnabled && config.RPCConfig != nil {
+		rpcServer, err := NewRPCServer(rs, config.RPCConfig, logger)
+		if err != nil {
+			logger.Warn("Failed to create RPC server", "error", err)
+		} else {
+			rs.rpcServer = rpcServer
+			logger.Info("RPC server created", "addr", config.RPCConfig.ListenAddr)
+		}
+	}
+
 	return rs, nil
 }
 
@@ -178,6 +192,15 @@ func (rs *RelayerService) Start(ctx context.Context) error {
 		s.UpdatedAt = time.Now()
 	})
 
+	// Start RPC server if configured
+	if rs.rpcServer != nil {
+		if err := rs.rpcServer.Start(); err != nil {
+			rs.logger.Error("Failed to start RPC server", "error", err)
+		} else {
+			rs.logger.Info("RPC server started", "addr", rs.config.RPCConfig.ListenAddr)
+		}
+	}
+
 	rs.logger.Info("Relayer service started successfully")
 
 	return nil
@@ -222,6 +245,15 @@ func (rs *RelayerService) Stop() error {
 
 	if err := rs.finalityMonitor.Stop(); err != nil {
 		rs.logger.Error("Failed to stop finality monitor", "error", err)
+	}
+
+	// Stop RPC server if running
+	if rs.rpcServer != nil {
+		if err := rs.rpcServer.Stop(); err != nil {
+			rs.logger.Error("Failed to stop RPC server", "error", err)
+		} else {
+			rs.logger.Info("RPC server stopped")
+		}
 	}
 
 	// Close finality store

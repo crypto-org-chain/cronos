@@ -103,6 +103,10 @@ ifeq (,$(findstring nostrip,$(COSMOS_BUILD_OPTIONS)))
 endif
 
 all: build
+
+build-all: build build-relayer
+	@echo "Built all binaries: cronosd and relayerd"
+
 build: check-network print-ledger go.sum
 	@go build -mod=readonly $(BUILD_FLAGS) -o $(BUILDDIR)/cronosd ./cmd/cronosd
 
@@ -121,10 +125,59 @@ test-store:
 test-versiondb:
 	@cd versiondb; go test -tags=objstore,rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
 
-.PHONY: clean build install test test-memiavl test-store test-versiondb
+.PHONY: clean clean-all build build-all install test test-memiavl test-store test-versiondb
 
 clean:
 	rm -rf $(BUILDDIR)/
+
+clean-all: clean clean-relayer
+	@echo "Cleaned all build artifacts"
+
+###############################################################################
+###                                Relayer                                  ###
+###############################################################################
+
+# Relayer binary name
+RELAYERD_BINARY := relayerd
+
+build-relayer: go.sum
+	@echo "Building relayerd..."
+	@go build -mod=readonly $(BUILD_FLAGS) -o $(BUILDDIR)/$(RELAYERD_BINARY) ./cmd/relayerd
+	@echo "Built $(BUILDDIR)/$(RELAYERD_BINARY)"
+
+build-relayer-rocksdb: go.sum
+	@echo "Building relayerd with RocksDB support..."
+	@go build -mod=readonly -tags rocksdb $(BUILD_FLAGS) -o $(BUILDDIR)/$(RELAYERD_BINARY) ./cmd/relayerd
+	@echo "Built $(BUILDDIR)/$(RELAYERD_BINARY) with RocksDB"
+
+install-relayer: go.sum
+	@echo "Installing relayerd..."
+	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/relayerd
+	@echo "Installed relayerd to $(GOPATH)/bin/$(RELAYERD_BINARY)"
+
+install-relayer-rocksdb: go.sum
+	@echo "Installing relayerd with RocksDB support..."
+	@go install -mod=readonly -tags rocksdb $(BUILD_FLAGS) ./cmd/relayerd
+	@echo "Installed relayerd to $(GOPATH)/bin/$(RELAYERD_BINARY) with RocksDB"
+
+test-relayer:
+	@echo "Running relayer tests..."
+	@go test -mod=readonly -v ./relayer/...
+	@go test -mod=readonly -v ./relayer/test/...
+
+test-relayer-coverage:
+	@echo "Running relayer tests with coverage..."
+	@go test -mod=readonly -v -coverprofile=relayer_coverage.txt -covermode=atomic ./relayer/...
+	@go test -mod=readonly -v -coverprofile=relayer_test_coverage.txt -covermode=atomic ./relayer/test/...
+	@echo "Coverage report saved to relayer_coverage.txt and relayer_test_coverage.txt"
+
+clean-relayer:
+	@echo "Cleaning relayer build artifacts..."
+	@rm -f $(BUILDDIR)/$(RELAYERD_BINARY)
+	@rm -f relayer_coverage.txt relayer_test_coverage.txt
+	@echo "Cleaned relayer artifacts"
+
+.PHONY: build-relayer build-relayer-rocksdb install-relayer install-relayer-rocksdb test-relayer test-relayer-coverage clean-relayer
 
 ###############################################################################
 ###                                Linting                                  ###

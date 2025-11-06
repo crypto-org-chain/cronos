@@ -189,6 +189,10 @@ type Config struct {
 
 	// Checkpoint configuration for crash recovery
 	CheckpointPath string `json:"checkpoint_path"` // Path to checkpoint file
+
+	// RPC server configuration (optional)
+	RPCEnabled bool       `json:"rpc_enabled"` // Enable RPC server
+	RPCConfig  *RPCConfig `json:"rpc_config,omitempty"`
 }
 
 // DefaultConfig returns default configuration

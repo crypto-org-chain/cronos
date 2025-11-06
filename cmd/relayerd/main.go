@@ -268,9 +268,7 @@ func printStatus(ctx context.Context, service *relayer.RelayerService, logger lo
 				"running", status.Running,
 				"last_block_forwarded", status.LastBlockForwarded,
 				"last_finality_received", status.LastFinalityReceived,
-				"last_forced_tx", status.LastForcedTxProcessed,
 				"finalized_blocks_count", status.FinalizedBlocksCount,
-				"pending_forced_txs", status.PendingForcedTxCount,
 			)
 
 			// Get finality store stats
