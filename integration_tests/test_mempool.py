@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from web3 import Web3
+from web3 import Web3, exceptions
 
 from .network import setup_custom_cronos
 from .utils import (
@@ -150,7 +150,7 @@ def test_tx_replacement(cronos_mempool):
     priority_fee = w3.eth.max_priority_fee
     nonce = get_account_nonce(w3)
     # replace with less than 10% bump, should fail
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         _ = replace_transaction(
             w3,
             {
