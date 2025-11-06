@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"io"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
 
