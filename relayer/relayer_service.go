@@ -520,6 +520,34 @@ func (rs *RelayerService) getCheckpointManager() *CheckpointManager {
 	return nil
 }
 
+// GetFinalityInfo retrieves finality information for a specific block
+func (rs *RelayerService) GetFinalityInfo(ctx context.Context, chainID string, height uint64) (*FinalityInfo, error) {
+	if rs.finalityMonitor == nil {
+		return nil, fmt.Errorf("finality monitor not available")
+	}
+
+	return rs.finalityMonitor.GetFinalityStatus(ctx, chainID, height)
+}
+
+// GetCheckpointState returns the current checkpoint state
+func (rs *RelayerService) GetCheckpointState() (uint64, map[string]*PendingAttestation) {
+	if checkpointMgr := rs.getCheckpointManager(); checkpointMgr != nil {
+		lastHeight := checkpointMgr.GetLastFinalityBlockHeight()
+		pendingMap := checkpointMgr.GetPendingAttestations()
+		return lastHeight, pendingMap
+	}
+	return 0, make(map[string]*PendingAttestation)
+}
+
+// GetPendingAttestationsCount returns the count of pending attestations
+func (rs *RelayerService) GetPendingAttestationsCount() int {
+	if rs.finalityMonitor == nil {
+		return 0
+	}
+
+	return rs.finalityMonitor.GetPendingAttestations()
+}
+
 // processNewBlocks processes blocks from the subscription channel
 func (rs *RelayerService) processNewBlocks(blockCh <-chan *types.EventDataNewBlock) {
 	defer rs.wg.Done()
