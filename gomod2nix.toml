@@ -137,11 +137,11 @@ schema = 3
     version = "v1.22.0"
     hash = "sha256-lY1K29h4vlAmJVvwKgbTG8BTACYGjFaginCszN+ST6w="
   [mod."github.com/btcsuite/btcd"]
-    version = "v0.24.2"
-    hash = "sha256-ahlpwEr4KfyrEA899X07QtuSDnC8U+SnwL+z72DiK5E="
+    version = "v0.25.0"
+    hash = "sha256-Yh3UJ8HmzY+5WXZHhcl3oFcXl2PkBTd4O4s8FYyNbos="
   [mod."github.com/btcsuite/btcd/btcec/v2"]
-    version = "v2.3.4"
-    hash = "sha256-9fV41jYeTUrpoyu19LPuGBG/N9wFv6D6wVBE8R5WzRI="
+    version = "v2.3.5"
+    hash = "sha256-stpoaGQ1PNPqtLYIQc96YH24s8owcV+PoSo6xREi9LI="
   [mod."github.com/btcsuite/btcd/btcutil"]
     version = "v1.1.6"
     hash = "sha256-TYbwJLNX/+63nm+b3RqPH3ZIvTBnsm9peqJP05v9Z90="
@@ -213,8 +213,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20251119062431-8d0a31ef043d"
-    hash = "sha256-VxQus9ynUK8nAZh3ubNXRcxJsITzgndjd7UYYgMt6C0="
+    version = "v0.0.0-20251121110054-d5e74b9954c1"
+    hash = "sha256-XzBX/BIFpKZWMBqyGML0RpSBHMnQu1QVY9+dMi85mws="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -223,8 +223,8 @@ schema = 3
     version = "v1.2.0"
     hash = "sha256-Hd19V0RCiMoCL67NsqvWIsvWF8KM3LnuJTbYjWtQkEo="
   [mod."github.com/cosmos/gogoproto"]
-    version = "v1.7.0"
-    hash = "sha256-ZkEUImxBBo8Q/6c7tVR0rybpLbtlplzvgfLl5xvtV00="
+    version = "v1.7.2"
+    hash = "sha256-L9sJZoQGWaix43AJ7rsm1DUng8uoD8HJ6Mb92Ynq8+s="
   [mod."github.com/cosmos/iavl"]
     version = "v1.2.6"
     hash = "sha256-9kLtVepU5b3m2Sne8pBQNvF9LxM374LEmvuLWeYBfFU="
@@ -312,9 +312,9 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20251112062728-d8a1c9e5f577"
-    hash = "sha256-BtuCxcIf/UwM0SyxTmpwL9+lMiEgBP3FL/c/lwyxjp0="
-    replaced = "github.com/crypto-org-chain/ethermint"
+    version = "v0.0.0-20251121082919-46c057ac4dde"
+    hash = "sha256-8eJk4xUTm1aRKJiuHdTv0ZGg4kwTUrTiO8E/NyHlU8A="
+    replaced = "github.com/randy-cro/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
     hash = "sha256-QsKMy3MsvjbYNcA9jP8w6c3wpmWDZ0079bybAEzmXR0="
@@ -780,7 +780,7 @@ schema = 3
     version = "v0.0.0-20250707201910-8d1bb00bc6a7"
     hash = "sha256-xtTBmzlyynWQa0KtuQpNZ4fzSTB/5ozXclE3SuP3naI="
   [mod."google.golang.org/genproto/googleapis/rpc"]
-    version = "v0.0.0-20250707201910-8d1bb00bc6a7"
+    version = "v0.0.0-20250804133106-a7a43d27e69b"
     hash = "sha256-WK7iDtAhH19NPe3TywTQlGjDawNaDKWnxhFL9PgVUwM="
   [mod."google.golang.org/grpc"]
     version = "v1.75.1"
