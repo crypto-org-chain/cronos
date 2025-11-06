@@ -167,7 +167,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.5":
+        if plan_name in ("v1.5", "v1.6"):
             rsp = cli.submit_gov_proposal(
                 "community",
                 "software-upgrade",
