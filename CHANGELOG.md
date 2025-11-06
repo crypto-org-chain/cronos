@@ -2,6 +2,8 @@
 
 ## UNRELEASED
 
+* [#1907](https://github.com/crypto-org-chain/cronos/pull/1907) fix: Optimize staking endblocker with an in-memory KV store and standardize gas consumption for staking related messages
+
 ### Improvements
 
 * [#1903](https://github.com/crypto-org-chain/cronos/pull/1903) Feat: check authorization list in e2ee.
