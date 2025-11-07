@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/crypto-org-chain/cronos/relayer"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/log"
 )
 
 func TestCheckpointManager(t *testing.T) {

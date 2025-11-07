@@ -99,7 +99,7 @@ func NewFinalityMonitor(
 }
 
 // TrackBatchAttestation tracks a batch attestation (called by block forwarder)
-func (fm *finalityMonitor) TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight uint64, endHeight uint64) {
+func (fm *finalityMonitor) TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight, endHeight uint64) {
 	fm.pendingMu.Lock()
 	defer fm.pendingMu.Unlock()
 
@@ -209,7 +209,7 @@ func (fm *finalityMonitor) processEvents(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			fm.logger.Info("Context cancelled, stopping event processing")
+			fm.logger.Info("Context canceled, stopping event processing")
 			return
 
 		case <-fm.stopCh:

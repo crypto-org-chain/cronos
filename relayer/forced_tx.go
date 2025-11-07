@@ -5,9 +5,10 @@ import (
 	"fmt"
 
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	"github.com/cosmos/cosmos-sdk/client"
 
 	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/client"
 )
 
 // forcedTxMonitor implements ForcedTxMonitor interface

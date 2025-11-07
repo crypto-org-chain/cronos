@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/crypto-org-chain/cronos/relayer"
 	"github.com/stretchr/testify/require"
+
+	"cosmossdk.io/log"
 )
 
 // mockRelayerService creates a mock relayer service for testing

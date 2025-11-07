@@ -61,7 +61,7 @@ func NewCheckpointManager(checkpointPath string, logger log.Logger, autoSaveInte
 
 	// Ensure directory exists
 	dir := filepath.Dir(checkpointPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create checkpoint directory: %w", err)
 	}
 
@@ -171,7 +171,7 @@ func (cm *CheckpointManager) AddPendingAttestation(pa *PendingAttestation) {
 }
 
 // RemovePendingAttestation removes a pending attestation from the checkpoint
-func (cm *CheckpointManager) RemovePendingAttestation(txHash string, chainID string, blockHeight uint64) {
+func (cm *CheckpointManager) RemovePendingAttestation(txHash, chainID string, blockHeight uint64) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
@@ -216,7 +216,7 @@ func (cm *CheckpointManager) Save() error {
 
 	// Write to temporary file first (atomic write)
 	tmpPath := cm.checkpointPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write temporary checkpoint: %w", err)
 	}
 

@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"cosmossdk.io/log"
 	"github.com/gorilla/mux"
+
+	"cosmossdk.io/log"
 )
 
 // RPCServer provides HTTP API for relayer status and monitoring
@@ -326,7 +327,7 @@ func (rpc *RPCServer) writeJSON(w http.ResponseWriter, status int, data interfac
 }
 
 // writeError writes an error response
-func (rpc *RPCServer) writeError(w http.ResponseWriter, status int, message string, details string) {
+func (rpc *RPCServer) writeError(w http.ResponseWriter, status int, message, details string) {
 	response := ErrorResponse{
 		Error:   message,
 		Code:    status,

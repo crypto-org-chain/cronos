@@ -7,8 +7,9 @@ import (
 	"sort"
 	"sync"
 
-	"cosmossdk.io/log"
 	dbm "github.com/cosmos/cosmos-db"
+
+	"cosmossdk.io/log"
 )
 
 // finalityStore implements FinalityStore interface

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -87,7 +88,7 @@ type FinalityMonitor interface {
 	Stop() error
 
 	// TrackBatchAttestation tracks a batch attestation (called by block forwarder) - async mode
-	TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight uint64, endHeight uint64)
+	TrackBatchAttestation(txHash string, attestationIDs []uint64, chainID string, startHeight, endHeight uint64)
 
 	// TrackBatchAttestationFinalized tracks a batch attestation that's already finalized - sync mode
 	TrackBatchAttestationFinalized(txHash string, attestationIDs []uint64, chainID string, firstHeight, lastHeight uint64, finalizedCount uint32)

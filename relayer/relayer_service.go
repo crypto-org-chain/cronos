@@ -8,9 +8,10 @@ import (
 
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"
-	"github.com/cosmos/cosmos-sdk/client"
 
 	"cosmossdk.io/log"
+
+	"github.com/cosmos/cosmos-sdk/client"
 )
 
 // RelayerService is the main service coordinating all relayer components
@@ -326,7 +327,7 @@ func (rs *RelayerService) blockForwardingWorker() {
 
 			rs.logger.Debug("New block received",
 				"height", blockHeight,
-				"chain_id", block.Block.Header.ChainID,
+				"chain_id", block.Block.ChainID,
 			)
 
 			// Detect and fill gaps
@@ -433,14 +434,13 @@ func (rs *RelayerService) forwardBlockBatch(blocks []*types.EventDataNewBlock) {
 
 	rs.logger.Info("Forwarding block batch",
 		"count", len(blocks),
-		"chain_id", blocks[0].Block.Header.ChainID,
+		"chain_id", blocks[0].Block.ChainID,
 		"first_height", firstHeight,
 		"last_height", lastHeight,
 	)
 
 	// Always use BatchForwardBlocks (works for single or multiple blocks)
 	attestationIDs, err := rs.blockForwarder.BatchForwardBlocks(rs.ctx, blocks)
-
 	if err != nil {
 		rs.logger.Error("Failed to forward blocks",
 			"count", len(blocks),
@@ -605,7 +605,7 @@ func (rs *RelayerService) processNewBlocks(blockCh <-chan *types.EventDataNewBlo
 	for {
 		select {
 		case <-rs.ctx.Done():
-			rs.logger.Info("Context cancelled, stopping block processing")
+			rs.logger.Info("Context canceled, stopping block processing")
 			// Forward any remaining blocks in batch
 			if len(batch) > 0 {
 				rs.logger.Info("Forwarding remaining blocks in batch", "count", len(batch))

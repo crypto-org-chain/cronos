@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"cosmossdk.io/log"
 	"github.com/cometbft/cometbft/types"
+	"github.com/cosmos/gogoproto/proto"
+	attestationtypes "github.com/crypto-org-chain/cronos/relayer/types"
+
+	"cosmossdk.io/log"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/gogoproto/proto"
-
-	attestationtypes "github.com/crypto-org-chain/cronos/relayer/types"
 )
 
 // blockForwarder implements BlockForwarder interface
@@ -108,7 +109,7 @@ func (bf *blockForwarder) BatchForwardBlocks(ctx context.Context, blocks []*type
 			bf.finalityMonitor.TrackBatchAttestationFinalized(
 				txResp.TxHash,
 				attestationIDs,
-				blocks[0].Block.Header.ChainID,
+				blocks[0].Block.ChainID,
 				uint64(blocks[0].Block.Height),
 				uint64(blocks[len(blocks)-1].Block.Height),
 				finalizedCount,
@@ -118,7 +119,7 @@ func (bf *blockForwarder) BatchForwardBlocks(ctx context.Context, blocks []*type
 			bf.finalityMonitor.TrackBatchAttestation(
 				txResp.TxHash,
 				attestationIDs,
-				blocks[0].Block.Header.ChainID,
+				blocks[0].Block.ChainID,
 				uint64(blocks[0].Block.Height),
 				uint64(blocks[len(blocks)-1].Block.Height),
 			)
@@ -137,12 +138,12 @@ func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*types.EventDa
 	}
 
 	// All blocks should be from the same chain
-	chainID := blocks[0].Block.Header.ChainID
+	chainID := blocks[0].Block.ChainID
 
 	// Create attestation data for each block
 	attestations := make([]*attestationtypes.BlockAttestationData, len(blocks))
 	for i, eventData := range blocks {
-		if eventData.Block.Header.ChainID != chainID {
+		if eventData.Block.ChainID != chainID {
 			return nil, fmt.Errorf("all blocks must be from the same chain")
 		}
 
@@ -182,7 +183,7 @@ func (bf *blockForwarder) createBatchBlockAttestationMsg(blocks []*types.EventDa
 		}
 
 		// Encode raw transaction data (for reconstruction)
-		transactionsBytes, err := bf.encodeTransactions(block.Data.Txs)
+		transactionsBytes, err := bf.encodeTransactions(block.Txs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encode transactions for height %d: %w", block.Height, err)
 		}

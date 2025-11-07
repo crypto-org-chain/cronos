@@ -126,7 +126,7 @@ func (cm *chainMonitor) GetBlock(ctx context.Context, height uint64) (*types.Eve
 	cm.logger.Debug("Fetched block",
 		"height", height,
 		"chain", cm.chainName,
-		"chain_id", block.Block.Header.ChainID,
+		"chain_id", block.Block.ChainID,
 		"timestamp", block.Block.Time,
 		"block_hash", fmt.Sprintf("%X", block.BlockID.Hash),
 		"app_hash", fmt.Sprintf("%X", block.Block.AppHash),
@@ -179,7 +179,7 @@ func (cm *chainMonitor) SubscribeNewBlocks(ctx context.Context) (<-chan *types.E
 		for {
 			select {
 			case <-ctx.Done():
-				cm.logger.Info("Context cancelled, stopping block subscription", "chain", cm.chainName)
+				cm.logger.Info("Context canceled, stopping block subscription", "chain", cm.chainName)
 				return
 
 			case result, ok := <-subscription:
@@ -214,7 +214,7 @@ func (cm *chainMonitor) SubscribeNewBlocks(ctx context.Context) (<-chan *types.E
 
 				cm.logger.Debug("Received new block event",
 					"chain", cm.chainName,
-					"chain_id", block.Header.ChainID,
+					"chain_id", block.ChainID,
 					"height", height,
 					"hash", fmt.Sprintf("%X", block.Hash()),
 					"time", block.Time,
