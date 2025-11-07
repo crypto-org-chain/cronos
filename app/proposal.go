@@ -9,6 +9,7 @@ import (
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
 
@@ -173,6 +174,25 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 			return fmt.Errorf("signer is blocked: %s", encoded)
 		}
 	}
+
+	// check EIP-7702 authorisation list
+	for _, msg := range tx.GetMsgs() {
+		msgEthTx, ok := msg.(*evmtypes.MsgEthereumTx)
+		if ok {
+			ethTx := msgEthTx.AsTransaction()
+			if ethTx.SetCodeAuthorizations() != nil {
+				for _, auth := range ethTx.SetCodeAuthorizations() {
+					addr, err := auth.Authority()
+					if err == nil {
+						if _, ok := h.blocklist[sdk.AccAddress(addr.Bytes()).String()]; ok {
+							return fmt.Errorf("signer is blocked: %s", addr.String())
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
