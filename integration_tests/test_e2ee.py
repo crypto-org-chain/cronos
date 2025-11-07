@@ -159,7 +159,8 @@ def test_invalid_block_list(cronos):
     assert "failed to read header" in str(exc.value)
 
 
-def test_block_list_eip7702(cronos):
+
+def test_block_list_eip7022(cronos):
     gen_validator_identity(cronos)
     cli = cronos.cosmos_cli()
     w3 = cronos.w3
