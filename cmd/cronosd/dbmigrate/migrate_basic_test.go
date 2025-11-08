@@ -172,7 +172,7 @@ func TestMigrateLargeDatabase(t *testing.T) {
 		SourceHome:    sourceDir,
 		TargetHome:    targetDir,
 		SourceBackend: dbm.GoLevelDBBackend,
-		TargetBackend: dbm.MemDBBackend,
+		TargetBackend: dbm.GoLevelDBBackend, // Use LevelDB for verification to work
 		BatchSize:     100,
 		Logger:        log.NewTestLogger(t),
 		Verify:        true,

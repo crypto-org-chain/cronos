@@ -2,6 +2,7 @@ package dbmigrate
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -16,6 +17,12 @@ import (
 
 	"cosmossdk.io/log"
 )
+
+// EthTxInfo stores information needed to search for event-indexed keys in source DB
+type EthTxInfo struct {
+	Height  int64 // Block height
+	TxIndex int64 // Transaction index within block
+}
 
 // ConflictResolution represents how to handle key conflicts
 type ConflictResolution int
@@ -290,8 +297,8 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 	)
 
 	// Step 1: Iterate through tx.height keys and collect CometBFT txhashes
-	txhashes := make([][]byte, 0, 1000)     // Pre-allocate for performance
-	ethTxMapping := make(map[string][]byte) // eth_txhash (hex) -> cometbft_txhash (binary)
+	txhashes := make([][]byte, 0, 1000)      // Pre-allocate for performance
+	ethTxInfos := make(map[string]EthTxInfo) // eth_txhash (hex) -> EthTxInfo
 	batch := targetDB.NewBatch()
 	defer batch.Close()
 
@@ -383,20 +390,55 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 				copy(txhashCopy, value)
 				txhashes = append(txhashes, txhashCopy)
 
+				// Extract height and txIndex from the key
+				// Format: "tx.height/<height>/<height>/<txindex>$es$0" or "tx.height/<height>/<height>/<txindex>"
+				keyStr := string(key)
+				var height, txIndex int64
+				if bytes.HasPrefix(key, []byte("tx.height/")) {
+					parts := strings.Split(keyStr[len("tx.height/"):], "/")
+					if len(parts) >= 3 {
+						// parts[0] = height (first occurrence)
+						// parts[1] = height (second occurrence, same value)
+						// parts[2] = txindex$es$0 OR just txindex
+						_, err := fmt.Sscanf(parts[0], "%d", &height)
+						if err != nil {
+							logger.Debug("Failed to parse height from tx.height key", "key", keyStr, "error", err)
+							continue
+						}
+
+						// Extract txIndex - handle both with and without "$es$" suffix
+						txIndexStr := parts[2]
+						if strings.Contains(txIndexStr, "$es$") {
+							// Key has "$es$<eventseq>" suffix
+							txIndexStr = strings.Split(txIndexStr, "$es$")[0]
+						}
+						_, err = fmt.Sscanf(txIndexStr, "%d", &txIndex)
+						if err != nil {
+							logger.Debug("Failed to parse txIndex from tx.height key", "key", keyStr, "error", err)
+							continue
+						}
+					}
+				}
+
 				// Also try to extract Ethereum txhash for event-indexed keys
 				// Read the transaction result from source database
 				txResultValue, err := sourceDB.Get(txhashCopy)
 				if err == nil && txResultValue != nil {
 					// Extract ethereum txhash from events
-					ethTxHash, err := extractEthereumTxHash(txResultValue, logger)
+					ethTxHash, err := extractEthereumTxHash(txResultValue)
 					if err != nil {
 						logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhashCopy, 80))
 					} else if ethTxHash != "" {
-						// Store the mapping for Pass 3
-						ethTxMapping[ethTxHash] = txhashCopy
+						// Store the info for Pass 3
+						ethTxInfos[ethTxHash] = EthTxInfo{
+							Height:  height,
+							TxIndex: txIndex,
+						}
 						logger.Debug("Collected ethereum txhash",
-							"eth_txhash", "0x"+ethTxHash,
+							"eth_txhash", ethTxHash,
 							"cometbft_txhash", formatKeyPrefix(txhashCopy, 80),
+							"height", height,
+							"tx_index", txIndex,
 						)
 					}
 				}
@@ -439,7 +481,7 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		"processed", processedCount,
 		"skipped", skippedCount,
 		"txhashes_collected", len(txhashes),
-		"ethereum_txhashes_collected", len(ethTxMapping),
+		"ethereum_txhashes_collected", len(ethTxInfos),
 	)
 
 	// Step 2: Patch CometBFT txhash keys
@@ -450,10 +492,11 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		}
 	}
 
-	// Step 3: Patch Ethereum event-indexed keys
-	if len(ethTxMapping) > 0 {
-		logger.Info("Patching Ethereum event-indexed keys", "count", len(ethTxMapping))
-		if err := patchEthereumEventKeys(targetDB, ethTxMapping, opts, stats, currentStrategy); err != nil {
+	// Step 3: Patch Ethereum event-indexed keys from source database
+	// Search for existing event keys in source DB and copy them to target
+	if len(ethTxInfos) > 0 {
+		logger.Info("Patching Ethereum event-indexed keys from source database", "count", len(ethTxInfos))
+		if err := patchEthereumEventKeysFromSource(sourceDB, targetDB, ethTxInfos, opts, stats, currentStrategy); err != nil {
 			return fmt.Errorf("failed to patch ethereum event keys: %w", err)
 		}
 	}
@@ -567,8 +610,8 @@ func patchTxHashKeys(sourceDB, targetDB dbm.DB, txhashes [][]byte, opts PatchOpt
 }
 
 // extractEthereumTxHash extracts the Ethereum transaction hash from transaction result events
-// Returns the eth txhash (without 0x prefix) if found, empty string otherwise
-func extractEthereumTxHash(txResultValue []byte, logger log.Logger) (string, error) {
+// Returns the eth txhash (with 0x prefix) if found, empty string otherwise
+func extractEthereumTxHash(txResultValue []byte) (string, error) {
 	// Decode the transaction result
 	var txResult abci.TxResult
 	if err := proto.Unmarshal(txResultValue, &txResult); err != nil {
@@ -582,16 +625,16 @@ func extractEthereumTxHash(txResultValue []byte, logger log.Logger) (string, err
 				if attr.Key == "ethereumTxHash" {
 					// The value is the Ethereum txhash (with or without 0x prefix)
 					ethHash := attr.Value
-					// Remove 0x prefix if present
-					if len(ethHash) >= 2 && ethHash[:2] == "0x" {
-						ethHash = ethHash[2:]
+					// Ensure 0x prefix is present
+					if len(ethHash) >= 2 && ethHash[:2] != "0x" {
+						ethHash = "0x" + ethHash
 					}
-					// Validate it's a valid hex hash (should be 64 characters)
-					if len(ethHash) != 64 {
+					// Validate it's a valid hex hash (should be 66 characters: 0x + 64 hex chars)
+					if len(ethHash) != 66 {
 						return "", fmt.Errorf("invalid ethereum txhash length: %d", len(ethHash))
 					}
-					// Decode to verify it's valid hex
-					if _, err := hex.DecodeString(ethHash); err != nil {
+					// Decode to verify it's valid hex (skip 0x prefix)
+					if _, err := hex.DecodeString(ethHash[2:]); err != nil {
 						return "", fmt.Errorf("invalid ethereum txhash hex: %w", err)
 					}
 					return ethHash, nil
@@ -604,9 +647,38 @@ func extractEthereumTxHash(txResultValue []byte, logger log.Logger) (string, err
 	return "", nil
 }
 
-// patchEthereumEventKeys patches ethereum_tx.ethereumTxHash event-indexed keys
-// These keys allow looking up CometBFT transactions by Ethereum txhash
-func patchEthereumEventKeys(targetDB dbm.DB, ethTxMapping map[string][]byte, opts PatchOptions, stats *MigrationStats, currentStrategy ConflictResolution) error {
+// incrementBytes increments a byte slice by 1 to create an exclusive upper bound for iterators
+// Returns a new byte slice that is the input + 1
+func incrementBytes(b []byte) []byte {
+	if len(b) == 0 {
+		return nil
+	}
+
+	// Create a copy to avoid modifying the original
+	incremented := make([]byte, len(b))
+	copy(incremented, b)
+
+	// Increment from the last byte, carrying over if necessary
+	for i := len(incremented) - 1; i >= 0; i-- {
+		if incremented[i] < 0xFF {
+			incremented[i]++
+			return incremented
+		}
+		// If byte is 0xFF, set to 0x00 and continue to carry
+		incremented[i] = 0x00
+	}
+
+	// If all bytes were 0xFF, append 0x01 to handle overflow
+	return append([]byte{0x01}, incremented...)
+}
+
+// patchEthereumEventKeysFromSource patches ethereum event-indexed keys by searching source DB
+// Key format: "ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>$es$<eventseq>"
+//
+//	or "ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>" (without $es$ suffix)
+//
+// Value: CometBFT tx hash (allows lookup by Ethereum txhash)
+func patchEthereumEventKeysFromSource(sourceDB, targetDB dbm.DB, ethTxInfos map[string]EthTxInfo, opts PatchOptions, stats *MigrationStats, currentStrategy ConflictResolution) error {
 	logger := opts.Logger
 	batch := targetDB.NewBatch()
 	defer batch.Close()
@@ -615,77 +687,141 @@ func patchEthereumEventKeys(targetDB dbm.DB, ethTxMapping map[string][]byte, opt
 	processedCount := int64(0)
 	skippedCount := int64(0)
 
-	for ethTxHashHex, cometbftTxHash := range ethTxMapping {
-		// Create the event-indexed key
-		// Format: ethereum_tx.ethereumTxHash/<eth_txhash>
-		// The value is the CometBFT txhash
-		eventKey := []byte("ethereum_tx.ethereumTxHash/" + ethTxHashHex)
+	// For each Ethereum transaction, create a specific prefix and iterate
+	for ethTxHash, info := range ethTxInfos {
+		// Create specific prefix for this transaction to minimize iteration range
+		// Format: ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>
+		// This will match both keys with and without "$es$<eventseq>" suffix
+		// Note: ethTxHash already includes the 0x prefix
+		prefix := fmt.Sprintf("ethereum_tx.ethereumTxHash/%s/%d/%d", ethTxHash, info.Height, info.TxIndex)
+		prefixBytes := []byte(prefix)
 
-		// Check for conflicts
-		shouldWrite := true
-		if !opts.SkipConflictChecks {
-			existingValue, err := targetDB.Get(eventKey)
-			if err != nil {
-				stats.ErrorCount.Add(1)
-				logger.Error("Failed to check existing ethereum event key", "error", err)
-				continue
-			}
+		// Create end boundary by incrementing the prefix (exclusive upper bound)
+		endBytes := incrementBytes(prefixBytes)
 
-			if existingValue != nil {
-				switch currentStrategy {
-				case ConflictSkip:
-					shouldWrite = false
-					skippedCount++
-					logger.Debug("Skipping existing ethereum event key", "eth_txhash", "0x"+ethTxHashHex)
-
-				case ConflictReplace, ConflictReplaceAll:
-					shouldWrite = true
-					logger.Debug("Replacing existing ethereum event key", "eth_txhash", "0x"+ethTxHashHex)
-
-				case ConflictAsk:
-					// Use replace strategy for event keys to avoid excessive prompting
-					shouldWrite = true
-					logger.Debug("Patching ethereum event key (using current strategy)", "eth_txhash", "0x"+ethTxHashHex)
-				}
-			}
+		// Create bounded iterator with [start, end)
+		it, err := sourceDB.Iterator(prefixBytes, endBytes)
+		if err != nil {
+			logger.Error("Failed to create iterator for ethereum event keys", "error", err, "eth_txhash", ethTxHash)
+			stats.ErrorCount.Add(1)
+			continue
 		}
 
-		if shouldWrite {
-			if opts.DryRun {
-				logger.Debug("[DRY RUN] Would patch ethereum event key",
-					"event_key", "ethereum_tx.ethereumTxHash/"+ethTxHashHex[:16]+"...",
-					"eth_txhash", "0x"+ethTxHashHex,
-					"cometbft_txhash", formatKeyPrefix(cometbftTxHash, 80),
-				)
-			} else {
-				if err := batch.Set(eventKey, cometbftTxHash); err != nil {
+		eventKeysFound := 0
+		for it.Valid() {
+			/// log the key and value
+			logger.Debug("Key", "key", it.Key(), "value", it.Value())
+			key := it.Key()
+			value := it.Value()
+
+			// Stop if we're past the prefix
+			if !bytes.HasPrefix(key, prefixBytes) {
+				break
+			}
+
+			eventKeysFound++
+			keyStr := string(key)
+
+			logger.Debug("Found ethereum event key in source",
+				"event_key", keyStr,
+				"eth_txhash", ethTxHash,
+				"height", info.Height,
+				"tx_index", info.TxIndex,
+			)
+
+			// Check for conflicts
+			shouldWrite := true
+			if !opts.SkipConflictChecks {
+				existingValue, err := targetDB.Get(key)
+				if err != nil {
 					stats.ErrorCount.Add(1)
-					logger.Error("Failed to set ethereum event key in batch", "error", err)
+					logger.Error("Failed to check existing ethereum event key", "error", err)
+					it.Next()
 					continue
 				}
-				logger.Debug("Patched ethereum event key",
-					"event_key", "ethereum_tx.ethereumTxHash/"+ethTxHashHex[:16]+"...",
-					"eth_txhash", "0x"+ethTxHashHex,
-					"cometbft_txhash", formatKeyPrefix(cometbftTxHash, 80),
-				)
-			}
 
-			batchCount++
-			processedCount++
+				if existingValue != nil {
+					switch currentStrategy {
+					case ConflictSkip:
+						shouldWrite = false
+						skippedCount++
+						logger.Debug("Skipping existing ethereum event key",
+							"event_key", keyStr,
+						)
 
-			// Write batch when full
-			if batchCount >= opts.BatchSize {
-				if !opts.DryRun {
-					if err := batch.Write(); err != nil {
-						return fmt.Errorf("failed to write ethereum event batch: %w", err)
+					case ConflictReplace, ConflictReplaceAll:
+						shouldWrite = true
+						logger.Debug("Replacing existing ethereum event key",
+							"event_key", keyStr,
+						)
+
+					case ConflictAsk:
+						// Use replace strategy for event keys to avoid excessive prompting
+						shouldWrite = true
+						logger.Debug("Patching ethereum event key (using current strategy)",
+							"event_key", keyStr,
+						)
 					}
-					logger.Debug("Wrote ethereum event batch", "batch_size", batchCount)
-					batch.Close()
-					batch = targetDB.NewBatch()
 				}
-				stats.ProcessedKeys.Add(int64(batchCount))
-				batchCount = 0
 			}
+
+			if shouldWrite {
+				// Make a copy of the value since iterator reuses memory
+				valueCopy := make([]byte, len(value))
+				copy(valueCopy, value)
+
+				if opts.DryRun {
+					logger.Debug("[DRY RUN] Would patch ethereum event key",
+						"event_key", keyStr,
+						"value_preview", formatKeyPrefix(valueCopy, 80),
+					)
+				} else {
+					if err := batch.Set(key, valueCopy); err != nil {
+						stats.ErrorCount.Add(1)
+						logger.Error("Failed to set ethereum event key in batch", "error", err)
+						it.Next()
+						continue
+					}
+					logger.Debug("Patched ethereum event key",
+						"event_key", keyStr,
+						"value_preview", formatKeyPrefix(valueCopy, 80),
+					)
+				}
+
+				batchCount++
+				processedCount++
+
+				// Write batch when full
+				if batchCount >= opts.BatchSize {
+					if !opts.DryRun {
+						if err := batch.Write(); err != nil {
+							it.Close()
+							return fmt.Errorf("failed to write ethereum event batch: %w", err)
+						}
+						logger.Debug("Wrote ethereum event batch", "batch_size", batchCount)
+						batch.Close()
+						batch = targetDB.NewBatch()
+					}
+					stats.ProcessedKeys.Add(int64(batchCount))
+					batchCount = 0
+				}
+			}
+
+			it.Next()
+		}
+
+		if err := it.Error(); err != nil {
+			it.Close()
+			return fmt.Errorf("iterator error for eth_txhash %s: %w", ethTxHash, err)
+		}
+
+		it.Close()
+
+		if eventKeysFound > 0 {
+			logger.Debug("Processed event keys for transaction",
+				"eth_txhash", ethTxHash,
+				"event_keys_found", eventKeysFound,
+			)
 		}
 	}
 
@@ -700,7 +836,7 @@ func patchEthereumEventKeys(targetDB dbm.DB, ethTxMapping map[string][]byte, opt
 		stats.ProcessedKeys.Add(int64(batchCount))
 	}
 
-	logger.Info("Patched ethereum event keys",
+	logger.Info("Patched ethereum event keys from source database",
 		"processed", processedCount,
 		"skipped", skippedCount,
 	)

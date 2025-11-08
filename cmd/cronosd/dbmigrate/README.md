@@ -714,9 +714,10 @@ Transaction index has two types of keys:
 
 **1. Height-indexed keys:**
 ```
-tx.height/<height>/<index>
+tx.height/<height>/<height>/<txindex>$es$0
+tx.height/<height>/<height>/<txindex>  (without $es$ suffix)
 ```
-- **Key format**: Height and sequential index
+- **Key format**: Height (twice) and transaction index, optionally with event sequence suffix
 - **Value**: The transaction hash (txhash)
 
 **2. Direct hash lookup keys (CometBFT):**
@@ -728,16 +729,22 @@ tx.height/<height>/<index>
 
 **3. Event-indexed keys (Ethereum):**
 ```
-ethereum_tx.ethereumTxHash/<eth_txhash>
+ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>$es$<eventseq>
+ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>  (without $es$ suffix)
 ```
-- **Key format**: Event attribute key + Ethereum txhash (hex, without 0x)
+- **Key format**: Event key + Ethereum txhash (hex, with 0x) + height + tx index, optionally with event sequence
+  - `ethereum_tx.ethereumTxHash`: Event attribute key
+  - `0x<eth_txhash>`: Ethereum txhash (hex, with 0x prefix)
+  - `<height>`: Block height
+  - `<txindex>`: Transaction index within block
+  - `$es$<eventseq>`: Event sequence separator and number (optional)
 - **Value**: CometBFT transaction hash (allows lookup by Ethereum txhash)
 - **Purpose**: Enables `eth_getTransactionReceipt` by Ethereum txhash
 
 **Important**: When patching by height, all three key types are automatically patched using a three-pass approach:
 
 **Pass 1: Height-indexed keys**
-- Iterator reads `tx.height/<height>/<index>` keys within the height range
+- Iterator reads `tx.height/<height>/<height>/<txindex>` keys within the height range (with or without `$es$` suffix)
 - Patches these keys to target database
 - Collects CometBFT txhashes from the values
 - **Extracts Ethereum txhashes** from transaction result events
@@ -747,22 +754,26 @@ ethereum_tx.ethereumTxHash/<eth_txhash>
 - Patches the txhash keys to target database
 
 **Pass 3: Ethereum event-indexed keys**
-- For each Ethereum txhash extracted in Pass 1, creates event-indexed keys
-- Patches `ethereum_tx.ethereumTxHash/<eth_txhash>` keys to target database
+- For each transaction from Pass 1, creates a bounded iterator with specific start/end keys
+- Start: `ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>`
+- End: `start + 1` (exclusive upper bound)
+- Iterates only through event keys for that specific transaction (matches keys with or without `$es$` suffix)
+- Patches all matching event keys to target database
 - **Critical for `eth_getTransactionReceipt` to work correctly**
+- **Performance**: Uses bounded iteration for optimal database range scans
 
 This ensures all tx_index keys (including event-indexed keys) are properly patched.
 
 Example:
 ```
 # Pass 1: Height-indexed key (from iterator)
-tx.height/0001000000/0  → value: <cometbft_txhash>
+tx.height/1000000/1000000/0$es$0  → value: <cometbft_txhash>
 
 # Pass 2: CometBFT direct lookup key (read individually)
 <cometbft_txhash>  → value: <tx result data with events>
 
-# Pass 3: Ethereum event-indexed key (extracted from events)
-ethereum_tx.ethereumTxHash/a1b2c3d4...  → value: <cometbft_txhash>
+# Pass 3: Ethereum event-indexed key (searched from source DB)
+ethereum_tx.ethereumTxHash/0xa1b2c3d4.../1000000/0$es$0  → value: <cometbft_txhash>
 ```
 
 > **Note**: Pass 3 is only performed for transactions that contain `ethereum_tx` events. Non-EVM transactions (e.g., bank transfers, staking) will not have Ethereum txhashes.
@@ -910,14 +921,15 @@ DBG Patched key to target database key=P:5000000:0 key_size=13 value_preview=0x0
 For tx_index keys:
 ```
 # Pass 1: Height-indexed keys
-DBG Patched tx.height key key=tx.height/5000000/0
-DBG Collected ethereum txhash eth_txhash=0xa1b2c3d4... cometbft_txhash=0x1a2b3c4d...
+DBG Patched tx.height key key=tx.height/5000000/5000000/0$es$0
+DBG Collected ethereum txhash eth_txhash=0xa1b2c3d4... height=5000000 tx_index=0
 
 # Pass 2: CometBFT txhash keys (binary)
 DBG Patched txhash key txhash=0x1a2b3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef1234567890
 
-# Pass 3: Ethereum event-indexed keys
-DBG Patched ethereum event key eth_txhash=0xa1b2c3d45e6f... cometbft_txhash=0x1a2b3c4d...
+# Pass 3: Ethereum event-indexed keys (searched from source DB)
+DBG Found ethereum event key in source event_key=ethereum_tx.ethereumTxHash/0xa1b2c3d4.../5000000/0$es$0
+DBG Patched ethereum event key event_key=ethereum_tx.ethereumTxHash/0xa1b2c3d4.../5000000/0$es$0
 ```
 
 ### Detailed Examples

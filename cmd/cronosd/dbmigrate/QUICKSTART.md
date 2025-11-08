@@ -725,11 +725,11 @@ cronosd database patch \
 ```
 
 > **Note**: When patching `tx_index` by height, the command uses a **three-pass approach**:
-> 1. **Pass 1**: Patches `tx.height/<height>/<index>` keys and collects CometBFT txhashes + extracts Ethereum txhashes
+> 1. **Pass 1**: Patches `tx.height/<height>/<height>/<txindex>` keys (with or without `$es$` suffix) and collects transaction metadata (height, tx_index)
 > 2. **Pass 2**: Patches CometBFT `<txhash>` lookup keys
-> 3. **Pass 3**: Patches Ethereum `ethereum_tx.ethereumTxHash/<eth_txhash>` event-indexed keys
+> 3. **Pass 3**: For each transaction, uses a bounded iterator with range `[start, end)` where start is `ethereum_tx.ethereumTxHash/<eth_txhash>/<height>/<height>/<txindex>` and end is `start + 1`
 > 
-> This ensures complete transaction index functionality, including support for `eth_getTransactionReceipt` with Ethereum txhashes.
+> This ensures complete transaction index functionality, including support for `eth_getTransactionReceipt` with Ethereum txhashes. Pass 3 uses bounded iteration for optimal database range scans and copies existing event keys from source DB with their exact format (with or without `$es$<eventseq>` suffix).
 
 ### Patch Flags Reference
 
