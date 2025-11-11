@@ -2,12 +2,10 @@
 
 ## UNRELEASED
 
-* [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
-* [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) Support 4byteTracer for tracer
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
-* [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
+
 
 
 *Nov 30, 2025*
@@ -39,7 +37,7 @@
 
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
-* [#1887](https://github.com/crypto-org-chain/cronos/pull/1887) fix: patch cometbft for GHSA-hrhf-2vcr-ghch
+* [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
 
 *Sep 4, 2025*
 
