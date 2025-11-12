@@ -150,6 +150,7 @@ func NewRootCmd() *cobra.Command {
 	return rootCmd
 }
 
+// server flags, and the Rosetta integration.
 func initRootCmd(
 	rootCmd *cobra.Command,
 	encodingConfig ethermint.EncodingConfig,
@@ -192,6 +193,11 @@ func initRootCmd(
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
 	)
+
+	databaseCmd := DatabaseCmd()
+	if databaseCmd != nil {
+		rootCmd.AddCommand(databaseCmd)
+	}
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {

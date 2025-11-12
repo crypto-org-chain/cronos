@@ -89,6 +89,8 @@ func EncryptCommand() *cobra.Command {
 	return cmd
 }
 
+// encrypt encrypts data read from in and writes the encrypted result to out for the given recipients.
+// It closes the underlying encrypt writer; if writing or closing fails, the returned error reflects the write error and any close error is joined.
 func encrypt(recipients []age.Recipient, in io.Reader, out io.Writer) (err error) {
 	var w io.WriteCloser
 	w, err = age.Encrypt(out, recipients...)
@@ -101,5 +103,5 @@ func encrypt(recipients []age.Recipient, in io.Reader, out io.Writer) (err error
 	}()
 
 	_, err = io.Copy(w, in)
-	return
+	return err
 }
