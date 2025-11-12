@@ -18,6 +18,7 @@ import (
 
 // setupTestDB creates a test database with sample data
 func setupTestDB(t *testing.T, backend dbm.BackendType, numKeys int) (string, dbm.DB) {
+	t.Helper()
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
 	err := os.MkdirAll(dataDir, 0755)
