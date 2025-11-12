@@ -137,7 +137,7 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 	if opts.TargetBackend == dbm.RocksDBBackend {
 		// RocksDB: we specify the exact directory path
 		// RocksDB needs the parent directory to exist
-		if err := os.MkdirAll(targetDataDir, 0755); err != nil {
+		if err := os.MkdirAll(targetDataDir, 0o755); err != nil {
 			return stats, fmt.Errorf("failed to create target data directory: %w", err)
 		}
 		targetDB, err = openRocksDBForMigration(tempTargetDir, opts.RocksDBOptions)
