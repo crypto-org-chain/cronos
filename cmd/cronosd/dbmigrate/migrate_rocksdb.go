@@ -32,23 +32,17 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 	// Handle nil opts by creating default options
 	if opts == nil {
 		opts = grocksdb.NewDefaultOptions()
-		defer opts.Destroy()
 		opts.SetCreateIfMissing(true)
 		opts.SetLevelCompactionDynamicLevelBytes(true)
 	}
-
 	db, err := grocksdb.OpenDb(opts, dir)
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	ro := grocksdb.NewDefaultReadOptions()
-	defer ro.Destroy()
 	wo := grocksdb.NewDefaultWriteOptions()
-	defer wo.Destroy()
 	woSync := grocksdb.NewDefaultWriteOptions()
-	defer woSync.Destroy()
 	woSync.SetSync(true)
 
 	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil

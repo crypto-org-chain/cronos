@@ -192,8 +192,12 @@ func initRootCmd(
 		txCommand(),
 		ethermintclient.KeyCommands(app.DefaultNodeHome),
 		e2eecli.E2EECommand(),
-		DatabaseCmd(), // Database management commands (migrate, patch)
 	)
+
+	databaseCmd := DatabaseCmd()
+	if databaseCmd != nil {
+		rootCmd.AddCommand(databaseCmd)
+	}
 
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {

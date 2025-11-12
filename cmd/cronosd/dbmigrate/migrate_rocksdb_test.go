@@ -144,6 +144,8 @@ func TestMigrateRocksDBToLevelDB(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Perform migration
+	rocksOpts := newRocksDBOptions()
+	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
 		SourceHome:     sourceDir,
 		TargetHome:     targetDir,
@@ -151,7 +153,7 @@ func TestMigrateRocksDBToLevelDB(t *testing.T) {
 		TargetBackend:  dbm.GoLevelDBBackend,
 		BatchSize:      50,
 		Logger:         log.NewTestLogger(t),
-		RocksDBOptions: newRocksDBOptions(),
+		RocksDBOptions: rocksOpts,
 		Verify:         true,
 	}
 
@@ -212,6 +214,8 @@ func TestMigrateRocksDBLargeDataset(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Perform migration
+	rocksOpts := newRocksDBOptions()
+	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
 		SourceHome:     sourceDir,
 		TargetHome:     targetDir,
@@ -219,7 +223,7 @@ func TestMigrateRocksDBLargeDataset(t *testing.T) {
 		TargetBackend:  dbm.RocksDBBackend,
 		BatchSize:      1000,
 		Logger:         log.NewTestLogger(t),
-		RocksDBOptions: newRocksDBOptions(),
+		RocksDBOptions: rocksOpts,
 		Verify:         false, // Skip verification for speed
 	}
 
@@ -293,6 +297,7 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 	sourceDB.Close()
 
 	// Perform migration
+	targetDir := t.TempDir()
 	rocksOpts := newRocksDBOptions()
 	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
@@ -307,8 +312,6 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 	}
 
 	stats, err := Migrate(opts)
-	require.NoError(t, err)
-	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 	require.NoError(t, err)
 	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 
@@ -329,5 +332,4 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 
 	require.Equal(t, len(sourceData), verifiedCount)
 	t.Logf("Verified %d keys successfully", verifiedCount)
-}
 }
