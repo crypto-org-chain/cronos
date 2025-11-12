@@ -186,7 +186,7 @@ Examples:
 			// Prepare RocksDB options if target is RocksDB
 			var rocksDBOpts interface{}
 			if targetBackendType == dbm.RocksDBBackend {
-				rocksDBOpts = prepareRocksDBOptions()
+				rocksDBOpts = dbmigrate.PrepareRocksDBOptions()
 			}
 
 			// Track aggregate statistics
@@ -198,7 +198,8 @@ Examples:
 			for _, dbName := range validDBNames {
 				// Determine target path
 				var dbTargetPath string
-				// User must provide target-path explicitly (validated above)
+				// For single DB: targetPath is the full DB path (e.g., ~/.cronos/data/blockstore.db)
+				// For multiple DBs: targetPath is the data directory (e.g., ~/.cronos/data)
 				if len(validDBNames) == 1 {
 					dbTargetPath = targetPath
 				} else {

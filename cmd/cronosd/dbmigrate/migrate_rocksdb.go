@@ -6,7 +6,15 @@ package dbmigrate
 import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/linxGnu/grocksdb"
+
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 )
+
+// PrepareRocksDBOptions returns RocksDB options for migration
+func PrepareRocksDBOptions() interface{} {
+	// nil: use default options, false: disable read-only mode
+	return opendb.NewRocksdbOptions(nil, false)
+}
 
 // openRocksDBForMigration opens a RocksDB database for migration (write mode)
 func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, error) {
@@ -21,9 +29,10 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 			opts = nil
 		}
 	}
-
+	// Handle nil opts by creating default options
 	if opts == nil {
 		opts = grocksdb.NewDefaultOptions()
+		defer opts.Destroy()
 		opts.SetCreateIfMissing(true)
 		opts.SetLevelCompactionDynamicLevelBytes(true)
 	}
@@ -32,10 +41,14 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 	if err != nil {
 		return nil, err
 	}
+	defer db.Close()
 
 	ro := grocksdb.NewDefaultReadOptions()
+	defer ro.Destroy()
 	wo := grocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
 	woSync := grocksdb.NewDefaultWriteOptions()
+	defer woSync.Destroy()
 	woSync.SetSync(true)
 
 	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
@@ -44,14 +57,18 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 // openRocksDBForRead opens a RocksDB database in read-only mode
 func openRocksDBForRead(dir string) (dbm.DB, error) {
 	opts := grocksdb.NewDefaultOptions()
+	defer opts.Destroy()
 	db, err := grocksdb.OpenDbForReadOnly(opts, dir, false)
 	if err != nil {
 		return nil, err
 	}
 
 	ro := grocksdb.NewDefaultReadOptions()
+	defer ro.Destroy()
 	wo := grocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
 	woSync := grocksdb.NewDefaultWriteOptions()
+	defer woSync.Destroy()
 	woSync.SetSync(true)
 
 	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil

@@ -144,6 +144,7 @@ Examples:
 
 			if targetHome == "" {
 				targetHome = homeDir
+				logger.Info("Target home not specified, using source home directory", "target_home", targetHome)
 			}
 
 			// Determine which databases to migrate
@@ -211,7 +212,7 @@ Examples:
 			var rocksDBOpts interface{}
 			if targetBackendType == dbm.RocksDBBackend {
 				// Use the same RocksDB options as the application (implemented in build-tagged files)
-				rocksDBOpts = prepareRocksDBOptions()
+				rocksDBOpts = dbmigrate.PrepareRocksDBOptions()
 			}
 
 			// Migrate each database

@@ -3,7 +3,7 @@
 # Database Migration Swap Script
 # This script replaces original databases with migrated ones and backs up the originals
 
-set -eo pipefail
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -202,6 +202,14 @@ fi
 
 # Create backup directory
 BACKUP_DIR="$DATA_DIR/backups-$BACKUP_SUFFIX"
+if ! mkdir -p "$BACKUP_DIR"; then
+    print_error "Failed to create backup directory: $BACKUP_DIR"
+    exit 1
+fi
+
+# Initialize counters
+SUCCESS_COUNT=0
+FAILED_COUNT=0
 
 echo ""
 echo "================================================================================"
@@ -217,15 +225,32 @@ for db_name in "${AVAILABLE_DBS[@]}"; do
     echo "Database: $db_name"
     echo "  Original: $original_db ($(get_size "$original_db"))"
     echo "  Migrated: $migrated_db ($(get_size "$migrated_db"))"
-# Validate all databases exist before starting swaps
-for db_name in "${AVAILABLE_DBS[@]}"; do
-    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
-    if [[ ! -d "$migrated_db" ]]; then
-        print_error "Migrated database not found during swap: $migrated_db"
-        exit 1
-    fi
+    echo "  Backup:   $backup_db"
 done
 
+echo ""
+echo "================================================================================"
+
+# Confirmation for non-dry-run
+if [[ "$DRY_RUN" == false ]]; then
+    echo ""
+    print_warning "This will:"
+    echo "  1. Move original databases to: $BACKUP_DIR"
+    echo "  2. Replace with migrated databases"
+    echo ""
+    read -p "Continue? (yes/no): " -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+        print_info "Aborted by user"
+        exit 0
+    fi
+fi
+
+echo ""
+print_info "Starting database swap..."
+echo ""
+
+# Perform the swap
 for db_name in "${AVAILABLE_DBS[@]}"; do
     echo ""
     print_info "Processing: $db_name"
@@ -261,48 +286,7 @@ for db_name in "${AVAILABLE_DBS[@]}"; do
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
         print_info "  [DRY RUN] Would move: $migrated_db → $original_db"
-    fi
-done
-    if [[ "$DRY_RUN" == false ]]; then
-        print_info "  Installing migrated database..."
-        mv "$migrated_db" "$original_db"
-        print_success "  ✓ Moved: $migrated_db → $original_db"
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-    else
-        print_info "  [DRY RUN] Would move: $migrated_db → $original_db"
-    fi
-done
-    original_db="$DATA_DIR/${db_name}.db"
-    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
-    backup_db="$BACKUP_DIR/${db_name}.db"
-    
-    # Check if original exists
-    if [[ ! -d "$original_db" ]]; then
-        print_warning "  Original database not found, skipping backup: $original_db"
-        ORIGINAL_EXISTS=false
-    else
-        ORIGINAL_EXISTS=true
-    fi
-    
-    # Move original to backup if it exists
-    if [[ "$ORIGINAL_EXISTS" == true ]]; then
-        if [[ "$DRY_RUN" == false ]]; then
-            print_info "  Moving original to backup..."
-            mv "$original_db" "$backup_db"
-            print_success "  ✓ Moved to backup: $original_db → $backup_db"
-        else
-            print_info "  [DRY RUN] Would move to backup: $original_db → $backup_db"
-        fi
-    fi
-    
-    # Move migrated to original location
-    if [[ "$DRY_RUN" == false ]]; then
-        print_info "  Installing migrated database..."
-        mv "$migrated_db" "$original_db"
-        print_success "  ✓ Moved: $migrated_db → $original_db"
-        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-    else
-        print_info "  [DRY RUN] Would move: $migrated_db → $original_db"
     fi
 done
 

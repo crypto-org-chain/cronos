@@ -9,6 +9,11 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 )
 
+// PrepareRocksDBOptions returns nil when RocksDB is not enabled
+func PrepareRocksDBOptions() interface{} {
+	return nil
+}
+
 // openRocksDBForMigration is a stub that returns an error when rocksdb is not available
 func openRocksDBForMigration(dir string, opts interface{}) (dbm.DB, error) {
 	return nil, fmt.Errorf("rocksdb support not enabled, rebuild with -tags rocksdb")
@@ -19,7 +24,7 @@ func openRocksDBForRead(dir string) (dbm.DB, error) {
 	return nil, fmt.Errorf("rocksdb support not enabled, rebuild with -tags rocksdb")
 }
 
-// flushRocksDB is a stub that does nothing when rocksdb is not available
+// flushRocksDB is a stub that returns an error when rocksdb is not available
 func flushRocksDB(db dbm.DB) error {
 	// This should never be called since migrate.go checks TargetBackend == RocksDBBackend
 	// But we need the stub for compilation

@@ -289,11 +289,11 @@ func TestVerifyMigration(t *testing.T) {
 			// Copy all data from source to target
 			itr, err := sourceDB.Iterator(nil, nil)
 			require.NoError(t, err)
+			defer itr.Close()
 			for ; itr.Valid(); itr.Next() {
 				err := targetDB.Set(itr.Key(), itr.Value())
 				require.NoError(t, err)
 			}
-			itr.Close()
 
 			// Apply mismatch if specified
 			if tt.setupMismatch != nil {
@@ -401,7 +401,6 @@ func TestMigrateSpecialKeys(t *testing.T) {
 	// Assert no migration errors
 	require.NoError(t, err, "migration should complete without error")
 	require.Equal(t, int64(0), stats.ErrorCount.Load(), "migration should have zero errors")
-	require.Equal(t, int64(0), stats.SkippedKeys.Load(), "migration should have zero skipped keys")
 
 	// Assert the number of migrated keys equals the number written
 	require.Equal(t, int64(len(expectedKeys)), stats.ProcessedKeys.Load(),

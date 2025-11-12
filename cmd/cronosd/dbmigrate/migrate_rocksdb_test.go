@@ -96,6 +96,8 @@ func TestMigrateLevelDBToRocksDB(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Perform migration
+	rocksOpts := newRocksDBOptions()
+	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
 		SourceHome:     sourceDir,
 		TargetHome:     targetDir,
@@ -103,7 +105,7 @@ func TestMigrateLevelDBToRocksDB(t *testing.T) {
 		TargetBackend:  dbm.RocksDBBackend,
 		BatchSize:      100,
 		Logger:         log.NewTestLogger(t),
-		RocksDBOptions: newRocksDBOptions(),
+		RocksDBOptions: rocksOpts,
 		Verify:         true,
 	}
 
@@ -173,6 +175,8 @@ func TestMigrateRocksDBToRocksDB(t *testing.T) {
 	targetDir := t.TempDir()
 
 	// Perform migration (useful for compaction or options change)
+	rocksOpts := newRocksDBOptions()
+	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
 		SourceHome:     sourceDir,
 		TargetHome:     targetDir,
@@ -180,7 +184,7 @@ func TestMigrateRocksDBToRocksDB(t *testing.T) {
 		TargetBackend:  dbm.RocksDBBackend,
 		BatchSize:      100,
 		Logger:         log.NewTestLogger(t),
-		RocksDBOptions: newRocksDBOptions(),
+		RocksDBOptions: rocksOpts,
 		Verify:         true,
 	}
 
@@ -224,6 +228,7 @@ func TestMigrateRocksDBLargeDataset(t *testing.T) {
 	require.NotNil(t, stats)
 	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 	require.Equal(t, int64(numKeys), stats.ProcessedKeys.Load())
+	require.Equal(t, int64(0), stats.ErrorCount.Load())
 
 	t.Logf("Migrated %d keys in %s", numKeys, stats.Duration())
 }
@@ -283,13 +288,13 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 		copy(value, itr.Value())
 		sourceData[string(key)] = value
 	}
+	require.NoError(t, itr.Error())
 	itr.Close()
 	sourceDB.Close()
 
-	// Create target directory
-	targetDir := t.TempDir()
-
 	// Perform migration
+	rocksOpts := newRocksDBOptions()
+	defer rocksOpts.Destroy()
 	opts := MigrateOptions{
 		SourceHome:     sourceDir,
 		TargetHome:     targetDir,
@@ -297,11 +302,13 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 		TargetBackend:  dbm.RocksDBBackend,
 		BatchSize:      100,
 		Logger:         log.NewNopLogger(),
-		RocksDBOptions: newRocksDBOptions(),
+		RocksDBOptions: rocksOpts,
 		Verify:         false,
 	}
 
 	stats, err := Migrate(opts)
+	require.NoError(t, err)
+	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 	require.NoError(t, err)
 	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 
@@ -322,4 +329,5 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 
 	require.Equal(t, len(sourceData), verifiedCount)
 	t.Logf("Verified %d keys successfully", verifiedCount)
+}
 }

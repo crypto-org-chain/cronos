@@ -72,7 +72,7 @@ func TestMigrateWithDBName(t *testing.T) {
 			require.Equal(t, int64(0), stats.ErrorCount.Load())
 
 			// Verify duration is positive
-			require.Greater(t, stats.Duration().Milliseconds(), int64(0))
+			require.Positive(t, stats.Duration())
 		})
 	}
 }

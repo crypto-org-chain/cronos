@@ -585,10 +585,18 @@ cmd/cronosd/dbmigrate/
 ├── migrate.go              # Core migration logic
 ├── migrate_rocksdb.go      # RocksDB-specific functions (with build tag)
 ├── migrate_no_rocksdb.go   # RocksDB stubs (without build tag)
+├── patch.go                # Patching logic for specific heights
+├── height_filter.go        # Height-based filtering and iterators
 ├── migrate_basic_test.go   # Tests without RocksDB
-├── migrate_test.go         # Tests with RocksDB (build tag)
+├── migrate_test.go         # General migration tests
+├── migrate_dbname_test.go  # Database name-specific tests
 ├── migrate_rocksdb_test.go # RocksDB-specific tests (build tag)
-└── README.md              # This file
+├── patch_test.go           # Patching tests
+├── height_parse_test.go    # Height parsing tests
+├── height_filter_test.go   # Height filtering tests
+├── swap-migrated-db.sh     # Script to swap databases after migration
+├── README.md               # Full documentation
+└── QUICKSTART.md           # Quick start guide
 ```
 
 ### Build Tags
@@ -613,6 +621,7 @@ type MigrateOptions struct {
     RocksDBOptions interface{}         // RocksDB options (if applicable)
     Verify         bool                // Enable post-migration verification
     DBName         string              // Database name (application, blockstore, state, tx_index, evidence)
+    HeightRange    HeightRange         // Height range to migrate (only for blockstore and tx_index)
 }
 ```
 
@@ -1342,54 +1351,8 @@ Only `blockstore` and `tx_index` supported.
 
 **Reason**: These are the only databases with height-encoded keys. Use `database migrate` for others.
 
-### FAQ
 
-**Q: Can I patch while the node is running?**
 
-A: No, always stop the node first to avoid database corruption.
-
-**Q: What happens if I patch the same heights twice?**
-
-A: The second patch overwrites the first. The latest data wins.
-
-**Q: Can I patch from a newer version to an older version?**
-
-A: Not recommended. Database formats may differ between versions.
-
-**Q: Does patchdb verify the patched data?**
-
-A: No, patchdb doesn't have verification mode. Ensure source data is valid before patching.
-
-**Q: Can I use patchdb for application.db?**
-
-A: No, only blockstore and tx_index are supported. Use `database migrate` for application.db.
-
-**Q: What if my target database doesn't exist yet?**
-
-A: Use `database migrate` to create it first, then use `database patch` to add specific heights.
-
-**Q: How long does patching take?**
-
-A: Depends on the number of heights:
-- Single block: seconds
-- 100K range: minutes
-- 1M range: tens of minutes
-
-**Q: Can I patch from a different backend type?**
-
-A: Yes, use `--source-backend` and `--target-backend` flags to specify different types.
-
----
-
-## Contributing
-
-When adding new features:
-
-1. Maintain backward compatibility
-2. Add tests for new functionality
-3. Update documentation
-4. Follow the existing code style
-5. Use build tags appropriately for optional dependencies
 
 ## License
 

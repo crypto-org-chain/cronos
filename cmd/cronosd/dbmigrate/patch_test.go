@@ -29,7 +29,7 @@ func TestIncrementBytes(t *testing.T) {
 		{
 			name:     "all_ff",
 			input:    []byte{0xFF, 0xFF, 0xFF},
-			expected: []byte{0x01, 0x00, 0x00, 0x00},
+			expected: nil, // Returns nil to signal no upper bound for iterators
 		},
 	}
 

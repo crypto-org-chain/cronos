@@ -106,8 +106,8 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 	// Open source database (read-only)
 	sourceDir := filepath.Dir(sourceDBPath)
 	sourceName := filepath.Base(sourceDBPath)
-	if len(sourceName) > 3 && sourceName[len(sourceName)-3:] == dbExtension {
-		sourceName = sourceName[:len(sourceName)-3]
+	if len(sourceName) > len(dbExtension) && sourceName[len(sourceName)-len(dbExtension):] == dbExtension {
+		sourceName = sourceName[:len(sourceName)-len(dbExtension)]
 	}
 
 	sourceDB, err := dbm.NewDB(sourceName, opts.SourceBackend, sourceDir)
@@ -405,6 +405,7 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 						_, err := fmt.Sscanf(parts[0], "%d", &height)
 						if err != nil {
 							logger.Debug("Failed to parse height from tx.height key", "key", keyStr, "error", err)
+							it.Next()
 							continue
 						}
 
@@ -417,31 +418,32 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 						_, err = fmt.Sscanf(txIndexStr, "%d", &txIndex)
 						if err != nil {
 							logger.Debug("Failed to parse txIndex from tx.height key", "key", keyStr, "error", err)
+							it.Next()
 							continue
 						}
 					}
-				}
 
-				// Also try to extract Ethereum txhash for event-indexed keys
-				// Read the transaction result from source database
-				txResultValue, err := sourceDB.Get(txhashCopy)
-				if err == nil && txResultValue != nil {
-					// Extract ethereum txhash from events
-					ethTxHash, err := extractEthereumTxHash(txResultValue)
-					if err != nil {
-						logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhashCopy, 80))
-					} else if ethTxHash != "" {
-						// Store the info for Pass 3
-						ethTxInfos[ethTxHash] = EthTxInfo{
-							Height:  height,
-							TxIndex: txIndex,
+					// Also try to extract Ethereum txhash for event-indexed keys
+					// Read the transaction result from source database
+					txResultValue, err := sourceDB.Get(txhashCopy)
+					if err == nil && txResultValue != nil {
+						// Extract ethereum txhash from events
+						ethTxHash, err := extractEthereumTxHash(txResultValue)
+						if err != nil {
+							logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhashCopy, 80))
+						} else if ethTxHash != "" {
+							// Store the info for Pass 3
+							ethTxInfos[ethTxHash] = EthTxInfo{
+								Height:  height,
+								TxIndex: txIndex,
+							}
+							logger.Debug("Collected ethereum txhash",
+								"eth_txhash", ethTxHash,
+								"cometbft_txhash", formatKeyPrefix(txhashCopy, 80),
+								"height", height,
+								"tx_index", txIndex,
+							)
 						}
-						logger.Debug("Collected ethereum txhash",
-							"eth_txhash", ethTxHash,
-							"cometbft_txhash", formatKeyPrefix(txhashCopy, 80),
-							"height", height,
-							"tx_index", txIndex,
-						)
 					}
 				}
 			}
@@ -670,8 +672,8 @@ func incrementBytes(b []byte) []byte {
 		incremented[i] = 0x00
 	}
 
-	// If all bytes were 0xFF, append 0x01 to handle overflow
-	return append([]byte{0x01}, incremented...)
+	// If all bytes were 0xFF, return nil to signal no exclusive upper bound
+	return nil
 }
 
 // patchEthereumEventKeysFromSource patches ethereum event-indexed keys by searching source DB
@@ -711,8 +713,6 @@ func patchEthereumEventKeysFromSource(sourceDB, targetDB dbm.DB, ethTxInfos map[
 
 		eventKeysFound := 0
 		for it.Valid() {
-			/// log the key and value
-			logger.Debug("Key", "key", it.Key(), "value", it.Value())
 			key := it.Key()
 			value := it.Value()
 
@@ -902,7 +902,7 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 				continue
 			}
 
-			/// log the existing value and key
+			// log the existing value and key
 			logger.Debug("Existing key",
 				"key", formatKeyPrefix(key, 80),
 				"existing_value_preview", formatValue(existingValue, 100),
@@ -1060,9 +1060,7 @@ func UpdateBlockStoreHeight(targetPath string, backend dbm.BackendType, newHeigh
 	} else {
 		targetDir := filepath.Dir(targetPath)
 		targetName := filepath.Base(targetPath)
-		if len(targetName) > 3 && targetName[len(targetName)-3:] == dbExtension {
-			targetName = targetName[:len(targetName)-3]
-		}
+		targetName = strings.TrimSuffix(targetName, dbExtension)
 		db, err = dbm.NewDB(targetName, backend, targetDir)
 	}
 	if err != nil {
@@ -1072,23 +1070,29 @@ func UpdateBlockStoreHeight(targetPath string, backend dbm.BackendType, newHeigh
 
 	// Read current height
 	heightBytes, err := db.Get([]byte("BS:H"))
-	if err != nil && err.Error() != "key not found" {
+	if err != nil {
 		return fmt.Errorf("failed to read current height: %w", err)
 	}
 
 	var currentHeight int64
+	var currentBase int64 = 1 // Default base if no existing state
 	if heightBytes != nil {
 		var blockStoreState tmstore.BlockStoreState
 		if err := proto.Unmarshal(heightBytes, &blockStoreState); err != nil {
 			return fmt.Errorf("failed to unmarshal block store state: %w", err)
 		}
 		currentHeight = blockStoreState.Height
+		currentBase = blockStoreState.Base
+		// Preserve base from existing state, use 1 as fallback if base is 0
+		if currentBase == 0 {
+			currentBase = 1
+		}
 	}
 
 	// Update if new height is higher
 	if newHeight > currentHeight {
 		blockStoreState := tmstore.BlockStoreState{
-			Base:   1, // Assuming base is 1, adjust if needed
+			Base:   currentBase, // Preserve existing base value
 			Height: newHeight,
 		}
 
@@ -1221,7 +1225,7 @@ func formatValue(value []byte, maxLen int) string {
 	// Check if value is mostly printable ASCII (heuristic for text vs binary)
 	printableCount := 0
 	for _, b := range value {
-		if b >= 32 && b <= 126 || b == 9 || b == 10 || b == 13 {
+		if (b >= 32 && b <= 126) || b == 9 || b == 10 || b == 13 {
 			printableCount++
 		}
 	}

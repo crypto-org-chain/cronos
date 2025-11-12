@@ -498,7 +498,7 @@ Based on typical disk speeds:
 | 100 GB       | ~30 minutes   | ~5 minutes    | ~50 seconds  |
 | 500 GB       | ~2.5 hours    | ~25 minutes   | ~4 minutes   |
 
-*Note: Times include verification. Add 50% time for verification disabled.*
+*Note: Times include verification. Subtract approximately 50% time if verification is disabled with --verify=false.*
 
 ### All Databases (app + cometbft)
 Multiply by approximate factor based on your database sizes:
@@ -776,14 +776,14 @@ cronosd database patch --height 123456 ...
 
 | Situation | Use Command | Why |
 |-----------|-------------|-----|
-| Changing backend (goleveldb → rocksdb) | `migrate-db` | Full migration |
-| Missing a few blocks | `patchdb` | Surgical fix |
-| Corrupted block data | `patchdb` | Replace specific blocks |
-| Need entire database on new backend | `migrate-db` | Complete migration |
-| Backfilling specific heights | `patchdb` | Efficient for specific blocks |
-| Migrating application.db | `migrate-db` | patchdb doesn't support it |
-| Target DB doesn't exist yet | `migrate-db` | Creates new DB |
-| Target DB exists, need specific heights | `patchdb` | Updates existing |
+| Changing backend (goleveldb → rocksdb) | `database migrate` | Full migration |
+| Missing a few blocks | `database patch` | Surgical fix |
+| Corrupted block data | `database patch` | Replace specific blocks |
+| Need entire database on new backend | `database migrate` | Complete migration |
+| Backfilling specific heights | `database patch` | Efficient for specific blocks |
+| Migrating application.db | `database migrate` | database patch doesn't support it |
+| Target DB doesn't exist yet | `database migrate` | Creates new DB |
+| Target DB exists, need specific heights | `database patch` | Updates existing |
 
 ---
 

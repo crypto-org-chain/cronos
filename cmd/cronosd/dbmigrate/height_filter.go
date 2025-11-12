@@ -3,6 +3,7 @@ package dbmigrate
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	dbm "github.com/cosmos/cosmos-db"
@@ -215,37 +216,15 @@ func parseSpecificHeights(heightsStr string) (HeightRange, error) {
 // Helper functions for parsing
 
 func parseInt64(s string) (int64, error) {
-	var result int64
-	_, err := fmt.Sscanf(s, "%d", &result)
-	return result, err
+	return strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 }
 
 func splitString(s string, sep byte) []string {
-	var parts []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == sep {
-			parts = append(parts, s[start:i])
-			start = i + 1
-		}
-	}
-	parts = append(parts, s[start:])
-	return parts
+	return strings.Split(s, string(sep))
 }
 
 func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-
-	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r') {
-		start++
-	}
-
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n' || s[end-1] == '\r') {
-		end--
-	}
-
-	return s[start:end]
+	return strings.TrimSpace(s)
 }
 
 // extractHeightFromBlockstoreKey extracts block height from CometBFT blockstore keys
