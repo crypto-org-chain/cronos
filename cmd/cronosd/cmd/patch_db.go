@@ -230,12 +230,19 @@ Examples:
 
 				stats, err := dbmigrate.PatchDatabase(opts)
 				if err != nil {
-					logger.Error("Patch failed",
-						"database", dbName,
-						"error", err,
-						"processed_keys", stats.ProcessedKeys.Load(),
-						"duration", stats.Duration(),
-					)
+					if stats != nil {
+						logger.Error("Patch failed",
+							"database", dbName,
+							"error", err,
+							"processed_keys", stats.ProcessedKeys.Load(),
+							"duration", stats.Duration(),
+						)
+					} else {
+						logger.Error("Patch failed",
+							"database", dbName,
+							"error", err,
+						)
+					}
 					return fmt.Errorf("failed to patch %s: %w", dbName, err)
 				}
 

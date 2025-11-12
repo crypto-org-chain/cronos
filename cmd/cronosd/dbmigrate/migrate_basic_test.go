@@ -263,9 +263,7 @@ func TestMigrateSpecialKeys(t *testing.T) {
 		if len(key) > 0 { // Skip empty key if not supported
 			value := []byte(fmt.Sprintf("value-%d", i))
 			err := db.Set(key, value)
-			if err == nil { // Only test keys that are supported
-				require.NoError(t, err)
-			}
+			require.NoError(t, err)
 		}
 	}
 	db.Close()

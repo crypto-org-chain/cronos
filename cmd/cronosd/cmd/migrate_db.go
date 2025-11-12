@@ -235,13 +235,20 @@ Examples:
 
 				stats, err := dbmigrate.Migrate(opts)
 				if err != nil {
-					logger.Error("Migration failed",
-						"database", dbName,
-						"error", err,
-						"processed_keys", stats.ProcessedKeys.Load(),
-						"total_keys", stats.TotalKeys.Load(),
-						"duration", stats.Duration(),
-					)
+					if stats != nil {
+						logger.Error("Migration failed",
+							"database", dbName,
+							"error", err,
+							"processed_keys", stats.ProcessedKeys.Load(),
+							"total_keys", stats.TotalKeys.Load(),
+							"duration", stats.Duration(),
+						)
+					} else {
+						logger.Error("Migration failed",
+							"database", dbName,
+							"error", err,
+						)
+					}
 					return fmt.Errorf("failed to migrate %s: %w", dbName, err)
 				}
 
