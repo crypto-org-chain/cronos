@@ -150,7 +150,7 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 	}
 	targetDBClosed := false
 	defer func() {
-		if !targetDBClosed {
+		if !targetDBClosed && targetDB != nil {
 			targetDB.Close()
 		}
 	}()
