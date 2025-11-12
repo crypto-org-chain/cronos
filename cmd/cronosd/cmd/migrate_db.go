@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	dbm "github.com/cosmos/cosmos-db"
-	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/dbmigrate"
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/dbmigrate"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"

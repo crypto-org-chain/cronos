@@ -3,7 +3,7 @@
 
 package cmd
 
-import "github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
+import "github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 
 // prepareRocksDBOptions returns RocksDB options for migration
 func prepareRocksDBOptions() interface{} {

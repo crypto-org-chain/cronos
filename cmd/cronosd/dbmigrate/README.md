@@ -1244,7 +1244,7 @@ cronosd database patch \
 After patching blockstore, you may need to update the height metadata:
 
 ```go
-import "github.com/crypto-org-chain/cronos/v2/cmd/cronosd/dbmigrate"
+import "github.com/crypto-org-chain/cronos/cmd/cronosd/dbmigrate"
 
 // Update blockstore height to include patched blocks
 err := dbmigrate.UpdateBlockStoreHeight(
