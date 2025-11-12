@@ -1,6 +1,7 @@
 package dbmigrate
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"sync/atomic"
@@ -455,27 +456,13 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 			continue
 		}
 
-		if len(targetValue) != len(sourceValue) {
-			opts.Logger.Error("Value length mismatch",
+		// Use bytes.Equal for efficient comparison
+		if !bytes.Equal(sourceValue, targetValue) {
+			opts.Logger.Error("Value mismatch",
 				"key", fmt.Sprintf("%x", key),
 				"source_len", len(sourceValue),
 				"target_len", len(targetValue),
 			)
-			mismatchCount++
-			continue
-		}
-
-		// Compare byte by byte
-		match := true
-		for i := range sourceValue {
-			if sourceValue[i] != targetValue[i] {
-				match = false
-				break
-			}
-		}
-
-		if !match {
-			opts.Logger.Error("Value mismatch", "key", fmt.Sprintf("%x", key))
 			mismatchCount++
 		}
 

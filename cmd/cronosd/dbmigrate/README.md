@@ -78,8 +78,6 @@ cronosd database patch \
   --target-path ~/.cronos/data/tx_index.db
 ```
 
-For detailed documentation, see **[PATCHDB.md](PATCHDB.md)**.
-
 ---
 
 ## Supported Databases
@@ -539,8 +537,14 @@ ls -la ~/.cronos/data/application.db
 RocksDB requires native libraries. Build with RocksDB support:
 
 ```bash
-make build-rocksdb
+# From project root
+make build
+
+# Or with specific tags
+go build -tags rocksdb -o ./cronosd ./cmd/cronosd
 ```
+
+Note: Ensure RocksDB dependencies are installed (see Installation section above).
 
 ### Verification Fails
 

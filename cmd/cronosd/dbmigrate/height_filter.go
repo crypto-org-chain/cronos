@@ -3,6 +3,7 @@ package dbmigrate
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	dbm "github.com/cosmos/cosmos-db"
 )
@@ -70,7 +71,7 @@ func (hr HeightRange) String() string {
 			for i, h := range hr.SpecificHeights {
 				heightStrs[i] = fmt.Sprintf("%d", h)
 			}
-			return fmt.Sprintf("heights %s", joinStrings(heightStrs, ", "))
+			return fmt.Sprintf("heights %s", strings.Join(heightStrs, ", "))
 		}
 		// Show count if more than 5
 		return fmt.Sprintf("%d specific heights", len(hr.SpecificHeights))
@@ -87,18 +88,6 @@ func (hr HeightRange) String() string {
 		return fmt.Sprintf("heights up to %d", hr.End)
 	}
 	return "all heights"
-}
-
-// joinStrings joins strings with a separator
-func joinStrings(strs []string, sep string) string {
-	if len(strs) == 0 {
-		return ""
-	}
-	result := strs[0]
-	for i := 1; i < len(strs); i++ {
-		result += sep + strs[i]
-	}
-	return result
 }
 
 // Validate checks if the height range is valid

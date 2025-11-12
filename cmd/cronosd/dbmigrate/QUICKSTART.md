@@ -34,7 +34,7 @@ The `database migrate` command supports migrating:
 - Cronos node stopped
 - Database backup created
 - Sufficient disk space (at least 2x database size)
-- For RocksDB: Build with `make build-rocksdb` or `-tags rocksdb`
+- For RocksDB: Build with `make build` or `go build -tags rocksdb`
 
 ## Basic Migration Steps
 
@@ -407,8 +407,10 @@ cronosd database migrate --batch-size 1000 --verify=false ...
 # Install RocksDB dependencies (Ubuntu/Debian)
 sudo apt-get install librocksdb-dev
 
-# Or build from source
-make build-rocksdb
+# Or build from project root
+make build
+# Or with explicit tags
+go build -tags rocksdb -o ./cronosd ./cmd/cronosd
 ```
 
 ## Performance Tips
