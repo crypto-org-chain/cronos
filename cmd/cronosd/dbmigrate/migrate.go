@@ -3,6 +3,7 @@ package dbmigrate
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -134,6 +135,10 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	var targetDB dbm.DB
 	if opts.TargetBackend == dbm.RocksDBBackend {
+		// RocksDB needs the parent directory to exist
+		if err := os.MkdirAll(targetDataDir, 0755); err != nil {
+			return stats, fmt.Errorf("failed to create target data directory: %w", err)
+		}
 		targetDB, err = openRocksDBForMigration(tempTargetDir, opts.RocksDBOptions)
 	} else {
 		targetDB, err = dbm.NewDB(opts.DBName+".migrate-temp", opts.TargetBackend, targetDataDir)
