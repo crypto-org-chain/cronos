@@ -48,7 +48,7 @@ func setupRocksDB(t *testing.T, numKeys int) (string, dbm.DB) {
 	t.Helper()
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	opts := newRocksDBOptions()

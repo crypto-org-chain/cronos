@@ -21,7 +21,7 @@ func setupTestDB(t *testing.T, backend dbm.BackendType, numKeys int) (string, db
 	t.Helper()
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	var db dbm.DB
@@ -281,7 +281,7 @@ func TestVerifyMigration(t *testing.T) {
 			// Setup target database by copying data from source
 			targetDir := t.TempDir()
 			targetDataDir := filepath.Join(targetDir, "data")
-			err := os.MkdirAll(targetDataDir, 0755)
+			err := os.MkdirAll(targetDataDir, 0o755)
 			require.NoError(t, err)
 
 			targetDB, err := dbm.NewDB("application.migrate-temp", dbm.GoLevelDBBackend, targetDataDir)
@@ -335,7 +335,7 @@ func TestVerifyMigration(t *testing.T) {
 func TestMigrateSpecialKeys(t *testing.T) {
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	db, err := dbm.NewDB("application", dbm.GoLevelDBBackend, dataDir)
@@ -363,7 +363,6 @@ func TestMigrateSpecialKeys(t *testing.T) {
 	for i, key := range specialKeys {
 		value := []byte(fmt.Sprintf("value-%d", i))
 		err := db.Set(key, value)
-
 		if err != nil {
 			// Only skip empty key if explicitly unsupported
 			if len(key) == 0 {

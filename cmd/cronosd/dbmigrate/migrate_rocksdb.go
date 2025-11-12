@@ -5,9 +5,8 @@ package dbmigrate
 
 import (
 	dbm "github.com/cosmos/cosmos-db"
-	"github.com/linxGnu/grocksdb"
-
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
+	"github.com/linxGnu/grocksdb"
 )
 
 // PrepareRocksDBOptions returns RocksDB options for migration
