@@ -28,7 +28,7 @@ func newRocksDBOptions() *grocksdb.Options {
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
-	bbto.SetBlockCache(grocksdb.NewLRUCache(3 << 30)) // 3GB
+	bbto.SetBlockCache(grocksdb.NewLRUCache(64 << 20)) // 64MB is ample for tests
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
 	bbto.SetIndexType(grocksdb.KTwoLevelIndexSearchIndexType)
 	bbto.SetPartitionFilters(true)

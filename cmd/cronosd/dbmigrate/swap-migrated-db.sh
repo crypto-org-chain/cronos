@@ -175,13 +175,13 @@ FOUND_MIGRATED=false
 declare -a AVAILABLE_DBS
 
 for db_name in "${DB_NAMES[@]}"; do
-    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
+    migrated_db="$DATA_DIR/${db_name}.migrate-temp.db"
     if [[ -d "$migrated_db" ]]; then
         FOUND_MIGRATED=true
         AVAILABLE_DBS+=("$db_name")
-        print_info "  ✓ Found: ${db_name}.db.migrate-temp ($(get_size "$migrated_db"))"
+        print_info "  ✓ Found: ${db_name}.migrate-temp.db ($(get_size "$migrated_db"))"
     else
-        print_warning "  ✗ Not found: ${db_name}.db.migrate-temp"
+        print_warning "  ✗ Not found: ${db_name}.migrate-temp.db"
     fi
 done
 
@@ -200,11 +200,13 @@ if [[ "$DRY_RUN" == true ]]; then
     print_warning "DRY RUN MODE - No changes will be made"
 fi
 
-# Create backup directory
+# Create backup directory (skip in dry run to avoid side effects)
 BACKUP_DIR="$DATA_DIR/backups-$BACKUP_SUFFIX"
-if ! mkdir -p "$BACKUP_DIR"; then
-    print_error "Failed to create backup directory: $BACKUP_DIR"
-    exit 1
+if [[ "$DRY_RUN" == false ]]; then
+    if ! mkdir -p "$BACKUP_DIR"; then
+        print_error "Failed to create backup directory: $BACKUP_DIR"
+        exit 1
+    fi
 fi
 
 # Initialize counters
@@ -218,7 +220,7 @@ echo "==========================================================================
 
 for db_name in "${AVAILABLE_DBS[@]}"; do
     original_db="$DATA_DIR/${db_name}.db"
-    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
+    migrated_db="$DATA_DIR/${db_name}.migrate-temp.db"
     backup_db="$BACKUP_DIR/${db_name}.db"
     
     echo ""
@@ -256,7 +258,7 @@ for db_name in "${AVAILABLE_DBS[@]}"; do
     print_info "Processing: $db_name"
     
     original_db="$DATA_DIR/${db_name}.db"
-    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
+    migrated_db="$DATA_DIR/${db_name}.migrate-temp.db"
     backup_db="$BACKUP_DIR/${db_name}.db"
     
     # Check if original exists
