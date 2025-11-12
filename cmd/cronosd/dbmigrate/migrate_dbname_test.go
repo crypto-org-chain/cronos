@@ -204,10 +204,10 @@ func TestMigrateCometBFTDatabases(t *testing.T) {
 				SourceHome:    sourceDir,
 				TargetHome:    targetDir,
 				SourceBackend: dbm.GoLevelDBBackend,
-				TargetBackend: dbm.MemDBBackend,
+				TargetBackend: dbm.GoLevelDBBackend,
 				BatchSize:     10,
 				Logger:        log.NewNopLogger(),
-				Verify:        false, // MemDB verification is skipped
+				Verify:        false,
 				DBName:        dbName,
 			}
 
@@ -329,7 +329,7 @@ func TestMigrateDBNameWithSpecialCharacters(t *testing.T) {
 		SourceHome:    sourceDir,
 		TargetHome:    targetDir,
 		SourceBackend: dbm.GoLevelDBBackend,
-		TargetBackend: dbm.MemDBBackend,
+		TargetBackend: dbm.GoLevelDBBackend,
 		BatchSize:     15,
 		Logger:        log.NewNopLogger(),
 		Verify:        false,

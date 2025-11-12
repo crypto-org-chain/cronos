@@ -15,7 +15,7 @@ The `database migrate` command is used for migrating entire databases between di
 ### Features
 
 - **Multiple Database Support**: Migrate application and/or CometBFT databases
-- **Multiple Backend Support**: Migrate between LevelDB, RocksDB, PebbleDB, and MemDB
+- **Multiple Backend Support**: Migrate between LevelDB and RocksDB
 - **Batch Processing**: Configurable batch size for optimal performance
 - **Progress Tracking**: Real-time progress reporting with statistics
 - **Data Verification**: Optional post-migration verification to ensure data integrity
@@ -230,8 +230,8 @@ cronosd database migrate \
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--source-backend` | Source database backend type (goleveldb, rocksdb, pebbledb, memdb) | goleveldb |
-| `--target-backend` | Target database backend type (goleveldb, rocksdb, pebbledb, memdb) | rocksdb |
+| `--source-backend` | Source database backend type (goleveldb, rocksdb) | goleveldb |
+| `--target-backend` | Target database backend type (goleveldb, rocksdb) | rocksdb |
 | `--db-type` | Database type to migrate (app, cometbft, all) | app |
 | `--databases` | Comma-separated list of specific databases (e.g., 'blockstore,tx_index'). Valid: application, blockstore, state, tx_index, evidence. Takes precedence over --db-type | (empty) |
 | `--start-height` | Start height for migration (inclusive, 0 for from beginning). Only applies to blockstore and tx_index | 0 |
@@ -537,14 +537,14 @@ ls -la ~/.cronos/data/application.db
 RocksDB requires native libraries. Build with RocksDB support:
 
 ```bash
-# From project root
-make build
+# From project root with RocksDB support
+COSMOS_BUILD_OPTIONS=rocksdb make build
 
 # Or with specific tags
 go build -tags rocksdb -o ./cronosd ./cmd/cronosd
 ```
 
-Note: Ensure RocksDB dependencies are installed (see Installation section above).
+Note: RocksDB requires native C++ libraries to be installed on your system. On macOS, install via `brew install rocksdb`. On Ubuntu/Debian, install via `apt-get install librocksdb-dev`. For other systems, see the [RocksDB installation guide](https://github.com/facebook/rocksdb/blob/main/INSTALL.md).
 
 ### Verification Fails
 

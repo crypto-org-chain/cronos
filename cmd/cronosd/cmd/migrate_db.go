@@ -151,35 +151,17 @@ Examples:
 
 			// If --databases flag is provided, use it (takes precedence over --db-type)
 			if databases != "" {
-				// Parse comma-separated database names
-				dbList := strings.Split(databases, ",")
-				for _, dbName := range dbList {
-					dbName = strings.TrimSpace(dbName)
-					if dbName == "" {
-						continue
-					}
-					if !validDatabaseNames[dbName] {
-						return fmt.Errorf("invalid database name: %s (valid names: application, blockstore, state, tx_index, evidence)", dbName)
-					}
-					dbNames = append(dbNames, dbName)
-				}
-				if len(dbNames) == 0 {
-					return fmt.Errorf("no valid databases specified in --databases flag")
+				var err error
+				dbNames, err = parseDatabaseNames(databases)
+				if err != nil {
+					return err
 				}
 			} else {
 				// Fall back to --db-type flag
-				// Validate db-type
-				if dbType != DBTypeApp && dbType != DBTypeCometBFT && dbType != DBTypeAll {
-					return fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)
-				}
-
-				switch dbType {
-				case DBTypeApp:
-					dbNames = []string{"application"}
-				case DBTypeCometBFT:
-					dbNames = []string{"blockstore", "state", "tx_index", "evidence"}
-				case DBTypeAll:
-					dbNames = []string{"application", "blockstore", "state", "tx_index", "evidence"}
+				var err error
+				dbNames, err = getDBNamesFromType(dbType)
+				if err != nil {
+					return err
 				}
 			}
 
@@ -329,11 +311,45 @@ func parseBackendType(backend string) (dbm.BackendType, error) {
 		return dbm.GoLevelDBBackend, nil
 	case "rocksdb":
 		return dbm.RocksDBBackend, nil
-	case "pebbledb", "pebble":
-		return dbm.PebbleDBBackend, nil
-	case "memdb", "mem":
-		return dbm.MemDBBackend, nil
 	default:
-		return "", fmt.Errorf("unsupported backend type: %s (supported: goleveldb, rocksdb, pebbledb, memdb)", backend)
+		return "", fmt.Errorf("unsupported backend type: %s (supported: goleveldb, rocksdb)", backend)
+	}
+}
+
+// parseDatabaseNames parses a comma-separated list of database names and validates them
+func parseDatabaseNames(databases string) ([]string, error) {
+	if databases == "" {
+		return nil, fmt.Errorf("no databases specified")
+	}
+
+	dbList := strings.Split(databases, ",")
+	var dbNames []string
+	for _, dbName := range dbList {
+		dbName = strings.TrimSpace(dbName)
+		if dbName == "" {
+			continue
+		}
+		if !validDatabaseNames[dbName] {
+			return nil, fmt.Errorf("invalid database name: %s (valid names: application, blockstore, state, tx_index, evidence)", dbName)
+		}
+		dbNames = append(dbNames, dbName)
+	}
+	if len(dbNames) == 0 {
+		return nil, fmt.Errorf("no valid databases specified in --databases flag")
+	}
+	return dbNames, nil
+}
+
+// getDBNamesFromType returns the list of database names for a given db-type
+func getDBNamesFromType(dbType string) ([]string, error) {
+	switch dbType {
+	case DBTypeApp:
+		return []string{"application"}, nil
+	case DBTypeCometBFT:
+		return []string{"blockstore", "state", "tx_index", "evidence"}, nil
+	case DBTypeAll:
+		return []string{"application", "blockstore", "state", "tx_index", "evidence"}, nil
+	default:
+		return nil, fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)
 	}
 }

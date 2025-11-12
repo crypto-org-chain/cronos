@@ -56,7 +56,7 @@ IMPORTANT:
   - Source database is opened in read-only mode
   - Target database will be modified (keys added/updated)
   - Always backup your target database before patching
-  - Use --target-path to specify the exact database path to patch
+  - You MUST specify --target-path explicitly (required flag to prevent accidental modification of source database)
 
 Examples:
   # Patch a single missing block
@@ -124,6 +124,9 @@ Examples:
 			}
 			if heightFlag == "" {
 				return fmt.Errorf("--height is required (specify which heights to patch)")
+			}
+			if targetPath == "" {
+				return fmt.Errorf("--target-path is required: you must explicitly specify the target database path to prevent accidental modification of the source database")
 			}
 
 			// Parse database names (comma-separated)
@@ -195,18 +198,12 @@ Examples:
 			for _, dbName := range validDBNames {
 				// Determine target path
 				var dbTargetPath string
-				if targetPath != "" {
-					// If user provided target-path, use it as-is (for single DB)
-					// or append database name (for multiple DBs)
-					if len(validDBNames) == 1 {
-						dbTargetPath = targetPath
-					} else {
-						// For multiple databases, treat targetPath as data directory
-						dbTargetPath = filepath.Join(targetPath, dbName+".db")
-					}
+				// User must provide target-path explicitly (validated above)
+				if len(validDBNames) == 1 {
+					dbTargetPath = targetPath
 				} else {
-					// Default: use source home data directory
-					dbTargetPath = filepath.Join(sourceHome, "data", dbName+".db")
+					// For multiple databases, treat targetPath as data directory
+					dbTargetPath = filepath.Join(targetPath, dbName+".db")
 				}
 
 				logger.Info("Patching database",
@@ -286,10 +283,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP(flagPatchSourceBackend, "s", "goleveldb", "Source database backend type (goleveldb, rocksdb, pebbledb)")
-	cmd.Flags().StringP(flagPatchTargetBackend, "t", "rocksdb", "Target database backend type (goleveldb, rocksdb, pebbledb)")
+	cmd.Flags().StringP(flagPatchSourceBackend, "s", "goleveldb", "Source database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagPatchTargetBackend, "t", "rocksdb", "Target database backend type (goleveldb, rocksdb)")
 	cmd.Flags().StringP(flagPatchSourceHome, "f", "", "Source home directory (required)")
-	cmd.Flags().StringP(flagPatchTargetPath, "p", "", "Target path: for single DB (e.g., ~/.cronos/data/blockstore.db), for multiple DBs (e.g., ~/.cronos/data). Optional, defaults to source home data directory")
+	cmd.Flags().StringP(flagPatchTargetPath, "p", "", "Target path: for single DB (e.g., ~/.cronos/data/blockstore.db), for multiple DBs (e.g., ~/.cronos/data) (required)")
 	cmd.Flags().StringP(flagPatchDatabase, "d", "", "Database(s) to patch: blockstore, tx_index, or both comma-separated (e.g., blockstore,tx_index) (required)")
 	cmd.Flags().StringP(flagPatchHeight, "H", "", "Height specification: range (10000-20000), single (123456), or multiple (123456,234567) (required)")
 	cmd.Flags().IntP(flagPatchBatchSize, "b", dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
@@ -297,6 +294,7 @@ Examples:
 
 	// Mark required flags
 	_ = cmd.MarkFlagRequired(flagPatchSourceHome)
+	_ = cmd.MarkFlagRequired(flagPatchTargetPath)
 	_ = cmd.MarkFlagRequired(flagPatchDatabase)
 	_ = cmd.MarkFlagRequired(flagPatchHeight)
 

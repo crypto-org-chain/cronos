@@ -54,11 +54,6 @@ func TestCountKeys(t *testing.T) {
 			backend: dbm.GoLevelDBBackend,
 			numKeys: 0,
 		},
-		{
-			name:    "memdb with 50 keys",
-			backend: dbm.MemDBBackend,
-			numKeys: 50,
-		},
 	}
 
 	for _, tt := range tests {
@@ -101,38 +96,6 @@ func TestMigrateLevelDBToLevelDB(t *testing.T) {
 	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 	require.Equal(t, int64(numKeys), stats.ProcessedKeys.Load())
 	require.Equal(t, int64(0), stats.ErrorCount.Load())
-}
-
-// TestMigrateLevelDBToMemDB tests migration from leveldb to memdb
-// Note: MemDB doesn't persist to disk, so we skip verification
-func TestMigrateLevelDBToMemDB(t *testing.T) {
-	numKeys := 500
-
-	// Setup source database with LevelDB
-	sourceDir, sourceDB := setupBasicTestDB(t, dbm.GoLevelDBBackend, numKeys)
-	sourceDB.Close()
-
-	// Create target directory
-	targetDir := t.TempDir()
-
-	// Perform migration (no verification for MemDB as it's in-memory)
-	opts := MigrateOptions{
-		SourceHome:    sourceDir,
-		TargetHome:    targetDir,
-		SourceBackend: dbm.GoLevelDBBackend,
-		TargetBackend: dbm.MemDBBackend,
-		BatchSize:     50,
-		Logger:        log.NewNopLogger(),
-		Verify:        false, // Skip verification for MemDB
-	}
-
-	stats, err := Migrate(opts)
-	require.NoError(t, err)
-	require.NotNil(t, stats)
-	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
-	require.Equal(t, int64(numKeys), stats.ProcessedKeys.Load())
-	require.Equal(t, int64(0), stats.ErrorCount.Load())
-	require.Greater(t, stats.Duration().Milliseconds(), int64(0))
 }
 
 // TestMigrationStats tests the statistics tracking
@@ -201,7 +164,7 @@ func TestMigrateEmptyDatabase(t *testing.T) {
 		SourceHome:    sourceDir,
 		TargetHome:    targetDir,
 		SourceBackend: dbm.GoLevelDBBackend,
-		TargetBackend: dbm.MemDBBackend,
+		TargetBackend: dbm.GoLevelDBBackend,
 		BatchSize:     10,
 		Logger:        log.NewNopLogger(),
 		Verify:        true,
@@ -230,7 +193,7 @@ func TestMigrationWithoutVerification(t *testing.T) {
 		SourceHome:    sourceDir,
 		TargetHome:    targetDir,
 		SourceBackend: dbm.GoLevelDBBackend,
-		TargetBackend: dbm.MemDBBackend,
+		TargetBackend: dbm.GoLevelDBBackend,
 		BatchSize:     10,
 		Logger:        log.NewNopLogger(),
 		Verify:        false,

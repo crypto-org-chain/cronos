@@ -160,6 +160,10 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 		}
 		opts.Logger.Info("Total keys to migrate", "count", totalKeys, "height_range", opts.HeightRange.String())
 	} else {
+		if !opts.HeightRange.IsEmpty() {
+			opts.Logger.Warn("Height filtering not supported for this database, migrating all keys", "database", opts.DBName)
+		}
+
 		totalKeys, err = countKeys(sourceDB)
 		if err != nil {
 			return stats, fmt.Errorf("failed to count keys: %w", err)
@@ -212,9 +216,6 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// Verification step if requested
 	if opts.Verify {
-		// Wait a moment to ensure databases are fully closed and released
-		time.Sleep(100 * time.Millisecond)
-
 		opts.Logger.Info("Starting verification...")
 		if err := verifyMigration(sourceDataDir, tempTargetDir, opts); err != nil {
 			return stats, fmt.Errorf("verification failed: %w", err)
@@ -407,6 +408,61 @@ func migrateWithIterator(itr dbm.Iterator, targetDB dbm.DB, opts MigrateOptions,
 	return itr.Error()
 }
 
+// openDBWithRetry attempts to open a database with exponential backoff retry logic.
+// This handles OS-level file lock delays that can occur after database closure.
+func openDBWithRetry(dbName string, backend dbm.BackendType, dir string, maxRetries int, initialDelay time.Duration, logger log.Logger) (dbm.DB, error) {
+	var db dbm.DB
+	var err error
+	delay := initialDelay
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		db, err = dbm.NewDB(dbName, backend, dir)
+		if err == nil {
+			return db, nil
+		}
+
+		if attempt < maxRetries-1 {
+			logger.Info("Failed to open database, retrying...",
+				"attempt", attempt+1,
+				"max_retries", maxRetries,
+				"delay", delay,
+				"error", err,
+			)
+			time.Sleep(delay)
+			delay *= 2 // Exponential backoff
+		}
+	}
+
+	return nil, fmt.Errorf("failed to open database after %d attempts: %w", maxRetries, err)
+}
+
+// openRocksDBWithRetry attempts to open a RocksDB database with exponential backoff retry logic.
+func openRocksDBWithRetry(dir string, maxRetries int, initialDelay time.Duration, logger log.Logger) (dbm.DB, error) {
+	var db dbm.DB
+	var err error
+	delay := initialDelay
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		db, err = openRocksDBForRead(dir)
+		if err == nil {
+			return db, nil
+		}
+
+		if attempt < maxRetries-1 {
+			logger.Info("Failed to open RocksDB, retrying...",
+				"attempt", attempt+1,
+				"max_retries", maxRetries,
+				"delay", delay,
+				"error", err,
+			)
+			time.Sleep(delay)
+			delay *= 2 // Exponential backoff
+		}
+	}
+
+	return nil, fmt.Errorf("failed to open RocksDB after %d attempts: %w", maxRetries, err)
+}
+
 // verifyMigration compares source and target databases to ensure data integrity
 func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 	// Determine database name from the directory path
@@ -416,8 +472,12 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 		dbName = "application"
 	}
 
-	// Reopen databases for verification
-	sourceDB, err := dbm.NewDB(dbName, opts.SourceBackend, sourceDir)
+	// Reopen databases for verification with retry logic to handle OS-level file lock delays
+	// that can occur after database closure. Use exponential backoff: 50ms, 100ms, 200ms, 400ms, 800ms
+	const maxRetries = 5
+	const initialDelay = 50 * time.Millisecond
+
+	sourceDB, err := openDBWithRetry(dbName, opts.SourceBackend, sourceDir, maxRetries, initialDelay, opts.Logger)
 	if err != nil {
 		return fmt.Errorf("failed to open source database for verification: %w", err)
 	}
@@ -425,9 +485,9 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 
 	var targetDB dbm.DB
 	if opts.TargetBackend == dbm.RocksDBBackend {
-		targetDB, err = openRocksDBForRead(targetDir)
+		targetDB, err = openRocksDBWithRetry(targetDir, maxRetries, initialDelay, opts.Logger)
 	} else {
-		targetDB, err = dbm.NewDB(dbName+".migrate-temp", opts.TargetBackend, filepath.Dir(targetDir))
+		targetDB, err = openDBWithRetry(dbName+".migrate-temp", opts.TargetBackend, filepath.Dir(targetDir), maxRetries, initialDelay, opts.Logger)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to open target database for verification: %w", err)
@@ -482,12 +542,71 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 		return err
 	}
 
+	// Second phase: iterate through target to detect extra keys not in source
+	opts.Logger.Info("Starting second verification phase (checking for extra keys in target)...")
+	targetItr, err := targetDB.Iterator(nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create target iterator: %w", err)
+	}
+	defer targetItr.Close()
+
+	var targetKeys int64
+	lastProgressReport = time.Now()
+
+	for ; targetItr.Valid(); targetItr.Next() {
+		key := targetItr.Key()
+		targetKeys++
+
+		// Check if this key exists in source
+		sourceValue, err := sourceDB.Get(key)
+		if err != nil {
+			opts.Logger.Error("Failed to get key from source database during reverse verification",
+				"key", fmt.Sprintf("%x", key),
+				"error", err,
+			)
+			mismatchCount++
+			continue
+		}
+
+		// If key doesn't exist in source (Get returns nil for non-existent keys)
+		if sourceValue == nil {
+			opts.Logger.Error("Extra key found in target that doesn't exist in source",
+				"key", fmt.Sprintf("%x", key),
+			)
+			mismatchCount++
+		}
+
+		// Report progress every second
+		if time.Since(lastProgressReport) >= time.Second {
+			opts.Logger.Info("Reverse verification progress",
+				"target_keys_checked", targetKeys,
+				"mismatches", mismatchCount,
+			)
+			lastProgressReport = time.Now()
+		}
+	}
+
+	if err := targetItr.Error(); err != nil {
+		return fmt.Errorf("error during target iteration: %w", err)
+	}
+
+	// Compare key counts
+	if targetKeys != verifiedKeys {
+		opts.Logger.Error("Key count mismatch",
+			"source_keys", verifiedKeys,
+			"target_keys", targetKeys,
+			"difference", targetKeys-verifiedKeys,
+		)
+		mismatchCount++
+	}
+
 	if mismatchCount > 0 {
 		return fmt.Errorf("verification failed: %d mismatches found", mismatchCount)
 	}
 
 	opts.Logger.Info("Verification summary",
 		"verified_keys", verifiedKeys,
+		"target_keys", targetKeys,
 		"mismatches", mismatchCount,
 	)
 

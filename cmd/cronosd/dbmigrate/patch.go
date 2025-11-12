@@ -123,9 +123,7 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 	} else {
 		targetDir := filepath.Dir(opts.TargetPath)
 		targetName := filepath.Base(opts.TargetPath)
-		if len(targetName) > 3 && targetName[len(targetName)-3:] == dbExtension {
-			targetName = targetName[:len(targetName)-3]
-		}
+		targetName = strings.TrimSuffix(targetName, dbExtension)
 		targetDB, err = dbm.NewDB(targetName, opts.TargetBackend, targetDir)
 	}
 	if err != nil {
@@ -188,7 +186,6 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 
 		keysSeen := 0
 		for iterIdx, it := range iterators {
-			defer it.Close()
 			logger.Debug("Counting keys from blockstore iterator", "iterator_index", iterIdx)
 			for ; it.Valid(); it.Next() {
 				keysSeen++
@@ -211,6 +208,7 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 				}
 				totalCount++
 			}
+			it.Close()
 		}
 		logger.Debug("Total keys seen in blockstore", "total_seen", keysSeen, "total_counted", totalCount)
 
@@ -1197,6 +1195,18 @@ func formatKeyPrefix(key []byte, maxLen int) string {
 	}
 	// Truncate hex string if too long
 	halfLen := (maxLen - 8) / 2 // Reserve space for "0x" and "..."
+	if maxLen <= 8 || halfLen <= 0 {
+		// Not enough space for "0x..."; just truncate what we can
+		if maxLen <= 2 {
+			return "0x"
+		}
+		// Truncate to maxLen-2 to account for "0x" prefix
+		truncLen := maxLen - 2
+		if truncLen > len(hexStr) {
+			truncLen = len(hexStr)
+		}
+		return "0x" + hexStr[:truncLen]
+	}
 	return "0x" + hexStr[:halfLen] + "..." + hexStr[len(hexStr)-halfLen:]
 }
 

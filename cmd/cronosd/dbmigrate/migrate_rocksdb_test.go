@@ -51,13 +51,17 @@ func setupRocksDB(t *testing.T, numKeys int) (string, dbm.DB) {
 	require.NoError(t, err)
 
 	opts := newRocksDBOptions()
+	t.Cleanup(func() { opts.Destroy() })
 	rocksDir := filepath.Join(dataDir, "application.db")
 	rawDB, err := grocksdb.OpenDb(opts, rocksDir)
 	require.NoError(t, err)
 
 	ro := grocksdb.NewDefaultReadOptions()
+	t.Cleanup(func() { ro.Destroy() })
 	wo := grocksdb.NewDefaultWriteOptions()
+	t.Cleanup(func() { wo.Destroy() })
 	woSync := grocksdb.NewDefaultWriteOptions()
+	t.Cleanup(func() { woSync.Destroy() })
 	woSync.SetSync(true)
 	db := dbm.NewRocksDBWithRawDB(rawDB, ro, wo, woSync)
 
@@ -237,6 +241,7 @@ func TestMigrateRocksDBWithDifferentOptions(t *testing.T) {
 
 	// Create custom RocksDB options with different settings
 	customOpts := grocksdb.NewDefaultOptions()
+	defer customOpts.Destroy()
 	customOpts.SetCreateIfMissing(true)
 	customOpts.SetLevelCompactionDynamicLevelBytes(true)
 	// Different compression

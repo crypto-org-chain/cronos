@@ -23,5 +23,5 @@ func openRocksDBForRead(dir string) (dbm.DB, error) {
 func flushRocksDB(db dbm.DB) error {
 	// This should never be called since migrate.go checks TargetBackend == RocksDBBackend
 	// But we need the stub for compilation
-	return nil
+	return fmt.Errorf("rocksdb support not enabled, rebuild with -tags rocksdb")
 }

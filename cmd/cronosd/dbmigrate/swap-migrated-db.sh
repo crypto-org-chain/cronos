@@ -3,7 +3,7 @@
 # Database Migration Swap Script
 # This script replaces original databases with migrated ones and backs up the originals
 
-set -e
+set -eo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,10 +12,41 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Function to validate backup suffix
+validate_backup_suffix() {
+    local suffix="$1"
+    local sanitized
+    
+    # Remove any characters not in the safe set [A-Za-z0-9._-]
+    sanitized=$(echo "$suffix" | tr -cd 'A-Za-z0-9._-')
+    
+    # Check if empty after sanitization
+    if [[ -z "$sanitized" ]]; then
+        echo -e "${RED}Error: BACKUP_SUFFIX is empty or contains only invalid characters${NC}" >&2
+        echo -e "${RED}Allowed characters: A-Z, a-z, 0-9, period (.), underscore (_), hyphen (-)${NC}" >&2
+        exit 1
+    fi
+    
+    # Check if sanitized version differs from original (contains disallowed characters)
+    if [[ "$suffix" != "$sanitized" ]]; then
+        echo -e "${RED}Error: BACKUP_SUFFIX contains invalid characters: '$suffix'${NC}" >&2
+        echo -e "${RED}Allowed characters: A-Z, a-z, 0-9, period (.), underscore (_), hyphen (-)${NC}" >&2
+        echo -e "${RED}Sanitized version would be: '$sanitized'${NC}" >&2
+        exit 1
+    fi
+    
+    # Return success if validation passed
+    return 0
+}
+
 # Default values
 HOME_DIR="$HOME/.cronos"
 DB_TYPE="app"
 BACKUP_SUFFIX="backup-$(date +%Y%m%d-%H%M%S)"
+
+# Validate default BACKUP_SUFFIX immediately after construction
+validate_backup_suffix "$BACKUP_SUFFIX"
+
 DRY_RUN=false
 
 # Usage function
@@ -62,6 +93,8 @@ while [[ $# -gt 0 ]]; do
             ;;
         --backup-suffix)
             BACKUP_SUFFIX="$2"
+            # Validate user-provided BACKUP_SUFFIX immediately
+            validate_backup_suffix "$BACKUP_SUFFIX"
             shift 2
             ;;
         --dry-run)
@@ -184,43 +217,61 @@ for db_name in "${AVAILABLE_DBS[@]}"; do
     echo "Database: $db_name"
     echo "  Original: $original_db ($(get_size "$original_db"))"
     echo "  Migrated: $migrated_db ($(get_size "$migrated_db"))"
-    echo "  Will backup to: $backup_db"
-done
-
-echo ""
-echo "================================================================================"
-
-# Ask for confirmation
-if [[ "$DRY_RUN" == false ]]; then
-    echo ""
-    read -p "Do you want to proceed with the swap? (yes/no): " -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-        print_info "Operation cancelled by user"
-        exit 0
+# Validate all databases exist before starting swaps
+for db_name in "${AVAILABLE_DBS[@]}"; do
+    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
+    if [[ ! -d "$migrated_db" ]]; then
+        print_error "Migrated database not found during swap: $migrated_db"
+        exit 1
     fi
-fi
-
-# Perform the swap
-echo ""
-print_info "Starting database swap..."
-
-# Create backup directory
-if [[ "$DRY_RUN" == false ]]; then
-    mkdir -p "$BACKUP_DIR"
-    print_success "Created backup directory: $BACKUP_DIR"
-else
-    print_info "[DRY RUN] Would create: $BACKUP_DIR"
-fi
-
-# Process each database
-SUCCESS_COUNT=0
-SKIP_COUNT=0
+done
 
 for db_name in "${AVAILABLE_DBS[@]}"; do
     echo ""
     print_info "Processing: $db_name"
     
+    original_db="$DATA_DIR/${db_name}.db"
+    migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
+    backup_db="$BACKUP_DIR/${db_name}.db"
+    
+    # Check if original exists
+    if [[ ! -d "$original_db" ]]; then
+        print_warning "  Original database not found, skipping backup: $original_db"
+        ORIGINAL_EXISTS=false
+    else
+        ORIGINAL_EXISTS=true
+    fi
+    
+    # Move original to backup if it exists
+    if [[ "$ORIGINAL_EXISTS" == true ]]; then
+        if [[ "$DRY_RUN" == false ]]; then
+            print_info "  Moving original to backup..."
+            mv "$original_db" "$backup_db"
+            print_success "  ✓ Moved to backup: $original_db → $backup_db"
+        else
+            print_info "  [DRY RUN] Would move to backup: $original_db → $backup_db"
+        fi
+    fi
+    
+    # Move migrated to original location
+    if [[ "$DRY_RUN" == false ]]; then
+        print_info "  Installing migrated database..."
+        mv "$migrated_db" "$original_db"
+        print_success "  ✓ Moved: $migrated_db → $original_db"
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+        print_info "  [DRY RUN] Would move: $migrated_db → $original_db"
+    fi
+done
+    if [[ "$DRY_RUN" == false ]]; then
+        print_info "  Installing migrated database..."
+        mv "$migrated_db" "$original_db"
+        print_success "  ✓ Moved: $migrated_db → $original_db"
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+        print_info "  [DRY RUN] Would move: $migrated_db → $original_db"
+    fi
+done
     original_db="$DATA_DIR/${db_name}.db"
     migrated_db="$DATA_DIR/${db_name}.db.migrate-temp"
     backup_db="$BACKUP_DIR/${db_name}.db"

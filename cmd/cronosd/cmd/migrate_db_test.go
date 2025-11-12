@@ -29,26 +29,6 @@ func TestParseBackendType(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "pebbledb",
-			input:       "pebbledb",
-			expectError: false,
-		},
-		{
-			name:        "pebble alias",
-			input:       "pebble",
-			expectError: false,
-		},
-		{
-			name:        "memdb",
-			input:       "memdb",
-			expectError: false,
-		},
-		{
-			name:        "mem alias",
-			input:       "mem",
-			expectError: false,
-		},
-		{
 			name:        "invalid backend",
 			input:       "invaliddb",
 			expectError: true,
@@ -169,38 +149,25 @@ func TestDatabaseNameParsing(t *testing.T) {
 			expectError:    true,
 			errorSubstring: "no valid databases specified",
 		},
+		{
+			name:           "empty string",
+			input:          "",
+			expectError:    true,
+			errorSubstring: "no databases specified",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Simulate the parsing logic from the command
-			var dbNames []string
-			var parseError error
-
-			if tt.input != "" {
-				dbList := splitAndTrim(tt.input)
-				for _, dbName := range dbList {
-					if dbName == "" {
-						continue
-					}
-					if !validDatabaseNames[dbName] {
-						parseError = &ValidationError{Message: "invalid database name: " + dbName}
-						break
-					}
-					dbNames = append(dbNames, dbName)
-				}
-				if parseError == nil && len(dbNames) == 0 {
-					parseError = &ValidationError{Message: "no valid databases specified in --databases flag"}
-				}
-			}
+			dbNames, err := parseDatabaseNames(tt.input)
 
 			if tt.expectError {
-				require.Error(t, parseError)
+				require.Error(t, err)
 				if tt.errorSubstring != "" {
-					require.Contains(t, parseError.Error(), tt.errorSubstring)
+					require.Contains(t, err.Error(), tt.errorSubstring)
 				}
 			} else {
-				require.NoError(t, parseError)
+				require.NoError(t, err)
 				require.Equal(t, tt.expectedDBs, dbNames)
 			}
 		})
@@ -217,57 +184,49 @@ func TestDBTypeConstants(t *testing.T) {
 // TestDBTypeMapping tests the mapping of db-type to database names
 func TestDBTypeMapping(t *testing.T) {
 	tests := []struct {
-		name        string
-		dbType      string
-		expectedDBs []string
-		isValid     bool
+		name           string
+		dbType         string
+		expectedDBs    []string
+		expectError    bool
+		errorSubstring string
 	}{
 		{
 			name:        "app type",
 			dbType:      DBTypeApp,
 			expectedDBs: []string{"application"},
-			isValid:     true,
+			expectError: false,
 		},
 		{
 			name:        "cometbft type",
 			dbType:      DBTypeCometBFT,
 			expectedDBs: []string{"blockstore", "state", "tx_index", "evidence"},
-			isValid:     true,
+			expectError: false,
 		},
 		{
 			name:        "all type",
 			dbType:      DBTypeAll,
 			expectedDBs: []string{"application", "blockstore", "state", "tx_index", "evidence"},
-			isValid:     true,
+			expectError: false,
 		},
 		{
-			name:    "invalid type",
-			dbType:  "invalid",
-			isValid: false,
+			name:           "invalid type",
+			dbType:         "invalid",
+			expectError:    true,
+			errorSubstring: "invalid db-type",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var dbNames []string
-			var isValid bool
+			dbNames, err := getDBNamesFromType(tt.dbType)
 
-			switch tt.dbType {
-			case DBTypeApp:
-				dbNames = []string{"application"}
-				isValid = true
-			case DBTypeCometBFT:
-				dbNames = []string{"blockstore", "state", "tx_index", "evidence"}
-				isValid = true
-			case DBTypeAll:
-				dbNames = []string{"application", "blockstore", "state", "tx_index", "evidence"}
-				isValid = true
-			default:
-				isValid = false
-			}
-
-			require.Equal(t, tt.isValid, isValid)
-			if tt.isValid {
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorSubstring != "" {
+					require.Contains(t, err.Error(), tt.errorSubstring)
+				}
+			} else {
+				require.NoError(t, err)
 				require.Equal(t, tt.expectedDBs, dbNames)
 			}
 		})
@@ -309,73 +268,19 @@ func TestDatabasesFlagPrecedence(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var dbNames []string
+			var err error
 
-			// Simulate the logic from the command
+			// Use the same logic as the command
 			if tt.databasesFlag != "" {
-				// Use databases flag
-				dbList := splitAndTrim(tt.databasesFlag)
-				for _, dbName := range dbList {
-					if dbName != "" && validDatabaseNames[dbName] {
-						dbNames = append(dbNames, dbName)
-					}
-				}
+				dbNames, err = parseDatabaseNames(tt.databasesFlag)
+				require.NoError(t, err)
 			} else {
-				// Use db-type flag
-				switch tt.dbTypeFlag {
-				case DBTypeApp:
-					dbNames = []string{"application"}
-				case DBTypeCometBFT:
-					dbNames = []string{"blockstore", "state", "tx_index", "evidence"}
-				case DBTypeAll:
-					dbNames = []string{"application", "blockstore", "state", "tx_index", "evidence"}
-				}
+				dbNames, err = getDBNamesFromType(tt.dbTypeFlag)
+				require.NoError(t, err)
 			}
 
 			require.Equal(t, tt.expectedDBs, dbNames)
 			require.Equal(t, tt.useDatabases, tt.databasesFlag != "")
 		})
 	}
-}
-
-// Helper functions for tests
-
-// splitAndTrim splits a string by comma and trims whitespace
-func splitAndTrim(s string) []string {
-	parts := make([]string, 0)
-	current := ""
-	for _, ch := range s {
-		if ch == ',' {
-			parts = append(parts, trimSpace(current))
-			current = ""
-		} else {
-			current += string(ch)
-		}
-	}
-	parts = append(parts, trimSpace(current))
-	return parts
-}
-
-// trimSpace removes leading and trailing whitespace
-func trimSpace(s string) string {
-	start := 0
-	end := len(s)
-
-	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n') {
-		start++
-	}
-
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\n') {
-		end--
-	}
-
-	return s[start:end]
-}
-
-// ValidationError is a simple error type for validation errors
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
 }
