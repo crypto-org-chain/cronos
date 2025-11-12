@@ -193,7 +193,6 @@ def test_block_list_eip7702(cronos):
 
     base_port = cronos.base_port(0)
     wait_for_port(ports.evmrpc_ws_port(base_port))
-    w3 = cronos.w3
     flt = w3.eth.filter("pending")
     assert flt.get_new_entries() == []
 
