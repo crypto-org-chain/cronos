@@ -207,6 +207,11 @@ Examples:
 					dbTargetPath = filepath.Join(targetPath, dbName+".db")
 				}
 
+				cleanTargetPath := filepath.Clean(dbTargetPath)
+				if filepath.Ext(cleanTargetPath) != ".db" {
+					return fmt.Errorf("--target-path must reference a *.db directory (got %q)", dbTargetPath)
+				}
+
 				logger.Info("Patching database",
 					"database", dbName,
 					"target_path", dbTargetPath,
