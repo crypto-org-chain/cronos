@@ -285,10 +285,15 @@ func countKeysWithHeightFilter(db dbm.DB, dbName string, heightRange HeightRange
 		}
 	}()
 
-	// Count keys from each iterator
+	// Count keys from each iterator, applying height filter
 	var count int64
 	for _, itr := range iterators {
 		for ; itr.Valid(); itr.Next() {
+			key := itr.Key()
+			// Apply shouldIncludeKey filter to handle discrete heights and metadata
+			if !shouldIncludeKey(key, dbName, heightRange) {
+				continue
+			}
 			count++
 		}
 		if err := itr.Error(); err != nil {
@@ -366,15 +371,13 @@ func migrateWithIterator(itr dbm.Iterator, targetDB dbm.DB, opts MigrateOptions,
 
 	for ; itr.Valid(); itr.Next() {
 		key := itr.Key()
-		value := itr.Value()
 
-		// Additional filtering for specific heights if needed
-		// Bounded iterators may return a wider range than specific heights
-		if opts.HeightRange.HasSpecificHeights() {
-			if !shouldIncludeKey(key, opts.DBName, opts.HeightRange) {
-				continue
-			}
+		// Apply shouldIncludeKey filter for all height-filtered migrations
+		// This handles discrete heights, metadata keys, and ensures we only migrate requested data
+		if !shouldIncludeKey(key, opts.DBName, opts.HeightRange) {
+			continue
 		}
+		value := itr.Value()
 
 		// Make copies since the iterator might reuse the slices
 		keyCopy := make([]byte, len(key))
@@ -550,11 +553,9 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 			for ; sourceItr.Valid(); sourceItr.Next() {
 				key := sourceItr.Key()
 
-				// Additional filtering for specific heights if needed
-				if opts.HeightRange.HasSpecificHeights() {
-					if !shouldIncludeKey(key, dbName, opts.HeightRange) {
-						continue
-					}
+				// Apply shouldIncludeKey filter to handle discrete heights and metadata
+				if !shouldIncludeKey(key, dbName, opts.HeightRange) {
+					continue
 				}
 
 				sourceValue := sourceItr.Value()
