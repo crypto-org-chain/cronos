@@ -115,7 +115,7 @@ func (k Keeper) GetContractByDenom(ctx sdk.Context, denom string) (contract comm
 	if !found {
 		contract, found = k.getAutoContractByDenom(ctx, denom)
 	}
-	return
+	return contract, found
 }
 
 // GetDenomByContract find native denom by contract address
@@ -158,7 +158,7 @@ func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping)
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // GetAutoContracts returns all auto-deployed contract mappings
@@ -171,7 +171,7 @@ func (k Keeper) GetAutoContracts(ctx sdk.Context) (out []types.TokenMapping) {
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // DeleteExternalContractForDenom delete the external contract mapping for native denom,

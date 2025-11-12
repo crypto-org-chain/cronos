@@ -252,9 +252,9 @@ func countKeysWithHeightFilter(db dbm.DB, dbName string, heightRange HeightRange
 
 	// Get bounded iterators based on database type
 	switch dbName {
-	case "blockstore":
+	case DBNameBlockstore:
 		iterators, err = getBlockstoreIterators(db, heightRange)
-	case "tx_index":
+	case DBNameTxIndex:
 		itr, err := getTxIndexIterator(db, heightRange)
 		if err != nil {
 			return 0, err
@@ -308,9 +308,9 @@ func migrateDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts MigrateOptions,
 
 	// Get bounded iterators based on database type
 	switch opts.DBName {
-	case "blockstore":
+	case DBNameBlockstore:
 		iterators, err = getBlockstoreIterators(sourceDB, opts.HeightRange)
-	case "tx_index":
+	case DBNameTxIndex:
 		itr, err := getTxIndexIterator(sourceDB, opts.HeightRange)
 		if err != nil {
 			return err

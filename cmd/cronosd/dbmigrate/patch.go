@@ -18,6 +18,10 @@ import (
 	"cosmossdk.io/log"
 )
 
+const (
+	dbExtension = ".db"
+)
+
 // EthTxInfo stores information needed to search for event-indexed keys in source DB
 type EthTxInfo struct {
 	Height  int64 // Block height
@@ -102,7 +106,7 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 	// Open source database (read-only)
 	sourceDir := filepath.Dir(sourceDBPath)
 	sourceName := filepath.Base(sourceDBPath)
-	if len(sourceName) > 3 && sourceName[len(sourceName)-3:] == ".db" {
+	if len(sourceName) > 3 && sourceName[len(sourceName)-3:] == dbExtension {
 		sourceName = sourceName[:len(sourceName)-3]
 	}
 
@@ -119,7 +123,7 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 	} else {
 		targetDir := filepath.Dir(opts.TargetPath)
 		targetName := filepath.Base(opts.TargetPath)
-		if len(targetName) > 3 && targetName[len(targetName)-3:] == ".db" {
+		if len(targetName) > 3 && targetName[len(targetName)-3:] == dbExtension {
 			targetName = targetName[:len(targetName)-3]
 		}
 		targetDB, err = dbm.NewDB(targetName, opts.TargetBackend, targetDir)
@@ -175,7 +179,7 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 	needsFiltering := heightRange.HasSpecificHeights()
 
 	switch dbName {
-	case "blockstore":
+	case DBNameBlockstore:
 		// For blockstore, count keys from all prefixes
 		iterators, err := getBlockstoreIterators(db, heightRange)
 		if err != nil {
@@ -239,9 +243,9 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 // patchDataWithHeightFilter patches data using height-filtered iterators
 func patchDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
 	switch opts.DBName {
-	case "blockstore":
+	case DBNameBlockstore:
 		return patchBlockstoreData(sourceDB, targetDB, opts, stats)
-	case "tx_index":
+	case DBNameTxIndex:
 		return patchTxIndexData(sourceDB, targetDB, opts, stats)
 	default:
 		return fmt.Errorf("unsupported database for height filtering: %s", opts.DBName)
@@ -853,7 +857,6 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 	defer batch.Close()
 
 	batchCount := 0
-	processedCount := int64(0)
 	skippedCount := int64(0)
 	lastLogTime := time.Now()
 	const logInterval = 5 * time.Second
@@ -872,9 +875,9 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 			var hasHeight bool
 
 			switch opts.DBName {
-			case "blockstore":
+			case DBNameBlockstore:
 				height, hasHeight = extractHeightFromBlockstoreKey(key)
-			case "tx_index":
+			case DBNameTxIndex:
 				height, hasHeight = extractHeightFromTxIndexKey(key)
 			default:
 				return fmt.Errorf("unsupported database: %s", opts.DBName)
@@ -980,7 +983,6 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 		}
 
 		batchCount++
-		processedCount++
 
 		// Write batch when it reaches the batch size (skip in dry-run)
 		if batchCount >= opts.BatchSize {
@@ -1060,7 +1062,7 @@ func UpdateBlockStoreHeight(targetPath string, backend dbm.BackendType, newHeigh
 	} else {
 		targetDir := filepath.Dir(targetPath)
 		targetName := filepath.Base(targetPath)
-		if len(targetName) > 3 && targetName[len(targetName)-3:] == ".db" {
+		if len(targetName) > 3 && targetName[len(targetName)-3:] == dbExtension {
 			targetName = targetName[:len(targetName)-3]
 		}
 		db, err = dbm.NewDB(targetName, backend, targetDir)
@@ -1118,11 +1120,11 @@ func promptKeyConflict(key, existingValue, newValue []byte, dbName string, heigh
 	// Extract height if possible for display
 	var heightStr string
 	switch dbName {
-	case "blockstore":
+	case DBNameBlockstore:
 		if height, ok := extractHeightFromBlockstoreKey(key); ok {
 			heightStr = fmt.Sprintf(" (height: %d)", height)
 		}
-	case "tx_index":
+	case DBNameTxIndex:
 		if height, ok := extractHeightFromTxIndexKey(key); ok {
 			heightStr = fmt.Sprintf(" (height: %d)", height)
 		}

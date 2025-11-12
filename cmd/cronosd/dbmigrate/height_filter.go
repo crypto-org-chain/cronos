@@ -7,6 +7,12 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 )
 
+// Database name constants
+const (
+	DBNameBlockstore = "blockstore"
+	DBNameTxIndex    = "tx_index"
+)
+
 // HeightRange represents block heights to migrate
 // Can be a continuous range or specific heights
 type HeightRange struct {
@@ -377,9 +383,9 @@ func shouldIncludeKey(key []byte, dbName string, heightRange HeightRange) bool {
 	var hasHeight bool
 
 	switch dbName {
-	case "blockstore":
+	case DBNameBlockstore:
 		height, hasHeight = extractHeightFromBlockstoreKey(key)
-	case "tx_index":
+	case DBNameTxIndex:
 		height, hasHeight = extractHeightFromTxIndexKey(key)
 	default:
 		// For other databases, height filtering is not supported
@@ -520,5 +526,5 @@ func getTxIndexIterator(db dbm.DB, heightRange HeightRange) (dbm.Iterator, error
 
 // supportsHeightFiltering returns true if the database supports height-based filtering
 func supportsHeightFiltering(dbName string) bool {
-	return dbName == "blockstore" || dbName == "tx_index"
+	return dbName == DBNameBlockstore || dbName == DBNameTxIndex
 }

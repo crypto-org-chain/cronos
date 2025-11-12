@@ -296,9 +296,9 @@ Examples:
 	cmd.Flags().BoolP(flagPatchDryRun, "n", false, "Dry run mode: simulate the operation without making any changes")
 
 	// Mark required flags
-	cmd.MarkFlagRequired(flagPatchSourceHome)
-	cmd.MarkFlagRequired(flagPatchDatabase)
-	cmd.MarkFlagRequired(flagPatchHeight)
+	_ = cmd.MarkFlagRequired(flagPatchSourceHome)
+	_ = cmd.MarkFlagRequired(flagPatchDatabase)
+	_ = cmd.MarkFlagRequired(flagPatchHeight)
 
 	return cmd
 }

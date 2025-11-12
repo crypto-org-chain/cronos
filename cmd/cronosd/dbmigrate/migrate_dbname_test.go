@@ -17,9 +17,10 @@ import (
 
 // setupTestDBWithName creates a test database with a specific name
 func setupTestDBWithName(t *testing.T, backend dbm.BackendType, dbName string, numKeys int) (string, dbm.DB) {
+	t.Helper()
 	tempDir := t.TempDir()
 	dataDir := filepath.Join(tempDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	db, err := dbm.NewDB(dbName, backend, dataDir)
@@ -84,7 +85,7 @@ func TestMigrateMultipleDatabases(t *testing.T) {
 	// Setup source databases
 	sourceDir := t.TempDir()
 	dataDir := filepath.Join(sourceDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	// Create multiple source databases
@@ -175,7 +176,7 @@ func TestMigrateCometBFTDatabases(t *testing.T) {
 	// Setup source databases
 	sourceDir := t.TempDir()
 	dataDir := filepath.Join(sourceDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	// Create CometBFT databases
@@ -255,7 +256,7 @@ func TestMigrateDifferentDBNames(t *testing.T) {
 	// Setup source directory with two different databases
 	sourceDir := t.TempDir()
 	dataDir := filepath.Join(sourceDir, "data")
-	err := os.MkdirAll(dataDir, 0755)
+	err := os.MkdirAll(dataDir, 0o755)
 	require.NoError(t, err)
 
 	// Create first database
