@@ -460,7 +460,7 @@ func TestHeightFilteredVerificationWithSpecificHeights(t *testing.T) {
 }
 
 // TestMigrationPathCorrectness verifies that logged paths match actual database locations
-// All backends now use unified path format: <dbName>.migrate-temp.db
+// Unified path format for all backends: <dbName>.migrate-temp.db
 func TestMigrationPathCorrectness(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -468,11 +468,11 @@ func TestMigrationPathCorrectness(t *testing.T) {
 		expectedSuffix string
 	}{
 		{
-			name:           "LevelDB uses unified .migrate-temp.db",
+			name:           "LevelDB uses unified .migrate-temp.db format",
 			backend:        dbm.GoLevelDBBackend,
 			expectedSuffix: ".migrate-temp.db",
 		},
-		// Note: RocksDB would also use .migrate-temp.db but requires rocksdb build tag
+		// Note: RocksDB also uses .migrate-temp.db but requires rocksdb build tag to test
 	}
 
 	for _, tt := range tests {

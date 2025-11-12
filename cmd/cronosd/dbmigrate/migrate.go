@@ -129,18 +129,17 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 	targetDataDir := filepath.Join(opts.TargetHome, "data")
 
 	// For migration, we need to ensure we don't accidentally overwrite an existing DB
-	// We'll create a temporary directory first
 	// Unified path format for all backends: <dbName>.migrate-temp.db
 	tempTargetDir := filepath.Join(targetDataDir, opts.DBName+".migrate-temp.db")
 	finalTargetDir := filepath.Join(targetDataDir, opts.DBName+".db")
 
 	var targetDB dbm.DB
 	if opts.TargetBackend == dbm.RocksDBBackend {
+		// RocksDB: we specify the exact directory path
 		// RocksDB needs the parent directory to exist
 		if err := os.MkdirAll(targetDataDir, 0755); err != nil {
 			return stats, fmt.Errorf("failed to create target data directory: %w", err)
 		}
-		// RocksDB: we specify the exact directory path
 		targetDB, err = openRocksDBForMigration(tempTargetDir, opts.RocksDBOptions)
 	} else {
 		// LevelDB/others: dbm.NewDB appends .db to the name, so we pass the name without .db

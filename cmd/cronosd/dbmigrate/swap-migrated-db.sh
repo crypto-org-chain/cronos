@@ -175,7 +175,9 @@ FOUND_MIGRATED=false
 declare -a AVAILABLE_DBS
 
 for db_name in "${DB_NAMES[@]}"; do
+    # Unified path format for all backends: application.migrate-temp.db
     migrated_db="$DATA_DIR/${db_name}.migrate-temp.db"
+    
     if [[ -d "$migrated_db" ]]; then
         FOUND_MIGRATED=true
         AVAILABLE_DBS+=("$db_name")
@@ -211,7 +213,6 @@ fi
 
 # Initialize counters
 SUCCESS_COUNT=0
-FAILED_COUNT=0
 
 echo ""
 echo "================================================================================"

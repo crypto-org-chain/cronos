@@ -117,7 +117,8 @@ func TestMigrateLevelDBToRocksDB(t *testing.T) {
 	require.Equal(t, int64(0), stats.ErrorCount.Load())
 
 	// Verify the migrated data by opening the target database
-	targetDBPath := filepath.Join(targetDir, "data", "application.db.migrate-temp")
+	// Unified path format: application.migrate-temp.db
+	targetDBPath := filepath.Join(targetDir, "data", "application.migrate-temp.db")
 	targetDB, err := openRocksDBForRead(targetDBPath)
 	require.NoError(t, err)
 	defer targetDB.Close()
@@ -316,7 +317,8 @@ func TestMigrateRocksDBDataIntegrity(t *testing.T) {
 	require.Equal(t, int64(numKeys), stats.TotalKeys.Load())
 
 	// Open target database and verify all data
-	targetDBPath := filepath.Join(targetDir, "data", "application.db.migrate-temp")
+	// Unified path format: application.migrate-temp.db
+	targetDBPath := filepath.Join(targetDir, "data", "application.migrate-temp.db")
 	targetDB, err := openRocksDBForRead(targetDBPath)
 	require.NoError(t, err)
 	defer targetDB.Close()

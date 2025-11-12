@@ -12,13 +12,13 @@ import (
 
 // PrepareRocksDBOptions returns RocksDB options for migration
 func PrepareRocksDBOptions() interface{} {
-	// nil: use default options, false: disable read-only mode
 	return opendb.NewRocksdbOptions(nil, false)
 }
 
 // openRocksDBForMigration opens a RocksDB database for migration (write mode)
 func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, error) {
 	var opts *grocksdb.Options
+	var createdOpts bool
 
 	// Type assert from interface{} to *grocksdb.Options
 	if optsInterface != nil {
@@ -34,6 +34,13 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 		opts = grocksdb.NewDefaultOptions()
 		opts.SetCreateIfMissing(true)
 		opts.SetLevelCompactionDynamicLevelBytes(true)
+		createdOpts = true // Track that we created these options
+	}
+
+	// Ensure we clean up options we created after opening the database
+	// Options are copied internally by RocksDB, so they can be destroyed after OpenDb
+	if createdOpts {
+		defer opts.Destroy()
 	}
 
 	ro := grocksdb.NewDefaultReadOptions()
@@ -43,12 +50,15 @@ func openRocksDBForMigration(dir string, optsInterface interface{}) (dbm.DB, err
 
 	db, err := grocksdb.OpenDb(opts, dir)
 	if err != nil {
+		// Clean up read/write options on error
 		ro.Destroy()
 		wo.Destroy()
 		woSync.Destroy()
 		return nil, err
 	}
 
+	// Note: ro, wo, woSync are NOT destroyed here - they're needed for database operations
+	// and will be cleaned up when the database is closed
 	return dbm.NewRocksDBWithRawDB(db, ro, wo, woSync), nil
 }
 
