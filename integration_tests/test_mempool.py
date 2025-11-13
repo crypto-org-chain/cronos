@@ -304,5 +304,5 @@ def test_multiple_tx_replacement(cronos_mempool):
     w3.eth.send_raw_transaction(tx2_signed.rawTransaction)
     w3.eth.send_raw_transaction(tx2_replaced_signed.rawTransaction)
     w3.eth.send_raw_transaction(tx3_signed.rawTransaction)
-    wait_for_new_blocks(cli, 2)
+    wait_for_new_blocks(cli, 1)
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 13
