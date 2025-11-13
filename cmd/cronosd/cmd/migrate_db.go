@@ -234,7 +234,7 @@ Examples:
 			fmt.Println("2. Verify the migration was successful")
 			fmt.Println("3. Migrated databases are located at:")
 			for _, dbName := range dbNames {
-				fmt.Printf("   %s/data/%s.db.migrate-temp\n", targetHome, dbName)
+				fmt.Printf("   %s/data/%s.migrate-temp.db\n", targetHome, dbName)
 			}
 			fmt.Println("4. Replace the original databases with the migrated ones")
 			fmt.Println("5. Update your config.toml to use the new backend type")
