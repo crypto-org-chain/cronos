@@ -706,7 +706,8 @@ H:<height>         - Block metadata (height as string)
 P:<height>:<part>  - Block parts (height as string, part as number)
 C:<height>         - Commit at height (height as string)
 SC:<height>        - Seen commit (height as string)
-BH:<hash>          - Block header by hash (no height)
+EC:<height>        - Extended commit (height as string, ABCI 2.0)
+BH:<hash>          - Block header by hash (no height, migrated via H: keys)
 BS:H               - Block store height (metadata, no height encoding)
 ```
 
@@ -716,7 +717,8 @@ H:38307809         # Block metadata
 P:38307809:0       # Block parts (part 0)
 C:38307809         # Commit
 SC:38307809        # Seen commit
-BH:0362b5c81d...   # Block header by hash
+EC:38307809        # Extended commit (ABCI 2.0, if present)
+BH:0362b5c81d...   # Block header by hash (auto-migrated with H: keys)
 ```
 
 > **Important**: Unlike standard CometBFT, Cronos uses **ASCII string-encoded heights**, not binary encoding.
@@ -808,12 +810,14 @@ startKey := []byte(fmt.Sprintf("P:%d", startHeight))    // e.g., "P:1000000"
 endKey := []byte(fmt.Sprintf("P:%d", endHeight+1))      // e.g., "P:1000001"
 iterator2 := db.Iterator(startKey, endKey)
 
-// ... similar for C: and SC: prefixes
+// ... similar for C:, SC:, and EC: prefixes
 ```
 
 > **Note**: Heights are encoded as ASCII strings, not binary. This is a Cronos-specific format.
 
 **Note**: Metadata keys like `BS:H` are NOT included when using height filtering (they don't have height encoding).
+
+**BH: Key Patching**: Block header by hash (`BH:<hash>`) keys don't contain height information. During **patching** (not full migration), when an `H:<height>` key is patched, the block hash is extracted from its value and used to look up and patch the corresponding `BH:<hash>` key automatically. For full migrations, BH: keys are included in the complete database scan.
 
 #### TX Index Bounded Iterator
 
@@ -897,6 +901,12 @@ The `database patch` command patches specific block heights from a source databa
 --dry-run                  # Simulate patching without making changes
 --log_level <level>        # Log level: info, debug, etc. (default: info)
 ```
+
+**Dry-Run Mode**: When using `--dry-run`, the patch command will:
+- Simulate the entire patching process without writing any data
+- Log all keys that would be patched (with `--log_level debug`)
+- For blockstore patches, also discover and report BH: (block header by hash) keys that would be patched
+- Report the total number of operations that would be performed
 
 #### Debug Logging
 

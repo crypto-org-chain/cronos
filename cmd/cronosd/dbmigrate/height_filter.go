@@ -233,6 +233,7 @@ func trimSpace(s string) string {
 //   - "P:" + height (as string) + ":" + part - block parts
 //   - "C:" + height (as string) - block commit
 //   - "SC:" + height (as string) - seen commit
+//   - "EC:" + height (as string) - extended commit (ABCI 2.0)
 //   - "BH:" + hash (as hex string) - block header by hash
 //   - "BS:H" - block store height (metadata)
 func extractHeightFromBlockstoreKey(key []byte) (int64, bool) {
@@ -284,6 +285,16 @@ func extractHeightFromBlockstoreKey(key []byte) (int64, bool) {
 
 	case bytes.HasPrefix(key, []byte("SC:")):
 		// Seen commit: "SC:" + height (string)
+		heightStr := keyStr[3:]
+		var height int64
+		_, err := fmt.Sscanf(heightStr, "%d", &height)
+		if err == nil {
+			return height, true
+		}
+		return 0, false
+
+	case bytes.HasPrefix(key, []byte("EC:")):
+		// Extended commit: "EC:" + height (string) - ABCI 2.0
 		heightStr := keyStr[3:]
 		var height int64
 		_, err := fmt.Sscanf(heightStr, "%d", &height)
@@ -375,7 +386,7 @@ func makeBlockstoreIteratorKey(prefix string, height int64) []byte {
 }
 
 // getBlockstoreIterators creates bounded iterators for blockstore database based on height range
-// Returns a slice of iterators, one for each key prefix (H:, P:, C:, SC:)
+// Returns a slice of iterators, one for each key prefix (H:, P:, C:, SC:, EC:)
 func getBlockstoreIterators(db dbm.DB, heightRange HeightRange) ([]dbm.Iterator, error) {
 	if heightRange.IsEmpty() {
 		// No height filtering, return full iterator
@@ -387,7 +398,7 @@ func getBlockstoreIterators(db dbm.DB, heightRange HeightRange) ([]dbm.Iterator,
 	}
 
 	var iterators []dbm.Iterator
-	prefixes := []string{"H:", "P:", "C:", "SC:"}
+	prefixes := []string{"H:", "P:", "C:", "SC:", "EC:"}
 
 	// Determine start and end heights
 	var startHeight, endHeight int64
@@ -490,6 +501,76 @@ func getTxIndexIterator(db dbm.DB, heightRange HeightRange) (dbm.Iterator, error
 	}
 
 	return db.Iterator(start, end)
+}
+
+// extractBlockHashFromMetadata attempts to extract the block hash from H: (block metadata) key value
+// The block hash is typically stored in the BlockMeta protobuf structure
+// Returns the hash bytes and true if successful, nil and false otherwise
+func extractBlockHashFromMetadata(value []byte) ([]byte, bool) {
+	// BlockMeta is a protobuf structure. The hash is typically near the beginning
+	// after the block_id field. We look for a field with tag 1 (BlockID) which contains
+	// the hash field (tag 1 within BlockID).
+	//
+	// Protobuf wire format for nested messages:
+	// - Field 1 (BlockID): tag=(1<<3)|2=0x0a, length-delimited
+	// - Inside BlockID, Field 1 (Hash): tag=(1<<3)|2=0x0a, length-delimited
+	// - Hash is typically 32 bytes for SHA256
+	//
+	// This is a simplified extraction that looks for the pattern:
+	// 0x0a <len> 0x0a <hash_len> <hash_bytes>
+
+	if len(value) < 35 { // Minimum: 1+1+1+1+32 bytes
+		return nil, false
+	}
+
+	// Look for the BlockID field (tag 0x0a)
+	for i := 0; i < len(value)-34; i++ {
+		if value[i] == 0x0a { // Field 1, wire type 2 (length-delimited)
+			blockIDLen := int(value[i+1])
+			if i+2+blockIDLen > len(value) {
+				continue
+			}
+
+			// Look for Hash field within BlockID (tag 0x0a)
+			if value[i+2] == 0x0a {
+				hashLen := int(value[i+3])
+				// Typical hash lengths: 32 (SHA256), 20 (RIPEMD160)
+				if hashLen >= 20 && hashLen <= 64 && i+4+hashLen <= len(value) {
+					hash := make([]byte, hashLen)
+					copy(hash, value[i+4:i+4+hashLen])
+					return hash, true
+				}
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// patchBlockHeaderByHash patches a BH:<hash> key if it exists in the source database
+// This is called when processing H:<height> keys during blockstore migration
+func patchBlockHeaderByHash(sourceDB, targetDB dbm.DB, blockHash []byte, batch dbm.Batch) error {
+	// Construct BH: key
+	bhKey := make([]byte, 3+len(blockHash))
+	copy(bhKey[0:3], []byte("BH:"))
+	copy(bhKey[3:], blockHash)
+
+	// Try to get the value from source DB
+	value, err := sourceDB.Get(bhKey)
+	if err != nil {
+		// Key doesn't exist, which is fine - not all blocks may have BH: entries
+		return nil
+	}
+	if value == nil {
+		// Key doesn't exist
+		return nil
+	}
+
+	// Migrate the BH: key
+	valueCopy := make([]byte, len(value))
+	copy(valueCopy, value)
+
+	return batch.Set(bhKey, valueCopy)
 }
 
 // supportsHeightFiltering returns true if the database supports height-based filtering

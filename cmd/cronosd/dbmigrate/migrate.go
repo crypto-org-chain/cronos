@@ -312,7 +312,7 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 	}
 	defer itr.Close()
 
-	return migrateWithIterator(itr, targetDB, opts, stats)
+	return migrateWithIterator(itr, sourceDB, targetDB, opts, stats)
 }
 
 // migrateDataWithHeightFilter performs data migration using bounded iterators for height filtering
@@ -348,7 +348,7 @@ func migrateDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts MigrateOptions,
 
 	// Migrate data from each iterator
 	for _, itr := range iterators {
-		if err := migrateWithIterator(itr, targetDB, opts, stats); err != nil {
+		if err := migrateWithIterator(itr, sourceDB, targetDB, opts, stats); err != nil {
 			return err
 		}
 	}
@@ -362,7 +362,7 @@ func migrateDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts MigrateOptions,
 }
 
 // migrateWithIterator migrates data from a single iterator
-func migrateWithIterator(itr dbm.Iterator, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
+func migrateWithIterator(itr dbm.Iterator, sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
 	batch := targetDB.NewBatch()
 	defer batch.Close()
 

@@ -248,6 +248,12 @@ func TestExtractHeightFromBlockstoreKey(t *testing.T) {
 			wantOK:     true,
 		},
 		{
+			name:       "extended commit key EC: (ABCI 2.0)",
+			key:        []byte("EC:5000"),
+			wantHeight: 5000,
+			wantOK:     true,
+		},
+		{
 			name:       "metadata key BS:H",
 			key:        []byte("BS:H"),
 			wantHeight: 0,
@@ -463,4 +469,66 @@ func makeBlockstoreKey(prefix string, height int64) []byte {
 func makeSeenCommitKey(height int64) []byte {
 	// String-encoded format: "SC:" + height
 	return []byte(fmt.Sprintf("SC:%d", height))
+}
+
+func TestExtractBlockHashFromMetadata(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   []byte
+		wantOK  bool
+		wantLen int
+	}{
+		{
+			name: "valid BlockMeta with hash",
+			// Minimal protobuf-like structure: 0x0a (BlockID field) + len + 0x0a (Hash field) + hashlen + hash
+			value: []byte{
+				0x0a, 0x22, // Field 1 (BlockID), length 34
+				0x0a, 0x20, // Field 1 (Hash), length 32
+				// 32-byte hash
+				0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+				0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+				0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+				0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+				// Additional fields (ignored)
+				0x12, 0x00,
+			},
+			wantOK:  true,
+			wantLen: 32,
+		},
+		{
+			name:    "too short value",
+			value:   []byte{0x0a, 0x22, 0x0a, 0x20},
+			wantOK:  false,
+			wantLen: 0,
+		},
+		{
+			name:    "empty value",
+			value:   []byte{},
+			wantOK:  false,
+			wantLen: 0,
+		},
+		{
+			name: "value without BlockID field",
+			value: []byte{
+				0x12, 0x10, // Wrong field tag
+				0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+				0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+			},
+			wantOK:  false,
+			wantLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash, ok := extractBlockHashFromMetadata(tt.value)
+			require.Equal(t, tt.wantOK, ok)
+			if ok {
+				require.Equal(t, tt.wantLen, len(hash))
+				require.NotNil(t, hash)
+			} else {
+				require.Nil(t, hash)
+			}
+		})
+	}
 }

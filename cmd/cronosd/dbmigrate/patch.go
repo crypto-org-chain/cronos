@@ -92,6 +92,9 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 
 	if opts.DryRun {
 		logger.Info("DRY RUN MODE - No changes will be made")
+		if opts.DBName == DBNameBlockstore {
+			logger.Info("Note: Blockstore patching will also discover and patch corresponding BH: (block header by hash) keys")
+		}
 	}
 
 	logger.Info("Opening databases for patching",
@@ -962,12 +965,44 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 				"value_preview", formatValue(value, 100),
 				"value_size", len(value),
 			)
+
+			// For blockstore H: keys, check if corresponding BH:<hash> key would be patched
+			if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
+				if blockHash, ok := extractBlockHashFromMetadata(value); ok {
+					// Check if BH: key exists in source DB
+					bhKey := make([]byte, 3+len(blockHash))
+					copy(bhKey[0:3], []byte("BH:"))
+					copy(bhKey[3:], blockHash)
+
+					bhValue, err := sourceDB.Get(bhKey)
+					if err == nil && bhValue != nil {
+						logger.Debug("[DRY RUN] Would patch BH: key",
+							"hash", fmt.Sprintf("%x", blockHash),
+							"key_size", len(bhKey),
+							"value_size", len(bhValue),
+						)
+					}
+				}
+			}
 		} else {
 			// Copy key-value to batch (actual write)
 			if err := batch.Set(key, value); err != nil {
 				stats.ErrorCount.Add(1)
 				logger.Error("Failed to set key in batch", "error", err)
 				continue
+			}
+
+			// For blockstore H: keys, also patch the corresponding BH:<hash> key
+			if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
+				if blockHash, ok := extractBlockHashFromMetadata(value); ok {
+					// Patch the corresponding BH:<hash> key
+					if err := patchBlockHeaderByHash(sourceDB, targetDB, blockHash, batch); err != nil {
+						logger.Debug("Failed to patch BH: key", "error", err, "hash", fmt.Sprintf("%x", blockHash))
+						// Don't fail the patch, just log the error
+					} else {
+						logger.Debug("Patched BH: key", "hash", fmt.Sprintf("%x", blockHash))
+					}
+				}
 			}
 
 			// Debug log for each key patched
