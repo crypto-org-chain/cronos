@@ -1260,25 +1260,6 @@ cronosd database patch \
   --target-path ~/.cronos/data/tx_index.db
 ```
 
-**Use when**: You need different height ranges for each database.
-
-#### Updating Block Store Height Metadata
-
-After patching blockstore, you may need to update the height metadata:
-
-```go
-import "github.com/crypto-org-chain/cronos/cmd/cronosd/dbmigrate"
-
-// Update blockstore height to include patched blocks
-err := dbmigrate.UpdateBlockStoreHeight(
-    "~/.cronos/data/blockstore.db",
-    dbm.RocksDBBackend,
-    5000000, // new max height
-    nil,     // rocksdb options
-)
-```
-
-This ensures CometBFT knows about the new blocks.
 
 ### Implementation Architecture
 
@@ -1331,31 +1312,25 @@ cmd/cronosd/dbmigrate/height_filter.go
 
 ### Limitations
 
-#### 1. No Metadata Keys
-
-When using bounded iterators, metadata keys (like `BS:H` in blockstore) are **not included**.
-
-**Workaround**: Use `UpdateBlockStoreHeight()` function after patching.
-
-#### 2. Application-Level Filtering for Specific Heights
+#### 1. Application-Level Filtering for Specific Heights
 
 Specific heights use encompassing range iterator + application filter.
 
 **Impact**: Less efficient than continuous ranges, but still much better than full scan.
 
-#### 3. No Cross-Version Support
+#### 2. No Cross-Version Support
 
 Patching between different Cronos versions may fail if database formats differ.
 
 **Mitigation**: Use matching versions for source and target nodes.
 
-#### 4. No Rollback on Failure
+#### 3. No Rollback on Failure
 
 If patching fails midway, there's no automatic rollback.
 
 **Mitigation**: Always backup before patching. Can re-run patchdb to complete.
 
-#### 5. Limited Database Support
+#### 4. Limited Database Support
 
 Only `blockstore` and `tx_index` supported.
 

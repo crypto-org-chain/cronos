@@ -11,7 +11,6 @@ import (
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	tmstore "github.com/cometbft/cometbft/proto/tendermint/store"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/gogoproto/proto"
 
@@ -1079,73 +1078,6 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 
 	if err := it.Error(); err != nil {
 		return fmt.Errorf("iterator error: %w", err)
-	}
-
-	return nil
-}
-
-// UpdateBlockStoreHeight updates the block store height metadata in the target database
-// This ensures the blockstore knows about the new blocks
-func UpdateBlockStoreHeight(targetPath string, backend dbm.BackendType, newHeight int64, rocksDBOpts interface{}) error {
-	// Open database
-	var db dbm.DB
-	var err error
-	if backend == dbm.RocksDBBackend {
-		db, err = openRocksDBForMigration(targetPath, rocksDBOpts)
-	} else {
-		targetDir := filepath.Dir(targetPath)
-		targetName := filepath.Base(targetPath)
-		targetName = strings.TrimSuffix(targetName, dbExtension)
-		db, err = dbm.NewDB(targetName, backend, targetDir)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer db.Close()
-
-	// Read current height
-	heightBytes, err := db.Get([]byte("BS:H"))
-	if err != nil {
-		return fmt.Errorf("failed to read current height: %w", err)
-	}
-
-	var currentHeight int64
-	var currentBase int64 = 1 // Default base if no existing state
-	if heightBytes != nil {
-		var blockStoreState tmstore.BlockStoreState
-		if err := proto.Unmarshal(heightBytes, &blockStoreState); err != nil {
-			return fmt.Errorf("failed to unmarshal block store state: %w", err)
-		}
-		currentHeight = blockStoreState.Height
-		currentBase = blockStoreState.Base
-		// Preserve base from existing state, use 1 as fallback if base is 0
-		if currentBase == 0 {
-			currentBase = 1
-		}
-	}
-
-	// Update if new height is higher
-	if newHeight > currentHeight {
-		blockStoreState := tmstore.BlockStoreState{
-			Base:   currentBase, // Preserve existing base value
-			Height: newHeight,
-		}
-
-		heightBytes, err := proto.Marshal(&blockStoreState)
-		if err != nil {
-			return fmt.Errorf("failed to marshal block store state: %w", err)
-		}
-
-		if err := db.Set([]byte("BS:H"), heightBytes); err != nil {
-			return fmt.Errorf("failed to update height: %w", err)
-		}
-
-		// Flush if RocksDB
-		if backend == dbm.RocksDBBackend {
-			if err := flushRocksDB(db); err != nil {
-				return fmt.Errorf("failed to flush: %w", err)
-			}
-		}
 	}
 
 	return nil
