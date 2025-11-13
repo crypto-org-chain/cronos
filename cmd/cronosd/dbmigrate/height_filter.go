@@ -380,12 +380,7 @@ func shouldIncludeKey(key []byte, dbName string, heightRange HeightRange) bool {
 	return heightRange.IsWithinRange(height)
 }
 
-// makeBlockstoreIteratorKey creates a blockstore key for iterator bounds (string-encoded)
-func makeBlockstoreIteratorKey(prefix string, height int64) []byte {
-	return []byte(fmt.Sprintf("%s%d", prefix, height))
-}
-
-// getBlockstoreIterators creates bounded iterators for blockstore database based on height range
+// getBlockstoreIterators creates prefix-only iterators for blockstore database
 // Returns a slice of iterators, one for each key prefix (H:, P:, C:, SC:, EC:)
 func getBlockstoreIterators(db dbm.DB, heightRange HeightRange) ([]dbm.Iterator, error) {
 	if heightRange.IsEmpty() {
@@ -400,49 +395,13 @@ func getBlockstoreIterators(db dbm.DB, heightRange HeightRange) ([]dbm.Iterator,
 	var iterators []dbm.Iterator
 	prefixes := []string{"H:", "P:", "C:", "SC:", "EC:"}
 
-	// Determine start and end heights
-	var startHeight, endHeight int64
-	if heightRange.HasSpecificHeights() {
-		// For specific heights, find min and max
-		startHeight = heightRange.SpecificHeights[0]
-		endHeight = heightRange.SpecificHeights[0]
-		for _, h := range heightRange.SpecificHeights {
-			if h < startHeight {
-				startHeight = h
-			}
-			if h > endHeight {
-				endHeight = h
-			}
-		}
-	} else {
-		// For range, use Start and End directly
-		startHeight = heightRange.Start
-		endHeight = heightRange.End
-	}
-
 	for _, prefix := range prefixes {
-		var start, end []byte
-
-		if startHeight > 0 {
-			start = makeBlockstoreIteratorKey(prefix, startHeight)
-		} else {
-			// Start from the beginning of this prefix
-			start = []byte(prefix)
-		}
-
-		if endHeight > 0 {
-			// End is exclusive in Iterator, so we need to increment by 1
-			end = makeBlockstoreIteratorKey(prefix, endHeight+1)
-		} else {
-			// Calculate the end of this prefix range
-			// For "H:", next prefix would be "I:"
-			// We can use prefix + 0xFF... to get to the end
-			end = append([]byte(prefix), 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF)
-		}
+		start := []byte(prefix)
+		end := []byte(prefix)
+		end[len(end)-1]++
 
 		itr, err := db.Iterator(start, end)
 		if err != nil {
-			// Close any previously opened iterators
 			for _, it := range iterators {
 				it.Close()
 			}
@@ -454,51 +413,15 @@ func getBlockstoreIterators(db dbm.DB, heightRange HeightRange) ([]dbm.Iterator,
 	return iterators, nil
 }
 
-// getTxIndexIterator creates a bounded iterator for tx_index database based on height range
+// getTxIndexIterator creates a prefix-only iterator for tx_index database
 func getTxIndexIterator(db dbm.DB, heightRange HeightRange) (dbm.Iterator, error) {
 	if heightRange.IsEmpty() {
 		// No height filtering, return full iterator
 		return db.Iterator(nil, nil)
 	}
 
-	// For tx_index, we primarily care about tx.height/ keys
-	// Format: "tx.height/{height}/{hash}"
-	var start, end []byte
-
-	// Determine start and end heights
-	var startHeight, endHeight int64
-	if heightRange.HasSpecificHeights() {
-		// For specific heights, find min and max
-		startHeight = heightRange.SpecificHeights[0]
-		endHeight = heightRange.SpecificHeights[0]
-		for _, h := range heightRange.SpecificHeights {
-			if h < startHeight {
-				startHeight = h
-			}
-			if h > endHeight {
-				endHeight = h
-			}
-		}
-	} else {
-		// For range, use Start and End directly
-		startHeight = heightRange.Start
-		endHeight = heightRange.End
-	}
-
-	if startHeight > 0 {
-		start = []byte(fmt.Sprintf("tx.height/%d/", startHeight))
-	} else {
-		start = []byte("tx.height/")
-	}
-
-	if endHeight > 0 {
-		// We need to include all transactions at End height
-		// So we go to the next height
-		end = []byte(fmt.Sprintf("tx.height/%d/", endHeight+1))
-	} else {
-		// Go to the end of tx.height namespace
-		end = []byte("tx.height/~") // ~ is after numbers and /
-	}
+	start := []byte("tx.height/")
+	end := []byte("tx.height/~") // '~' is ASCII 126, after all digits and '/'
 
 	return db.Iterator(start, end)
 }

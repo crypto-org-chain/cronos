@@ -34,7 +34,7 @@ The `database patch` command is used for patching specific block heights from a 
 |---------|-------------------|------------------|
 | **Purpose** | Full database migration | Patch specific heights |
 | **Target** | Creates new database | Updates existing database |
-| **Height Filter** | Optional | Required |
+| **Height Filter** | Not supported | Required |
 | **Supported DBs** | All databases | blockstore, tx_index only |
 | **Use Case** | Moving entire database | Adding/fixing specific blocks |
 | **Key Format** | All backends | String-encoded heights (CometBFT) |
@@ -164,82 +164,21 @@ cronosd database migrate \
   --home ~/.cronos
 ```
 
-### Migrate Specific Databases
 
-Migrate only specific databases using the `--databases` flag:
-
-```bash
-# Migrate only blockstore and tx_index databases
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore,tx_index \
-  --home ~/.cronos
-
-# Migrate application and state databases
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases application,state \
-  --home ~/.cronos
-```
-
-### Migrate Specific Height Range
-
-For `blockstore.db` and `tx_index.db`, you can specify a height range to migrate only specific blocks:
-
-```bash
-# Migrate blockstore for heights 1000000 to 2000000
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore \
-  --start-height 1000000 \
-  --end-height 2000000 \
-  --home ~/.cronos
-
-# Migrate tx_index for heights from 5000000 onwards
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases tx_index \
-  --start-height 5000000 \
-  --home ~/.cronos
-
-# Migrate blockstore up to height 1000000
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore \
-  --end-height 1000000 \
-  --home ~/.cronos
-
-# Migrate both blockstore and tx_index with same height range
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore,tx_index \
-  --start-height 1000000 \
-  --end-height 2000000 \
-  --home ~/.cronos
-```
-
-**Note**: Height range filtering only applies to `blockstore.db` and `tx_index.db`. Other databases will ignore these flags and migrate all data.
-
-## Command-Line Flags
+## Command-Line Flags (migrate)
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--source-backend` | Source database backend type (goleveldb, rocksdb) | goleveldb |
-| `--target-backend` | Target database backend type (goleveldb, rocksdb) | rocksdb |
-| `--db-type` | Database type to migrate (app, cometbft, all) | app |
-| `--databases` | Comma-separated list of specific databases (e.g., 'blockstore,tx_index'). Valid: application, blockstore, state, tx_index, evidence. Takes precedence over --db-type | (empty) |
-| `--start-height` | Start height for migration (inclusive, 0 for from beginning). Only applies to blockstore and tx_index | 0 |
-| `--end-height` | End height for migration (inclusive, 0 for to end). Only applies to blockstore and tx_index | 0 |
-| `--target-home` | Target home directory (if different from source) | Same as --home |
-| `--batch-size` | Number of key-value pairs to process in each batch | 10000 |
-| `--verify` | Verify migration by comparing source and target databases | true |
+| `--source-backend` (`-s`) | Source database backend type (`goleveldb`, `rocksdb`) | goleveldb |
+| `--target-backend` (`-t`) | Target database backend type (`goleveldb`, `rocksdb`) | rocksdb |
+| `--db-type` (`-y`) | Database type to migrate (`app`, `cometbft`, `all`) | app |
+| `--databases` (`-d`) | Comma-separated list of specific databases (e.g., `blockstore,tx_index`). Valid: `application`, `blockstore`, `state`, `tx_index`, `evidence`. Takes precedence over `--db-type` | (empty) |
+| `--target-home` (`-o`) | Target home directory (if different from source) | Same as `--home` |
+| `--batch-size` (`-b`) | Number of key-value pairs to process in each batch | 10000 |
+| `--verify` (`-v`) | Verify migration by comparing source and target databases | true |
 | `--home` | Node home directory | ~/.cronos |
+
+**Note:** The `migrate` command performs **full database migration** without height filtering. For selective height-based operations, use the `database patch` command instead.
 
 ## Migration Process
 
@@ -455,40 +394,7 @@ mv blockstore.db.migrate-temp blockstore.db
 # Update config.toml: db_backend = "rocksdb"
 ```
 
-### Example 5: Migrate Specific Height Range
-
-Migrate only specific heights from blockstore and tx_index:
-
-```bash
-# Stop the node
-systemctl stop cronosd
-
-# Backup databases
-cp -r ~/.cronos/data/blockstore.db ~/.cronos/data/blockstore.db.backup-$(date +%Y%m%d)
-cp -r ~/.cronos/data/tx_index.db ~/.cronos/data/tx_index.db.backup-$(date +%Y%m%d)
-
-# Migrate heights 1000000 to 2000000
-cronosd database migrate \
-  --source-backend goleveldb \
-  --target-backend rocksdb \
-  --databases blockstore,tx_index \
-  --start-height 1000000 \
-  --end-height 2000000 \
-  --verify \
-  --home ~/.cronos
-
-# The migrated data will be in:
-# ~/.cronos/data/blockstore.db.migrate-temp (only heights 1000000-2000000)
-# ~/.cronos/data/tx_index.db.migrate-temp (only heights 1000000-2000000)
-```
-
-**Use Cases for Height Range Migration:**
-- Pruning old blocks: Migrate only recent heights
-- Testing: Migrate a subset of data for testing
-- Archival: Separate old and new data into different storage backends
-- Partial migration: Migrate data incrementally
-
-### Example 6: Large Database Migration
+### Example 5: Large Database Migration
 
 For very large databases, disable verification for faster migration:
 
@@ -641,9 +547,14 @@ type MigrationStats struct {
 
 ### Overview
 
-Both `database migrate` and `database patch` support height-based filtering for `blockstore` and `tx_index` databases. This allows you to:
+**IMPORTANT**: Height-based filtering is **ONLY supported** by the `database patch` command, not `database migrate`.
 
-- Migrate or patch only specific block heights
+- **`database migrate`**: Full database migration between backends (processes entire database, no filtering)
+- **`database patch`**: Selective patching of specific heights to existing database (supports height filtering)
+
+The `database patch` command supports height-based filtering for `blockstore` and `tx_index` databases, allowing you to:
+
+- Patch only specific block heights to an existing database
 - Efficiently process ranges without scanning entire database
 - Handle single blocks or multiple specific heights
 
@@ -797,36 +708,50 @@ ethereum_tx.ethereumTxHash/0xa1b2c3d4.../1000000/0$es$0  → value: <cometbft_tx
 
 #### Blockstore Bounded Iterators
 
-Creates separate iterators for each prefix type using string-encoded heights:
+**CRITICAL**: CometBFT uses **string-encoded decimal heights** (e.g., "H:100", "H:20"), which **do NOT sort lexicographically by numeric value**:
+- "H:20" > "H:150" (lexically)
+- "H:9" > "H:10000" (lexically)
+
+**Solution**: We use **prefix-only iterators** with **Go-level numeric filtering** (Strategy B):
 
 ```go
-// H: prefix - block metadata
-startKey := []byte(fmt.Sprintf("H:%d", startHeight))    // e.g., "H:1000000"
-endKey := []byte(fmt.Sprintf("H:%d", endHeight+1))      // e.g., "H:1000001"
-iterator1 := db.Iterator(startKey, endKey)
+// H: prefix - create prefix-only iterator
+start := []byte("H:")
+end := []byte("I:")  // Next prefix in ASCII
+iterator1 := db.Iterator(start, end)
 
-// P: prefix - block parts
-startKey := []byte(fmt.Sprintf("P:%d", startHeight))    // e.g., "P:1000000"
-endKey := []byte(fmt.Sprintf("P:%d", endHeight+1))      // e.g., "P:1000001"
-iterator2 := db.Iterator(startKey, endKey)
+// For each key from iterator:
+//   1. Extract height numerically from key (e.g., parse "H:12345" -> 12345)
+//   2. Check if height is within range using shouldIncludeKey()
+//   3. Only process keys that pass the numeric filter
 
-// ... similar for C:, SC:, and EC: prefixes
+// ... similar for P:, C:, SC:, and EC: prefixes
 ```
 
-> **Note**: Heights are encoded as ASCII strings, not binary. This is a Cronos-specific format.
+This strategy trades some iteration efficiency for correctness, scanning all keys with each prefix but filtering at the application level.
 
-**Note**: Metadata keys like `BS:H` are NOT included when using height filtering (they don't have height encoding).
+> **Note**: Metadata keys like `BS:H` are NOT included when using height filtering (they don't have height encoding).
 
 **BH: Key Patching**: Block header by hash (`BH:<hash>`) keys don't contain height information. During **patching** (not full migration), when an `H:<height>` key is patched, the block hash is extracted from its value and used to look up and patch the corresponding `BH:<hash>` key automatically. For full migrations, BH: keys are included in the complete database scan.
 
 #### TX Index Bounded Iterator
 
-Single iterator with height range:
+**CRITICAL**: tx_index keys use format `tx.height/{height}/{hash}` where height is a **decimal string** (not zero-padded). Like blockstore, decimal strings **do NOT sort lexicographically by numeric value**:
+- "tx.height/20/" > "tx.height/150/" (lexically)
+- "tx.height/9/" > "tx.height/10000/" (lexically)
+
+**Solution**: We use a **prefix-only iterator** with **Go-level numeric filtering** (Strategy B):
 
 ```go
-startKey := []byte(fmt.Sprintf("tx.height/%010d/", startHeight))
-endKey := []byte(fmt.Sprintf("tx.height/%010d/", endHeight+1))
-iterator := db.Iterator(startKey, endKey)
+// Create prefix-only iterator for tx.height namespace
+start := []byte("tx.height/")
+end := []byte("tx.height/~")  // '~' is ASCII 126, after all digits
+iterator := db.Iterator(start, end)
+
+// For each key from iterator:
+//   1. Extract height numerically from key (e.g., parse "tx.height/12345/..." -> 12345)
+//   2. Check if height is within range using shouldIncludeKey()
+//   3. Only process keys that pass the numeric filter
 ```
 
 #### Specific Heights Handling
@@ -879,28 +804,26 @@ The `database patch` command patches specific block heights from a source databa
 | **Target doesn't exist** | migrate-db | Creates new database |
 | **Target exists, need additions** | patchdb | Updates existing database |
 
-### Command Line Reference
+## Command-Line Flags (patch)
 
-#### Required Flags
+### Required Flags
 
-```bash
---database <name>          # blockstore, tx_index, or blockstore,tx_index
---height <specification>   # Range, single, or multiple heights
---source-home <path>       # Source node home directory
-```
+| Flag | Description |
+|------|-------------|
+| `--database` (`-d`) | Database name: `blockstore`, `tx_index`, or `blockstore,tx_index` |
+| `--height` (`-H`) | Height specification: range (`1000-2000`), single (`123456`), or multiple (`100,200,300`) |
+| `--source-home` (`-f`) | Source node home directory |
 
-#### Optional Flags
+### Optional Flags
 
-```bash
---target-path <path>       # For single DB: exact path (e.g., ~/.cronos/data/blockstore.db)
-                           # For multiple DBs: data directory (e.g., ~/.cronos/data)
-                           # Default: source home data directory
---source-backend <type>    # Default: goleveldb
---target-backend <type>    # Default: rocksdb
---batch-size <number>      # Default: 10000
---dry-run                  # Simulate patching without making changes
---log_level <level>        # Log level: info, debug, etc. (default: info)
-```
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--target-path` (`-p`) | For single DB: exact path (e.g., `~/.cronos/data/blockstore.db`)<br>For multiple DBs: data directory (e.g., `~/.cronos/data`) | Source home data directory |
+| `--source-backend` (`-s`) | Source database backend type (`goleveldb`, `rocksdb`) | goleveldb |
+| `--target-backend` (`-t`) | Target database backend type (`goleveldb`, `rocksdb`) | rocksdb |
+| `--batch-size` (`-b`) | Number of key-value pairs to process in each batch | 10000 |
+| `--dry-run` | Simulate patching without making changes | false |
+| `--log_level` | Log level (`info`, `debug`, etc.) | info |
 
 **Dry-Run Mode**: When using `--dry-run`, the patch command will:
 - Simulate the entire patching process without writing any data
@@ -1208,18 +1131,6 @@ cronosd database patch --batch-size 20000 ...
 cronosd database patch --batch-size 5000 ...
 ```
 
-#### Monitoring Performance
-
-```bash
-# Watch disk I/O during patching
-iostat -x 1
-
-# Watch memory usage
-watch -n1 free -h
-
-# Check database size
-du -sh ~/.cronos/data/blockstore.db
-```
 
 ### Advanced Usage
 
@@ -1302,13 +1213,6 @@ cmd/cronosd/dbmigrate/height_filter.go
 9. Report statistics
 ```
 
-#### Memory Usage
-
-- **Batch Size**: Default 10,000 keys
-- **Per Key**: ~1KB average (blockstore), ~500B (tx_index)
-- **Memory per Batch**: ~10MB (blockstore), ~5MB (tx_index)
-- **Iterator State**: Minimal overhead
-- **Total**: Usually < 50MB
 
 ### Limitations
 

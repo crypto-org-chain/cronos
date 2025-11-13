@@ -41,8 +41,6 @@ type MigrateOptions struct {
 	Verify bool
 	// DBName is the name of the database to migrate (e.g., "application", "blockstore", "state")
 	DBName string
-	// HeightRange specifies the range of heights to migrate (only for blockstore and tx_index)
-	HeightRange HeightRange
 }
 
 // MigrationStats tracks migration progress and statistics
@@ -92,25 +90,13 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 		opts.DBName = "application"
 	}
 
-	// Validate height range if specified
-	if err := opts.HeightRange.Validate(); err != nil {
-		return stats, fmt.Errorf("invalid height range: %w", err)
-	}
-
-	logArgs := []interface{}{
+	opts.Logger.Info("Starting database migration",
 		"database", opts.DBName,
 		"source_backend", opts.SourceBackend,
 		"target_backend", opts.TargetBackend,
 		"source_home", opts.SourceHome,
 		"target_home", opts.TargetHome,
-	}
-
-	// Add height range to log if specified
-	if !opts.HeightRange.IsEmpty() {
-		logArgs = append(logArgs, "height_range", opts.HeightRange.String())
-	}
-
-	opts.Logger.Info("Starting database migration", logArgs...)
+	)
 
 	// Open source database in read-only mode
 	sourceDataDir := filepath.Join(opts.SourceHome, "data")
@@ -157,39 +143,17 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 
 	// Count total keys first for progress reporting
 	opts.Logger.Info("Counting total keys...")
-	var totalKeys int64
-
-	// Use height-filtered counting if height range is specified
-	if !opts.HeightRange.IsEmpty() && supportsHeightFiltering(opts.DBName) {
-		totalKeys, err = countKeysWithHeightFilter(sourceDB, opts.DBName, opts.HeightRange)
-		if err != nil {
-			return stats, fmt.Errorf("failed to count keys with height filter: %w", err)
-		}
-		opts.Logger.Info("Total keys to migrate", "count", totalKeys, "height_range", opts.HeightRange.String())
-	} else {
-		if !opts.HeightRange.IsEmpty() {
-			opts.Logger.Warn("Height filtering not supported for this database, migrating all keys", "database", opts.DBName)
-		}
-
-		totalKeys, err = countKeys(sourceDB)
-		if err != nil {
-			return stats, fmt.Errorf("failed to count keys: %w", err)
-		}
-		opts.Logger.Info("Total keys to migrate", "count", totalKeys)
+	totalKeys, err := countKeys(sourceDB)
+	if err != nil {
+		return stats, fmt.Errorf("failed to count keys: %w", err)
 	}
+	opts.Logger.Info("Total keys to migrate", "count", totalKeys)
 
 	stats.TotalKeys.Store(totalKeys)
 
-	// Perform the migration
-	// Use height-filtered migration if height range is specified and database supports it
-	if !opts.HeightRange.IsEmpty() && supportsHeightFiltering(opts.DBName) {
-		if err := migrateDataWithHeightFilter(sourceDB, targetDB, opts, stats); err != nil {
-			return stats, fmt.Errorf("migration failed: %w", err)
-		}
-	} else {
-		if err := migrateData(sourceDB, targetDB, opts, stats); err != nil {
-			return stats, fmt.Errorf("migration failed: %w", err)
-		}
+	// Perform the full database migration
+	if err := migrateData(sourceDB, targetDB, opts, stats); err != nil {
+		return stats, fmt.Errorf("migration failed: %w", err)
 	}
 
 	// Flush memtable to SST files for RocksDB
@@ -254,57 +218,7 @@ func countKeys(db dbm.DB) (int64, error) {
 	return count, itr.Error()
 }
 
-// countKeysWithHeightFilter counts keys using bounded iterators for the specified height range
-func countKeysWithHeightFilter(db dbm.DB, dbName string, heightRange HeightRange) (int64, error) {
-	var iterators []dbm.Iterator
-	var err error
-
-	// Get bounded iterators based on database type
-	switch dbName {
-	case DBNameBlockstore:
-		iterators, err = getBlockstoreIterators(db, heightRange)
-	case DBNameTxIndex:
-		itr, err := getTxIndexIterator(db, heightRange)
-		if err != nil {
-			return 0, err
-		}
-		iterators = []dbm.Iterator{itr}
-	default:
-		// Fall back to full counting for unsupported databases
-		return countKeys(db)
-	}
-
-	if err != nil {
-		return 0, err
-	}
-
-	// Ensure all iterators are closed
-	defer func() {
-		for _, itr := range iterators {
-			itr.Close()
-		}
-	}()
-
-	// Count keys from each iterator, applying height filter
-	var count int64
-	for _, itr := range iterators {
-		for ; itr.Valid(); itr.Next() {
-			key := itr.Key()
-			// Apply shouldIncludeKey filter to handle discrete heights and metadata
-			if !shouldIncludeKey(key, dbName, heightRange) {
-				continue
-			}
-			count++
-		}
-		if err := itr.Error(); err != nil {
-			return count, err
-		}
-	}
-
-	return count, nil
-}
-
-// migrateData performs the actual data migration without height filtering
+// migrateData performs the actual data migration
 func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
 	itr, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
@@ -313,52 +227,6 @@ func migrateData(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *Migratio
 	defer itr.Close()
 
 	return migrateWithIterator(itr, sourceDB, targetDB, opts, stats)
-}
-
-// migrateDataWithHeightFilter performs data migration using bounded iterators for height filtering
-func migrateDataWithHeightFilter(sourceDB, targetDB dbm.DB, opts MigrateOptions, stats *MigrationStats) error {
-	var iterators []dbm.Iterator
-	var err error
-
-	// Get bounded iterators based on database type
-	switch opts.DBName {
-	case DBNameBlockstore:
-		iterators, err = getBlockstoreIterators(sourceDB, opts.HeightRange)
-	case DBNameTxIndex:
-		itr, err := getTxIndexIterator(sourceDB, opts.HeightRange)
-		if err != nil {
-			return err
-		}
-		iterators = []dbm.Iterator{itr}
-	default:
-		// Fall back to full migration for unsupported databases
-		return migrateData(sourceDB, targetDB, opts, stats)
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed to create height-filtered iterators: %w", err)
-	}
-
-	// Ensure all iterators are closed
-	defer func() {
-		for _, itr := range iterators {
-			itr.Close()
-		}
-	}()
-
-	// Migrate data from each iterator
-	for _, itr := range iterators {
-		if err := migrateWithIterator(itr, sourceDB, targetDB, opts, stats); err != nil {
-			return err
-		}
-	}
-
-	opts.Logger.Info("Height-filtered migration completed",
-		"height_range", opts.HeightRange.String(),
-		"migrated_keys", stats.ProcessedKeys.Load(),
-	)
-
-	return nil
 }
 
 // migrateWithIterator migrates data from a single iterator
@@ -371,12 +239,6 @@ func migrateWithIterator(itr dbm.Iterator, sourceDB, targetDB dbm.DB, opts Migra
 
 	for ; itr.Valid(); itr.Next() {
 		key := itr.Key()
-
-		// Apply shouldIncludeKey filter for all height-filtered migrations
-		// This handles discrete heights, metadata keys, and ensures we only migrate requested data
-		if !shouldIncludeKey(key, opts.DBName, opts.HeightRange) {
-			continue
-		}
 		value := itr.Value()
 
 		// Make copies since the iterator might reuse the slices
@@ -512,142 +374,58 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 	}
 	defer targetDB.Close()
 
-	// Check if we need height-filtered verification
-	useHeightFilter := !opts.HeightRange.IsEmpty() && supportsHeightFiltering(dbName)
-
-	if useHeightFilter {
-		opts.Logger.Info("Using height-filtered verification", "height_range", opts.HeightRange.String())
-	}
-
 	var verifiedKeys int64
 	var mismatchCount int64
 	lastProgressReport := time.Now()
 
-	// Phase 1: Verify all keys that should be in target exist and match
-	if useHeightFilter {
-		// Use filtered iterators for height-based verification
-		var sourceIterators []dbm.Iterator
-		switch dbName {
-		case DBNameBlockstore:
-			sourceIterators, err = getBlockstoreIterators(sourceDB, opts.HeightRange)
-		case DBNameTxIndex:
-			itr, err := getTxIndexIterator(sourceDB, opts.HeightRange)
-			if err != nil {
-				return fmt.Errorf("failed to get tx_index iterator: %w", err)
-			}
-			sourceIterators = []dbm.Iterator{itr}
-		default:
-			return fmt.Errorf("height filtering not supported for database: %s", dbName)
-		}
+	// Phase 1: Verify all keys in source exist in target and match
+	sourceItr, err := sourceDB.Iterator(nil, nil)
+	if err != nil {
+		return err
+	}
+	defer sourceItr.Close()
+
+	for ; sourceItr.Valid(); sourceItr.Next() {
+		key := sourceItr.Key()
+		sourceValue := sourceItr.Value()
+
+		targetValue, err := targetDB.Get(key)
 		if err != nil {
-			return fmt.Errorf("failed to get filtered iterators: %w", err)
-		}
-		defer func() {
-			for _, itr := range sourceIterators {
-				itr.Close()
-			}
-		}()
-
-		// Verify using filtered iterators
-		for _, sourceItr := range sourceIterators {
-			for ; sourceItr.Valid(); sourceItr.Next() {
-				key := sourceItr.Key()
-
-				// Apply shouldIncludeKey filter to handle discrete heights and metadata
-				if !shouldIncludeKey(key, dbName, opts.HeightRange) {
-					continue
-				}
-
-				sourceValue := sourceItr.Value()
-
-				targetValue, err := targetDB.Get(key)
-				if err != nil {
-					opts.Logger.Error("Failed to get key from target database", "key", fmt.Sprintf("%x", key), "error", err)
-					mismatchCount++
-					continue
-				}
-
-				if targetValue == nil {
-					opts.Logger.Error("Key missing in target database", "key", fmt.Sprintf("%x", key))
-					mismatchCount++
-					continue
-				}
-
-				// Use bytes.Equal for efficient comparison
-				if !bytes.Equal(sourceValue, targetValue) {
-					opts.Logger.Error("Value mismatch",
-						"key", fmt.Sprintf("%x", key),
-						"source_len", len(sourceValue),
-						"target_len", len(targetValue),
-					)
-					mismatchCount++
-				}
-
-				verifiedKeys++
-
-				// Report progress every second
-				if time.Since(lastProgressReport) >= time.Second {
-					opts.Logger.Info("Verification progress",
-						"verified", verifiedKeys,
-						"mismatches", mismatchCount,
-					)
-					lastProgressReport = time.Now()
-				}
-			}
-			if err := sourceItr.Error(); err != nil {
-				return err
-			}
-		}
-	} else {
-		// Full database verification (no height filtering)
-		sourceItr, err := sourceDB.Iterator(nil, nil)
-		if err != nil {
-			return err
-		}
-		defer sourceItr.Close()
-
-		for ; sourceItr.Valid(); sourceItr.Next() {
-			key := sourceItr.Key()
-			sourceValue := sourceItr.Value()
-
-			targetValue, err := targetDB.Get(key)
-			if err != nil {
-				opts.Logger.Error("Failed to get key from target database", "key", fmt.Sprintf("%x", key), "error", err)
-				mismatchCount++
-				continue
-			}
-
-			if targetValue == nil {
-				opts.Logger.Error("Key missing in target database", "key", fmt.Sprintf("%x", key))
-				mismatchCount++
-				continue
-			}
-
-			// Use bytes.Equal for efficient comparison
-			if !bytes.Equal(sourceValue, targetValue) {
-				opts.Logger.Error("Value mismatch",
-					"key", fmt.Sprintf("%x", key),
-					"source_len", len(sourceValue),
-					"target_len", len(targetValue),
-				)
-				mismatchCount++
-			}
-
-			verifiedKeys++
-
-			// Report progress every second
-			if time.Since(lastProgressReport) >= time.Second {
-				opts.Logger.Info("Verification progress",
-					"verified", verifiedKeys,
-					"mismatches", mismatchCount,
-				)
-				lastProgressReport = time.Now()
-			}
+			opts.Logger.Error("Failed to get key from target database", "key", fmt.Sprintf("%x", key), "error", err)
+			mismatchCount++
+			continue
 		}
 
-		if err := sourceItr.Error(); err != nil {
-			return err
+		if targetValue == nil {
+			opts.Logger.Error("Key missing in target database", "key", fmt.Sprintf("%x", key))
+			mismatchCount++
+			continue
 		}
+
+		// Use bytes.Equal for efficient comparison
+		if !bytes.Equal(sourceValue, targetValue) {
+			opts.Logger.Error("Value mismatch",
+				"key", fmt.Sprintf("%x", key),
+				"source_len", len(sourceValue),
+				"target_len", len(targetValue),
+			)
+			mismatchCount++
+		}
+
+		verifiedKeys++
+
+		// Report progress every second
+		if time.Since(lastProgressReport) >= time.Second {
+			opts.Logger.Info("Verification progress",
+				"verified", verifiedKeys,
+				"mismatches", mismatchCount,
+			)
+			lastProgressReport = time.Now()
+		}
+	}
+
+	if err := sourceItr.Error(); err != nil {
+		return err
 	}
 
 	// Phase 2: Verify target doesn't have extra keys (iterate target, check against source)
@@ -663,14 +441,6 @@ func verifyMigration(sourceDir, targetDir string, opts MigrateOptions) error {
 
 	for ; targetItr.Valid(); targetItr.Next() {
 		key := targetItr.Key()
-
-		// If using height filter, skip keys that shouldn't have been migrated
-		if useHeightFilter {
-			if !shouldIncludeKey(key, dbName, opts.HeightRange) {
-				continue
-			}
-		}
-
 		targetKeys++
 
 		// Check if this key exists in source

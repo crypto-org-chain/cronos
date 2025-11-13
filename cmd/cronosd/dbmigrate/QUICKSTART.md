@@ -429,42 +429,6 @@ go build -tags rocksdb -o ./cronosd ./cmd/cronosd
 2. **Close other applications**: Free up RAM
 3. **Monitor memory**: `watch -n 1 free -h`
 
-### For Network-Attached Storage
-
-1. **Migrate locally first**: Then copy to NAS
-2. **Use small batches**: Network latency affects performance
-3. **Consider rsync**: For final data transfer
-
-## Verification
-
-### Check Migration Success
-
-```bash
-# Count keys in original (LevelDB example)
-OLD_KEYS=$(cronosd query-db-keys --backend goleveldb --home ~/.cronos | wc -l)
-
-# Count keys in new database
-NEW_KEYS=$(cronosd query-db-keys --backend rocksdb --home ~/.cronos | wc -l)
-
-# Compare
-echo "Old: $OLD_KEYS, New: $NEW_KEYS"
-```
-
-### Manual Verification
-
-```bash
-# Start node with new database
-cronosd start --home ~/.cronos
-
-# Check a few accounts
-cronosd query bank balances <address>
-
-# Check contract state
-cronosd query evm code <contract-address>
-
-# Check latest block
-cronosd query block
-```
 
 ## Rollback
 
@@ -510,47 +474,6 @@ Multiply by approximate factor based on your database sizes:
 
 **Example:** For a typical node with 100GB application.db and 50GB of CometBFT databases combined, expect ~40 minutes on SSD with verification.
 
-## Getting Help
-
-### Enable Verbose Logging
-
-The migration tool already provides detailed logging. For more details:
-
-```bash
-# Check migration progress (in another terminal)
-watch -n 1 'tail -n 20 ~/.cronos/migration.log'
-```
-
-### Report Issues
-
-Include:
-1. Migration command used
-2. Error message
-3. Database size
-4. System specs (RAM, disk type)
-5. Cronos version
-
-## Success Checklist
-
-- [ ] Node stopped
-- [ ] Database backed up
-- [ ] Sufficient disk space
-- [ ] Migration completed successfully (0 errors)
-- [ ] app.toml updated
-- [ ] Original database replaced
-- [ ] Node started successfully
-- [ ] Node syncing normally
-- [ ] Queries working correctly
-
-## Next Steps After Migration
-
-1. **Monitor performance**: RocksDB may perform differently
-2. **Tune RocksDB**: Adjust options in code if needed
-3. **Remove old backup**: After confirming stability
-4. **Update documentation**: Note the backend change
-5. **Update monitoring**: If tracking database metrics
-
----
 
 ## Part 2: database patch (Patch Specific Heights)
 
@@ -745,32 +668,6 @@ cronosd database patch \
 | `--target-backend` | `-t` | No | rocksdb | Target database backend |
 | `--batch-size` | `-b` | No | 10000 | Batch size for writing |
 
-### Patch Troubleshooting
-
-**Error: "target database does not exist"**
-```bash
-# Solution: Target must exist first
-# Either create it or use database migrate to initialize it
-```
-
-**Error: "height range is required"**
-```bash
-# Solution: patchdb requires --height flag
-cronosd database patch --height 123456 ...
-```
-
-**Error: "database X does not support height-based patching"**
-```bash
-# Solution: Only blockstore and tx_index are supported
-# Use migrate-db for application, state, or evidence databases
-```
-
-**No keys found for specified heights**
-```bash
-# Check source database has those heights
-# Verify correct --source-home path
-# Ensure correct database name
-```
 
 ### When to Use Which Command
 
@@ -784,12 +681,3 @@ cronosd database patch --height 123456 ...
 | Migrating application.db | `database migrate` | database patch doesn't support it |
 | Target DB doesn't exist yet | `database migrate` | Creates new DB |
 | Target DB exists, need specific heights | `database patch` | Updates existing |
-
----
-
-## Additional Resources
-
-- Full documentation: `cmd/cronosd/dbmigrate/README.md`
-- RocksDB tuning: [RocksDB Wiki](https://github.com/facebook/rocksdb/wiki)
-- Cronos docs: https://docs.cronos.org/
-
