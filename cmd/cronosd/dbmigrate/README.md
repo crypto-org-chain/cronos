@@ -207,11 +207,11 @@ The migrated databases are created with a temporary suffix to prevent accidental
 ```
 Application Database:
   Original:  ~/.cronos/data/application.db
-  Migrated:  ~/.cronos/data/application.db.migrate-temp
+  Migrated:  ~/.cronos/data/application.migrate-temp.db
 
 CometBFT Databases:
   Original:  ~/.cronos/data/blockstore.db
-  Migrated:  ~/.cronos/data/blockstore.db.migrate-temp
+  Migrated:  ~/.cronos/data/blockstore.migrate-temp.db
   (same pattern for state, tx_index, evidence)
 ```
 
@@ -240,13 +240,13 @@ CometBFT Databases:
    
    # For application database
    mv application.db application.db.backup
-   mv application.db.migrate-temp application.db
+   mv application.migrate-temp.db application.db
    
    # For CometBFT databases (if migrated)
    for db in blockstore state tx_index evidence; do
-     if [ -d "${db}.db.migrate-temp" ]; then
+     if [ -d "${db}.migrate-temp.db" ]; then
        mv ${db}.db ${db}.db.backup
-       mv ${db}.db.migrate-temp ${db}.db
+       mv ${db}.migrate-temp.db ${db}.db
      fi
    done
    ```
@@ -277,7 +277,7 @@ cronosd database migrate \
 # Replace the database
 cd ~/.cronos/data
 mv application.db application.db.old
-mv application.db.migrate-temp application.db
+mv application.migrate-temp.db application.db
 
 # Update app.toml
 # Change: app-db-backend = "rocksdb"
@@ -345,7 +345,7 @@ mkdir -p backups
 for db in application blockstore state tx_index evidence; do
   if [ -d "${db}.db" ]; then
     mv ${db}.db backups/
-    mv ${db}.db.migrate-temp ${db}.db
+    mv ${db}.migrate-temp.db ${db}.db
   fi
 done
 
@@ -387,9 +387,9 @@ cronosd database migrate \
 # Manually replace the databases
 cd ~/.cronos/data
 mv tx_index.db tx_index.db.backup
-mv tx_index.db.migrate-temp tx_index.db
+mv tx_index.migrate-temp.db tx_index.db
 mv blockstore.db blockstore.db.backup
-mv blockstore.db.migrate-temp blockstore.db
+mv blockstore.migrate-temp.db blockstore.db
 
 # Update config.toml: db_backend = "rocksdb"
 ```
