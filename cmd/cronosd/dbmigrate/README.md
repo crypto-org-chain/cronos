@@ -204,7 +204,7 @@ The migration tool follows these steps:
 
 The migrated databases are created with a temporary suffix to prevent accidental overwrites:
 
-```
+```text
 Application Database:
   Original:  ~/.cronos/data/application.db
   Migrated:  ~/.cronos/data/application.migrate-temp.db
@@ -486,7 +486,7 @@ go test -v ./cmd/cronosd/dbmigrate/...
 
 ### Package Structure
 
-```
+```text
 cmd/cronosd/dbmigrate/
 ├── migrate.go              # Core migration logic
 ├── migrate_rocksdb.go      # RocksDB-specific functions (with build tag)
@@ -570,7 +570,8 @@ The `--height` flag supports three formats:
 Height filtering uses **bounded database iterators** for maximum efficiency:
 
 #### Traditional Approach (Inefficient)
-```
+
+```text
 Open iterator for entire database
 For each key:
   Extract height
@@ -579,12 +580,14 @@ For each key:
   Else:
     Skip key
 ```
+
 - Reads ALL keys from disk
 - Filters at application level
 - Slow for large databases with small ranges
 
 #### Bounded Iterator Approach (Efficient)
-```
+
+```text
 Calculate start_key for start_height
 Calculate end_key for end_height
 Open iterator with bounds [start_key, end_key)
@@ -611,7 +614,7 @@ Example: Patching heights 1M-1.1M from a 5M block database
 
 **Cronos CometBFT uses STRING-ENCODED heights in blockstore keys:**
 
-```
+```text
 H:<height>         - Block metadata (height as string)
 P:<height>:<part>  - Block parts (height as string, part as number)
 C:<height>         - Commit at height (height as string)
@@ -622,7 +625,8 @@ BS:H               - Block store height (metadata, no height encoding)
 ```
 
 Example keys for height 38307809:
-```
+
+```text
 H:38307809         # Block metadata
 P:38307809:0       # Block parts (part 0)
 C:38307809         # Commit
@@ -638,22 +642,27 @@ BH:0362b5c81d...   # Block header by hash (auto-migrated with H: keys)
 Transaction index has two types of keys:
 
 **1. Height-indexed keys:**
-```
+
+```text
 tx.height/<height>/<height>/<txindex>$es$0
 tx.height/<height>/<height>/<txindex>  (without $es$ suffix)
 ```
+
 - **Key format**: Height (twice) and transaction index, optionally with event sequence suffix
 - **Value**: The transaction hash (txhash)
 
 **2. Direct hash lookup keys (CometBFT):**
-```
+
+```text
 <cometbft_txhash>
 ```
+
 - **Key format**: The CometBFT transaction hash itself
 - **Value**: Transaction result data (protobuf-encoded)
 
 **3. Event-indexed keys (Ethereum):**
-```
+
+```text
 ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>$es$<eventseq>
 ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>  (without $es$ suffix)
 ```
@@ -668,17 +677,19 @@ ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>  (without $es$ suff
 
 **Important**: When patching by height, all three key types are automatically patched using a three-pass approach:
 
-**Pass 1: Height-indexed keys**
+#### Pass 1: Height-indexed keys
+
 - Iterator reads `tx.height/<height>/<height>/<txindex>` keys within the height range (with or without `$es$` suffix)
 - Patches these keys to target database
 - Collects CometBFT txhashes from the values
 - **Extracts Ethereum txhashes** from transaction result events
 
-**Pass 2: CometBFT txhash lookup keys**
+#### Pass 2: CometBFT txhash lookup keys
+
 - For each collected CometBFT txhash, reads the `<cometbft_txhash>` key from source
 - Patches the txhash keys to target database
 
-**Pass 3: Ethereum event-indexed keys**
+#### Pass 3: Ethereum event-indexed keys
 - For each transaction from Pass 1, creates a bounded iterator with specific start/end keys
 - Start: `ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>`
 - End: `start + 1` (exclusive upper bound)
@@ -690,7 +701,8 @@ ethereum_tx.ethereumTxHash/0x<eth_txhash>/<height>/<txindex>  (without $es$ suff
 This ensures all tx_index keys (including event-indexed keys) are properly patched.
 
 Example:
-```
+
+```text
 # Pass 1: Height-indexed key (from iterator)
 tx.height/1000000/1000000/0$es$0  → value: <cometbft_txhash>
 
@@ -858,13 +870,15 @@ cronosd database patch \
 **Example Debug Output**:
 
 For blockstore keys (text):
-```
+
+```text
 DBG Patched key to target database key=C:5000000 key_size=9 value_preview=0x0a8f01... value_size=143 batch_count=1
 DBG Patched key to target database key=P:5000000:0 key_size=13 value_preview=0x0a4d0a... value_size=77 batch_count=2
 ```
 
 For tx_index keys:
-```
+
+```text
 # Pass 1: Height-indexed keys
 DBG Patched tx.height key key=tx.height/5000000/5000000/0$es$0
 DBG Collected ethereum txhash eth_txhash=0xa1b2c3d4... height=5000000 tx_index=0
@@ -1017,7 +1031,7 @@ ldb --db=/source/blockstore.db scan --from=H: --max_keys=10
 
 The `database patch` command logs progress every 5 seconds:
 
-```
+```text
 INFO  Patching progress  processed=5000 total=10000 progress=50.00% errors=0
 INFO  Patching progress  processed=10000 total=10000 progress=100.00% errors=0
 INFO  Database patch completed
@@ -1043,9 +1057,9 @@ journalctl -u cronosd -f
 
 #### Common Errors and Solutions
 
-**1. "target database does not exist"**
+#### 1. "target database does not exist"
 
-```
+```text
 Error: target database does not exist: /path/to/blockstore.db
 ```
 
@@ -1059,9 +1073,9 @@ cronosd database migrate --db-type cometbft --home ~/.cronos
 cp -r /other-node/data/blockstore.db ~/.cronos/data/
 ```
 
-**2. "height range is required for patching"**
+#### 2. "height range is required for patching"
 
-```
+```text
 Error: height range is required for patching
 ```
 
@@ -1071,9 +1085,9 @@ Error: height range is required for patching
 cronosd database patch --height 123456 ...
 ```
 
-**3. "database X does not support height-based patching"**
+#### 3. "database X does not support height-based patching"
 
-```
+```text
 Error: database application does not support height-based patching
 ```
 
@@ -1084,9 +1098,9 @@ Error: database application does not support height-based patching
 cronosd database migrate --db-type app ...
 ```
 
-**4. "No keys found in source database for specified heights"**
+#### 4. "No keys found in source database for specified heights"
 
-```
+```text
 WARN  No keys found in source database for specified heights
 ```
 
@@ -1097,9 +1111,9 @@ WARN  No keys found in source database for specified heights
 
 **Solution**: Verify source database content and paths.
 
-**5. "Failed to open source database"**
+#### 5. "Failed to open source database"
 
-```
+```text
 Error: failed to open source database: <details>
 ```
 
@@ -1135,7 +1149,7 @@ cronosd database patch --batch-size 5000 ...
 
 #### Patching Multiple Databases
 
-**Option 1: Patch both at once (recommended)**
+##### Option 1: Patch both at once (recommended)
 
 ```bash
 # Patch both databases in a single command
@@ -1147,12 +1161,13 @@ cronosd database patch \
 ```
 
 **Benefits**:
+
 - Single command execution
 - Consistent height range across databases
 - Aggregated statistics
 - Faster overall (no command overhead between runs)
 
-**Option 2: Patch separately**
+##### Option 2: Patch separately
 
 ```bash
 # Patch blockstore
@@ -1175,7 +1190,7 @@ cronosd database patch \
 
 #### Core Components
 
-```
+```text
 cmd/cronosd/cmd/patch_db.go
   └─> PatchDBCmd()                    # CLI command definition
        └─> dbmigrate.PatchDatabase()  # Core patching logic
@@ -1196,7 +1211,7 @@ cmd/cronosd/dbmigrate/height_filter.go
 
 #### Data Flow
 
-```
+```text
 1. Parse CLI flags
 2. Validate inputs (target exists, height specified, etc.)
 3. Open source database (read-only)
