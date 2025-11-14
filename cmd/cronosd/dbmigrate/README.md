@@ -527,7 +527,6 @@ type MigrateOptions struct {
     RocksDBOptions interface{}         // RocksDB options (if applicable)
     Verify         bool                // Enable post-migration verification
     DBName         string              // Database name (application, blockstore, state, tx_index, evidence)
-    HeightRange    HeightRange         // Height range to migrate (only for blockstore and tx_index)
 }
 ```
 
