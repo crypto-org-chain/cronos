@@ -218,27 +218,36 @@ Examples:
 				totalStats.ErrorCount.Add(stats.ErrorCount.Load())
 			}
 
-			fmt.Println("\n" + strings.Repeat("=", 80))
-			fmt.Println("ALL MIGRATIONS COMPLETED SUCCESSFULLY")
-			fmt.Println(strings.Repeat("=", 80))
+			logger.Info(strings.Repeat("=", 80))
+			logger.Info("ALL MIGRATIONS COMPLETED SUCCESSFULLY")
+			logger.Info(strings.Repeat("=", 80))
+
 			if databases != "" {
-				fmt.Printf("Databases:      %s\n", strings.Join(dbNames, ", "))
+				logger.Info("Migration summary",
+					"databases", strings.Join(dbNames, ", "),
+					"total_keys", totalStats.TotalKeys.Load(),
+					"processed_keys", totalStats.ProcessedKeys.Load(),
+					"errors", totalStats.ErrorCount.Load(),
+				)
 			} else {
-				fmt.Printf("Database Type:  %s\n", dbType)
+				logger.Info("Migration summary",
+					"database_type", dbType,
+					"total_keys", totalStats.TotalKeys.Load(),
+					"processed_keys", totalStats.ProcessedKeys.Load(),
+					"errors", totalStats.ErrorCount.Load(),
+				)
 			}
-			fmt.Printf("Total Keys:     %d\n", totalStats.TotalKeys.Load())
-			fmt.Printf("Processed Keys: %d\n", totalStats.ProcessedKeys.Load())
-			fmt.Printf("Errors:         %d\n", totalStats.ErrorCount.Load())
-			fmt.Println("\nIMPORTANT NEXT STEPS:")
-			fmt.Println("1. Backup your original databases")
-			fmt.Println("2. Verify the migration was successful")
-			fmt.Println("3. Migrated databases are located at:")
+
+			logger.Info("IMPORTANT NEXT STEPS:")
+			logger.Info("1. Backup your original databases")
+			logger.Info("2. Verify the migration was successful")
+			logger.Info("3. Migrated databases are located at:")
 			for _, dbName := range dbNames {
-				fmt.Printf("   %s/data/%s.migrate-temp.db\n", targetHome, dbName)
+				logger.Info("   Migrated database location", "path", fmt.Sprintf("%s/data/%s.migrate-temp.db", targetHome, dbName))
 			}
-			fmt.Println("4. Replace the original databases with the migrated ones")
-			fmt.Println("5. Update your config.toml to use the new backend type")
-			fmt.Println(strings.Repeat("=", 80))
+			logger.Info("4. Replace the original databases with the migrated ones")
+			logger.Info("5. Update your config.toml to use the new backend type")
+			logger.Info(strings.Repeat("=", 80))
 
 			return nil
 		},

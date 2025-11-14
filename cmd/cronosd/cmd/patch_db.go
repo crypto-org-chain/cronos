@@ -290,31 +290,32 @@ Examples:
 			}
 
 			// Print summary
-			fmt.Println("\n" + strings.Repeat("=", 80))
+			logger.Info(strings.Repeat("=", 80))
 			if dryRun {
-				fmt.Println("DATABASE PATCH DRY RUN COMPLETED")
+				logger.Info("DATABASE PATCH DRY RUN COMPLETED")
 			} else {
-				fmt.Println("DATABASE PATCH COMPLETED SUCCESSFULLY")
+				logger.Info("DATABASE PATCH COMPLETED SUCCESSFULLY")
 			}
-			fmt.Println(strings.Repeat("=", 80))
-			if dryRun {
-				fmt.Println("Mode:           DRY RUN (no changes made)")
+			logger.Info(strings.Repeat("=", 80))
+
+			logArgs := []interface{}{
+				"databases", strings.Join(validDBNames, ", "),
+				"height", heightRange.String(),
+				"errors", totalErrors,
+				"duration", totalDuration.String(),
 			}
-			fmt.Printf("Databases:      %s\n", strings.Join(validDBNames, ", "))
-			fmt.Printf("Height:         %s\n", heightRange.String())
+
 			if dryRun {
-				fmt.Printf("Keys Found:     %d\n", totalKeysPatched)
+				logArgs = append(logArgs, "mode", "DRY RUN (no changes made)")
+				logArgs = append(logArgs, "keys_found", totalKeysPatched)
+				logger.Info("Patch summary", logArgs...)
+				logger.Info("This was a dry run. No changes were made to the target database(s).")
 			} else {
-				fmt.Printf("Keys Patched:   %d\n", totalKeysPatched)
+				logArgs = append(logArgs, "keys_patched", totalKeysPatched)
+				logger.Info("Patch summary", logArgs...)
+				logger.Info("The target database(s) have been updated with the specified heights.")
 			}
-			fmt.Printf("Errors:         %d\n", totalErrors)
-			fmt.Printf("Total Duration: %s\n", totalDuration)
-			if dryRun {
-				fmt.Println("\nThis was a dry run. No changes were made to the target database(s).")
-			} else {
-				fmt.Println("\nThe target database(s) have been updated with the specified heights.")
-			}
-			fmt.Println(strings.Repeat("=", 80))
+			logger.Info(strings.Repeat("=", 80))
 
 			return nil
 		},
