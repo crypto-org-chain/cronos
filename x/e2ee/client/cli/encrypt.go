@@ -101,5 +101,5 @@ func encrypt(recipients []age.Recipient, in io.Reader, out io.Writer) (err error
 	}()
 
 	_, err = io.Copy(w, in)
-	return err
+	return
 }

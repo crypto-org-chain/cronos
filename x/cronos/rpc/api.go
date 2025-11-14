@@ -98,20 +98,20 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
 		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
 	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return
 	}
 	baseFee, err = api.backend.BaseFee(blockRes)
 	if err != nil {
-		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+		return
 	}
-	return resBlock, blockNumber, blockHash, blockRes, baseFee, err
+	return
 }
 
 // GetTransactionReceiptsByBlock returns all the transaction receipts included in the block.
@@ -384,5 +384,5 @@ func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *c
 		}
 		blk, err = api.backend.TendermintBlockByNumber(blockNumber)
 	}
-	return blk, err
+	return
 }
