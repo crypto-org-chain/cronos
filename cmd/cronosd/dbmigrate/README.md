@@ -791,18 +791,18 @@ The `database patch` command patches specific block heights from a source databa
 - Only supports `blockstore` and `tx_index`
 - Updates existing database (overwrites existing keys)
 
-### When to Use patchdb vs migrate-db
+### When to Use patch vs migrate
 
 | Scenario | Command | Reason |
 |----------|---------|--------|
-| **Changing database backend** | migrate-db | Creates new database with all data |
-| **Missing a few blocks** | patchdb | Surgical fix, efficient for small ranges |
-| **Corrupted block data** | patchdb | Replace specific bad blocks |
-| **Entire database migration** | migrate-db | Handles all databases, includes verification |
-| **Backfilling specific heights** | patchdb | Efficient for non-continuous heights |
-| **Migrating application.db** | migrate-db | patchdb only supports blockstore/tx_index |
-| **Target doesn't exist** | migrate-db | Creates new database |
-| **Target exists, need additions** | patchdb | Updates existing database |
+| **Changing database backend** | migrate | Creates new database with all data |
+| **Missing a few blocks** | patch | Surgical fix, efficient for small ranges |
+| **Corrupted block data** | patch | Replace specific bad blocks |
+| **Entire database migration** | migrate | Handles all databases, includes verification |
+| **Backfilling specific heights** | patch | Efficient for non-continuous heights |
+| **Migrating application.db** | migrate | patch only supports blockstore/tx_index |
+| **Target doesn't exist** | migrate | Creates new database |
+| **Target exists, need additions** | patch | Updates existing database |
 
 ## Command-Line Flags (patch)
 
@@ -1053,7 +1053,7 @@ Error: target database does not exist: /path/to/blockstore.db
 **Solution**: Create the target database first or use `database migrate` to initialize it:
 
 ```bash
-# Option 1: Use migrate-db to create empty database
+# Option 1: Use db migrate to create empty database
 cronosd database migrate --db-type cometbft --home ~/.cronos
 
 # Option 2: Copy from another node
@@ -1232,7 +1232,7 @@ Patching between different Cronos versions may fail if database formats differ.
 
 If patching fails midway, there's no automatic rollback.
 
-**Mitigation**: Always backup before patching. Can re-run patchdb to complete.
+**Mitigation**: Always backup before patching. Can re-run db patch to complete.
 
 #### 4. Limited Database Support
 

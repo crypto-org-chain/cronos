@@ -27,7 +27,7 @@ const (
 // PatchDBCmd returns the patch command
 func PatchDBCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "patchdb",
+		Use:   "patch",
 		Short: "Patch specific block heights from source database into target database",
 		Long: `Patch specific block heights from a source database into an existing target database.
 
@@ -37,7 +37,7 @@ This command is designed for:
   - Patching gaps in block data
   - Copying individual blocks between databases
 
-Unlike migrate-db which creates a new database, patchdb UPDATES an existing target database
+Unlike db migrate which creates a new database, db patch UPDATES an existing target database
 by adding or overwriting keys for the specified heights.
 
 Supported databases:
@@ -68,7 +68,7 @@ IMPORTANT:
 
 Examples:
   # Patch a single missing block
-  cronosd patchdb \
+  cronosd db patch \
     --database blockstore \
     --height 123456 \
     --source-home ~/.cronos-archive \
@@ -77,7 +77,7 @@ Examples:
     --target-backend rocksdb
 
   # Patch a range of blocks
-  cronosd patchdb \
+  cronosd db patch \
     --database blockstore \
     --height 1000000-1001000 \
     --source-home ~/.cronos-backup \
@@ -86,14 +86,14 @@ Examples:
     --target-backend rocksdb
 
   # Patch multiple specific blocks
-  cronosd patchdb \
+  cronosd db patch \
     --database tx_index \
     --height 100000,200000,300000 \
     --source-home ~/.cronos-old \
     --target-path ~/.cronos/data/tx_index.db
 
   # Patch both blockstore and tx_index at once
-  cronosd patchdb \
+  cronosd db patch \
     --database blockstore,tx_index \
     --height 1000000-1001000 \
     --source-home ~/.cronos-backup \
@@ -102,7 +102,7 @@ Examples:
     --target-backend rocksdb
 
   # Patch from different backend
-  cronosd patchdb \
+  cronosd db patch \
     --database blockstore \
     --height 5000000-5001000 \
     --source-home /backup/cronos \
@@ -111,7 +111,7 @@ Examples:
     --target-backend rocksdb
 
   # Dry-run to preview changes (with short flags)
-  cronosd patchdb \
+  cronosd db patch \
     -d blockstore \
     -H 123456 \
     -f ~/.cronos-archive \
@@ -119,7 +119,7 @@ Examples:
     -n
 
   # Dry-run shows what would be patched including BH: keys
-  cronosd patchdb \
+  cronosd db patch \
     --database blockstore \
     --height 1000000 \
     --source-home ~/.cronos-backup \

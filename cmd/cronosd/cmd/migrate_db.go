@@ -82,22 +82,22 @@ IMPORTANT:
 
 Examples:
   # Migrate application database only (using --db-type)
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type app --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --db-type app --home ~/.cronos
 
   # Migrate CometBFT databases only (using --db-type)
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type cometbft --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --db-type cometbft --home ~/.cronos
 
   # Migrate all databases (using --db-type)
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type all --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --db-type all --home ~/.cronos
 
   # Migrate specific databases (using --databases)
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases blockstore,tx_index --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --databases blockstore,tx_index --home ~/.cronos
 
   # Migrate multiple specific databases
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --databases application,blockstore,state --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --databases application,blockstore,state --home ~/.cronos
 
   # Migrate with verification
-  cronosd migrate-db --source-backend goleveldb --target-backend rocksdb --db-type all --verify --home ~/.cronos
+  cronosd db migrate --source-backend goleveldb --target-backend rocksdb --db-type all --verify --home ~/.cronos
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)

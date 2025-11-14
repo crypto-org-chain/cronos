@@ -189,7 +189,7 @@ done
 
 if [[ "$FOUND_MIGRATED" == false ]]; then
     print_error "No migrated databases found in $DATA_DIR"
-    print_info "Run the migration first: cronosd migrate-db --db-type $DB_TYPE"
+    print_info "Run the migration first: cronosd db migrate --db-type $DB_TYPE"
     exit 1
 fi
 

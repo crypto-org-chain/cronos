@@ -470,32 +470,6 @@ func extractBlockHashFromMetadata(value []byte) ([]byte, bool) {
 	return nil, false
 }
 
-// patchBlockHeaderByHash patches a BH:<hash> key if it exists in the source database
-// This is called when processing H:<height> keys during blockstore migration
-func patchBlockHeaderByHash(sourceDB, targetDB dbm.DB, blockHash []byte, batch dbm.Batch) error {
-	// Construct BH: key
-	bhKey := make([]byte, 3+len(blockHash))
-	copy(bhKey[0:3], []byte("BH:"))
-	copy(bhKey[3:], blockHash)
-
-	// Try to get the value from source DB
-	value, err := sourceDB.Get(bhKey)
-	if err != nil {
-		// Key doesn't exist, which is fine - not all blocks may have BH: entries
-		return nil
-	}
-	if value == nil {
-		// Key doesn't exist
-		return nil
-	}
-
-	// Migrate the BH: key
-	valueCopy := make([]byte, len(value))
-	copy(valueCopy, value)
-
-	return batch.Set(bhKey, valueCopy)
-}
-
 // supportsHeightFiltering returns true if the database supports height-based filtering
 func supportsHeightFiltering(dbName string) bool {
 	return dbName == DBNameBlockstore || dbName == DBNameTxIndex

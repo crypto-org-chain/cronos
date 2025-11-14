@@ -57,55 +57,35 @@ type PatchOptions struct {
 	DryRun             bool               // If true, simulate operation without writing
 }
 
-// PatchDatabase patches specific heights from source to target database
-func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
+// validatePatchOptions validates the patch options
+func validatePatchOptions(opts PatchOptions) error {
 	if opts.Logger == nil {
-		return nil, fmt.Errorf("logger is required")
+		return fmt.Errorf("logger is required")
 	}
-
 	if opts.HeightRange.IsEmpty() {
-		return nil, fmt.Errorf("height range is required for patching")
+		return fmt.Errorf("height range is required for patching")
 	}
-
 	if !supportsHeightFiltering(opts.DBName) {
-		return nil, fmt.Errorf("database %s does not support height-based patching (only blockstore and tx_index supported)", opts.DBName)
+		return fmt.Errorf("database %s does not support height-based patching (only blockstore and tx_index supported)", opts.DBName)
 	}
 
-	logger := opts.Logger
-	stats := &MigrationStats{
-		StartTime: time.Now(),
-	}
-
-	// Construct source database path
+	// Construct and validate source database path
 	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+".db")
-
-	// Validate source exists
 	if _, err := os.Stat(sourceDBPath); os.IsNotExist(err) {
-		return stats, fmt.Errorf("source database does not exist: %s", sourceDBPath)
+		return fmt.Errorf("source database does not exist: %s", sourceDBPath)
 	}
 
 	// Validate target exists
 	if _, err := os.Stat(opts.TargetPath); os.IsNotExist(err) {
-		return stats, fmt.Errorf("target database does not exist: %s (use migrate-db to create new databases)", opts.TargetPath)
+		return fmt.Errorf("target database does not exist: %s (use db migrate to create new databases)", opts.TargetPath)
 	}
 
-	if opts.DryRun {
-		logger.Info("DRY RUN MODE - No changes will be made")
-		if opts.DBName == DBNameBlockstore {
-			logger.Info("Note: Blockstore patching will also discover and patch corresponding BH: (block header by hash) keys")
-		}
-	}
+	return nil
+}
 
-	logger.Info("Opening databases for patching",
-		"source_db", sourceDBPath,
-		"source_backend", opts.SourceBackend,
-		"target_db", opts.TargetPath,
-		"target_backend", opts.TargetBackend,
-		"height_range", opts.HeightRange.String(),
-		"dry_run", opts.DryRun,
-	)
-
-	// Open source database (read-only)
+// openSourceDatabase opens the source database for reading
+func openSourceDatabase(opts PatchOptions) (dbm.DB, string, error) {
+	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+".db")
 	sourceDir := filepath.Dir(sourceDBPath)
 	sourceName := filepath.Base(sourceDBPath)
 	if len(sourceName) > len(dbExtension) && sourceName[len(sourceName)-len(dbExtension):] == dbExtension {
@@ -114,12 +94,16 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 
 	sourceDB, err := dbm.NewDB(sourceName, opts.SourceBackend, sourceDir)
 	if err != nil {
-		return stats, fmt.Errorf("failed to open source database: %w", err)
+		return nil, "", fmt.Errorf("failed to open source database: %w", err)
 	}
-	defer sourceDB.Close()
+	return sourceDB, sourceDBPath, nil
+}
 
-	// Open target database (read-write for patching)
+// openTargetDatabase opens the target database for patching
+func openTargetDatabase(opts PatchOptions) (dbm.DB, error) {
 	var targetDB dbm.DB
+	var err error
+
 	if opts.TargetBackend == dbm.RocksDBBackend {
 		targetDB, err = openRocksDBForMigration(opts.TargetPath, opts.RocksDBOptions)
 	} else {
@@ -129,9 +113,53 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 		targetDB, err = dbm.NewDB(targetName, opts.TargetBackend, targetDir)
 	}
 	if err != nil {
-		return stats, fmt.Errorf("failed to open target database: %w", err)
+		return nil, fmt.Errorf("failed to open target database: %w", err)
+	}
+	return targetDB, nil
+}
+
+// PatchDatabase patches specific heights from source to target database
+func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
+	// Validate options
+	if err := validatePatchOptions(opts); err != nil {
+		return nil, err
+	}
+
+	logger := opts.Logger
+	stats := &MigrationStats{
+		StartTime: time.Now(),
+	}
+
+	// Log dry-run mode if enabled
+	if opts.DryRun {
+		logger.Info("DRY RUN MODE - No changes will be made")
+		if opts.DBName == DBNameBlockstore {
+			logger.Info("Note: Blockstore patching will also discover and patch corresponding BH: (block header by hash) keys")
+		}
+	}
+
+	// Open source database
+	sourceDB, sourceDBPath, err := openSourceDatabase(opts)
+	if err != nil {
+		return stats, err
+	}
+	defer sourceDB.Close()
+
+	// Open target database
+	targetDB, err := openTargetDatabase(opts)
+	if err != nil {
+		return stats, err
 	}
 	defer targetDB.Close()
+
+	logger.Info("Opening databases for patching",
+		"source_db", sourceDBPath,
+		"source_backend", opts.SourceBackend,
+		"target_db", opts.TargetPath,
+		"target_backend", opts.TargetBackend,
+		"height_range", opts.HeightRange.String(),
+		"dry_run", opts.DryRun,
+	)
 
 	// Count keys to patch
 	totalKeys, err := countKeysForPatch(sourceDB, opts.DBName, opts.HeightRange, logger)
@@ -276,31 +304,159 @@ func patchBlockstoreData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Mi
 	return nil
 }
 
-// patchTxIndexData patches tx_index data with special handling for txhash and ethereum event keys
-// tx_index has three key types:
-//   - tx.height/<height>/<index> - indexed by height (value is the CometBFT txhash)
-//   - <cometbft_txhash> - direct lookup by hash (value is tx result data)
-//   - ethereum_tx.ethereumTxHash/<eth_txhash> - event-indexed lookup (value is CometBFT txhash)
-//
-// This function handles all three in three passes:
-//  1. Patch tx.height keys and collect CometBFT txhashes from values
-//  2. Patch the corresponding CometBFT txhash keys
-//  3. Extract Ethereum txhashes from events and patch ethereum_tx.ethereumTxHash keys
-func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
-	logger := opts.Logger
-
-	// Get bounded iterator for tx_index (only iterates over tx.height/<height>/ keys)
-	it, err := getTxIndexIterator(sourceDB, opts.HeightRange)
-	if err != nil {
-		return fmt.Errorf("failed to get tx_index iterator: %w", err)
+// extractHeightAndTxIndexFromKey extracts height and txIndex from a tx.height key
+// Returns (height, txIndex, success)
+func extractHeightAndTxIndexFromKey(key []byte, logger log.Logger) (int64, int64, bool) {
+	keyStr := string(key)
+	if !bytes.HasPrefix(key, []byte("tx.height/")) {
+		return 0, 0, false
 	}
-	defer it.Close()
 
-	logger.Info("Patching tx_index data",
-		"height_range", opts.HeightRange.String(),
-	)
+	// Format: "tx.height/<height>/<height>/<txindex>$es$0" or "tx.height/<height>/<height>/<txindex>"
+	parts := strings.Split(keyStr[len("tx.height/"):], "/")
+	if len(parts) < 3 {
+		return 0, 0, false
+	}
 
-	// Step 1: Iterate through tx.height keys and collect CometBFT txhashes
+	// parts[0] = height (first occurrence)
+	// parts[1] = height (second occurrence, same value)
+	// parts[2] = txindex$es$0 OR just txindex
+	var height, txIndex int64
+	_, err := fmt.Sscanf(parts[0], "%d", &height)
+	if err != nil {
+		logger.Debug("Failed to parse height from tx.height key", "key", keyStr, "error", err)
+		return 0, 0, false
+	}
+
+	// Extract txIndex - handle both with and without "$es$" suffix
+	txIndexStr := parts[2]
+	if strings.Contains(txIndexStr, "$es$") {
+		// Key has "$es$<eventseq>" suffix
+		txIndexStr = strings.Split(txIndexStr, "$es$")[0]
+	}
+	_, err = fmt.Sscanf(txIndexStr, "%d", &txIndex)
+	if err != nil {
+		logger.Debug("Failed to parse txIndex from tx.height key", "key", keyStr, "error", err)
+		return 0, 0, false
+	}
+
+	return height, txIndex, true
+}
+
+// checkTxHeightKeyConflict checks for key conflicts and returns whether to write
+// Returns (shouldWrite, newStrategy, skipped)
+func checkTxHeightKeyConflict(key, value []byte, targetDB dbm.DB, currentStrategy ConflictResolution, opts PatchOptions, logger log.Logger) (bool, ConflictResolution, bool) {
+	if opts.SkipConflictChecks {
+		return true, currentStrategy, false
+	}
+
+	existingValue, err := targetDB.Get(key)
+	if err != nil {
+		logger.Error("Failed to check existing key", "error", err)
+		return false, currentStrategy, false
+	}
+
+	// No conflict if key doesn't exist
+	if existingValue == nil {
+		return true, currentStrategy, false
+	}
+
+	// Handle conflict based on strategy
+	switch currentStrategy {
+	case ConflictAsk:
+		decision, newStrategy, err := promptKeyConflict(key, existingValue, value, opts.DBName, opts.HeightRange)
+		if err != nil {
+			logger.Error("Failed to get user input", "error", err)
+			return false, currentStrategy, false
+		}
+		if newStrategy != ConflictAsk {
+			logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
+		}
+		return decision, newStrategy, !decision
+
+	case ConflictSkip:
+		logger.Debug("Skipping existing key", "key", formatKeyPrefix(key, 80))
+		return false, currentStrategy, true
+
+	case ConflictReplace, ConflictReplaceAll:
+		logger.Debug("Replacing existing key", "key", formatKeyPrefix(key, 80))
+		return true, currentStrategy, false
+	}
+
+	return true, currentStrategy, false
+}
+
+// patchTxHeightKeyAndCollect patches a tx.height key and collects txhash info
+// Returns true if batch should be written, false if error occurred
+func patchTxHeightKeyAndCollect(key, value []byte, sourceDB dbm.DB, batch dbm.Batch, txhashes *[][]byte, ethTxInfos map[string]EthTxInfo, opts PatchOptions, stats *MigrationStats, logger log.Logger) bool {
+	// Patch the tx.height key
+	if opts.DryRun {
+		logger.Debug("[DRY RUN] Would patch tx.height key",
+			"key", formatKeyPrefix(key, 80),
+			"value_preview", formatValue(value, 100),
+		)
+	} else {
+		if err := batch.Set(key, value); err != nil {
+			stats.ErrorCount.Add(1)
+			logger.Error("Failed to set key in batch", "error", err)
+			return false
+		}
+		logger.Debug("Patched tx.height key", "key", formatKeyPrefix(key, 80))
+	}
+
+	// Collect CometBFT txhash for later patching (value is the CometBFT txhash)
+	if len(value) > 0 {
+		// Make a copy of the value since iterator reuses memory
+		txhashCopy := make([]byte, len(value))
+		copy(txhashCopy, value)
+		*txhashes = append(*txhashes, txhashCopy)
+
+		// Extract height and txIndex from the key
+		height, txIndex, ok := extractHeightAndTxIndexFromKey(key, logger)
+		if ok {
+			// Try to collect Ethereum txhash for event-indexed keys
+			collectEthereumTxInfo(sourceDB, txhashCopy, height, txIndex, ethTxInfos, logger)
+		}
+	}
+
+	return true
+}
+
+// collectEthereumTxInfo tries to extract Ethereum txhash from a transaction result
+// and stores it in ethTxInfos map if found
+func collectEthereumTxInfo(sourceDB dbm.DB, txhash []byte, height, txIndex int64, ethTxInfos map[string]EthTxInfo, logger log.Logger) {
+	// Read the transaction result from source database
+	txResultValue, err := sourceDB.Get(txhash)
+	if err != nil || txResultValue == nil {
+		return
+	}
+
+	// Extract ethereum txhash from events
+	ethTxHash, err := extractEthereumTxHash(txResultValue)
+	if err != nil {
+		logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhash, 80))
+		return
+	}
+
+	if ethTxHash != "" {
+		// Store the info for later Ethereum event key patching
+		ethTxInfos[ethTxHash] = EthTxInfo{
+			Height:  height,
+			TxIndex: txIndex,
+		}
+		logger.Debug("Collected ethereum txhash",
+			"eth_txhash", ethTxHash,
+			"cometbft_txhash", formatKeyPrefix(txhash, 80),
+			"height", height,
+			"tx_index", txIndex,
+		)
+	}
+}
+
+// patchTxHeightKeys patches tx.height keys and collects txhashes and ethereum tx info
+// Returns (txhashes, ethTxInfos, currentStrategy, error)
+func patchTxHeightKeys(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) ([][]byte, map[string]EthTxInfo, ConflictResolution, error) {
+	logger := opts.Logger
 	txhashes := make([][]byte, 0, 1000)      // Pre-allocate for performance
 	ethTxInfos := make(map[string]EthTxInfo) // eth_txhash (hex) -> EthTxInfo
 	batch := targetDB.NewBatch()
@@ -329,140 +485,39 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		}
 
 		// Check for key conflicts
-		shouldWrite := true
-		if !opts.SkipConflictChecks {
-			existingValue, err := targetDB.Get(key)
-			if err != nil {
-				stats.ErrorCount.Add(1)
-				logger.Error("Failed to check existing key", "error", err)
-				it.Next()
-				continue
-			}
-
-			if existingValue != nil {
-				switch currentStrategy {
-				case ConflictAsk:
-					decision, newStrategy, err := promptKeyConflict(key, existingValue, value, opts.DBName, opts.HeightRange)
-					if err != nil {
-						return fmt.Errorf("failed to get user input: %w", err)
-					}
-					if newStrategy != ConflictAsk {
-						currentStrategy = newStrategy
-						logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
-					}
-					shouldWrite = decision
-					if !decision {
-						skippedCount++
-					}
-
-				case ConflictSkip:
-					shouldWrite = false
-					skippedCount++
-					logger.Debug("Skipping existing key", "key", formatKeyPrefix(key, 80))
-
-				case ConflictReplace, ConflictReplaceAll:
-					shouldWrite = true
-					logger.Debug("Replacing existing key", "key", formatKeyPrefix(key, 80))
-				}
-			}
+		shouldWrite, newStrategy, skipped := checkTxHeightKeyConflict(key, value, targetDB, currentStrategy, opts, logger)
+		if newStrategy != currentStrategy {
+			currentStrategy = newStrategy
+		}
+		if skipped {
+			skippedCount++
+		}
+		if !shouldWrite {
+			it.Next()
+			continue
 		}
 
-		if shouldWrite {
-			// Patch the tx.height key
-			if opts.DryRun {
-				logger.Debug("[DRY RUN] Would patch tx.height key",
-					"key", formatKeyPrefix(key, 80),
-					"value_preview", formatValue(value, 100),
-				)
-			} else {
-				if err := batch.Set(key, value); err != nil {
-					stats.ErrorCount.Add(1)
-					logger.Error("Failed to set key in batch", "error", err)
-					it.Next()
-					continue
+		// Patch the key and collect txhash info
+		if !patchTxHeightKeyAndCollect(key, value, sourceDB, batch, &txhashes, ethTxInfos, opts, stats, logger) {
+			it.Next()
+			continue
+		}
+
+		batchCount++
+		processedCount++
+
+		// Write batch when full
+		if batchCount >= opts.BatchSize {
+			if !opts.DryRun {
+				if err := batch.Write(); err != nil {
+					return nil, nil, currentStrategy, fmt.Errorf("failed to write batch: %w", err)
 				}
-				logger.Debug("Patched tx.height key", "key", formatKeyPrefix(key, 80))
+				logger.Debug("Wrote batch", "batch_size", batchCount)
+				batch.Close()
+				batch = targetDB.NewBatch()
 			}
-
-			batchCount++
-			processedCount++
-
-			// Collect CometBFT txhash for later patching (value IS the CometBFT txhash)
-			if len(value) > 0 {
-				// Make a copy of the value since iterator reuses memory
-				txhashCopy := make([]byte, len(value))
-				copy(txhashCopy, value)
-				txhashes = append(txhashes, txhashCopy)
-
-				// Extract height and txIndex from the key
-				// Format: "tx.height/<height>/<height>/<txindex>$es$0" or "tx.height/<height>/<height>/<txindex>"
-				keyStr := string(key)
-				var height, txIndex int64
-				if bytes.HasPrefix(key, []byte("tx.height/")) {
-					parts := strings.Split(keyStr[len("tx.height/"):], "/")
-					if len(parts) >= 3 {
-						// parts[0] = height (first occurrence)
-						// parts[1] = height (second occurrence, same value)
-						// parts[2] = txindex$es$0 OR just txindex
-						_, err := fmt.Sscanf(parts[0], "%d", &height)
-						if err != nil {
-							logger.Debug("Failed to parse height from tx.height key", "key", keyStr, "error", err)
-							it.Next()
-							continue
-						}
-
-						// Extract txIndex - handle both with and without "$es$" suffix
-						txIndexStr := parts[2]
-						if strings.Contains(txIndexStr, "$es$") {
-							// Key has "$es$<eventseq>" suffix
-							txIndexStr = strings.Split(txIndexStr, "$es$")[0]
-						}
-						_, err = fmt.Sscanf(txIndexStr, "%d", &txIndex)
-						if err != nil {
-							logger.Debug("Failed to parse txIndex from tx.height key", "key", keyStr, "error", err)
-							it.Next()
-							continue
-						}
-					}
-
-					// Also try to extract Ethereum txhash for event-indexed keys
-					// Read the transaction result from source database
-					txResultValue, err := sourceDB.Get(txhashCopy)
-					if err == nil && txResultValue != nil {
-						// Extract ethereum txhash from events
-						ethTxHash, err := extractEthereumTxHash(txResultValue)
-						if err != nil {
-							logger.Debug("Failed to extract ethereum txhash", "error", err, "cometbft_txhash", formatKeyPrefix(txhashCopy, 80))
-						} else if ethTxHash != "" {
-							// Store the info for Pass 3
-							ethTxInfos[ethTxHash] = EthTxInfo{
-								Height:  height,
-								TxIndex: txIndex,
-							}
-							logger.Debug("Collected ethereum txhash",
-								"eth_txhash", ethTxHash,
-								"cometbft_txhash", formatKeyPrefix(txhashCopy, 80),
-								"height", height,
-								"tx_index", txIndex,
-							)
-						}
-					}
-				}
-			}
-
-			// Write batch when full
-			if batchCount >= opts.BatchSize {
-				if !opts.DryRun {
-					if err := batch.Write(); err != nil {
-						return fmt.Errorf("failed to write batch: %w", err)
-					}
-					logger.Debug("Wrote batch", "batch_size", batchCount)
-					batch.Close()
-					batch = targetDB.NewBatch()
-				}
-				stats.ProcessedKeys.Add(int64(batchCount))
-				batchCount = 0
-			}
+			stats.ProcessedKeys.Add(int64(batchCount))
+			batchCount = 0
 		}
 
 		it.Next()
@@ -472,7 +527,7 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 	if batchCount > 0 {
 		if !opts.DryRun {
 			if err := batch.Write(); err != nil {
-				return fmt.Errorf("failed to write final batch: %w", err)
+				return nil, nil, currentStrategy, fmt.Errorf("failed to write final batch: %w", err)
 			}
 			logger.Debug("Wrote final batch", "batch_size", batchCount)
 		}
@@ -480,7 +535,7 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 	}
 
 	if err := it.Error(); err != nil {
-		return fmt.Errorf("iterator error: %w", err)
+		return nil, nil, currentStrategy, fmt.Errorf("iterator error: %w", err)
 	}
 
 	logger.Info("Patched tx.height keys",
@@ -489,6 +544,29 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 		"txhashes_collected", len(txhashes),
 		"ethereum_txhashes_collected", len(ethTxInfos),
 	)
+
+	return txhashes, ethTxInfos, currentStrategy, nil
+}
+
+func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
+	logger := opts.Logger
+
+	// Get bounded iterator for tx_index (only iterates over tx.height/<height>/ keys)
+	it, err := getTxIndexIterator(sourceDB, opts.HeightRange)
+	if err != nil {
+		return fmt.Errorf("failed to get tx_index iterator: %w", err)
+	}
+	defer it.Close()
+
+	logger.Info("Patching tx_index data",
+		"height_range", opts.HeightRange.String(),
+	)
+
+	// Step 1: Patch tx.height keys and collect CometBFT txhashes and Ethereum tx info
+	txhashes, ethTxInfos, currentStrategy, err := patchTxHeightKeys(it, sourceDB, targetDB, opts, stats)
+	if err != nil {
+		return err
+	}
 
 	// Step 2: Patch CometBFT txhash keys
 	if len(txhashes) > 0 {
@@ -499,7 +577,6 @@ func patchTxIndexData(sourceDB, targetDB dbm.DB, opts PatchOptions, stats *Migra
 	}
 
 	// Step 3: Patch Ethereum event-indexed keys from source database
-	// Search for existing event keys in source DB and copy them to target
 	if len(ethTxInfos) > 0 {
 		logger.Info("Patching Ethereum event-indexed keys from source database", "count", len(ethTxInfos))
 		if err := patchEthereumEventKeysFromSource(sourceDB, targetDB, ethTxInfos, opts, stats, currentStrategy); err != nil {
@@ -849,6 +926,171 @@ func patchEthereumEventKeysFromSource(sourceDB, targetDB dbm.DB, ethTxInfos map[
 }
 
 // patchWithIterator patches data from an iterator to target database
+// shouldProcessKey checks if a key should be processed based on height filtering
+func shouldProcessKey(key []byte, dbName string, heightRange HeightRange) bool {
+	if !heightRange.HasSpecificHeights() {
+		return true
+	}
+
+	// Extract height from key
+	var height int64
+	var hasHeight bool
+
+	switch dbName {
+	case DBNameBlockstore:
+		height, hasHeight = extractHeightFromBlockstoreKey(key)
+	case DBNameTxIndex:
+		height, hasHeight = extractHeightFromTxIndexKey(key)
+	default:
+		return false
+	}
+
+	if !hasHeight {
+		return false
+	}
+
+	return heightRange.IsWithinRange(height)
+}
+
+// handleKeyConflict handles key conflict resolution
+// Returns (shouldWrite bool, newStrategy ConflictResolution, skipped bool)
+func handleKeyConflict(key, existingValue, newValue []byte, targetDB dbm.DB, currentStrategy ConflictResolution, opts PatchOptions, logger log.Logger) (bool, ConflictResolution, bool) {
+	if opts.SkipConflictChecks {
+		return true, currentStrategy, false
+	}
+
+	// Key doesn't exist, no conflict
+	if existingValue == nil {
+		return true, currentStrategy, false
+	}
+
+	// log the existing value and key
+	logger.Debug("Existing key",
+		"key", formatKeyPrefix(key, 80),
+		"existing_value_preview", formatValue(existingValue, 100),
+	)
+
+	// Handle conflict based on strategy
+	switch currentStrategy {
+	case ConflictAsk:
+		decision, newStrategy, err := promptKeyConflict(key, existingValue, newValue, opts.DBName, opts.HeightRange)
+		if err != nil {
+			logger.Error("Failed to get user input", "error", err)
+			return false, currentStrategy, true
+		}
+		if newStrategy != ConflictAsk {
+			logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
+		}
+		return decision, newStrategy, !decision
+
+	case ConflictSkip:
+		logger.Debug("Skipping existing key",
+			"key", formatKeyPrefix(key, 80),
+			"existing_value_preview", formatValue(existingValue, 100),
+		)
+		return false, currentStrategy, true
+
+	case ConflictReplace, ConflictReplaceAll:
+		logger.Debug("Replacing existing key",
+			"key", formatKeyPrefix(key, 80),
+			"old_value_preview", formatValue(existingValue, 100),
+			"new_value_preview", formatValue(newValue, 100),
+		)
+		return true, currentStrategy, false
+	}
+
+	return true, currentStrategy, false
+}
+
+// patchSingleKey patches a single key-value pair, including BH: key for blockstore H: keys
+func patchSingleKey(key, value []byte, sourceDB dbm.DB, batch dbm.Batch, opts PatchOptions, logger log.Logger) error {
+	if opts.DryRun {
+		// Debug log for what would be patched
+		logger.Debug("[DRY RUN] Would patch key",
+			"key", formatKeyPrefix(key, 80),
+			"key_size", len(key),
+			"value_preview", formatValue(value, 100),
+			"value_size", len(value),
+		)
+
+		// For blockstore H: keys, check if corresponding BH:<hash> key would be patched
+		if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
+			if blockHash, ok := extractBlockHashFromMetadata(value); ok {
+				// Check if BH: key exists in source DB
+				bhKey := make([]byte, 3+len(blockHash))
+				copy(bhKey[0:3], []byte("BH:"))
+				copy(bhKey[3:], blockHash)
+
+				bhValue, err := sourceDB.Get(bhKey)
+				if err == nil && bhValue != nil {
+					logger.Debug("[DRY RUN] Would patch BH: key",
+						"hash", fmt.Sprintf("%x", blockHash),
+						"key_size", len(bhKey),
+						"value_size", len(bhValue),
+					)
+				}
+			}
+		}
+		return nil
+	}
+
+	// Copy key-value to batch (actual write)
+	if err := batch.Set(key, value); err != nil {
+		return fmt.Errorf("failed to set key in batch: %w", err)
+	}
+
+	// For blockstore H: keys, also patch the corresponding BH:<hash> key
+	if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
+		if blockHash, ok := extractBlockHashFromMetadata(value); ok {
+			// Construct BH: key
+			bhKey := make([]byte, 3+len(blockHash))
+			copy(bhKey[0:3], []byte("BH:"))
+			copy(bhKey[3:], blockHash)
+
+			// Try to get the value from source DB
+			bhValue, err := sourceDB.Get(bhKey)
+			if err == nil && bhValue != nil {
+				// Make a copy of the value before adding to batch
+				bhValueCopy := make([]byte, len(bhValue))
+				copy(bhValueCopy, bhValue)
+
+				if err := batch.Set(bhKey, bhValueCopy); err != nil {
+					logger.Debug("Failed to patch BH: key", "error", err, "hash", fmt.Sprintf("%x", blockHash))
+				} else {
+					logger.Debug("Patched BH: key", "hash", fmt.Sprintf("%x", blockHash))
+				}
+			}
+		}
+	}
+
+	// Debug log for each key patched
+	logger.Debug("Patched key to target database",
+		"key", formatKeyPrefix(key, 80),
+		"key_size", len(key),
+		"value_preview", formatValue(value, 100),
+		"value_size", len(value),
+	)
+
+	return nil
+}
+
+// writeAndResetBatch writes the batch to the database and creates a new batch
+func writeAndResetBatch(batch dbm.Batch, targetDB dbm.DB, batchCount int, opts PatchOptions, logger log.Logger) (dbm.Batch, error) {
+	if opts.DryRun {
+		logger.Debug("[DRY RUN] Would write batch", "batch_size", batchCount)
+		return batch, nil
+	}
+
+	logger.Debug("Writing batch to target database", "batch_size", batchCount)
+	if err := batch.Write(); err != nil {
+		return batch, fmt.Errorf("failed to write batch: %w", err)
+	}
+
+	// Close and create new batch
+	batch.Close()
+	return targetDB.NewBatch(), nil
+}
+
 func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOptions, stats *MigrationStats) error {
 	defer it.Close()
 
@@ -868,176 +1110,45 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 		key := it.Key()
 		value := it.Value()
 
-		// Additional filtering for specific heights (if needed)
-		if opts.HeightRange.HasSpecificHeights() {
-			// Extract height from key
-			var height int64
-			var hasHeight bool
-
-			switch opts.DBName {
-			case DBNameBlockstore:
-				height, hasHeight = extractHeightFromBlockstoreKey(key)
-			case DBNameTxIndex:
-				height, hasHeight = extractHeightFromTxIndexKey(key)
-			default:
-				return fmt.Errorf("unsupported database: %s", opts.DBName)
-			}
-
-			if !hasHeight {
-				// Skip keys that don't have heights
-				continue
-			}
-
-			// Check if this height is in our specific list
-			if !opts.HeightRange.IsWithinRange(height) {
-				continue
-			}
+		// Check if we should process this key (height filtering)
+		if !shouldProcessKey(key, opts.DBName, opts.HeightRange) {
+			continue
 		}
 
-		// Check for key conflicts if not skipping checks
-		shouldWrite := true
-		if !opts.SkipConflictChecks {
-			existingValue, err := targetDB.Get(key)
-			if err != nil {
-				stats.ErrorCount.Add(1)
-				logger.Error("Failed to check existing key", "error", err)
-				continue
-			}
-
-			// log the existing value and key
-			logger.Debug("Existing key",
-				"key", formatKeyPrefix(key, 80),
-				"existing_value_preview", formatValue(existingValue, 100),
-			)
-
-			// Key exists in target database (Get returns nil if key doesn't exist)
-			if existingValue != nil {
-				// Handle conflict based on strategy
-				switch currentStrategy {
-				case ConflictAsk:
-					// Prompt user for decision
-					decision, newStrategy, err := promptKeyConflict(key, existingValue, value, opts.DBName, opts.HeightRange)
-					if err != nil {
-						return fmt.Errorf("failed to get user input: %w", err)
-					}
-
-					// If user chose "replace all", update strategy
-					if newStrategy != ConflictAsk {
-						currentStrategy = newStrategy
-						logger.Info("Conflict resolution strategy updated", "strategy", formatStrategy(newStrategy))
-					}
-
-					shouldWrite = decision
-					if !decision {
-						skippedCount++
-					}
-
-				case ConflictSkip:
-					shouldWrite = false
-					skippedCount++
-					logger.Debug("Skipping existing key",
-						"key", formatKeyPrefix(key, 80),
-						"existing_value_preview", formatValue(existingValue, 100),
-					)
-
-				case ConflictReplace, ConflictReplaceAll:
-					shouldWrite = true
-					logger.Debug("Replacing existing key",
-						"key", formatKeyPrefix(key, 80),
-						"old_value_preview", formatValue(existingValue, 100),
-						"new_value_preview", formatValue(value, 100),
-					)
-				}
-			}
+		// Check for key conflicts and get resolution
+		existingValue, err := targetDB.Get(key)
+		if err != nil {
+			stats.ErrorCount.Add(1)
+			logger.Error("Failed to check existing key", "error", err)
+			continue
 		}
 
+		shouldWrite, newStrategy, skipped := handleKeyConflict(key, existingValue, value, targetDB, currentStrategy, opts, logger)
+		if newStrategy != currentStrategy {
+			currentStrategy = newStrategy
+		}
+		if skipped {
+			skippedCount++
+		}
 		if !shouldWrite {
 			continue
 		}
 
-		// In dry-run mode, just count what would be written
-		if opts.DryRun {
-			// Debug log for what would be patched
-			logger.Debug("[DRY RUN] Would patch key",
-				"key", formatKeyPrefix(key, 80),
-				"key_size", len(key),
-				"value_preview", formatValue(value, 100),
-				"value_size", len(value),
-			)
-
-			// For blockstore H: keys, check if corresponding BH:<hash> key would be patched
-			if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
-				if blockHash, ok := extractBlockHashFromMetadata(value); ok {
-					// Check if BH: key exists in source DB
-					bhKey := make([]byte, 3+len(blockHash))
-					copy(bhKey[0:3], []byte("BH:"))
-					copy(bhKey[3:], blockHash)
-
-					bhValue, err := sourceDB.Get(bhKey)
-					if err == nil && bhValue != nil {
-						logger.Debug("[DRY RUN] Would patch BH: key",
-							"hash", fmt.Sprintf("%x", blockHash),
-							"key_size", len(bhKey),
-							"value_size", len(bhValue),
-						)
-					}
-				}
-			}
-		} else {
-			// Copy key-value to batch (actual write)
-			if err := batch.Set(key, value); err != nil {
-				stats.ErrorCount.Add(1)
-				logger.Error("Failed to set key in batch", "error", err)
-				continue
-			}
-
-			// For blockstore H: keys, also patch the corresponding BH:<hash> key
-			if opts.DBName == DBNameBlockstore && len(key) > 2 && key[0] == 'H' && key[1] == ':' {
-				if blockHash, ok := extractBlockHashFromMetadata(value); ok {
-					// Patch the corresponding BH:<hash> key
-					if err := patchBlockHeaderByHash(sourceDB, targetDB, blockHash, batch); err != nil {
-						logger.Debug("Failed to patch BH: key", "error", err, "hash", fmt.Sprintf("%x", blockHash))
-						// Don't fail the patch, just log the error
-					} else {
-						logger.Debug("Patched BH: key", "hash", fmt.Sprintf("%x", blockHash))
-					}
-				}
-			}
-
-			// Debug log for each key patched
-			logger.Debug("Patched key to target database",
-				"key", formatKeyPrefix(key, 80),
-				"key_size", len(key),
-				"value_preview", formatValue(value, 100),
-				"value_size", len(value),
-				"batch_count", batchCount,
-			)
+		// Patch the key-value pair
+		if err := patchSingleKey(key, value, sourceDB, batch, opts, logger); err != nil {
+			stats.ErrorCount.Add(1)
+			logger.Error("Failed to patch key", "error", err)
+			continue
 		}
 
 		batchCount++
 
-		// Write batch when it reaches the batch size (skip in dry-run)
+		// Write batch when it reaches the batch size
 		if batchCount >= opts.BatchSize {
-			if opts.DryRun {
-				logger.Debug("[DRY RUN] Would write batch",
-					"batch_size", batchCount,
-					"total_processed", stats.ProcessedKeys.Load()+int64(batchCount),
-				)
-			} else {
-				logger.Debug("Writing batch to target database",
-					"batch_size", batchCount,
-					"total_processed", stats.ProcessedKeys.Load()+int64(batchCount),
-				)
-
-				if err := batch.Write(); err != nil {
-					return fmt.Errorf("failed to write batch: %w", err)
-				}
-
-				// Close and create new batch
-				batch.Close()
-				batch = targetDB.NewBatch()
+			batch, err = writeAndResetBatch(batch, targetDB, batchCount, opts, logger)
+			if err != nil {
+				return err
 			}
-
 			stats.ProcessedKeys.Add(int64(batchCount))
 			batchCount = 0
 		}
@@ -1056,7 +1167,7 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 		}
 	}
 
-	// Write remaining batch (skip in dry-run)
+	// Write remaining batch
 	if batchCount > 0 {
 		if opts.DryRun {
 			logger.Debug("[DRY RUN] Would write final batch", "batch_size", batchCount)
@@ -1068,10 +1179,10 @@ func patchWithIterator(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 		stats.ProcessedKeys.Add(int64(batchCount))
 	}
 
+	// Final logging
 	if skippedCount > 0 {
 		logger.Info("Skipped conflicting keys", "count", skippedCount)
 	}
-
 	if opts.DryRun {
 		logger.Info("[DRY RUN] Simulation complete - no changes were made")
 	}
