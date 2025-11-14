@@ -906,8 +906,6 @@ github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c h1:MOgfS4+F
 github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c/go.mod h1:twD9XRA5jj9VUQGELzDO4HPQTNJsoWWfYEL+EUQ2cKY=
 github.com/crypto-org-chain/cometbft v0.0.0-20251014161156-b0e778b18408 h1:7dfWkDRYCsguKrpd0t14nrZ3Xf/9aVHiQrWx5o0DCdo=
 github.com/crypto-org-chain/cometbft v0.0.0-20251014161156-b0e778b18408/go.mod h1:khbgmtxbgwJfMqDmnGY4rl2sQpTdzpPb1f9nqnfpy1o=
-github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20250424063720-28ea58ae20d8 h1:Sif0pGNc4C384OLucyQ7P/+KjYiJ6uDn8Cf8wR7MI+c=
-github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20250424063720-28ea58ae20d8/go.mod h1:JwwsMeZldLN20b72mmbWPY0EV9rs+v/12hRu1JFttvY=
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 h1:NEgy0r3otU/O+0OAjMdEhbn4VotQlg+98hHbD7M23wU=
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
@@ -1716,6 +1714,8 @@ github.com/tendermint/go-amino v0.16.0 h1:GyhmgQKvqF82e2oZeuMSp9JTN0N09emoSZlb2l
 github.com/tendermint/go-amino v0.16.0/go.mod h1:TQU0M1i/ImAo+tYpZi73AU3V/dKeCoMC9Sphe2ZwGME=
 github.com/test-go/testify v1.1.4 h1:Tf9lntrKUMHiXQ07qBScBTSA0dhYQlu83hswqelv1iE=
 github.com/test-go/testify v1.1.4/go.mod h1:rH7cfJo/47vWGdi4GPj16x3/t1xGOj2YxzmNQzk2ghU=
+github.com/thomas-nguy/cosmos-sdk v0.43.0-beta1.0.20251114131150-345c12f02c3f h1:CRUK3R/Bj48jdXYw14AXlqVZL/TrmPxiHNx3y692r+A=
+github.com/thomas-nguy/cosmos-sdk v0.43.0-beta1.0.20251114131150-345c12f02c3f/go.mod h1:JwwsMeZldLN20b72mmbWPY0EV9rs+v/12hRu1JFttvY=
 github.com/tidwall/gjson v1.10.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.14.2/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=

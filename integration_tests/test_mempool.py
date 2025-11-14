@@ -259,7 +259,7 @@ def test_multiple_tx_replacement(cronos_mempool):
     tx1_replaced_signed = sign_transaction(w3, tx1_replaced, key=KEYS["validator"])
     tx1_replaced_again = {
         "to": ADDRS["community"],
-        "value": 10,
+        "value": 3,
         "maxFeePerGas": int((base_fee + priority_fee) * 2),
         "maxPriorityFeePerGas": int(priority_fee * 2),
         "nonce": user1_nonce,
@@ -271,7 +271,7 @@ def test_multiple_tx_replacement(cronos_mempool):
 
     tx2 = {
         "to": ADDRS["community"],
-        "value": 1,
+        "value": 10,
         "maxFeePerGas": base_fee + priority_fee,
         "maxPriorityFeePerGas": priority_fee,
         "nonce": user2_nonce,
@@ -280,7 +280,7 @@ def test_multiple_tx_replacement(cronos_mempool):
     tx2_signed = sign_transaction(w3, tx2, key=KEYS["validator2"])
     tx2_replaced = {
         "to": ADDRS["community"],
-        "value": 2,
+        "value": 11,
         "maxFeePerGas": int((base_fee + priority_fee) * 2),
         "maxPriorityFeePerGas": int(priority_fee * 2),
         "nonce": user2_nonce,
@@ -290,7 +290,7 @@ def test_multiple_tx_replacement(cronos_mempool):
 
     tx3 = {
         "to": ADDRS["community"],
-        "value": 1,
+        "value": 20,
         "maxFeePerGas": base_fee + priority_fee,
         "maxPriorityFeePerGas": priority_fee,
         "nonce": user3_nonce,
@@ -305,4 +305,4 @@ def test_multiple_tx_replacement(cronos_mempool):
     w3.eth.send_raw_transaction(tx2_replaced_signed.rawTransaction)
     w3.eth.send_raw_transaction(tx3_signed.rawTransaction)
     wait_for_new_blocks(cli, 1)
-    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 13
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 34
