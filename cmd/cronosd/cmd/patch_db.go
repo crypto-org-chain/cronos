@@ -24,12 +24,11 @@ const (
 	flagPatchDryRun        = "dry-run"
 )
 
-// PatchDBCmd returns the legacy patchdb command (for backward compatibility)
+// PatchDBCmd returns the patch command
 func PatchDBCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:        "patchdb",
-		Short:      "Patch specific block heights from source database into target database",
-		Deprecated: "Use 'database patch' or 'db patch' instead",
+		Use:   "patchdb",
+		Short: "Patch specific block heights from source database into target database",
 		Long: `Patch specific block heights from a source database into an existing target database.
 
 This command is designed for:
@@ -42,9 +41,15 @@ Unlike migrate-db which creates a new database, patchdb UPDATES an existing targ
 by adding or overwriting keys for the specified heights.
 
 Supported databases:
-  - blockstore: Block data (headers, commits, evidence)
-  - tx_index: Transaction indexing
+  - blockstore: Block data (H:, P:, C:, SC:, EC: prefixes for ABCI 2.0)
+    * Automatically patches BH: (block header by hash) keys by parsing block hashes from H: keys
+  - tx_index: Transaction indexing (tx.height/* namespace)
   - Multiple: blockstore,tx_index (comma-separated for both)
+
+Features:
+  - Dry-run mode: Preview changes without modifying the database (--dry-run)
+  - Height filtering: Uses prefix-only iterators with Go-level numeric filtering
+  - Auto BH: patching: When patching blockstore H: keys, corresponding BH: keys are automatically patched
 
 Height specification (--height):
   - Range: --height 10000-20000 (patch heights 10000 to 20000)
@@ -56,7 +61,10 @@ IMPORTANT:
   - Source database is opened in read-only mode
   - Target database will be modified (keys added/updated)
   - Always backup your target database before patching
-  - You MUST specify --target-path explicitly (required flag to prevent accidental modification of source database)
+  - You MUST specify --target-path explicitly (required flag to prevent accidental modification)
+  - For blockstore, BH: (block header by hash) keys are automatically patched alongside H: keys
+  - Use --dry-run to preview changes without modifying the database
+  - Height filtering uses prefix-only iterators to handle string-encoded heights correctly
 
 Examples:
   # Patch a single missing block
@@ -101,6 +109,22 @@ Examples:
     --target-path /production/cronos/data/blockstore.db \
     --source-backend goleveldb \
     --target-backend rocksdb
+
+  # Dry-run to preview changes (with short flags)
+  cronosd patchdb \
+    -d blockstore \
+    -H 123456 \
+    -f ~/.cronos-archive \
+    -p ~/.cronos/data/blockstore.db \
+    -n
+
+  # Dry-run shows what would be patched including BH: keys
+  cronosd patchdb \
+    --database blockstore \
+    --height 1000000 \
+    --source-home ~/.cronos-backup \
+    --target-path ~/.cronos/data/blockstore.db \
+    --dry-run
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)

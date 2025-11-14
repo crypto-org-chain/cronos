@@ -20,8 +20,9 @@ const (
 	flagVerify        = "verify"
 	flagDBType        = "db-type"
 	flagDatabases     = "databases"
-	flagHeight        = "height"
 )
+
+type DBType string
 
 // Database type constants
 const (
@@ -39,12 +40,11 @@ var validDatabaseNames = map[string]bool{
 	"evidence":    true,
 }
 
-// MigrateDBCmd returns the legacy migrate-db command (for backward compatibility)
+// MigrateDBCmd returns the migrate command
 func MigrateDBCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:        "migrate-db",
-		Short:      "Migrate databases from one backend to another (e.g., leveldb to rocksdb)",
-		Deprecated: "Use 'database migrate' or 'db migrate' instead",
+		Use:   "migrate",
+		Short: "Migrate databases from one backend to another (e.g., leveldb to rocksdb)",
 		Long: `Migrate databases from one backend to another.
 
 This command migrates databases from a source backend to a target backend.
@@ -76,7 +76,7 @@ For selective height-based patching, use 'database patch' or 'db patch' instead.
 IMPORTANT: 
 - Always backup your databases before migration
 - The source databases are opened in read-only mode and are not modified
-- The target databases are created with a .migrate-temp suffix
+- The target databases are created with a .migrate-temp.db suffix (e.g., application.migrate-temp.db)
 - After successful migration, you need to manually replace the original databases
 - Stop your node before running this command
 

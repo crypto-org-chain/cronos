@@ -214,7 +214,7 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 		}
 		logger.Debug("Total keys seen in blockstore", "total_seen", keysSeen, "total_counted", totalCount)
 
-	case "tx_index":
+	case DBNameTxIndex:
 		// For tx_index
 		it, err := getTxIndexIterator(db, heightRange)
 		if err != nil {

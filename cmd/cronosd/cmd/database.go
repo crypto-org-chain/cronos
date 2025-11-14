@@ -21,8 +21,8 @@ Use "cronosd database [command] --help" for more information about a command.`,
 
 	// Add subcommands
 	cmd.AddCommand(
-		MigrateCmd(), // migrate-db -> database migrate
-		PatchCmd(),   // patchdb -> database patch
+		MigrateCmd(),
+		PatchCmd(),
 	)
 
 	return cmd

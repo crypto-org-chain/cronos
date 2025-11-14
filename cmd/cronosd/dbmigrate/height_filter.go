@@ -110,7 +110,7 @@ func (hr HeightRange) Validate() error {
 	if hr.End < 0 {
 		return fmt.Errorf("end height cannot be negative: %d", hr.End)
 	}
-	if hr.Start > 0 && hr.End > 0 && hr.Start > hr.End {
+	if hr.End > 0 && hr.Start > hr.End {
 		return fmt.Errorf("start height (%d) cannot be greater than end height (%d)", hr.Start, hr.End)
 	}
 	return nil
