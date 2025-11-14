@@ -152,7 +152,6 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping) {
 	store := ctx.KVStore(k.storeKey)
 	iter := prefix.NewStore(store, types.KeyPrefixDenomToExternalContract).Iterator(nil, nil)
-	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		out = append(out, types.TokenMapping{
 			Denom:    string(iter.Key()),
@@ -166,7 +165,6 @@ func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping)
 func (k Keeper) GetAutoContracts(ctx sdk.Context) (out []types.TokenMapping) {
 	store := ctx.KVStore(k.storeKey)
 	iter := prefix.NewStore(store, types.KeyPrefixDenomToAutoContract).Iterator(nil, nil)
-	defer iter.Close()
 	for ; iter.Valid(); iter.Next() {
 		out = append(out, types.TokenMapping{
 			Denom:    string(iter.Key()),
