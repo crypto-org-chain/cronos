@@ -227,7 +227,12 @@ Examples:
 				if len(validDBNames) == 1 {
 					dbTargetPath = targetPath
 				} else {
-					// For multiple databases, treat targetPath as data directory
+					// For multiple databases, validate that targetPath is a directory, not a *.db file
+					cleanedTargetPath := filepath.Clean(targetPath)
+					if filepath.Ext(cleanedTargetPath) == ".db" {
+						return fmt.Errorf("when patching multiple databases, --target-path must be a data directory (e.g., ~/.cronos/data), not a *.db file path (got %q); remove the .db suffix", targetPath)
+					}
+					// Treat targetPath as data directory
 					dbTargetPath = filepath.Join(targetPath, dbName+".db")
 				}
 
