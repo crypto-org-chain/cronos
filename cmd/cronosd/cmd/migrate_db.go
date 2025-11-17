@@ -40,13 +40,24 @@ const (
 	RocksDB   BackendType = "rocksdb"
 )
 
+type DatabaseName string
+
+// Database name constants
+const (
+	Application DatabaseName = "application"
+	Blockstore  DatabaseName = "blockstore"
+	State       DatabaseName = "state"
+	TxIndex     DatabaseName = "tx_index"
+	Evidence    DatabaseName = "evidence"
+)
+
 // Valid database names
 var validDatabaseNames = map[string]bool{
-	"application": true,
-	"blockstore":  true,
-	"state":       true,
-	"tx_index":    true,
-	"evidence":    true,
+	string(Application): true,
+	string(Blockstore):  true,
+	string(State):       true,
+	string(TxIndex):     true,
+	string(Evidence):    true,
 }
 
 // MigrateDBCmd returns the migrate command
@@ -142,14 +153,19 @@ Examples:
 			}
 
 			// Determine which databases to migrate
-			var dbNames []string
+			var dbNames []DatabaseName
 
 			// If --databases flag is provided, use it (takes precedence over --db-type)
 			if databases != "" {
 				var err error
-				dbNames, err = parseDatabaseNames(databases)
+				dbNamesStr, err := parseDatabaseNames(databases)
 				if err != nil {
 					return err
+				}
+				// Convert []string to []DatabaseName
+				dbNames = make([]DatabaseName, len(dbNamesStr))
+				for i, name := range dbNamesStr {
+					dbNames[i] = DatabaseName(name)
 				}
 			} else {
 				// Fall back to --db-type flag
@@ -160,12 +176,18 @@ Examples:
 				}
 			}
 
+			// Convert dbNames to []string for logging
+			dbNamesStr := make([]string, len(dbNames))
+			for i, name := range dbNames {
+				dbNamesStr[i] = string(name)
+			}
+
 			logger.Info("Database migration configuration",
 				"source_home", homeDir,
 				"target_home", targetHome,
 				"source_backend", sourceBackend,
 				"target_backend", targetBackend,
-				"databases", dbNames,
+				"databases", dbNamesStr,
 				"batch_size", batchSize,
 				"verify", verify,
 			)
@@ -180,7 +202,8 @@ Examples:
 			// Migrate each database
 			var totalStats dbmigrate.MigrationStats
 			for _, dbName := range dbNames {
-				logger.Info("Starting migration", "database", dbName)
+				dbNameStr := string(dbName)
+				logger.Info("Starting migration", "database", dbNameStr)
 
 				opts := dbmigrate.MigrateOptions{
 					SourceHome:     homeDir,
@@ -191,14 +214,14 @@ Examples:
 					Logger:         logger,
 					RocksDBOptions: rocksDBOpts,
 					Verify:         verify,
-					DBName:         dbName,
+					DBName:         dbNameStr,
 				}
 
 				stats, err := dbmigrate.Migrate(opts)
 				if err != nil {
 					if stats != nil {
 						logger.Error("Migration failed",
-							"database", dbName,
+							"database", dbNameStr,
 							"error", err,
 							"processed_keys", stats.ProcessedKeys.Load(),
 							"total_keys", stats.TotalKeys.Load(),
@@ -206,15 +229,15 @@ Examples:
 						)
 					} else {
 						logger.Error("Migration failed",
-							"database", dbName,
+							"database", dbNameStr,
 							"error", err,
 						)
 					}
-					return fmt.Errorf("failed to migrate %s: %w", dbName, err)
+					return fmt.Errorf("failed to migrate %s: %w", dbNameStr, err)
 				}
 
 				logger.Info("Database migration completed",
-					"database", dbName,
+					"database", dbNameStr,
 					"total_keys", stats.TotalKeys.Load(),
 					"processed_keys", stats.ProcessedKeys.Load(),
 					"errors", stats.ErrorCount.Load(),
@@ -233,7 +256,7 @@ Examples:
 
 			if databases != "" {
 				logger.Info("Migration summary",
-					"databases", strings.Join(dbNames, ", "),
+					"databases", strings.Join(dbNamesStr, ", "),
 					"total_keys", totalStats.TotalKeys.Load(),
 					"processed_keys", totalStats.ProcessedKeys.Load(),
 					"errors", totalStats.ErrorCount.Load(),
@@ -252,7 +275,7 @@ Examples:
 			logger.Info("2. Verify the migration was successful")
 			logger.Info("3. Migrated databases are located at:")
 			for _, dbName := range dbNames {
-				logger.Info("   Migrated database location", "path", fmt.Sprintf("%s/data/%s.migrate-temp.db", targetHome, dbName))
+				logger.Info("   Migrated database location", "path", fmt.Sprintf("%s/data/%s.migrate-temp.db", targetHome, string(dbName)))
 			}
 			logger.Info("4. Replace the original databases with the migrated ones")
 			logger.Info("5. Update your config.toml to use the new backend type")
@@ -318,14 +341,14 @@ func parseDatabaseNames(databases string) ([]string, error) {
 }
 
 // getDBNamesFromType returns the list of database names for a given db-type
-func getDBNamesFromType(dbType DbType) ([]string, error) {
+func getDBNamesFromType(dbType DbType) ([]DatabaseName, error) {
 	switch dbType {
 	case App:
-		return []string{"application"}, nil
+		return []DatabaseName{Application}, nil
 	case CometBFT:
-		return []string{"blockstore", "state", "tx_index", "evidence"}, nil
+		return []DatabaseName{Blockstore, State, TxIndex, Evidence}, nil
 	case All:
-		return []string{"application", "blockstore", "state", "tx_index", "evidence"}, nil
+		return []DatabaseName{Application, Blockstore, State, TxIndex, Evidence}, nil
 	default:
 		return nil, fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)
 	}

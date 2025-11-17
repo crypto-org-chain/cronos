@@ -181,6 +181,15 @@ func TestBackendTypeConstants(t *testing.T) {
 	require.Equal(t, BackendType("rocksdb"), RocksDB)
 }
 
+// TestDatabaseNameConstants tests the database name constant values
+func TestDatabaseNameConstants(t *testing.T) {
+	require.Equal(t, DatabaseName("application"), Application)
+	require.Equal(t, DatabaseName("blockstore"), Blockstore)
+	require.Equal(t, DatabaseName("state"), State)
+	require.Equal(t, DatabaseName("tx_index"), TxIndex)
+	require.Equal(t, DatabaseName("evidence"), Evidence)
+}
+
 // TestDBTypeConstants tests the db-type constant values
 func TestDBTypeConstants(t *testing.T) {
 	require.Equal(t, DbType("app"), App)
@@ -193,26 +202,26 @@ func TestDBTypeMapping(t *testing.T) {
 	tests := []struct {
 		name           string
 		dbType         DbType
-		expectedDBs    []string
+		expectedDBs    []DatabaseName
 		expectError    bool
 		errorSubstring string
 	}{
 		{
 			name:        "app type",
 			dbType:      App,
-			expectedDBs: []string{"application"},
+			expectedDBs: []DatabaseName{Application},
 			expectError: false,
 		},
 		{
 			name:        "cometbft type",
 			dbType:      CometBFT,
-			expectedDBs: []string{"blockstore", "state", "tx_index", "evidence"},
+			expectedDBs: []DatabaseName{Blockstore, State, TxIndex, Evidence},
 			expectError: false,
 		},
 		{
 			name:        "all type",
 			dbType:      All,
-			expectedDBs: []string{"application", "blockstore", "state", "tx_index", "evidence"},
+			expectedDBs: []DatabaseName{Application, Blockstore, State, TxIndex, Evidence},
 			expectError: false,
 		},
 		{
@@ -274,19 +283,24 @@ func TestDatabasesFlagPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var dbNames []string
+			var dbNamesStr []string
 			var err error
 
 			// Use the same logic as the command
 			if tt.databasesFlag != "" {
-				dbNames, err = parseDatabaseNames(tt.databasesFlag)
+				dbNamesStr, err = parseDatabaseNames(tt.databasesFlag)
 				require.NoError(t, err)
 			} else {
-				dbNames, err = getDBNamesFromType(tt.dbTypeFlag)
+				dbNames, err := getDBNamesFromType(tt.dbTypeFlag)
 				require.NoError(t, err)
+				// Convert []DatabaseName to []string
+				dbNamesStr = make([]string, len(dbNames))
+				for i, name := range dbNames {
+					dbNamesStr[i] = string(name)
+				}
 			}
 
-			require.Equal(t, tt.expectedDBs, dbNames)
+			require.Equal(t, tt.expectedDBs, dbNamesStr)
 			require.Equal(t, tt.useDatabases, tt.databasesFlag != "")
 		})
 	}
