@@ -10,22 +10,22 @@ import (
 func TestParseBackendType(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       string
+		input       BackendType
 		expectError bool
 	}{
 		{
 			name:        "goleveldb",
-			input:       "goleveldb",
+			input:       GoLevelDB,
 			expectError: false,
 		},
 		{
 			name:        "leveldb alias",
-			input:       "leveldb",
+			input:       LevelDB,
 			expectError: false,
 		},
 		{
 			name:        "rocksdb",
-			input:       "rocksdb",
+			input:       RocksDB,
 			expectError: false,
 		},
 		{
@@ -174,37 +174,44 @@ func TestDatabaseNameParsing(t *testing.T) {
 	}
 }
 
+// TestBackendTypeConstants tests the backend type constant values
+func TestBackendTypeConstants(t *testing.T) {
+	require.Equal(t, BackendType("goleveldb"), GoLevelDB)
+	require.Equal(t, BackendType("leveldb"), LevelDB)
+	require.Equal(t, BackendType("rocksdb"), RocksDB)
+}
+
 // TestDBTypeConstants tests the db-type constant values
 func TestDBTypeConstants(t *testing.T) {
-	require.Equal(t, "app", DBTypeApp)
-	require.Equal(t, "cometbft", DBTypeCometBFT)
-	require.Equal(t, "all", DBTypeAll)
+	require.Equal(t, DbType("app"), App)
+	require.Equal(t, DbType("cometbft"), CometBFT)
+	require.Equal(t, DbType("all"), All)
 }
 
 // TestDBTypeMapping tests the mapping of db-type to database names
 func TestDBTypeMapping(t *testing.T) {
 	tests := []struct {
 		name           string
-		dbType         string
+		dbType         DbType
 		expectedDBs    []string
 		expectError    bool
 		errorSubstring string
 	}{
 		{
 			name:        "app type",
-			dbType:      DBTypeApp,
+			dbType:      App,
 			expectedDBs: []string{"application"},
 			expectError: false,
 		},
 		{
 			name:        "cometbft type",
-			dbType:      DBTypeCometBFT,
+			dbType:      CometBFT,
 			expectedDBs: []string{"blockstore", "state", "tx_index", "evidence"},
 			expectError: false,
 		},
 		{
 			name:        "all type",
-			dbType:      DBTypeAll,
+			dbType:      All,
 			expectedDBs: []string{"application", "blockstore", "state", "tx_index", "evidence"},
 			expectError: false,
 		},
@@ -238,28 +245,28 @@ func TestDatabasesFlagPrecedence(t *testing.T) {
 	tests := []struct {
 		name          string
 		databasesFlag string
-		dbTypeFlag    string
+		dbTypeFlag    DbType
 		expectedDBs   []string
 		useDatabases  bool
 	}{
 		{
 			name:          "only db-type",
 			databasesFlag: "",
-			dbTypeFlag:    DBTypeApp,
+			dbTypeFlag:    App,
 			expectedDBs:   []string{"application"},
 			useDatabases:  false,
 		},
 		{
 			name:          "only databases",
 			databasesFlag: "blockstore,tx_index",
-			dbTypeFlag:    DBTypeApp,
+			dbTypeFlag:    App,
 			expectedDBs:   []string{"blockstore", "tx_index"},
 			useDatabases:  true,
 		},
 		{
 			name:          "both flags - databases takes precedence",
 			databasesFlag: "state",
-			dbTypeFlag:    DBTypeAll,
+			dbTypeFlag:    All,
 			expectedDBs:   []string{"state"},
 			useDatabases:  true,
 		},

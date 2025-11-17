@@ -22,13 +22,22 @@ const (
 	flagDatabases     = "databases"
 )
 
-type DBType string
+type DbType string
 
 // Database type constants
 const (
-	DBTypeApp      = "app"
-	DBTypeCometBFT = "cometbft"
-	DBTypeAll      = "all"
+	App      DbType = "app"
+	CometBFT DbType = "cometbft"
+	All      DbType = "all"
+)
+
+type BackendType string
+
+// Backend type constants
+const (
+	GoLevelDB BackendType = "goleveldb"
+	LevelDB   BackendType = "leveldb" // Alias for goleveldb
+	RocksDB   BackendType = "rocksdb"
 )
 
 // Valid database names
@@ -113,12 +122,12 @@ Examples:
 			databases := ctx.Viper.GetString(flagDatabases)
 
 			// Parse backend types
-			sourceBackendType, err := parseBackendType(sourceBackend)
+			sourceBackendType, err := parseBackendType(BackendType(sourceBackend))
 			if err != nil {
 				return fmt.Errorf("invalid source backend: %w", err)
 			}
 
-			targetBackendType, err := parseBackendType(targetBackend)
+			targetBackendType, err := parseBackendType(BackendType(targetBackend))
 			if err != nil {
 				return fmt.Errorf("invalid target backend: %w", err)
 			}
@@ -145,7 +154,7 @@ Examples:
 			} else {
 				// Fall back to --db-type flag
 				var err error
-				dbNames, err = getDBNamesFromType(dbType)
+				dbNames, err = getDBNamesFromType(DbType(dbType))
 				if err != nil {
 					return err
 				}
@@ -253,12 +262,12 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP(flagSourceBackend, "s", "goleveldb", "Source database backend type (goleveldb, rocksdb)")
-	cmd.Flags().StringP(flagTargetBackend, "t", "rocksdb", "Target database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagSourceBackend, "s", string(GoLevelDB), "Source database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagTargetBackend, "t", string(RocksDB), "Target database backend type (goleveldb, rocksdb)")
 	cmd.Flags().StringP(flagTargetHome, "o", "", "Target home directory (default: same as --home)")
 	cmd.Flags().IntP(flagBatchSize, "b", dbmigrate.DefaultBatchSize, "Number of key-value pairs to process in a batch")
 	cmd.Flags().BoolP(flagVerify, "v", true, "Verify migration by comparing source and target databases")
-	cmd.Flags().StringP(flagDBType, "y", DBTypeApp, "Database type to migrate: app (application.db only), cometbft (CometBFT databases only), all (both)")
+	cmd.Flags().StringP(flagDBType, "y", string(App), "Database type to migrate: app (application.db only), cometbft (CometBFT databases only), all (both)")
 	cmd.Flags().StringP(flagDatabases, "d", "", "Comma-separated list of specific databases to migrate (e.g., 'blockstore,tx_index'). Valid names: application, blockstore, state, tx_index, evidence. If specified, this flag takes precedence over --db-type")
 
 	return cmd
@@ -272,15 +281,15 @@ func MigrateCmd() *cobra.Command {
 	return cmd
 }
 
-// parseBackendType parses a backend type string into dbm.BackendType
-func parseBackendType(backend string) (dbm.BackendType, error) {
+// parseBackendType parses a backend type into dbm.BackendType
+func parseBackendType(backend BackendType) (dbm.BackendType, error) {
 	switch backend {
-	case "goleveldb", "leveldb":
+	case GoLevelDB, LevelDB:
 		return dbm.GoLevelDBBackend, nil
-	case "rocksdb":
+	case RocksDB:
 		return dbm.RocksDBBackend, nil
 	default:
-		return "", fmt.Errorf("unsupported backend type: %s (supported: goleveldb, rocksdb)", backend)
+		return "", fmt.Errorf("unsupported backend type: %s (supported: goleveldb, leveldb, rocksdb)", backend)
 	}
 }
 
@@ -309,13 +318,13 @@ func parseDatabaseNames(databases string) ([]string, error) {
 }
 
 // getDBNamesFromType returns the list of database names for a given db-type
-func getDBNamesFromType(dbType string) ([]string, error) {
+func getDBNamesFromType(dbType DbType) ([]string, error) {
 	switch dbType {
-	case DBTypeApp:
+	case App:
 		return []string{"application"}, nil
-	case DBTypeCometBFT:
+	case CometBFT:
 		return []string{"blockstore", "state", "tx_index", "evidence"}, nil
-	case DBTypeAll:
+	case All:
 		return []string{"application", "blockstore", "state", "tx_index", "evidence"}, nil
 	default:
 		return nil, fmt.Errorf("invalid db-type: %s (must be: app, cometbft, or all)", dbType)

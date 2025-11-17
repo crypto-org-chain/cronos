@@ -173,12 +173,12 @@ Examples:
 			}
 
 			// Parse backend types
-			sourceBackendType, err := parseBackendType(sourceBackend)
+			sourceBackendType, err := parseBackendType(BackendType(sourceBackend))
 			if err != nil {
 				return fmt.Errorf("invalid source backend: %w", err)
 			}
 
-			targetBackendType, err := parseBackendType(targetBackend)
+			targetBackendType, err := parseBackendType(BackendType(targetBackend))
 			if err != nil {
 				return fmt.Errorf("invalid target backend: %w", err)
 			}
@@ -321,8 +321,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringP(flagPatchSourceBackend, "s", "goleveldb", "Source database backend type (goleveldb, rocksdb)")
-	cmd.Flags().StringP(flagPatchTargetBackend, "t", "rocksdb", "Target database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagPatchSourceBackend, "s", string(GoLevelDB), "Source database backend type (goleveldb, rocksdb)")
+	cmd.Flags().StringP(flagPatchTargetBackend, "t", string(RocksDB), "Target database backend type (goleveldb, rocksdb)")
 	cmd.Flags().StringP(flagPatchSourceHome, "f", "", "Source home directory (required)")
 	cmd.Flags().StringP(flagPatchTargetPath, "p", "", "Target path: for single DB (e.g., ~/.cronos/data/blockstore.db), for multiple DBs (e.g., ~/.cronos/data) (required)")
 	cmd.Flags().StringP(flagPatchDatabase, "d", "", "Database(s) to patch: blockstore, tx_index, or both comma-separated (e.g., blockstore,tx_index) (required)")
