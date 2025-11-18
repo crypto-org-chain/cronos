@@ -298,11 +298,11 @@ def test_multiple_tx_replacement(cronos_mempool):
     }
     tx3_signed = sign_transaction(w3, tx3, key=KEYS["validator3"])
 
-    w3.eth.send_raw_transaction(tx1_signed.rawTransaction)
-    w3.eth.send_raw_transaction(tx1_replaced_signed.rawTransaction)
-    w3.eth.send_raw_transaction(tx1_replaced_again_signed.rawTransaction)
-    w3.eth.send_raw_transaction(tx2_signed.rawTransaction)
-    w3.eth.send_raw_transaction(tx2_replaced_signed.rawTransaction)
-    w3.eth.send_raw_transaction(tx3_signed.rawTransaction)
+    w3.eth.send_raw_transaction(tx1_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx1_replaced_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx1_replaced_again_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx2_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx2_replaced_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx3_signed.raw_transaction)
     wait_for_new_blocks(cli, 1)
     assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 34
