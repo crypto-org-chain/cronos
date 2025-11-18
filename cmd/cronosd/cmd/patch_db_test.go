@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -83,6 +84,60 @@ func TestTargetPathValidation(t *testing.T) {
 	}
 }
 
+// TestTargetPathExistence tests that patching fails if target database doesn't exist
+func TestTargetPathExistence(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir := t.TempDir()
+
+	// Create an existing test database
+	existingDB := filepath.Join(tmpDir, "existing.db")
+	err := os.MkdirAll(existingDB, 0o755)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		targetPath  string
+		shouldError bool
+		errorString string
+	}{
+		{
+			name:        "existing database - allowed",
+			targetPath:  existingDB,
+			shouldError: false,
+		},
+		{
+			name:        "non-existing database - rejected",
+			targetPath:  filepath.Join(tmpDir, "nonexistent.db"),
+			shouldError: true,
+			errorString: "target database does not exist",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the existence check from patch_db.go
+			cleanTargetPath := filepath.Clean(tt.targetPath)
+			var err error
+			if _, statErr := os.Stat(cleanTargetPath); statErr != nil {
+				if os.IsNotExist(statErr) {
+					err = &targetExistenceError{path: cleanTargetPath}
+				} else {
+					err = statErr
+				}
+			}
+
+			if tt.shouldError {
+				require.Error(t, err)
+				if tt.errorString != "" {
+					require.Contains(t, err.Error(), tt.errorString)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 // targetPathError is a helper type to simulate the error from patch_db.go
 type targetPathError struct {
 	path string
@@ -90,4 +145,13 @@ type targetPathError struct {
 
 func (e *targetPathError) Error() string {
 	return "when patching multiple databases, --target-path must be a data directory (e.g., ~/.cronos/data), not a *.db file path (got \"" + e.path + "\"); remove the .db suffix"
+}
+
+// targetExistenceError is a helper type to simulate the existence error from patch_db.go
+type targetExistenceError struct {
+	path string
+}
+
+func (e *targetExistenceError) Error() string {
+	return "target database does not exist: " + e.path + " (the target database must already exist before patching; use the migrate command to create a new database)"
 }

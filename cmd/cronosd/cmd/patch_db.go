@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -239,6 +240,14 @@ Examples:
 				cleanTargetPath := filepath.Clean(dbTargetPath)
 				if filepath.Ext(cleanTargetPath) != dbmigrate.DbExtension {
 					return fmt.Errorf("--target-path must reference a *.db directory (got %q)", dbTargetPath)
+				}
+
+				// Verify target database exists
+				if _, err := os.Stat(cleanTargetPath); err != nil {
+					if os.IsNotExist(err) {
+						return fmt.Errorf("target database does not exist: %s (the target database must already exist before patching; use the migrate command to create a new database)", cleanTargetPath)
+					}
+					return fmt.Errorf("failed to access target database: %w", err)
 				}
 
 				logger.Info("Patching database",
