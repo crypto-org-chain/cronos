@@ -229,15 +229,15 @@ Examples:
 				} else {
 					// For multiple databases, validate that targetPath is a directory, not a *.db file
 					cleanedTargetPath := filepath.Clean(targetPath)
-					if filepath.Ext(cleanedTargetPath) == ".db" {
+					if filepath.Ext(cleanedTargetPath) == dbmigrate.DbExtension {
 						return fmt.Errorf("when patching multiple databases, --target-path must be a data directory (e.g., ~/.cronos/data), not a *.db file path (got %q); remove the .db suffix", targetPath)
 					}
 					// Treat targetPath as data directory
-					dbTargetPath = filepath.Join(targetPath, dbName+".db")
+					dbTargetPath = filepath.Join(targetPath, dbName+dbmigrate.DbExtension)
 				}
 
 				cleanTargetPath := filepath.Clean(dbTargetPath)
-				if filepath.Ext(cleanTargetPath) != ".db" {
+				if filepath.Ext(cleanTargetPath) != dbmigrate.DbExtension {
 					return fmt.Errorf("--target-path must reference a *.db directory (got %q)", dbTargetPath)
 				}
 

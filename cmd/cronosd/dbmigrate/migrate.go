@@ -117,7 +117,7 @@ func Migrate(opts MigrateOptions) (*MigrationStats, error) {
 	// For migration, we need to ensure we don't accidentally overwrite an existing DB
 	// Unified path format for all backends: <dbName>.migrate-temp.db
 	tempTargetDir := filepath.Join(targetDataDir, opts.DBName+".migrate-temp.db")
-	finalTargetDir := filepath.Join(targetDataDir, opts.DBName+".db")
+	finalTargetDir := filepath.Join(targetDataDir, opts.DBName+DbExtension)
 
 	var targetDB dbm.DB
 	if opts.TargetBackend == dbm.RocksDBBackend {

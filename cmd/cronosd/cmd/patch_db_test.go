@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/dbmigrate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,7 +66,7 @@ func TestTargetPathValidation(t *testing.T) {
 			} else {
 				// Multiple DBs: validate targetPath is not a *.db file
 				cleanedTargetPath := filepath.Clean(tt.targetPath)
-				if filepath.Ext(cleanedTargetPath) == ".db" {
+				if filepath.Ext(cleanedTargetPath) == dbmigrate.DbExtension {
 					err = &targetPathError{path: tt.targetPath}
 				}
 			}

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	dbExtension = ".db"
+	DbExtension = ".db"
 )
 
 // EthTxInfo stores information needed to search for event-indexed keys in source DB
@@ -70,7 +70,7 @@ func validatePatchOptions(opts PatchOptions) error {
 	}
 
 	// Construct and validate source database path
-	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+".db")
+	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+DbExtension)
 	if _, err := os.Stat(sourceDBPath); os.IsNotExist(err) {
 		return fmt.Errorf("source database does not exist: %s", sourceDBPath)
 	}
@@ -85,11 +85,11 @@ func validatePatchOptions(opts PatchOptions) error {
 
 // openSourceDatabase opens the source database for reading
 func openSourceDatabase(opts PatchOptions) (dbm.DB, string, error) {
-	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+".db")
+	sourceDBPath := filepath.Join(opts.SourceHome, "data", opts.DBName+DbExtension)
 	sourceDir := filepath.Dir(sourceDBPath)
 	sourceName := filepath.Base(sourceDBPath)
-	if len(sourceName) > len(dbExtension) && sourceName[len(sourceName)-len(dbExtension):] == dbExtension {
-		sourceName = sourceName[:len(sourceName)-len(dbExtension)]
+	if len(sourceName) > len(DbExtension) && sourceName[len(sourceName)-len(DbExtension):] == DbExtension {
+		sourceName = sourceName[:len(sourceName)-len(DbExtension)]
 	}
 
 	sourceDB, err := dbm.NewDB(sourceName, opts.SourceBackend, sourceDir)
@@ -109,7 +109,7 @@ func openTargetDatabase(opts PatchOptions) (dbm.DB, error) {
 	} else {
 		targetDir := filepath.Dir(opts.TargetPath)
 		targetName := filepath.Base(opts.TargetPath)
-		targetName = strings.TrimSuffix(targetName, dbExtension)
+		targetName = strings.TrimSuffix(targetName, DbExtension)
 		targetDB, err = dbm.NewDB(targetName, opts.TargetBackend, targetDir)
 	}
 	if err != nil {
