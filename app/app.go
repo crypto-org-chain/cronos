@@ -49,7 +49,11 @@ import (
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
+	attestation "github.com/crypto-org-chain/cronos/x/attestation"
+	attestationkeeper "github.com/crypto-org-chain/cronos/x/attestation/keeper"
+	attestationtypes "github.com/crypto-org-chain/cronos/x/attestation/types"
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/x/e2ee"
@@ -57,6 +61,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -250,6 +255,8 @@ func StoreKeys() (
 		evmtypes.StoreKey, feemarkettypes.StoreKey,
 		// e2ee keys
 		e2eetypes.StoreKey,
+		// attestation keys
+		attestationtypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 		cronostypes.StoreKey,
 	}
@@ -314,6 +321,9 @@ type App struct {
 
 	// e2ee keeper
 	E2EEKeeper e2eekeeper.Keeper
+
+	// attestation keeper
+	AttestationKeeper attestationkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
@@ -729,13 +739,17 @@ func New(
 
 	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
 
+	// Create Attestation IBC Module
+	attestationIBCModule := attestationkeeper.NewIBCModule(app.AttestationKeeper)
+
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
 	// Add controller & ica auth modules to IBC router
 	ibcRouter.
 		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
 		AddRoute(icahosttypes.SubModuleName, icaHostStack).
-		AddRoute(ibctransfertypes.ModuleName, transferStack)
+		AddRoute(ibctransfertypes.ModuleName, transferStack).
+		AddRoute(attestationtypes.ModuleName, attestationIBCModule)
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
@@ -757,6 +771,14 @@ func New(
 	app.EvidenceKeeper = *evidenceKeeper
 
 	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey], app.AccountKeeper.AddressCodec())
+
+	// Create Attestation Keeper (ibc-go v10 style - no capability keeper needed!)
+	app.AttestationKeeper = attestationkeeper.NewKeeper(
+		appCodec,
+		runtime.NewKVStoreService(keys[attestationtypes.StoreKey]),
+		app.IBCKeeper.ChannelKeeper,
+		app.ChainID(),
+	)
 
 	/****  Module Options ****/
 
@@ -808,6 +830,9 @@ func New(
 		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper, evmS),
 		e2ee.NewAppModule(app.E2EEKeeper),
 
+		// Attestation module
+		attestation.NewAppModule(appCodec, app.AttestationKeeper),
+
 		// Cronos app modules
 		cronosModule,
 	)
@@ -841,6 +866,7 @@ func New(
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
+		attestationtypes.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		govtypes.ModuleName,
@@ -861,6 +887,7 @@ func New(
 		ibcexported.ModuleName,
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
+		attestationtypes.ModuleName, // Important: EndBlock sends attestations
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		distrtypes.ModuleName,
@@ -899,6 +926,7 @@ func New(
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		icatypes.ModuleName,
+		attestationtypes.ModuleName, // After IBC modules
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,

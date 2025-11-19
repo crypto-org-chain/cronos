@@ -1,0 +1,99 @@
+syntax = "proto3";
+package attestation.v1;
+
+import "gogoproto/gogo.proto";
+import "attestation/v1/tx.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
+
+// AttestationPacketData defines the IBC packet structure for attestation transfer
+message AttestationPacketData {
+  option (gogoproto.goproto_getters) = false;
+
+  // Type of packet
+  AttestationPacketType type = 1;
+
+  // Source chain ID (where the blocks originated)
+  string source_chain_id = 2;
+
+  // Batch of block attestations
+  repeated BlockAttestationData attestations = 3 [(gogoproto.nullable) = false];
+
+  // Relayer submitting the attestations
+  string relayer = 4;
+
+  // Relayer signature over the attestations
+  bytes signature = 5;
+
+  // Nonce for replay protection
+  uint64 nonce = 6;
+}
+
+// AttestationPacketType defines the type of attestation packet
+enum AttestationPacketType {
+  option (gogoproto.goproto_enum_prefix) = false;
+
+  // Batch block attestation
+  ATTESTATION_PACKET_TYPE_BATCH_BLOCK = 0 [(gogoproto.enumvalue_customname) = "AttestationPacketTypeBatchBlock"];
+
+  // Finality query - request finality status
+  ATTESTATION_PACKET_TYPE_FINALITY_QUERY = 1 [(gogoproto.enumvalue_customname) = "AttestationPacketTypeFinalityQuery"];
+}
+
+// AttestationPacketAcknowledgement defines the acknowledgement returned by the attestation chain
+message AttestationPacketAcknowledgement {
+  option (gogoproto.goproto_getters) = false;
+
+  // Whether the attestation was successful
+  bool success = 1;
+
+  // Error message if failed
+  string error = 2;
+
+  // List of attestation IDs created on attestation chain
+  repeated uint64 attestation_ids = 3;
+
+  // Number of blocks that achieved immediate finality
+  uint32 finalized_count = 4;
+
+  // Finality status for each block height
+  // Key: block_height, Value: finalized (true/false)
+  map<uint64, FinalityStatus> finality_statuses = 5 [(gogoproto.nullable) = false];
+}
+
+// FinalityStatus contains finality information for a specific block
+message FinalityStatus {
+  // Block height
+  uint64 block_height = 1;
+
+  // Whether the block is finalized
+  bool finalized = 2;
+
+  // Finality timestamp (0 if not finalized)
+  int64 finalized_at = 3;
+
+  // Attestation ID on the attestation chain
+  uint64 attestation_id = 4;
+
+  // Finality proof (validator signatures, etc.)
+  bytes finality_proof = 5;
+}
+
+// IBC module parameters for attestation
+message Params {
+  // Port ID for attestation IBC module
+  string port_id = 1;
+
+  // How many blocks to batch before sending attestation
+  uint64 attestation_batch_size = 2;
+
+  // Minimum number of validators required for finality
+  uint32 min_validators_for_finality = 3;
+
+  // Enable/disable attestation sending
+  bool attestation_enabled = 4;
+
+  // Timeout for IBC packets (in nanoseconds)
+  uint64 packet_timeout_timestamp = 5;
+}
+

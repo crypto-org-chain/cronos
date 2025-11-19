@@ -5,7 +5,7 @@ import "google/api/annotations.proto";
 import "gogoproto/gogo.proto";
 import "attestation/v1/tx.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/relayer/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
 // Query defines the gRPC querier service.
 service Query {
