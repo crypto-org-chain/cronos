@@ -149,7 +149,7 @@ def test_mint_blocks_per_year_valid(cronos):
     # Should succeed
     assert (
         success
-    ), "Valid blocks_per_year proposal should succeed with value {test_value}"
+    ), f"Valid blocks_per_year proposal should succeed with value {test_value}"
 
     # Wait for proposal execution
     wait_for_new_blocks(cli, 2)
@@ -189,7 +189,7 @@ def test_mint_blocks_per_year_max_int64_boundary(cronos):
     print(f"Attempting to set blocks_per_year to {test_value} (MaxInt64)")
 
     success = submit_mint_param_update(cronos, test_value)
-    assert success, "Proposal should succeed with blocks_per_year = {test_value}"
+    assert success, f"Proposal should succeed with blocks_per_year = {test_value}"
 
     wait_for_new_blocks(cli, 2)
     updated_params = get_mint_params(cli)
