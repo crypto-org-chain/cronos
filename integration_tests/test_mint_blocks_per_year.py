@@ -93,7 +93,7 @@ def submit_mint_param_update(cronos, blocks_per_year_value):
                     "authority": authority,
                     "params": params,
                 }
-            ], 
+            ],
         )
         return True
     except (AssertionError, Exception) as e:
