@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       matrix:
-        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas]
+        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas, mint]
     env:
       TESTS_TO_RUN: ${{ matrix.tests }}
     steps:
