@@ -25,8 +25,8 @@ require (
 	// release/v10.0.x
 	github.com/cosmos/ibc-go/v10 v10.1.1
 	github.com/cosmos/rosetta v0.50.12
-	github.com/crypto-org-chain/cronos-store/store v0.0.0-20251022112349-e85ab9a104dd
-	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251022112349-e85ab9a104dd
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20251119030934-19a930cec475
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251119030934-19a930cec475
 	github.com/ethereum/go-ethereum v1.15.5
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
@@ -285,9 +285,9 @@ replace (
 )
 
 replace (
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251022112349-e85ab9a104dd
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20251022112349-e85ab9a104dd
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251022112349-e85ab9a104dd
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251119030934-19a930cec475
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20251119030934-19a930cec475
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251119030934-19a930cec475
 )
 
 replace (
