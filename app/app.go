@@ -51,6 +51,7 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 
 	// force register the extension json-rpc.
+	ibcv2 "github.com/cosmos/ibc-go/v10/modules/core/api"
 	attestation "github.com/crypto-org-chain/cronos/x/attestation"
 	attestationkeeper "github.com/crypto-org-chain/cronos/x/attestation/keeper"
 	attestationtypes "github.com/crypto-org-chain/cronos/x/attestation/types"
@@ -753,6 +754,13 @@ func New(
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
+
+	// Set up IBC v2 Router for Eureka protocol (attestation only)
+	attestationV2Module := attestationkeeper.NewIBCModuleV2(app.AttestationKeeper)
+	ibcV2Router := ibcv2.NewRouter()
+	ibcV2Router.AddRoute("attestation", attestationV2Module)
+	app.IBCKeeper.SetRouterV2(ibcV2Router)
+
 	clientKeeper := app.IBCKeeper.ClientKeeper
 	storeProvider := clientKeeper.GetStoreProvider()
 
@@ -772,7 +780,7 @@ func New(
 
 	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey], app.AccountKeeper.AddressCodec())
 
-	// Create Attestation Keeper (ibc-go v10 style - no capability keeper needed!)
+	// Create Attestation Keeper
 	app.AttestationKeeper = attestationkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[attestationtypes.StoreKey]),
