@@ -42,7 +42,7 @@ import (
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 	"github.com/crypto-org-chain/cronos/client/docs"
-	memiavlstore "github.com/crypto-org-chain/cronos/store"
+	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -416,7 +416,8 @@ func New(
 		// only enable memiavl cache if block-stm is not enabled, because it's not concurrency-safe.
 		cacheSize = cast.ToInt(appOpts.Get(memiavlstore.FlagCacheSize))
 	}
-	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, baseAppOptions)
+	chainId := cast.ToString(appOpts.Get(flags.FlagChainID))
+	baseAppOptions = memiavlstore.SetupMemIAVL(logger, homePath, appOpts, false, false, cacheSize, chainId, baseAppOptions)
 
 	// enable optimistic execution
 	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())

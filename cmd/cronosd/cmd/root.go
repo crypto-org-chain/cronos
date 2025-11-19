@@ -12,7 +12,7 @@ import (
 	rosettaCmd "github.com/cosmos/rosetta/cmd"
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
-	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
+	memiavlcfg "github.com/crypto-org-chain/cronos-store/store/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"

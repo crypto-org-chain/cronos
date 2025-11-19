@@ -17,7 +17,7 @@ cd ..
 
 # move proto files to the right places
 cp -r github.com/crypto-org-chain/cronos/* ./
-cp -r github.com/crypto-org-chain/cronos/memiavl/* ./memiavl/
+cp -r github.com/crypto-org-chain/cronos-store/memiavl/* ./memiavl/
 rm -rf github.com
 
 # TODO uncomment go mod tidy after upgrading to ghcr.io/cosmos/proto-builder v0.12.0

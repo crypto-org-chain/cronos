@@ -25,15 +25,15 @@ require (
 	// release/v10.0.x
 	github.com/cosmos/ibc-go/v10 v10.1.1
 	github.com/cosmos/rosetta v0.50.12
-	github.com/crypto-org-chain/cronos/store v0.0.4
-	github.com/crypto-org-chain/cronos/versiondb v0.0.0-00010101000000-000000000000
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20251022112349-e85ab9a104dd
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251022112349-e85ab9a104dd
 	github.com/ethereum/go-ethereum v1.15.5
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/linxGnu/grocksdb v1.9.10-0.20250331012329-9d5f074653d1
+	github.com/linxGnu/grocksdb v1.10.2
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
@@ -109,7 +109,7 @@ require (
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/creachadair/atomicfile v0.3.1 // indirect
 	github.com/creachadair/tomledit v0.0.24 // indirect
-	github.com/crypto-org-chain/cronos/memiavl v0.0.4 // indirect
+	github.com/crypto-org-chain/cronos-store/memiavl v0.0.4 // indirect
 	github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -285,9 +285,9 @@ replace (
 )
 
 replace (
-	github.com/crypto-org-chain/cronos/memiavl => ./memiavl
-	github.com/crypto-org-chain/cronos/store => ./store
-	github.com/crypto-org-chain/cronos/versiondb => ./versiondb
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251022112349-e85ab9a104dd
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20251022112349-e85ab9a104dd
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251022112349-e85ab9a104dd
 )
 
 replace (

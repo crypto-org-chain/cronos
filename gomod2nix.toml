@@ -256,6 +256,18 @@ schema = 3
   [mod."github.com/creachadair/tomledit"]
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
+  [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
+    version = "v0.0.0-20251022112349-e85ab9a104dd"
+    hash = "sha256-UT3scdmfDIb4Un9AEfF+pFYqzZ17753G7S1udXvLWJw="
+    replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
+  [mod."github.com/crypto-org-chain/cronos-store/store"]
+    version = "v0.0.0-20251022112349-e85ab9a104dd"
+    hash = "sha256-E/imwx/TYVHkNU05/KhOmgCRtoZ9+gMlGmrH+s0w/Wg="
+    replaced = "github.com/crypto-org-chain/cronos-store/store"
+  [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
+    version = "v0.0.0-20251022112349-e85ab9a104dd"
+    hash = "sha256-RzakAgvccYOZbIipuCJ2z2AbPChcIvzaobws4LxSRbc="
+    replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
     version = "v0.0.0-20241213061541-7afe924fb4a6"
     hash = "sha256-bl5jVL5oouu9/kbuJv9ua4w4hRhchnWQ8ogIEnW9NLs="
@@ -511,8 +523,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.9.10-0.20250331012329-9d5f074653d1"
-    hash = "sha256-liFv2CO0IM79XRyEvF3zzfpqRmzYrUxlLBffl48kI88="
+    version = "v1.10.2"
+    hash = "sha256-SQjqlnwuj/swl4hB76M2Wev4F6E9Bom+q1Z5zHkuy3A="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
