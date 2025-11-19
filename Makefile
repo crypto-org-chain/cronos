@@ -148,7 +148,10 @@ lint-py:
 lint-nix:
 	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" | xargs nixfmt -c
 
-.PHONY: lint lint-fix lint-py
+lint-nix-fix:
+	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" | xargs nixfmt
+
+.PHONY: lint-install lint lint-fix lint-py lint-nix lint-nix-fix
 
 ###############################################################################
 ###                                Releasing                                ###
@@ -163,7 +166,7 @@ release-dry-run:
 ###                                Sim Test                                 ###
 ###############################################################################
 
-SIMAPP = github.com/crypto-org-chain/cronos/v2/app
+SIMAPP = github.com/crypto-org-chain/cronos/app
 
 # Install the runsim binary with a temporary workaround of entering an outside
 # directory as the "go get" command ignores the -mod option and will polute the

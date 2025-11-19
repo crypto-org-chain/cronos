@@ -11,7 +11,10 @@ poetry2nix.mkPoetryEnv {
     let
       buildSystems = {
         pystarport = [ "poetry-core" ];
-        cprotobuf = [ "setuptools" ];
+        cprotobuf = [
+          "setuptools"
+          "poetry-core"
+        ];
         durations = [ "setuptools" ];
         multitail2 = [ "setuptools" ];
         pytest-github-actions-annotate-failures = [ "setuptools" ];
@@ -22,11 +25,31 @@ poetry2nix.mkPoetryEnv {
         isort = [ "poetry-core" ];
       };
     in
-    lib.mapAttrs (
+    (lib.mapAttrs (
       attr: systems:
       super.${attr}.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
       })
-    ) buildSystems
+    ) buildSystems)
+    // {
+      typing-extensions = super.typing-extensions.overridePythonAttrs (old: {
+        postPatch =
+          (old.postPatch or "")
+          + ''
+            sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
+            substituteInPlace pyproject.toml \
+              --replace-warn 'license = "PSF-2.0"' 'license = { text = "PSF-2.0" }'
+          '';
+      });
+      types-requests = super.types-requests.overridePythonAttrs (old: {
+        postPatch =
+          (old.postPatch or "")
+          + ''
+            sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
+            substituteInPlace pyproject.toml \
+              --replace-warn 'license = "Apache-2.0"' 'license = { text = "Apache-2.0" }'
+          '';
+      });
+    }
   );
 }

@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/crypto-org-chain/cronos/v2/x/e2ee/types"
+	"github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"

@@ -137,12 +137,12 @@ def test_subscribe_basic(cronos: Cronos):
         raw_transactions = []
         for key_from in KEYS.values():
             signed = sign_transaction(w3, tx, key_from)
-            raw_transactions.append(signed.rawTransaction)
+            raw_transactions.append(signed.raw_transaction)
         send_raw_transactions(w3, raw_transactions)
         total = len(KEYS) * iterations
         msgs = [await c.recv_subscription(sub_id) for i in range(total)]
         assert len(msgs) == total
-        assert all(msg["topics"] == [TEST_EVENT_TOPIC.hex()] for msg in msgs)
+        assert all(msg["topics"] == [Web3.to_hex(TEST_EVENT_TOPIC)] for msg in msgs)
         await assert_unsubscribe(c, sub_id)
 
     async def async_test():

@@ -3,7 +3,7 @@ package e2ee;
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/x/e2ee/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/e2ee/types";
 
 // Query defines the gRPC querier service.
 service Query {

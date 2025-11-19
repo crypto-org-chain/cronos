@@ -35,7 +35,7 @@ def test_event_log_filter(cronos):
     assert "Hello" == mycontract.caller.greet()
     current_height = hex(w3.eth.get_block_number())
     event_filter = mycontract.events.ChangeGreeting.create_filter(
-        fromBlock=current_height
+        from_block=current_height
     )
 
     tx = mycontract.functions.setGreeting("world").build_transaction()

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	cronosmodulekeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	handlers "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/evmhandlers"
-	keepertest "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/mock"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosmodulekeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	handlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
+	keepertest "github.com/crypto-org-chain/cronos/x/cronos/keeper/mock"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 

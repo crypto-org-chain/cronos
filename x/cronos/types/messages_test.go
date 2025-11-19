@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"filippo.io/age"
-	cmdcfg "github.com/crypto-org-chain/cronos/v2/cmd/cronosd/config"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
