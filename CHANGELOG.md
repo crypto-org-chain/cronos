@@ -1,7 +1,7 @@
 # Changelog
 
 ## UNRELEASED
-
+* [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
 * [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
 * [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) Support 4byteTracer for tracer
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
