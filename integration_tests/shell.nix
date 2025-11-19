@@ -12,6 +12,7 @@ pkgs.mkShell {
     pkgs.nodejs
     pkgs.test-env
     pkgs.chain-maind
+    pkgs.cronos-attestad  # Attestation layer binary
     pkgs.hermes
     pkgs.rly
     pkgs.poetry

@@ -11,6 +11,11 @@
         "url": "https://github.com/crypto-org-chain/chain-main/archive/d3ef39afd014cc39a57ac5391b5ac27cc3e9370e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "cronos-attestation-layer": {
+        "type": "local",
+        "path": "/Users/jaytseng/workspace/cronos-attestation-layer",
+        "description": "Cronos Attestation Layer - L2 attestation service (local development)"
+    },
     "dapptools": {
         "branch": "master",
         "description": "Dapp, Seth, Hevm, and more",

@@ -19,6 +19,7 @@ import sources.nixpkgs {
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
+      cronos-attestad = pkgs.callPackage ./cronos-attestad.nix { };
     }) # update to a version that supports eip-1559
     (import "${sources.poetry2nix}/overlay.nix")
     (import "${sources.gomod2nix}/overlay.nix")
