@@ -16,9 +16,6 @@ func (k Keeper) SendAttestationPacketV2(
 	sourceClient string,
 	destinationClient string,
 	attestations []*types.BlockAttestationData,
-	relayer string,
-	signature []byte,
-	nonce uint64,
 ) (uint64, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
@@ -36,13 +33,11 @@ func (k Keeper) SendAttestationPacketV2(
 	}
 
 	// Create packet data
+	// Note: IBC v2 handles relayer, signature, and nonce at the transport layer
 	packetData := &types.AttestationPacketData{
 		Type:          types.AttestationPacketTypeBatchBlock,
 		SourceChainId: k.chainID,
 		Attestations:  attestationValues,
-		Relayer:       relayer,
-		Signature:     signature,
-		Nonce:         nonce,
 	}
 
 	// Marshal packet data to JSON for v2 payload

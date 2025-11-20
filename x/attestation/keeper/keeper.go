@@ -37,6 +37,11 @@ func (k Keeper) Logger(ctx context.Context) log.Logger {
 	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
+// ChainID returns the chain ID
+func (k Keeper) ChainID() string {
+	return k.chainID
+}
+
 // IBC v1 port/channel methods removed - module uses IBC v2 (Eureka) exclusively
 
 // GetParams returns the module parameters

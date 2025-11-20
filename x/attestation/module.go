@@ -247,14 +247,12 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		}
 
 		// Send packet via IBC v2
+		// IBC v2 protocol handles authentication automatically at transport layer
 		_, err = am.keeper.SendAttestationPacketV2(
 			ctx,
-			"cronos",   // Source client (TODO: make configurable)
-			v2ClientID, // Destination client ID
+			am.keeper.ChainID(), // Source chain ID
+			v2ClientID,          // Destination client ID
 			attestations,
-			"",       // Relayer address (empty for now)
-			[]byte{}, // Signature (empty for now)
-			0,        // Nonce (0 for now)
 		)
 		if err != nil {
 			am.keeper.Logger(ctx).Error("failed to send attestation packet",

@@ -6,7 +6,8 @@ import "attestation/v1/tx.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
-// AttestationPacketData defines the IBC packet structure for attestation transfer
+// AttestationPacketData defines the IBC v2 packet structure for attestation transfer
+// Note: IBC v2 protocol handles authentication (relayer, signature, nonce) at the transport layer
 message AttestationPacketData {
   option (gogoproto.goproto_getters) = false;
 
@@ -18,15 +19,6 @@ message AttestationPacketData {
 
   // Batch of block attestations
   repeated BlockAttestationData attestations = 3 [(gogoproto.nullable) = false];
-
-  // Relayer submitting the attestations
-  string relayer = 4;
-
-  // Relayer signature over the attestations
-  bytes signature = 5;
-
-  // Nonce for replay protection
-  uint64 nonce = 6;
 }
 
 // AttestationPacketType defines the type of attestation packet
