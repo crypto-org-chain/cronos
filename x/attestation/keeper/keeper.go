@@ -2,21 +2,17 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
 
 type Keeper struct {
 	cdc          codec.BinaryCodec
 	storeService store.KVStoreService
-
-	channelKeeper types.ChannelKeeper
 
 	// Chain ID of the Cronos chain
 	chainID string
@@ -26,14 +22,12 @@ type Keeper struct {
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeService store.KVStoreService,
-	channelKeeper types.ChannelKeeper,
 	chainID string,
 ) Keeper {
 	return Keeper{
-		cdc:           cdc,
-		storeService:  storeService,
-		channelKeeper: channelKeeper,
-		chainID:       chainID,
+		cdc:          cdc,
+		storeService: storeService,
+		chainID:      chainID,
 	}
 }
 
@@ -43,37 +37,7 @@ func (k Keeper) Logger(ctx context.Context) log.Logger {
 	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
-// GetPort returns the portID for the module. Used in ExportGenesis
-func (k Keeper) GetPort(ctx context.Context) string {
-	store := k.storeService.OpenKVStore(ctx)
-	bz, _ := store.Get(types.ParamsKey)
-	if bz == nil {
-		return types.PortID
-	}
-
-	var params types.Params
-	k.cdc.MustUnmarshal(bz, &params)
-	return params.PortId
-}
-
-// SetChannelID stores the IBC channel ID for attestation
-func (k Keeper) SetChannelID(ctx context.Context, channelID string) error {
-	store := k.storeService.OpenKVStore(ctx)
-	return store.Set(types.IBCChannelKey, []byte(channelID))
-}
-
-// GetChannelID retrieves the IBC channel ID for attestation
-func (k Keeper) GetChannelID(ctx context.Context) (string, error) {
-	store := k.storeService.OpenKVStore(ctx)
-	bz, err := store.Get(types.IBCChannelKey)
-	if err != nil {
-		return "", err
-	}
-	if bz == nil {
-		return "", types.ErrChannelNotFound
-	}
-	return string(bz), nil
-}
+// IBC v1 port/channel methods removed - module uses IBC v2 (Eureka) exclusively
 
 // GetParams returns the module parameters
 func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
@@ -210,75 +174,4 @@ func (k Keeper) GetFinalityStatus(ctx context.Context, height uint64) (*types.Fi
 	return &status, nil
 }
 
-// SendAttestationPacket sends block attestations via IBC to the attestation chain
-func (k Keeper) SendAttestationPacket(
-	ctx context.Context,
-	attestations []*types.BlockAttestationData,
-	relayer string,
-	signature []byte,
-	nonce uint64,
-) error {
-	params, err := k.GetParams(ctx)
-	if err != nil {
-		return err
-	}
-
-	if !params.AttestationEnabled {
-		return types.ErrAttestationDisabled
-	}
-
-	channelID, err := k.GetChannelID(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Convert pointer slice to value slice for proto
-	attestationValues := make([]types.BlockAttestationData, len(attestations))
-	for i, att := range attestations {
-		attestationValues[i] = *att
-	}
-
-	// Create packet data
-	packetData := &types.AttestationPacketData{
-		Type:          types.AttestationPacketTypeBatchBlock,
-		SourceChainId: k.chainID,
-		Attestations:  attestationValues,
-		Relayer:       relayer,
-		Signature:     signature,
-		Nonce:         nonce,
-	}
-
-	// Marshal packet data
-	dataBytes, err := k.cdc.Marshal(packetData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal packet data: %w", err)
-	}
-
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	// Calculate timeout timestamp (current time + timeout duration)
-	timeoutTimestamp := uint64(sdkCtx.BlockTime().UnixNano()) + params.PacketTimeoutTimestamp
-
-	// Send packet (use ZeroHeight() for timeout height in v10)
-	sequence, err := k.channelKeeper.SendPacket(
-		sdkCtx,
-		k.GetPort(ctx),
-		channelID,
-		clienttypes.ZeroHeight(), // Use zero height for timeout height (rely on timestamp)
-		timeoutTimestamp,
-		dataBytes,
-	)
-
-	if err != nil {
-		return types.ErrFailedToSendPacket.Wrapf("sequence: %d, error: %s", sequence, err.Error())
-	}
-
-	k.Logger(ctx).Info("sent attestation packet",
-		"sequence", sequence,
-		"channel", channelID,
-		"blocks", len(attestations),
-		"relayer", relayer,
-	)
-
-	return nil
-}
+// IBC v1 SendAttestationPacket removed - use SendAttestationPacketV2 (in v2_sender.go)

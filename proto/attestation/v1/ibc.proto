@@ -79,21 +79,15 @@ message FinalityStatus {
   bytes finality_proof = 5;
 }
 
-// IBC module parameters for attestation
+// IBC v2 module parameters for attestation
 message Params {
-  // Port ID for attestation IBC module
-  string port_id = 1;
-
-  // How many blocks to batch before sending attestation
-  uint64 attestation_batch_size = 2;
-
-  // Minimum number of validators required for finality
-  uint32 min_validators_for_finality = 3;
+  // How many blocks between attestation sends (interval)
+  uint64 attestation_interval = 1;
 
   // Enable/disable attestation sending
-  bool attestation_enabled = 4;
+  bool attestation_enabled = 2;
 
-  // Timeout for IBC packets (in nanoseconds)
-  uint64 packet_timeout_timestamp = 5;
+  // Timeout for IBC v2 packets (in nanoseconds)
+  uint64 packet_timeout_timestamp = 3;
 }
 

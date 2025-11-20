@@ -740,22 +740,18 @@ func New(
 
 	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
 
-	// Create Attestation IBC Module
-	attestationIBCModule := attestationkeeper.NewIBCModule(app.AttestationKeeper)
-
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
 	// Add controller & ica auth modules to IBC router
 	ibcRouter.
 		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
 		AddRoute(icahosttypes.SubModuleName, icaHostStack).
-		AddRoute(ibctransfertypes.ModuleName, transferStack).
-		AddRoute(attestationtypes.ModuleName, attestationIBCModule)
+		AddRoute(ibctransfertypes.ModuleName, transferStack)
 
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
-	// Set up IBC v2 Router for Eureka protocol (attestation only)
+	// Set up IBC v2 Router for Eureka protocol (attestation uses v2 only)
 	attestationV2Module := attestationkeeper.NewIBCModuleV2(app.AttestationKeeper)
 	ibcV2Router := ibcv2.NewRouter()
 	ibcV2Router.AddRoute("attestation", attestationV2Module)
@@ -780,11 +776,10 @@ func New(
 
 	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey], app.AccountKeeper.AddressCodec())
 
-	// Create Attestation Keeper
+	// Create Attestation Keeper (IBC v2 only)
 	app.AttestationKeeper = attestationkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[attestationtypes.StoreKey]),
-		app.IBCKeeper.ChannelKeeper,
 		app.ChainID(),
 	)
 

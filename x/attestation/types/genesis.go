@@ -4,19 +4,18 @@ package types
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params:              DefaultParams(),
-		PortId:              PortID,
 		LastSentHeight:      0,
 		PendingAttestations: []*PendingAttestationRecord{},
+		V2ClientID:          "", // Empty by default, set via governance or setup
 	}
 }
 
-// GenesisState defines the attestation module's genesis state
+// GenesisState defines the attestation module's genesis state (IBC v2)
 type GenesisState struct {
 	Params              Params                      `json:"params"`
-	PortId              string                      `json:"port_id"`
-	ChannelId           string                      `json:"channel_id"`
 	LastSentHeight      uint64                      `json:"last_sent_height"`
 	PendingAttestations []*PendingAttestationRecord `json:"pending_attestations"`
+	V2ClientID          string                      `json:"v2_client_id"` // IBC v2 client ID for attestation layer
 }
 
 // PendingAttestationRecord stores a pending attestation for genesis export
@@ -29,11 +28,6 @@ type PendingAttestationRecord struct {
 func (gs GenesisState) Validate() error {
 	if err := gs.Params.Validate(); err != nil {
 		return err
-	}
-
-	// Validate port ID
-	if gs.PortId == "" {
-		return ErrInvalidParams.Wrap("port ID cannot be empty")
 	}
 
 	// Validate pending attestations
@@ -52,26 +46,16 @@ func (gs GenesisState) Validate() error {
 // DefaultParams returns default module parameters
 func DefaultParams() Params {
 	return Params{
-		PortId:                   PortID,
-		AttestationBatchSize:     10, // Send attestation every 10 blocks
-		MinValidatorsForFinality: 2,
-		AttestationEnabled:       true,
-		PacketTimeoutTimestamp:   600000000000, // 10 minutes in nanoseconds
+		AttestationInterval:    10, // Send attestation every 10 blocks
+		AttestationEnabled:     true,
+		PacketTimeoutTimestamp: 600000000000, // 10 minutes in nanoseconds
 	}
 }
 
 // Validate validates the set of params
 func (p Params) Validate() error {
-	if p.PortId == "" {
-		return ErrInvalidParams.Wrap("port ID cannot be empty")
-	}
-
-	if p.AttestationBatchSize == 0 {
-		return ErrInvalidParams.Wrap("attestation batch size must be greater than 0")
-	}
-
-	if p.MinValidatorsForFinality == 0 {
-		return ErrInvalidParams.Wrap("min validators for finality must be greater than 0")
+	if p.AttestationInterval == 0 {
+		return ErrInvalidParams.Wrap("attestation interval must be greater than 0")
 	}
 
 	if p.PacketTimeoutTimestamp == 0 {

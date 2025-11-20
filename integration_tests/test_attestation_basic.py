@@ -7,7 +7,7 @@ without requiring the full IBC v2 setup.
 
 import pytest
 
-from .utils import wait_for_new_blocks
+from .utils import wait_for_new_blocks, get_sync_info
 
 pytestmark = pytest.mark.attestation_basic
 
@@ -31,13 +31,15 @@ def test_cronos_chain_running(cronos):
     """Basic test that Cronos chain is operational"""
     cli = cronos.cosmos_cli()
     status = cli.status()
+    sync_info = get_sync_info(status)
+    node_info = status.get("NodeInfo") or status.get("node_info")
     
-    assert status["SyncInfo"]["catching_up"] == False
-    height = int(status["SyncInfo"]["latest_block_height"])
+    assert sync_info["catching_up"] == False
+    height = int(sync_info["latest_block_height"])
     assert height > 0
     
     print(f"✅ Cronos running at height {height}")
-    print(f"   Chain ID: {status['NodeInfo']['network']}")
+    print(f"   Chain ID: {node_info['network']}")
 
 
 def test_ibc_module_exists(cronos):
@@ -55,13 +57,13 @@ def test_wait_for_blocks(cronos):
     cli = cronos.cosmos_cli()
     
     initial_status = cli.status()
-    initial_height = int(initial_status["SyncInfo"]["latest_block_height"])
+    initial_height = int(get_sync_info(initial_status)["latest_block_height"])
     
     # Wait for 3 new blocks
     wait_for_new_blocks(cli, 3)
     
     final_status = cli.status()
-    final_height = int(final_status["SyncInfo"]["latest_block_height"])
+    final_height = int(get_sync_info(final_status)["latest_block_height"])
     
     assert final_height >= initial_height + 3
     print(f"✅ Waited for blocks: {initial_height} -> {final_height}")

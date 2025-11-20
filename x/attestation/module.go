@@ -82,8 +82,7 @@ func (am AppModuleBasic) GetQueryCmd() *cobra.Command {
 // AppModule implements an application module for the attestation module
 type AppModule struct {
 	AppModuleBasic
-	keeper    keeper.Keeper
-	ibcModule keeper.IBCModule
+	keeper keeper.Keeper
 }
 
 // NewAppModule creates a new AppModule object
@@ -91,7 +90,6 @@ func NewAppModule(cdc codec.Codec, k keeper.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{cdc: cdc},
 		keeper:         k,
-		ibcModule:      keeper.NewIBCModule(k),
 	}
 }
 
@@ -110,9 +108,11 @@ func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data j
 	// Store genesis state
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Set channel ID if present
-	if gs.ChannelId != "" {
-		if err := am.keeper.SetChannelID(ctx, gs.ChannelId); err != nil {
+	// IBC v2 doesn't use channels
+
+	// Set v2 client ID if provided
+	if gs.V2ClientID != "" {
+		if err := am.keeper.SetV2ClientID(ctx, "attestation-layer", gs.V2ClientID); err != nil {
 			panic(err)
 		}
 	}
@@ -126,7 +126,9 @@ func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data j
 	sdkCtx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"attestation_genesis_init",
-			sdk.NewAttribute("port_id", gs.PortId),
+			sdk.NewAttribute("attestation_enabled", fmt.Sprintf("%v", gs.Params.AttestationEnabled)),
+			sdk.NewAttribute("v2_client_id", gs.V2ClientID),
+			sdk.NewAttribute("last_sent_height", fmt.Sprintf("%d", gs.LastSentHeight)),
 		),
 	)
 }
@@ -146,18 +148,21 @@ func (am AppModule) ExportGenesisState(ctx context.Context) *types.GenesisState 
 	// Get last sent height
 	lastSentHeight, _ := am.keeper.GetLastSentHeight(ctx)
 
-	// Get channel ID
-	channelID, _ := am.keeper.GetChannelID(ctx)
+	// Get params
+	params, _ := am.keeper.GetParams(ctx)
+
+	// Get v2 client ID
+	v2ClientID, _ := am.keeper.GetV2ClientID(ctx, "attestation-layer")
 
 	// Get pending attestations
 	// TODO: Implement GetPendingAttestations if needed
+	pendingRecords := []*types.PendingAttestationRecord{}
 
 	return &types.GenesisState{
-		Params:              types.DefaultParams(),
-		PortId:              types.PortID,
-		ChannelId:           channelID,
+		Params:              params,
 		LastSentHeight:      lastSentHeight,
-		PendingAttestations: []*types.PendingAttestationRecord{},
+		PendingAttestations: pendingRecords,
+		V2ClientID:          v2ClientID,
 	}
 }
 
@@ -212,14 +217,14 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 	}
 
 	// Send attestation if it's time
-	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationBatchSize) {
+	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
 		// Collect attestations for blocks since last sent
 		startHeight := lastSentHeight + 1
 		endHeight := currentHeight
 
-		// Limit batch size
-		if endHeight-startHeight > params.AttestationBatchSize {
-			endHeight = startHeight + params.AttestationBatchSize - 1
+		// Limit by interval
+		if endHeight-startHeight > params.AttestationInterval {
+			endHeight = startHeight + params.AttestationInterval - 1
 		}
 
 		attestations, err := am.collectBlockAttestations(ctx, startHeight, endHeight)
@@ -232,9 +237,20 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil // Don't fail the block
 		}
 
-		// Send packet
-		err = am.keeper.SendAttestationPacket(
+		// Get v2 client ID for attestation layer
+		v2ClientID, err := am.keeper.GetV2ClientID(ctx, "attestation-layer")
+		if err != nil {
+			am.keeper.Logger(ctx).Error("failed to get v2 client ID",
+				"error", err,
+			)
+			return nil // Don't fail the block
+		}
+
+		// Send packet via IBC v2
+		_, err = am.keeper.SendAttestationPacketV2(
 			ctx,
+			"cronos",   // Source client (TODO: make configurable)
+			v2ClientID, // Destination client ID
 			attestations,
 			"",       // Relayer address (empty for now)
 			[]byte{}, // Signature (empty for now)

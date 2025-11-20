@@ -98,7 +98,7 @@ func (k Keeper) SendAttestationPacketV2(
 // GetV2ClientID returns the configured IBC v2 client ID for attestation
 func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
-	bz, err := store.Get(append([]byte("v2_client/"), []byte(key)...))
+	bz, err := store.Get(append(types.V2ClientIDPrefix, []byte(key)...))
 	if err != nil {
 		return "", err
 	}
@@ -111,5 +111,5 @@ func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 // SetV2ClientID stores the IBC v2 client ID for attestation
 func (k Keeper) SetV2ClientID(ctx context.Context, key string, clientID string) error {
 	store := k.storeService.OpenKVStore(ctx)
-	return store.Set(append([]byte("v2_client/"), []byte(key)...), []byte(clientID))
+	return store.Set(append(types.V2ClientIDPrefix, []byte(key)...), []byte(clientID))
 }

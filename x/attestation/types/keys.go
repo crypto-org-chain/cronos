@@ -15,12 +15,6 @@ const (
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_attestation"
-
-	// Version defines the IBC application version
-	Version = "attestation-1"
-
-	// PortID is the default port id that module binds to
-	PortID = "attestation"
 )
 
 // Store key prefixes
@@ -37,11 +31,11 @@ var (
 	// LastSentHeightKey stores the last block height sent for attestation
 	LastSentHeightKey = []byte{0x04}
 
-	// IBC ChannelKey stores the IBC channel ID for attestation
-	IBCChannelKey = []byte{0x05}
-
 	// ParamsKey stores the module parameters
-	ParamsKey = []byte{0x06}
+	ParamsKey = []byte{0x05}
+
+	// V2ClientIDPrefix stores IBC v2 client IDs (prefix + key -> clientID)
+	V2ClientIDPrefix = []byte{0x06}
 )
 
 // GetPendingAttestationKey returns the key for a pending attestation by height

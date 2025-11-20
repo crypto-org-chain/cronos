@@ -6,9 +6,9 @@ import (
 
 // x/attestation module sentinel errors
 var (
-	ErrInvalidPacketData     = errors.Register(ModuleName, 2, "invalid packet data")
-	ErrInvalidAck            = errors.Register(ModuleName, 3, "invalid acknowledgement")
-	ErrChannelNotFound       = errors.Register(ModuleName, 4, "channel not found")
+	ErrInvalidPacketData = errors.Register(ModuleName, 2, "invalid packet data")
+	ErrInvalidAck        = errors.Register(ModuleName, 3, "invalid acknowledgement")
+	// ErrChannelNotFound removed - IBC v1 channels not used
 	ErrInvalidChannel        = errors.Register(ModuleName, 5, "invalid channel")
 	ErrInvalidBlockHeight    = errors.Register(ModuleName, 6, "invalid block height")
 	ErrAttestationNotFound   = errors.Register(ModuleName, 7, "attestation not found")
