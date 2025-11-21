@@ -44,34 +44,34 @@ message BlockAttestationData {
   uint64 block_height = 1;
 
   // Block hash (for fast lookups, can also compute from block_header)
-  bytes block_hash = 3;
+  bytes block_hash = 2;
 
   // Block header (encoded) - includes timestamp, app_hash, and all metadata
-  bytes block_header = 5;
+  bytes block_header = 3;
 
   // Transaction results (encoded execution results)
-  bytes tx_results = 6;
+  bytes tx_results = 4;
 
   // FinalizeBlock events (encoded)
-  bytes finalize_block_events = 7;
+  bytes finalize_block_events = 5;
 
   // Validator updates (encoded)
-  bytes validator_updates = 8;
+  bytes validator_updates = 6;
 
   // Consensus parameter updates (encoded)
-  bytes consensus_param_updates = 9;
+  bytes consensus_param_updates = 7;
 
   // Raw transaction data (REQUIRED FOR RECONSTRUCTION)
   // Encoded Block.Data.Txs - the actual transaction bytes
-  bytes transactions = 10;
+  bytes transactions = 8;
 
   // Evidence data (encoded)
   // Encoded Block.Evidence for complete block reconstruction
-  bytes evidence = 11;
+  bytes evidence = 9;
 
   // Last commit (encoded)
   // Encoded Block.LastCommit - validator signatures from previous block
-  bytes last_commit = 12;
+  bytes last_commit = 10;
 }
 
 // MsgSubmitBatchBlockAttestationResponse is the response for batch submission
