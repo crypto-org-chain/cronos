@@ -180,12 +180,14 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 		if ok {
 			ethTx := msgEthTx.AsTransaction()
 			// check the destination address
-			encoded, err := h.addressCodec.BytesToString(ethTx.To().Bytes())
-			if err != nil {
-				return fmt.Errorf("invalid bech32 address: %s, err: %w", ethTx.To(), err)
-			}
-			if _, ok := h.blocklist[encoded]; ok {
-				return fmt.Errorf("destination address is blocked: %s", encoded)
+			if ethTx.To() != nil {
+				encoded, err := h.addressCodec.BytesToString(ethTx.To().Bytes())
+				if err != nil {
+					return fmt.Errorf("invalid bech32 address: %s, err: %w", ethTx.To(), err)
+				}
+				if _, ok := h.blocklist[encoded]; ok {
+					return fmt.Errorf("destination address is blocked: %s", encoded)
+				}
 			}
 			// check EIP-7702 authorisation list
 			if ethTx.SetCodeAuthorizations() != nil {
