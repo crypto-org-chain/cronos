@@ -6,100 +6,39 @@ local config = import 'default.jsonnet';
 config {
   // Cronos chain configuration
   'cronos_777-1'+: {
-    cmd: 'cronosd',
-    'app-config'+: {
-      'minimum-gas-prices': '0basecro',
-      'index-events': ['ethereum_tx.ethereumTxHash'],
-      'json-rpc'+: {
-        address: '127.0.0.1:{EVMRPC_PORT}',
-        'ws-address': '127.0.0.1:{EVMRPC_PORT_WS}',
-        api: 'eth,net,web3,debug,cronos',
-        'feehistory-cap': 100,
-        'block-range-cap': 10000,
-        'logs-cap': 10000,
-      },
-    },
+    'account-prefix': 'crc',
+    'coin-type': 60,
+    key_name: 'signer1',
     config+: {
-      consensus+: {
-        'timeout-commit': '1s',
-      },
+
     },
-    'account-prefix': 'cro',
-    'coin-type': 394,
+    'app-config'+: {
+      'index-events': super['index-events'] + ['message.action'],
+    },
     genesis+: {
       app_state+: {
+        cronos+: {
+          params+: {
+            max_callback_gas: 50000,
+          },
+        },
         feemarket+: {
           params+: {
-            no_base_fee: false,
-            base_fee: '100000000000',
-          },
-        },
-        gov: {
-          voting_params: {
-            voting_period: '10s',
-          },
-          deposit_params: {
-            max_deposit_period: '10s',
-            min_deposit: [
-              {
-                denom: 'basecro',
-                amount: '1',
-              },
-            ],
-          },
-        },
-        transfer: {
-          params: {
-            receive_enabled: true,
-            send_enabled: true,
+            no_base_fee: true,
+            base_fee: '0',
           },
         },
         // Attestation module configuration
         attestation: {
           params: {
             attestation_enabled: true,
-            attestation_interval: '10',  // Send attestation every 10 blocks
-            packet_timeout_timestamp: '600000000000',  // 10 minutes
+            attestation_interval: 10,  // Send attestation every 10 blocks
+            packet_timeout_timestamp: 600000000000,  // 10 minutes
           },
         },
       },
     },
-    validators: [
-      {
-        coins: '2234567000000000000000000basecro',
-        staked: '10000000000000000000basecro',
-        mnemonic: '${VALIDATOR1_MNEMONIC}',
-        base_port: 26650,
-      },
-      {
-        coins: '987870000000000000000000basecro',
-        staked: '20000000000000000000basecro',
-        mnemonic: '${VALIDATOR2_MNEMONIC}',
-        base_port: 26660,
-      },
-    ],
-    accounts: [
-      {
-        name: 'community',
-        coins: '10000000000000000000000basecro',
-        mnemonic: '${COMMUNITY_MNEMONIC}',
-      },
-      {
-        name: 'signer1',
-        coins: '20000000000000000000000basecro',
-        mnemonic: '${SIGNER1_MNEMONIC}',
-      },
-      {
-        name: 'signer2',
-        coins: '30000000000000000000000basecro',
-        mnemonic: '${SIGNER2_MNEMONIC}',
-      },
-    ],
-    genesis_opts: {
-      'app_state.evm.params.evm_denom': 'basecro',
-    },
   },
-  
   // Attestation Layer chain configuration
   'attestation-1': {
     cmd: 'cronos-attestad',
@@ -123,27 +62,32 @@ config {
     },
     validators: [
       {
-        coins: '1000000000000stake',
-        staked: '100000000stake',
-        mnemonic: '${ATTESTA_VALIDATOR1_MNEMONIC}',
-        base_port: 27650,
+        coins: '2234240000000000000cro',
+        staked: '10000000000000cro',
+        mnemonic: '${VALIDATOR1_MNEMONIC}',
+        base_port: 26800,
       },
       {
-        coins: '1000000000000stake',
-        staked: '100000000stake',
-        mnemonic: '${ATTESTA_VALIDATOR2_MNEMONIC}',
-        base_port: 27660,
+        coins: '987870000000000000cro',
+        staked: '20000000000000cro',
+        mnemonic: '${VALIDATOR2_MNEMONIC}',
+        base_port: 26810,
       },
     ],
     accounts: [
       {
         name: 'relayer',
-        coins: '10000000000stake',
-        mnemonic: '${ATTESTA_RELAYER_MNEMONIC}',
+        coins: '10000000000000cro',
+        mnemonic: '${SIGNER1_MNEMONIC}',
+      },
+      {
+        name: 'signer2',
+        coins: '10000000000000cro,100000000000ibcfee',
+        mnemonic: '${SIGNER2_MNEMONIC}',
       },
     ],
-    genesis+: {
-      app_state+: {
+    genesis: {
+      app_state: {
         transfer: {
           params: {
             receive_enabled: true,
@@ -198,22 +142,22 @@ config {
           denom: 'basecro',
         },
         event_source: {
-          mode: 'push',
-          url: 'ws://127.0.0.1:26657/websocket',
-          batch_delay: '500ms',
+          batch_delay: '5000ms',
         },
+        extension_options: [{
+          type: 'ethermint_dynamic_fee',
+          value: '1000000',
+        }],
       },
       {
         id: 'attestation-1',
         max_gas: 500000,
         gas_price: {
-          price: 1000,
-          denom: 'stake',
+          price: 1000000,
+          denom: 'basecro',
         },
         event_source: {
-          mode: 'push',
-          url: 'ws://127.0.0.1:27657/websocket',
-          batch_delay: '500ms',
+          batch_delay: '5000ms',
         },
       },
     ],

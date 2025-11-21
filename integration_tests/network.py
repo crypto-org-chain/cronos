@@ -95,6 +95,27 @@ class Geth:
     def __init__(self, w3):
         self.w3 = w3
 
+class AttestationLayer:
+    """Wrapper for Attestation Layer chain"""
+
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
+        self.config = json.loads((base_dir / "config.json").read_text())
+
+    def base_port(self, i):
+        return self.config["validators"][i]["base_port"]
+
+    def node_rpc(self, i):
+        from pystarport import ports
+
+        return f"tcp://127.0.0.1:{ports.rpc_port(self.base_port(i))}"
+
+    def cosmos_cli(self, i=0):
+        from .cosmoscli import CosmosCLI
+
+        return CosmosCLI(
+            self.base_dir / f"node{i}", self.node_rpc(i), "cronos-attestad"
+        )
 
 def setup_cronos(path, base_port, enable_auto_deployment=True):
     cfg = Path(__file__).parent / (

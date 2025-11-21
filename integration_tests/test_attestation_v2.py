@@ -20,33 +20,14 @@ from pathlib import Path
 import pytest
 from pystarport import cluster, ports
 
-from .network import Cronos, setup_custom_cronos
-from .utils import wait_for_new_blocks, wait_for_port, get_sync_info
+from .network import Cronos
+from .utils import wait_for_new_blocks, wait_for_port 
+from .attestation_util import prepare_network
 
 pytestmark = pytest.mark.attestation_v2
 
 
-class AttestationLayer:
-    """Wrapper for Attestation Layer chain"""
 
-    def __init__(self, base_dir):
-        self.base_dir = base_dir
-        self.config = json.loads((base_dir / "config.json").read_text())
-
-    def base_port(self, i):
-        return self.config["validators"][i]["base_port"]
-
-    def node_rpc(self, i):
-        from pystarport import ports
-
-        return f"tcp://127.0.0.1:{ports.rpc_port(self.base_port(i))}"
-
-    def cosmos_cli(self, i=0):
-        from .cosmoscli import CosmosCLI
-
-        return CosmosCLI(
-            self.base_dir / f"node{i}", self.node_rpc(i), "cronos-attestad"
-        )
 
 
 @pytest.fixture(scope="module")
@@ -61,12 +42,6 @@ def attestation_network(tmp_path_factory):
     """
     name = "attestation"
     path = tmp_path_factory.mktemp(name)
-    
-    # Initialize the network using pystarport
-    config_path = Path(__file__).parent / "configs/attestation.jsonnet"
-    
-    print(f"Initializing attestation network at {path}")
-    print(f"Using config: {config_path}")
     
     # Check if cronos-attestad is available
     import shutil
@@ -84,90 +59,8 @@ def attestation_network(tmp_path_factory):
             pytest.skip(f"cronos-attestad not found. Set NIX_BIN_DIR or add to PATH. Tried: {attestad_candidate}")
     
     print(f"Using cronos-attestad: {attestad_path}")
-    
-    # Set up environment variables for mnemonics
-    os.environ.setdefault("VALIDATOR1_MNEMONIC", "witness lake mention horse remind same shrimp code spare recall obey crater")
-    os.environ.setdefault("VALIDATOR2_MNEMONIC", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-    os.environ.setdefault("COMMUNITY_MNEMONIC", "banner purity genius frog truck spare tooth injury system oven evil until")
-    os.environ.setdefault("SIGNER1_MNEMONIC", "test test test test test test test test test test test junk")
-    os.environ.setdefault("SIGNER2_MNEMONIC", "siege obscure truly abandon abandon abandon abandon abandon abandon abandon abandon about")
-    os.environ.setdefault("ATTESTA_VALIDATOR1_MNEMONIC", "notice oak worry limit wrap speak medal online prefer cluster roof addict")
-    os.environ.setdefault("ATTESTA_VALIDATOR2_MNEMONIC", "quality vacuum heart guard buzz spike sight swarm shove special gym robust")
-    os.environ.setdefault("ATTESTA_RELAYER_MNEMONIC", "dose weasel clever culture letter volume endorse usage lake ribbon sand rookie")
-    
-    # Initialize using pystarport CLI
-    print("Initializing cluster...")
-    cmd = [
-        "pystarport",
-        "init",
-        "--config",
-        str(config_path),
-        "--data",
-        str(path),
-        "--base_port",
-        "26650",
-        "--no_remove",
-    ]
-    print(f"Running: {' '.join(cmd)}")
-    
-    try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as e:
-        #known infrastructure issue: Multi-chain pystarport setup has issues in Nix environment
-        # The attestation module code itself is fully functional and tested
-        error_msg = e.stderr if e.stderr else str(e)
-        pytest.skip(
-            f"Pystarport multi-chain setup issue (known infrastructure limitation). "
-            f"The attestation module is production-ready - use manual testing or basic tests. "
-            f"See integration_tests/KEYRING_ISSUE_SUMMARY.md for details."
-        )
-    
-    # Start the supervisor
-    print("Starting cluster...")
-    proc = subprocess.Popen(
-        ["pystarport", "start", "--data", str(path), "--quiet"],
-        preexec_fn=os.setsid,
-    )
-    
-    try:
-        # Wait for ports to be available
-        print("Waiting for chains to start...")
-        wait_for_port(ports.rpc_port(26650))  # Cronos
-        wait_for_port(ports.rpc_port(27650))  # Attestation Layer
-        time.sleep(5)  # Additional startup time
-        
-        # Create Cronos and AttestationLayer objects
-        cronos = Cronos(path / "cronos_777-1")
-        attesta = AttestationLayer(path / "attestation-1")
-        
-        # Wait for blocks
-        print("Waiting for blocks...")
-        wait_for_new_blocks(cronos.cosmos_cli(), 3)
-        wait_for_new_blocks(attesta.cosmos_cli(), 3)
-        
-        print("✅ Chains started successfully")
-        print(f"Cronos RPC: {cronos.node_rpc(0)}")
-        print(f"Attestation Layer RPC: {attesta.node_rpc(0)}")
-        
-        yield {
-            "cronos": cronos,
-            "attesta": attesta,
-            "path": path,
-        }
-        
-    except Exception as e:
-        print(f"❌ Error setting up network: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
-    finally:
-        # Cleanup - kill the process group
-        try:
-            print("Stopping cluster...")
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-            proc.wait(timeout=10)
-        except Exception as e:
-            print(f"Warning: Error stopping cluster: {e}")
+
+    yield from prepare_network(path, "attestation")
 
 
 def test_chains_running(attestation_network):
