@@ -2,11 +2,23 @@
 
 ## UNRELEASED
 
+<<<<<<< HEAD
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
 
 
+=======
+### Improvements
+
+* [#1903](https://github.com/crypto-org-chain/cronos/pull/1903) Feat: check authorization list in e2ee.
+* [#1922](https://github.com/crypto-org-chain/cronos/pull/1922) Feat: check destination address in the blocklist
+* [#1904](https://github.com/crypto-org-chain/cronos/pull/1904) Test: add eip-7702 tests
+
+### Bug fixes
+
+* [#1918](https://github.com/crypto-org-chain/cronos/pull/1918) Chore: cleanup and improve x/mint params validation and test in cosmos-sdk
+>>>>>>> 71cf3642 (feat: check destination address in the blocklist (#1922))
 
 *Nov 30, 2025*
 

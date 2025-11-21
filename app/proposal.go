@@ -175,11 +175,21 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 		}
 	}
 
-	// check EIP-7702 authorisation list
 	for _, msg := range tx.GetMsgs() {
 		msgEthTx, ok := msg.(*evmtypes.MsgEthereumTx)
 		if ok {
 			ethTx := msgEthTx.AsTransaction()
+			// check the destination address
+			if ethTx.To() != nil {
+				encoded, err := h.addressCodec.BytesToString(ethTx.To().Bytes())
+				if err != nil {
+					return fmt.Errorf("invalid bech32 address: %s, err: %w", ethTx.To(), err)
+				}
+				if _, ok := h.blocklist[encoded]; ok {
+					return fmt.Errorf("destination address is blocked: %s", encoded)
+				}
+			}
+			// check EIP-7702 authorisation list
 			if ethTx.SetCodeAuthorizations() != nil {
 				for _, auth := range ethTx.SetCodeAuthorizations() {
 					addr, err := auth.Authority()
