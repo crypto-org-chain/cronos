@@ -78,11 +78,24 @@ def test_mempool(cronos_mempool):
     assert len(all_pending) == 0
 
 
-def test_blocked_address(cronos_mempool):
+def test_blocked_from_address(cronos_mempool):
     cli = cronos_mempool.cosmos_cli(0)
-    rsp = cli.transfer("signer1", cli.address("validator"), "1basecro")
+    rsp = cli.transfer("signer1", cli.address("validator"), "1basetcro")
     assert rsp["code"] != 0
     assert "signer is blocked" in rsp["raw_log"]
+
+
+def test_blocked_to_contract_address(cronos_mempool):
+    w3 = cronos_mempool.w3
+    tx = {
+        "to": ADDRS["signer1"],
+        "value": 1,
+        "from": ADDRS["validator"],
+    }
+    tx1_signed = sign_transaction(w3, tx, key=KEYS["validator"])
+    with pytest.raises(exceptions.Web3RPCError) as exc:
+        _ = w3.eth.send_raw_transaction(tx1_signed.raw_transaction)
+    assert "destination address is blocked" in str(exc)
 
 
 @pytest.mark.flaky(max_runs=3)

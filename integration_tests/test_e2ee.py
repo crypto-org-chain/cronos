@@ -209,3 +209,35 @@ def test_block_list_eip7022(cronos):
     wait_for_new_blocks(cli, 1)
     assert nonce + 1 == get_nonce(cli, sender)
     assert w3.eth.get_filter_changes(flt.filter_id) == []
+
+
+def test_block_list_contract(cronos):
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
+    user = cli.address("signer2")
+    blocked_destination = cli.address("signer1")
+    # set blocklist
+    encrypt_to_validators(cli, {"addresses": [blocked_destination]})
+    tx = {
+        "from": to_checksum_address(bech32_to_eth(user)),
+        "to": to_checksum_address(bech32_to_eth(blocked_destination)),
+        "value": 1,
+    }
+    base_port = cronos.base_port(0)
+    wait_for_port(ports.evmrpc_ws_port(base_port))
+    w3 = cronos.w3
+    flt = w3.eth.filter("pending")
+    assert flt.get_new_entries() == []
+
+    txhash = w3.eth.send_transaction(tx).hex()
+    nonce = get_nonce(cli, user)
+    # check tx in mempool
+    assert HexBytes(txhash) in w3.eth.get_filter_changes(flt.filter_id)
+
+    # clear blocklist
+    encrypt_to_validators(cli, {})
+
+    # the blocked tx should be unblocked now
+    wait_for_new_blocks(cli, 1)
+    assert nonce + 1 == get_nonce(cli, user)
+    assert w3.eth.get_filter_changes(flt.filter_id) == []
