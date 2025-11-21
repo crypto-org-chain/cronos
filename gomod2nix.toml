@@ -523,8 +523,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.10.2"
-    hash = "sha256-SQjqlnwuj/swl4hB76M2Wev4F6E9Bom+q1Z5zHkuy3A="
+    version = "v1.9.10-0.20250331012329-9d5f074653d1"
+    hash = "sha256-liFv2CO0IM79XRyEvF3zzfpqRmzYrUxlLBffl48kI88="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
