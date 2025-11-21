@@ -109,7 +109,7 @@ require (
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/creachadair/atomicfile v0.3.1 // indirect
 	github.com/creachadair/tomledit v0.0.24 // indirect
-	github.com/crypto-org-chain/cronos-store/memiavl v0.0.4 // indirect
+	github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251119030934-19a930cec475 // indirect
 	github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 // indirect
 	github.com/danieljoos/wincred v1.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
