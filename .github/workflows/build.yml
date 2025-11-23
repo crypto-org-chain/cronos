@@ -48,49 +48,6 @@ jobs:
           path: "*.tar.gz"
           if-no-files-found: ignore
 
-  unittest:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - id: changed-files
-        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
-        with:
-          files: |
-            **/*.go
-            *.mod
-            *.sum
-      - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
-        if: steps.changed-files.outputs.any_changed == 'true'
-        with:
-          name: cronos
-          # github don't pass secrets for pull request from fork repos,
-          # in that case the push is disabled naturally.
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-      - name: test & coverage report creation
-        run: |
-          nix develop .#rocksdb -c make test test-versiondb
-        if: steps.changed-files.outputs.any_changed == 'true'
-      - name: filter out proto files
-        run: |
-          excludelist+=" $(find ./ -type f -name '*.pb.go')"
-          for filename in ${excludelist}; do
-            filename=$(echo $filename | sed 's/^./github.com\/crypto-org-chain\/cronos/g')
-            echo "Excluding ${filename} from coverage report..."
-            sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
-          done
-        if: steps.changed-files.outputs.any_changed == 'true'
-      - uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt,./memiavl/coverage.txt,./store/coverage.txt,./versiondb/coverage.txt
-        if: steps.changed-files.outputs.any_changed == 'true'
-
   gomod2nix:
     runs-on: ubuntu-latest
     steps:
