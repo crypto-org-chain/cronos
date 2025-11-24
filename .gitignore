@@ -1,6 +1,5 @@
 release/
 /build
-coverage.txt
 __pycache__
 /dist
 /vendor
@@ -25,3 +24,12 @@ integration_tests/configs/*.yaml
 # direnv
 .envrc
 .direnv
+
+# coverage
+coverage
+coverage.txt
+integration_tests/coverage
+
+# node
+node_modules
+
