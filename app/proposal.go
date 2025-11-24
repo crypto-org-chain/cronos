@@ -198,6 +198,14 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 							return fmt.Errorf("signer is blocked: %s", addr.String())
 						}
 					}
+					// check the target address
+					encoded, err := h.addressCodec.BytesToString(auth.Address.Bytes())
+					if err != nil {
+						return fmt.Errorf("invalid bech32 address: %s, err: %w", auth.Address, err)
+					}
+					if _, ok := h.blocklist[encoded]; ok {
+						return fmt.Errorf("authorisation address is blocked: %s", encoded)
+					}
 				}
 			}
 		}
