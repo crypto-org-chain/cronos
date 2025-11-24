@@ -9,14 +9,35 @@ config {
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
-    config+: {
-
-    },
     'app-config'+: {
+      'minimum-gas-prices': '0basecro',
       'index-events': super['index-events'] + ['message.action'],
     },
+    // Override accounts to use basecro instead of basetcro
+    accounts: [
+      {
+        name: 'community',
+        coins: '10000000000000000000000basecro',
+        mnemonic: '${COMMUNITY_MNEMONIC}',
+      },
+      {
+        name: 'signer1',
+        coins: '20000000000000000000000basecro',
+        mnemonic: '${SIGNER1_MNEMONIC}',
+      },
+      {
+        name: 'signer2',
+        coins: '30000000000000000000000basecro,100000000000ibcfee',
+        mnemonic: '${SIGNER2_MNEMONIC}',
+      },
+    ],
     genesis+: {
       app_state+: {
+        evm+: {
+          params+: {
+            evm_denom: 'basecro',
+          },
+        },
         cronos+: {
           params+: {
             max_callback_gas: 50000,
@@ -43,8 +64,6 @@ config {
   'attestation-1': {
     cmd: 'cronos-attestad',
     'start-flags': '--trace',
-    'key-name': 'validator',
-    'keyring-backend': 'test',
     'account-prefix': 'cro',
     'coin-type': 394,
     config: {
@@ -53,50 +72,75 @@ config {
       },
     },
     'app-config': {
-      'chain_id': 'attestation-1',
-      'api': {
-        enable: true,
-      },
       'minimum-gas-prices': '0stake',
-      'iavl-lazy-loading': true,
     },
     validators: [
       {
-        coins: '2234240000000000000cro',
-        staked: '10000000000000cro',
+        coins: '2234240000000000000stake',
+        staked: '10000000000000stake',
         mnemonic: '${VALIDATOR1_MNEMONIC}',
         base_port: 26800,
       },
       {
-        coins: '987870000000000000cro',
-        staked: '20000000000000cro',
+        coins: '987870000000000000stake',
+        staked: '20000000000000stake',
         mnemonic: '${VALIDATOR2_MNEMONIC}',
         base_port: 26810,
       },
     ],
     accounts: [
       {
+        name: 'community',
+        coins: '10000000000000stake',
+        mnemonic: '${COMMUNITY_MNEMONIC}',
+      },
+      {
         name: 'relayer',
-        coins: '10000000000000cro',
+        coins: '10000000000000stake',
         mnemonic: '${SIGNER1_MNEMONIC}',
       },
       {
         name: 'signer2',
-        coins: '10000000000000cro,100000000000ibcfee',
+        coins: '10000000000000stake,100000000000ibcfee',
         mnemonic: '${SIGNER2_MNEMONIC}',
       },
     ],
     genesis: {
       app_state: {
+        staking: {
+          params: {
+            unbonding_time: '1814400s',
+          },
+        },
+        gov: {
+          voting_params: {
+            voting_period: '1814400s',
+          },
+          deposit_params: {
+            max_deposit_period: '1814400s',
+            min_deposit: [
+              {
+                denom: 'stake',
+                amount: '10000000',
+              },
+            ],
+          },
+        },
         transfer: {
           params: {
             receive_enabled: true,
             send_enabled: true,
           },
         },
-        cronosattesta: {
-          params: {
-            // Attestation layer specific params
+        interchainaccounts: {
+          host_genesis_state: {
+            params: {
+              allow_messages: [
+                '/cosmos.bank.v1beta1.MsgSend',
+                '/cosmos.staking.v1beta1.MsgDelegate',
+                '/ibc.applications.interchain_accounts.host.v1.MsgModuleQuerySafe',
+              ],
+            },
           },
         },
       },
@@ -153,8 +197,8 @@ config {
         id: 'attestation-1',
         max_gas: 500000,
         gas_price: {
-          price: 1000000,
-          denom: 'basecro',
+          price: 1000,
+          denom: 'stake',
         },
         event_source: {
           batch_delay: '5000ms',

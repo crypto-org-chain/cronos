@@ -173,32 +173,45 @@ def verify_ibc_setup(cronos_cli, attesta_cli):
 def prepare_network(
     tmp_path,
     file,
+    base_port=26650,
 ):
+    """
+    Prepare attestation network with Cronos and Attestation Layer chains.
+    
+    Args:
+        tmp_path: Temporary directory path
+        file: Config file name (without .jsonnet extension)
+        base_port: Base port for cronos chain (default: 26650)
+    """
     config_file = file
     file_path = f"configs/{config_file}.jsonnet"
 
     with contextmanager(setup_custom_cronos)(
         tmp_path,
-        26700,
+        base_port,
         Path(__file__).parent / file_path,
     ) as cronos:
         cli = cronos.cosmos_cli()
-        path = cronos.base_dir.parent / "relayer"
-
-        attestation = AttestationLayer(cronos.base_dir.parent / "attestation-1")
-        # wait for grpc ready
-        wait_for_port(ports.grpc_port(attestation.base_port(0)))  # attestation grpc
-        wait_for_port(ports.grpc_port(attestation.base_port(0)))  # attestation grpc
-        wait_for_new_blocks(attestation.cosmos_cli(), 1)
+        
+        # Wait for Cronos to be ready
+        wait_for_port(ports.grpc_port(cronos.base_port(0)))
         wait_for_new_blocks(cli, 1)
-
-        hermes = Hermes(path.with_suffix(".toml"))
-        call_hermes_cmd(
-            hermes,
-        )
-
-        cronos.supervisorctl("start", "attestation-relayer-demo")
-        port = hermes.port
+        
+        # Set up Attestation Layer
+        attestation = AttestationLayer(cronos.base_dir.parent / "attestation-1")
+        
+        # Wait for Attestation Layer to be ready
+        wait_for_port(ports.grpc_port(attestation.base_port(0)))
+        wait_for_new_blocks(attestation.cosmos_cli(), 1)
+        
+        # Set up Hermes relayer
+        hermes = Hermes(cronos.base_dir.parent / "relayer.toml")
+        
+        # Create IBC infrastructure
+        call_hermes_cmd(hermes)
+        
+        # Start Hermes relayer
+        cronos.supervisorctl("start", "relayer-demo")
+        wait_for_port(hermes.port)
                 
         yield AttestationNetwork(cronos, attestation, hermes)
-        wait_for_port(port)

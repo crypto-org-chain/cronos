@@ -21,7 +21,7 @@ import pytest
 from pystarport import cluster, ports
 
 from .network import Cronos
-from .utils import wait_for_new_blocks, wait_for_port 
+from .utils import wait_for_new_blocks, wait_for_port, get_sync_info
 from .attestation_util import prepare_network
 
 pytestmark = pytest.mark.attestation_v2
@@ -65,8 +65,9 @@ def attestation_network(tmp_path_factory):
 
 def test_chains_running(attestation_network):
     """Test that both chains are running"""
-    cronos = attestation_network["cronos"]
-    attesta = attestation_network["attesta"]
+    # Access NamedTuple attributes
+    cronos = attestation_network.cronos
+    attesta = attestation_network.attestad
     
     # Check Cronos
     cronos_cli = cronos.cosmos_cli()
@@ -84,10 +85,9 @@ def test_chains_running(attestation_network):
 
 
 def test_create_ibc_clients(attestation_network):
-    """Create IBC v2 clients between the chains"""
-    cronos = attestation_network["cronos"]
-    attesta = attestation_network["attesta"]
-    path = attestation_network["path"]
+    """Verify IBC clients were created between the chains"""
+    cronos = attestation_network.cronos
+    attesta = attestation_network.attestad
     
     cronos_cli = cronos.cosmos_cli()
     attesta_cli = attesta.cosmos_cli()
@@ -99,74 +99,35 @@ def test_create_ibc_clients(attestation_network):
     print(f"Cronos chain ID: {cronos_chain_id}")
     print(f"Attestation Layer chain ID: {attesta_chain_id}")
     
-    # Use Hermes to create clients
-    hermes_config = path / "hermes.toml"
+    # Verify IBC clients exist (they should have been created by prepare_network)
+    print("\nVerifying IBC clients...")
     
-    if hermes_config.exists():
-        print(f"Hermes config found at: {hermes_config}")
-        
-        # Create client on Cronos for Attestation Layer
-        print("Creating client on Cronos...")
-        import subprocess
-        result = subprocess.run(
-            [
-                "hermes",
-                "--config",
-                str(hermes_config),
-                "create",
-                "client",
-                "--host-chain",
-                cronos_chain_id,
-                "--reference-chain",
-                attesta_chain_id,
-            ],
-            capture_output=True,
-            text=True,
-        )
-        print(result.stdout)
-        if result.returncode != 0:
-            print(f"Error: {result.stderr}")
-        
-        # Create client on Attestation Layer for Cronos
-        print("Creating client on Attestation Layer...")
-        result = subprocess.run(
-            [
-                "hermes",
-                "--config",
-                str(hermes_config),
-                "create",
-                "client",
-                "--host-chain",
-                attesta_chain_id,
-                "--reference-chain",
-                cronos_chain_id,
-            ],
-            capture_output=True,
-            text=True,
-        )
-        print(result.stdout)
-        if result.returncode != 0:
-            print(f"Error: {result.stderr}")
-        
-        # Query clients
-        print("\nQuerying IBC clients...")
+    # Query clients on Cronos
+    try:
         cronos_clients = cronos_cli.query("ibc client states")
+        cronos_client_count = len(cronos_clients.get("client_states", []))
+        print(f"  Cronos has {cronos_client_count} IBC client(s)")
+        assert cronos_client_count > 0, "No IBC clients found on Cronos"
+    except Exception as e:
+        print(f"  ⚠️  Error querying Cronos clients: {e}")
+        raise
+    
+    # Query clients on Attestation Layer
+    try:
         attesta_clients = attesta_cli.query("ibc client states")
-        
-        print(f"Cronos clients: {len(cronos_clients.get('client_states', []))}")
-        print(f"Attestation Layer clients: {len(attesta_clients.get('client_states', []))}")
-        
-        assert len(cronos_clients.get("client_states", [])) > 0, "No clients created on Cronos"
-        assert len(attesta_clients.get("client_states", [])) > 0, "No clients created on Attestation Layer"
-        
-        print("✅ IBC clients created successfully")
-    else:
-        pytest.skip("Hermes config not found - skipping client creation")
+        attesta_client_count = len(attesta_clients.get("client_states", []))
+        print(f"  Attestation Layer has {attesta_client_count} IBC client(s)")
+        assert attesta_client_count > 0, "No IBC clients found on Attestation Layer"
+    except Exception as e:
+        print(f"  ⚠️  Error querying Attestation Layer clients: {e}")
+        raise
+    
+    print("✅ IBC clients verified on both chains")
 
 
 def test_attestation_module_enabled(attestation_network):
     """Verify attestation module is enabled and configured"""
-    cronos = attestation_network["cronos"]
+    cronos = attestation_network.cronos
     cronos_cli = cronos.cosmos_cli()
     
     # Query attestation params
@@ -184,7 +145,7 @@ def test_attestation_module_enabled(attestation_network):
 
 def test_send_attestation_manual(attestation_network):
     """Manually trigger an attestation send (if CLI command exists)"""
-    cronos = attestation_network["cronos"]
+    cronos = attestation_network.cronos
     cronos_cli = cronos.cosmos_cli()
     
     # Wait for some blocks to accumulate
@@ -213,8 +174,8 @@ def test_send_attestation_manual(attestation_network):
 
 def test_v2_router_configured(attestation_network):
     """Verify IBC v2 router is properly configured"""
-    cronos = attestation_network["cronos"]
-    attesta = attestation_network["attesta"]
+    cronos = attestation_network.cronos
+    attesta = attestation_network.attestad
     
     # This is more of a smoke test - actual v2 routing happens in the binary
     print("Checking v2 router configuration...")
@@ -236,7 +197,7 @@ def test_v2_router_configured(attestation_network):
 
 def test_attestation_events(attestation_network):
     """Monitor for attestation-related events"""
-    cronos = attestation_network["cronos"]
+    cronos = attestation_network.cronos
     cronos_cli = cronos.cosmos_cli()
     
     # Get current height
@@ -296,8 +257,8 @@ def test_finality_feedback(attestation_network):
     This test validates the network setup for this flow.
     """)
     
-    cronos = attestation_network["cronos"]
-    attesta = attestation_network["attesta"]
+    cronos = attestation_network.cronos
+    attesta = attestation_network.attestad
     
     # Verify both chains are operational
     assert cronos.cosmos_cli().status() is not None
@@ -309,8 +270,8 @@ def test_finality_feedback(attestation_network):
 # Utility test for debugging
 def test_chain_info(attestation_network):
     """Display useful information about the test setup"""
-    cronos = attestation_network["cronos"]
-    attesta = attestation_network["attesta"]
+    cronos = attestation_network.cronos
+    attesta = attestation_network.attestad
     
     print("\n" + "=" * 60)
     print("ATTESTATION TEST NETWORK INFO")
