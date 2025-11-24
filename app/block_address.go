@@ -62,6 +62,10 @@ func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 								return ctx, fmt.Errorf("signer is blocked: %s", addr.String())
 							}
 						}
+						// check the target address
+						if _, ok := bad.blockedMap[sdk.AccAddress(auth.Address.Bytes()).String()]; ok {
+							return ctx, fmt.Errorf("authorisation address is blocked: %s", sdk.AccAddress(auth.Address.Bytes()).String())
+						}
 					}
 				}
 			}
