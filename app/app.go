@@ -1157,6 +1157,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	rsp, err := app.ModuleManager.EndBlock(ctx)
 	if err := app.RefreshBlockList(ctx); err != nil {
 		app.Logger().Error("failed to update blocklist", "error", err)
+		return rsp, err
 	}
 	return rsp, err
 }
