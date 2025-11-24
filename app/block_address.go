@@ -68,7 +68,6 @@ func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 						}
 					}
 				}
-
 			}
 		}
 
