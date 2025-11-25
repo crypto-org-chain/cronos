@@ -12,6 +12,7 @@
 ### Bug fixes
 
 * [#1918](https://github.com/crypto-org-chain/cronos/pull/1918) Chore: cleanup and improve x/mint params validation and test in cosmos-sdk
+* [#1923](https://github.com/crypto-org-chain/cronos/pull/1911) Fix: LastBlockList should be set at the end
 
 *Nov 30, 2025*
 
