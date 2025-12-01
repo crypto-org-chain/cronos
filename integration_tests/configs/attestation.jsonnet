@@ -64,8 +64,8 @@ config {
   'attestation-1': {
     cmd: 'cronos-attestad',
     'start-flags': '--trace',
-    'account-prefix': 'cro',
-    'coin-type': 394,
+    'account-prefix': 'cosmos',
+    'coin-type': 118,
     config: {
       consensus: {
         'timeout-commit': '1s',

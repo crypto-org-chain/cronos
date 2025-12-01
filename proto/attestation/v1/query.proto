@@ -1,14 +1,20 @@
 syntax = "proto3";
 package attestation.v1;
 
-import "google/api/annotations.proto";
-import "gogoproto/gogo.proto";
+import "attestation/v1/ibc.proto";
 import "attestation/v1/tx.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  // Params queries the module parameters
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/attestation/v1/params";
+  }
+
   // GetBlockAttestation queries a specific block attestation
   rpc GetBlockAttestation(QueryGetBlockAttestationRequest) returns (QueryGetBlockAttestationResponse) {
     option (google.api.http).get = "/attestation/v1/attestation/{attestation_id}";
@@ -165,3 +171,11 @@ message QueryGetForcedTxResponse {
   ForcedTxRecord forced_tx = 1;
 }
 
+// QueryParamsRequest is the request type for the Query/Params RPC method
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the response type for the Query/Params RPC method
+message QueryParamsResponse {
+  // Module parameters
+  Params params = 1 [(gogoproto.nullable) = false];
+}

@@ -29,96 +29,101 @@ def call_hermes_cmd(
     version=None,
 ):
     """
-    Set up complete IBC infrastructure between cronos_777-1 and attestation-1.
+    Set up IBC v2 (Eureka) infrastructure between cronos_777-1 and attestation-1.
     
-    Following Celestia IBC relayer guide:
-    https://docs.celestia.org/how-to-guides/ibc-relayer
-    
-    Creates clients, connection, and channel in one command using:
-    hermes create channel --new-client-connection
+    IBC v2 (Eureka) only requires clients, not connections or channels.
+    Packets are routed directly using packet-forward-middleware.
     
     Args:
         hermes: Hermes relayer configuration
-        port_id: Port identifier for the channel (default: "transfer")
-        version: Channel version (optional, string or dict)
+        port_id: Port identifier (unused in IBC v2, kept for compatibility)
+        version: Channel version (unused in IBC v2, kept for compatibility)
     """
     chain_a = "cronos_777-1"
     chain_b = "attestation-1"
     
     print(f"\n{'='*60}")
-    print(f"Setting up IBC infrastructure (full)")
+    print(f"Setting up IBC v2 (Eureka) infrastructure")
     print(f"Between: {chain_a} <-> {chain_b}")
-    print(f"Port: {port_id}")
+    print(f"Protocol: IBC v2 (clients only, no connections/channels)")
     print(f"{'='*60}\n")
     
-    # Create channel with full setup (clients + connection + channel)
-    # Following Celestia guide: hermes create channel with --new-client-connection
-    print(f"📝 Creating full IBC setup (clients + connection + channel)...")
+    # IBC v2 (Eureka): Only create clients, no connections or channels needed
+    print(f"📝 Creating IBC v2 clients...")
     
-    cmd = [
+    # Create client on chain A (cronos) tracking chain B (attestation)
+    print(f"   Creating client on {chain_a} to track {chain_b}...")
+    cmd_client_a = [
         "hermes",
         "--config",
         str(hermes.configpath),
         "create",
-        "channel",
-        "--a-chain",
+        "client",
+        "--host-chain",
         chain_a,
-        "--b-chain",
+        "--reference-chain",
         chain_b,
-        "--a-port",
-        port_id,
-        "--b-port",
-        port_id,
-        "--new-client-connection",
-        "--yes",
     ]
+    subprocess.check_call(cmd_client_a)
+    print(f"   ✅ Client created on {chain_a}")
     
-    # Add channel version if specified
-    if version:
-        version_str = version if isinstance(version, str) else json.dumps(version)
-        cmd.extend(["--channel-version", version_str])
-        print(f"   Version: {version_str}")
+    # Create client on chain B (attestation) tracking chain A (cronos)
+    print(f"   Creating client on {chain_b} to track {chain_a}...")
+    cmd_client_b = [
+        "hermes",
+        "--config",
+        str(hermes.configpath),
+        "create",
+        "client",
+        "--host-chain",
+        chain_b,
+        "--reference-chain",
+        chain_a,
+    ]
+    subprocess.check_call(cmd_client_b)
+    print(f"   ✅ Client created on {chain_b}")
     
-    subprocess.check_call(cmd)
-    print(f"✅ Full IBC setup complete")
-    
+    print(f"\n✅ IBC v2 clients created successfully")
     print(f"\n{'='*60}")
-    print(f"IBC infrastructure created!")
+    print(f"IBC v2 infrastructure ready!")
+    print(f"Clients created - packets can now be relayed")
     print(f"{'='*60}\n")
 
 
 def verify_ibc_setup(cronos_cli, attesta_cli):
     """
-    Verify complete IBC infrastructure was set up correctly.
+    Verify IBC v2 (Eureka) infrastructure was set up correctly.
     
-    Checks for clients, connections, and channels on both chains.
+    IBC v2 only requires clients - no connections or channels.
     
     Args:
         cronos_cli: Cronos chain CLI
         attesta_cli: Attestation layer chain CLI
     
     Returns:
-        dict with setup information (counts of clients, connections, channels)
+        dict with setup information (client counts)
     """
     result = {
         "clients": {"cronos": 0, "attesta": 0},
-        "connections": {"cronos": 0, "attesta": 0},
-        "channels": {"cronos": 0, "attesta": 0},
     }
     
     print(f"\n{'='*60}")
-    print(f"Verifying IBC infrastructure")
+    print(f"Verifying IBC v2 (Eureka) infrastructure")
     print(f"{'='*60}\n")
     
-    # Check clients
+    # Check clients (IBC v2 only needs clients)
     try:
-        cronos_clients = cronos_cli.query("ibc client states")
-        attesta_clients = attesta_cli.query("ibc client states")
+        cronos_clients = json.loads(cronos_cli.raw("query", "ibc", "client", "states",
+                                                    "--output", "json",
+                                                    node=cronos_cli.node_rpc))
+        attesta_clients = json.loads(attesta_cli.raw("query", "ibc", "client", "states",
+                                                      "--output", "json",
+                                                      node=attesta_cli.node_rpc))
         
         result["clients"]["cronos"] = len(cronos_clients.get("client_states", []))
         result["clients"]["attesta"] = len(attesta_clients.get("client_states", []))
         
-        print(f"📋 IBC Clients:")
+        print(f"📋 IBC v2 Clients:")
         print(f"   Cronos: {result['clients']['cronos']}")
         print(f"   Attestation Layer: {result['clients']['attesta']}")
         
@@ -128,44 +133,13 @@ def verify_ibc_setup(cronos_cli, attesta_cli):
     except Exception as e:
         print(f"   ⚠️  Error checking clients: {e}")
     
-    # Check connections
-    try:
-        cronos_conns = cronos_cli.query("ibc connection connections")
-        attesta_conns = attesta_cli.query("ibc connection connections")
-        
-        result["connections"]["cronos"] = len(cronos_conns.get("connections", []))
-        result["connections"]["attesta"] = len(attesta_conns.get("connections", []))
-        
-        print(f"\n🔗 IBC Connections:")
-        print(f"   Cronos: {result['connections']['cronos']}")
-        print(f"   Attestation Layer: {result['connections']['attesta']}")
-        
-        assert result["connections"]["cronos"] > 0, "No connections on Cronos"
-        assert result["connections"]["attesta"] > 0, "No connections on Attestation Layer"
-        print(f"   ✅ Connections verified")
-    except Exception as e:
-        print(f"   ⚠️  Error checking connections: {e}")
-    
-    # Check channels
-    try:
-        cronos_channels = cronos_cli.query("ibc channel channels")
-        attesta_channels = attesta_cli.query("ibc channel channels")
-        
-        result["channels"]["cronos"] = len(cronos_channels.get("channels", []))
-        result["channels"]["attesta"] = len(attesta_channels.get("channels", []))
-        
-        print(f"\n📡 IBC Channels:")
-        print(f"   Cronos: {result['channels']['cronos']}")
-        print(f"   Attestation Layer: {result['channels']['attesta']}")
-        
-        assert result["channels"]["cronos"] > 0, "No channels on Cronos"
-        assert result["channels"]["attesta"] > 0, "No channels on Attestation Layer"
-        print(f"   ✅ Channels verified")
-    except Exception as e:
-        print(f"   ⚠️  Error checking channels: {e}")
+    # IBC v2 (Eureka) does not use connections or channels
+    print(f"\n💡 IBC v2 Note:")
+    print(f"   IBC v2 (Eureka) does not use connections or channels")
+    print(f"   Packets are routed directly using packet-forward-middleware")
     
     print(f"\n{'='*60}")
-    print(f"IBC infrastructure verification complete!")
+    print(f"IBC v2 infrastructure verification complete!")
     print(f"{'='*60}\n")
     
     return result

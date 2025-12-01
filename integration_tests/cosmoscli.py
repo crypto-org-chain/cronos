@@ -1118,6 +1118,8 @@ class CosmosCLI:
                 "query",
                 module,
                 "params",
+                output="json",
+                node=self.node_rpc,
                 home=self.data_dir,
                 **kwargs,
             )
