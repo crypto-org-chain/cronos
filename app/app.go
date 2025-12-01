@@ -234,6 +234,7 @@ func StoreKeys() (
 	map[string]*storetypes.KVStoreKey,
 	map[string]*storetypes.TransientStoreKey,
 	map[string]*storetypes.ObjectStoreKey,
+	map[string]*storetypes.MemoryStoreKey,
 ) {
 	storeKeys := []string{
 		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
@@ -255,9 +256,10 @@ func StoreKeys() (
 	}
 	keys := storetypes.NewKVStoreKeys(storeKeys...)
 	tkeys := storetypes.NewTransientStoreKeys(paramstypes.TStoreKey)
+	memKeys := storetypes.NewMemoryStoreKeys(stakingtypes.CacheStoreKey, cronostypes.MemStoreKey)
 	okeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectStoreKey)
 
-	return keys, tkeys, okeys
+	return keys, tkeys, okeys, memKeys
 }
 
 var (
@@ -285,10 +287,10 @@ type App struct {
 	pendingTxListeners []evmante.PendingTxListener
 
 	// keys to access the substores
-	keys  map[string]*storetypes.KVStoreKey
-	tkeys map[string]*storetypes.TransientStoreKey
-	okeys map[string]*storetypes.ObjectStoreKey
-
+	keys    map[string]*storetypes.KVStoreKey
+	tkeys   map[string]*storetypes.TransientStoreKey
+	okeys   map[string]*storetypes.ObjectStoreKey
+	memKeys map[string]*storetypes.MemoryStoreKey
 	// keepers
 	AccountKeeper         authkeeper.AccountKeeper
 	BankKeeper            bankkeeper.Keeper
@@ -447,7 +449,7 @@ func New(
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
 
-	keys, tkeys, okeys := StoreKeys()
+	keys, tkeys, okeys, memKeys := StoreKeys()
 
 	invCheckPeriod := cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod))
 	app := &App{
@@ -461,6 +463,7 @@ func New(
 		keys:                 keys,
 		tkeys:                tkeys,
 		okeys:                okeys,
+		memKeys:              memKeys,
 		blockProposalHandler: blockProposalHandler,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
@@ -516,14 +519,17 @@ func New(
 		panic(err)
 	}
 	app.txConfig = txConfig
+	stakingCacheSize := cast.ToInt(appOpts.Get(server.FlagStakingCacheSize))
 	app.StakingKeeper = stakingkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[stakingtypes.StoreKey]),
+		runtime.NewMemStoreService(memKeys[stakingtypes.CacheStoreKey]),
 		app.AccountKeeper,
 		app.BankKeeper,
 		authAddr,
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ValidatorAddrPrefix()),
 		address.NewBech32Codec(sdk.GetConfig().GetBech32ConsensusAddrPrefix()),
+		stakingCacheSize,
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
 		appCodec,
@@ -666,7 +672,7 @@ func New(
 	app.CronosKeeper = *cronoskeeper.NewKeeper(
 		appCodec,
 		keys[cronostypes.StoreKey],
-		keys[cronostypes.MemStoreKey],
+		memKeys[cronostypes.MemStoreKey],
 		app.BankKeeper,
 		app.TransferKeeper,
 		app.EvmKeeper,
@@ -975,7 +981,7 @@ func New(
 	app.MountKVStores(keys)
 	app.MountTransientStores(tkeys)
 	app.MountObjectStores(okeys)
-
+	app.MountMemoryStores(memKeys)
 	// initialize BaseApp
 	app.SetInitChainer(app.InitChainer)
 	app.SetPreBlocker(app.PreBlocker)
