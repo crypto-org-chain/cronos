@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from web3 import Web3
+from web3 import Web3, exceptions
 
 from .network import setup_custom_cronos
 from .utils import (
@@ -9,6 +9,9 @@ from .utils import (
     CONTRACTS,
     KEYS,
     deploy_contract,
+    get_account_nonce,
+    replace_transaction,
+    send_transaction,
     send_txs,
     sign_transaction,
     wait_for_new_blocks,
@@ -138,3 +141,168 @@ def test_mempool_nonce(cronos_mempool):
             sender
         )
         assert orig_nonce + 4 + i == local_nonce
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_tx_replacement(cronos_mempool):
+    w3 = cronos_mempool.w3
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    priority_fee = w3.eth.max_priority_fee
+    nonce = get_account_nonce(w3)
+    # replace with less than 10% bump, should fail
+    with pytest.raises(exceptions.Web3RPCError) as exc:
+        _ = replace_transaction(
+            w3,
+            {
+                "to": ADDRS["community"],
+                "value": 1,
+                "maxFeePerGas": base_fee + priority_fee,
+                "maxPriorityFeePerGas": priority_fee,
+                "nonce": nonce,
+                "from": ADDRS["validator"],
+            },
+            {
+                "to": ADDRS["community"],
+                "value": 2,
+                "maxFeePerGas": int((base_fee + priority_fee) * 1.05),  # +5% bump
+                "maxPriorityFeePerGas": int(priority_fee * 1.05),
+                "nonce": nonce,
+                "from": ADDRS["validator"],
+            },
+            KEYS["validator"],
+        )["transactionHash"]
+    assert "fit the replacement rule" in str(exc)
+
+    wait_for_new_blocks(cronos_mempool.cosmos_cli(), 1)
+    nonce = get_account_nonce(w3)
+    initial_balance = w3.eth.get_balance(ADDRS["community"])
+    # replace with more than 10% bump, should succeed
+    txhash = replace_transaction(
+        w3,
+        {
+            "to": ADDRS["community"],
+            "value": 3,
+            "maxFeePerGas": base_fee + priority_fee,
+            "maxPriorityFeePerGas": priority_fee,
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
+        {
+            "to": ADDRS["community"],
+            "value": 5,
+            "maxFeePerGas": int((base_fee + priority_fee) * 1.15),  # +15% bump
+            "maxPriorityFeePerGas": int(priority_fee * 1.15),
+            "nonce": nonce,
+            "from": ADDRS["validator"],
+        },
+        KEYS["validator"],
+    )["transactionHash"]
+    tx1 = w3.eth.get_transaction(txhash)
+    assert tx1["transactionIndex"] == 0
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+
+    # check that already accepted transaction cannot be replaced
+    txhash_noreplacemenet = send_transaction(
+        w3,
+        {
+            "to": ADDRS["community"],
+            "value": 10,
+            "maxFeePerGas": base_fee + priority_fee,
+            "maxPriorityFeePerGas": priority_fee,
+        },
+        KEYS["validator"],
+    )["transactionHash"]
+    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
+    assert tx2["transactionIndex"] == 0
+
+    with pytest.raises(ValueError) as exc:
+        w3.eth.replace_transaction(
+            txhash_noreplacemenet,
+            {
+                "to": ADDRS["community"],
+                "value": 15,
+                "maxFeePerGas": int((base_fee + priority_fee) * 1.15),  # +15% bump
+                "maxPriorityFeePerGas": int(priority_fee * 1.15),
+            },
+        )
+    assert "has already been mined" in str(exc)
+
+
+@pytest.mark.flaky(max_runs=3)
+def test_multiple_tx_replacement(cronos_mempool):
+    w3 = cronos_mempool.w3
+    cli = cronos_mempool.cosmos_cli()
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    priority_fee = w3.eth.max_priority_fee
+    user1_nonce = get_account_nonce(w3, key=KEYS["validator"])
+    user2_nonce = get_account_nonce(w3, key=KEYS["validator2"])
+    user3_nonce = get_account_nonce(w3, key=KEYS["validator3"])
+    initial_balance = w3.eth.get_balance(ADDRS["community"])
+
+    tx1 = {
+        "to": ADDRS["community"],
+        "value": 1,
+        "maxFeePerGas": base_fee + priority_fee,
+        "maxPriorityFeePerGas": priority_fee,
+        "nonce": user1_nonce,
+        "from": ADDRS["validator"],
+    }
+    tx1_signed = sign_transaction(w3, tx1, key=KEYS["validator"])
+    tx1_replaced = {
+        "to": ADDRS["community"],
+        "value": 2,
+        "maxFeePerGas": int((base_fee + priority_fee) * 1.15),
+        "maxPriorityFeePerGas": int(priority_fee * 1.15),
+        "nonce": user1_nonce,
+        "from": ADDRS["validator"],
+    }
+    tx1_replaced_signed = sign_transaction(w3, tx1_replaced, key=KEYS["validator"])
+    tx1_replaced_again = {
+        "to": ADDRS["community"],
+        "value": 3,
+        "maxFeePerGas": int((base_fee + priority_fee) * 2),
+        "maxPriorityFeePerGas": int(priority_fee * 2),
+        "nonce": user1_nonce,
+        "from": ADDRS["validator"],
+    }
+    tx1_replaced_again_signed = sign_transaction(
+        w3, tx1_replaced_again, key=KEYS["validator"]
+    )
+
+    tx2 = {
+        "to": ADDRS["community"],
+        "value": 10,
+        "maxFeePerGas": base_fee + priority_fee,
+        "maxPriorityFeePerGas": priority_fee,
+        "nonce": user2_nonce,
+        "from": ADDRS["validator2"],
+    }
+    tx2_signed = sign_transaction(w3, tx2, key=KEYS["validator2"])
+    tx2_replaced = {
+        "to": ADDRS["community"],
+        "value": 11,
+        "maxFeePerGas": int((base_fee + priority_fee) * 2),
+        "maxPriorityFeePerGas": int(priority_fee * 2),
+        "nonce": user2_nonce,
+        "from": ADDRS["validator2"],
+    }
+    tx2_replaced_signed = sign_transaction(w3, tx2_replaced, key=KEYS["validator2"])
+
+    tx3 = {
+        "to": ADDRS["community"],
+        "value": 20,
+        "maxFeePerGas": base_fee + priority_fee,
+        "maxPriorityFeePerGas": priority_fee,
+        "nonce": user3_nonce,
+        "from": ADDRS["validator3"],
+    }
+    tx3_signed = sign_transaction(w3, tx3, key=KEYS["validator3"])
+
+    w3.eth.send_raw_transaction(tx1_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx1_replaced_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx1_replaced_again_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx2_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx2_replaced_signed.raw_transaction)
+    w3.eth.send_raw_transaction(tx3_signed.raw_transaction)
+    wait_for_new_blocks(cli, 1)
+    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 34

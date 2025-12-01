@@ -2,11 +2,42 @@
 
 ## UNRELEASED
 
-* [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
-* [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) Support 4byteTracer for tracer
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
+
+
+
+*Nov 30, 2025*
+
+## v1.5.4
+
+### Improvements
+
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Chore: cleanup release by reverting #1892, #1893 and #1850.
+* [#1901](https://github.com/crypto-org-chain/cronos/pull/1901) Feat: add mempool.feebump and disable-tx-replacement flags.
+* [#1911](https://github.com/crypto-org-chain/cronos/pull/1911) Fix: bug on multiple tx replacements
+
+
+*Oct 30, 2025*
+
+## v1.5.3
+
+### Bug fixes
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Check authorisation list for blocklisted address.
+
+## v1.5.2
+
+* [#1892](https://github.com/crypto-org-chain/cronos/pull/1892) fix: disable memiavl cache when optimistic execution is enabled.
+* [#1893](https://github.com/crypto-org-chain/cronos/pull/1893) Normalize cache validator queue key to be UTC.
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators. Upgrade RocksDB to `v10.4.2` and enable asyncIO.
+
+*Oct 15, 2025*
+
+## v1.5.1
+
+* [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
+* [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
 * [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
 
 *Sep 4, 2025*
