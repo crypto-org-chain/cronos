@@ -783,6 +783,11 @@ func New(
 		app.ChainID(),
 	)
 
+	// Initialize local finality storage (non-consensus)
+	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger); err != nil {
+		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
+	}
+
 	/****  Module Options ****/
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
@@ -1450,9 +1455,169 @@ func VerifyAddressFormat(bz []byte) error {
 	return nil
 }
 
+// setupAttestationFinalityStorage initializes local finality storage for the attestation module
+// This storage is non-consensus and provides fast queries without state bloat
+// If the database already exists with matching backend, it loads from it; otherwise, it creates a new one
+func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger) error {
+	// Get cache size from config (default: 10000)
+	cacheSize := cast.ToInt(appOpts.Get("attestation.finality-cache-size"))
+	if cacheSize == 0 {
+		cacheSize = 10000
+	}
+
+	// Get database backend from app-config (default: goleveldb)
+	// This matches the main app database backend setting
+	dbBackendStr := cast.ToString(appOpts.Get("app-db-backend"))
+	if dbBackendStr == "" {
+		dbBackendStr = "goleveldb"
+	}
+
+	// Parse database backend type
+	var dbBackend dbm.BackendType
+	switch dbBackendStr {
+	case "goleveldb":
+		dbBackend = dbm.GoLevelDBBackend
+	case "rocksdb":
+		dbBackend = dbm.RocksDBBackend
+	default:
+		logger.Warn("Unsupported database backend, using goleveldb", "backend", dbBackendStr)
+		dbBackend = dbm.GoLevelDBBackend
+		dbBackendStr = "goleveldb"
+	}
+
+	// Create finality database path
+	finalityDBPath := filepath.Join(homePath, "data", "finality")
+
+	// Check if database already exists with matching backend type
+	dbExists, backendMatches := checkFinalityDatabaseExists(finalityDBPath, dbBackend)
+
+	// If database exists but backend doesn't match, log warning and create new
+	if dbExists && !backendMatches {
+		logger.Warn("Existing finality database has different backend type, creating new database",
+			"db_path", finalityDBPath,
+			"configured_backend", dbBackendStr,
+		)
+		// Remove old database with different backend
+		oldDBPath := filepath.Join(finalityDBPath, "finality.db")
+		if err := os.RemoveAll(oldDBPath); err != nil {
+			logger.Error("Failed to remove old finality database", "error", err)
+		}
+		dbExists = false
+	}
+
+	// Initialize local storage (creates new or opens existing)
+	if err := app.AttestationKeeper.InitializeLocalStorage(finalityDBPath, cacheSize, dbBackend); err != nil {
+		return fmt.Errorf("failed to initialize local finality storage: %w", err)
+	}
+
+	// Get statistics about loaded database if it exists
+	if dbExists {
+		// Try to get stats from the keeper
+		ctx := app.NewUncachedContext(false, cmtproto.Header{})
+		if stats, err := app.AttestationKeeper.GetFinalityStatsLocal(ctx); err == nil {
+			logger.Info("Attestation local finality storage loaded from existing database",
+				"db_path", finalityDBPath,
+				"cache_size", cacheSize,
+				"db_backend", dbBackendStr,
+				"total_finalized", stats.TotalFinalized,
+				"min_height", stats.MinHeight,
+				"max_height", stats.MaxHeight,
+			)
+		} else {
+			logger.Info("Attestation local finality storage loaded from existing database",
+				"db_path", finalityDBPath,
+				"cache_size", cacheSize,
+				"db_backend", dbBackendStr,
+			)
+		}
+	} else {
+		logger.Info("Attestation local finality storage initialized (new database)",
+			"db_path", finalityDBPath,
+			"cache_size", cacheSize,
+			"db_backend", dbBackendStr,
+		)
+	}
+
+	return nil
+}
+
+// checkFinalityDatabaseExists checks if the finality database already exists
+// and verifies if the backend type matches the configuration
+// Returns: (exists bool, backendMatches bool)
+func checkFinalityDatabaseExists(dbPath string, configuredBackend dbm.BackendType) (bool, bool) {
+	dbDir := filepath.Join(dbPath, "finality.db")
+
+	// Check if directory exists
+	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
+		return false, false
+	}
+
+	// Check if directory is empty
+	entries, err := os.ReadDir(dbDir)
+	if err != nil || len(entries) == 0 {
+		return false, false
+	}
+
+	// Database exists, now check if backend type matches
+	// LevelDB and RocksDB both use CURRENT file but have different structures
+	currentFile := filepath.Join(dbDir, "CURRENT")
+	if _, err := os.Stat(currentFile); err != nil {
+		// No CURRENT file means unknown/corrupted database
+		return true, false
+	}
+
+	// Check for backend-specific indicators
+	backendMatches := false
+
+	switch configuredBackend {
+	case dbm.GoLevelDBBackend:
+		// LevelDB typically has .ldb files
+		for _, entry := range entries {
+			if filepath.Ext(entry.Name()) == ".ldb" {
+				backendMatches = true
+				break
+			}
+		}
+		// Also check for .log files (LevelDB write-ahead log)
+		if !backendMatches {
+			for _, entry := range entries {
+				if filepath.Ext(entry.Name()) == ".log" {
+					backendMatches = true
+					break
+				}
+			}
+		}
+
+	case dbm.RocksDBBackend:
+		// RocksDB typically has .sst files
+		for _, entry := range entries {
+			if filepath.Ext(entry.Name()) == ".sst" {
+				backendMatches = true
+				break
+			}
+		}
+		// Also check for OPTIONS file (RocksDB specific)
+		if !backendMatches {
+			optionsFile := filepath.Join(dbDir, "OPTIONS")
+			if _, err := os.Stat(optionsFile); err == nil {
+				backendMatches = true
+			}
+		}
+	}
+
+	// If we couldn't determine backend type, assume it doesn't match (safer)
+	return true, backendMatches
+}
+
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
 	errs := []error{app.BaseApp.Close()}
+
+	// Close attestation local finality database
+	if err := app.AttestationKeeper.CloseFinalityDB(); err != nil {
+		app.Logger().Error("Failed to close attestation finality DB", "error", err)
+		errs = append(errs, err)
+	}
 
 	// flush the versiondb
 	if closer, ok := app.qms.(io.Closer); ok {

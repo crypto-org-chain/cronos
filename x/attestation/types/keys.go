@@ -17,25 +17,31 @@ const (
 	MemStoreKey = "mem_attestation"
 )
 
-// Store key prefixes
+// Consensus store key prefixes (minimal, BFT replicated)
 var (
-	// AttestationSequenceKey tracks the next attestation ID
-	AttestationSequenceKey = []byte{0x01}
-
-	// PendingAttestationsPrefix stores pending attestations by height
-	PendingAttestationsPrefix = []byte{0x02}
-
-	// FinalizedBlocksPrefix stores finalized block heights
-	FinalizedBlocksPrefix = []byte{0x03}
-
 	// LastSentHeightKey stores the last block height sent for attestation
-	LastSentHeightKey = []byte{0x04}
+	LastSentHeightKey = []byte{0x01}
 
 	// ParamsKey stores the module parameters
-	ParamsKey = []byte{0x05}
+	ParamsKey = []byte{0x02}
 
 	// V2ClientIDPrefix stores IBC v2 client IDs (prefix + key -> clientID)
-	V2ClientIDPrefix = []byte{0x06}
+	V2ClientIDPrefix = []byte{0x03}
+
+	// HighestFinalityHeightKey stores the highest finalized block height (consensus storage)
+	// This is the ONLY finality-related data stored in consensus state for tracking progress
+	HighestFinalityHeightKey = []byte{0x04}
+)
+
+// Local (non-consensus) store key prefixes
+var (
+	// PendingAttestationsPrefix stores pending attestations by height (local storage)
+	// Each validator tracks their own pending attestations independently
+	PendingAttestationsPrefix = []byte{0xF1}
+
+	// FinalizedBlocksPrefix stores finalized block data (local storage)
+	// Full finality data is NOT stored in consensus state, only in local database
+	FinalizedBlocksPrefix = []byte{0xF2}
 )
 
 // GetPendingAttestationKey returns the key for a pending attestation by height
@@ -43,7 +49,8 @@ func GetPendingAttestationKey(height uint64) []byte {
 	return append(PendingAttestationsPrefix, UintToBytes(height)...)
 }
 
-// GetFinalizedBlockKey returns the key for a finalized block by height
+// GetFinalizedBlockKey returns the key for local (non-consensus) finalized block storage
+// This key is used in the local database, not in consensus state
 func GetFinalizedBlockKey(height uint64) []byte {
 	return append(FinalizedBlocksPrefix, UintToBytes(height)...)
 }

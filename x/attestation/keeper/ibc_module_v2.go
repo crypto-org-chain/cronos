@@ -99,13 +99,28 @@ func (im IBCModuleV2) OnRecvPacket(
 	finalityStatuses := make(map[uint64]types.FinalityStatus)
 
 	for _, attestation := range packetData.Attestations {
-		// Store attestation as pending
+		// Store attestation as pending (consensus storage)
 		if err := im.keeper.AddPendingAttestation(ctx, attestation.BlockHeight, &attestation); err != nil {
 			ctx.Logger().Error("failed to store attestation",
 				"height", attestation.BlockHeight,
 				"error", err,
 			)
 			continue
+		}
+
+		// Store finality in LOCAL database (no consensus)
+		// This provides fast queries without consensus overhead
+		if err := im.keeper.MarkBlockFinalizedLocal(
+			ctx,
+			attestation.BlockHeight,
+			ctx.BlockTime().Unix(),
+			attestation.BlockHash,
+		); err != nil {
+			ctx.Logger().Error("failed to store finality locally",
+				"height", attestation.BlockHeight,
+				"error", err,
+			)
+			// Don't fail the packet - local storage is optional
 		}
 
 		// Mark as received and finalized (simplified - in production, finality would be determined by consensus)
@@ -193,13 +208,13 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 	// Process finality feedback
 	for height, status := range ack.FinalityStatuses {
 		if status.Finalized {
-			// Mark block as finalized
-			if err := im.keeper.MarkBlockFinalized(ctx, height, status.FinalizedAt, status.FinalityProof); err != nil {
-				ctx.Logger().Error("failed to mark block as finalized",
+			// Store finality in LOCAL database only (no consensus storage)
+			if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, status.FinalizedAt, status.FinalityProof); err != nil {
+				ctx.Logger().Error("failed to store finality locally",
 					"height", height,
 					"error", err,
 				)
-				continue
+				// Continue - local storage failure shouldn't block processing
 			}
 
 			// Emit finality event
