@@ -112,7 +112,7 @@ def test_create_ibc_clients(attestation_network):
     # Query clients on Cronos
     try:
         cronos_clients = json.loads(cronos_cli.raw("query", "ibc", "client", "states",
-                                                    "--output", "json",
+                                                    output="json",
                                                     node=cronos_cli.node_rpc))
         cronos_client_count = len(cronos_clients.get("client_states", []))
         print(f"  Cronos: {cronos_client_count} IBC client(s)")
@@ -124,7 +124,7 @@ def test_create_ibc_clients(attestation_network):
     # Query clients on Attestation Layer
     try:
         attesta_clients = json.loads(attesta_cli.raw("query", "ibc", "client", "states",
-                                                      "--output", "json",
+                                                      output="json",
                                                       node=attesta_cli.node_rpc))
         attesta_client_count = len(attesta_clients.get("client_states", []))
         print(f"  Attestation Layer: {attesta_client_count} IBC client(s)")
@@ -180,7 +180,7 @@ def test_send_attestation_manual(attestation_network):
     print("🔍 Testing automatic attestation send...")
     
     # Get current height
-    current_height = int(cronos_cli.status()["SyncInfo"]["latest_block_height"])
+    current_height = cronos_cli.block_height()
     print(f"Current height: {current_height}")
     
     # Get attestation params to know the interval
@@ -195,15 +195,15 @@ def test_send_attestation_manual(attestation_network):
     wait_for_new_blocks(cronos_cli, blocks_to_wait)
     
     # Get new height
-    new_height = int(cronos_cli.status()["SyncInfo"]["latest_block_height"])
+    new_height = cronos_cli.block_height()
     print(f"New height: {new_height}")
     
     # Check for attestation events from the start height
     try:
-        events = json.loads(cronos_cli.raw("query", "txs", 
-                                           "--events", f"tx.height>={current_height}",
-                                           "--limit", "100",
-                                           "--output", "json",
+        events = json.loads(cronos_cli.raw("query", "txs",
+                                           query=f"tx.height>={current_height}",
+                                           limit="100",
+                                           output="json",
                                            node=cronos_cli.node_rpc))
         
         txs = events.get("txs", [])
@@ -277,9 +277,9 @@ def test_attestation_events(attestation_network):
     try:
         # Query attestation-related transactions
         result = json.loads(cronos_cli.raw("query", "txs",
-                                           "--events", f"tx.height>={start_height}",
-                                           "--limit", "100",
-                                           "--output", "json",
+                                           query=f"tx.height>={start_height}",
+                                           limit="100",
+                                           output="json",
                                            node=cronos_cli.node_rpc))
         
         txs = result.get("txs", [])
@@ -368,10 +368,10 @@ def test_chain_info(attestation_network):
         cronos_cli = cronos.cosmos_cli()
         attesta_cli = attesta.cosmos_cli()
         cronos_clients = json.loads(cronos_cli.raw("query", "ibc", "client", "states",
-                                                    "--output", "json",
+                                                    output="json",
                                                     node=cronos_cli.node_rpc))
         attesta_clients = json.loads(attesta_cli.raw("query", "ibc", "client", "states",
-                                                      "--output", "json",
+                                                      output="json",
                                                       node=attesta_cli.node_rpc))
         
         print(f"\n🔗 IBC CLIENTS")

@@ -114,10 +114,10 @@ def verify_ibc_setup(cronos_cli, attesta_cli):
     # Check clients (IBC v2 only needs clients)
     try:
         cronos_clients = json.loads(cronos_cli.raw("query", "ibc", "client", "states",
-                                                    "--output", "json",
+                                                    output="json",
                                                     node=cronos_cli.node_rpc))
         attesta_clients = json.loads(attesta_cli.raw("query", "ibc", "client", "states",
-                                                      "--output", "json",
+                                                      output="json",
                                                       node=attesta_cli.node_rpc))
         
         result["clients"]["cronos"] = len(cronos_clients.get("client_states", []))

@@ -110,8 +110,6 @@ func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data j
 	// Store genesis state
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// IBC v2 doesn't use channels
-
 	// Set v2 client ID if provided
 	if gs.V2ClientID != "" {
 		if err := am.keeper.SetV2ClientID(ctx, "attestation-layer", gs.V2ClientID); err != nil {
