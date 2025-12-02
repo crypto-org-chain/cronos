@@ -194,7 +194,7 @@ cd ~/.cronos/data
 mv application.db application.db.old
 
 # Use migrated database
-mv application.db.migrate-temp application.db
+mv application.migrate-temp.db application.db
 
 # Verify
 ls -lh application.db

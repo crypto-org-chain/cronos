@@ -34,12 +34,18 @@ func setupTestDB(t *testing.T, backend dbm.BackendType, numKeys int) (string, db
 		require.NoError(t, err)
 
 		ro := grocksdb.NewDefaultReadOptions()
-		defer ro.Destroy()
 		wo := grocksdb.NewDefaultWriteOptions()
-		defer wo.Destroy()
 		woSync := grocksdb.NewDefaultWriteOptions()
-		defer woSync.Destroy()
 		woSync.SetSync(true)
+
+		// Register cleanup for options - these must be destroyed AFTER db.Close()
+		// t.Cleanup runs in LIFO order, so register options cleanup first
+		t.Cleanup(func() {
+			woSync.Destroy()
+			wo.Destroy()
+			ro.Destroy()
+		})
+
 		db = dbm.NewRocksDBWithRawDB(rawDB, ro, wo, woSync)
 	} else {
 		db, err = dbm.NewDB("application", backend, dataDir)

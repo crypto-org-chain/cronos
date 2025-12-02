@@ -203,8 +203,8 @@ func PatchDatabase(opts PatchOptions) (*MigrationStats, error) {
 func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger log.Logger) (int64, error) {
 	var totalCount int64
 
-	// If we have specific heights, we need to filter while counting
-	needsFiltering := heightRange.HasSpecificHeights()
+	// If we have a height range (either continuous or specific heights), we need to filter while counting
+	needsFiltering := !heightRange.IsEmpty()
 
 	switch dbName {
 	case DBNameBlockstore:
@@ -230,9 +230,9 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 						"in_range", !needsFiltering || (hasHeight && heightRange.IsWithinRange(height)))
 				}
 				if needsFiltering {
-					// Extract height and check if it's in our specific list
+					// Extract height and check if it's within the range
 					height, hasHeight := extractHeightFromBlockstoreKey(it.Key())
-					if hasHeight && !heightRange.IsWithinRange(height) {
+					if !hasHeight || !heightRange.IsWithinRange(height) {
 						continue
 					}
 				}
@@ -252,9 +252,9 @@ func countKeysForPatch(db dbm.DB, dbName string, heightRange HeightRange, logger
 
 		for ; it.Valid(); it.Next() {
 			if needsFiltering {
-				// Extract height and check if it's in our specific list
+				// Extract height and check if it's within the range
 				height, hasHeight := extractHeightFromTxIndexKey(it.Key())
-				if hasHeight && !heightRange.IsWithinRange(height) {
+				if !hasHeight || !heightRange.IsWithinRange(height) {
 					continue
 				}
 			}
@@ -471,17 +471,15 @@ func patchTxHeightKeys(it dbm.Iterator, sourceDB, targetDB dbm.DB, opts PatchOpt
 		key := it.Key()
 		value := it.Value()
 
-		// Additional filtering for specific heights (if needed)
-		if opts.HeightRange.HasSpecificHeights() {
-			height, hasHeight := extractHeightFromTxIndexKey(key)
-			if !hasHeight {
-				it.Next()
-				continue
-			}
-			if !opts.HeightRange.IsWithinRange(height) {
-				it.Next()
-				continue
-			}
+		// Apply height filtering for both continuous ranges and specific heights
+		height, hasHeight := extractHeightFromTxIndexKey(key)
+		if !hasHeight {
+			it.Next()
+			continue
+		}
+		if !opts.HeightRange.IsWithinRange(height) {
+			it.Next()
+			continue
 		}
 
 		// Check for key conflicts
@@ -928,7 +926,8 @@ func patchEthereumEventKeysFromSource(sourceDB, targetDB dbm.DB, ethTxInfos map[
 // patchWithIterator patches data from an iterator to target database
 // shouldProcessKey checks if a key should be processed based on height filtering
 func shouldProcessKey(key []byte, dbName string, heightRange HeightRange) bool {
-	if !heightRange.HasSpecificHeights() {
+	// If no height range specified, process all keys
+	if heightRange.IsEmpty() {
 		return true
 	}
 
@@ -945,6 +944,7 @@ func shouldProcessKey(key []byte, dbName string, heightRange HeightRange) bool {
 		return false
 	}
 
+	// Skip keys where we can't extract height or height is not in range
 	if !hasHeight {
 		return false
 	}
