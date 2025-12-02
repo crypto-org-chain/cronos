@@ -214,8 +214,8 @@ done
 
 # Replace with migrated databases
 for db in application blockstore state tx_index evidence; do
-  if [ -d "${db}.db.migrate-temp" ]; then
-    mv ${db}.db.migrate-temp ${db}.db
+  if [ -d "${db}.migrate-temp.db" ]; then
+    mv ${db}.migrate-temp.db ${db}.db
   fi
 done
 
@@ -389,7 +389,7 @@ The migration tool outputs detailed progress. Look for:
 **Recovery:**
 ```bash
 # Remove failed migration
-rm -rf ~/.cronos/data/application.db.migrate-temp
+rm -rf ~/.cronos/data/application.migrate-temp.db
 
 # Restore from backup if needed
 cp -r ~/.cronos/data/application.db.backup-* ~/.cronos/data/application.db
@@ -438,7 +438,7 @@ If migration fails or node won't start:
 cd ~/.cronos/data
 
 # Remove new database
-rm -rf application.db.migrate-temp application.db
+rm -rf application.migrate-temp.db application.db
 
 # Restore backup
 cp -r application.db.backup-* application.db
