@@ -9,11 +9,11 @@ let
     if len == 0 then [ ] else final.lib.lists.take (len - 1) l ++ [ newVal ];
 in
 {
-  go_1_23 = super.go_1_23.overrideAttrs (old: rec {
-    version = "1.23.12";
+  go_1_25 = super.go_1_25.overrideAttrs (old: rec {
+    version = "1.25.0";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-4czpN5ok6JVxSkEsfd0VfSYU2e2+g6hESbbhhAtPEiY=";
+      hash = "sha256-S9AekSlyB7+kUOpA1NWpOxtTGl5DhHOyoG4Y4HciciU=";
     };
   });
   rocksdb = final.callPackage ./rocksdb.nix { };

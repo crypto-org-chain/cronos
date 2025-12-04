@@ -2,6 +2,7 @@
   lib,
   stdenv,
   buildGoApplication,
+  go,
   nix-gitignore,
   coverage ? false, # https://tip.golang.org/doc/go1.20#cover
   rocksdb,
@@ -39,6 +40,7 @@ buildGoApplication rec {
     tags
     ldflags
     ;
+  inherit go;
   src = (
     nix-gitignore.gitignoreSourcePure [
       "/*" # ignore all, then add whitelists
@@ -55,6 +57,7 @@ buildGoApplication rec {
     ] ./.
   );
   modules = ./gomod2nix.toml;
+  modRoot = ".";
   pwd = src; # needed to support replace
   subPackages = [ "cmd/cronosd" ];
   buildFlags = lib.optionalString coverage "-cover";

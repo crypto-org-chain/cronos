@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-25.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-bundle-exe = {
       url = "github:3noch/nix-bundle-exe";
@@ -29,6 +29,19 @@
     }:
     let
       rev = self.shortRev or "dirty";
+      gomodOverlay =
+        final: prev:
+        let
+          gomodSrc = gomod2nix.outPath;
+          callPackage = final.callPackage;
+        in
+        {
+          inherit (callPackage "${gomodSrc}/builder" { }) buildGoApplication mkGoEnv mkVendorEnv;
+          gomod2nix =
+            (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
+              modRoot = ".";
+            });
+        };
       mkApp = drv: {
         type = "app";
         program = "${drv}/bin/${drv.meta.mainProgram}";
@@ -77,20 +90,21 @@
       }
     ))
     // {
-      overlays.default = [
-        (import ./nix/build_overlay.nix)
-        poetry2nix.overlays.default
-        gomod2nix.overlays.default
-        (import ./testground/benchmark/overlay.nix)
-        (final: super: {
-          go = super.go_1_23;
-          test-env = final.callPackage ./nix/testenv.nix { };
-          cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
-            inherit rev;
-            bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
-          };
-          testground-image = final.callPackage ./nix/testground-image.nix { };
-        })
-      ];
+      overlays.default =
+        [
+          (import ./nix/build_overlay.nix)
+          poetry2nix.overlays.default
+          gomodOverlay
+          (import ./testground/benchmark/overlay.nix)
+          (final: super: {
+            go = super.go_1_25;
+            test-env = final.callPackage ./nix/testenv.nix { };
+            cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
+              inherit rev;
+              bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
+            };
+            testground-image = final.callPackage ./nix/testground-image.nix { };
+          })
+        ];
     };
 }

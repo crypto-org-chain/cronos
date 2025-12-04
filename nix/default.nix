@@ -11,17 +11,30 @@ import sources.nixpkgs {
       dapptools-master = sources.dapptools-master;
     })
     (_: pkgs: {
-      go = pkgs.go_1_23;
+      go = pkgs.go_1_25;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         inherit (pkgs.darwin) libobjc;
         inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo123Module;
+        buildGoModule = pkgs.buildGoModule;
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
     }) # update to a version that supports eip-1559
     (import "${sources.poetry2nix}/overlay.nix")
-    (import "${sources.gomod2nix}/overlay.nix")
+    (
+      final: prev:
+      let
+        gomodSrc = sources.gomod2nix;
+        callPackage = final.callPackage;
+      in
+      {
+        inherit (callPackage "${gomodSrc}/builder" { }) buildGoApplication mkGoEnv mkVendorEnv;
+        gomod2nix =
+          (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
+            modRoot = ".";
+          });
+      }
+    )
     (
       pkgs: _:
       import ./scripts.nix {
@@ -65,7 +78,7 @@ import sources.nixpkgs {
     (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo123Module rec {
+      rly = pkgs.buildGoModule rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];
