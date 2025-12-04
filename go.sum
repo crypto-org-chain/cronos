@@ -911,8 +911,8 @@ github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:8DwVTz83/2PSI366FERGbWSH7hL6sB7HbYp8bqksNwM=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254 h1:JzLOFRiKsDtLJt5h0M0jkEIPDKvFFyja7VEp7gG6O9U=
 github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20241217090828-cfbca9fe8254/go.mod h1:V6DImnwJMTq5qFjeGWpXNiT/fjgE4HtmclRmTqRVM3w=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20251203141402-3b6b4cb5889e h1:m/PEN4J2vChH4LJMlvFXKysozj4r4MmD57CPqDUA1KI=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20251203141402-3b6b4cb5889e/go.mod h1:avrVK14+Kwx8rn4B2uzkOVc/TLYPeLcf19dbAII+7lM=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20251204034614-3b1542d755b6 h1:PGpc3xvGh+vCwi+0MVgdLlMWYPfR+ATD46QHcIqfoAI=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20251204034614-3b1542d755b6/go.mod h1:avrVK14+Kwx8rn4B2uzkOVc/TLYPeLcf19dbAII+7lM=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 h1:6KPEi8dWkDSBddQb4NAvEXmNnTXymF3yVeTaT4Hz1iU=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd h1:ebSnzvM9yKVGFjvoGly7LFQQCS2HuOWMCvQyByJ52Gs=
