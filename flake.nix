@@ -37,10 +37,9 @@
         in
         {
           inherit (callPackage "${gomodSrc}/builder" { }) buildGoApplication mkGoEnv mkVendorEnv;
-          gomod2nix =
-            (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
-              modRoot = ".";
-            });
+          gomod2nix = (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
+            modRoot = ".";
+          });
         };
       mkApp = drv: {
         type = "app";
@@ -90,21 +89,20 @@
       }
     ))
     // {
-      overlays.default =
-        [
-          (import ./nix/build_overlay.nix)
-          poetry2nix.overlays.default
-          gomodOverlay
-          (import ./testground/benchmark/overlay.nix)
-          (final: super: {
-            go = super.go_1_25;
-            test-env = final.callPackage ./nix/testenv.nix { };
-            cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
-              inherit rev;
-              bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
-            };
-            testground-image = final.callPackage ./nix/testground-image.nix { };
-          })
-        ];
+      overlays.default = [
+        (import ./nix/build_overlay.nix)
+        poetry2nix.overlays.default
+        gomodOverlay
+        (import ./testground/benchmark/overlay.nix)
+        (final: super: {
+          go = super.go_1_25;
+          test-env = final.callPackage ./nix/testenv.nix { };
+          cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
+            inherit rev;
+            bundle-exe = final.pkgsBuildBuild.callPackage nix-bundle-exe { };
+          };
+          testground-image = final.callPackage ./nix/testground-image.nix { };
+        })
+      ];
     };
 }

@@ -19,7 +19,7 @@ import sources.nixpkgs {
       };
       flake-compat = import sources.flake-compat;
       chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
-    }) # update to a version that supports eip-1559
+    })
     (import "${sources.poetry2nix}/overlay.nix")
     (
       final: prev:
@@ -29,10 +29,9 @@ import sources.nixpkgs {
       in
       {
         inherit (callPackage "${gomodSrc}/builder" { }) buildGoApplication mkGoEnv mkVendorEnv;
-        gomod2nix =
-          (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
-            modRoot = ".";
-          });
+        gomod2nix = (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
+          modRoot = ".";
+        });
       }
     )
     (

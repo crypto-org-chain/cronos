@@ -22,14 +22,15 @@ let
     "grocksdb_no_link"
     "pebbledb"
     "objstore"
-  ] ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
-  ldflags = lib.concatStringsSep "\n" ([
+  ]
+  ++ lib.optionals nativeByteOrder [ "nativebyteorder" ];
+  ldflags = lib.concatStringsSep "\n" [
     "-X github.com/cosmos/cosmos-sdk/version.Name=cronos"
     "-X github.com/cosmos/cosmos-sdk/version.AppName=${pname}"
     "-X github.com/cosmos/cosmos-sdk/version.Version=${version}"
     "-X github.com/cosmos/cosmos-sdk/version.BuildTags=${lib.concatStringsSep "," tags}"
     "-X github.com/cosmos/cosmos-sdk/version.Commit=${rev}"
-  ]);
+  ];
   buildInputs = [ rocksdb ];
 in
 buildGoApplication rec {
@@ -39,23 +40,22 @@ buildGoApplication rec {
     buildInputs
     tags
     ldflags
+    go
     ;
-  inherit go;
-  src = (
-    nix-gitignore.gitignoreSourcePure [
-      "/*" # ignore all, then add whitelists
-      "!/x/"
-      "!/app/"
-      "!/cmd/"
-      "!/client/"
-      "!/versiondb/"
-      "!/memiavl/"
-      "!/store/"
-      "!go.mod"
-      "!go.sum"
-      "!gomod2nix.toml"
-    ] ./.
-  );
+
+  src = nix-gitignore.gitignoreSourcePure [
+    "/*" # ignore all, then add whitelists
+    "!/x/"
+    "!/app/"
+    "!/cmd/"
+    "!/client/"
+    "!/versiondb/"
+    "!/memiavl/"
+    "!/store/"
+    "!go.mod"
+    "!go.sum"
+    "!gomod2nix.toml"
+  ] ./.;
   modules = ./gomod2nix.toml;
   modRoot = ".";
   pwd = src; # needed to support replace
