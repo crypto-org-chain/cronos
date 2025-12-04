@@ -8,7 +8,6 @@
 * [#1922](https://github.com/crypto-org-chain/cronos/pull/1922) Feat: check destination address in the blocklist
 * [#1904](https://github.com/crypto-org-chain/cronos/pull/1904) Test: add eip-7702 tests
 
-
 ### Bug fixes
 
 * [#1918](https://github.com/crypto-org-chain/cronos/pull/1918) Chore: cleanup and improve x/mint params validation and test in cosmos-sdk
