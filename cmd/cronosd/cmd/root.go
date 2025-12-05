@@ -194,6 +194,11 @@ func initRootCmd(
 		e2eecli.E2EECommand(),
 	)
 
+	databaseCmd := DatabaseCmd()
+	if databaseCmd != nil {
+		rootCmd.AddCommand(databaseCmd)
+	}
+
 	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {
 		panic(err)
