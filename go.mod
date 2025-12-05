@@ -1,6 +1,6 @@
 module github.com/crypto-org-chain/cronos
 
-go 1.23.12
+go 1.25.0
 
 require (
 	cosmossdk.io/api v0.9.2
