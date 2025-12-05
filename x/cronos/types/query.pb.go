@@ -72,7 +72,7 @@ func (m *ContractByDenomRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ContractByDenomRequest proto.InternalMessageInfo
 
-// ContractByDenomRequest is the response type of ContractByDenom call
+// ContractByDenomResponse is the response type of ContractByDenom call
 type ContractByDenomResponse struct {
 	Contract     string `protobuf:"bytes,1,opt,name=contract,proto3" json:"contract,omitempty"`
 	AutoContract string `protobuf:"bytes,2,opt,name=auto_contract,json=autoContract,proto3" json:"auto_contract,omitempty"`
