@@ -1,0 +1,49 @@
+name: Protobuf
+# Protobuf runs buf (https://buf.build/) lint and check-breakage
+# This workflow is only run when a .proto file has been changed
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
+        with:
+          PATTERNS: |
+            **/**.proto
+      - name: lint
+        run: make proto-lint
+        if: env.GIT_DIFF
+  breakage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
+        with:
+          PATTERNS: |
+            **/**.proto
+      - name: check-breakage
+        run: make proto-check-breaking
+        if: env.GIT_DIFF
+  protogen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v6
+        with:
+          PATTERNS: |
+            **/**.proto
+      - name: proto-gen-ci
+        if: env.GIT_DIFF
+        run: |
+          make proto-gen-ci # proto-swagger-gen  FIXME swagger-gen result is not reproducible in CI
+          git checkout -- go.mod go.sum # FIXME doc gen not reproducible in CI
+      - name: check working directory is clean
+        uses: numtide/clean-git-action@30e3d6d6e2d6e77e73761cf5324467cb74386f87 # v2
