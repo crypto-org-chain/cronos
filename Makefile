@@ -289,7 +289,13 @@ endif
 
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
 CRONOS_STORE_GIT := https://github.com/crypto-org-chain/cronos-store.git
-CRONOS_STORE_VERSION := $(shell sed -n 's/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]\+\([^[:space:]]\+\).*/\1/p' go.mod | head -n 1)
+CRONOS_STORE_VERSION := $(shell go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' github.com/crypto-org-chain/cronos-store/memiavl 2>/dev/null)
+ifeq ($(CRONOS_STORE_VERSION),)
+  CRONOS_STORE_VERSION := $(shell awk '/^github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]+=>/ {print $$NF; exit}' go.mod)
+endif
+ifeq ($(CRONOS_STORE_VERSION),)
+  CRONOS_STORE_VERSION := $(shell sed -n 's/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]\+\([^[:space:]]\+\).*/\1/p' go.mod | head -n 1)
+endif
 CRONOS_STORE_REF := $(CRONOS_STORE_VERSION)
 CRONOS_STORE_REF_TARGET := tag
 ifneq (,$(findstring -, $(CRONOS_STORE_VERSION)))
