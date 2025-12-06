@@ -288,6 +288,18 @@ endif
 ###############################################################################
 
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
+CRONOS_STORE_GIT := https://github.com/crypto-org-chain/cronos-store.git
+CRONOS_STORE_VERSION := $(shell sed -n 's/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]\+\([^[:space:]]\+\).*/\1/p' go.mod | head -n 1)
+CRONOS_STORE_REF := $(CRONOS_STORE_VERSION)
+CRONOS_STORE_REF_TARGET := tag
+ifneq (,$(findstring -, $(CRONOS_STORE_VERSION)))
+  CRONOS_STORE_REF := $(shell echo $(CRONOS_STORE_VERSION) | awk -F- '{print $$NF}')
+  CRONOS_STORE_REF_TARGET := commit
+endif
+ifeq ($(CRONOS_STORE_REF),)
+  CRONOS_STORE_REF := main
+  CRONOS_STORE_REF_TARGET := branch
+endif
 protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
 protoImageCi=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --user root $(protoImageName)
@@ -320,8 +332,10 @@ proto-format:
 	@$(protoImage) find ./ -not -path "./third_party/*" -name "*.proto" -exec clang-format -i {} \;
 
 proto-check-breaking:
-	@echo "Checking Protobuf files for breaking changes"
-	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main
+	@echo "Checking Cronos protobuf files for breaking changes"
+	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main --exclude-path proto/memiavl
+	@echo "Checking memiavl protobuf files against cronos-store $(CRONOS_STORE_REF_TARGET) $(CRONOS_STORE_REF)"
+	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#$(CRONOS_STORE_REF_TARGET)=$(CRONOS_STORE_REF)
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking

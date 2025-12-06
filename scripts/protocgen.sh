@@ -17,10 +17,19 @@ cd ..
 
 # move proto files to the right places
 cp -r github.com/crypto-org-chain/cronos/* ./
-cp -r github.com/crypto-org-chain/cronos-store/memiavl/* ./memiavl/
+
+# optionally sync memiavl protos with a local cronos-store checkout
+TARGET_STORE_DIR="${CRONOS_STORE_PROTO_OUT:-}"
+if [[ -z "${TARGET_STORE_DIR}" && -d "../cronos-store" ]]; then
+  TARGET_STORE_DIR="../cronos-store"
+fi
+if [[ -n "${TARGET_STORE_DIR}" ]]; then
+  echo "Syncing memiavl generated code to ${TARGET_STORE_DIR}"
+  mkdir -p "${TARGET_STORE_DIR}/memiavl"
+  cp -r github.com/crypto-org-chain/cronos-store/memiavl/* "${TARGET_STORE_DIR}/memiavl/"
+fi
+
 rm -rf github.com
 
 # TODO uncomment go mod tidy after upgrading to ghcr.io/cosmos/proto-builder v0.12.0
 # go mod tidy
-
-
