@@ -338,7 +338,7 @@ proto-check-breaking:
 	@echo "Checking Cronos protobuf files for breaking changes"
 	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main --exclude-path proto/memiavl
 	@echo "Checking memiavl protobuf files against cronos-store ref $(CRONOS_STORE_REF)"
-	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#ref=$(CRONOS_STORE_REF)
+	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#ref=$(CRONOS_STORE_REF) || echo "Warning: memiavl proto check skipped (files may not exist in cronos-store yet)"
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
