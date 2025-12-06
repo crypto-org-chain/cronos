@@ -74,7 +74,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: test & coverage report creation
         run: |
-          nix develop .#rocksdb -c make test test-versiondb
+          nix develop .#rocksdb -c make test
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
@@ -88,7 +88,7 @@ jobs:
       - uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt,./memiavl/coverage.txt,./store/coverage.txt,./versiondb/coverage.txt
+          files: ./coverage.txt
         if: steps.changed-files.outputs.any_changed == 'true'
 
   gomod2nix:
