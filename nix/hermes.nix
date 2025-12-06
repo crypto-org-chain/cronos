@@ -7,6 +7,7 @@
   pkg-config,
   darwin,
   qemu,
+  apple-sdk_15,
 }:
 
 let
@@ -45,9 +46,8 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ makeWrapper ];
 
   buildInputs = lib.optionals stdenv.isDarwin [
-    darwin.apple_sdk.frameworks.Security
     darwin.libiconv
-    darwin.apple_sdk.frameworks.SystemConfiguration
+    apple-sdk_15
   ];
 
   sourceRoot = ".";
