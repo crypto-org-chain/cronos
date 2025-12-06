@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
 
@@ -41,6 +42,35 @@ func (bad BlockAddressesDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 				}
 			}
 		}
+
+		for _, msg := range tx.GetMsgs() {
+			msgEthTx, ok := msg.(*evmtypes.MsgEthereumTx)
+			if ok {
+				ethTx := msgEthTx.AsTransaction()
+				// check the destination address
+				if ethTx.To() != nil {
+					if _, ok := bad.blockedMap[sdk.AccAddress(ethTx.To().Bytes()).String()]; ok {
+						return ctx, fmt.Errorf("destination address is blocked: %s", sdk.AccAddress(ethTx.To().Bytes()).String())
+					}
+				}
+				// check EIP-7702 authorisation list
+				if ethTx.SetCodeAuthorizations() != nil {
+					for _, auth := range ethTx.SetCodeAuthorizations() {
+						addr, err := auth.Authority()
+						if err == nil {
+							if _, ok := bad.blockedMap[sdk.AccAddress(addr.Bytes()).String()]; ok {
+								return ctx, fmt.Errorf("signer is blocked: %s", addr.String())
+							}
+						}
+						// check the target address
+						if _, ok := bad.blockedMap[sdk.AccAddress(auth.Address.Bytes()).String()]; ok {
+							return ctx, fmt.Errorf("authorisation address is blocked: %s", sdk.AccAddress(auth.Address.Bytes()).String())
+						}
+					}
+				}
+			}
+		}
+
 		admin := bad.getParams(ctx).CronosAdmin
 		for _, msg := range tx.GetMsgs() {
 			if blocklistMsg, ok := msg.(*types.MsgStoreBlockList); ok {

@@ -27,13 +27,11 @@ from .utils import (
     deploy_contract,
     derive_new_account,
     fund_acc,
-    get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
     modify_command_in_supervisor_config,
     remove_cancun_prague_params,
-    replace_transaction,
     send_transaction,
     send_txs,
     sign_transaction,
@@ -1083,45 +1081,45 @@ def test_textual(cronos):
     assert rsp["code"] == 0, rsp["raw_log"]
 
 
-def test_tx_replacement(cronos):
+def test_block_tx_properties(cronos):
+    """
+    test block tx properties on cronos network
+    - deploy test contract
+    - call contract
+    - check all values are correct in log
+    """
     w3 = cronos.w3
-    gas_price = w3.eth.gas_price
-    nonce = get_account_nonce(w3)
-    initial_balance = w3.eth.get_balance(ADDRS["community"])
-    txhash = replace_transaction(
+    contract = deploy_contract(
         w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1,
-            "gasPrice": gas_price,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        {
-            "to": ADDRS["community"],
-            "value": 5,
-            "gasPrice": gas_price * 2,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        KEYS["validator"],
-    )["transactionHash"]
-    tx1 = w3.eth.get_transaction(txhash)
-    assert tx1["transactionIndex"] == 0
-    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+        CONTRACTS["TestBlockTxProperties"],
+    )
 
-    # check that already accepted transaction cannot be replaced
-    txhash_noreplacemenet = send_transaction(
-        w3,
-        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
-        KEYS["validator"],
-    )["transactionHash"]
-    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
-    assert tx2["transactionIndex"] == 0
+    tx = contract.functions.emitTxDetails().build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
 
-    with pytest.raises(exceptions.Web3ValueError) as exc:
-        w3.eth.replace_transaction(
-            txhash_noreplacemenet,
-            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+    assert receipt.status == 1
+    assert len(receipt.logs) == 1
+
+    assert contract.address == receipt.logs[0]["address"]
+    event_signature = HexBytes(
+        abi.event_signature_to_log_topic(
+            "TxDetailsEvent(address,address,uint256,bytes,uint256,uint256,bytes4)"
         )
-    assert "has already been mined" in str(exc)
+    )
+    assert event_signature == receipt.logs[0]["topics"][0]
+    validator_hex_address = HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"]))
+    assert validator_hex_address == receipt.logs[0]["topics"][1]
+    assert validator_hex_address == receipt.logs[0]["topics"][2]
+
+    # check event values
+    tx_details_event = contract.events.TxDetailsEvent().process_receipt(receipt)
+    data = tx_details_event[0]["args"]
+    assert data["origin"] == ADDRS["validator"]
+    assert data["sender"] == ADDRS["validator"]
+    assert data["value"] == 0
+    assert data["data"] == bytes.fromhex("8e091b5e")
+    assert data["price"] > 0
+    assert data["gas"] == 3633
+    assert data["sig"] == bytes.fromhex("8e091b5e")

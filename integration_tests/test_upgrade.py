@@ -168,7 +168,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.5":
+        if plan_name in ("v1.5", "v1.6"):
             rsp = cli.submit_gov_proposal(
                 "community",
                 "software-upgrade",
@@ -332,6 +332,12 @@ def exec(c, tmp_path_factory):
     assert_gov_params(cli, gov_param)
 
     cli = do_upgrade("v1.5", cli.block_height() + 15)
+    check_basic_tx(c)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    cli = do_upgrade("v1.6", cli.block_height() + 15)
     check_basic_tx(c)
 
     tx_af = w3.provider.make_request(method, params)

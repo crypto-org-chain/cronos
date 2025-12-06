@@ -9,6 +9,7 @@ import (
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
 
@@ -173,6 +174,43 @@ func (h *ProposalHandler) ValidateTransaction(tx sdk.Tx, txBz []byte) error {
 			return fmt.Errorf("signer is blocked: %s", encoded)
 		}
 	}
+
+	for _, msg := range tx.GetMsgs() {
+		msgEthTx, ok := msg.(*evmtypes.MsgEthereumTx)
+		if ok {
+			ethTx := msgEthTx.AsTransaction()
+			// check the destination address
+			if ethTx.To() != nil {
+				encoded, err := h.addressCodec.BytesToString(ethTx.To().Bytes())
+				if err != nil {
+					return fmt.Errorf("invalid bech32 address: %s, err: %w", ethTx.To(), err)
+				}
+				if _, ok := h.blocklist[encoded]; ok {
+					return fmt.Errorf("destination address is blocked: %s", encoded)
+				}
+			}
+			// check EIP-7702 authorisation list
+			if ethTx.SetCodeAuthorizations() != nil {
+				for _, auth := range ethTx.SetCodeAuthorizations() {
+					addr, err := auth.Authority()
+					if err == nil {
+						if _, ok := h.blocklist[sdk.AccAddress(addr.Bytes()).String()]; ok {
+							return fmt.Errorf("signer is blocked: %s", addr.String())
+						}
+					}
+					// check the target address
+					encoded, err := h.addressCodec.BytesToString(auth.Address.Bytes())
+					if err != nil {
+						return fmt.Errorf("invalid bech32 address: %s, err: %w", auth.Address, err)
+					}
+					if _, ok := h.blocklist[encoded]; ok {
+						return fmt.Errorf("authorisation address is blocked: %s", encoded)
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
