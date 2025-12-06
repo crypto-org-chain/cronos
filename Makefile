@@ -297,14 +297,11 @@ ifeq ($(CRONOS_STORE_VERSION),)
   CRONOS_STORE_VERSION := $(shell sed -n 's/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]\+\([^[:space:]]\+\).*/\1/p' go.mod | head -n 1)
 endif
 CRONOS_STORE_REF := $(CRONOS_STORE_VERSION)
-CRONOS_STORE_REF_TARGET := tag
 ifneq (,$(findstring -, $(CRONOS_STORE_VERSION)))
   CRONOS_STORE_REF := $(shell echo $(CRONOS_STORE_VERSION) | awk -F- '{print $$NF}')
-  CRONOS_STORE_REF_TARGET := commit
 endif
 ifeq ($(CRONOS_STORE_REF),)
   CRONOS_STORE_REF := main
-  CRONOS_STORE_REF_TARGET := branch
 endif
 protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
@@ -340,8 +337,8 @@ proto-format:
 proto-check-breaking:
 	@echo "Checking Cronos protobuf files for breaking changes"
 	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main --exclude-path proto/memiavl
-	@echo "Checking memiavl protobuf files against cronos-store $(CRONOS_STORE_REF_TARGET) $(CRONOS_STORE_REF)"
-	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#$(CRONOS_STORE_REF_TARGET)=$(CRONOS_STORE_REF)
+	@echo "Checking memiavl protobuf files against cronos-store ref $(CRONOS_STORE_REF)"
+	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#ref=$(CRONOS_STORE_REF)
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
