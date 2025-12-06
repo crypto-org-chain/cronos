@@ -109,19 +109,10 @@ build: check-network print-ledger go.sum
 install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/cronosd
 
-test: test-memiavl test-store
+test:
 	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-test-memiavl:
-	@cd memiavl; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-test-store:
-	@cd store; go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-test-versiondb:
-	@cd versiondb; go test -tags=objstore,rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-.PHONY: clean build install test test-memiavl test-store test-versiondb
+.PHONY: clean build install test
 
 clean:
 	rm -rf $(BUILDDIR)/
