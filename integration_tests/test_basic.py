@@ -1123,3 +1123,73 @@ def test_block_tx_properties(cronos):
     assert data["price"] > 0
     assert data["gas"] == 3633
     assert data["sig"] == bytes.fromhex("8e091b5e")
+
+
+def test_access_list(cronos):
+    """
+    Send a transaction and check that the node preserves the access list
+    """
+    w3 = cronos.w3
+
+    to_address = ADDRS["community"]
+    storage_key = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    access_list = [
+        {
+            "address": to_address,
+            "storageKeys": [storage_key],
+        },
+    ]
+
+    txhash = w3.eth.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": to_address,
+            "value": 1000,
+            "accessList": access_list,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+    rpc_tx = w3.eth.get_transaction(txhash)
+    assert rpc_tx.accessList == access_list
+
+    # Check get access list with contract access
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestAccessList"],
+    )
+
+    # Build data field for set(123)
+    tx_data = contract.functions.touchSlots(123, 456).build_transaction(
+        {"from": ADDRS["validator"]}
+    )["data"]
+
+    tx = {
+        "from": ADDRS["validator"],
+        "to": contract.address,
+        "data": tx_data,
+        "value": hex(0),
+        "gas": hex(500000),
+    }
+
+    access_list = w3.provider.make_request("eth_createAccessList", [tx, "latest"])
+
+    print(access_list)
+    assert (
+        access_list["result"]["accessList"][0]["address"].lower()
+        == contract.address.lower()
+    )
+    storage_keys = access_list["result"]["accessList"][0]["storageKeys"]
+    assert len(storage_keys) == 3
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000000".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000001".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x30939a3db93623b4b889c7802487ba975ac3bc59182f4c2dff55b302788334ec".lower()
+        in [k.lower() for k in storage_keys]
+    )
