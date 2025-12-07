@@ -1153,13 +1153,12 @@ def test_access_list(cronos):
     rpc_tx = w3.eth.get_transaction(txhash)
     assert rpc_tx.accessList == access_list
 
-    # Check get access list with contract access
+    # Deploy a contract and call a function hitting multiple slots
     contract = deploy_contract(
         w3,
         CONTRACTS["TestAccessList"],
     )
 
-    # Build data field for set(123)
     tx_data = contract.functions.touchSlots(123, 456).build_transaction(
         {"from": ADDRS["validator"]}
     )["data"]
