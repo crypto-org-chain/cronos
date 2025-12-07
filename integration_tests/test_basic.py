@@ -1172,8 +1172,6 @@ def test_access_list(cronos):
     }
 
     access_list = w3.provider.make_request("eth_createAccessList", [tx, "latest"])
-
-    print(access_list)
     assert (
         access_list["result"]["accessList"][0]["address"].lower()
         == contract.address.lower()
