@@ -25,15 +25,15 @@ require (
 	// release/v10.0.x
 	github.com/cosmos/ibc-go/v10 v10.4.0
 	github.com/cosmos/rosetta v0.50.12
-	github.com/crypto-org-chain/cronos-store/store v0.0.0-20251119030934-19a930cec475
-	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251119030934-19a930cec475
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20251203075505-0670ff683f07
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251203075505-0670ff683f07
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/linxGnu/grocksdb v1.9.10-0.20250331012329-9d5f074653d1
+	github.com/linxGnu/grocksdb v1.10.3
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
@@ -285,9 +285,9 @@ replace (
 )
 
 replace (
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251119030934-19a930cec475
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20251119030934-19a930cec475
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251119030934-19a930cec475
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20251203075505-0670ff683f07
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20251203075505-0670ff683f07
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251203075505-0670ff683f07
 )
 
 replace (

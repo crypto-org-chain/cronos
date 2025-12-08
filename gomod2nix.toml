@@ -257,15 +257,15 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20251119030934-19a930cec475"
+    version = "v0.0.0-20251203075505-0670ff683f07"
     hash = "sha256-QxkblWiy9aiwRaahmZ3n2If/ZZGTMw4LbZNIreM5wfI="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20251119030934-19a930cec475"
+    version = "v0.0.0-20251203075505-0670ff683f07"
     hash = "sha256-xSKdtAarmR4rntIy0AlQ/VkuUdBL9oxVBteG7amW450="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20251119030934-19a930cec475"
+    version = "v0.0.0-20251203075505-0670ff683f07"
     hash = "sha256-iJ+PMkKXBwbwR3B/aV4Ywn15m6vhwYJmze4Q/qAOFTI="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
@@ -523,8 +523,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.9.10-0.20250331012329-9d5f074653d1"
-    hash = "sha256-liFv2CO0IM79XRyEvF3zzfpqRmzYrUxlLBffl48kI88="
+    version = "v1.10.3"
+    hash = "sha256-JaIjWMOKsF/WRvsIP0bdkWvu1Q/8aaHcxW4jjE0mmnk="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
