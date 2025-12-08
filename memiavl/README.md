@@ -56,7 +56,7 @@ payload:
 repeat with next version
 ```
 
-- Change set files can be splited with certain block ranges for incremental backup and restoration.
+- Change set files can be split with certain block ranges for incremental backup and restoration.
 
 - Historical files can be compressed with zlib, because it doesn't need to support random access.
 
