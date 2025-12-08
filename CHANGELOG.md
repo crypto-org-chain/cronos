@@ -106,6 +106,10 @@
 * [#1797](https://github.com/crypto-org-chain/cronos/pull/1797) Upgrade cosmos sdk to latest to include bug fix
 
 
+### Bug Fixes
+
+* [#1801](https://github.com/crypto-org-chain/cronos/pull/1801) Avoid non-empty data from being cleared during restoration from versiondb.
+
 *Apr 9, 2025*
 
 ## v1.4.6
