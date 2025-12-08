@@ -5,6 +5,7 @@
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
+* [#1933](https://github.com/crypto-org-chain/cronos/pull/1933) Chore: add validation for HeaderHashNum and HistoryServeWindow in evm params
 
 *Dec 4, 2025*
 
