@@ -16,12 +16,18 @@ import sources.nixpkgs {
         buildGoModule = pkgs.buildGoModule;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main {
-        rocksdb = null;
-        buildPackages = pkgs.buildPackages // {
-          go_1_23 = pkgs.go_1_25;
-        };
-      };
+      chain-maind =
+        (pkgs.callPackage sources.chain-main {
+          rocksdb = null;
+          buildPackages = pkgs.buildPackages // {
+            go_1_23 = pkgs.go_1_25;
+          };
+        }).overrideAttrs
+          (old: {
+            # Fix modRoot issue - gomod2nix builder needs modRoot set to non-null
+            # See: https://github.com/crypto-org-chain/chain-main/pull/1220
+            modRoot = ".";
+          });
     })
     (import "${sources.poetry2nix}/overlay.nix")
     (
