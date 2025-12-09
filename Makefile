@@ -112,7 +112,7 @@ install: check-network print-ledger go.sum
 test:
 	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-.PHONY: clean build install test
+.PHONY: all clean build install test
 
 clean:
 	rm -rf $(BUILDDIR)/
