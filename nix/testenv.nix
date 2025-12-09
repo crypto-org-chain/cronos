@@ -2,11 +2,32 @@
   poetry2nix,
   lib,
   python311,
+  pkgs,
 }:
-poetry2nix.mkPoetryEnv {
+let
+  # Override the default poetry2nix overrides to fix rpds-py
+  customPoetry2nix = poetry2nix.overrideScope (final: prev: {
+    defaultPoetryOverrides = prev.defaultPoetryOverrides.extend (self: super: {
+      rpds-py = super.rpds-py.overridePythonAttrs (old:
+        lib.optionalAttrs (!(old.src.isWheel or false)) {
+          cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+            inherit (old) src pname version;
+            hash = "sha256-0wMmhiUjXY5DaA43l7kBKE7IX1UoEFZBJ8xnafVlU60=";
+          };
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+            pkgs.rustPlatform.cargoSetupHook
+            pkgs.cargo
+            pkgs.rustc
+          ];
+        }
+      );
+    });
+  });
+in
+customPoetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
   python = python311;
-  overrides = poetry2nix.overrides.withDefaults (
+  overrides = customPoetry2nix.overrides.withDefaults (
     self: super:
     let
       buildSystems = {

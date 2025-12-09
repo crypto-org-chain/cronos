@@ -16,7 +16,10 @@ import sources.nixpkgs {
         buildGoModule = pkgs.buildGoModule;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
+      chain-maind = pkgs.callPackage sources.chain-main {
+        rocksdb = null;
+        buildPackages = pkgs.buildPackages // { go_1_23 = pkgs.go_1_25; };
+      };
     })
     (import "${sources.poetry2nix}/overlay.nix")
     (
