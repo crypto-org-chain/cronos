@@ -6,23 +6,28 @@
 }:
 let
   # Override the default poetry2nix overrides to fix rpds-py
-  customPoetry2nix = poetry2nix.overrideScope (final: prev: {
-    defaultPoetryOverrides = prev.defaultPoetryOverrides.extend (self: super: {
-      rpds-py = super.rpds-py.overridePythonAttrs (old:
-        lib.optionalAttrs (!(old.src.isWheel or false)) {
-          cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-            inherit (old) src pname version;
-            hash = "sha256-0wMmhiUjXY5DaA43l7kBKE7IX1UoEFZBJ8xnafVlU60=";
-          };
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-            pkgs.rustPlatform.cargoSetupHook
-            pkgs.cargo
-            pkgs.rustc
-          ];
+  customPoetry2nix = poetry2nix.overrideScope (
+    final: prev: {
+      defaultPoetryOverrides = prev.defaultPoetryOverrides.extend (
+        self: super: {
+          rpds-py = super.rpds-py.overridePythonAttrs (
+            old:
+            lib.optionalAttrs (!(old.src.isWheel or false)) {
+              cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+                inherit (old) src pname version;
+                hash = "sha256-npvJz6PMHWzPkI0LVNeiMsZVxmwR6uzjlhBPMCCrFfw=";
+              };
+              nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+                pkgs.rustPlatform.cargoSetupHook
+                pkgs.cargo
+                pkgs.rustc
+              ];
+            }
+          );
         }
       );
-    });
-  });
+    }
+  );
 in
 customPoetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
