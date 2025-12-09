@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	channelv2types "github.com/cosmos/ibc-go/v10/modules/core/04-channel/v2/types"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
 
@@ -26,6 +27,11 @@ func (k Keeper) SendAttestationPacketV2(
 		return 0, types.ErrAttestationDisabled
 	}
 
+	// Check if channel keeper v2 is set
+	if k.channelKeeperV2 == nil {
+		return 0, fmt.Errorf("IBC v2 channel keeper not initialized")
+	}
+
 	// Convert pointer slice to value slice for proto
 	attestationValues := make([]types.BlockAttestationData, len(attestations))
 	for i, att := range attestations {
@@ -35,7 +41,6 @@ func (k Keeper) SendAttestationPacketV2(
 	// Create packet data
 	// Note: IBC v2 handles relayer, signature, and nonce at the transport layer
 	packetData := &types.AttestationPacketData{
-		Type:          types.AttestationPacketTypeBatchBlock,
 		SourceChainId: k.chainID,
 		Attestations:  attestationValues,
 	}
@@ -48,8 +53,13 @@ func (k Keeper) SendAttestationPacketV2(
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	// Calculate timeout
-	timeoutTimestamp := uint64(sdkCtx.BlockTime().UnixNano()) + params.PacketTimeoutTimestamp
+	// Calculate timeout (in seconds for IBC v2)
+	// PacketTimeoutTimestamp is in nanoseconds, convert to seconds
+	timeoutSeconds := params.PacketTimeoutTimestamp / 1_000_000_000
+	if timeoutSeconds == 0 {
+		timeoutSeconds = 600 // Default 10 minutes if not set
+	}
+	timeoutTimestamp := uint64(sdkCtx.BlockTime().Unix()) + timeoutSeconds
 
 	k.Logger(ctx).Info("sending attestation packet via IBC v2",
 		"source_client", sourceClient,
@@ -59,32 +69,47 @@ func (k Keeper) SendAttestationPacketV2(
 		"payload_size", len(dataBytes),
 	)
 
-	// Note: In a full implementation, this would call the v2 channel keeper's SendPacket
-	// with a properly constructed Payload struct:
-	//
-	// payload := channelv2types.Payload{
-	//     SourcePort:      "attestation",
-	//     DestinationPort: "attestation",
-	//     Version:         types.Version,
-	//     Encoding:        "json",
-	//     Value:           dataBytes,
-	// }
-	//
-	// Then call: sequence := channelKeeperV2.SendPacket(ctx, sourceClient, destinationClient, timeoutTimestamp, []Payload{payload})
-	//
-	// For now, we return a placeholder sequence
-	// TODO: Integrate with actual v2 channel keeper when packet sending is fully implemented
-	sequence := uint64(sdkCtx.BlockHeight())
+	// Create IBC v2 payload
+	payload := channelv2types.NewPayload(
+		types.PortID,  // SourcePort
+		types.PortID,  // DestinationPort
+		types.Version, // Version
+		"json",        // Encoding
+		dataBytes,     // Value
+	)
 
-	// Emit event
-	sdkCtx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			"attestation_v2_packet_sent",
-			sdk.NewAttribute("source_client", sourceClient),
-			sdk.NewAttribute("dest_client", destinationClient),
-			sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
-			sdk.NewAttribute("attestation_count", fmt.Sprintf("%d", len(attestations))),
-		),
+	// Create MsgSendPacket - use authority (gov module) address as signer
+	signer := k.authority
+
+	msg := channelv2types.NewMsgSendPacket(
+		sourceClient,
+		timeoutTimestamp,
+		signer,
+		payload,
+	)
+
+	// Validate the message
+	if err := msg.ValidateBasic(); err != nil {
+		return 0, fmt.Errorf("invalid MsgSendPacket: %w", err)
+	}
+
+	// Send the packet via IBC v2 channel keeper
+	response, err := k.channelKeeperV2.SendPacket(ctx, msg)
+	if err != nil {
+		k.Logger(ctx).Error("failed to send attestation packet via IBC v2",
+			"error", err,
+			"source_client", sourceClient,
+		)
+		return 0, fmt.Errorf("failed to send IBC v2 packet: %w", err)
+	}
+
+	sequence := response.Sequence
+
+	k.Logger(ctx).Info("attestation packet sent successfully via IBC v2",
+		"sequence", sequence,
+		"source_client", sourceClient,
+		"dest_client", destinationClient,
+		"attestation_count", len(attestations),
 	)
 
 	return sequence, nil

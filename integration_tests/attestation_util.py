@@ -9,10 +9,6 @@ from pystarport import ports
 
 from .network import AttestationLayer, Cronos, Hermes, setup_custom_cronos
 from .utils import (
-    CONTRACTS,
-    deploy_contract,
-    derive_new_account,
-    send_transaction,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -183,6 +179,126 @@ def prepare_network(
         
         # Create IBC infrastructure
         call_hermes_cmd(hermes)
+        
+        #Query the client IDs that were created on both chains
+        print("\n📝 Querying IBC client IDs for counterparty registration...")
+        try:
+            # Get client ID on Cronos
+            cronos_clients = json.loads(cli.raw("query", "ibc", "client", "states",
+                                                output="json",
+                                                node=cli.node_rpc))
+            cronos_client_states = cronos_clients.get("client_states", [])
+            
+            # Get client ID on Attestation Layer
+            attesta_cli = attestation.cosmos_cli()
+            attesta_clients = json.loads(attesta_cli.raw("query", "ibc", "client", "states",
+                                                          output="json",
+                                                          node=attesta_cli.node_rpc))
+            attesta_client_states = attesta_clients.get("client_states", [])
+            
+            if cronos_client_states and attesta_client_states:
+                cronos_client_id = cronos_client_states[0].get("client_id")
+                attesta_client_id = attesta_client_states[0].get("client_id")
+                print(f"   Cronos client ID: {cronos_client_id}")
+                print(f"   Attestation client ID: {attesta_client_id}")
+                
+                # Register counterparties for IBC v2 packet flow
+                # IMPORTANT: Must use the same key that Hermes used to create the client
+                # RegisterCounterparty requires the signer to be the client creator
+                print(f"\n📝 Registering counterparties for IBC v2 packet flow...")
+                
+                # Register counterparty on Cronos chain
+                # Use "signer1" - the key Hermes uses on Cronos (see attestation.jsonnet key_name)
+                print(f"   Registering counterparty on cronos_777-1...")
+                cmd_register_cronos = [
+                    cli.raw.cmd,           # Binary path from CosmosCLI
+                    "tx", "ibc", "client", "add-counterparty",
+                    cronos_client_id,      # local client-id on cronos
+                    attesta_client_id,     # counterparty client-id on attestation
+                    "aWJj",                # Merkle prefix (base64 encoded "ibc")
+                    "--home", str(cronos.base_dir / "node0"),
+                    "--node", cli.node_rpc,
+                    "--keyring-backend", "test",
+                    "--chain-id", "cronos_777-1",
+                    "--from", "signer1",   # Must match Hermes relayer key on this chain
+                    "--broadcast-mode", "sync",
+                    "-y",
+                ]
+                subprocess.check_call(cmd_register_cronos)
+                print(f"   ✅ Counterparty registered on cronos_777-1")
+                
+                # Wait for tx to be included
+                wait_for_new_blocks(cli, 2)
+                
+                # Register counterparty on Attestation Layer chain
+                # Use "relayer" - the key Hermes uses on Attestation Layer (see attestation.jsonnet accounts)
+                print(f"   Registering counterparty on attestation-1...")
+                cmd_register_attesta = [
+                    attesta_cli.raw.cmd,   # Binary path from CosmosCLI
+                    "tx", "ibc", "client", "add-counterparty",
+                    attesta_client_id,     # local client-id on attestation
+                    cronos_client_id,      # counterparty client-id on cronos
+                    "aWJj",                # Merkle prefix (base64 encoded "ibc")
+                    "--home", str(attestation.base_dir / "node0"),
+                    "--node", attesta_cli.node_rpc,
+                    "--keyring-backend", "test",
+                    "--chain-id", "attestation-1",
+                    "--from", "relayer",   # Must match Hermes relayer key on this chain
+                    "--broadcast-mode", "sync",
+                    "-y",
+                ]
+                subprocess.check_call(cmd_register_attesta)
+                print(f"   ✅ Counterparty registered on attestation-1")
+                
+                # Wait for tx to be included
+                wait_for_new_blocks(attesta_cli, 2)
+                
+                # Verify counterparty registration on both chains
+                print(f"\n🔍 Verifying counterparty registration...")
+                
+                # Verify on Cronos
+                try:
+                    cronos_counterparty = json.loads(cli.raw(
+                        "query", "ibc", "client", "counterparty-info",
+                        cronos_client_id,
+                        output="json",
+                        node=cli.node_rpc,
+                        home=str(cronos.base_dir / "node0"),
+                        chain_id="cronos_777-1",
+                        keyring_backend="test",
+                    ))
+                    cronos_cp_client_id = cronos_counterparty.get("counterparty_info", "").get("client_id", "")
+                    if cronos_cp_client_id:
+                        print(f"   ✅ Cronos counterparty verified: {cronos_cp_client_id}")
+                    else:
+                        print(f"   ⚠️  Cronos counterparty not set")
+                except Exception as e:
+                    print(f"   ⚠️  Error verifying Cronos counterparty: {e}")
+                
+                # Verify on Attestation Layer
+                try:
+                    attesta_counterparty = json.loads(attesta_cli.raw(
+                        "query", "ibc", "client", "counterparty-info",
+                        attesta_client_id,
+                        output="json",
+                        node=attesta_cli.node_rpc,
+                        home=str(attestation.base_dir / "node0"),
+                    ))
+                    attesta_cp_client_id = attesta_counterparty.get("counterparty_info", "").get("client_id", "")
+                    if attesta_cp_client_id:
+                        print(f"   ✅ Attestation counterparty verified: {attesta_cp_client_id}")
+                    else:
+                        print(f"   ⚠️  Attestation counterparty not set")
+                except Exception as e:
+                    print(f"   ⚠️  Error verifying Attestation counterparty: {e}")
+                
+                print(f"\n✅ IBC v2 counterparty registration complete!")
+            else:
+                print("   ⚠️  No IBC clients found yet")
+        except Exception as e:
+            print(f"   ⚠️  Error during counterparty registration: {e}")
+            import traceback
+            traceback.print_exc()
         
         # Start Hermes relayer
         cronos.supervisorctl("start", "relayer-demo")

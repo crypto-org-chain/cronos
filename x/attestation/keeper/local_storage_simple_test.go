@@ -18,8 +18,7 @@ func TestFinalityCache(t *testing.T) {
 	// Test Set and Get
 	status1 := &types.FinalityStatus{
 		BlockHeight:   100,
-		Finalized:     true,
-		FinalizedAt:   1234567890,
+		FinalizedAt:   1234567890, // FinalizedAt > 0 means finalized
 		FinalityProof: []byte("proof"),
 	}
 
@@ -29,7 +28,7 @@ func TestFinalityCache(t *testing.T) {
 	retrieved, ok := cache.Get(100)
 	require.True(t, ok)
 	require.Equal(t, status1.BlockHeight, retrieved.BlockHeight)
-	require.True(t, retrieved.Finalized)
+	require.Greater(t, retrieved.FinalizedAt, int64(0)) // Finalized if FinalizedAt > 0
 
 	// Test cache miss
 	_, ok = cache.Get(999)
@@ -44,7 +43,7 @@ func TestFinalityCacheEviction(t *testing.T) {
 	for i := uint64(1); i <= 5; i++ {
 		status := &types.FinalityStatus{
 			BlockHeight: i,
-			Finalized:   true,
+			FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 		}
 		cache.Set(i, status)
 	}
@@ -67,7 +66,7 @@ func TestFinalityCacheClear(t *testing.T) {
 	for i := uint64(1); i <= 5; i++ {
 		status := &types.FinalityStatus{
 			BlockHeight: i,
-			Finalized:   true,
+			FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 		}
 		cache.Set(i, status)
 	}
@@ -95,7 +94,7 @@ func TestFinalityCacheConcurrency(t *testing.T) {
 				height := uint64(goroutineID*10 + i)
 				status := &types.FinalityStatus{
 					BlockHeight: height,
-					Finalized:   true,
+					FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 				}
 				cache.Set(height, status)
 			}
@@ -146,7 +145,6 @@ func TestMarkBlockFinalizedLocalLogic(t *testing.T) {
 	// Create finality status
 	status := &types.FinalityStatus{
 		BlockHeight:   height,
-		Finalized:     true,
 		FinalizedAt:   finalizedAt,
 		FinalityProof: proof,
 	}
@@ -158,7 +156,7 @@ func TestMarkBlockFinalizedLocalLogic(t *testing.T) {
 	retrieved, ok := cache.Get(height)
 	require.True(t, ok)
 	require.Equal(t, height, retrieved.BlockHeight)
-	require.True(t, retrieved.Finalized)
+	require.Greater(t, retrieved.FinalizedAt, int64(0)) // Finalized if FinalizedAt > 0
 	require.Equal(t, finalizedAt, retrieved.FinalizedAt)
 	require.Equal(t, proof, retrieved.FinalityProof)
 }
@@ -171,8 +169,7 @@ func TestGetFinalityStatusLocalLogic(t *testing.T) {
 	height := uint64(200)
 	status := &types.FinalityStatus{
 		BlockHeight: height,
-		Finalized:   true,
-		FinalizedAt: 1000,
+		FinalizedAt: 1000, // FinalizedAt > 0 means finalized
 	}
 	cache.Set(height, status)
 
@@ -218,7 +215,7 @@ func TestFinalityStatsLogic(t *testing.T) {
 	for i := uint64(10); i <= 20; i++ {
 		status := &types.FinalityStatus{
 			BlockHeight: i,
-			Finalized:   true,
+			FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 		}
 		cache.Set(i, status)
 	}
@@ -240,7 +237,6 @@ func BenchmarkFinalityCacheSet(b *testing.B) {
 	cache := NewFinalityCache(10000)
 	status := &types.FinalityStatus{
 		BlockHeight: 100,
-		Finalized:   true,
 		FinalizedAt: 1234567890,
 	}
 
@@ -257,7 +253,7 @@ func BenchmarkFinalityCacheGet(b *testing.B) {
 	for i := 0; i < 1000; i++ {
 		status := &types.FinalityStatus{
 			BlockHeight: uint64(i),
-			Finalized:   true,
+			FinalizedAt: 1234567890,
 		}
 		cache.Set(uint64(i), status)
 	}
@@ -276,7 +272,7 @@ func BenchmarkFinalityCacheConcurrent(b *testing.B) {
 		for pb.Next() {
 			status := &types.FinalityStatus{
 				BlockHeight: i,
-				Finalized:   true,
+				FinalizedAt: 1234567890,
 			}
 			cache.Set(i, status)
 			cache.Get(i)
@@ -294,7 +290,7 @@ func TestFinalityProofHandling(t *testing.T) {
 	proof1 := []byte("proof-data")
 	status1 := &types.FinalityStatus{
 		BlockHeight:   height1,
-		Finalized:     true,
+		FinalizedAt:   1234567890,
 		FinalityProof: proof1,
 	}
 	cache.Set(height1, status1)
@@ -307,7 +303,7 @@ func TestFinalityProofHandling(t *testing.T) {
 	height2 := uint64(200)
 	status2 := &types.FinalityStatus{
 		BlockHeight:   height2,
-		Finalized:     true,
+		FinalizedAt:   1234567890,
 		FinalityProof: nil,
 	}
 	cache.Set(height2, status2)
@@ -326,7 +322,6 @@ func TestMultipleBlockStorage(t *testing.T) {
 		height := uint64(i)
 		status := &types.FinalityStatus{
 			BlockHeight:   height,
-			Finalized:     true,
 			FinalizedAt:   int64(i * 1000),
 			FinalityProof: []byte(fmt.Sprintf("proof-%d", i)),
 		}
@@ -352,7 +347,6 @@ func TestUpdateFinality(t *testing.T) {
 	// Set initial data
 	status1 := &types.FinalityStatus{
 		BlockHeight:   height,
-		Finalized:     true,
 		FinalizedAt:   1000,
 		FinalityProof: []byte("proof1"),
 	}
@@ -361,7 +355,6 @@ func TestUpdateFinality(t *testing.T) {
 	// Update with new data
 	status2 := &types.FinalityStatus{
 		BlockHeight:   height,
-		Finalized:     true,
 		FinalizedAt:   2000,
 		FinalityProof: []byte("proof2"),
 	}

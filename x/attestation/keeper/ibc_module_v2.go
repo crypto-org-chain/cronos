@@ -47,10 +47,7 @@ func (im IBCModuleV2) OnSendPacket(
 		return fmt.Errorf("failed to unmarshal attestation packet data: %w", err)
 	}
 
-	// Validate packet data
-	if packetData.Type != types.AttestationPacketTypeBatchBlock {
-		return fmt.Errorf("unsupported packet type: %s", packetData.Type)
-	}
+	ctx.Logger().Debug("attestation packet data", "packet_data", packetData)
 
 	// Emit send event
 	ctx.EventManager().EmitEvent(
@@ -61,6 +58,7 @@ func (im IBCModuleV2) OnSendPacket(
 			sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
 			sdk.NewAttribute("attestation_count", fmt.Sprintf("%d", len(packetData.Attestations))),
 			sdk.NewAttribute("chain_id", packetData.SourceChainId),
+			sdk.NewAttribute("rollup_address", packetData.RollupAddress),
 		),
 	)
 
@@ -95,8 +93,8 @@ func (im IBCModuleV2) OnRecvPacket(
 	}
 
 	// Process attestations
-	processedCount := uint32(0)
-	finalityStatuses := make(map[uint64]types.FinalityStatus)
+	var attestationIds []uint64
+	var attestBlockHeights []uint64
 
 	for _, attestation := range packetData.Attestations {
 		// Store attestation as pending (consensus storage)
@@ -123,15 +121,9 @@ func (im IBCModuleV2) OnRecvPacket(
 			// Don't fail the packet - local storage is optional
 		}
 
-		// Mark as received and finalized (simplified - in production, finality would be determined by consensus)
-		finalityStatuses[attestation.BlockHeight] = types.FinalityStatus{
-			BlockHeight:   attestation.BlockHeight,
-			Finalized:     true,
-			FinalizedAt:   ctx.BlockTime().Unix(),
-			AttestationId: sequence,
-		}
-
-		processedCount++
+		// Track attestation IDs (using sequence as ID for now)
+		attestationIds = append(attestationIds, sequence)
+		attestBlockHeights = append(attestBlockHeights, attestation.BlockHeight)
 
 		// Emit event
 		ctx.EventManager().EmitEvent(
@@ -148,9 +140,11 @@ func (im IBCModuleV2) OnRecvPacket(
 
 	// Create acknowledgement with finality feedback
 	ack := types.AttestationPacketAcknowledgement{
-		Success:          true,
-		FinalizedCount:   processedCount,
-		FinalityStatuses: finalityStatuses,
+		Success:            true,
+		AttestationIds:     attestationIds,
+		AttestBlockHeights: attestBlockHeights,
+		FinalizedAt:        ctx.BlockTime().Unix(),
+		FinalityProof:      nil, // TODO: Add proof if needed
 	}
 
 	ackBytes, err := json.Marshal(ack)
@@ -186,12 +180,6 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 		"relayer", relayer.String(),
 	)
 
-	// Decode attestation packet data
-	var packetData types.AttestationPacketData
-	if err := json.Unmarshal(payload.Value, &packetData); err != nil {
-		return fmt.Errorf("failed to unmarshal packet data: %w", err)
-	}
-
 	// Decode acknowledgement
 	var ack types.AttestationPacketAcknowledgement
 	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
@@ -205,44 +193,41 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 		return nil
 	}
 
-	// Process finality feedback
-	for height, status := range ack.FinalityStatuses {
-		if status.Finalized {
-			// Store finality in LOCAL database only (no consensus storage)
-			if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, status.FinalizedAt, status.FinalityProof); err != nil {
-				ctx.Logger().Error("failed to store finality locally",
-					"height", height,
-					"error", err,
-				)
-				// Continue - local storage failure shouldn't block processing
-			}
-
-			// Emit finality event
-			ctx.EventManager().EmitEvent(
-				sdk.NewEvent(
-					"block_finalized_v2",
-					sdk.NewAttribute("chain_id", packetData.SourceChainId),
-					sdk.NewAttribute("block_height", fmt.Sprintf("%d", height)),
-					sdk.NewAttribute("finalized_at", fmt.Sprintf("%d", status.FinalizedAt)),
-					sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
-					sdk.NewAttribute("source_client", sourceClient),
-					sdk.NewAttribute("dest_client", destinationClient),
-				),
+	// Process finality feedback for each attested block height
+	for _, height := range ack.AttestBlockHeights {
+		// Store finality in LOCAL database only (no consensus storage)
+		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt, ack.FinalityProof); err != nil {
+			ctx.Logger().Error("failed to store finality locally",
+				"height", height,
+				"error", err,
 			)
+			// Continue - local storage failure shouldn't block processing
+		}
 
-			// Remove from pending queue
-			if err := im.keeper.RemovePendingAttestation(ctx, height); err != nil {
-				ctx.Logger().Error("failed to remove pending attestation",
-					"height", height,
-					"error", err,
-				)
-			}
+		// Emit finality event
+		ctx.EventManager().EmitEvent(
+			sdk.NewEvent(
+				"block_finalized_v2",
+				sdk.NewAttribute("block_height", fmt.Sprintf("%d", height)),
+				sdk.NewAttribute("finalized_at", fmt.Sprintf("%d", ack.FinalizedAt)),
+				sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
+				sdk.NewAttribute("source_client", sourceClient),
+				sdk.NewAttribute("dest_client", destinationClient),
+			),
+		)
+
+		// Remove from pending queue
+		if err := im.keeper.RemovePendingAttestation(ctx, height); err != nil {
+			ctx.Logger().Error("failed to remove pending attestation",
+				"height", height,
+				"error", err,
+			)
 		}
 	}
 
 	ctx.Logger().Info("processed finality feedback",
-		"finalized_count", ack.FinalizedCount,
-		"total_blocks", len(ack.FinalityStatuses),
+		"finalized_count", len(ack.AttestBlockHeights),
+		"attestation_ids", len(ack.AttestationIds),
 	)
 
 	return nil

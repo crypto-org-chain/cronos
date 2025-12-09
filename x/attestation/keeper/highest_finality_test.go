@@ -19,7 +19,7 @@ func TestHighestFinalityHeightTracking(t *testing.T) {
 	for _, height := range heights {
 		status := &types.FinalityStatus{
 			BlockHeight: height,
-			Finalized:   true,
+			FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 		}
 		cache.Set(height, status)
 
@@ -93,7 +93,7 @@ func TestHighestFinalityWithGaps(t *testing.T) {
 	for _, height := range heights {
 		status := &types.FinalityStatus{
 			BlockHeight: height,
-			Finalized:   true,
+			FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 		}
 		cache.Set(height, status)
 	}
@@ -128,7 +128,7 @@ func TestConcurrentHighestHeightUpdates(t *testing.T) {
 				height := uint64(goroutineID*100 + i)
 				status := &types.FinalityStatus{
 					BlockHeight: height,
-					Finalized:   true,
+					FinalizedAt: 1234567890, // FinalizedAt > 0 means finalized
 				}
 				cache.Set(height, status)
 			}

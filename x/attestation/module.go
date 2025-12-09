@@ -20,8 +20,10 @@ import (
 )
 
 var (
-	_ module.AppModule      = (*AppModule)(nil)
-	_ module.AppModuleBasic = (*AppModuleBasic)(nil)
+	_ module.AppModule        = (*AppModule)(nil)
+	_ module.AppModuleBasic   = (*AppModuleBasic)(nil)
+	_ module.HasGenesisBasics = (*AppModuleBasic)(nil)
+	_ module.HasGenesis       = (*AppModule)(nil)
 )
 
 // AppModuleBasic defines the basic application module used by the attestation module
@@ -101,20 +103,31 @@ func (AppModule) Name() string {
 }
 
 // InitGenesis performs genesis initialization for the attestation module
-func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data json.RawMessage) {
+func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) {
 	var gs types.GenesisState
 	if err := json.Unmarshal(data, &gs); err != nil {
 		panic(err)
 	}
 
-	// Store genesis state
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	am.keeper.Logger(ctx).Info("attestation InitGenesis called",
+		"v2_client_id", gs.V2ClientID,
+		"last_sent_height", gs.LastSentHeight,
+		"params", gs.Params,
+		"raw_data_length", len(data),
+	)
 
 	// Set v2 client ID if provided
 	if gs.V2ClientID != "" {
+		am.keeper.Logger(ctx).Info("Setting v2 client ID in genesis",
+			"key", "attestation-layer",
+			"client_id", gs.V2ClientID,
+		)
 		if err := am.keeper.SetV2ClientID(ctx, "attestation-layer", gs.V2ClientID); err != nil {
 			panic(err)
 		}
+		am.keeper.Logger(ctx).Info("Successfully set v2 client ID")
+	} else {
+		am.keeper.Logger(ctx).Warn("v2 client ID is empty in genesis, attestation sending will be disabled until it's set")
 	}
 
 	// Set last sent height
@@ -123,7 +136,7 @@ func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data j
 	}
 
 	// Emit genesis event
-	sdkCtx.EventManager().EmitEvent(
+	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"attestation_genesis_init",
 			sdk.NewAttribute("attestation_enabled", fmt.Sprintf("%v", gs.Params.AttestationEnabled)),
@@ -134,7 +147,7 @@ func (am AppModule) InitGenesis(ctx context.Context, cdc codec.JSONCodec, data j
 }
 
 // ExportGenesis returns the exported genesis state for the attestation module
-func (am AppModule) ExportGenesis(ctx context.Context, cdc codec.JSONCodec) json.RawMessage {
+func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
 	gs := am.ExportGenesisState(ctx)
 	bz, err := json.Marshal(gs)
 	if err != nil {
@@ -204,6 +217,8 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		return err
 	}
 
+	am.keeper.Logger(ctx).Info("attestation params", "params", params)
+
 	if !params.AttestationEnabled {
 		return nil
 	}
@@ -216,8 +231,15 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		return err
 	}
 
+	am.keeper.Logger(ctx).Info("last sent height", "last_sent_height", lastSentHeight)
 	// Send attestation if it's time
 	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
+		// Check if collector is available
+		if am.keeper.BlockCollector == nil {
+			am.keeper.Logger(ctx).Debug("Block collector not initialized, skipping attestation")
+			return nil
+		}
+
 		// Collect attestations for blocks since last sent
 		startHeight := lastSentHeight + 1
 		endHeight := currentHeight
@@ -227,31 +249,58 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			endHeight = startHeight + params.AttestationInterval - 1
 		}
 
+		// Only try to collect blocks that are recent (within last 100 blocks)
+		// This avoids trying to collect very old blocks before collector started
+		if currentHeight > 100 && startHeight < currentHeight-100 {
+			startHeight = currentHeight - 100
+			am.keeper.Logger(ctx).Debug("Adjusted start height to recent blocks",
+				"original_start", lastSentHeight+1,
+				"adjusted_start", startHeight,
+				"current_height", currentHeight,
+			)
+		}
+
+		am.keeper.Logger(ctx).Info("collecting block attestations", "start_height", startHeight, "end_height", endHeight)
+
 		attestations, err := am.collectBlockAttestations(ctx, startHeight, endHeight)
 		if err != nil || len(attestations) == 0 {
-			am.keeper.Logger(ctx).Error("failed to collect block attestations",
+			am.keeper.Logger(ctx).Debug("Block data not available yet, skipping attestation",
 				"start_height", startHeight,
 				"end_height", endHeight,
 				"error", err,
 			)
-			return nil // Don't fail the block
+			// Update last sent height to current so we don't keep trying to collect old blocks
+			if err := am.keeper.SetLastSentHeight(ctx, currentHeight); err != nil {
+				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
+			}
+			return nil // Don't fail the block - collector might still be starting
 		}
+
+		am.keeper.Logger(ctx).Info("collected block attestations", "attestations", attestations)
 
 		// Get v2 client ID for attestation layer
 		v2ClientID, err := am.keeper.GetV2ClientID(ctx, "attestation-layer")
+		am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
 		if err != nil {
-			am.keeper.Logger(ctx).Error("failed to get v2 client ID",
+			am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
 				"error", err,
 			)
-			return nil // Don't fail the block
+			// Update last sent height so we don't keep trying to send old blocks
+			if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
+				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
+			}
+			return nil // Don't fail the block - client ID will be set later via governance
 		}
+
+		am.keeper.Logger(ctx).Info("sending attestation packet", "start_height", startHeight, "end_height", endHeight)
 
 		// Send packet via IBC v2
 		// IBC v2 protocol handles authentication automatically at transport layer
 		_, err = am.keeper.SendAttestationPacketV2(
 			ctx,
-			am.keeper.ChainID(), // Source chain ID
-			v2ClientID,          // Destination client ID
+			// am.keeper.ChainID(), // Source chain ID
+			"07-tendermint-0", // Source client ID
+			v2ClientID,        // Destination client ID
 			attestations,
 		)
 		if err != nil {
@@ -263,10 +312,14 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil // Don't fail the block
 		}
 
+		am.keeper.Logger(ctx).Info("attestation packet sent", "start_height", startHeight, "end_height", endHeight)
+
 		// Update last sent height
 		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
 			return err
 		}
+
+		am.keeper.Logger(ctx).Info("last sent height updated", "last_sent_height", endHeight)
 
 		// Emit event
 		sdkCtx.EventManager().EmitEvent(
@@ -282,31 +335,26 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 }
 
 // collectBlockAttestations collects block attestation data for the specified height range
+// This retrieves pre-collected block data from the BlockDataCollector
 func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	var attestations []*types.BlockAttestationData
+	// Use the block collector to get full block data
+	// The collector subscribes to block events and stores complete block data
+	// including headers, transactions, results, evidence, etc.
 
-	for height := startHeight; height <= endHeight; height++ {
-		// Get block info from context header
-		blockInfo := sdkCtx.BlockHeader()
-
-		// Create simplified attestation with available data
-		// TODO: In production, we need to fetch full block data from CometBFT RPC
-		attestation := &types.BlockAttestationData{
-			BlockHeight:           height,
-			BlockHash:             blockInfo.AppHash, // Use AppHash from header
-			BlockHeader:           []byte{},          // TODO: Marshal full block header
-			Transactions:          []byte{},          // TODO: Encode transactions
-			TxResults:             []byte{},          // TODO: Encode tx results
-			FinalizeBlockEvents:   []byte{},          // TODO: Encode events
-			ValidatorUpdates:      []byte{},          // TODO: Encode validator updates
-			ConsensusParamUpdates: []byte{},          // TODO: Encode consensus params
-			Evidence:              []byte{},          // TODO: Encode evidence
-			LastCommit:            []byte{},          // TODO: Encode last commit
-		}
-
-		attestations = append(attestations, attestation)
+	if am.keeper.BlockCollector == nil {
+		return nil, fmt.Errorf("block data collector not initialized")
 	}
+
+	attestations, err := am.keeper.BlockCollector.GetBlockDataRange(startHeight, endHeight)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect block data range %d-%d: %w", startHeight, endHeight, err)
+	}
+
+	am.keeper.Logger(ctx).Info("collected block attestations from collector",
+		"start_height", startHeight,
+		"end_height", endHeight,
+		"count", len(attestations),
+	)
 
 	return attestations, nil
 }

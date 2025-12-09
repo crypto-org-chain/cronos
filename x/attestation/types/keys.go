@@ -15,6 +15,12 @@ const (
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_attestation"
+
+	// Version defines the IBC v2 attestation module version
+	Version = "attestation-1"
+
+	// PortID defines the IBC port ID for attestation
+	PortID = "attestation"
 )
 
 // Consensus store key prefixes (minimal, BFT replicated)

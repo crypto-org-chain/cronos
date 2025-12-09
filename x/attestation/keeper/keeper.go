@@ -9,6 +9,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	channelkeeperv2 "github.com/cosmos/ibc-go/v10/modules/core/04-channel/v2/keeper"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
 
@@ -19,10 +20,28 @@ type Keeper struct {
 	// Chain ID of the Cronos chain
 	chainID string
 
+	// Authority address for signing IBC v2 packets (typically gov module address)
+	authority string
+
+	// IBC v2 channel keeper for sending packets
+	channelKeeperV2 *channelkeeperv2.Keeper
+
 	// Local non-consensus storage
 	// These fields store finality data WITHOUT affecting consensus
 	finalityDB    dbm.DB         // Local database (persistent, no consensus)
 	finalityCache *FinalityCache // Memory cache (fast, no consensus)
+
+	// BlockCollector for full block attestation data (exported for module access)
+	BlockCollector BlockDataCollector
+}
+
+// BlockDataCollector is an interface for collecting full block data
+// This interface allows for different implementations (async collector, direct RPC, etc.)
+type BlockDataCollector interface {
+	GetBlockData(height uint64) (*types.BlockAttestationData, error)
+	GetBlockDataRange(startHeight, endHeight uint64) ([]*types.BlockAttestationData, error)
+	Start(ctx context.Context) error
+	Stop() error
 }
 
 // NewKeeper creates a new attestation Keeper instance
@@ -30,12 +49,19 @@ func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeService store.KVStoreService,
 	chainID string,
+	authority string,
 ) Keeper {
 	return Keeper{
 		cdc:          cdc,
 		storeService: storeService,
 		chainID:      chainID,
+		authority:    authority,
 	}
+}
+
+// GetAuthority returns the authority address for the attestation module
+func (k Keeper) GetAuthority() string {
+	return k.authority
 }
 
 // InitializeLocalStorage sets up the local finality storage
@@ -54,6 +80,17 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 	k.finalityCache = cache
 
 	return nil
+}
+
+// SetBlockCollector sets the block data collector for retrieving full block data
+func (k *Keeper) SetBlockCollector(collector BlockDataCollector) {
+	k.BlockCollector = collector
+}
+
+// SetChannelKeeperV2 sets the IBC v2 channel keeper for sending packets
+// This is called after IBCKeeper initialization to avoid circular dependencies
+func (k *Keeper) SetChannelKeeperV2(channelKeeperV2 *channelkeeperv2.Keeper) {
+	k.channelKeeperV2 = channelKeeperV2
 }
 
 // Logger returns a module-specific logger

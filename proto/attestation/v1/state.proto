@@ -1,0 +1,76 @@
+syntax = "proto3";
+package attestation.v1;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
+
+// BlockAttestationData contains the data for a single block attestation
+// Includes all data needed for full block reconstruction (DA layer)
+message BlockAttestationData {
+  // Block height (for indexing, also in block_header.Header.Height)
+  uint64 block_height = 1;
+
+  // Block hash (for fast lookups, can also compute from block_header)
+  bytes block_hash = 2;
+
+  // Block header (encoded) - includes timestamp, app_hash, and all metadata
+  bytes block_header = 3;
+
+  // Transaction results (encoded execution results)
+  bytes tx_results = 4;
+
+  // FinalizeBlock events (encoded)
+  bytes finalize_block_events = 5;
+
+  // Validator updates (encoded)
+  bytes validator_updates = 6;
+
+  // Consensus parameter updates (encoded)
+  bytes consensus_param_updates = 7;
+
+  // Raw transaction data (REQUIRED FOR RECONSTRUCTION)
+  // Encoded Block.Data.Txs - the actual transaction bytes
+  bytes transactions = 8;
+
+  // Evidence data (encoded)
+  // Encoded Block.Evidence for complete block reconstruction
+  bytes evidence = 9;
+
+  // Last commit (encoded)
+  // Encoded Block.LastCommit - validator signatures from previous block
+  bytes last_commit = 10;
+}
+
+// BlockAttestationRecord stores the complete attestation record
+message BlockAttestationRecord {
+  // Attestation ID (auto-incremented)
+  uint64 attestation_id = 1;
+
+  // Source chain ID
+  string chain_id = 2;
+
+  // Block height
+  uint64 block_height = 3;
+
+  // Rollup address who submitted this attestation
+  string rollup_address = 4;
+
+  // Attestation data (includes block_height)
+  BlockAttestationData data = 5 [(gogoproto.nullable) = false];
+
+  // Finality timestamp (0 if not finalized)
+  int64 finalized_at = 6;
+}
+
+message FinalityStatus {
+  // Block height
+  uint64 block_height = 1;
+
+  // Finality timestamp (0 if not finalized)
+  int64 finalized_at = 2;
+
+  // Finality proof (validator signatures, etc.)
+  bytes finality_proof = 3;
+}

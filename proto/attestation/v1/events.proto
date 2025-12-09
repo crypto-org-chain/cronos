@@ -2,124 +2,26 @@ syntax = "proto3";
 package attestation.v1;
 
 import "gogoproto/gogo.proto";
-import "attestation/v1/tx.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
-
-// EventBlockAttested is emitted when a block attestation is processed
-message EventBlockAttested {
-  // Attestation ID
-  uint64 attestation_id = 1;
-
-  // Source chain ID
-  string chain_id = 2;
-
-  // Block height that was attested
-  uint64 block_height = 3;
-
-  // Relayer who submitted the attestation
-  string relayer = 4;
-
-  // Whether the block achieved finality
-  bool finalized = 5;
-
-  // Finality proof (validator signatures, etc.)
-  bytes finality_proof = 6;
-
-  // Timestamp when attestation was processed
-  int64 processed_at = 7;
-}
-
-// EventBlockFinalized is emitted when a block reaches finality on attestation layer
-message EventBlockFinalized {
-  // Source chain ID
-  string chain_id = 1;
-
-  // Block height that achieved finality
-  uint64 block_height = 2;
-
-  // Finality timestamp
-  int64 finalized_at = 3;
-
-  // Number of validators that attested
-  uint32 validator_count = 4;
-
-  // Aggregate signature or proof of finality
-  bytes finality_signature = 5;
-
-  // Transaction hash where finality was confirmed
-  bytes attestation_tx_hash = 6;
-}
-
-// EventForcedTxSubmitted is emitted when a forced transaction is submitted
-message EventForcedTxSubmitted {
-  // Forced transaction ID
-  uint64 forced_tx_id = 1;
-
-  // Submitter address
-  string submitter = 2;
-
-  // Target chain ID
-  string target_chain_id = 3;
-
-  // Target chain type
-  string target_chain_type = 4;
-
-  // Priority level
-  uint32 priority = 5;
-
-  // Transaction type
-  ForcedTxType tx_type = 6;
-
-  // Deadline block height
-  uint64 deadline = 7;
-
-  // Timestamp when submitted
-  int64 submitted_at = 8;
-}
-
-// EventForcedTxExecuted is emitted when relayer confirms forced transaction execution
-message EventForcedTxExecuted {
-  // Forced transaction ID
-  uint64 forced_tx_id = 1;
-
-  // Target chain ID where it was executed
-  string target_chain_id = 2;
-
-  // Execution transaction hash on target chain
-  bytes execution_tx_hash = 3;
-
-  // Block height where it was executed
-  uint64 execution_height = 4;
-
-  // Relayer who executed it
-  string relayer = 5;
-
-  // Timestamp when executed
-  int64 executed_at = 6;
-}
 
 // EventBatchBlockAttested is emitted for batch attestations
 message EventBatchBlockAttested {
   // Source chain ID
   string chain_id = 1;
 
-  // Starting block height
-  uint64 start_height = 2;
-
-  // Ending block height
-  uint64 end_height = 3;
-
-  // Number of blocks in batch
-  uint32 block_count = 4;
-
-  // Number of blocks that achieved finality
-  uint32 finalized_count = 5;
-
-  // Relayer who submitted the batch
-  string relayer = 6;
+  // Rollup address who submitted the batch
+  string rollup_address = 2;
 
   // List of attestation IDs
-  repeated uint64 attestation_ids = 7;
-}
+  repeated uint64 attestation_ids = 3;
 
+  // List of block heights that were attested
+  repeated uint64 attest_block_heights = 4;
+
+  // Finality timestamp (0 if not finalized)
+  int64 finalized_at = 5;
+
+  // Finality proof (validator signatures, etc.)
+  bytes finality_proof = 6;
+}

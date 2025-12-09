@@ -6,6 +6,9 @@ local config = import 'default.jsonnet';
 config {
   // Cronos chain configuration
   'cronos_777-1'+: {
+    'config'+: {
+      log_level: 'debug',
+    },
     'account-prefix': 'crc',
     'coin-type': 60,
     key_name: 'signer1',
@@ -56,6 +59,7 @@ config {
             attestation_interval: 10,  // Send attestation every 10 blocks
             packet_timeout_timestamp: 600000000000,  // 10 minutes
           },
+          v2_client_id: '07-tendermint-0',  // Set after IBC client creation (client ID not known at genesis)
         },
       },
     },
@@ -67,6 +71,7 @@ config {
     'account-prefix': 'cosmos',
     'coin-type': 118,
     config: {
+      log_level: 'debug',
       consensus: {
         'timeout-commit': '1s',
       },
@@ -148,6 +153,9 @@ config {
   },
   
   relayer: {
+    global: {
+      log_level: 'debug',
+    },
     mode: {
       clients: {
         enabled: true,

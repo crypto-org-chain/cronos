@@ -78,7 +78,6 @@ func (k *Keeper) SetFinalityCache(cache *FinalityCache) {
 func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, finalizedAt int64, proof []byte) error {
 	status := &types.FinalityStatus{
 		BlockHeight:   height,
-		Finalized:     true,
 		FinalizedAt:   finalizedAt,
 		FinalityProof: proof,
 	}
@@ -165,10 +164,10 @@ func (k Keeper) GetFinalityStatusLocal(ctx context.Context, height uint64) (*typ
 		}
 	}
 
-	// 3. Not found
+	// 3. Not found - return status with FinalizedAt = 0 (not finalized)
 	return &types.FinalityStatus{
 		BlockHeight: height,
-		Finalized:   false,
+		FinalizedAt: 0,
 	}, nil
 }
 

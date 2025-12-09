@@ -35,21 +35,12 @@ func (k Keeper) GetBlockFinalityStatus(c context.Context, req *types.QueryGetBlo
 		}, nil
 	}
 
+	// Determine finality by checking if FinalizedAt > 0
+	finalized := status.FinalizedAt > 0
+
 	return &types.QueryGetBlockFinalityStatusResponse{
-		Finalized:     status.Finalized,
+		Finalized:     finalized,
 		FinalizedAt:   status.FinalizedAt,
 		FinalityProof: status.FinalityProof,
 	}, nil
-}
-
-// GetPendingForcedTxs returns pending forced transactions
-func (k Keeper) GetPendingForcedTxs(c context.Context, req *types.QueryGetPendingForcedTxsRequest) (*types.QueryGetPendingForcedTxsResponse, error) {
-	// TODO: Implement when forced tx functionality is added
-	return &types.QueryGetPendingForcedTxsResponse{}, nil
-}
-
-// GetForcedTx returns a specific forced transaction
-func (k Keeper) GetForcedTx(c context.Context, req *types.QueryGetForcedTxRequest) (*types.QueryGetForcedTxResponse, error) {
-	// TODO: Implement when forced tx functionality is added
-	return &types.QueryGetForcedTxResponse{}, nil
 }

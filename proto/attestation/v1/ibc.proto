@@ -1,8 +1,8 @@
 syntax = "proto3";
 package attestation.v1;
 
+import "attestation/v1/state.proto";
 import "gogoproto/gogo.proto";
-import "attestation/v1/tx.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
@@ -11,25 +11,14 @@ option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 message AttestationPacketData {
   option (gogoproto.goproto_getters) = false;
 
-  // Type of packet
-  AttestationPacketType type = 1;
-
   // Source chain ID (where the blocks originated)
-  string source_chain_id = 2;
+  string source_chain_id = 1;
+
+  // Rollup address
+  string rollup_address = 2;
 
   // Batch of block attestations
   repeated BlockAttestationData attestations = 3 [(gogoproto.nullable) = false];
-}
-
-// AttestationPacketType defines the type of attestation packet
-enum AttestationPacketType {
-  option (gogoproto.goproto_enum_prefix) = false;
-
-  // Batch block attestation
-  ATTESTATION_PACKET_TYPE_BATCH_BLOCK = 0 [(gogoproto.enumvalue_customname) = "AttestationPacketTypeBatchBlock"];
-
-  // Finality query - request finality status
-  ATTESTATION_PACKET_TYPE_FINALITY_QUERY = 1 [(gogoproto.enumvalue_customname) = "AttestationPacketTypeFinalityQuery"];
 }
 
 // AttestationPacketAcknowledgement defines the acknowledgement returned by the attestation chain
@@ -45,30 +34,14 @@ message AttestationPacketAcknowledgement {
   // List of attestation IDs created on attestation chain
   repeated uint64 attestation_ids = 3;
 
-  // Number of blocks that achieved immediate finality
-  uint32 finalized_count = 4;
-
-  // Finality status for each block height
-  // Key: block_height, Value: finalized (true/false)
-  map<uint64, FinalityStatus> finality_statuses = 5 [(gogoproto.nullable) = false];
-}
-
-// FinalityStatus contains finality information for a specific block
-message FinalityStatus {
-  // Block height
-  uint64 block_height = 1;
-
-  // Whether the block is finalized
-  bool finalized = 2;
+  // List of block heights that were attested
+  repeated uint64 attest_block_heights = 4;
 
   // Finality timestamp (0 if not finalized)
-  int64 finalized_at = 3;
-
-  // Attestation ID on the attestation chain
-  uint64 attestation_id = 4;
+  int64 finalized_at = 5;
 
   // Finality proof (validator signatures, etc.)
-  bytes finality_proof = 5;
+  bytes finality_proof = 6;
 }
 
 // IBC v2 module parameters for attestation
@@ -82,4 +55,3 @@ message Params {
   // Timeout for IBC v2 packets (in nanoseconds)
   uint64 packet_timeout_timestamp = 3;
 }
-

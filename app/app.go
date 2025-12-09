@@ -292,6 +292,9 @@ type App struct {
 
 	pendingTxListeners []evmante.PendingTxListener
 
+	// RPC address for late initialization (after ABCI handshake)
+	rpcAddress string
+
 	// keys to access the substores
 	keys  map[string]*storetypes.KVStoreKey
 	tkeys map[string]*storetypes.TransientStoreKey
@@ -751,12 +754,6 @@ func New(
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
-	// Set up IBC v2 Router for Eureka protocol (attestation uses v2 only)
-	attestationV2Module := attestationkeeper.NewIBCModuleV2(app.AttestationKeeper)
-	ibcV2Router := ibcv2.NewRouter()
-	ibcV2Router.AddRoute("attestation", attestationV2Module)
-	app.IBCKeeper.SetRouterV2(ibcV2Router)
-
 	clientKeeper := app.IBCKeeper.ClientKeeper
 	storeProvider := clientKeeper.GetStoreProvider()
 
@@ -781,12 +778,33 @@ func New(
 		appCodec,
 		runtime.NewKVStoreService(keys[attestationtypes.StoreKey]),
 		app.ChainID(),
+		authAddr,
 	)
+
+	// Set IBC v2 channel keeper for attestation packet sending
+	app.AttestationKeeper.SetChannelKeeperV2(app.IBCKeeper.ChannelKeeperV2)
+
+	// Set up IBC v2 Router for Eureka protocol (attestation uses v2 only)
+	attestationV2Module := attestationkeeper.NewIBCModuleV2(app.AttestationKeeper)
+	ibcV2Router := ibcv2.NewRouter()
+	ibcV2Router.AddRoute("attestation", attestationV2Module)
+	app.IBCKeeper.SetRouterV2(ibcV2Router)
 
 	// Initialize local finality storage (non-consensus)
 	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger); err != nil {
 		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
 	}
+
+	// Store CometBFT RPC address for later initialization (after ABCI handshake)
+	// The BlockDataCollector needs WebSocket access to subscribe to block events
+	// This comes from the CometBFT RPC server, not the Cosmos SDK API server
+	rpcAddress := cast.ToString(appOpts.Get("rpc.laddr"))
+	if rpcAddress == "" {
+		// Default to localhost if not configured
+		rpcAddress = "tcp://localhost:26657"
+	}
+	app.rpcAddress = rpcAddress
+	logger.Debug("Configured block collector to use CometBFT RPC", "address", rpcAddress)
 
 	/****  Module Options ****/
 
@@ -1084,6 +1102,13 @@ func New(
 
 			// otherwise, just emit error log
 			app.Logger().Error("failed to update blocklist", "error", err)
+		}
+
+		// Start block data collector after ABCI handshake completes
+		// The RPC server will be available shortly after this point
+		if app.AttestationKeeper.BlockCollector != nil && app.rpcAddress != "" {
+			// Start in a goroutine with retry logic since RPC server may not be immediately available
+			go app.startBlockDataCollectorWithRetry()
 		}
 	}
 
@@ -1453,160 +1478,6 @@ func VerifyAddressFormat(bz []byte) error {
 	}
 
 	return nil
-}
-
-// setupAttestationFinalityStorage initializes local finality storage for the attestation module
-// This storage is non-consensus and provides fast queries without state bloat
-// If the database already exists with matching backend, it loads from it; otherwise, it creates a new one
-func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger) error {
-	// Get cache size from config (default: 10000)
-	cacheSize := cast.ToInt(appOpts.Get("attestation.finality-cache-size"))
-	if cacheSize == 0 {
-		cacheSize = 10000
-	}
-
-	// Get database backend from app-config (default: goleveldb)
-	// This matches the main app database backend setting
-	dbBackendStr := cast.ToString(appOpts.Get("app-db-backend"))
-	if dbBackendStr == "" {
-		dbBackendStr = "goleveldb"
-	}
-
-	// Parse database backend type
-	var dbBackend dbm.BackendType
-	switch dbBackendStr {
-	case "goleveldb":
-		dbBackend = dbm.GoLevelDBBackend
-	case "rocksdb":
-		dbBackend = dbm.RocksDBBackend
-	default:
-		logger.Warn("Unsupported database backend, using goleveldb", "backend", dbBackendStr)
-		dbBackend = dbm.GoLevelDBBackend
-		dbBackendStr = "goleveldb"
-	}
-
-	// Create finality database path
-	finalityDBPath := filepath.Join(homePath, "data", "finality")
-
-	// Check if database already exists with matching backend type
-	dbExists, backendMatches := checkFinalityDatabaseExists(finalityDBPath, dbBackend)
-
-	// If database exists but backend doesn't match, log warning and create new
-	if dbExists && !backendMatches {
-		logger.Warn("Existing finality database has different backend type, creating new database",
-			"db_path", finalityDBPath,
-			"configured_backend", dbBackendStr,
-		)
-		// Remove old database with different backend
-		oldDBPath := filepath.Join(finalityDBPath, "finality.db")
-		if err := os.RemoveAll(oldDBPath); err != nil {
-			logger.Error("Failed to remove old finality database", "error", err)
-		}
-		dbExists = false
-	}
-
-	// Initialize local storage (creates new or opens existing)
-	if err := app.AttestationKeeper.InitializeLocalStorage(finalityDBPath, cacheSize, dbBackend); err != nil {
-		return fmt.Errorf("failed to initialize local finality storage: %w", err)
-	}
-
-	// Get statistics about loaded database if it exists
-	if dbExists {
-		// Try to get stats from the keeper
-		ctx := app.NewUncachedContext(false, cmtproto.Header{})
-		if stats, err := app.AttestationKeeper.GetFinalityStatsLocal(ctx); err == nil {
-			logger.Info("Attestation local finality storage loaded from existing database",
-				"db_path", finalityDBPath,
-				"cache_size", cacheSize,
-				"db_backend", dbBackendStr,
-				"total_finalized", stats.TotalFinalized,
-				"min_height", stats.MinHeight,
-				"max_height", stats.MaxHeight,
-			)
-		} else {
-			logger.Info("Attestation local finality storage loaded from existing database",
-				"db_path", finalityDBPath,
-				"cache_size", cacheSize,
-				"db_backend", dbBackendStr,
-			)
-		}
-	} else {
-		logger.Info("Attestation local finality storage initialized (new database)",
-			"db_path", finalityDBPath,
-			"cache_size", cacheSize,
-			"db_backend", dbBackendStr,
-		)
-	}
-
-	return nil
-}
-
-// checkFinalityDatabaseExists checks if the finality database already exists
-// and verifies if the backend type matches the configuration
-// Returns: (exists bool, backendMatches bool)
-func checkFinalityDatabaseExists(dbPath string, configuredBackend dbm.BackendType) (bool, bool) {
-	dbDir := filepath.Join(dbPath, "finality.db")
-
-	// Check if directory exists
-	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
-		return false, false
-	}
-
-	// Check if directory is empty
-	entries, err := os.ReadDir(dbDir)
-	if err != nil || len(entries) == 0 {
-		return false, false
-	}
-
-	// Database exists, now check if backend type matches
-	// LevelDB and RocksDB both use CURRENT file but have different structures
-	currentFile := filepath.Join(dbDir, "CURRENT")
-	if _, err := os.Stat(currentFile); err != nil {
-		// No CURRENT file means unknown/corrupted database
-		return true, false
-	}
-
-	// Check for backend-specific indicators
-	backendMatches := false
-
-	switch configuredBackend {
-	case dbm.GoLevelDBBackend:
-		// LevelDB typically has .ldb files
-		for _, entry := range entries {
-			if filepath.Ext(entry.Name()) == ".ldb" {
-				backendMatches = true
-				break
-			}
-		}
-		// Also check for .log files (LevelDB write-ahead log)
-		if !backendMatches {
-			for _, entry := range entries {
-				if filepath.Ext(entry.Name()) == ".log" {
-					backendMatches = true
-					break
-				}
-			}
-		}
-
-	case dbm.RocksDBBackend:
-		// RocksDB typically has .sst files
-		for _, entry := range entries {
-			if filepath.Ext(entry.Name()) == ".sst" {
-				backendMatches = true
-				break
-			}
-		}
-		// Also check for OPTIONS file (RocksDB specific)
-		if !backendMatches {
-			optionsFile := filepath.Join(dbDir, "OPTIONS")
-			if _, err := os.Stat(optionsFile); err == nil {
-				backendMatches = true
-			}
-		}
-	}
-
-	// If we couldn't determine backend type, assume it doesn't match (safer)
-	return true, backendMatches
 }
 
 // Close will be called in graceful shutdown in start cmd
