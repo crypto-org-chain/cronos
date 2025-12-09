@@ -178,6 +178,11 @@ config {
       host: '127.0.0.1',
       port: 3000,
     },
+    telemetry: {
+      enabled: true,
+      host: '127.0.0.1',
+      port: 3001,
+    },
     chains: [
       {
         id: 'cronos_777-1',
@@ -194,7 +199,7 @@ config {
           denom: 'basecro',
         },
         event_source: {
-          batch_delay: '5000ms',
+          batch_delay: '1000ms',
         },
         extension_options: [{
           type: 'ethermint_dynamic_fee',
@@ -209,7 +214,7 @@ config {
           denom: 'stake',
         },
         event_source: {
-          batch_delay: '5000ms',
+          batch_delay: '1000ms',
         },
       },
     ],

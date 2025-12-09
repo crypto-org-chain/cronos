@@ -34,34 +34,7 @@ func (im IBCModuleV2) OnSendPacket(
 	payload channelv2types.Payload,
 	signer sdk.AccAddress,
 ) error {
-	ctx.Logger().Info("IBC v2 Attestation: SendPacket",
-		"source_client", sourceClient,
-		"dest_client", destinationClient,
-		"sequence", sequence,
-		"signer", signer.String(),
-	)
-
-	// Decode attestation packet data from payload
-	var packetData types.AttestationPacketData
-	if err := json.Unmarshal(payload.Value, &packetData); err != nil {
-		return fmt.Errorf("failed to unmarshal attestation packet data: %w", err)
-	}
-
-	ctx.Logger().Debug("attestation packet data", "packet_data", packetData)
-
-	// Emit send event
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			"attestation_v2_sent",
-			sdk.NewAttribute("source_client", sourceClient),
-			sdk.NewAttribute("dest_client", destinationClient),
-			sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
-			sdk.NewAttribute("attestation_count", fmt.Sprintf("%d", len(packetData.Attestations))),
-			sdk.NewAttribute("chain_id", packetData.SourceChainId),
-			sdk.NewAttribute("rollup_address", packetData.RollupAddress),
-		),
-	)
-
+	// Sender chain does not need to handle this callback function
 	return nil
 }
 

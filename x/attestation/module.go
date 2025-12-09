@@ -292,15 +292,14 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil // Don't fail the block - client ID will be set later via governance
 		}
 
-		am.keeper.Logger(ctx).Info("sending attestation packet", "start_height", startHeight, "end_height", endHeight)
+		am.keeper.Logger(ctx).Info("sending attestation packet", "start_height", startHeight, "end_height", endHeight, "chain_id", am.keeper.ChainID())
 
 		// Send packet via IBC v2
 		// IBC v2 protocol handles authentication automatically at transport layer
 		_, err = am.keeper.SendAttestationPacketV2(
 			ctx,
-			// am.keeper.ChainID(), // Source chain ID
-			"07-tendermint-0", // Source client ID
-			v2ClientID,        // Destination client ID
+			v2ClientID,
+			v2ClientID, // destination client ID is the same as source client ID for testing
 			attestations,
 		)
 		if err != nil {
@@ -311,8 +310,6 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			)
 			return nil // Don't fail the block
 		}
-
-		am.keeper.Logger(ctx).Info("attestation packet sent", "start_height", startHeight, "end_height", endHeight)
 
 		// Update last sent height
 		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {

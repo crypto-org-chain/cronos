@@ -72,7 +72,7 @@ func (k Keeper) SendAttestationPacketV2(
 	// Create IBC v2 payload
 	payload := channelv2types.NewPayload(
 		types.PortID,  // SourcePort
-		types.PortID,  // DestinationPort
+		"da",          // DestinationPort
 		types.Version, // Version
 		"json",        // Encoding
 		dataBytes,     // Value
@@ -110,6 +110,16 @@ func (k Keeper) SendAttestationPacketV2(
 		"source_client", sourceClient,
 		"dest_client", destinationClient,
 		"attestation_count", len(attestations),
+	)
+
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			"attestation_v2_sent",
+			sdk.NewAttribute("source_client", sourceClient),
+			sdk.NewAttribute("dest_client", destinationClient),
+			sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
+			sdk.NewAttribute("attestation_count", fmt.Sprintf("%d", len(attestations))),
+		),
 	)
 
 	return sequence, nil
