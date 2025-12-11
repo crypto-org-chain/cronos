@@ -10,25 +10,34 @@ import sources.nixpkgs {
       dapptools-release = sources.dapptools;
       dapptools-master = sources.dapptools-master;
     })
-    (_: pkgs: {
-      go = pkgs.go_1_25;
-      go-ethereum = pkgs.callPackage ./go-ethereum.nix {
-        buildGoModule = pkgs.buildGoModule;
-      };
-      flake-compat = import sources.flake-compat;
-      chain-maind =
-        (pkgs.callPackage sources.chain-main {
-          rocksdb = null;
-          buildPackages = pkgs.buildPackages // {
-            go_1_23 = pkgs.go_1_25;
-          };
-        }).overrideAttrs
-          (old: {
-            # Fix modRoot issue - gomod2nix builder needs modRoot set to non-null
-            # See: https://github.com/crypto-org-chain/chain-main/pull/1220
-            modRoot = ".";
-          });
-    })
+    (
+      _: pkgs:
+      let
+        goForTarget =
+          if pkgs.stdenv.targetPlatform.isWindows then pkgs.go else pkgs.go_1_25;
+        goForBuild =
+          if pkgs.buildPackages.stdenv.targetPlatform.isWindows then pkgs.buildPackages.go else pkgs.buildPackages.go_1_25;
+      in
+      {
+        go = goForTarget;
+        go-ethereum = pkgs.callPackage ./go-ethereum.nix {
+          buildGoModule = pkgs.buildGoModule;
+        };
+        flake-compat = import sources.flake-compat;
+        chain-maind =
+          (pkgs.callPackage sources.chain-main {
+            rocksdb = null;
+            buildPackages = pkgs.buildPackages // {
+              go_1_23 = goForBuild;
+            };
+          }).overrideAttrs
+            (old: {
+              # Fix modRoot issue - gomod2nix builder needs modRoot set to non-null
+              # See: https://github.com/crypto-org-chain/chain-main/pull/1220
+              modRoot = ".";
+            });
+      }
+    )
     (import "${sources.poetry2nix}/overlay.nix")
     (
       final: prev:
