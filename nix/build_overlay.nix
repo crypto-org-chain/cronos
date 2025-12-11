@@ -20,13 +20,14 @@ in
       hash = "sha256-S9AekSlyB7+kUOpA1NWpOxtTGl5DhHOyoG4Y4HciciU=";
     };
     # Filter out patches that don't apply to Go 1.25
-    patches = builtins.filter (
-      patch:
-      let
-        patchName = builtins.baseNameOf (builtins.toString patch);
-      in
-      !final.lib.hasSuffix "-iana-etc-1.17.patch" patchName
-    ) (old.patches or [ ]);
+    patches =
+      builtins.filter (
+        patch:
+        let
+          name = builtins.baseNameOf (builtins.toString patch);
+        in
+        !(final.lib.hasSuffix "iana-etc-1.17.patch" name)
+      ) (old.patches or [ ]);
     # Apply the iana-etc substitutions manually for Go 1.25
     postPatch = (old.postPatch or "") + ''
       substituteInPlace src/net/lookup_unix.go \

@@ -10,8 +10,9 @@ import sources.nixpkgs {
       dapptools-release = sources.dapptools;
       dapptools-master = sources.dapptools-master;
     })
-    (_: pkgs: {
-      go = pkgs.go_1_25;
+    (
+      final: pkgs: {
+        go = final.go_1_25;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         buildGoModule = pkgs.buildGoModule;
       };
@@ -20,7 +21,7 @@ import sources.nixpkgs {
         (pkgs.callPackage sources.chain-main {
           rocksdb = null;
           buildPackages = pkgs.buildPackages // {
-            go_1_23 = pkgs.buildPackages.go_1_25;
+            go_1_23 = final.buildPackages.go_1_25;
           };
         }).overrideAttrs
           (old: {
@@ -28,7 +29,8 @@ import sources.nixpkgs {
             # See: https://github.com/crypto-org-chain/chain-main/pull/1220
             modRoot = ".";
           });
-    })
+      }
+    )
     (import "${sources.poetry2nix}/overlay.nix")
     (
       final: prev:

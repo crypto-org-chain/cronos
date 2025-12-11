@@ -95,7 +95,7 @@
         gomodOverlay
         (import ./testground/benchmark/overlay.nix)
         (final: super: {
-          go = super.go_1_25;
+          go = final.go_1_25;
           test-env = final.callPackage ./nix/testenv.nix { pkgs = final; };
           cronos-matrix = final.callPackage ./nix/cronos-matrix.nix {
             inherit rev;
