@@ -146,10 +146,10 @@ lint-py:
           --format="::error file=%(path)s,line=%(row)d,col=%(col)d::%(path)s:%(row)d:%(col)d: %(code)s %(text)s" \
 
 lint-nix:
-	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" ! -path "./chain-main-*" | xargs nixfmt -c
+	find . \( -path './integration_tests/contracts' -o -path './contracts' -o -path './chain-main-*' \) -prune -o -name "*.nix" -print | xargs nixfmt -c
 
 lint-nix-fix:
-	find . -name "*.nix" ! -path './integration_tests/contracts/*' ! -path "./contracts/*" ! -path "./chain-main-*" | xargs nixfmt
+	find . \( -path './integration_tests/contracts' -o -path './contracts' -o -path './chain-main-*' \) -prune -o -name "*.nix" -print | xargs nixfmt
 
 .PHONY: lint-install lint lint-fix lint-py lint-nix lint-nix-fix
 

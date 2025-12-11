@@ -79,7 +79,7 @@ import sources.nixpkgs {
       };
     })
     (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { }; })
-    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
       rly = pkgs.buildGoModule rec {
