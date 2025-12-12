@@ -9,31 +9,55 @@ let
     if len == 0 then [ ] else final.lib.lists.take (len - 1) l ++ [ newVal ];
 in
 {
+  # Provide threads compatibility for MinGW cross-compilation
+  # In newer nixpkgs, targetPackages.threads is not available, but go_1_24 expects it
+  threads = super.threads or (if final.stdenv.hostPlatform.isWindows then {
+    package = final.windows.pthreads;
+  } else null);
+
   # Override go_1_24 to create go_1_25 with Windows platform support
   # Native nixpkgs go_1_25 doesn't support Windows (x86_64-windows not in meta.platforms)
   # By overriding go_1_24, we inherit its Windows support
   # See: https://github.com/crypto-org-chain/chain-main/pull/1220
-  go_1_25 = super.go_1_24.overrideAttrs (old: rec {
+  go_1_25 = super.go_1_24.overrideAttrs (old:
+    let
+      # For MinGW cross-compilation, we need pthreads from the target (Windows) platform
+      # The old go_1_24 expects targetPackages.threads.package which doesn't exist in newer nixpkgs
+      # So we manually provide it here
+      windowsPthreads = if final.stdenv.hostPlatform.isWindows then final.windows.pthreads else null;
+    in rec {
     version = "1.25.0";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
       hash = "sha256-S9AekSlyB7+kUOpA1NWpOxtTGl5DhHOyoG4Y4HciciU=";
     };
-    # Filter out patches that don't apply to Go 1.25
-    patches = builtins.filter (
-      patch:
-      let
-        name = builtins.baseNameOf (builtins.toString patch);
-      in
-      !(final.lib.hasSuffix "iana-etc-1.17.patch" name)
-    ) (old.patches or [ ]);
-    # Apply the iana-etc substitutions manually for Go 1.25
-    postPatch = (old.postPatch or "") + ''
-      substituteInPlace src/net/lookup_unix.go \
-        --replace 'open("/etc/protocols")' 'open("${final.iana-etc}/etc/protocols")'
-      substituteInPlace src/net/port_unix.go \
-        --replace 'open("/etc/services")' 'open("${final.iana-etc}/etc/services")'
-    '';
+    # Directly set depsTargetTarget instead of relying on the old value
+    # For MinGW targets, we need the pthreads library
+    depsTargetTarget = final.lib.optional final.stdenv.targetPlatform.isMinGW windowsPthreads;
+    # For Windows cross-compilation, we need to completely avoid the iana-etc patch
+    # as it creates a dependency on iana-etc which isn't available for Windows
+    # For other platforms, filter out patches that don't apply to Go 1.25
+    patches = if final.stdenv.targetPlatform.isWindows then
+      # On Windows, use an empty patch list to avoid iana-etc dependency
+      []
+    else
+      # On Unix-like systems, filter patches as before
+      builtins.filter (
+        patch:
+        let
+          name = builtins.baseNameOf (builtins.toString patch);
+        in
+        !(final.lib.hasSuffix "iana-etc-1.17.patch" name)
+      ) (old.patches or [ ]);
+    # Don't inherit postPatch from go_1_24 as it may contain iana-etc dependencies
+    # Go 1.25 source code doesn't need the same patches as Go 1.24
+    # If needed, we can add Go 1.25-specific patches here
+    postPatch = "";
+    # Explicitly add Windows platform support (x86_64-windows, i686-windows)
+    # Go 1.24 supports Windows but Go 1.25 upstream doesn't include it in meta.platforms
+    meta = old.meta // {
+      platforms = (old.meta.platforms or [ ]) ++ final.lib.platforms.windows;
+    };
   });
   rocksdb = final.callPackage ./rocksdb.nix { };
   golangci-lint = final.callPackage ./golangci-lint.nix { };

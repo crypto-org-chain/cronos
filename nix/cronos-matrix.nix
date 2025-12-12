@@ -48,7 +48,12 @@ builtins.listToAttrs (
       );
       value =
         let
-          cronosd = callPackage ../. { inherit rev network; };
+          # For cross-compilation, we need to use the build platform's Go compiler
+          # not the target platform's Go
+          cronosd = callPackage ../. {
+            inherit rev network;
+            go = buildPackages.go;
+          };
           bundle = if stdenv.hostPlatform.isWindows then bundle-win-exe cronosd else bundle-exe cronosd;
         in
         if pkgtype == "bundle" then
