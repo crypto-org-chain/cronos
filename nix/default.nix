@@ -10,9 +10,8 @@ import sources.nixpkgs {
       dapptools-release = sources.dapptools;
       dapptools-master = sources.dapptools-master;
     })
-    (
-      final: pkgs: {
-        go = final.go_1_25;
+    (final: pkgs: {
+      go = final.go_1_25;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
         buildGoModule = pkgs.buildGoModule;
       };
@@ -29,8 +28,7 @@ import sources.nixpkgs {
             # See: https://github.com/crypto-org-chain/chain-main/pull/1220
             modRoot = ".";
           });
-      }
-    )
+    })
     (import "${sources.poetry2nix}/overlay.nix")
     (
       final: prev:
