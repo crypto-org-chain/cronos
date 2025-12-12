@@ -1,7 +1,7 @@
 # Changelog
 
 ## UNRELEASED
-
+* [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
 * [#1908](https://github.com/crypto-org-chain/cronos/pull/1908) Add db migration/patch CLI tool
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935

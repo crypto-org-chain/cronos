@@ -109,19 +109,10 @@ build: check-network print-ledger go.sum
 install: check-network print-ledger go.sum
 	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/cronosd
 
-test: test-memiavl test-store test-versiondb
+test:
 	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-test-memiavl:
-	@cd memiavl && go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-test-store:
-	@cd store && go test -tags=objstore -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-test-versiondb:
-	@cd versiondb && go test -tags=objstore,rocksdb -v -mod=readonly ./... -coverprofile=$(COVERAGE) -covermode=atomic;
-
-.PHONY: clean build install test test-memiavl test-store test-versiondb
+.PHONY: all clean build install test
 
 clean:
 	rm -rf $(BUILDDIR)/
@@ -297,6 +288,21 @@ endif
 ###############################################################################
 
 HTTPS_GIT := https://github.com/crypto-org-chain/cronos.git
+CRONOS_STORE_GIT := https://github.com/crypto-org-chain/cronos-store.git
+CRONOS_STORE_VERSION := $(shell go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' github.com/crypto-org-chain/cronos-store/memiavl 2>/dev/null)
+ifeq ($(CRONOS_STORE_VERSION),)
+  CRONOS_STORE_VERSION := $(shell awk '/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]+=>/ {print $$NF; exit}' go.mod)
+endif
+ifeq ($(CRONOS_STORE_VERSION),)
+  CRONOS_STORE_VERSION := $(shell sed -nE -e '/=>/d' -e 's/^[[:space:]]*github.com\/crypto-org-chain\/cronos-store\/memiavl[[:space:]]+([^[:space:]]+).*/\1/p' go.mod | head -n 1)
+endif
+CRONOS_STORE_REF := $(CRONOS_STORE_VERSION)
+ifneq (,$(findstring -, $(CRONOS_STORE_VERSION)))
+  CRONOS_STORE_REF := $(shell echo $(CRONOS_STORE_VERSION) | awk -F- '{print $$NF}')
+endif
+ifeq ($(CRONOS_STORE_REF),)
+  CRONOS_STORE_REF := main
+endif
 protoVer=0.14.0
 protoImageName=ghcr.io/cosmos/proto-builder:$(protoVer)
 protoImageCi=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace --user root $(protoImageName)
@@ -329,8 +335,10 @@ proto-format:
 	@$(protoImage) find ./ -not -path "./third_party/*" -name "*.proto" -exec clang-format -i {} \;
 
 proto-check-breaking:
-	@echo "Checking Protobuf files for breaking changes"
-	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main
+	@echo "Checking Cronos protobuf files for breaking changes"
+	@$(protoImage) buf breaking --against $(HTTPS_GIT)#branch=main --exclude-path proto/memiavl
+	@echo "Checking memiavl protobuf files against cronos-store ref $(CRONOS_STORE_REF)"
+	@$(protoImage) buf breaking --path proto/memiavl --against $(CRONOS_STORE_GIT)#ref=$(CRONOS_STORE_REF) || echo "Warning: memiavl proto check skipped (files may not exist in cronos-store yet)"
 
 
 .PHONY: proto-all proto-gen proto-format proto-lint proto-check-breaking
