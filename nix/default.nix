@@ -10,18 +10,39 @@ import sources.nixpkgs {
       dapptools-release = sources.dapptools;
       dapptools-master = sources.dapptools-master;
     })
-    (_: pkgs: {
-      go = pkgs.go_1_23;
+    (final: pkgs: {
+      go = final.go_1_25;
       go-ethereum = pkgs.callPackage ./go-ethereum.nix {
-        inherit (pkgs.darwin) libobjc;
-        inherit (pkgs.darwin.apple_sdk.frameworks) IOKit;
-        buildGoModule = pkgs.buildGo123Module;
+        buildGoModule = pkgs.buildGoModule;
       };
       flake-compat = import sources.flake-compat;
-      chain-maind = pkgs.callPackage sources.chain-main { rocksdb = null; };
-    }) # update to a version that supports eip-1559
+      chain-maind =
+        (pkgs.callPackage sources.chain-main {
+          rocksdb = null;
+          buildPackages = pkgs.buildPackages // {
+            go_1_23 = final.buildPackages.go_1_25;
+          };
+        }).overrideAttrs
+          (old: {
+            # Fix modRoot issue - gomod2nix builder needs modRoot set to non-null
+            # See: https://github.com/crypto-org-chain/chain-main/pull/1220
+            modRoot = ".";
+          });
+    })
     (import "${sources.poetry2nix}/overlay.nix")
-    (import "${sources.gomod2nix}/overlay.nix")
+    (
+      final: prev:
+      let
+        gomodSrc = sources.gomod2nix;
+        callPackage = final.callPackage;
+      in
+      {
+        inherit (callPackage "${gomodSrc}/builder" { }) buildGoApplication mkGoEnv mkVendorEnv;
+        gomod2nix = (callPackage "${gomodSrc}/default.nix" { }).overrideAttrs (_: {
+          modRoot = ".";
+        });
+      }
+    )
     (
       pkgs: _:
       import ./scripts.nix {
@@ -43,13 +64,9 @@ import sources.nixpkgs {
         sourceRoot = "gravity-bridge-src/orchestrator";
         cargoSha256 = "sha256-FQ43PFGbagIi+KZ6KUtjF7OClIkCqKd4pGzHaYr2Q+A=";
         cargoBuildFlags = "-p ${name} --features ethermint";
-        buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin (
-          with pkgs.darwin.apple_sdk.frameworks;
-          [
-            CoreFoundation
-            Security
-          ]
-        );
+        buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.apple-sdk_15
+        ];
         doCheck = false;
         OPENSSL_NO_VENDOR = "1";
         OPENSSL_DIR = pkgs.symlinkJoin {
@@ -62,10 +79,10 @@ import sources.nixpkgs {
       };
     })
     (_: pkgs: { hermes = pkgs.callPackage ./hermes.nix { }; })
-    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { }; })
+    (_: pkgs: { test-env = pkgs.callPackage ./testenv.nix { inherit pkgs; }; })
     (_: pkgs: { cosmovisor = pkgs.callPackage ./cosmovisor.nix { }; })
     (_: pkgs: {
-      rly = pkgs.buildGo123Module rec {
+      rly = pkgs.buildGoModule rec {
         name = "rly";
         src = sources.relayer;
         subPackages = [ "." ];

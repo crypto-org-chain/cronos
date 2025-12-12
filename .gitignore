@@ -25,3 +25,4 @@ integration_tests/configs/*.yaml
 # direnv
 .envrc
 .direnv
+chain-main-*
