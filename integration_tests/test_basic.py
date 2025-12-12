@@ -26,8 +26,8 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
-    func_address,
     fund_acc,
+    fund_address,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
@@ -1009,7 +1009,7 @@ def test_replay_tx_allowed_when_unprotected_enabled(cronos_allow_unprotected_txs
 
     # https://etherscan.io/tx/0x06d2fa464546e99d2147e1fc997ddb624cec9c8c5e25a050cc381ee8a384eed3
     sender = Web3.to_checksum_address("0x1aa7451DD11b8cb16AC089ED7fE05eFa00100A6A")
-    func_address(w3, sender)
+    fund_address(w3, sender)
 
     raw = (
         (

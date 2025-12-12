@@ -858,7 +858,7 @@ def assert_gov_params(cli, old_param):
         assert param[key] == value, param
 
 
-def func_address(w3, addr, fund=3000000000000000000):
+def fund_address(w3, addr, fund=3000000000000000000):
     if w3.eth.get_balance(addr, "latest") == 0:
         tx = {"to": addr, "value": fund, "gasPrice": w3.eth.gas_price}
         send_transaction(w3, tx)
@@ -866,7 +866,7 @@ def func_address(w3, addr, fund=3000000000000000000):
 
 
 def fund_acc(w3, acc, fund=3000000000000000000):
-    func_address(w3, acc.address, fund)
+    fund_address(w3, acc.address, fund)
 
 
 def remove_cancun_prague_params(cronos):
