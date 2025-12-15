@@ -16,7 +16,7 @@ DOCKER := $(shell which docker)
 
 UNAME_S := $(shell uname -s)
 
-GOLANGCI_VERSION := "2.1.6"
+GOLANGCI_VERSION := "2.7.2"
 
 # process build tags
 build_tags = netgo objstore pebbledb
