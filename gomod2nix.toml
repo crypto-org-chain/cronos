@@ -256,6 +256,18 @@ schema = 3
   [mod."github.com/creachadair/tomledit"]
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
+  [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
+    version = "v0.0.0-20251203075505-0670ff683f07"
+    hash = "sha256-9Zebgh4yp/tqrIgWdwLLsALa3BdkHwSLt5f2iidX+Zs="
+    replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
+  [mod."github.com/crypto-org-chain/cronos-store/store"]
+    version = "v0.0.0-20251203075505-0670ff683f07"
+    hash = "sha256-OCh8b4Vb5UVb6rSmf/RAsTj4MjaedgtUocFdQ4Zoj1U="
+    replaced = "github.com/crypto-org-chain/cronos-store/store"
+  [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
+    version = "v0.0.0-20251203075505-0670ff683f07"
+    hash = "sha256-u/QCh16u5UMKgC6KHiUkuHnF8L2BHxDVL+mf837jRI4="
+    replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
     version = "v0.0.0-20241213061541-7afe924fb4a6"
     hash = "sha256-bl5jVL5oouu9/kbuJv9ua4w4hRhchnWQ8ogIEnW9NLs="
@@ -312,8 +324,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20251204034614-3b1542d755b6"
-    hash = "sha256-POcEnzlcWj4YdwdbekPlFzC9FehRJ4nYo4kyvqsUJDA="
+    version = "v0.22.1-0.20251208051817-9f5d1db3246d"
+    hash = "sha256-hB9qvklny56AP8MltiAQGhSx79SI68dj3l0ITXulSt0="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -511,8 +523,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.9.10-0.20250331012329-9d5f074653d1"
-    hash = "sha256-liFv2CO0IM79XRyEvF3zzfpqRmzYrUxlLBffl48kI88="
+    version = "v1.10.3"
+    hash = "sha256-JaIjWMOKsF/WRvsIP0bdkWvu1Q/8aaHcxW4jjE0mmnk="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
@@ -625,8 +637,8 @@ schema = 3
     version = "v1.10.0"
     hash = "sha256-dQ6Qqf26IZsa6XsGKP7GDuCj+WmSsBmkBwGTDfue/rk="
   [mod."github.com/spf13/cobra"]
-    version = "v1.10.1"
-    hash = "sha256-OP6wdqk4dvBD8U5aicTkySHZ2s0LWnBo2TST2SmgcpM="
+    version = "v1.10.2"
+    hash = "sha256-nbRCTFiDCC2jKK7AHi79n7urYCMP5yDZnWtNVJrDi+k="
   [mod."github.com/spf13/pflag"]
     version = "v1.0.10"
     hash = "sha256-uDPnWjHpSrzXr17KEYEA1yAbizfcsfo5AyztY2tS6ZU="

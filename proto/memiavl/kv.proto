@@ -4,7 +4,7 @@ package memiavl;
 
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/crypto-org-chain/cronos/memiavl";
+option go_package = "github.com/crypto-org-chain/cronos-store/memiavl";
 
 // Pairs defines a repeated slice of Pair objects.
 message Pairs {
