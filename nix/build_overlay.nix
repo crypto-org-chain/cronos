@@ -14,10 +14,10 @@ in
   # By overriding go_1_24, we inherit its Windows support
   # See: https://github.com/crypto-org-chain/chain-main/pull/1220
   go_1_25 = super.go_1_24.overrideAttrs (old: rec {
-    version = "1.25.0";
+    version = "1.25.5";
     src = final.fetchurl {
       url = "https://go.dev/dl/go${version}.src.tar.gz";
-      hash = "sha256-S9AekSlyB7+kUOpA1NWpOxtTGl5DhHOyoG4Y4HciciU=";
+      hash = "sha256-IqX9CpHvzSihsFNxBrmVmygEth9Zw3WLUejlQpwalU8=";
     };
     # Filter out patches that don't apply to Go 1.25
     patches = builtins.filter (
