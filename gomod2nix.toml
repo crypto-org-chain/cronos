@@ -257,15 +257,15 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
-    hash = "sha256-9Zebgh4yp/tqrIgWdwLLsALa3BdkHwSLt5f2iidX+Zs="
+    version = "v0.0.0-20251215033707-4f3ddb6808f3"
+    hash = "sha256-Xf1Yt+2I9rRASzO0bb/Co46YREn7bOeCqP757gil9sE="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
+    version = "v0.0.0-20251215033707-4f3ddb6808f3"
     hash = "sha256-OCh8b4Vb5UVb6rSmf/RAsTj4MjaedgtUocFdQ4Zoj1U="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
+    version = "v0.0.0-20251215033707-4f3ddb6808f3"
     hash = "sha256-u/QCh16u5UMKgC6KHiUkuHnF8L2BHxDVL+mf837jRI4="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
