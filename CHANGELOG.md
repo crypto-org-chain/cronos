@@ -13,6 +13,7 @@
 * [#1918](https://github.com/crypto-org-chain/cronos/pull/1918) Chore: cleanup and improve x/mint params validation and test in cosmos-sdk
 * [#1924](https://github.com/crypto-org-chain/cronos/pull/1924) Fix: check authorisation address in the blocklist
 * [#1928](https://github.com/crypto-org-chain/ethermint/pull/1928) Fix: add check on evm transaction tip
+* [#1934](https://github.com/crypto-org-chain/cronos/pull/1934) fix: add AllowUnprotectedTxs configuration option to JSON-RPC settings
 
 *Nov 30, 2025*
 
