@@ -34,6 +34,11 @@ in
       substituteInPlace src/net/port_unix.go \
         --replace 'open("/etc/services")' 'open("${final.iana-etc}/etc/services")'
     '';
+    meta = old.meta // {
+      platforms = old.meta.platforms ++ [
+        "x86_64-windows"
+      ];
+    };
   });
   rocksdb = final.callPackage ./rocksdb.nix { };
   golangci-lint = final.callPackage ./golangci-lint.nix { };
