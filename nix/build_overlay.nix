@@ -9,6 +9,10 @@ let
     if len == 0 then [ ] else final.lib.lists.take (len - 1) l ++ [ newVal ];
 in
 {
+  # Provide windows.threads alias to the new pthreads package so cross builds keep working
+  windows = super.windows // {
+    threads = super.windows.pthreads;
+  };
   # Override go_1_24 to create go_1_25 with Windows platform support
   # Native nixpkgs go_1_25 doesn't support Windows (x86_64-windows not in meta.platforms)
   # By overriding go_1_24, we inherit its Windows support
