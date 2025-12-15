@@ -12,6 +12,13 @@ in
   # Provide windows.threads alias to the new pthreads package so cross builds keep working
   windows = super.windows // {
     threads = super.windows.pthreads;
+    mingw_w64_pthreads = super.windows.pthreads;
+  };
+  # Ensure the mingw cross toolchain exposes `threads` for packages that still expect it
+  pkgsCross = super.pkgsCross // {
+    mingwW64 = super.pkgsCross.mingwW64 // {
+      threads = super.pkgsCross.mingwW64.pthreads;
+    };
   };
   # Override go_1_24 to create go_1_25 with Windows platform support
   # Native nixpkgs go_1_25 doesn't support Windows (x86_64-windows not in meta.platforms)
