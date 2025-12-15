@@ -208,7 +208,8 @@ config {
       },
       {
         id: 'attestation-1',
-        max_gas: 500000,
+        max_gas: 2000000,  // Increased for attestation packet relay (~800k gas needed)
+        gas_multiplier: 1.2,
         gas_price: {
           price: 1000,
           denom: 'stake',

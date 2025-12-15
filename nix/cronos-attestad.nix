@@ -9,7 +9,7 @@ stdenv.mkDerivation rec {
   version = "0.1.0-local";
 
   src = builtins.path {
-    path = /Users/jaytseng/workspace/cronos-attestation-layer;
+    path = /Users/randy.ang/Documents/code/cronos-attestation-layer;
     name = "cronos-attestation-layer-src";
   };
 

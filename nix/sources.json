@@ -13,7 +13,7 @@
     },
     "cronos-attestation-layer": {
         "type": "local",
-        "path": "/Users/jaytseng/workspace/cronos-attestation-layer",
+        "path": "/Users/randy.ang/Documents/code/cronos-attestation-layer",
         "description": "Cronos Attestation Layer - L2 attestation service (local development)"
     },
     "dapptools": {
