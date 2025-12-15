@@ -27,6 +27,7 @@ from .utils import (
     deploy_contract,
     derive_new_account,
     fund_acc,
+    fund_address,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
@@ -989,6 +990,41 @@ def test_replay_protection(cronos):
         match=r"only replay-protected \(EIP-155\) transactions allowed over RPC",
     ):
         w3.eth.send_raw_transaction(HexBytes(raw))
+
+
+@pytest.fixture(scope="module")
+def cronos_allow_unprotected_txs(tmp_path_factory):
+    """
+    Start a cronos node with allow_unprotected_txs enabled (and base-fee disabled).
+    """
+    yield from setup_custom_cronos(
+        tmp_path_factory.mktemp("allow_unprotected_txs"),
+        27100,
+        Path(__file__).parent / "configs/allow-unprotected-txs.jsonnet",
+    )
+
+
+def test_replay_tx_allowed_when_unprotected_enabled(cronos_allow_unprotected_txs):
+    w3 = cronos_allow_unprotected_txs.w3
+
+    # https://etherscan.io/tx/0x06d2fa464546e99d2147e1fc997ddb624cec9c8c5e25a050cc381ee8a384eed3
+    sender = Web3.to_checksum_address("0x1aa7451DD11b8cb16AC089ED7fE05eFa00100A6A")
+    fund_address(w3, sender)
+
+    raw = (
+        (
+            Path(__file__).parent / "configs/replay-tx-0x"
+            "06d2fa464546e99d2147e1fc997ddb62"
+            "4cec9c8c5e25a050cc381ee8a384eed3.tx"
+        )
+        .read_text()
+        .strip()
+    )
+
+    txhash = w3.eth.send_raw_transaction(HexBytes(raw))
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+    assert receipt.contractAddress is not None
 
 
 @pytest.mark.gov

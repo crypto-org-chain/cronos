@@ -307,7 +307,7 @@ replace (
 	// release/v1.15
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// release/v0.22.x-cronosv1.6-optstaking
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0.0-20251209082631-9310d036187d
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0.0-20251215101602-5c903b85a3af
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
