@@ -26,6 +26,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // BlockAttestationData contains the data for a single block attestation
 // Includes all data needed for full block reconstruction (DA layer)
+// CONTRACT: Has to be consistent with attestation layer
 type BlockAttestationData struct {
 	// Block height (for indexing, also in block_header.Header.Height)
 	BlockHeight uint64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`

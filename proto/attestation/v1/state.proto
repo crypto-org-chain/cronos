@@ -6,8 +6,10 @@ import "gogoproto/gogo.proto";
 
 option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
+
 // BlockAttestationData contains the data for a single block attestation
 // Includes all data needed for full block reconstruction (DA layer)
+// CONTRACT: Has to be consistent with attestation layer
 message BlockAttestationData {
   // Block height (for indexing, also in block_header.Header.Height)
   uint64 block_height = 1;
