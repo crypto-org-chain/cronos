@@ -327,7 +327,7 @@ type App struct {
 	E2EEKeeper e2eekeeper.Keeper
 
 	// attestation keeper
-	AttestationKeeper attestationkeeper.Keeper
+	AttestationKeeper *attestationkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 

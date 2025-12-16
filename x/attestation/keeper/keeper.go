@@ -50,8 +50,8 @@ func NewKeeper(
 	storeService store.KVStoreService,
 	chainID string,
 	authority string,
-) Keeper {
-	return Keeper{
+) *Keeper {
+	return &Keeper{
 		cdc:          cdc,
 		storeService: storeService,
 		chainID:      chainID,
@@ -211,7 +211,7 @@ func (k Keeper) GetPendingAttestations(ctx context.Context, startHeight, endHeig
 }
 
 // RemovePendingAttestation removes a pending attestation by height (from local storage)
-func (k Keeper) RemovePendingAttestation(ctx context.Context, height uint64) error {
+func (k *Keeper) RemovePendingAttestation(ctx context.Context, height uint64) error {
 	if k.finalityDB == nil {
 		return fmt.Errorf("local finality database not initialized")
 	}

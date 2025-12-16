@@ -14,11 +14,11 @@ var _ api.IBCModule = (*IBCModuleV2)(nil)
 
 // IBCModuleV2 implements the IBC v2 Module interface for attestation
 type IBCModuleV2 struct {
-	keeper Keeper
+	keeper *Keeper
 }
 
 // NewIBCModuleV2 creates a new IBCModuleV2 given a keeper
-func NewIBCModuleV2(k Keeper) IBCModuleV2 {
+func NewIBCModuleV2(k *Keeper) IBCModuleV2 {
 	return IBCModuleV2{
 		keeper: k,
 	}
