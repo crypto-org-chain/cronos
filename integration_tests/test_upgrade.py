@@ -354,7 +354,8 @@ def exec(c, tmp_path_factory):
     historical_storage_address = "0x0000F90827F1C53a10cb7A02335B175320002935"
     expected_historical_storage_address_code = (
         "3373fffffffffffffffffffffffffffffffffffffffe14604657602036036042575f356001"
-        "43038111604257611fff81430311604257611fff9006545f5260205ff35b5f5ffd5b5f35611fff60014303065500"
+        "43038111604257611fff81430311604257611fff9006545f5260205ff35b5f5ffd5b5f3561"
+        "1fff60014303065500"
     )
     historical_storage_address_code = w3.eth.get_code(historical_storage_address)
     assert historical_storage_address_code == HexBytes(
