@@ -67,6 +67,7 @@ stdenv.mkDerivation rec {
     ]
     ++ lib.optionals stdenv.cc.isClang [
       "-Wno-error=unused-private-field"
+      "-Wno-nontrivial-memcall"
       "-faligned-allocation"
     ];
 
@@ -104,6 +105,12 @@ stdenv.mkDerivation rec {
 
   # otherwise "cc1: error: -Wformat-security ignored without -Wformat [-Werror=format-security]"
   hardeningDisable = lib.optional stdenv.hostPlatform.isWindows "format";
+
+  postPatch = ''
+    substituteInPlace port/mmap.cc \
+      --replace 'std::memcpy(this, &other, sizeof(*this));' \
+      'std::memcpy(static_cast<void*>(this), static_cast<const void*>(&other), sizeof(*this));'
+  '';
 
   preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && withLz4) ''
     # The MinGW lz4 package ships a stub import library that points at the
