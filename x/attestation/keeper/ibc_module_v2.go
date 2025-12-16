@@ -39,7 +39,7 @@ func (im IBCModuleV2) OnSendPacket(
 }
 
 // OnRecvPacket implements the IBCModule interface for v2
-// Called on attestation layer when receiving attestation data from Cronos
+// TODO: to be implemented for forced tx later
 func (im IBCModuleV2) OnRecvPacket(
 	ctx sdk.Context,
 	sourceClient string,
@@ -48,90 +48,10 @@ func (im IBCModuleV2) OnRecvPacket(
 	payload channelv2types.Payload,
 	relayer sdk.AccAddress,
 ) channelv2types.RecvPacketResult {
-	ctx.Logger().Info("IBC v2 Attestation: RecvPacket",
-		"source_client", sourceClient,
-		"dest_client", destinationClient,
-		"sequence", sequence,
-		"relayer", relayer.String(),
-	)
-
-	// Decode attestation packet data
-	var packetData types.AttestationPacketData
-	if err := json.Unmarshal(payload.Value, &packetData); err != nil {
-		ctx.Logger().Error("failed to unmarshal attestation packet", "error", err)
-		return channelv2types.RecvPacketResult{
-			Status:          channelv2types.PacketStatus_Failure,
-			Acknowledgement: []byte(fmt.Sprintf(`{"success":false,"error":"%s"}`, err.Error())),
-		}
-	}
-
-	// Process attestations
-	var attestationIds []uint64
-	var attestBlockHeights []uint64
-
-	for _, attestation := range packetData.Attestations {
-		// Store attestation as pending (consensus storage)
-		if err := im.keeper.AddPendingAttestation(ctx, attestation.BlockHeight, &attestation); err != nil {
-			ctx.Logger().Error("failed to store attestation",
-				"height", attestation.BlockHeight,
-				"error", err,
-			)
-			continue
-		}
-
-		// Store finality in LOCAL database (no consensus)
-		// This provides fast queries without consensus overhead
-		if err := im.keeper.MarkBlockFinalizedLocal(
-			ctx,
-			attestation.BlockHeight,
-			ctx.BlockTime().Unix(),
-			attestation.BlockHash,
-		); err != nil {
-			ctx.Logger().Error("failed to store finality locally",
-				"height", attestation.BlockHeight,
-				"error", err,
-			)
-			// Don't fail the packet - local storage is optional
-		}
-
-		// Track attestation IDs (using sequence as ID for now)
-		attestationIds = append(attestationIds, sequence)
-		attestBlockHeights = append(attestBlockHeights, attestation.BlockHeight)
-
-		// Emit event
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				"attestation_v2_received",
-				sdk.NewAttribute("source_client", sourceClient),
-				sdk.NewAttribute("dest_client", destinationClient),
-				sdk.NewAttribute("sequence", fmt.Sprintf("%d", sequence)),
-				sdk.NewAttribute("block_height", fmt.Sprintf("%d", attestation.BlockHeight)),
-				sdk.NewAttribute("chain_id", packetData.SourceChainId),
-			),
-		)
-	}
-
-	// Create acknowledgement with finality feedback
-	ack := types.AttestationPacketAcknowledgement{
-		Success:            true,
-		AttestationIds:     attestationIds,
-		AttestBlockHeights: attestBlockHeights,
-		FinalizedAt:        ctx.BlockTime().Unix(),
-		FinalityProof:      nil, // TODO: Add proof if needed
-	}
-
-	ackBytes, err := json.Marshal(ack)
-	if err != nil {
-		ctx.Logger().Error("failed to marshal acknowledgement", "error", err)
-		return channelv2types.RecvPacketResult{
-			Status:          channelv2types.PacketStatus_Failure,
-			Acknowledgement: []byte(fmt.Sprintf(`{"success":false,"error":"failed to marshal ack"}`)),
-		}
-	}
-
+	ctx.Logger().Error("IBC v2 Attestation: RecvPacket is not supported for now")
 	return channelv2types.RecvPacketResult{
-		Status:          channelv2types.PacketStatus_Success,
-		Acknowledgement: ackBytes,
+		Status:          channelv2types.PacketStatus_Failure,
+		Acknowledgement: []byte(""),
 	}
 }
 
@@ -159,7 +79,7 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 		return fmt.Errorf("failed to unmarshal acknowledgement: %w", err)
 	}
 
-	if !ack.Success {
+	if ack.Error != "" {
 		ctx.Logger().Error("attestation packet failed on counterparty",
 			"error", ack.Error,
 		)
@@ -167,9 +87,10 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 	}
 
 	// Process finality feedback for each attested block height
-	for _, height := range ack.AttestBlockHeights {
+	for _, result := range ack.Results {
 		// Store finality in LOCAL database only (no consensus storage)
-		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt, ack.FinalityProof); err != nil {
+		height := result.BlockHeight
+		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt); err != nil {
 			ctx.Logger().Error("failed to store finality locally",
 				"height", height,
 				"error", err,
@@ -198,10 +119,7 @@ func (im IBCModuleV2) OnAcknowledgementPacket(
 		}
 	}
 
-	ctx.Logger().Info("processed finality feedback",
-		"finalized_count", len(ack.AttestBlockHeights),
-		"attestation_ids", len(ack.AttestationIds),
-	)
+	ctx.Logger().Info("processed finality feedback", "finalized_count", len(ack.Results))
 
 	return nil
 }

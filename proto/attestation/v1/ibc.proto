@@ -8,40 +8,43 @@ option go_package = "github.com/crypto-org-chain/cronos/x/attestation/types";
 
 // AttestationPacketData defines the IBC v2 packet structure for attestation transfer
 // Note: IBC v2 protocol handles authentication (relayer, signature, nonce) at the transport layer
+// CONTRACT: Has to be consistent with attestation layer
 message AttestationPacketData {
   option (gogoproto.goproto_getters) = false;
 
   // Source chain ID (where the blocks originated)
   string source_chain_id = 1;
 
-  // Rollup address
-  string rollup_address = 2;
-
   // Batch of block attestations
-  repeated BlockAttestationData attestations = 3 [(gogoproto.nullable) = false];
+  repeated BlockAttestationData attestations = 2 [(gogoproto.nullable) = false];
 }
 
+// AttestationResult contains the result for a single attested block
+// CONTRACT: Has to be consistent with attestation layer
+message AttestationResult {
+  // block_height is the rollup block height that was attested
+  uint64 block_height = 1;
+
+  uint64 attestation_id = 2;
+}
+
+
 // AttestationPacketAcknowledgement defines the acknowledgement returned by the attestation chain
+// CONTRACT: Has to be consistent with attestation layer
 message AttestationPacketAcknowledgement {
   option (gogoproto.goproto_getters) = false;
 
-  // Whether the attestation was successful
-  bool success = 1;
+  // error is populated if there is a failure when processing the packet
+  string error = 1;
 
-  // Error message if failed
-  string error = 2;
+  // block_height is the attestation chain block height at which this packet was processed
+  uint64 block_height = 2;
 
-  // List of attestation IDs created on attestation chain
-  repeated uint64 attestation_ids = 3;
+  // results contain the attestation results for all rollup blocks confirmed by this packet
+  repeated AttestationResult results = 3;
 
-  // List of block heights that were attested
-  repeated uint64 attest_block_heights = 4;
-
-  // Finality timestamp (0 if not finalized)
-  int64 finalized_at = 5;
-
-  // Finality proof (validator signatures, etc.)
-  bytes finality_proof = 6;
+  // finalized_at is the timestamp when the attestations were confirmed
+  int64 finalized_at = 4;
 }
 
 // IBC v2 module parameters for attestation

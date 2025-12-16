@@ -75,11 +75,10 @@ func (k *Keeper) SetFinalityCache(cache *FinalityCache) {
 // This method writes to a local database that does NOT participate in consensus.
 // Each validator node maintains its own copy.
 // Also updates the highest finality height in consensus state if this block is higher.
-func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, finalizedAt int64, proof []byte) error {
+func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, finalizedAt int64) error {
 	status := &types.FinalityStatus{
 		BlockHeight:   height,
 		FinalizedAt:   finalizedAt,
-		FinalityProof: proof,
 	}
 
 	// 1. Store in memory cache (if available)
@@ -115,7 +114,6 @@ func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, fina
 			"block_finalized_local",
 			sdk.NewAttribute("block_height", fmt.Sprintf("%d", height)),
 			sdk.NewAttribute("finalized_at", fmt.Sprintf("%d", finalizedAt)),
-			sdk.NewAttribute("has_proof", fmt.Sprintf("%v", len(proof) > 0)),
 		),
 	)
 

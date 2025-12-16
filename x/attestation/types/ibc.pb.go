@@ -25,13 +25,12 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // AttestationPacketData defines the IBC v2 packet structure for attestation transfer
 // Note: IBC v2 protocol handles authentication (relayer, signature, nonce) at the transport layer
+// CONTRACT: Has to be consistent with attestation layer
 type AttestationPacketData struct {
 	// Source chain ID (where the blocks originated)
 	SourceChainId string `protobuf:"bytes,1,opt,name=source_chain_id,json=sourceChainId,proto3" json:"source_chain_id,omitempty"`
-	// Rollup address
-	RollupAddress string `protobuf:"bytes,2,opt,name=rollup_address,json=rollupAddress,proto3" json:"rollup_address,omitempty"`
 	// Batch of block attestations
-	Attestations []BlockAttestationData `protobuf:"bytes,3,rep,name=attestations,proto3" json:"attestations"`
+	Attestations []BlockAttestationData `protobuf:"bytes,2,rep,name=attestations,proto3" json:"attestations"`
 }
 
 func (m *AttestationPacketData) Reset()         { *m = AttestationPacketData{} }
@@ -67,27 +66,79 @@ func (m *AttestationPacketData) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_AttestationPacketData proto.InternalMessageInfo
 
+// AttestationResult contains the result for a single attested block
+// CONTRACT: Has to be consistent with attestation layer
+type AttestationResult struct {
+	// block_height is the rollup block height that was attested
+	BlockHeight   uint64 `protobuf:"varint,1,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+	AttestationId uint64 `protobuf:"varint,2,opt,name=attestation_id,json=attestationId,proto3" json:"attestation_id,omitempty"`
+}
+
+func (m *AttestationResult) Reset()         { *m = AttestationResult{} }
+func (m *AttestationResult) String() string { return proto.CompactTextString(m) }
+func (*AttestationResult) ProtoMessage()    {}
+func (*AttestationResult) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7d03052d774106b8, []int{1}
+}
+func (m *AttestationResult) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AttestationResult) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AttestationResult.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AttestationResult) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AttestationResult.Merge(m, src)
+}
+func (m *AttestationResult) XXX_Size() int {
+	return m.Size()
+}
+func (m *AttestationResult) XXX_DiscardUnknown() {
+	xxx_messageInfo_AttestationResult.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AttestationResult proto.InternalMessageInfo
+
+func (m *AttestationResult) GetBlockHeight() uint64 {
+	if m != nil {
+		return m.BlockHeight
+	}
+	return 0
+}
+
+func (m *AttestationResult) GetAttestationId() uint64 {
+	if m != nil {
+		return m.AttestationId
+	}
+	return 0
+}
+
 // AttestationPacketAcknowledgement defines the acknowledgement returned by the attestation chain
+// CONTRACT: Has to be consistent with attestation layer
 type AttestationPacketAcknowledgement struct {
-	// Whether the attestation was successful
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Error message if failed
-	Error string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	// List of attestation IDs created on attestation chain
-	AttestationIds []uint64 `protobuf:"varint,3,rep,packed,name=attestation_ids,json=attestationIds,proto3" json:"attestation_ids,omitempty"`
-	// List of block heights that were attested
-	AttestBlockHeights []uint64 `protobuf:"varint,4,rep,packed,name=attest_block_heights,json=attestBlockHeights,proto3" json:"attest_block_heights,omitempty"`
-	// Finality timestamp (0 if not finalized)
-	FinalizedAt int64 `protobuf:"varint,5,opt,name=finalized_at,json=finalizedAt,proto3" json:"finalized_at,omitempty"`
-	// Finality proof (validator signatures, etc.)
-	FinalityProof []byte `protobuf:"bytes,6,opt,name=finality_proof,json=finalityProof,proto3" json:"finality_proof,omitempty"`
+	// error is populated if there is a failure when processing the packet
+	Error string `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	// block_height is the attestation chain block height at which this packet was processed
+	BlockHeight uint64 `protobuf:"varint,2,opt,name=block_height,json=blockHeight,proto3" json:"block_height,omitempty"`
+	// results contain the attestation results for all rollup blocks confirmed by this packet
+	Results []*AttestationResult `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
+	// finalized_at is the timestamp when the attestations were confirmed
+	FinalizedAt int64 `protobuf:"varint,4,opt,name=finalized_at,json=finalizedAt,proto3" json:"finalized_at,omitempty"`
 }
 
 func (m *AttestationPacketAcknowledgement) Reset()         { *m = AttestationPacketAcknowledgement{} }
 func (m *AttestationPacketAcknowledgement) String() string { return proto.CompactTextString(m) }
 func (*AttestationPacketAcknowledgement) ProtoMessage()    {}
 func (*AttestationPacketAcknowledgement) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7d03052d774106b8, []int{1}
+	return fileDescriptor_7d03052d774106b8, []int{2}
 }
 func (m *AttestationPacketAcknowledgement) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -130,7 +181,7 @@ func (m *Params) Reset()         { *m = Params{} }
 func (m *Params) String() string { return proto.CompactTextString(m) }
 func (*Params) ProtoMessage()    {}
 func (*Params) Descriptor() ([]byte, []int) {
-	return fileDescriptor_7d03052d774106b8, []int{2}
+	return fileDescriptor_7d03052d774106b8, []int{3}
 }
 func (m *Params) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -182,6 +233,7 @@ func (m *Params) GetPacketTimeoutTimestamp() uint64 {
 
 func init() {
 	proto.RegisterType((*AttestationPacketData)(nil), "attestation.v1.AttestationPacketData")
+	proto.RegisterType((*AttestationResult)(nil), "attestation.v1.AttestationResult")
 	proto.RegisterType((*AttestationPacketAcknowledgement)(nil), "attestation.v1.AttestationPacketAcknowledgement")
 	proto.RegisterType((*Params)(nil), "attestation.v1.Params")
 }
@@ -189,38 +241,36 @@ func init() {
 func init() { proto.RegisterFile("attestation/v1/ibc.proto", fileDescriptor_7d03052d774106b8) }
 
 var fileDescriptor_7d03052d774106b8 = []byte{
-	// 494 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x92, 0x4f, 0x6f, 0xd3, 0x30,
-	0x18, 0xc6, 0x6b, 0xda, 0x8d, 0xe1, 0x75, 0x9b, 0x64, 0x0a, 0xb2, 0x7a, 0xc8, 0xc2, 0xc4, 0x9f,
-	0x5e, 0x96, 0x50, 0x90, 0x10, 0xe2, 0xd6, 0x02, 0x12, 0xbb, 0xa0, 0x2a, 0xda, 0x89, 0x8b, 0xe5,
-	0x38, 0x5e, 0x6a, 0x35, 0x89, 0x23, 0xdb, 0x29, 0x94, 0x4f, 0xc0, 0x91, 0x8f, 0xc0, 0x89, 0x4f,
-	0xc1, 0x07, 0xd8, 0x71, 0x47, 0x4e, 0x08, 0xb5, 0x9f, 0x03, 0x09, 0xc5, 0x6e, 0x20, 0x83, 0x53,
-	0xde, 0xf7, 0x79, 0xde, 0xc8, 0xbf, 0xe7, 0xd5, 0x0b, 0x31, 0x35, 0x86, 0x6b, 0x43, 0x8d, 0x90,
-	0x45, 0xb8, 0x1c, 0x87, 0x22, 0x66, 0x41, 0xa9, 0xa4, 0x91, 0xe8, 0xb0, 0xe5, 0x04, 0xcb, 0xf1,
-	0x70, 0xf8, 0xcf, 0x64, 0x5d, 0x72, 0x37, 0x3b, 0x1c, 0xa4, 0x32, 0x95, 0xb6, 0x0c, 0xeb, 0xca,
-	0xa9, 0x27, 0xdf, 0x00, 0xbc, 0x33, 0xf9, 0xfb, 0xd3, 0x8c, 0xb2, 0x05, 0x37, 0xaf, 0xa8, 0xa1,
-	0xe8, 0x21, 0x3c, 0xd2, 0xb2, 0x52, 0x8c, 0x13, 0x36, 0xa7, 0xa2, 0x20, 0x22, 0xc1, 0xc0, 0x07,
-	0xa3, 0x5b, 0xd1, 0x81, 0x93, 0x5f, 0xd6, 0xea, 0x59, 0x82, 0x1e, 0xc0, 0x43, 0x25, 0xb3, 0xac,
-	0x2a, 0x09, 0x4d, 0x12, 0xc5, 0xb5, 0xc6, 0x37, 0xdc, 0x98, 0x53, 0x27, 0x4e, 0x44, 0x6f, 0x61,
-	0xbf, 0x05, 0xa7, 0x71, 0xd7, 0xef, 0x8e, 0xf6, 0x9f, 0xdc, 0x0f, 0xae, 0x27, 0x08, 0xa6, 0x99,
-	0x64, 0x8b, 0x16, 0x50, 0x8d, 0x32, 0xed, 0x5d, 0xfe, 0x38, 0xee, 0x44, 0xd7, 0xfe, 0x7f, 0xd1,
-	0xfb, 0xf4, 0xe5, 0xb8, 0x73, 0xf2, 0x0b, 0x40, 0xff, 0x3f, 0xfc, 0x09, 0x5b, 0x14, 0xf2, 0x7d,
-	0xc6, 0x93, 0x94, 0xe7, 0xbc, 0x30, 0x08, 0xc3, 0x9b, 0xba, 0x62, 0xac, 0x46, 0xab, 0x13, 0xec,
-	0x45, 0x4d, 0x8b, 0x06, 0x70, 0x87, 0x2b, 0x25, 0xd5, 0x16, 0xd9, 0x35, 0xe8, 0x11, 0x3c, 0x6a,
-	0x3d, 0x45, 0x44, 0xe2, 0x68, 0x7b, 0x51, 0x7b, 0xdd, 0x67, 0x89, 0x46, 0x8f, 0xe1, 0xc0, 0x29,
-	0x24, 0xae, 0xb1, 0xc9, 0x9c, 0x8b, 0x74, 0x6e, 0x34, 0xee, 0xd9, 0x69, 0xe4, 0x3c, 0x9b, 0xe8,
-	0x8d, 0x73, 0xd0, 0x3d, 0xd8, 0xbf, 0x10, 0x05, 0xcd, 0xc4, 0x47, 0x9e, 0x10, 0x6a, 0xf0, 0x8e,
-	0x0f, 0x46, 0xdd, 0x68, 0xff, 0x8f, 0x36, 0x31, 0xf5, 0x3e, 0x5d, 0x6b, 0x56, 0xa4, 0x54, 0x52,
-	0x5e, 0xe0, 0x5d, 0x1f, 0x8c, 0xfa, 0xd1, 0x41, 0xa3, 0xce, 0x6a, 0x71, 0x9b, 0xff, 0x2b, 0x80,
-	0xbb, 0x33, 0xaa, 0x68, 0xae, 0xd1, 0xb8, 0x81, 0xd9, 0x52, 0x17, 0x86, 0xab, 0x25, 0xcd, 0x6c,
-	0xe4, 0x5e, 0x74, 0xbb, 0x8d, 0xbe, 0xb5, 0x50, 0x08, 0xdb, 0x32, 0xe1, 0x05, 0x8d, 0x33, 0x9e,
-	0xd8, 0x65, 0xec, 0x35, 0xf8, 0xd6, 0x7a, 0xed, 0x1c, 0xf4, 0x1c, 0xe2, 0xd2, 0xae, 0x98, 0x18,
-	0x91, 0x73, 0x59, 0xb9, 0xaf, 0x36, 0x34, 0x2f, 0x71, 0xd7, 0xbe, 0x73, 0xd7, 0xf9, 0xe7, 0xce,
-	0x3e, 0x6f, 0xdc, 0xe9, 0xec, 0x72, 0xed, 0x81, 0xab, 0xb5, 0x07, 0x7e, 0xae, 0x3d, 0xf0, 0x79,
-	0xe3, 0x75, 0xae, 0x36, 0x5e, 0xe7, 0xfb, 0xc6, 0xeb, 0xbc, 0x7b, 0x96, 0x0a, 0x33, 0xaf, 0xe2,
-	0x80, 0xc9, 0x3c, 0x64, 0x6a, 0x55, 0x1a, 0x79, 0x2a, 0x55, 0x7a, 0x6a, 0x8f, 0x2e, 0x64, 0x4a,
-	0x16, 0x52, 0x87, 0x1f, 0xc2, 0xf6, 0x61, 0x9b, 0x55, 0xc9, 0x75, 0xbc, 0x6b, 0x0f, 0xf8, 0xe9,
-	0xef, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb5, 0xa1, 0x0d, 0x10, 0x1e, 0x03, 0x00, 0x00,
+	// 462 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x52, 0x31, 0x8f, 0xd3, 0x30,
+	0x14, 0xae, 0xdb, 0x72, 0x80, 0x7b, 0x07, 0xc2, 0x14, 0x14, 0x75, 0xc8, 0xf5, 0x2a, 0x40, 0x5d,
+	0x2e, 0x51, 0x41, 0x42, 0x08, 0xa6, 0x16, 0x90, 0xb8, 0x05, 0x55, 0xd1, 0x4d, 0x48, 0x28, 0x72,
+	0x1c, 0x93, 0x5a, 0x4d, 0xe2, 0xc8, 0x7e, 0x2d, 0x1c, 0xbf, 0x80, 0x91, 0x85, 0x9d, 0x89, 0xff,
+	0xc1, 0x76, 0xe3, 0x8d, 0x4c, 0x08, 0xb5, 0x7f, 0x04, 0xc5, 0xee, 0x81, 0x7b, 0x9d, 0xf2, 0xf2,
+	0x7d, 0xef, 0xf9, 0x7d, 0xdf, 0xa7, 0x87, 0x3d, 0x0a, 0xc0, 0x35, 0x50, 0x10, 0xb2, 0x0c, 0x97,
+	0xa3, 0x50, 0x24, 0x2c, 0xa8, 0x94, 0x04, 0x49, 0x6e, 0x39, 0x4c, 0xb0, 0x1c, 0xf5, 0x7a, 0x57,
+	0x3a, 0xeb, 0x92, 0xdb, 0xde, 0x5e, 0x37, 0x93, 0x99, 0x34, 0x65, 0x58, 0x57, 0x16, 0x1d, 0x7c,
+	0x43, 0xf8, 0xde, 0xf8, 0xff, 0xd0, 0x94, 0xb2, 0x39, 0x87, 0x57, 0x14, 0x28, 0x79, 0x84, 0x6f,
+	0x6b, 0xb9, 0x50, 0x8c, 0xc7, 0x6c, 0x46, 0x45, 0x19, 0x8b, 0xd4, 0x43, 0x7d, 0x34, 0xbc, 0x19,
+	0x1d, 0x58, 0xf8, 0x65, 0x8d, 0x9e, 0xa4, 0xe4, 0x2d, 0xde, 0x77, 0xb6, 0x6a, 0xaf, 0xd9, 0x6f,
+	0x0d, 0x3b, 0x8f, 0x1f, 0x04, 0xdb, 0xd2, 0x82, 0x49, 0x2e, 0xd9, 0xdc, 0xd9, 0x54, 0xef, 0x98,
+	0xb4, 0xcf, 0x7f, 0x1f, 0x36, 0xa2, 0xad, 0xf9, 0xe7, 0xed, 0x2f, 0xdf, 0x0f, 0x1b, 0x83, 0xf7,
+	0xf8, 0x8e, 0xd3, 0x1c, 0x71, 0xbd, 0xc8, 0x81, 0x1c, 0xe1, 0xfd, 0xa4, 0x7e, 0x26, 0x9e, 0x71,
+	0x91, 0xcd, 0xc0, 0xe8, 0x69, 0x47, 0x1d, 0x83, 0xbd, 0x31, 0x10, 0x79, 0x88, 0xdd, 0x4c, 0x6a,
+	0xd1, 0x4d, 0xd3, 0x74, 0xe0, 0xa0, 0x27, 0xe9, 0xe0, 0x27, 0xc2, 0xfd, 0x1d, 0xdb, 0x63, 0x36,
+	0x2f, 0xe5, 0xc7, 0x9c, 0xa7, 0x19, 0x2f, 0x78, 0x09, 0xa4, 0x8b, 0xaf, 0x71, 0xa5, 0xa4, 0xda,
+	0xf8, 0xb6, 0x3f, 0x3b, 0x22, 0x9a, 0xbb, 0x22, 0x5e, 0xe0, 0xeb, 0xca, 0x28, 0xd6, 0x5e, 0xcb,
+	0xa4, 0x71, 0x74, 0x35, 0x8d, 0x1d, 0x6f, 0xd1, 0xe5, 0x44, 0xfd, 0xfe, 0x07, 0x51, 0xd2, 0x5c,
+	0x7c, 0xe6, 0x69, 0x4c, 0xc1, 0x6b, 0xf7, 0xd1, 0xb0, 0x15, 0x75, 0xfe, 0x61, 0x63, 0xd8, 0x44,
+	0xf4, 0x03, 0xe1, 0xbd, 0x29, 0x55, 0xb4, 0xd0, 0x64, 0x84, 0xbb, 0x5b, 0xae, 0x4b, 0xe0, 0x6a,
+	0x49, 0xf3, 0x4d, 0x40, 0x77, 0x5d, 0xef, 0x1b, 0x8a, 0x84, 0xd8, 0x85, 0x63, 0x5e, 0xd2, 0x24,
+	0xe7, 0x36, 0xad, 0x1b, 0x11, 0x71, 0xa8, 0xd7, 0x96, 0x21, 0xcf, 0xb0, 0x57, 0x99, 0x98, 0x62,
+	0x10, 0x05, 0x97, 0x0b, 0xfb, 0xd5, 0x40, 0x8b, 0xca, 0x6b, 0x99, 0x3d, 0xf7, 0x2d, 0x7f, 0x6a,
+	0xe9, 0xd3, 0x4b, 0x76, 0x32, 0x3d, 0x5f, 0xf9, 0xe8, 0x62, 0xe5, 0xa3, 0x3f, 0x2b, 0x1f, 0x7d,
+	0x5d, 0xfb, 0x8d, 0x8b, 0xb5, 0xdf, 0xf8, 0xb5, 0xf6, 0x1b, 0xef, 0x9e, 0x66, 0x02, 0x66, 0x8b,
+	0x24, 0x60, 0xb2, 0x08, 0x99, 0x3a, 0xab, 0x40, 0x1e, 0x4b, 0x95, 0x1d, 0x9b, 0x83, 0x0b, 0x99,
+	0x92, 0xa5, 0xd4, 0xe1, 0xa7, 0xd0, 0x3d, 0x6a, 0x38, 0xab, 0xb8, 0x4e, 0xf6, 0xcc, 0xf1, 0x3e,
+	0xf9, 0x1b, 0x00, 0x00, 0xff, 0xff, 0x73, 0x73, 0x6f, 0x87, 0x1a, 0x03, 0x00, 0x00,
 }
 
 func (m *AttestationPacketData) Marshal() (dAtA []byte, err error) {
@@ -254,15 +304,8 @@ func (m *AttestationPacketData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintIbc(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x1a
+			dAtA[i] = 0x12
 		}
-	}
-	if len(m.RollupAddress) > 0 {
-		i -= len(m.RollupAddress)
-		copy(dAtA[i:], m.RollupAddress)
-		i = encodeVarintIbc(dAtA, i, uint64(len(m.RollupAddress)))
-		i--
-		dAtA[i] = 0x12
 	}
 	if len(m.SourceChainId) > 0 {
 		i -= len(m.SourceChainId)
@@ -270,6 +313,39 @@ func (m *AttestationPacketData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintIbc(dAtA, i, uint64(len(m.SourceChainId)))
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AttestationResult) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AttestationResult) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AttestationResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.AttestationId != 0 {
+		i = encodeVarintIbc(dAtA, i, uint64(m.AttestationId))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.BlockHeight != 0 {
+		i = encodeVarintIbc(dAtA, i, uint64(m.BlockHeight))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -294,70 +370,36 @@ func (m *AttestationPacketAcknowledgement) MarshalToSizedBuffer(dAtA []byte) (in
 	_ = i
 	var l int
 	_ = l
-	if len(m.FinalityProof) > 0 {
-		i -= len(m.FinalityProof)
-		copy(dAtA[i:], m.FinalityProof)
-		i = encodeVarintIbc(dAtA, i, uint64(len(m.FinalityProof)))
-		i--
-		dAtA[i] = 0x32
-	}
 	if m.FinalizedAt != 0 {
 		i = encodeVarintIbc(dAtA, i, uint64(m.FinalizedAt))
 		i--
-		dAtA[i] = 0x28
+		dAtA[i] = 0x20
 	}
-	if len(m.AttestBlockHeights) > 0 {
-		dAtA2 := make([]byte, len(m.AttestBlockHeights)*10)
-		var j1 int
-		for _, num := range m.AttestBlockHeights {
-			for num >= 1<<7 {
-				dAtA2[j1] = uint8(uint64(num)&0x7f | 0x80)
-				num >>= 7
-				j1++
+	if len(m.Results) > 0 {
+		for iNdEx := len(m.Results) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Results[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintIbc(dAtA, i, uint64(size))
 			}
-			dAtA2[j1] = uint8(num)
-			j1++
+			i--
+			dAtA[i] = 0x1a
 		}
-		i -= j1
-		copy(dAtA[i:], dAtA2[:j1])
-		i = encodeVarintIbc(dAtA, i, uint64(j1))
-		i--
-		dAtA[i] = 0x22
 	}
-	if len(m.AttestationIds) > 0 {
-		dAtA4 := make([]byte, len(m.AttestationIds)*10)
-		var j3 int
-		for _, num := range m.AttestationIds {
-			for num >= 1<<7 {
-				dAtA4[j3] = uint8(uint64(num)&0x7f | 0x80)
-				num >>= 7
-				j3++
-			}
-			dAtA4[j3] = uint8(num)
-			j3++
-		}
-		i -= j3
-		copy(dAtA[i:], dAtA4[:j3])
-		i = encodeVarintIbc(dAtA, i, uint64(j3))
+	if m.BlockHeight != 0 {
+		i = encodeVarintIbc(dAtA, i, uint64(m.BlockHeight))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x10
 	}
 	if len(m.Error) > 0 {
 		i -= len(m.Error)
 		copy(dAtA[i:], m.Error)
 		i = encodeVarintIbc(dAtA, i, uint64(len(m.Error)))
 		i--
-		dAtA[i] = 0x12
-	}
-	if m.Success {
-		i--
-		if m.Success {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x8
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -426,15 +468,26 @@ func (m *AttestationPacketData) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovIbc(uint64(l))
 	}
-	l = len(m.RollupAddress)
-	if l > 0 {
-		n += 1 + l + sovIbc(uint64(l))
-	}
 	if len(m.Attestations) > 0 {
 		for _, e := range m.Attestations {
 			l = e.Size()
 			n += 1 + l + sovIbc(uint64(l))
 		}
+	}
+	return n
+}
+
+func (m *AttestationResult) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BlockHeight != 0 {
+		n += 1 + sovIbc(uint64(m.BlockHeight))
+	}
+	if m.AttestationId != 0 {
+		n += 1 + sovIbc(uint64(m.AttestationId))
 	}
 	return n
 }
@@ -445,33 +498,21 @@ func (m *AttestationPacketAcknowledgement) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Success {
-		n += 2
-	}
 	l = len(m.Error)
 	if l > 0 {
 		n += 1 + l + sovIbc(uint64(l))
 	}
-	if len(m.AttestationIds) > 0 {
-		l = 0
-		for _, e := range m.AttestationIds {
-			l += sovIbc(uint64(e))
-		}
-		n += 1 + sovIbc(uint64(l)) + l
+	if m.BlockHeight != 0 {
+		n += 1 + sovIbc(uint64(m.BlockHeight))
 	}
-	if len(m.AttestBlockHeights) > 0 {
-		l = 0
-		for _, e := range m.AttestBlockHeights {
-			l += sovIbc(uint64(e))
+	if len(m.Results) > 0 {
+		for _, e := range m.Results {
+			l = e.Size()
+			n += 1 + l + sovIbc(uint64(l))
 		}
-		n += 1 + sovIbc(uint64(l)) + l
 	}
 	if m.FinalizedAt != 0 {
 		n += 1 + sovIbc(uint64(m.FinalizedAt))
-	}
-	l = len(m.FinalityProof)
-	if l > 0 {
-		n += 1 + l + sovIbc(uint64(l))
 	}
 	return n
 }
@@ -563,38 +604,6 @@ func (m *AttestationPacketData) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RollupAddress", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowIbc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthIbc
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthIbc
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.RollupAddress = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Attestations", wireType)
 			}
 			var msglen int
@@ -648,6 +657,94 @@ func (m *AttestationPacketData) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *AttestationResult) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowIbc
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AttestationResult: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AttestationResult: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockHeight", wireType)
+			}
+			m.BlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIbc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BlockHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AttestationId", wireType)
+			}
+			m.AttestationId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIbc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AttestationId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipIbc(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthIbc
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *AttestationPacketAcknowledgement) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -678,26 +775,6 @@ func (m *AttestationPacketAcknowledgement) Unmarshal(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Success", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowIbc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Success = bool(v != 0)
-		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
@@ -729,159 +806,60 @@ func (m *AttestationPacketAcknowledgement) Unmarshal(dAtA []byte) error {
 			}
 			m.Error = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockHeight", wireType)
+			}
+			m.BlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIbc
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BlockHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		case 3:
-			if wireType == 0 {
-				var v uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowIbc
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					v |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Results", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowIbc
 				}
-				m.AttestationIds = append(m.AttestationIds, v)
-			} else if wireType == 2 {
-				var packedLen int
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowIbc
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					packedLen |= int(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				if packedLen < 0 {
-					return ErrInvalidLengthIbc
-				}
-				postIndex := iNdEx + packedLen
-				if postIndex < 0 {
-					return ErrInvalidLengthIbc
-				}
-				if postIndex > l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				var elementCount int
-				var count int
-				for _, integer := range dAtA[iNdEx:postIndex] {
-					if integer < 128 {
-						count++
-					}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
 				}
-				elementCount = count
-				if elementCount != 0 && len(m.AttestationIds) == 0 {
-					m.AttestationIds = make([]uint64, 0, elementCount)
-				}
-				for iNdEx < postIndex {
-					var v uint64
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowIbc
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						v |= uint64(b&0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					m.AttestationIds = append(m.AttestationIds, v)
-				}
-			} else {
-				return fmt.Errorf("proto: wrong wireType = %d for field AttestationIds", wireType)
 			}
+			if msglen < 0 {
+				return ErrInvalidLengthIbc
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthIbc
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Results = append(m.Results, &AttestationResult{})
+			if err := m.Results[len(m.Results)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		case 4:
-			if wireType == 0 {
-				var v uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowIbc
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					v |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				m.AttestBlockHeights = append(m.AttestBlockHeights, v)
-			} else if wireType == 2 {
-				var packedLen int
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return ErrIntOverflowIbc
-					}
-					if iNdEx >= l {
-						return io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					packedLen |= int(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				if packedLen < 0 {
-					return ErrInvalidLengthIbc
-				}
-				postIndex := iNdEx + packedLen
-				if postIndex < 0 {
-					return ErrInvalidLengthIbc
-				}
-				if postIndex > l {
-					return io.ErrUnexpectedEOF
-				}
-				var elementCount int
-				var count int
-				for _, integer := range dAtA[iNdEx:postIndex] {
-					if integer < 128 {
-						count++
-					}
-				}
-				elementCount = count
-				if elementCount != 0 && len(m.AttestBlockHeights) == 0 {
-					m.AttestBlockHeights = make([]uint64, 0, elementCount)
-				}
-				for iNdEx < postIndex {
-					var v uint64
-					for shift := uint(0); ; shift += 7 {
-						if shift >= 64 {
-							return ErrIntOverflowIbc
-						}
-						if iNdEx >= l {
-							return io.ErrUnexpectedEOF
-						}
-						b := dAtA[iNdEx]
-						iNdEx++
-						v |= uint64(b&0x7F) << shift
-						if b < 0x80 {
-							break
-						}
-					}
-					m.AttestBlockHeights = append(m.AttestBlockHeights, v)
-				}
-			} else {
-				return fmt.Errorf("proto: wrong wireType = %d for field AttestBlockHeights", wireType)
-			}
-		case 5:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field FinalizedAt", wireType)
 			}
@@ -900,40 +878,6 @@ func (m *AttestationPacketAcknowledgement) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FinalityProof", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowIbc
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthIbc
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthIbc
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.FinalityProof = append(m.FinalityProof[:0], dAtA[iNdEx:postIndex]...)
-			if m.FinalityProof == nil {
-				m.FinalityProof = []byte{}
-			}
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipIbc(dAtA[iNdEx:])
