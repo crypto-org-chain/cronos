@@ -2,13 +2,15 @@ package app
 
 import (
 	"context"
-	upgradetypes "cosmossdk.io/x/upgrade/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
+
 	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 )
 
@@ -22,7 +24,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 		}
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		{
-			var preinstall = []evmtypes.Preinstall{
+			preinstall := []evmtypes.Preinstall{
 				{
 					Name:    "EIP-2935 - Serve historical block hashes from state",
 					Address: params.HistoryStorageAddress.String(),
@@ -45,7 +47,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 		}
 		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		{
-			var preinstall = []evmtypes.Preinstall{
+			preinstall := []evmtypes.Preinstall{
 				{
 					Name:    "Create2",
 					Address: "0x4e59b44847b379578588920ca78fbf26c0b4956c",
