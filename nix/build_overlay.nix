@@ -34,6 +34,37 @@ in
       substituteInPlace src/net/port_unix.go \
         --replace 'open("/etc/services")' 'open("${final.iana-etc}/etc/services")'
     '';
+    # Some cross toolchains (notably MinGW with LLVM) don't expose `threads`
+    # in targetPackages; fall back to the pthreads implementation when
+    # available to keep cross builds evaluable.
+    depsTargetTarget =
+      let
+        tp =
+          if final ? targetPackages then final.targetPackages else { };
+        threadsPkg =
+          if tp ? threads && tp.threads ? package then tp.threads.package
+          else if tp ? windows && tp.windows ? pthreads then tp.windows.pthreads
+          else null;
+      in
+      final.lib.optional (
+        final.stdenv.targetPlatform.isMinGW && threadsPkg != null
+      ) threadsPkg;
+    meta = old.meta // {
+      platforms = final.lib.unique ((old.meta.platforms or [ ]) ++ [
+        "x86_64-windows"
+        "i686-windows"
+        "aarch64-windows"
+      ]);
+    };
+  });
+  iana-etc = super.iana-etc.overrideAttrs (old: {
+    meta = old.meta // {
+      platforms = final.lib.unique ((old.meta.platforms or [ ]) ++ [
+        "x86_64-windows"
+        "i686-windows"
+        "aarch64-windows"
+      ]);
+    };
   });
   rocksdb = final.callPackage ./rocksdb.nix { };
   golangci-lint = final.callPackage ./golangci-lint.nix { };
