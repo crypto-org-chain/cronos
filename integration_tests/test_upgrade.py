@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 import requests
+from hexbytes import HexBytes
 from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
-from hexbytes import HexBytes
 from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
