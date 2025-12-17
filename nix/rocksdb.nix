@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
   pname = "rocksdb";
   version = "10.5.1";
 
-  withLz4 = !stdenv.hostPlatform.isMinGW;
+  withLz4 = true;
 
   src = fetchFromGitHub {
     owner = "facebook";
