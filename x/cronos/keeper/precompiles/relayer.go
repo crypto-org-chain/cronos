@@ -132,44 +132,61 @@ func (bc *RelayerContract) Address() common.Address {
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
+	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	// base cost to prevent large input size
 	inputLen := len(input)
 	baseCost := uint64(inputLen) * authtypes.DefaultTxSizeCostPerByte
 	var methodID [4]byte
-	copy(methodID[:], input[:4])
-	requiredGas, ok := relayerGasRequiredByMethod[methodID]
-	method, err := irelayerABI.MethodById(methodID[:])
-	if err != nil {
-		panic(err)
+	if inputLen < 4 {
+		bc.logger.Error("invalid input length", "input", input)
+		return getRequiredGas(0, baseCost, intrinsicGas)
 	}
-	if method.Name == RecvPacket {
-		args, err := method.Inputs.Unpack(input[4:])
-		if err != nil {
-			panic(err)
-		}
-		i := args[0].([]byte)
-		var msg channeltypes.MsgRecvPacket
-		if err = bc.cdc.Unmarshal(i, &msg); err != nil {
-			panic(err)
-		}
-		var data ibctransfertypes.FungibleTokenPacketData
-		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
-			panic(err)
-		}
-		denom := ibctransfertypes.ExtractDenomFromPath(data.Denom)
-		if denom.HasPrefix(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel()) {
-			requiredGas = GasWhenReceiverChainIsSource
-		}
-	}
-	intrinsicGas, _ := core.IntrinsicGas(input, nil, nil, false, bc.isHomestead, bc.isIstanbul, bc.isShanghai)
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
 	}()
+	copy(methodID[:], input[:4])
+	gasRequiredByMethod := uint64(0)
+	g, ok := relayerGasRequiredByMethod[methodID]
 	if !ok {
-		requiredGas = 0
+		bc.logger.Error("unknown method", "method", methodID)
+		return getRequiredGas(0, baseCost, intrinsicGas)
+	} else {
+		gasRequiredByMethod = g
 	}
-	total := requiredGas + baseCost
+	method, err := irelayerABI.MethodById(methodID[:])
+	if err != nil {
+		bc.logger.Error("failed to get method by id", "error", err)
+		return getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas)
+	}
+	if method.Name == RecvPacket {
+		args, err := method.Inputs.Unpack(input[4:])
+		if err != nil {
+			bc.logger.Error("failed to unpack input arguments", "error", err)
+			return getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas)
+		}
+		i := args[0].([]byte)
+		var msg channeltypes.MsgRecvPacket
+		if err = bc.cdc.Unmarshal(i, &msg); err != nil {
+			bc.logger.Error("failed to unmarshal MsgRecvPacket", "error", err)
+			return getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas)
+		}
+		var data ibctransfertypes.FungibleTokenPacketData
+		if err = ibctransfertypes.ModuleCdc.UnmarshalJSON(msg.Packet.GetData(), &data); err != nil {
+			bc.logger.Error("failed to unmarshal FungibleTokenPacketData", "error", err)
+			return getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas)
+		}
+		denom := ibctransfertypes.ExtractDenomFromPath(data.Denom)
+		if denom.HasPrefix(msg.Packet.GetSourcePort(), msg.Packet.GetSourceChannel()) {
+			gasRequiredByMethod = GasWhenReceiverChainIsSource
+		}
+	}
+
+	return getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas)
+}
+
+func getRequiredGas(gasRequiredByMethod, baseCost, intrinsicGas uint64) uint64 {
+	total := gasRequiredByMethod + baseCost
 	if total < intrinsicGas {
 		return 0
 	}

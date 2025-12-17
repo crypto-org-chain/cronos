@@ -103,6 +103,9 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size
 	baseCost := uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
 	var methodID [4]byte
+	if len(input) < 4 {
+		return baseCost
+	}
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
 	if icaMethodNamesByID[methodID] == SubmitMsgsMethodName {
