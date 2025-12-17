@@ -21,7 +21,7 @@
   sse42Support ? stdenv.hostPlatform.sse4_2Support,
 }:
 
-stdenv.mkDerivation rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
   version = "10.5.1";
 
@@ -29,8 +29,8 @@ stdenv.mkDerivation rec {
 
   src = fetchFromGitHub {
     owner = "facebook";
-    repo = pname;
-    rev = "v${version}";
+    repo = finalAttrs.pname;
+    rev = "v${finalAttrs.version}";
     sha256 = "sha256-TDYXzYbOLhcIRi+qi0FW1OLVtfKOF+gUbj62Tgpp3/E=";
   };
 
@@ -46,10 +46,10 @@ stdenv.mkDerivation rec {
     zlib
     zstd
   ]
-  ++ lib.optional withLz4 lz4;
+  ++ lib.optional finalAttrs.withLz4 lz4;
 
   buildInputs =
-    lib.optional withLz4 lz4
+    lib.optional finalAttrs.withLz4 lz4
     ++ lib.optional enableJemalloc jemalloc
     ++ lib.optional stdenv.hostPlatform.isMinGW windows.pthreads;
 
@@ -81,7 +81,7 @@ stdenv.mkDerivation rec {
     "-DWITH_TOOLS=0"
     "-DWITH_CORE_TOOLS=1"
     "-DWITH_BZ2=1"
-    "-DWITH_LZ4=${if withLz4 then "1" else "0"}"
+    "-DWITH_LZ4=${if finalAttrs.withLz4 then "1" else "0"}"
     "-DWITH_SNAPPY=1"
     "-DWITH_ZLIB=1"
     "-DWITH_ZSTD=1"
@@ -110,7 +110,7 @@ stdenv.mkDerivation rec {
       'std::memcpy(static_cast<void*>(this), static_cast<const void*>(&other), sizeof(*this));'
   '';
 
-  preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && withLz4) ''
+  preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && finalAttrs.withLz4) ''
             # The MinGW lz4 package ships a stub import library that points at the
             # executable instead of the DLL. Generate a correct import library from
             # the actual DLL so RocksDB can link with LZ4.
@@ -176,7 +176,7 @@ stdenv.mkDerivation rec {
     cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
   ''
   + lib.optionalString stdenv.isDarwin ''
-    ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib {}
+    ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib {}
   ''
   + lib.optionalString (stdenv.isLinux && enableShared) ''
     ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
@@ -191,13 +191,13 @@ stdenv.mkDerivation rec {
   ''
   + lib.optionalString stdenv.isDarwin ''
     ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
-    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" "$out/lib/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib
+    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major finalAttrs.version}.dylib" "$out/lib/librocksdb.${lib.versions.major finalAttrs.version}.dylib" $out/lib/librocksdb.dylib
   '';
 
   meta = with lib; {
     homepage = "https://rocksdb.org";
     description = "A library that provides an embeddable, persistent key-value store for fast storage";
-    changelog = "https://github.com/facebook/rocksdb/raw/v${version}/HISTORY.md";
+    changelog = "https://github.com/facebook/rocksdb/raw/v${finalAttrs.version}/HISTORY.md";
     license = licenses.asl20;
     platforms = platforms.all;
     maintainers = with maintainers; [
@@ -205,4 +205,4 @@ stdenv.mkDerivation rec {
       magenbluten
     ];
   };
-}
+})
