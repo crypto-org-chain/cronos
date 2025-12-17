@@ -25,7 +25,7 @@ stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
   version = "10.5.1";
 
-  withLz4 = true;
+  withLz4 = !stdenv.hostPlatform.isMinGW;
 
   src = fetchFromGitHub {
     owner = "facebook";
@@ -110,7 +110,7 @@ stdenv.mkDerivation (finalAttrs: {
       'std::memcpy(static_cast<void*>(this), static_cast<const void*>(&other), sizeof(*this));'
   '';
 
-  preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && finalAttrs.withLz4) ''
+  preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && withLz4) ''
             # The MinGW lz4 package ships a stub import library that points at the
             # executable instead of the DLL. Generate a correct import library from
             # the actual DLL so RocksDB can link with LZ4.
