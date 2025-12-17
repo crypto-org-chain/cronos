@@ -151,9 +151,9 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	if !ok {
 		bc.logger.Error("unknown method", "method", methodID)
 		return getRequiredGas(0, baseCost, intrinsicGas)
-	} else {
-		gasRequiredByMethod = g
 	}
+	gasRequiredByMethod = g
+
 	method, err := irelayerABI.MethodById(methodID[:])
 	if err != nil {
 		bc.logger.Error("failed to get method by id", "error", err)
