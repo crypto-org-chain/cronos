@@ -146,13 +146,11 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 		bc.logger.Debug("required", "gas", gas, "method", methodName, "len", inputLen, "intrinsic", intrinsicGas)
 	}()
 	copy(methodID[:], input[:4])
-	gasRequiredByMethod := uint64(0)
-	g, ok := relayerGasRequiredByMethod[methodID]
+	gasRequiredByMethod, ok := relayerGasRequiredByMethod[methodID]
 	if !ok {
 		bc.logger.Error("unknown method", "method", methodID)
 		return getRequiredGas(0, baseCost, intrinsicGas)
 	}
-	gasRequiredByMethod = g
 
 	method, err := irelayerABI.MethodById(methodID[:])
 	if err != nil {
