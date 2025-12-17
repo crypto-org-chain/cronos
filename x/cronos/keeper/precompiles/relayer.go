@@ -51,6 +51,7 @@ const (
 	RegisterCounterpartyPayee       = "registerCounterpartyPayee"
 	GasWhenReceiverChainIsSource    = 51705
 	GasWhenReceiverChainIsNotSource = 144025
+	DefaultGasRequired              = 100000
 )
 
 func init() {
@@ -96,7 +97,7 @@ func init() {
 		case RegisterCounterpartyPayee:
 			relayerGasRequiredByMethod[methodID] = 37000
 		default:
-			relayerGasRequiredByMethod[methodID] = 100000
+			relayerGasRequiredByMethod[methodID] = DefaultGasRequired
 		}
 		relayerMethodNamedByMethod[methodID] = methodName
 	}
@@ -139,7 +140,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	var methodID [4]byte
 	if inputLen < 4 {
 		bc.logger.Error("invalid input length", "input", input)
-		return getRequiredGas(0, baseCost, intrinsicGas)
+		return getRequiredGas(DefaultGasRequired, baseCost, intrinsicGas)
 	}
 	defer func() {
 		methodName := relayerMethodNamedByMethod[methodID]
@@ -149,7 +150,7 @@ func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
 	gasRequiredByMethod, ok := relayerGasRequiredByMethod[methodID]
 	if !ok {
 		bc.logger.Error("unknown method", "method", methodID)
-		return getRequiredGas(0, baseCost, intrinsicGas)
+		return getRequiredGas(DefaultGasRequired, baseCost, intrinsicGas)
 	}
 
 	method, err := irelayerABI.MethodById(methodID[:])
