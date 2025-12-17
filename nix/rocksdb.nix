@@ -45,7 +45,8 @@ stdenv.mkDerivation rec {
     snappy
     zlib
     zstd
-  ] ++ lib.optional withLz4 lz4;
+  ]
+  ++ lib.optional withLz4 lz4;
 
   buildInputs =
     lib.optional withLz4 lz4
@@ -97,9 +98,6 @@ stdenv.mkDerivation rec {
     # full import library output.
     "-DCMAKE_REQUIRE_FIND_PACKAGE_PkgConfig=ON"
 
-
-
-
   ]
   ++ lib.optional (!enableShared) "-DROCKSDB_BUILD_SHARED=0";
 
@@ -113,90 +111,88 @@ stdenv.mkDerivation rec {
   '';
 
   preConfigure = lib.optionalString (stdenv.hostPlatform.isMinGW && withLz4) ''
-    # The MinGW lz4 package ships a stub import library that points at the
-    # executable instead of the DLL. Generate a correct import library from
-    # the actual DLL so RocksDB can link with LZ4.
-    lz4_out=${if lz4 ? out then lz4.out else lz4}
-    lz4_dev=${if lz4 ? dev then lz4.dev else lz4}
-    lz4_dll=$lz4_out/bin/liblz4.dll
-    lz4_import_dir=$PWD/lz4-import
-    mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
+            # The MinGW lz4 package ships a stub import library that points at the
+            # executable instead of the DLL. Generate a correct import library from
+            # the actual DLL so RocksDB can link with LZ4.
+            lz4_out=${if lz4 ? out then lz4.out else lz4}
+            lz4_dev=${if lz4 ? dev then lz4.dev else lz4}
+            lz4_dll=$lz4_out/bin/liblz4.dll
+            lz4_import_dir=$PWD/lz4-import
+            mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
 
-    {
-      echo "LIBRARY liblz4.dll"
-      echo "EXPORTS"
-      ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" \
-        | awk '/\\+base/ && $NF ~ /^LZ4/ {print $NF}'
-    } > "$lz4_import_dir/lz4.def"
+            {
+              echo "LIBRARY liblz4.dll"
+              echo "EXPORTS"
+              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" \
+                | awk '/\\+base/ && $NF ~ /^LZ4/ {print $NF}'
+            } > "$lz4_import_dir/lz4.def"
 
-    ${stdenv.cc.bintools.targetPrefix}dlltool \
-      --dllname liblz4.dll \
-      --def "$lz4_import_dir/lz4.def" \
-      --output-lib "$lz4_import_dir/lib/liblz4.dll.a"
+            ${stdenv.cc.bintools.targetPrefix}dlltool \
+              --dllname liblz4.dll \
+              --def "$lz4_import_dir/lz4.def" \
+              --output-lib "$lz4_import_dir/lib/liblz4.dll.a"
 
-    cat > "$lz4_import_dir/lib/pkgconfig/liblz4.pc" <<EOF
-prefix=$lz4_out
-exec_prefix=$lz4_out
-libdir=$lz4_import_dir/lib
-includedir=$lz4_dev/include
+            cat > "$lz4_import_dir/lib/pkgconfig/liblz4.pc" <<EOF
+    prefix=$lz4_out
+    exec_prefix=$lz4_out
+    libdir=$lz4_import_dir/lib
+    includedir=$lz4_dev/include
 
-Name: lz4
-Description: LZ4 import library regenerated for MinGW
-Version: 1.10.0
-Libs: -L$libdir -llz4
-Cflags: -I$includedir
-EOF
+    Name: lz4
+    Description: LZ4 import library regenerated for MinGW
+    Version: 1.10.0
+    Libs: -L$libdir -llz4
+    Cflags: -I$includedir
+    EOF
 
-    cat > "$lz4_import_dir/lib/cmake/lz4/lz4Config.cmake" <<EOF
-set(LZ4_FOUND TRUE)
-set(LZ4_INCLUDE_DIR "$lz4_dev/include")
-set(LZ4_LIBRARIES "$lz4_import_dir/lib/liblz4.dll.a")
-add_library(lz4::lz4 SHARED IMPORTED)
-set_target_properties(lz4::lz4 PROPERTIES
-  IMPORTED_IMPLIB "$lz4_import_dir/lib/liblz4.dll.a"
-  IMPORTED_LOCATION "$lz4_out/bin/liblz4.dll"
-  INTERFACE_INCLUDE_DIRECTORIES "$lz4_dev/include"
-)
-EOF
-
-    export PKG_CONFIG_PATH="$lz4_import_dir/lib/pkgconfig''${PKG_CONFIG_PATH:+:}$PKG_CONFIG_PATH"
-    export CMAKE_LIBRARY_PATH="$lz4_import_dir/lib''${CMAKE_LIBRARY_PATH:+:}$CMAKE_LIBRARY_PATH"
-    export CMAKE_INCLUDE_PATH="$lz4_dev/include''${CMAKE_INCLUDE_PATH:+:}$CMAKE_INCLUDE_PATH"
-    export LZ4_DIR="$lz4_import_dir/lib/cmake/lz4"
-    export lz4_DIR="$lz4_import_dir/lib/cmake/lz4"
-    export CMAKE_PREFIX_PATH="$lz4_import_dir''${CMAKE_PREFIX_PATH:+:}$CMAKE_PREFIX_PATH"
-
-    cmakeFlagsArray+=(
-      "-DLZ4_LIBRARY=$lz4_import_dir/lib/liblz4.dll.a"
-      "-DLZ4_LIBRARIES=$lz4_import_dir/lib/liblz4.dll.a"
-      "-DLZ4_INCLUDE_DIR=$lz4_dev/include"
+            cat > "$lz4_import_dir/lib/cmake/lz4/lz4Config.cmake" <<EOF
+    set(LZ4_FOUND TRUE)
+    set(LZ4_INCLUDE_DIR "$lz4_dev/include")
+    set(LZ4_LIBRARIES "$lz4_import_dir/lib/liblz4.dll.a")
+    add_library(lz4::lz4 SHARED IMPORTED)
+    set_target_properties(lz4::lz4 PROPERTIES
+      IMPORTED_IMPLIB "$lz4_import_dir/lib/liblz4.dll.a"
+      IMPORTED_LOCATION "$lz4_out/bin/liblz4.dll"
+      INTERFACE_INCLUDE_DIRECTORIES "$lz4_dev/include"
     )
+    EOF
+
+            export PKG_CONFIG_PATH="$lz4_import_dir/lib/pkgconfig''${PKG_CONFIG_PATH:+:}$PKG_CONFIG_PATH"
+            export CMAKE_LIBRARY_PATH="$lz4_import_dir/lib''${CMAKE_LIBRARY_PATH:+:}$CMAKE_LIBRARY_PATH"
+            export CMAKE_INCLUDE_PATH="$lz4_dev/include''${CMAKE_INCLUDE_PATH:+:}$CMAKE_INCLUDE_PATH"
+            export LZ4_DIR="$lz4_import_dir/lib/cmake/lz4"
+            export lz4_DIR="$lz4_import_dir/lib/cmake/lz4"
+            export CMAKE_PREFIX_PATH="$lz4_import_dir''${CMAKE_PREFIX_PATH:+:}$CMAKE_PREFIX_PATH"
+
+            cmakeFlagsArray+=(
+              "-DLZ4_LIBRARY=$lz4_import_dir/lib/liblz4.dll.a"
+              "-DLZ4_LIBRARIES=$lz4_import_dir/lib/liblz4.dll.a"
+              "-DLZ4_INCLUDE_DIR=$lz4_dev/include"
+            )
   '';
 
-  preInstall =
-    ''
-      mkdir -p $tools/bin
-      cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
-    ''
-    + lib.optionalString stdenv.isDarwin ''
-      ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib {}
-    ''
-    + lib.optionalString (stdenv.isLinux && enableShared) ''
-      ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
-    '';
+  preInstall = ''
+    mkdir -p $tools/bin
+    cp tools/{ldb,sst_dump}${stdenv.hostPlatform.extensions.executable} $tools/bin/
+  ''
+  + lib.optionalString stdenv.isDarwin ''
+    ls -1 $tools/bin/* | xargs -I{} ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib {}
+  ''
+  + lib.optionalString (stdenv.isLinux && enableShared) ''
+    ls -1 $tools/bin/* | xargs -I{} patchelf --set-rpath $out/lib:${stdenv.cc.cc.lib}/lib {}
+  '';
 
   # Old version doesn't ship the .pc file, new version puts wrong paths in there.
-  postFixup =
-    ''
-      if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
-        substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
-          --replace '="''${prefix}//' '="/'
-      fi
-    ''
-    + lib.optionalString stdenv.isDarwin ''
-      ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
-      ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" "$out/lib/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib
-    '';
+  postFixup = ''
+    if [ -f "$out"/lib/pkgconfig/rocksdb.pc ]; then
+      substituteInPlace "$out"/lib/pkgconfig/rocksdb.pc \
+        --replace '="''${prefix}//' '="/'
+    fi
+  ''
+  + lib.optionalString stdenv.isDarwin ''
+    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/libsnappy.1.dylib" "${snappy}/lib/libsnappy.1.dylib" $out/lib/librocksdb.dylib
+    ${stdenv.cc.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major version}.dylib" "$out/lib/librocksdb.${lib.versions.major version}.dylib" $out/lib/librocksdb.dylib
+  '';
 
   meta = with lib; {
     homepage = "https://rocksdb.org";
