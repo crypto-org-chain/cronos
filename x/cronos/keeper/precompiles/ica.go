@@ -119,6 +119,9 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
+	if len(contract.Input) < 4 {
+		return nil, errors.New("input too short")
+	}
 	methodID := contract.Input[:4]
 	method, err := icaABI.MethodById(methodID)
 	if err != nil {
