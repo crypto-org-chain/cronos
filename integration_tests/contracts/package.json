@@ -9,9 +9,14 @@
     "@openzeppelin/contracts": "^5.1.0",
     "@typechain/ethers-v5": "^5.0.0",
     "account-abstraction": "github:eth-infinitism/account-abstraction#v0.8.0",
+    "hardhat": "^2.22.0",
     "hardhat-typechain": "^0.3.5",
     "ts-generator": "^0.1.1",
     "typechain": "^4.0.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
   },
   "overrides": {
     "axios": "^1.12.0"
