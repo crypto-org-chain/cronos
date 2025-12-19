@@ -37,6 +37,12 @@ var (
 	// HighestFinalityHeightKey stores the highest finalized block height (consensus storage)
 	// This is the ONLY finality-related data stored in consensus state for tracking progress
 	HighestFinalityHeightKey = []byte{0x04}
+
+	// V1ChannelIDPrefix stores IBC v1 channel IDs (prefix + key -> channelID)
+	V1ChannelIDPrefix = []byte{0x05}
+
+	// V1PortIDPrefix stores IBC v1 port IDs (prefix + key -> portID)
+	V1PortIDPrefix = []byte{0x06}
 )
 
 // Local (non-consensus) store key prefixes

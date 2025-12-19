@@ -113,6 +113,7 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 		"v2_client_id", gs.V2ClientID,
 		"last_sent_height", gs.LastSentHeight,
 		"params", gs.Params,
+		"ibc_version", am.keeper.GetIBCVersion(),
 		"raw_data_length", len(data),
 	)
 
@@ -126,8 +127,18 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 			panic(err)
 		}
 		am.keeper.Logger(ctx).Info("Successfully set v2 client ID")
-	} else {
+	} else if am.keeper.GetIBCVersion() == "v2" {
 		am.keeper.Logger(ctx).Warn("v2 client ID is empty in genesis, attestation sending will be disabled until it's set")
+	}
+
+	// V1 channel ID and port ID are NOT set from genesis
+	// They will be automatically discovered via IBC callbacks (OnChanOpenAck/OnChanOpenConfirm)
+	// when the channel is created by a relayer or via CLI
+	if am.keeper.GetIBCVersion() == "v1" {
+		am.keeper.Logger(ctx).Info(
+			"IBC v1 mode enabled. Channel ID and Port ID will be set automatically " +
+				"via IBC callbacks when channel is created",
+		)
 	}
 
 	// Set last sent height
@@ -140,6 +151,7 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 		sdk.NewEvent(
 			"attestation_genesis_init",
 			sdk.NewAttribute("attestation_enabled", fmt.Sprintf("%v", gs.Params.AttestationEnabled)),
+			sdk.NewAttribute("ibc_version", am.keeper.GetIBCVersion()),
 			sdk.NewAttribute("v2_client_id", gs.V2ClientID),
 			sdk.NewAttribute("last_sent_height", fmt.Sprintf("%d", gs.LastSentHeight)),
 		),
@@ -164,8 +176,11 @@ func (am AppModule) ExportGenesisState(ctx context.Context) *types.GenesisState 
 	// Get params
 	params, _ := am.keeper.GetParams(ctx)
 
-	// Get v2 client ID
+	// Get v2 client ID (explicitly configured)
 	v2ClientID, _ := am.keeper.GetV2ClientID(ctx, "attestation-layer")
+
+	// V1 channel/port IDs are NOT exported - they are discovered dynamically
+	// via IBC callbacks when channels are created
 
 	// Get pending attestations
 	// TODO: Implement GetPendingAttestations if needed
@@ -176,6 +191,7 @@ func (am AppModule) ExportGenesisState(ctx context.Context) *types.GenesisState 
 		LastSentHeight:      lastSentHeight,
 		PendingAttestations: pendingRecords,
 		V2ClientID:          v2ClientID,
+		// V1ChannelID and V1PortID removed - discovered via callbacks
 	}
 }
 
@@ -278,38 +294,80 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 
 		am.keeper.Logger(ctx).Info("collected block attestations", "attestations", attestations)
 
-		// Get v2 client ID for attestation layer
-		v2ClientID, err := am.keeper.GetV2ClientID(ctx, "attestation-layer")
-		am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
-		if err != nil {
-			am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
-				"error", err,
-			)
-			// Update last sent height so we don't keep trying to send old blocks
-			if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
-				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
+		am.keeper.Logger(ctx).Info("preparing to send attestation packet",
+			"start_height", startHeight,
+			"end_height", endHeight,
+			"chain_id", am.keeper.ChainID(),
+			"ibc_version", am.keeper.GetIBCVersion(),
+		)
+
+		// Dispatch to appropriate IBC version based on keeper configuration
+		var sequence uint64
+		var sendError error
+		if am.keeper.GetIBCVersion() == "v1" {
+			// Use IBC v1 (traditional port/channel)
+			v1PortID, err := am.keeper.GetV1PortID(ctx, "attestation-layer")
+			if err != nil {
+				am.keeper.Logger(ctx).Debug("v1 port ID not configured, using default",
+					"default_port", types.PortID,
+					"error", err,
+				)
+				v1PortID = types.PortID
 			}
-			return nil // Don't fail the block - client ID will be set later via governance
+
+			v1ChannelID, err := am.keeper.GetV1ChannelID(ctx, "attestation-layer")
+			if err != nil {
+				am.keeper.Logger(ctx).Info("v1 channel ID not configured yet, skipping attestation send",
+					"key", "attestation-layer",
+					"error", err,
+				)
+				return nil
+			}
+
+			am.keeper.Logger(ctx).Info("Retrieved v1 channel configuration",
+				"port_id", v1PortID,
+				"channel_id", v1ChannelID,
+			)
+
+			sequence, sendError = am.keeper.SendAttestationPacketV1(
+				ctx,
+				v1PortID,
+				v1ChannelID,
+				attestations,
+			)
+		} else {
+			// Get v2 client ID for attestation layer
+			v2ClientID, err := am.keeper.GetV2ClientID(ctx, "attestation-layer")
+			am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
+			if err != nil {
+				am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
+					"error", err,
+				)
+				return nil
+			}
+			// Use IBC v2 (client-to-client)
+			sequence, sendError = am.keeper.SendAttestationPacketV2(
+				ctx,
+				v2ClientID,
+				v2ClientID, // destination client ID is the same as source client ID for testing
+				attestations,
+			)
 		}
 
-		am.keeper.Logger(ctx).Info("sending attestation packet", "start_height", startHeight, "end_height", endHeight, "chain_id", am.keeper.ChainID())
-
-		// Send packet via IBC v2
-		// IBC v2 protocol handles authentication automatically at transport layer
-		_, err = am.keeper.SendAttestationPacketV2(
-			ctx,
-			v2ClientID,
-			v2ClientID, // destination client ID is the same as source client ID for testing
-			attestations,
-		)
-		if err != nil {
+		if sendError != nil {
 			am.keeper.Logger(ctx).Error("failed to send attestation packet",
 				"start_height", startHeight,
 				"end_height", endHeight,
+				"ibc_version", am.keeper.GetIBCVersion(),
 				"error", err,
 			)
 			return nil // Don't fail the block
 		}
+
+		am.keeper.Logger(ctx).Info("attestation packet sent successfully",
+			"sequence", sequence,
+			"ibc_version", am.keeper.GetIBCVersion(),
+		)
 
 		// Update last sent height
 		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {

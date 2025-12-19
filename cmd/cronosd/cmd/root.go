@@ -14,6 +14,7 @@ import (
 	config2 "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	memiavlcfg "github.com/crypto-org-chain/cronos/store/config"
+	"github.com/crypto-org-chain/cronos/x/attestation"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	e2eecli "github.com/crypto-org-chain/cronos/x/e2ee/client/cli"
 	ethermintclient "github.com/evmos/ethermint/client"
@@ -215,6 +216,7 @@ func genesisCommand(txConfig client.TxConfig, basicManager module.BasicManager, 
 func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 	cronos.AddModuleInitFlags(startCmd)
+	attestation.AddModuleInitFlags(startCmd)
 	// this line is used by starport scaffolding # stargate/root/initFlags
 }
 

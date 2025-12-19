@@ -46,7 +46,7 @@ def attestation_network(tmp_path_factory):
     attestad_path = shutil.which("cronos-attestad")
     if not attestad_path:
         # Try NIX_BIN_DIR
-        nix_bin = os.environ.get("NIX_BIN_DIR", "/Users/jaytseng/workspace/cronos-attestation-layer/build")
+        nix_bin = os.environ.get("NIX_BIN_DIR", "/Users/randy.ang/Documents/code/cronos-attestation-layer/build")
         attestad_candidate = Path(nix_bin) / "cronos-attestad"
         if attestad_candidate.exists():
             attestad_path = str(attestad_candidate)

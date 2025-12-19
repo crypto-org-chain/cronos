@@ -10,12 +10,13 @@ func DefaultGenesis() *GenesisState {
 	}
 }
 
-// GenesisState defines the attestation module's genesis state (IBC v2)
+// GenesisState defines the attestation module's genesis state
 type GenesisState struct {
 	Params              Params                      `json:"params"`
 	LastSentHeight      uint64                      `json:"last_sent_height"`
 	PendingAttestations []*PendingAttestationRecord `json:"pending_attestations"`
-	V2ClientID          string                      `json:"v2_client_id"` // IBC v2 client ID for attestation layer
+	V2ClientID          string                      `json:"v2_client_id"` // IBC v2 client ID for attestation layer (explicit config)
+	// V1ChannelID and V1PortID removed - discovered automatically via IBC callbacks
 }
 
 // PendingAttestationRecord stores a pending attestation for genesis export

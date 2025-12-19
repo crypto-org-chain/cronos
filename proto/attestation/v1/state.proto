@@ -20,29 +20,19 @@ message BlockAttestationData {
   // Block header (encoded) - includes timestamp, app_hash, and all metadata
   bytes block_header = 3;
 
-  // Transaction results (encoded execution results)
-  bytes tx_results = 4;
-
-  // FinalizeBlock events (encoded)
-  bytes finalize_block_events = 5;
-
   // Validator updates (encoded)
   bytes validator_updates = 6;
 
   // Consensus parameter updates (encoded)
   bytes consensus_param_updates = 7;
 
-  // Raw transaction data (REQUIRED FOR RECONSTRUCTION)
-  // Encoded Block.Data.Txs - the actual transaction bytes
-  bytes transactions = 8;
-
   // Evidence data (encoded)
   // Encoded Block.Evidence for complete block reconstruction
-  bytes evidence = 9;
+  bytes evidence = 8;
 
   // Last commit (encoded)
   // Encoded Block.LastCommit - validator signatures from previous block
-  bytes last_commit = 10;
+  bytes last_commit = 9;
 }
 
 // BlockAttestationRecord stores the complete attestation record

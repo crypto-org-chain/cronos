@@ -9,6 +9,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	channelkeeper "github.com/cosmos/ibc-go/v10/modules/core/04-channel/keeper"
 	channelkeeperv2 "github.com/cosmos/ibc-go/v10/modules/core/04-channel/v2/keeper"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
@@ -23,7 +24,13 @@ type Keeper struct {
 	// Authority address for signing IBC v2 packets (typically gov module address)
 	authority string
 
-	// IBC v2 channel keeper for sending packets
+	// IBC version to use ("v1" or "v2")
+	ibcVersion string
+
+	// IBC v1 channel keeper for sending packets (traditional port/channel)
+	channelKeeper *channelkeeper.Keeper
+
+	// IBC v2 channel keeper for sending packets (client-to-client)
 	channelKeeperV2 *channelkeeperv2.Keeper
 
 	// Local non-consensus storage
@@ -50,18 +57,29 @@ func NewKeeper(
 	storeService store.KVStoreService,
 	chainID string,
 	authority string,
+	ibcVersion string,
 ) *Keeper {
+	// Default to v2 if not specified or invalid
+	if ibcVersion != "v1" && ibcVersion != "v2" {
+		ibcVersion = "v2"
+	}
 	return &Keeper{
 		cdc:          cdc,
 		storeService: storeService,
 		chainID:      chainID,
 		authority:    authority,
+		ibcVersion:   ibcVersion,
 	}
 }
 
 // GetAuthority returns the authority address for the attestation module
 func (k Keeper) GetAuthority() string {
 	return k.authority
+}
+
+// GetIBCVersion returns the configured IBC version ("v1" or "v2")
+func (k Keeper) GetIBCVersion() string {
+	return k.ibcVersion
 }
 
 // InitializeLocalStorage sets up the local finality storage
@@ -85,6 +103,12 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 // SetBlockCollector sets the block data collector for retrieving full block data
 func (k *Keeper) SetBlockCollector(collector BlockDataCollector) {
 	k.BlockCollector = collector
+}
+
+// SetChannelKeeper sets the IBC v1 channel keeper for sending packets
+// This is called after IBCKeeper initialization to avoid circular dependencies
+func (k *Keeper) SetChannelKeeper(channelKeeper *channelkeeper.Keeper) {
+	k.channelKeeper = channelKeeper
 }
 
 // SetChannelKeeperV2 sets the IBC v2 channel keeper for sending packets

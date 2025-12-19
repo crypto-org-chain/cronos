@@ -743,16 +743,14 @@ func New(
 
 	icaHostStack := icahost.NewIBCModule(app.ICAHostKeeper)
 
-	// Create static IBC router, add transfer route, then set and seal it
+	// Create static IBC router, add transfer route
+	// Note: We'll set the router later after the attestation keeper is initialized
 	ibcRouter := porttypes.NewRouter()
 	// Add controller & ica auth modules to IBC router
 	ibcRouter.
 		AddRoute(icacontrollertypes.SubModuleName, icaControllerStack).
 		AddRoute(icahosttypes.SubModuleName, icaHostStack).
 		AddRoute(ibctransfertypes.ModuleName, transferStack)
-
-	// this line is used by starport scaffolding # ibc/app/router
-	app.IBCKeeper.SetRouter(ibcRouter)
 
 	clientKeeper := app.IBCKeeper.ClientKeeper
 	storeProvider := clientKeeper.GetStoreProvider()
@@ -773,16 +771,35 @@ func New(
 
 	app.E2EEKeeper = e2eekeeper.NewKeeper(keys[e2eetypes.StoreKey], app.AccountKeeper.AddressCodec())
 
-	// Create Attestation Keeper (IBC v2 only)
+	// Get IBC version flag for attestation
+	daIBCVersion := cast.ToString(appOpts.Get(attestation.FlagDAIBCVersion))
+	if daIBCVersion == "" {
+		daIBCVersion = "v2" // Default to v2
+	}
+	logger.Info("Attestation IBC version", "version", daIBCVersion)
+
+	// Create Attestation Keeper with IBC version flag
 	app.AttestationKeeper = attestationkeeper.NewKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[attestationtypes.StoreKey]),
 		app.ChainID(),
 		authAddr,
+		daIBCVersion,
 	)
 
-	// Set IBC v2 channel keeper for attestation packet sending
+	// Set IBC v1 channel keeper for attestation packet sending (traditional port/channel)
+	app.AttestationKeeper.SetChannelKeeper(app.IBCKeeper.ChannelKeeper)
+
+	// Set IBC v2 channel keeper for attestation packet sending (client-to-client)
 	app.AttestationKeeper.SetChannelKeeperV2(app.IBCKeeper.ChannelKeeperV2)
+
+	// Set up IBC v1 module for attestation (traditional port/channel)
+	// IMPORTANT: Route must be keyed by PortID, not ModuleName
+	attestationV1Module := attestationkeeper.NewIBCModuleV1(app.AttestationKeeper)
+	ibcRouter.AddRoute(attestationtypes.PortID, attestationV1Module)
+
+	// Now seal and set the IBC router
+	app.IBCKeeper.SetRouter(ibcRouter)
 
 	// Set up IBC v2 Router for Eureka protocol (attestation uses v2 only)
 	attestationV2Module := attestationkeeper.NewIBCModuleV2(app.AttestationKeeper)
