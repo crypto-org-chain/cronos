@@ -117,6 +117,9 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 		"raw_data_length", len(data),
 	)
 
+	// TODO: why is v2 client id cant be set via a tx?
+	gs.V2ClientID = "07-tendermint-0"
+
 	// Set v2 client ID if provided
 	if gs.V2ClientID != "" {
 		am.keeper.Logger(ctx).Info("Setting v2 client ID in genesis",
@@ -250,8 +253,10 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 	am.keeper.Logger(ctx).Info("last sent height", "last_sent_height", lastSentHeight)
 	// Send attestation if it's time
 	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
+		am.keeper.Logger(ctx).Info("sending attestation", "current_height", currentHeight, "last_sent_height", lastSentHeight)
 		// Check if collector is available
 		if am.keeper.BlockCollector == nil {
+			am.keeper.Logger(ctx).Error("Block collector not initialized, skipping attestation")
 			am.keeper.Logger(ctx).Debug("Block collector not initialized, skipping attestation")
 			return nil
 		}
@@ -259,6 +264,8 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		// Collect attestations for blocks since last sent
 		startHeight := lastSentHeight + 1
 		endHeight := currentHeight
+
+		am.keeper.Logger(ctx).Info("start and end height", "start_height", startHeight, "end_height", endHeight)
 
 		// Limit by interval
 		if endHeight-startHeight > params.AttestationInterval {
@@ -292,7 +299,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil // Don't fail the block - collector might still be starting
 		}
 
-		am.keeper.Logger(ctx).Info("collected block attestations", "attestations", attestations)
+		am.keeper.Logger(ctx).Info("collected block attestations", "attestations", len(attestations))
 
 		am.keeper.Logger(ctx).Info("preparing to send attestation packet",
 			"start_height", startHeight,
@@ -410,6 +417,18 @@ func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, e
 		"end_height", endHeight,
 		"count", len(attestations),
 	)
+
+	for _, attestation := range attestations {
+		am.keeper.Logger(ctx).Info("GONNA SEND block attestation data",
+			"height", attestation.BlockHeight,
+			"block_hash_len", len(attestation.BlockHash),
+			"block_header_len", len(attestation.BlockHeader),
+			"validator_updates_len", len(attestation.ValidatorUpdates),
+			"consensus_params_len", len(attestation.ConsensusParamUpdates),
+			"evidence_len", len(attestation.Evidence),
+			"last_commit_len", len(attestation.LastCommit),
+		)
+	}
 
 	return attestations, nil
 }

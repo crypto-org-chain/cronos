@@ -184,6 +184,17 @@ func (c *BlockDataCollector) collectAndStoreBlock(ctx context.Context, eventData
 		LastCommit:            c.encodeLastCommit(block.LastCommit),
 	}
 
+	// Log field lengths for debugging
+	c.logger.Info("collected block attestation data",
+		"height", height,
+		"block_hash_len", len(attestationData.BlockHash),
+		"block_header_len", len(attestationData.BlockHeader),
+		"validator_updates_len", len(attestationData.ValidatorUpdates),
+		"consensus_params_len", len(attestationData.ConsensusParamUpdates),
+		"evidence_len", len(attestationData.Evidence),
+		"last_commit_len", len(attestationData.LastCommit),
+	)
+
 	// Store in local database
 	return c.storeBlockData(uint64(height), attestationData)
 }

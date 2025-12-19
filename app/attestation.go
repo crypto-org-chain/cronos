@@ -56,8 +56,11 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 	// Check if database already exists with matching backend type
 	dbExists, backendMatches := checkFinalityDatabaseExists(finalityDBPath, dbBackend)
 
+	logger.Info("dbExists:", "dbExists", dbExists, "backendMatches", backendMatches)
+
 	// If database exists but backend doesn't match, log warning and create new
-	if dbExists && !backendMatches {
+	// TODO: find a way to not create this db during genesis due to temp app, else local run will fail due to db lock not released properly
+	if dbExists {
 		logger.Warn("Existing finality database has different backend type, creating new database",
 			"db_path", finalityDBPath,
 			"configured_backend", dbBackendStr,
@@ -74,6 +77,8 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 	if err := app.AttestationKeeper.InitializeLocalStorage(finalityDBPath, cacheSize, dbBackend); err != nil {
 		return fmt.Errorf("failed to initialize local finality storage: %w", err)
 	}
+
+	
 
 	// Log status based on whether database already existed
 	if dbExists {
@@ -108,6 +113,16 @@ func setupBlockDataCollector(app *App, homePath string, dbBackend dbm.BackendTyp
 	// Ensure the directory exists
 	if err := os.MkdirAll(blockDataDBPath, 0755); err != nil {
 		return fmt.Errorf("failed to create block data database directory: %w", err)
+	}
+
+	// TODO: Check if database already exists and remove it to avoid lock conflicts
+	// (tempApp during genesis commands may have created it)
+	blockDataDBDir := filepath.Join(blockDataDBPath, "block_data.db")
+	if _, err := os.Stat(blockDataDBDir); err == nil {
+		logger.Info("Removing existing block data database to recreate", "path", blockDataDBDir)
+		if err := os.RemoveAll(blockDataDBDir); err != nil {
+			logger.Error("Failed to remove old block data database", "error", err)
+		}
 	}
 
 	blockDataDB, err := dbm.NewDB("block_data", dbBackend, blockDataDBPath)
