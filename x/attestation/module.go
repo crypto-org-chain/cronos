@@ -293,6 +293,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 				"error", err,
 			)
 			// Update last sent height to current so we don't keep trying to collect old blocks
+			fmt.Println("XXXX2 UPDATING LAST SENT HEIGHT TO", currentHeight)
 			if err := am.keeper.SetLastSentHeight(ctx, currentHeight); err != nil {
 				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
 			}
@@ -377,6 +378,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		)
 
 		// Update last sent height
+		fmt.Println("XXXX1 UPDATING LAST SENT HEIGHT TO", endHeight)
 		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"encoding/json"
 	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
@@ -195,14 +196,59 @@ func (im IBCModuleV1) OnAcknowledgementPacket(
 	acknowledgement []byte,
 	relayer sdk.AccAddress,
 ) error {
-	// Log acknowledgement
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			"attestation_v1_ack",
-			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-			sdk.NewAttribute("ack", string(acknowledgement)),
-		),
+	im.keeper.Logger(ctx).Info("IBC v1 Attestation: AcknowledgementPacket",
+		"channel_id", channelID,
+		"sequence", packet.Sequence,
+		"relayer", relayer.String(),
 	)
+
+	// Decode acknowledgement
+	var ack types.AttestationPacketAcknowledgement
+	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
+		return fmt.Errorf("failed to unmarshal acknowledgement: %w", err)
+	}
+
+	if ack.Error != "" {
+		im.keeper.Logger(ctx).Error("attestation packet failed on counterparty",
+			"error", ack.Error,
+		)
+		return nil
+	}
+
+	// Process finality feedback for each attested block height
+	for _, result := range ack.Results {
+		// Store finality in LOCAL database only (no consensus storage)
+		height := result.BlockHeight
+		im.keeper.Logger(ctx).Info("XXXX ACK RECEIVED STORING FOR BLOCK HEIGHT", "height", height)
+		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt); err != nil {
+			im.keeper.Logger(ctx).Error("failed to store finality locally",
+				"height", height,
+				"error", err,
+			)
+			// Continue - local storage failure shouldn't block processing
+		}
+
+		// Emit finality event
+		ctx.EventManager().EmitEvent(
+			sdk.NewEvent(
+				"block_finalized_v1",
+				sdk.NewAttribute("block_height", fmt.Sprintf("%d", height)),
+				sdk.NewAttribute("finalized_at", fmt.Sprintf("%d", ack.FinalizedAt)),
+				sdk.NewAttribute("sequence", fmt.Sprintf("%d", packet.Sequence)),
+				sdk.NewAttribute("channel_id", channelID),
+			),
+		)
+
+		// Remove from pending queue
+		if err := im.keeper.RemovePendingAttestation(ctx, height); err != nil {
+			im.keeper.Logger(ctx).Error("failed to remove pending attestation",
+				"height", height,
+				"error", err,
+			)
+		}
+	}
+
+	im.keeper.Logger(ctx).Info("processed finality feedback", "finalized_count", len(ack.Results))
 
 	return nil
 }
@@ -214,14 +260,38 @@ func (im IBCModuleV1) OnTimeoutPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) error {
-	// Log timeout
+	im.keeper.Logger(ctx).Info("IBC v1 Attestation: TimeoutPacket",
+		"channel_id", channelID,
+		"sequence", packet.Sequence,
+		"relayer", relayer.String(),
+	)
+
+	// Decode attestation packet data
+	var packetData types.AttestationPacketData
+	if err := json.Unmarshal(packet.GetData(), &packetData); err != nil {
+		return fmt.Errorf("failed to unmarshal packet data: %w", err)
+	}
+
+	// Log timeout for monitoring
+	im.keeper.Logger(ctx).Error("attestation packet timed out",
+		"channel_id", channelID,
+		"sequence", packet.Sequence,
+		"attestation_count", len(packetData.Attestations),
+		"chain_id", packetData.SourceChainId,
+	)
+
+	// Emit timeout event
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"attestation_v1_timeout",
-			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+			sdk.NewAttribute("channel_id", channelID),
 			sdk.NewAttribute("sequence", fmt.Sprintf("%d", packet.Sequence)),
+			sdk.NewAttribute("attestation_count", fmt.Sprintf("%d", len(packetData.Attestations))),
 		),
 	)
+
+	// TODO: Implement retry logic or mark attestations as failed
+	// For now, keep them in pending state for manual intervention
 
 	return nil
 }
