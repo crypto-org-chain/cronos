@@ -261,6 +261,45 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil
 		}
 
+		var v1PortID string
+		var v1ChannelID string
+		var v2ClientID string
+
+		if am.keeper.GetIBCVersion() == "v1" {
+			v1PortID, err = am.keeper.GetV1PortID(ctx, "attestation-layer")
+			if err != nil {
+				am.keeper.Logger(ctx).Info("v1 port ID not configured yet, skipping attestation send",
+					"key", "attestation-layer",
+					"error", err,
+				)
+				return nil
+			}
+
+			v1ChannelID, err = am.keeper.GetV1ChannelID(ctx, "attestation-layer")
+			if err != nil {
+				am.keeper.Logger(ctx).Info("v1 channel ID not configured yet, skipping attestation send",
+					"key", "attestation-layer",
+					"error", err,
+				)
+				return nil
+			}
+
+			am.keeper.Logger(ctx).Info("Retrieved v1 channel configuration",
+				"port_id", v1PortID,
+				"channel_id", v1ChannelID,
+			)
+
+		} else {
+			v2ClientID, err = am.keeper.GetV2ClientID(ctx, "attestation-layer")
+			am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
+			if err != nil {
+				am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
+					"error", err,
+				)
+				return nil
+			}
+		}
+
 		// Collect attestations for blocks since last sent
 		startHeight := lastSentHeight + 1
 		endHeight := currentHeight - 1
@@ -270,17 +309,6 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		// Limit by interval
 		if endHeight-startHeight > params.AttestationInterval {
 			endHeight = startHeight + params.AttestationInterval - 1
-		}
-
-		// Only try to collect blocks that are recent (within last 100 blocks)
-		// This avoids trying to collect very old blocks before collector started
-		if currentHeight > 100 && startHeight < currentHeight-100 {
-			startHeight = currentHeight - 100
-			am.keeper.Logger(ctx).Debug("Adjusted start height to recent blocks",
-				"original_start", lastSentHeight+1,
-				"adjusted_start", startHeight,
-				"current_height", currentHeight,
-			)
 		}
 
 		am.keeper.Logger(ctx).Info("collecting block attestations", "start_height", startHeight, "end_height", endHeight)
@@ -313,26 +341,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		var sequence uint64
 		var sendError error
 		if am.keeper.GetIBCVersion() == "v1" {
-			// Use IBC v1 (traditional port/channel)
-			v1PortID, err := am.keeper.GetV1PortID(ctx, "attestation-layer")
-			if err != nil {
-				am.keeper.Logger(ctx).Debug("v1 port ID not configured, using default",
-					"default_port", types.PortID,
-					"error", err,
-				)
-				v1PortID = types.PortID
-			}
-
-			v1ChannelID, err := am.keeper.GetV1ChannelID(ctx, "attestation-layer")
-			if err != nil {
-				am.keeper.Logger(ctx).Info("v1 channel ID not configured yet, skipping attestation send",
-					"key", "attestation-layer",
-					"error", err,
-				)
-				return nil
-			}
-
-			am.keeper.Logger(ctx).Info("Retrieved v1 channel configuration",
+			am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
 				"port_id", v1PortID,
 				"channel_id", v1ChannelID,
 			)
@@ -344,19 +353,12 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 				attestations,
 			)
 		} else {
-			// Get v2 client ID for attestation layer
-			v2ClientID, err := am.keeper.GetV2ClientID(ctx, "attestation-layer")
-			am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
-			if err != nil {
-				am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
-					"error", err,
-				)
-				return nil
-			}
-			// Use IBC v2 (client-to-client)
+			am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
+				"client_id", v2ClientID,
+			)
 			sequence, sendError = am.keeper.SendAttestationPacketV2(
 				ctx,
-				v2ClientID,
+				v2ClientID, // source client ID
 				v2ClientID, // destination client ID is the same as source client ID for testing
 				attestations,
 			)
@@ -423,12 +425,6 @@ func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, e
 	for _, attestation := range attestations {
 		am.keeper.Logger(ctx).Info("GONNA SEND block attestation data",
 			"height", attestation.BlockHeight,
-			"block_hash_len", len(attestation.BlockHash),
-			"block_header_len", len(attestation.BlockHeader),
-			"validator_updates_len", len(attestation.ValidatorUpdates),
-			"consensus_params_len", len(attestation.ConsensusParamUpdates),
-			"evidence_len", len(attestation.Evidence),
-			"last_commit_len", len(attestation.LastCommit),
 		)
 	}
 
