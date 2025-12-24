@@ -167,33 +167,13 @@ func (c *BlockDataCollector) collectAndStoreBlock(ctx context.Context, eventData
 	block := eventData.Block
 	height := block.Height
 
-	// Query block results (contains tx results, events, validator updates, etc.)
-	blockResults, err := c.client.BlockResults(ctx, &height)
-	if err != nil {
-		return fmt.Errorf("failed to get block results for height %d: %w", height, err)
-	}
-
-	// Create attestation data with all required fields
 	attestationData := &types.BlockAttestationData{
 		BlockHeight:           uint64(height),
-		BlockHash:             block.Hash(),
-		BlockHeader:           c.encodeBlockHeader(block.Header),
-		ValidatorUpdates:      c.encodeValidatorUpdates(blockResults.ValidatorUpdates),
-		ConsensusParamUpdates: c.encodeConsensusParamUpdates(blockResults.ConsensusParamUpdates),
-		Evidence:              c.encodeEvidence(block.Evidence),
-		LastCommit:            c.encodeLastCommit(block.LastCommit),
+		AppHash:               block.Header.AppHash,
 	}
 
 	// Log field lengths for debugging
-	c.logger.Info("collected block attestation data",
-		"height", height,
-		"block_hash_len", len(attestationData.BlockHash),
-		"block_header_len", len(attestationData.BlockHeader),
-		"validator_updates_len", len(attestationData.ValidatorUpdates),
-		"consensus_params_len", len(attestationData.ConsensusParamUpdates),
-		"evidence_len", len(attestationData.Evidence),
-		"last_commit_len", len(attestationData.LastCommit),
-	)
+	c.logger.Info("collected block attestation data", "height", height)
 
 	// Store in local database
 	return c.storeBlockData(uint64(height), attestationData)
@@ -444,22 +424,11 @@ func (c *BlockDataCollector) fetchBlockOnDemand(height uint64) (*types.BlockAtte
 		return nil, fmt.Errorf("failed to fetch block: %w", err)
 	}
 
-	// Query block results
-	blockResults, err := client.BlockResults(context.Background(), &h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch block results: %w", err)
-	}
-
 	// Create attestation data
 	block := blockRes.Block
 	attestationData := &types.BlockAttestationData{
 		BlockHeight:           uint64(height),
-		BlockHash:             block.Hash(),
-		BlockHeader:           c.encodeBlockHeader(block.Header),
-		ValidatorUpdates:      c.encodeValidatorUpdates(blockResults.ValidatorUpdates),
-		ConsensusParamUpdates: c.encodeConsensusParamUpdates(blockResults.ConsensusParamUpdates),
-		Evidence:              c.encodeEvidence(block.Evidence),
-		LastCommit:            c.encodeLastCommit(block.LastCommit),
+		AppHash:               block.Header.AppHash,
 	}
 
 	// Store it for future use

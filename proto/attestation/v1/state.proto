@@ -14,25 +14,7 @@ message BlockAttestationData {
   // Block height (for indexing, also in block_header.Header.Height)
   uint64 block_height = 1;
 
-  // Block hash (for fast lookups, can also compute from block_header)
-  bytes block_hash = 2;
-
-  // Block header (encoded) - includes timestamp, app_hash, and all metadata
-  bytes block_header = 3;
-
-  // Validator updates (encoded)
-  bytes validator_updates = 6;
-
-  // Consensus parameter updates (encoded)
-  bytes consensus_param_updates = 7;
-
-  // Evidence data (encoded)
-  // Encoded Block.Evidence for complete block reconstruction
-  bytes evidence = 8;
-
-  // Last commit (encoded)
-  // Encoded Block.LastCommit - validator signatures from previous block
-  bytes last_commit = 9;
+  bytes app_hash = 2;
 }
 
 // BlockAttestationRecord stores the complete attestation record
