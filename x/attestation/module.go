@@ -263,7 +263,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 
 		// Collect attestations for blocks since last sent
 		startHeight := lastSentHeight + 1
-		endHeight := currentHeight
+		endHeight := currentHeight - 1
 
 		am.keeper.Logger(ctx).Info("start and end height", "start_height", startHeight, "end_height", endHeight)
 
