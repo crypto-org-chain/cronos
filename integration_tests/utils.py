@@ -71,6 +71,7 @@ TEST_CONTRACTS = {
     "Utils": "Utils.sol",
     "Counter": "Counter.sol",
     "TestEip2935": "TestEip2935.sol",
+    "TestAccessList": "TestAccessList.sol",
 }
 
 
