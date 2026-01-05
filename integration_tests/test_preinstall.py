@@ -12,7 +12,8 @@ def test_preinstalls(cronos: Cronos):
     w3 = cronos.w3
     create2address = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
 
-    # transfer to the preinstall address to make sure it works even if it has non-zero balance
+    # transfer to the preinstall address to make sure it
+    # works even if it has non-zero balance
     txhash = w3.eth.send_transaction(
         {
             "from": ADDRS["validator"],
