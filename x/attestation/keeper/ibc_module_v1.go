@@ -203,8 +203,13 @@ func (im IBCModuleV1) OnAcknowledgementPacket(
 	)
 
 	// Decode acknowledgement
+	var ackResult channeltypes.Acknowledgement_Result
+	if err := json.Unmarshal(acknowledgement, &ackResult); err != nil {
+		return fmt.Errorf("failed to unmarshal acknowledgement: %w", err)
+	}
+
 	var ack types.AttestationPacketAcknowledgement
-	if err := json.Unmarshal(acknowledgement, &ack); err != nil {
+	if err := json.Unmarshal(ackResult.Result, &ack); err != nil {
 		return fmt.Errorf("failed to unmarshal acknowledgement: %w", err)
 	}
 
@@ -219,7 +224,6 @@ func (im IBCModuleV1) OnAcknowledgementPacket(
 	for _, result := range ack.Results {
 		// Store finality in LOCAL database only (no consensus storage)
 		height := result.BlockHeight
-		im.keeper.Logger(ctx).Info("XXXX ACK RECEIVED STORING FOR BLOCK HEIGHT", "height", height)
 		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt); err != nil {
 			im.keeper.Logger(ctx).Error("failed to store finality locally",
 				"height", height,
