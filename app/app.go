@@ -807,6 +807,11 @@ func New(
 	ibcV2Router.AddRoute("attestation", attestationV2Module)
 	app.IBCKeeper.SetRouterV2(ibcV2Router)
 
+	// Initialize local finality storage (non-consensus)
+	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger, db); err != nil {
+		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
+	}
+
 	// Store CometBFT RPC address for later initialization (after ABCI handshake)
 	// NOTE: Attestation finality storage initialization is deferred to loadLatest block
 	// to avoid creating the database during temp app initialization (genesis commands)
@@ -1116,17 +1121,6 @@ func New(
 
 			// otherwise, just emit error log
 			app.Logger().Error("failed to update blocklist", "error", err)
-		}
-
-		// Initialize local finality storage (non-consensus)
-		// Only initialize if this is a real node (has app.toml config) not a temp app
-		// used for CLI setup. Temp apps use simtestutil.NewAppOptionsWithFlagHome which
-		// only sets FlagHome, so we check for a real server option like "api.enable".
-		// The real server loads config from app.toml which sets this option.
-		if appOpts.Get("api.enable") != nil {
-			if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger); err != nil {
-				logger.Warn("Failed to initialize attestation local finality storage", "error", err)
-			}
 		}
 
 		// Start block data collector after ABCI handshake completes

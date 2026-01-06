@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"cosmossdk.io/log"
@@ -18,11 +19,20 @@ import (
 
 // setupAttestationFinalityStorage initializes the local finality storage for the attestation module
 // This storage is used to track pending attestations and finality status (non-consensus data)
-func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger) error {
+// If db is provided (e.g., MemDB for tempApp), it will be used directly instead of creating disk-based storage.
+// If db is nil, a persistent database will be created at homePath/data/finality.
+func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger, db dbm.DB) error {
 	// Get cache size from config (default: 10000)
 	cacheSize := cast.ToInt(appOpts.Get("attestation.finality-cache-size"))
 	if cacheSize == 0 {
 		cacheSize = 10000
+	}
+
+	if db == nil || reflect.TypeOf(db).String() == "*db.MemDB" {
+		logger.Info("Using provided database for attestation finality storage (e.g., MemDB)")
+		app.AttestationKeeper.SetFinalityDB(db)
+		app.AttestationKeeper.SetFinalityCache(nil)
+		return nil
 	}
 
 	// Get database backend from app-config (default: goleveldb)
@@ -59,7 +69,7 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 	logger.Info("dbExists:", "dbExists", dbExists, "backendMatches", backendMatches)
 
 	// If database exists but backend doesn't match, log warning and create new
-	if dbExists {
+	if dbExists && !backendMatches {
 		logger.Warn("Existing finality database has different backend type, creating new database",
 			"db_path", finalityDBPath,
 			"configured_backend", dbBackendStr,
