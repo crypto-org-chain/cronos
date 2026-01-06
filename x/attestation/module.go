@@ -407,12 +407,6 @@ func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, e
 		"count", len(attestations),
 	)
 
-	for _, attestation := range attestations {
-		am.keeper.Logger(ctx).Debug("GONNA SEND block attestation data",
-			"height", attestation.BlockHeight,
-		)
-	}
-
 	return attestations, nil
 }
 
