@@ -808,13 +808,15 @@ func New(
 	app.IBCKeeper.SetRouterV2(ibcV2Router)
 
 	// Initialize local finality storage (non-consensus)
-	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger, db); err != nil {
-		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
+	_, isMemDB := db.(*dbm.MemDB)
+
+	if !isMemDB {
+		if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger, db); err != nil {
+			logger.Warn("Failed to initialize attestation local finality storage", "error", err)
+		}
 	}
 
 	// Store CometBFT RPC address for later initialization (after ABCI handshake)
-	// NOTE: Attestation finality storage initialization is deferred to loadLatest block
-	// to avoid creating the database during temp app initialization (genesis commands)
 	// The BlockDataCollector needs WebSocket access to subscribe to block events
 	// This comes from the CometBFT RPC server, not the Cosmos SDK API server
 	rpcAddress := cast.ToString(appOpts.Get("rpc.laddr"))
