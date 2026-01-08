@@ -1,6 +1,5 @@
 package attestation
 
-
 import (
 	"github.com/spf13/cobra"
 )
@@ -9,7 +8,7 @@ const (
 	// FlagDAIBCVersion is the flag to specify the IBC version for data availability
 	FlagDAIBCVersion = "da-ibc-version"
 
-	// Default IBC version
+	// DefaultDAIBCVersion is the default IBC version for data availability attestation
 	DefaultDAIBCVersion = "v2"
 )
 

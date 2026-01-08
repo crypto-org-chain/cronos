@@ -171,7 +171,9 @@ func (im IBCModuleV1) OnChanCloseConfirm(
 	channelID string,
 ) error {
 	// Store the channel ID for future use
-	im.keeper.SetV1ChannelID(ctx, "attestation-layer", channelID)
+	if err := im.keeper.SetV1ChannelID(ctx, "attestation-layer", channelID); err != nil {
+		return errorsmod.Wrapf(err, "failed to set v1 channel ID")
+	}
 
 	return nil
 }
