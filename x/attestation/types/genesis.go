@@ -47,7 +47,7 @@ func (gs GenesisState) Validate() error {
 // DefaultParams returns default module parameters
 func DefaultParams() Params {
 	return Params{
-		AttestationInterval:    100, // Send attestation every 100 blocks
+		AttestationInterval:    30, // Send attestation every 30 blocks
 		AttestationEnabled:     true,
 		PacketTimeoutTimestamp: 600000000000, // 10 minutes in nanoseconds
 	}
