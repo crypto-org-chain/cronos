@@ -808,7 +808,7 @@ func New(
 	app.IBCKeeper.SetRouterV2(ibcV2Router)
 
 	// Initialize local finality storage (non-consensus)
-	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger); err != nil {
+	if err := setupAttestationFinalityStorage(app, homePath, appOpts, logger, db); err != nil {
 		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
 	}
 

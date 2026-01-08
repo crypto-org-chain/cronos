@@ -124,6 +124,7 @@ func TestLocalStorageWithRealDB(t *testing.T) {
 }
 
 func testLocalDB(t *testing.T, dbPath string) {
+	t.Helper()
 	// Test that we can create and close a database
 	// This is a basic sanity check
 

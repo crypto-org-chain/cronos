@@ -18,90 +18,89 @@ import (
 
 // setupAttestationFinalityStorage initializes the local finality storage for the attestation module
 // This storage is used to track pending attestations and finality status (non-consensus data)
-func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger) error {
-	// Get cache size from config (default: 10000)
+func setupAttestationFinalityStorage(app *App, homePath string, appOpts servertypes.AppOptions, logger log.Logger, db dbm.DB) error {
+
+	dbBackend, err := getDBBackend(db, appOpts)
+	if err != nil {
+		return err
+	}
+
+	finalityDBPath := filepath.Join(homePath, "data", "finality")
+
+	// MemDB doesn't persist - skip existence check
+	if dbBackend != dbm.MemDBBackend {
+		if err := os.MkdirAll(finalityDBPath, 0755); err != nil {
+			return fmt.Errorf("failed to create finality database directory: %w", err)
+		}
+		if err := cleanupMismatchedDB(finalityDBPath, dbBackend, logger); err != nil {
+			return fmt.Errorf("failed to cleanup mismatched database: %w", err)
+		}
+	}
+
 	cacheSize := cast.ToInt(appOpts.Get("attestation.finality-cache-size"))
 	if cacheSize == 0 {
 		cacheSize = 10000
 	}
 
-	// Get database backend from app-config (default: goleveldb)
-	// This matches the main app database backend setting
+	if err := app.AttestationKeeper.InitializeLocalStorage(finalityDBPath, cacheSize, dbBackend); err != nil {
+		return fmt.Errorf("failed to initialize local finality storage: %w", err)
+	}
+
+	logger.Info("Initialized attestation local finality storage",
+		"path", finalityDBPath,
+		"backend", dbBackend,
+		"cache_size", cacheSize,
+	)
+
+	// Initialize Block Data Collector (non-fatal if fails)
+	if err := setupBlockDataCollector(app, homePath, dbBackend, logger); err != nil {
+		return fmt.Errorf("failed to setup block data collector: %w", err)
+	}
+
+	return nil
+}
+
+// getDBBackend determines the database backend type from the db instance or app options
+func getDBBackend(db dbm.DB, appOpts servertypes.AppOptions) (dbm.BackendType, error) {
+	// Check concrete types first (MemDB and GoLevelDB are always available)
+	switch db.(type) {
+	case *dbm.MemDB:
+		return dbm.MemDBBackend, nil
+	case *dbm.GoLevelDB:
+		return dbm.GoLevelDBBackend, nil
+	}
+
+	// Fall back to config for RocksDB (conditionally compiled)
 	dbBackendStr := cast.ToString(appOpts.Get("app-db-backend"))
 	if dbBackendStr == "" {
 		dbBackendStr = "goleveldb"
 	}
 
-	// Parse database backend type
-	var dbBackend dbm.BackendType
 	switch dbBackendStr {
 	case "goleveldb":
-		dbBackend = dbm.GoLevelDBBackend
+		return dbm.GoLevelDBBackend, nil
 	case "rocksdb":
-		dbBackend = dbm.RocksDBBackend
+		return dbm.RocksDBBackend, nil
+	case "memdb":
+		return dbm.MemDBBackend, nil
 	default:
-		logger.Warn("Unsupported database backend, using goleveldb", "backend", dbBackendStr)
-		dbBackend = dbm.GoLevelDBBackend
-		dbBackendStr = "goleveldb"
+		return "", fmt.Errorf("unsupported database backend: %s", dbBackendStr)
+	}
+}
+
+// cleanupMismatchedDB removes existing database if it doesn't match the configured backend
+func cleanupMismatchedDB(dbPath string, backend dbm.BackendType, logger log.Logger) error {
+	exists, matches := checkFinalityDatabaseExists(dbPath, backend)
+	if !exists || matches {
+		return nil
 	}
 
-	// Create finality database path
-	finalityDBPath := filepath.Join(homePath, "data", "finality")
+	logger.Warn("Existing finality database has different backend type, removing",
+		"path", dbPath,
+		"configured_backend", backend,
+	)
 
-	// Ensure the directory exists
-	if err := os.MkdirAll(finalityDBPath, 0755); err != nil {
-		return fmt.Errorf("failed to create finality database directory: %w", err)
-	}
-
-	// Check if database already exists with matching backend type
-	dbExists, backendMatches := checkFinalityDatabaseExists(finalityDBPath, dbBackend)
-
-	logger.Info("dbExists:", "dbExists", dbExists, "backendMatches", backendMatches)
-
-	// If database exists but backend doesn't match, log warning and create new
-	// TODO: find a way to not create this db during genesis due to temp app, else local run will fail due to db lock not released properly
-	if dbExists {
-		logger.Warn("Existing finality database has different backend type, creating new database",
-			"db_path", finalityDBPath,
-			"configured_backend", dbBackendStr,
-		)
-		// Remove old database with different backend
-		oldDBPath := filepath.Join(finalityDBPath, "finality.db")
-		if err := os.RemoveAll(oldDBPath); err != nil {
-			logger.Error("Failed to remove old finality database", "error", err)
-		}
-		dbExists = false
-	}
-
-	// Initialize local storage (creates new or opens existing)
-	if err := app.AttestationKeeper.InitializeLocalStorage(finalityDBPath, cacheSize, dbBackend); err != nil {
-		return fmt.Errorf("failed to initialize local finality storage: %w", err)
-	}
-
-	
-
-	// Log status based on whether database already existed
-	if dbExists {
-		logger.Info("Opened existing attestation local finality storage",
-			"path", finalityDBPath,
-			"backend", dbBackendStr,
-			"cache_size", cacheSize,
-		)
-	} else {
-		logger.Info("Created new attestation local finality storage",
-			"path", finalityDBPath,
-			"backend", dbBackendStr,
-			"cache_size", cacheSize,
-		)
-	}
-
-	// Initialize Block Data Collector for full block attestation data
-	if err := setupBlockDataCollector(app, homePath, dbBackend, logger); err != nil {
-		logger.Warn("Failed to setup block data collector", "error", err)
-		// Don't fail if collector setup fails - attestation can still work with limited data
-	}
-
-	return nil
+	return os.RemoveAll(filepath.Join(dbPath, "finality.db"))
 }
 
 // setupBlockDataCollector initializes the block data collector for full block attestation
@@ -113,16 +112,6 @@ func setupBlockDataCollector(app *App, homePath string, dbBackend dbm.BackendTyp
 	// Ensure the directory exists
 	if err := os.MkdirAll(blockDataDBPath, 0755); err != nil {
 		return fmt.Errorf("failed to create block data database directory: %w", err)
-	}
-
-	// TODO: Check if database already exists and remove it to avoid lock conflicts
-	// (tempApp during genesis commands may have created it)
-	blockDataDBDir := filepath.Join(blockDataDBPath, "block_data.db")
-	if _, err := os.Stat(blockDataDBDir); err == nil {
-		logger.Info("Removing existing block data database to recreate", "path", blockDataDBDir)
-		if err := os.RemoveAll(blockDataDBDir); err != nil {
-			logger.Error("Failed to remove old block data database", "error", err)
-		}
 	}
 
 	blockDataDB, err := dbm.NewDB("block_data", dbBackend, blockDataDBPath)

@@ -236,8 +236,6 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		return err
 	}
 
-	am.keeper.Logger(ctx).Info("attestation params", "params", params)
-
 	if !params.AttestationEnabled {
 		return nil
 	}
@@ -250,14 +248,12 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		return err
 	}
 
-	am.keeper.Logger(ctx).Info("last sent height", "last_sent_height", lastSentHeight)
 	// Send attestation if it's time
 	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
 		am.keeper.Logger(ctx).Info("sending attestation", "current_height", currentHeight, "last_sent_height", lastSentHeight)
 		// Check if collector is available
 		if am.keeper.BlockCollector == nil {
 			am.keeper.Logger(ctx).Error("Block collector not initialized, skipping attestation")
-			am.keeper.Logger(ctx).Debug("Block collector not initialized, skipping attestation")
 			return nil
 		}
 
@@ -304,8 +300,6 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		startHeight := lastSentHeight + 1
 		endHeight := currentHeight - 1
 
-		am.keeper.Logger(ctx).Info("start and end height", "start_height", startHeight, "end_height", endHeight)
-
 		// Limit by interval
 		if endHeight-startHeight > params.AttestationInterval {
 			endHeight = startHeight + params.AttestationInterval - 1
@@ -321,42 +315,39 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 				"error", err,
 			)
 			// Update last sent height to current so we don't keep trying to collect old blocks
-			fmt.Println("XXXX2 UPDATING LAST SENT HEIGHT TO", currentHeight)
 			if err := am.keeper.SetLastSentHeight(ctx, currentHeight); err != nil {
 				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
 			}
 			return nil // Don't fail the block - collector might still be starting
 		}
 
-		am.keeper.Logger(ctx).Info("collected block attestations", "attestations", len(attestations))
-
-		am.keeper.Logger(ctx).Info("preparing to send attestation packet",
-			"start_height", startHeight,
-			"end_height", endHeight,
-			"chain_id", am.keeper.ChainID(),
-			"ibc_version", am.keeper.GetIBCVersion(),
-		)
-
 		// Dispatch to appropriate IBC version based on keeper configuration
-		var sequence uint64
 		var sendError error
 		if am.keeper.GetIBCVersion() == "v1" {
 			am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
+				"chain_id", am.keeper.ChainID(),
 				"port_id", v1PortID,
 				"channel_id", v1ChannelID,
+				"start_height", startHeight,
+				"end_height", endHeight,
+				"attestations", len(attestations),
 			)
 
-			sequence, sendError = am.keeper.SendAttestationPacketV1(
+			_, sendError = am.keeper.SendAttestationPacketV1(
 				ctx,
 				v1PortID,
 				v1ChannelID,
 				attestations,
 			)
 		} else {
-			am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
+			am.keeper.Logger(ctx).Info("Sending using v2 channel configuration",
+				"chain_id", am.keeper.ChainID(),
 				"client_id", v2ClientID,
+				"start_height", startHeight,
+				"end_height", endHeight,
+				"attestations", len(attestations),
 			)
-			sequence, sendError = am.keeper.SendAttestationPacketV2(
+			_, sendError = am.keeper.SendAttestationPacketV2(
 				ctx,
 				v2ClientID, // source client ID
 				v2ClientID, // destination client ID is the same as source client ID for testing
@@ -374,13 +365,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 			return nil // Don't fail the block
 		}
 
-		am.keeper.Logger(ctx).Info("attestation packet sent successfully",
-			"sequence", sequence,
-			"ibc_version", am.keeper.GetIBCVersion(),
-		)
-
 		// Update last sent height
-		fmt.Println("XXXX1 UPDATING LAST SENT HEIGHT TO", endHeight)
 		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
 			return err
 		}
@@ -416,17 +401,11 @@ func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, e
 		return nil, fmt.Errorf("failed to collect block data range %d-%d: %w", startHeight, endHeight, err)
 	}
 
-	am.keeper.Logger(ctx).Info("collected block attestations from collector",
+	am.keeper.Logger(ctx).Debug("collected block attestations from collector",
 		"start_height", startHeight,
 		"end_height", endHeight,
 		"count", len(attestations),
 	)
-
-	for _, attestation := range attestations {
-		am.keeper.Logger(ctx).Info("GONNA SEND block attestation data",
-			"height", attestation.BlockHeight,
-		)
-	}
 
 	return attestations, nil
 }

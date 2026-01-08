@@ -2,7 +2,6 @@ package collector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -11,8 +10,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	ctypes "github.com/cometbft/cometbft/rpc/core/types"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -148,7 +145,7 @@ func (c *BlockDataCollector) collectLoop(ctx context.Context, eventCh <-chan cty
 				"height", eventData.Block.Height,
 				"hash", fmt.Sprintf("%X", eventData.Block.Hash()))
 
-			if err := c.collectAndStoreBlock(ctx, eventData); err != nil {
+			if err := c.collectAndStoreBlock(eventData); err != nil {
 				// Log error but continue collecting
 				c.logger.Error("failed to collect block",
 					"height", eventData.Block.Height,
@@ -163,13 +160,13 @@ func (c *BlockDataCollector) collectLoop(ctx context.Context, eventCh <-chan cty
 }
 
 // collectAndStoreBlock collects full block data and stores it locally
-func (c *BlockDataCollector) collectAndStoreBlock(ctx context.Context, eventData cmttypes.EventDataNewBlock) error {
+func (c *BlockDataCollector) collectAndStoreBlock(eventData cmttypes.EventDataNewBlock) error {
 	block := eventData.Block
 	height := block.Height
 
 	attestationData := &types.BlockAttestationData{
-		BlockHeight:           uint64(height),
-		AppHash:               block.Header.AppHash,
+		BlockHeight: uint64(height),
+		AppHash:     block.Header.AppHash,
 	}
 
 	// Log field lengths for debugging
@@ -177,128 +174,6 @@ func (c *BlockDataCollector) collectAndStoreBlock(ctx context.Context, eventData
 
 	// Store in local database
 	return c.storeBlockData(uint64(height), attestationData)
-}
-
-// encodeBlockHeader encodes the CometBFT block header
-func (c *BlockDataCollector) encodeBlockHeader(header cmttypes.Header) []byte {
-	// Convert to proto type
-	protoHeader := header.ToProto()
-	if protoHeader == nil {
-		return []byte{}
-	}
-
-	// Marshal to bytes
-	bz, err := protoHeader.Marshal()
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeTransactions encodes the raw transaction bytes
-func (c *BlockDataCollector) encodeTransactions(txs cmttypes.Txs) []byte {
-	if len(txs) == 0 {
-		return []byte{}
-	}
-
-	// Create a simple encoding: [tx1_len][tx1][tx2_len][tx2]...
-	// This allows reconstruction of individual transactions
-	var result []byte
-	for _, tx := range txs {
-		// Encode length as 4 bytes (uint32)
-		txLen := uint32(len(tx))
-		lenBytes := []byte{
-			byte(txLen >> 24),
-			byte(txLen >> 16),
-			byte(txLen >> 8),
-			byte(txLen),
-		}
-		result = append(result, lenBytes...)
-		result = append(result, tx...)
-	}
-
-	return result
-}
-
-// encodeTxResults encodes transaction execution results
-func (c *BlockDataCollector) encodeTxResults(results []*abci.ExecTxResult) []byte {
-	if len(results) == 0 {
-		return []byte{}
-	}
-
-	// Encode as JSON for now (can optimize later with protobuf)
-	bz, err := json.Marshal(results)
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeFinalizeBlockEvents encodes finalize block events
-func (c *BlockDataCollector) encodeFinalizeBlockEvents(events []abci.Event) []byte {
-	if len(events) == 0 {
-		return []byte{}
-	}
-
-	bz, err := json.Marshal(events)
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeValidatorUpdates encodes validator updates
-func (c *BlockDataCollector) encodeValidatorUpdates(updates []abci.ValidatorUpdate) []byte {
-	if len(updates) == 0 {
-		return []byte{}
-	}
-
-	bz, err := json.Marshal(updates)
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeConsensusParamUpdates encodes consensus parameter updates
-func (c *BlockDataCollector) encodeConsensusParamUpdates(params *cmtproto.ConsensusParams) []byte {
-	if params == nil {
-		return []byte{}
-	}
-
-	bz, err := params.Marshal()
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeEvidence encodes evidence data
-func (c *BlockDataCollector) encodeEvidence(evidence cmttypes.EvidenceData) []byte {
-	if len(evidence.Evidence) == 0 {
-		return []byte{}
-	}
-
-	// Encode as JSON for now
-	bz, err := json.Marshal(evidence)
-	if err != nil {
-		return []byte{}
-	}
-	return bz
-}
-
-// encodeLastCommit encodes the last commit (validator signatures)
-func (c *BlockDataCollector) encodeLastCommit(commit *cmttypes.Commit) []byte {
-	if commit == nil {
-		return []byte{}
-	}
-
-	protoCommit := commit.ToProto()
-	bz, err := protoCommit.Marshal()
-	if err != nil {
-		return []byte{}
-	}
-	return bz
 }
 
 // storeBlockData stores block attestation data in the local database
@@ -427,8 +302,8 @@ func (c *BlockDataCollector) fetchBlockOnDemand(height uint64) (*types.BlockAtte
 	// Create attestation data
 	block := blockRes.Block
 	attestationData := &types.BlockAttestationData{
-		BlockHeight:           uint64(height),
-		AppHash:               block.Header.AppHash,
+		BlockHeight: uint64(height),
+		AppHash:     block.Header.AppHash,
 	}
 
 	// Store it for future use

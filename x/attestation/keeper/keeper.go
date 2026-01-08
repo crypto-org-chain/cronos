@@ -90,12 +90,14 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 	if err != nil {
 		return err
 	}
+	k.finalityDB = db
 
 	// Create memory cache
-	cache := NewFinalityCache(cacheSize)
-
-	k.finalityDB = db
-	k.finalityCache = cache
+	if backend == dbm.MemDBBackend {
+		k.finalityCache = nil
+	} else {
+		k.finalityCache = NewFinalityCache(cacheSize)
+	}
 
 	return nil
 }
