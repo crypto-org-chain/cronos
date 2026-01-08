@@ -12,36 +12,22 @@ import (
 
 // SendAttestationPacketV1 sends block attestations via IBC v1 to the attestation chain
 // This uses the traditional port/channel communication
-func (k Keeper) SendAttestationPacketV1(
+func (k *Keeper) SendAttestationPacketV1(
 	ctx context.Context,
+	params types.Params,
 	sourcePort string,
 	sourceChannel string,
-	attestations []*types.BlockAttestationData,
+	attestations []types.BlockAttestationData,
 ) (uint64, error) {
-	params, err := k.GetParams(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	if !params.AttestationEnabled {
-		return 0, types.ErrAttestationDisabled
-	}
-
 	// Check if channel keeper v1 is set
 	if k.channelKeeper == nil {
 		return 0, fmt.Errorf("IBC v1 channel keeper not initialized")
 	}
 
-	// Convert pointer slice to value slice for proto
-	attestationValues := make([]types.BlockAttestationData, len(attestations))
-	for i, att := range attestations {
-		attestationValues[i] = *att
-	}
-
 	// Create packet data
 	packetData := &types.AttestationPacketData{
 		SourceChainId: k.chainID,
-		Attestations:  attestationValues,
+		Attestations:  attestations,
 	}
 
 	// Marshal packet data to JSON
@@ -117,7 +103,7 @@ func (k Keeper) SendAttestationPacketV1(
 }
 
 // GetV1ChannelID returns the configured IBC v1 channel ID for attestation
-func (k Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V1ChannelIDPrefix, []byte(key)...))
 	if err != nil {
@@ -130,13 +116,13 @@ func (k Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) 
 }
 
 // SetV1ChannelID stores the IBC v1 channel ID for attestation
-func (k Keeper) SetV1ChannelID(ctx context.Context, key string, channelID string) error {
+func (k *Keeper) SetV1ChannelID(ctx context.Context, key string, channelID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V1ChannelIDPrefix, []byte(key)...), []byte(channelID))
 }
 
 // GetV1PortID returns the configured IBC v1 port ID for attestation
-func (k Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V1PortIDPrefix, []byte(key)...))
 	if err != nil {
@@ -150,7 +136,7 @@ func (k Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
 }
 
 // SetV1PortID stores the IBC v1 port ID for attestation
-func (k Keeper) SetV1PortID(ctx context.Context, key string, portID string) error {
+func (k *Keeper) SetV1PortID(ctx context.Context, key string, portID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V1PortIDPrefix, []byte(key)...), []byte(portID))
 }

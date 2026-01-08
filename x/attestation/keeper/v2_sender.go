@@ -12,11 +12,11 @@ import (
 
 // SendAttestationPacketV2 sends block attestations via IBC v2 to the attestation chain
 // This uses the simplified client-to-client communication without port/channel
-func (k Keeper) SendAttestationPacketV2(
+func (k *Keeper) SendAttestationPacketV2(
 	ctx context.Context,
 	sourceClient string,
 	destinationClient string,
-	attestations []*types.BlockAttestationData,
+	attestations []types.BlockAttestationData,
 ) (uint64, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
@@ -32,17 +32,11 @@ func (k Keeper) SendAttestationPacketV2(
 		return 0, fmt.Errorf("IBC v2 channel keeper not initialized")
 	}
 
-	// Convert pointer slice to value slice for proto
-	attestationValues := make([]types.BlockAttestationData, len(attestations))
-	for i, att := range attestations {
-		attestationValues[i] = *att
-	}
-
 	// Create packet data
 	// Note: IBC v2 handles relayer, signature, and nonce at the transport layer
 	packetData := &types.AttestationPacketData{
 		SourceChainId: k.chainID,
-		Attestations:  attestationValues,
+		Attestations:  attestations,
 	}
 
 	// Marshal packet data to JSON for v2 payload
@@ -126,7 +120,7 @@ func (k Keeper) SendAttestationPacketV2(
 }
 
 // GetV2ClientID returns the configured IBC v2 client ID for attestation
-func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V2ClientIDPrefix, []byte(key)...))
 	if err != nil {
@@ -139,7 +133,7 @@ func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 }
 
 // SetV2ClientID stores the IBC v2 client ID for attestation
-func (k Keeper) SetV2ClientID(ctx context.Context, key string, clientID string) error {
+func (k *Keeper) SetV2ClientID(ctx context.Context, key string, clientID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V2ClientIDPrefix, []byte(key)...), []byte(clientID))
 }

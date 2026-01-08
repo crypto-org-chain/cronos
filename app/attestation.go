@@ -1,19 +1,14 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"cosmossdk.io/log"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
 	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cast"
-
-	attestationcollector "github.com/crypto-org-chain/cronos/x/attestation/collector"
 )
 
 // setupAttestationFinalityStorage initializes the local finality storage for the attestation module
@@ -51,11 +46,6 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 		"backend", dbBackend,
 		"cache_size", cacheSize,
 	)
-
-	// Initialize Block Data Collector (non-fatal if fails)
-	if err := setupBlockDataCollector(app, homePath, dbBackend, logger); err != nil {
-		return fmt.Errorf("failed to setup block data collector: %w", err)
-	}
 
 	return nil
 }
@@ -101,118 +91,6 @@ func cleanupMismatchedDB(dbPath string, backend dbm.BackendType, logger log.Logg
 	)
 
 	return os.RemoveAll(filepath.Join(dbPath, "finality.db"))
-}
-
-// setupBlockDataCollector initializes the block data collector for full block attestation
-// This collector runs in the background and subscribes to CometBFT events
-func setupBlockDataCollector(app *App, homePath string, dbBackend dbm.BackendType, logger log.Logger) error {
-	// Create separate database for block data collection
-	blockDataDBPath := filepath.Join(homePath, "data", "attestation_blocks")
-
-	// Ensure the directory exists
-	if err := os.MkdirAll(blockDataDBPath, 0755); err != nil {
-		return fmt.Errorf("failed to create block data database directory: %w", err)
-	}
-
-	blockDataDB, err := dbm.NewDB("block_data", dbBackend, blockDataDBPath)
-	if err != nil {
-		return fmt.Errorf("failed to create block data database: %w", err)
-	}
-
-	logger.Info("Created attestation block data storage", "path", blockDataDBPath, "backend", dbBackend)
-
-	// Create block data collector without RPC client (set later)
-	collector := attestationcollector.NewBlockDataCollector(
-		app.appCodec,
-		blockDataDB,
-		nil,    // RPC client will be set when starting the collector
-		logger, // Pass logger for proper logging
-	)
-
-	// Set collector in keeper
-	app.AttestationKeeper.SetBlockCollector(collector)
-
-	logger.Info("Initialized attestation block data collector (will start after RPC server is ready)")
-
-	return nil
-}
-
-// startBlockDataCollectorWithRetry starts the block data collector with retry logic
-// This is called in a goroutine after ABCI handshake to wait for RPC server availability
-func (app *App) startBlockDataCollectorWithRetry() {
-	maxRetries := 10
-	retryDelay := 500 * time.Millisecond
-
-	app.Logger().Debug("Starting block data collector with retry",
-		"rpc_address", app.rpcAddress,
-		"max_retries", maxRetries)
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		app.Logger().Debug("Attempting to start block data collector",
-			"attempt", attempt,
-			"max_retries", maxRetries)
-
-		err := app.startBlockDataCollectorOnce()
-		if err == nil {
-			app.Logger().Info("Successfully started attestation block data collector",
-				"rpc_address", app.rpcAddress,
-				"attempt", attempt)
-			return
-		}
-
-		app.Logger().Debug("Failed to start block data collector, will retry",
-			"attempt", attempt,
-			"error", err,
-			"retry_delay", retryDelay)
-
-		time.Sleep(retryDelay)
-		retryDelay *= 2 // Exponential backoff
-	}
-
-	app.Logger().Warn("Failed to start block data collector after all retries",
-		"rpc_address", app.rpcAddress,
-		"max_retries", maxRetries)
-}
-
-// startBlockDataCollectorOnce attempts to start the collector once
-func (app *App) startBlockDataCollectorOnce() error {
-	if app.AttestationKeeper.BlockCollector == nil {
-		return fmt.Errorf("block collector not initialized")
-	}
-
-	// Type assert to get concrete collector type
-	collector, ok := app.AttestationKeeper.BlockCollector.(*attestationcollector.BlockDataCollector)
-	if !ok {
-		return fmt.Errorf("block collector is not a BlockDataCollector")
-	}
-
-	// Check if already running
-	if collector.IsRunning() {
-		return nil // Already started
-	}
-
-	// Create CometBFT HTTP client
-	rpcClient, err := rpchttp.New(app.rpcAddress, "/websocket")
-	if err != nil {
-		return fmt.Errorf("failed to create CometBFT RPC client: %w", err)
-	}
-
-	// Start the RPC client before using it
-	if err := rpcClient.Start(); err != nil {
-		return fmt.Errorf("failed to start CometBFT RPC client: %w", err)
-	}
-
-	// Set the client
-	collector.SetClient(rpcClient)
-
-	// Start the collector
-	ctx := context.Background()
-	if err := collector.Start(ctx); err != nil {
-		rpcClient.Stop() // Clean up on failure
-		return fmt.Errorf("failed to start block collector: %w", err)
-	}
-
-	return nil
 }
 
 // checkFinalityDatabaseExists checks if a finality database already exists

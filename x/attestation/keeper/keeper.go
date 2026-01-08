@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,6 +14,12 @@ import (
 	channelkeeperv2 "github.com/cosmos/ibc-go/v10/modules/core/04-channel/v2/keeper"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
+
+// BlockchainInfoClient is a minimal interface for fetching block metadata
+// Compatible with both rpcclient.Client and client.CometRPC
+type BlockchainInfoClient interface {
+	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*coretypes.ResultBlockchainInfo, error)
+}
 
 type Keeper struct {
 	cdc          codec.BinaryCodec
@@ -38,17 +45,8 @@ type Keeper struct {
 	finalityDB    dbm.DB         // Local database (persistent, no consensus)
 	finalityCache *FinalityCache // Memory cache (fast, no consensus)
 
-	// BlockCollector for full block attestation data (exported for module access)
-	BlockCollector BlockDataCollector
-}
-
-// BlockDataCollector is an interface for collecting full block data
-// This interface allows for different implementations (async collector, direct RPC, etc.)
-type BlockDataCollector interface {
-	GetBlockData(height uint64) (*types.BlockAttestationData, error)
-	GetBlockDataRange(startHeight, endHeight uint64) ([]*types.BlockAttestationData, error)
-	Start(ctx context.Context) error
-	Stop() error
+	// RPC client for fetching block data (in-process local client)
+	rpcClient BlockchainInfoClient
 }
 
 // NewKeeper creates a new attestation Keeper instance
@@ -73,12 +71,12 @@ func NewKeeper(
 }
 
 // GetAuthority returns the authority address for the attestation module
-func (k Keeper) GetAuthority() string {
+func (k *Keeper) GetAuthority() string {
 	return k.authority
 }
 
 // GetIBCVersion returns the configured IBC version ("v1" or "v2")
-func (k Keeper) GetIBCVersion() string {
+func (k *Keeper) GetIBCVersion() string {
 	return k.ibcVersion
 }
 
@@ -102,9 +100,67 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 	return nil
 }
 
-// SetBlockCollector sets the block data collector for retrieving full block data
-func (k *Keeper) SetBlockCollector(collector BlockDataCollector) {
-	k.BlockCollector = collector
+// SetRPCClient sets the CometBFT RPC client for fetching block data
+func (k *Keeper) SetRPCClient(client BlockchainInfoClient) {
+	k.rpcClient = client
+}
+
+// maxBlockchainInfoBlocks is the maximum number of blocks returned by BlockchainInfo RPC
+const maxBlockchainInfoBlocks = 20
+
+// GetBlockDataRange fetches block attestation data for a range of heights via RPC.
+// BlockchainInfo returns at most 20 blocks in descending order, so this function
+// handles pagination and returns results in ascending order.
+func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight uint64) ([]types.BlockAttestationData, error) {
+	if k.rpcClient == nil {
+		return nil, fmt.Errorf("RPC client not configured")
+	}
+
+	if startHeight > endHeight {
+		return nil, fmt.Errorf("invalid range: startHeight %d > endHeight %d", startHeight, endHeight)
+	}
+
+	totalBlocks := endHeight - startHeight + 1
+	result := make([]types.BlockAttestationData, 0, totalBlocks)
+
+	// Fetch blocks in chunks of maxBlockchainInfoBlocks, starting from startHeight
+	for chunkStart := startHeight; chunkStart <= endHeight; chunkStart += maxBlockchainInfoBlocks {
+		chunkEnd := chunkStart + maxBlockchainInfoBlocks - 1
+		if chunkEnd > endHeight {
+			chunkEnd = endHeight
+		}
+
+		blockchainInfo, err := k.rpcClient.BlockchainInfo(ctx, int64(chunkStart), int64(chunkEnd))
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch blockchain info for range %d-%d: %w", chunkStart, chunkEnd, err)
+		}
+
+		if len(blockchainInfo.BlockMetas) == 0 {
+			return nil, fmt.Errorf("no block data found in range %d-%d", chunkStart, chunkEnd)
+		}
+
+		// BlockchainInfo returns blocks in descending order, so we iterate in reverse
+		// to append in ascending order
+		for i := len(blockchainInfo.BlockMetas) - 1; i >= 0; i-- {
+			meta := blockchainInfo.BlockMetas[i]
+			result = append(result, types.BlockAttestationData{
+				BlockHeight: uint64(meta.Header.Height),
+				AppHash:     meta.Header.AppHash,
+			})
+		}
+	}
+
+	/// make sure the result length is equal to the total blocks
+	if len(result) != int(totalBlocks) {
+		return nil, fmt.Errorf("expected %d blocks, got %d", totalBlocks, len(result))
+	}
+
+	return result, nil
+}
+
+// HasRPCClient returns true if an RPC client is configured
+func (k *Keeper) HasRPCClient() bool {
+	return k.rpcClient != nil
 }
 
 // SetChannelKeeper sets the IBC v1 channel keeper for sending packets
@@ -120,18 +176,18 @@ func (k *Keeper) SetChannelKeeperV2(channelKeeperV2 *channelkeeperv2.Keeper) {
 }
 
 // Logger returns a module-specific logger
-func (k Keeper) Logger(ctx context.Context) log.Logger {
+func (k *Keeper) Logger(ctx context.Context) log.Logger {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	return sdkCtx.Logger().With("module", "x/"+types.ModuleName)
 }
 
 // ChainID returns the chain ID
-func (k Keeper) ChainID() string {
+func (k *Keeper) ChainID() string {
 	return k.chainID
 }
 
 // GetParams returns the module parameters
-func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
+func (k *Keeper) GetParams(ctx context.Context) (types.Params, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(types.ParamsKey)
 	if err != nil {
@@ -149,7 +205,7 @@ func (k Keeper) GetParams(ctx context.Context) (types.Params, error) {
 }
 
 // SetParams sets the module parameters
-func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
+func (k *Keeper) SetParams(ctx context.Context, params types.Params) error {
 	if err := params.Validate(); err != nil {
 		return err
 	}
@@ -160,7 +216,7 @@ func (k Keeper) SetParams(ctx context.Context, params types.Params) error {
 }
 
 // GetLastSentHeight retrieves the last block height sent for attestation
-func (k Keeper) GetLastSentHeight(ctx context.Context) (uint64, error) {
+func (k *Keeper) GetLastSentHeight(ctx context.Context) (uint64, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(types.LastSentHeightKey)
 	if err != nil {
@@ -173,14 +229,14 @@ func (k Keeper) GetLastSentHeight(ctx context.Context) (uint64, error) {
 }
 
 // SetLastSentHeight stores the last block height sent for attestation
-func (k Keeper) SetLastSentHeight(ctx context.Context, height uint64) error {
+func (k *Keeper) SetLastSentHeight(ctx context.Context, height uint64) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(types.LastSentHeightKey, types.UintToBytes(height))
 }
 
 // AddPendingAttestation adds a block attestation to the pending queue (local storage)
 // Pending attestations are tracked locally by each validator, not in consensus state
-func (k Keeper) AddPendingAttestation(ctx context.Context, height uint64, attestation *types.BlockAttestationData) error {
+func (k *Keeper) AddPendingAttestation(ctx context.Context, height uint64, attestation *types.BlockAttestationData) error {
 	if k.finalityDB == nil {
 		return fmt.Errorf("local finality database not initialized")
 	}
@@ -199,7 +255,7 @@ func (k Keeper) AddPendingAttestation(ctx context.Context, height uint64, attest
 }
 
 // GetPendingAttestation retrieves a pending attestation by height (from local storage)
-func (k Keeper) GetPendingAttestation(ctx context.Context, height uint64) (*types.BlockAttestationData, error) {
+func (k *Keeper) GetPendingAttestation(ctx context.Context, height uint64) (*types.BlockAttestationData, error) {
 	if k.finalityDB == nil {
 		return nil, fmt.Errorf("local finality database not initialized")
 	}
@@ -219,7 +275,7 @@ func (k Keeper) GetPendingAttestation(ctx context.Context, height uint64) (*type
 }
 
 // GetPendingAttestations retrieves all pending attestations in a height range (from local storage)
-func (k Keeper) GetPendingAttestations(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
+func (k *Keeper) GetPendingAttestations(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
 	var attestations []*types.BlockAttestationData
 
 	for height := startHeight; height <= endHeight; height++ {
@@ -254,7 +310,7 @@ func (k *Keeper) RemovePendingAttestation(ctx context.Context, height uint64) er
 }
 
 // GetHighestFinalityHeight retrieves the highest finalized block height from consensus state
-func (k Keeper) GetHighestFinalityHeight(ctx context.Context) (uint64, error) {
+func (k *Keeper) GetHighestFinalityHeight(ctx context.Context) (uint64, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(types.HighestFinalityHeightKey)
 	if err != nil {
@@ -267,7 +323,7 @@ func (k Keeper) GetHighestFinalityHeight(ctx context.Context) (uint64, error) {
 }
 
 // SetHighestFinalityHeight stores the highest finalized block height in consensus state
-func (k Keeper) SetHighestFinalityHeight(ctx context.Context, height uint64) error {
+func (k *Keeper) SetHighestFinalityHeight(ctx context.Context, height uint64) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(types.HighestFinalityHeightKey, types.UintToBytes(height))
 }

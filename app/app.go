@@ -292,9 +292,6 @@ type App struct {
 
 	pendingTxListeners []evmante.PendingTxListener
 
-	// RPC address for late initialization (after ABCI handshake)
-	rpcAddress string
-
 	// keys to access the substores
 	keys  map[string]*storetypes.KVStoreKey
 	tkeys map[string]*storetypes.TransientStoreKey
@@ -812,17 +809,6 @@ func New(
 		logger.Warn("Failed to initialize attestation local finality storage", "error", err)
 	}
 
-	// Store CometBFT RPC address for later initialization (after ABCI handshake)
-	// The BlockDataCollector needs WebSocket access to subscribe to block events
-	// This comes from the CometBFT RPC server, not the Cosmos SDK API server
-	rpcAddress := cast.ToString(appOpts.Get("rpc.laddr"))
-	if rpcAddress == "" {
-		// Default to localhost if not configured
-		rpcAddress = "tcp://localhost:26657"
-	}
-	app.rpcAddress = rpcAddress
-	logger.Debug("Configured block collector to use CometBFT RPC", "address", rpcAddress)
-
 	/****  Module Options ****/
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
@@ -1121,12 +1107,6 @@ func New(
 			app.Logger().Error("failed to update blocklist", "error", err)
 		}
 
-		// Start block data collector after ABCI handshake completes
-		// The RPC server will be available shortly after this point
-		if app.AttestationKeeper.BlockCollector != nil && app.rpcAddress != "" {
-			// Start in a goroutine with retry logic since RPC server may not be immediately available
-			go app.startBlockDataCollectorWithRetry()
-		}
 	}
 
 	if blockSTMEnabled {
@@ -1389,6 +1369,12 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 		app.interfaceRegistry,
 		app.Query,
 	)
+
+	// Set the local RPC client for attestation keeper (no HTTP overhead)
+	if clientCtx.Client != nil {
+		app.AttestationKeeper.SetRPCClient(clientCtx.Client)
+		app.Logger().Info("Configured attestation local RPC client")
+	}
 }
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {

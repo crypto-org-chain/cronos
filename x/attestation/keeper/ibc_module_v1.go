@@ -223,9 +223,19 @@ func (im IBCModuleV1) OnAcknowledgementPacket(
 	}
 
 	// Process finality feedback for each attested block height
+	var minHeight, maxHeight uint64
 	for _, result := range ack.Results {
 		// Store finality in LOCAL database only (no consensus storage)
 		height := result.BlockHeight
+
+		// Track min/max height
+		if minHeight == 0 || height < minHeight {
+			minHeight = height
+		}
+		if height > maxHeight {
+			maxHeight = height
+		}
+
 		if err := im.keeper.MarkBlockFinalizedLocal(ctx, height, ack.FinalizedAt); err != nil {
 			im.keeper.Logger(ctx).Error("failed to store finality locally",
 				"height", height,
@@ -254,7 +264,11 @@ func (im IBCModuleV1) OnAcknowledgementPacket(
 		}
 	}
 
-	im.keeper.Logger(ctx).Info("processed finality feedback", "finalized_count", len(ack.Results))
+	im.keeper.Logger(ctx).Info("processed finality feedback",
+		"finalized_count", len(ack.Results),
+		"min_height", minHeight,
+		"max_height", maxHeight,
+	)
 
 	return nil
 }

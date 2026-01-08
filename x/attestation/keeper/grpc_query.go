@@ -9,7 +9,7 @@ import (
 var _ types.QueryServer = (*Keeper)(nil)
 
 // Params returns the module parameters
-func (k Keeper) Params(c context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
+func (k *Keeper) Params(c context.Context, req *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	params, err := k.GetParams(c)
 	if err != nil {
 		return nil, err
@@ -19,13 +19,13 @@ func (k Keeper) Params(c context.Context, req *types.QueryParamsRequest) (*types
 }
 
 // GetBlockAttestation returns block attestation data
-func (k Keeper) GetBlockAttestation(c context.Context, req *types.QueryGetBlockAttestationRequest) (*types.QueryGetBlockAttestationResponse, error) {
+func (k *Keeper) GetBlockAttestation(c context.Context, req *types.QueryGetBlockAttestationRequest) (*types.QueryGetBlockAttestationResponse, error) {
 	// TODO: Implement when attestation storage is added
 	return &types.QueryGetBlockAttestationResponse{}, nil
 }
 
 // GetBlockFinalityStatus returns finality status for a block
-func (k Keeper) GetBlockFinalityStatus(c context.Context, req *types.QueryGetBlockFinalityStatusRequest) (*types.QueryGetBlockFinalityStatusResponse, error) {
+func (k *Keeper) GetBlockFinalityStatus(c context.Context, req *types.QueryGetBlockFinalityStatusRequest) (*types.QueryGetBlockFinalityStatusResponse, error) {
 	// Query from local storage
 	status, err := k.GetFinalityStatusLocal(c, req.BlockHeight)
 	if err != nil {
