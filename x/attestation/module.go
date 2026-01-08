@@ -248,136 +248,140 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 		return err
 	}
 
-	// Send attestation if it's time
-	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
-		am.keeper.Logger(ctx).Info("sending attestation", "current_height", currentHeight, "last_sent_height", lastSentHeight)
-		// Check if RPC client is available
-		if !am.keeper.HasRPCClient() {
-			am.keeper.Logger(ctx).Error("RPC client not initialized, skipping attestation")
+	// Calculate the block range to attest
+	// Start from the block after last sent, send up to AttestationInterval blocks
+	startHeight := lastSentHeight + 1
+	endHeight := startHeight + params.AttestationInterval - 1
+
+	// Only send when we have all blocks in the interval finalized (endHeight < currentHeight)
+	if endHeight >= currentHeight {
+		return nil
+	}
+
+	am.keeper.Logger(ctx).Info("sending attestation",
+		"current_height", currentHeight,
+		"start_height", startHeight,
+		"end_height", endHeight,
+	)
+
+	// Check if RPC client is available
+	if !am.keeper.HasRPCClient() {
+		am.keeper.Logger(ctx).Error("RPC client not initialized, skipping attestation")
+		return nil
+	}
+
+	var v1PortID string
+	var v1ChannelID string
+	var v2ClientID string
+
+	if am.keeper.GetIBCVersion() == "v1" {
+		v1PortID, err = am.keeper.GetV1PortID(ctx, "attestation-layer")
+		if err != nil {
+			am.keeper.Logger(ctx).Info("v1 port ID not configured yet, skipping attestation send",
+				"key", "attestation-layer",
+				"error", err,
+			)
 			return nil
 		}
 
-		var v1PortID string
-		var v1ChannelID string
-		var v2ClientID string
-
-		if am.keeper.GetIBCVersion() == "v1" {
-			v1PortID, err = am.keeper.GetV1PortID(ctx, "attestation-layer")
-			if err != nil {
-				am.keeper.Logger(ctx).Info("v1 port ID not configured yet, skipping attestation send",
-					"key", "attestation-layer",
-					"error", err,
-				)
-				return nil
-			}
-
-			v1ChannelID, err = am.keeper.GetV1ChannelID(ctx, "attestation-layer")
-			if err != nil {
-				am.keeper.Logger(ctx).Info("v1 channel ID not configured yet, skipping attestation send",
-					"key", "attestation-layer",
-					"error", err,
-				)
-				return nil
-			}
-
-			am.keeper.Logger(ctx).Info("Retrieved v1 channel configuration",
-				"port_id", v1PortID,
-				"channel_id", v1ChannelID,
-			)
-
-		} else {
-			v2ClientID, err = am.keeper.GetV2ClientID(ctx, "attestation-layer")
-			am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
-			if err != nil {
-				am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
-					"error", err,
-				)
-				return nil
-			}
-		}
-
-		// Collect attestations for blocks since last sent
-		startHeight := lastSentHeight + 1
-		endHeight := currentHeight - 1
-
-		// Limit by interval
-		if endHeight-startHeight > params.AttestationInterval {
-			endHeight = startHeight + params.AttestationInterval - 1
-		}
-
-		am.keeper.Logger(ctx).Info("collecting block attestations", "start_height", startHeight, "end_height", endHeight)
-
-		attestations, err := am.collectBlockAttestations(ctx, startHeight, endHeight)
-		if err != nil || len(attestations) == 0 {
-			am.keeper.Logger(ctx).Warn("Block data not available yet, skipping attestation",
-				"start_height", startHeight,
-				"end_height", endHeight,
+		v1ChannelID, err = am.keeper.GetV1ChannelID(ctx, "attestation-layer")
+		if err != nil {
+			am.keeper.Logger(ctx).Info("v1 channel ID not configured yet, skipping attestation send",
+				"key", "attestation-layer",
 				"error", err,
 			)
-			return nil // Don't fail the block - collector might still be starting
+			return nil
 		}
 
-		// Dispatch to appropriate IBC version based on keeper configuration
-		var sendError error
-		if am.keeper.GetIBCVersion() == "v1" {
-			am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
-				"chain_id", am.keeper.ChainID(),
-				"port_id", v1PortID,
-				"channel_id", v1ChannelID,
-				"start_height", startHeight,
-				"end_height", endHeight,
-				"attestations", len(attestations),
-			)
+		am.keeper.Logger(ctx).Info("Retrieved v1 channel configuration",
+			"port_id", v1PortID,
+			"channel_id", v1ChannelID,
+		)
 
-			_, sendError = am.keeper.SendAttestationPacketV1(
-				ctx,
-				params,
-				v1PortID,
-				v1ChannelID,
-				attestations,
-			)
-		} else {
-			am.keeper.Logger(ctx).Info("Sending using v2 channel configuration",
-				"chain_id", am.keeper.ChainID(),
-				"client_id", v2ClientID,
-				"start_height", startHeight,
-				"end_height", endHeight,
-				"attestations", len(attestations),
-			)
-			_, sendError = am.keeper.SendAttestationPacketV2(
-				ctx,
-				v2ClientID, // source client ID
-				v2ClientID, // destination client ID is the same as source client ID for testing
-				attestations,
-			)
-		}
-
-		if sendError != nil {
-			am.keeper.Logger(ctx).Error("failed to send attestation packet",
-				"start_height", startHeight,
-				"end_height", endHeight,
-				"ibc_version", am.keeper.GetIBCVersion(),
+	} else {
+		v2ClientID, err = am.keeper.GetV2ClientID(ctx, "attestation-layer")
+		am.keeper.Logger(ctx).Info("v2 client ID", "v2_client_id", v2ClientID)
+		if err != nil {
+			am.keeper.Logger(ctx).Debug("v2 client ID not configured yet, skipping attestation send",
 				"error", err,
 			)
-			return nil // Don't fail the block
+			return nil
 		}
+	}
 
-		// Update last sent height
-		if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
-			return err
-		}
+	am.keeper.Logger(ctx).Info("collecting block attestations", "start_height", startHeight, "end_height", endHeight)
 
-		am.keeper.Logger(ctx).Info("last sent height updated", "last_sent_height", endHeight)
+	attestations, err := am.collectBlockAttestations(ctx, startHeight, endHeight)
+	if err != nil || len(attestations) == 0 {
+		am.keeper.Logger(ctx).Warn("Block data not available yet, skipping attestation",
+			"start_height", startHeight,
+			"end_height", endHeight,
+			"error", err,
+		)
+		return nil // Don't fail the block - collector might still be starting
+	}
 
-		// Emit event
-		sdkCtx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				"attestation_sent",
-				sdk.NewAttribute("start_height", fmt.Sprintf("%d", startHeight)),
-				sdk.NewAttribute("end_height", fmt.Sprintf("%d", endHeight)),
-			),
+	// Dispatch to appropriate IBC version based on keeper configuration
+	var sendError error
+	if am.keeper.GetIBCVersion() == "v1" {
+		am.keeper.Logger(ctx).Info("Sending using v1 channel configuration",
+			"chain_id", am.keeper.ChainID(),
+			"port_id", v1PortID,
+			"channel_id", v1ChannelID,
+			"start_height", startHeight,
+			"end_height", endHeight,
+			"attestations", len(attestations),
+		)
+
+		_, sendError = am.keeper.SendAttestationPacketV1(
+			ctx,
+			params,
+			v1PortID,
+			v1ChannelID,
+			attestations,
+		)
+	} else {
+		am.keeper.Logger(ctx).Info("Sending using v2 channel configuration",
+			"chain_id", am.keeper.ChainID(),
+			"client_id", v2ClientID,
+			"start_height", startHeight,
+			"end_height", endHeight,
+			"attestations", len(attestations),
+		)
+		_, sendError = am.keeper.SendAttestationPacketV2(
+			ctx,
+			v2ClientID, // source client ID
+			v2ClientID, // destination client ID is the same as source client ID for testing
+			attestations,
 		)
 	}
+
+	if sendError != nil {
+		am.keeper.Logger(ctx).Error("failed to send attestation packet",
+			"start_height", startHeight,
+			"end_height", endHeight,
+			"ibc_version", am.keeper.GetIBCVersion(),
+			"error", sendError,
+		)
+		return nil // Don't fail the block
+	}
+
+	// Update last sent height
+	if err := am.keeper.SetLastSentHeight(ctx, endHeight); err != nil {
+		return err
+	}
+
+	am.keeper.Logger(ctx).Info("last sent height updated", "last_sent_height", endHeight)
+
+	// Emit event
+	sdkCtx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			"attestation_sent",
+			sdk.NewAttribute("start_height", fmt.Sprintf("%d", startHeight)),
+			sdk.NewAttribute("end_height", fmt.Sprintf("%d", endHeight)),
+		),
+	)
+
 	return nil
 }
 
