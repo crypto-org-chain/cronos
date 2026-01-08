@@ -33,7 +33,7 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 			return fmt.Errorf("failed to create finality database directory: %w", err)
 		}
 		if err := cleanupMismatchedDB(finalityDBPath, dbBackend, logger); err != nil {
-			logger.Error("Failed to cleanup mismatched database", "error", err)
+			return fmt.Errorf("failed to cleanup mismatched database: %w", err)
 		}
 	}
 
