@@ -7,8 +7,7 @@ import (
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
-	rpcclient "github.com/cometbft/cometbft/rpc/client"
-	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,6 +15,12 @@ import (
 	channelkeeperv2 "github.com/cosmos/ibc-go/v10/modules/core/04-channel/v2/keeper"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
+
+// BlockchainInfoClient is a minimal interface for fetching block metadata
+// Compatible with both rpcclient.Client and client.CometRPC
+type BlockchainInfoClient interface {
+	BlockchainInfo(ctx context.Context, minHeight, maxHeight int64) (*coretypes.ResultBlockchainInfo, error)
+}
 
 type Keeper struct {
 	cdc          codec.BinaryCodec
@@ -41,9 +46,9 @@ type Keeper struct {
 	finalityDB    dbm.DB         // Local database (persistent, no consensus)
 	finalityCache *FinalityCache // Memory cache (fast, no consensus)
 
-	// RPC client for fetching block data (lazy initialization)
-	rpcAddress  string           // RPC address for lazy client creation
-	rpcClient   rpcclient.Client // Lazily initialized RPC client
+	// RPC client for fetching block data
+	// Can be local.Client (in-process) or http.Client (remote)
+	rpcClient   BlockchainInfoClient
 	rpcClientMu sync.RWMutex
 }
 
@@ -98,57 +103,28 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 	return nil
 }
 
-// SetRPCAddress sets the CometBFT RPC address for lazy client initialization
-func (k *Keeper) SetRPCAddress(address string) {
+// SetRPCClient sets the CometBFT RPC client for fetching block data
+// Use local.New(node) for in-process client, or rpchttp.New() for remote
+func (k *Keeper) SetRPCClient(client BlockchainInfoClient) {
 	k.rpcClientMu.Lock()
 	defer k.rpcClientMu.Unlock()
-	k.rpcAddress = address
+	k.rpcClient = client
 }
 
-// ensureRPCClient lazily initializes the RPC client on first use
-// Must be called with rpcClientMu held (at least read lock, will upgrade to write if needed)
-func (k *Keeper) ensureRPCClient() (rpcclient.Client, error) {
-	// Fast path: client already initialized
+// getRPCClient returns the RPC client if set
+func (k *Keeper) getRPCClient() (BlockchainInfoClient, error) {
 	k.rpcClientMu.RLock()
-	if k.rpcClient != nil {
-		client := k.rpcClient
-		k.rpcClientMu.RUnlock()
-		return client, nil
+	defer k.rpcClientMu.RUnlock()
+
+	if k.rpcClient == nil {
+		return nil, fmt.Errorf("RPC client not configured")
 	}
-	rpcAddress := k.rpcAddress
-	k.rpcClientMu.RUnlock()
-
-	if rpcAddress == "" {
-		return nil, fmt.Errorf("RPC address not configured")
-	}
-
-	// Slow path: need to initialize client
-	k.rpcClientMu.Lock()
-	defer k.rpcClientMu.Unlock()
-
-	// Double-check after acquiring write lock
-	if k.rpcClient != nil {
-		return k.rpcClient, nil
-	}
-
-	// Create and start the RPC client
-	client, err := rpchttp.New(rpcAddress, "/websocket")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RPC client: %w", err)
-	}
-
-	if err := client.Start(); err != nil {
-		_ = client.Stop() // Clean up partial state
-		return nil, fmt.Errorf("failed to start RPC client: %w", err)
-	}
-
-	k.rpcClient = client
-	return client, nil
+	return k.rpcClient, nil
 }
 
 // GetBlockDataRange fetches block attestation data for a range of heights via RPC
 func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
-	client, err := k.ensureRPCClient()
+	client, err := k.getRPCClient()
 	if err != nil {
 		return nil, err
 	}
@@ -174,25 +150,18 @@ func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight u
 	return result, nil
 }
 
-// HasRPCClient returns true if the RPC address is configured (client will be lazily created)
+// HasRPCClient returns true if an RPC client is configured
 func (k *Keeper) HasRPCClient() bool {
 	k.rpcClientMu.RLock()
 	defer k.rpcClientMu.RUnlock()
-	return k.rpcAddress != ""
+	return k.rpcClient != nil
 }
 
-// StopRPCClient stops the RPC client if it's running
+// StopRPCClient clears the RPC client reference
+// Note: The client lifecycle is managed externally (by the server)
 func (k *Keeper) StopRPCClient() error {
 	k.rpcClientMu.Lock()
 	defer k.rpcClientMu.Unlock()
-
-	if k.rpcClient == nil {
-		return nil
-	}
-
-	if err := k.rpcClient.Stop(); err != nil {
-		return fmt.Errorf("failed to stop RPC client: %w", err)
-	}
 	k.rpcClient = nil
 	return nil
 }
