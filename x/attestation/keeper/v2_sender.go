@@ -16,7 +16,7 @@ func (k *Keeper) SendAttestationPacketV2(
 	ctx context.Context,
 	sourceClient string,
 	destinationClient string,
-	attestations []*types.BlockAttestationData,
+	attestations []types.BlockAttestationData,
 ) (uint64, error) {
 	params, err := k.GetParams(ctx)
 	if err != nil {
@@ -32,17 +32,11 @@ func (k *Keeper) SendAttestationPacketV2(
 		return 0, fmt.Errorf("IBC v2 channel keeper not initialized")
 	}
 
-	// Convert pointer slice to value slice for proto
-	attestationValues := make([]types.BlockAttestationData, len(attestations))
-	for i, att := range attestations {
-		attestationValues[i] = *att
-	}
-
 	// Create packet data
 	// Note: IBC v2 handles relayer, signature, and nonce at the transport layer
 	packetData := &types.AttestationPacketData{
 		SourceChainId: k.chainID,
-		Attestations:  attestationValues,
+		Attestations:  attestations,
 	}
 
 	// Marshal packet data to JSON for v2 payload

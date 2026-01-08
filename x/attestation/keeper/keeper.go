@@ -105,28 +105,54 @@ func (k *Keeper) SetRPCClient(client BlockchainInfoClient) {
 	k.rpcClient = client
 }
 
-// GetBlockDataRange fetches block attestation data for a range of heights via RPC
-func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
+// maxBlockchainInfoBlocks is the maximum number of blocks returned by BlockchainInfo RPC
+const maxBlockchainInfoBlocks = 20
+
+// GetBlockDataRange fetches block attestation data for a range of heights via RPC.
+// BlockchainInfo returns at most 20 blocks in descending order, so this function
+// handles pagination and returns results in ascending order.
+func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight uint64) ([]types.BlockAttestationData, error) {
 	if k.rpcClient == nil {
 		return nil, fmt.Errorf("RPC client not configured")
 	}
 
-	// Use BlockchainInfo to fetch multiple headers in one RPC call
-	blockchainInfo, err := k.rpcClient.BlockchainInfo(ctx, int64(startHeight), int64(endHeight))
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch blockchain info for range %d-%d: %w", startHeight, endHeight, err)
+	if startHeight > endHeight {
+		return nil, fmt.Errorf("invalid range: startHeight %d > endHeight %d", startHeight, endHeight)
 	}
 
-	if len(blockchainInfo.BlockMetas) == 0 {
-		return nil, fmt.Errorf("no block data found in range %d-%d", startHeight, endHeight)
+	totalBlocks := endHeight - startHeight + 1
+	result := make([]types.BlockAttestationData, 0, totalBlocks)
+
+	// Fetch blocks in chunks of maxBlockchainInfoBlocks, starting from startHeight
+	for chunkStart := startHeight; chunkStart <= endHeight; chunkStart += maxBlockchainInfoBlocks {
+		chunkEnd := chunkStart + maxBlockchainInfoBlocks - 1
+		if chunkEnd > endHeight {
+			chunkEnd = endHeight
+		}
+
+		blockchainInfo, err := k.rpcClient.BlockchainInfo(ctx, int64(chunkStart), int64(chunkEnd))
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch blockchain info for range %d-%d: %w", chunkStart, chunkEnd, err)
+		}
+
+		if len(blockchainInfo.BlockMetas) == 0 {
+			return nil, fmt.Errorf("no block data found in range %d-%d", chunkStart, chunkEnd)
+		}
+
+		// BlockchainInfo returns blocks in descending order, so we iterate in reverse
+		// to append in ascending order
+		for i := len(blockchainInfo.BlockMetas) - 1; i >= 0; i-- {
+			meta := blockchainInfo.BlockMetas[i]
+			result = append(result, types.BlockAttestationData{
+				BlockHeight: uint64(meta.Header.Height),
+				AppHash:     meta.Header.AppHash,
+			})
+		}
 	}
 
-	result := make([]*types.BlockAttestationData, 0, len(blockchainInfo.BlockMetas))
-	for _, meta := range blockchainInfo.BlockMetas {
-		result = append(result, &types.BlockAttestationData{
-			BlockHeight: uint64(meta.Header.Height),
-			AppHash:     meta.Header.AppHash,
-		})
+	/// make sure the result length is equal to the total blocks
+	if len(result) != int(totalBlocks) {
+		return nil, fmt.Errorf("expected %d blocks, got %d", totalBlocks, len(result))
 	}
 
 	return result, nil

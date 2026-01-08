@@ -309,15 +309,11 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 
 		attestations, err := am.collectBlockAttestations(ctx, startHeight, endHeight)
 		if err != nil || len(attestations) == 0 {
-			am.keeper.Logger(ctx).Debug("Block data not available yet, skipping attestation",
+			am.keeper.Logger(ctx).Warn("Block data not available yet, skipping attestation",
 				"start_height", startHeight,
 				"end_height", endHeight,
 				"error", err,
 			)
-			// Update last sent height to current so we don't keep trying to collect old blocks
-			if err := am.keeper.SetLastSentHeight(ctx, currentHeight); err != nil {
-				am.keeper.Logger(ctx).Error("failed to update last sent height", "error", err)
-			}
 			return nil // Don't fail the block - collector might still be starting
 		}
 
@@ -335,6 +331,7 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 
 			_, sendError = am.keeper.SendAttestationPacketV1(
 				ctx,
+				params,
 				v1PortID,
 				v1ChannelID,
 				attestations,
@@ -378,7 +375,6 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 				"attestation_sent",
 				sdk.NewAttribute("start_height", fmt.Sprintf("%d", startHeight)),
 				sdk.NewAttribute("end_height", fmt.Sprintf("%d", endHeight)),
-				sdk.NewAttribute("count", fmt.Sprintf("%d", len(attestations))),
 			),
 		)
 	}
@@ -387,16 +383,15 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 
 // collectBlockAttestations collects block attestation data for the specified height range
 // This fetches block headers via RPC to get height and apphash
-func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
+func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, endHeight uint64) ([]types.BlockAttestationData, error) {
 	attestations, err := am.keeper.GetBlockDataRange(ctx, startHeight, endHeight)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch block data range %d-%d: %w", startHeight, endHeight, err)
 	}
 
-	am.keeper.Logger(ctx).Debug("collected block attestations via RPC",
+	am.keeper.Logger(ctx).Info("collected block attestations via RPC",
 		"start_height", startHeight,
 		"end_height", endHeight,
-		"count", len(attestations),
 	)
 
 	return attestations, nil
@@ -409,5 +404,3 @@ func (am AppModule) EndBlock(ctx context.Context) ([]abci.ValidatorUpdate, error
 	}
 	return []abci.ValidatorUpdate{}, nil
 }
-
-// No AutoCLIOptions for now

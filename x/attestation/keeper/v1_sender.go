@@ -14,34 +14,20 @@ import (
 // This uses the traditional port/channel communication
 func (k *Keeper) SendAttestationPacketV1(
 	ctx context.Context,
+	params types.Params,
 	sourcePort string,
 	sourceChannel string,
-	attestations []*types.BlockAttestationData,
+	attestations []types.BlockAttestationData,
 ) (uint64, error) {
-	params, err := k.GetParams(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	if !params.AttestationEnabled {
-		return 0, types.ErrAttestationDisabled
-	}
-
 	// Check if channel keeper v1 is set
 	if k.channelKeeper == nil {
 		return 0, fmt.Errorf("IBC v1 channel keeper not initialized")
 	}
 
-	// Convert pointer slice to value slice for proto
-	attestationValues := make([]types.BlockAttestationData, len(attestations))
-	for i, att := range attestations {
-		attestationValues[i] = *att
-	}
-
 	// Create packet data
 	packetData := &types.AttestationPacketData{
 		SourceChainId: k.chainID,
-		Attestations:  attestationValues,
+		Attestations:  attestations,
 	}
 
 	// Marshal packet data to JSON
