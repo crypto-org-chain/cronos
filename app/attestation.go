@@ -54,7 +54,7 @@ func setupAttestationFinalityStorage(app *App, homePath string, appOpts serverty
 
 	// Initialize Block Data Collector (non-fatal if fails)
 	if err := setupBlockDataCollector(app, homePath, dbBackend, logger); err != nil {
-		logger.Warn("Failed to setup block data collector", "error", err)
+		return fmt.Errorf("failed to setup block data collector: %w", err)
 	}
 
 	return nil
