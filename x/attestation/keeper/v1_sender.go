@@ -12,7 +12,7 @@ import (
 
 // SendAttestationPacketV1 sends block attestations via IBC v1 to the attestation chain
 // This uses the traditional port/channel communication
-func (k Keeper) SendAttestationPacketV1(
+func (k *Keeper) SendAttestationPacketV1(
 	ctx context.Context,
 	sourcePort string,
 	sourceChannel string,
@@ -117,7 +117,7 @@ func (k Keeper) SendAttestationPacketV1(
 }
 
 // GetV1ChannelID returns the configured IBC v1 channel ID for attestation
-func (k Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V1ChannelIDPrefix, []byte(key)...))
 	if err != nil {
@@ -130,13 +130,13 @@ func (k Keeper) GetV1ChannelID(ctx context.Context, key string) (string, error) 
 }
 
 // SetV1ChannelID stores the IBC v1 channel ID for attestation
-func (k Keeper) SetV1ChannelID(ctx context.Context, key string, channelID string) error {
+func (k *Keeper) SetV1ChannelID(ctx context.Context, key string, channelID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V1ChannelIDPrefix, []byte(key)...), []byte(channelID))
 }
 
 // GetV1PortID returns the configured IBC v1 port ID for attestation
-func (k Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V1PortIDPrefix, []byte(key)...))
 	if err != nil {
@@ -150,7 +150,7 @@ func (k Keeper) GetV1PortID(ctx context.Context, key string) (string, error) {
 }
 
 // SetV1PortID stores the IBC v1 port ID for attestation
-func (k Keeper) SetV1PortID(ctx context.Context, key string, portID string) error {
+func (k *Keeper) SetV1PortID(ctx context.Context, key string, portID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V1PortIDPrefix, []byte(key)...), []byte(portID))
 }

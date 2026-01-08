@@ -12,7 +12,7 @@ import (
 
 // SendAttestationPacketV2 sends block attestations via IBC v2 to the attestation chain
 // This uses the simplified client-to-client communication without port/channel
-func (k Keeper) SendAttestationPacketV2(
+func (k *Keeper) SendAttestationPacketV2(
 	ctx context.Context,
 	sourceClient string,
 	destinationClient string,
@@ -126,7 +126,7 @@ func (k Keeper) SendAttestationPacketV2(
 }
 
 // GetV2ClientID returns the configured IBC v2 client ID for attestation
-func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
+func (k *Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 	store := k.storeService.OpenKVStore(ctx)
 	bz, err := store.Get(append(types.V2ClientIDPrefix, []byte(key)...))
 	if err != nil {
@@ -139,7 +139,7 @@ func (k Keeper) GetV2ClientID(ctx context.Context, key string) (string, error) {
 }
 
 // SetV2ClientID stores the IBC v2 client ID for attestation
-func (k Keeper) SetV2ClientID(ctx context.Context, key string, clientID string) error {
+func (k *Keeper) SetV2ClientID(ctx context.Context, key string, clientID string) error {
 	store := k.storeService.OpenKVStore(ctx)
 	return store.Set(append(types.V2ClientIDPrefix, []byte(key)...), []byte(clientID))
 }

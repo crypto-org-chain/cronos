@@ -813,8 +813,7 @@ func New(
 	}
 
 	// Store CometBFT RPC address for later initialization (after ABCI handshake)
-	// The BlockDataCollector needs WebSocket access to subscribe to block events
-	// This comes from the CometBFT RPC server, not the Cosmos SDK API server
+	// The BlockDataFetcher uses RPC queries to fetch block data on-demand
 	rpcAddress := cast.ToString(appOpts.Get("rpc.laddr"))
 	if rpcAddress == "" {
 		// Default to localhost if not configured
@@ -1121,11 +1120,10 @@ func New(
 			app.Logger().Error("failed to update blocklist", "error", err)
 		}
 
-		// Start block data collector after ABCI handshake completes
-		// The RPC server will be available shortly after this point
-		if app.AttestationKeeper.BlockCollector != nil && app.rpcAddress != "" {
-			// Start in a goroutine with retry logic since RPC server may not be immediately available
-			go app.startBlockDataCollectorWithRetry()
+		// Set RPC address for attestation keeper (client will be lazily initialized on first use)
+		if app.rpcAddress != "" {
+			app.AttestationKeeper.SetRPCAddress(app.rpcAddress)
+			app.Logger().Info("Configured attestation RPC address", "address", app.rpcAddress)
 		}
 	}
 
@@ -1500,6 +1498,12 @@ func VerifyAddressFormat(bz []byte) error {
 // Close will be called in graceful shutdown in start cmd
 func (app *App) Close() error {
 	errs := []error{app.BaseApp.Close()}
+
+	// Stop attestation RPC client
+	if err := app.AttestationKeeper.StopRPCClient(); err != nil {
+		app.Logger().Error("Failed to stop attestation RPC client", "error", err)
+		errs = append(errs, err)
+	}
 
 	// Close attestation local finality database
 	if err := app.AttestationKeeper.CloseFinalityDB(); err != nil {

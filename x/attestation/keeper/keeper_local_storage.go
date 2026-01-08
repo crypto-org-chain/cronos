@@ -75,10 +75,10 @@ func (k *Keeper) SetFinalityCache(cache *FinalityCache) {
 // This method writes to a local database that does NOT participate in consensus.
 // Each validator node maintains its own copy.
 // Also updates the highest finality height in consensus state if this block is higher.
-func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, finalizedAt int64) error {
+func (k *Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, finalizedAt int64) error {
 	status := &types.FinalityStatus{
-		BlockHeight:   height,
-		FinalizedAt:   finalizedAt,
+		BlockHeight: height,
+		FinalizedAt: finalizedAt,
 	}
 
 	// 1. Store in memory cache (if available)
@@ -127,7 +127,7 @@ func (k Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, fina
 
 // GetFinalityStatusLocal retrieves finality from LOCAL storage (no consensus)
 // Uses tiered storage: memory cache -> local DB -> not found
-func (k Keeper) GetFinalityStatusLocal(ctx context.Context, height uint64) (*types.FinalityStatus, error) {
+func (k *Keeper) GetFinalityStatusLocal(ctx context.Context, height uint64) (*types.FinalityStatus, error) {
 	// 1. Check memory cache first (fastest)
 	if k.finalityCache != nil {
 		if status, ok := k.finalityCache.Get(height); ok {
@@ -170,7 +170,7 @@ func (k Keeper) GetFinalityStatusLocal(ctx context.Context, height uint64) (*typ
 }
 
 // ListFinalizedBlocksLocal lists finalized blocks from LOCAL database
-func (k Keeper) ListFinalizedBlocksLocal(ctx context.Context, startHeight, endHeight uint64) ([]*types.FinalityStatus, error) {
+func (k *Keeper) ListFinalizedBlocksLocal(ctx context.Context, startHeight, endHeight uint64) ([]*types.FinalityStatus, error) {
 	if k.finalityDB == nil {
 		return nil, fmt.Errorf("local finality DB not initialized")
 	}
@@ -202,7 +202,7 @@ func (k Keeper) ListFinalizedBlocksLocal(ctx context.Context, startHeight, endHe
 }
 
 // GetLatestFinalizedLocal returns the latest finalized block height from LOCAL storage
-func (k Keeper) GetLatestFinalizedLocal(ctx context.Context) (uint64, error) {
+func (k *Keeper) GetLatestFinalizedLocal(ctx context.Context) (uint64, error) {
 	if k.finalityDB == nil {
 		return 0, fmt.Errorf("local finality DB not initialized")
 	}
@@ -226,7 +226,7 @@ func (k Keeper) GetLatestFinalizedLocal(ctx context.Context) (uint64, error) {
 
 // PruneFinalizedBlocksLocal prunes old finalized blocks from LOCAL storage
 // This is safe because local storage doesn't affect consensus
-func (k Keeper) PruneFinalizedBlocksLocal(ctx context.Context, beforeHeight uint64) (int, error) {
+func (k *Keeper) PruneFinalizedBlocksLocal(ctx context.Context, beforeHeight uint64) (int, error) {
 	if k.finalityDB == nil {
 		return 0, fmt.Errorf("local finality DB not initialized")
 	}
@@ -257,7 +257,7 @@ func (k Keeper) PruneFinalizedBlocksLocal(ctx context.Context, beforeHeight uint
 }
 
 // GetFinalityStatsLocal returns statistics about local finality storage
-func (k Keeper) GetFinalityStatsLocal(ctx context.Context) (*types.FinalityStats, error) {
+func (k *Keeper) GetFinalityStatsLocal(ctx context.Context) (*types.FinalityStats, error) {
 	if k.finalityDB == nil {
 		return nil, fmt.Errorf("local finality DB not initialized")
 	}
@@ -298,7 +298,7 @@ func (k Keeper) GetFinalityStatsLocal(ctx context.Context) (*types.FinalityStats
 }
 
 // CloseFinalityDB closes the local finality database
-func (k Keeper) CloseFinalityDB() error {
+func (k *Keeper) CloseFinalityDB() error {
 	if k.finalityDB != nil {
 		return k.finalityDB.Close()
 	}

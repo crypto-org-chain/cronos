@@ -251,9 +251,9 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 	// Send attestation if it's time
 	if currentHeight > lastSentHeight && (currentHeight-lastSentHeight >= params.AttestationInterval) {
 		am.keeper.Logger(ctx).Info("sending attestation", "current_height", currentHeight, "last_sent_height", lastSentHeight)
-		// Check if collector is available
-		if am.keeper.BlockCollector == nil {
-			am.keeper.Logger(ctx).Error("Block collector not initialized, skipping attestation")
+		// Check if RPC client is available
+		if !am.keeper.HasRPCClient() {
+			am.keeper.Logger(ctx).Error("RPC client not initialized, skipping attestation")
 			return nil
 		}
 
@@ -386,22 +386,14 @@ func (am AppModule) endBlocker(ctx context.Context) error {
 }
 
 // collectBlockAttestations collects block attestation data for the specified height range
-// This retrieves pre-collected block data from the BlockDataCollector
+// This fetches block headers via RPC to get height and apphash
 func (am AppModule) collectBlockAttestations(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
-	// Use the block collector to get full block data
-	// The collector subscribes to block events and stores complete block data
-	// including headers, transactions, results, evidence, etc.
-
-	if am.keeper.BlockCollector == nil {
-		return nil, fmt.Errorf("block data collector not initialized")
-	}
-
-	attestations, err := am.keeper.BlockCollector.GetBlockDataRange(startHeight, endHeight)
+	attestations, err := am.keeper.GetBlockDataRange(ctx, startHeight, endHeight)
 	if err != nil {
-		return nil, fmt.Errorf("failed to collect block data range %d-%d: %w", startHeight, endHeight, err)
+		return nil, fmt.Errorf("failed to fetch block data range %d-%d: %w", startHeight, endHeight, err)
 	}
 
-	am.keeper.Logger(ctx).Debug("collected block attestations from collector",
+	am.keeper.Logger(ctx).Debug("collected block attestations via RPC",
 		"start_height", startHeight,
 		"end_height", endHeight,
 		"count", len(attestations),
