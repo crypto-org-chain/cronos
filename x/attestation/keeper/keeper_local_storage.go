@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	dbm "github.com/cosmos/cosmos-db"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/crypto-org-chain/cronos/x/attestation/types"
 )
 
@@ -107,17 +106,7 @@ func (k *Keeper) MarkBlockFinalizedLocal(ctx context.Context, height uint64, fin
 		}
 	}
 
-	// 4. Emit event (this IS part of consensus, but minimal overhead)
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	sdkCtx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			"block_finalized_local",
-			sdk.NewAttribute("block_height", fmt.Sprintf("%d", height)),
-			sdk.NewAttribute("finalized_at", fmt.Sprintf("%d", finalizedAt)),
-		),
-	)
-
-	k.Logger(ctx).Debug("Stored finality locally (no consensus)",
+	k.Logger(ctx).Debug("Stored finality locally",
 		"height", height,
 		"finalized_at", finalizedAt,
 	)
