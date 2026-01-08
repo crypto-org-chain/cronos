@@ -3,7 +3,6 @@ package keeper
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
@@ -46,10 +45,8 @@ type Keeper struct {
 	finalityDB    dbm.DB         // Local database (persistent, no consensus)
 	finalityCache *FinalityCache // Memory cache (fast, no consensus)
 
-	// RPC client for fetching block data
-	// Can be local.Client (in-process) or http.Client (remote)
-	rpcClient   BlockchainInfoClient
-	rpcClientMu sync.RWMutex
+	// RPC client for fetching block data (in-process local client)
+	rpcClient BlockchainInfoClient
 }
 
 // NewKeeper creates a new attestation Keeper instance
@@ -104,33 +101,18 @@ func (k *Keeper) InitializeLocalStorage(dbPath string, cacheSize int, backend db
 }
 
 // SetRPCClient sets the CometBFT RPC client for fetching block data
-// Use local.New(node) for in-process client, or rpchttp.New() for remote
 func (k *Keeper) SetRPCClient(client BlockchainInfoClient) {
-	k.rpcClientMu.Lock()
-	defer k.rpcClientMu.Unlock()
 	k.rpcClient = client
-}
-
-// getRPCClient returns the RPC client if set
-func (k *Keeper) getRPCClient() (BlockchainInfoClient, error) {
-	k.rpcClientMu.RLock()
-	defer k.rpcClientMu.RUnlock()
-
-	if k.rpcClient == nil {
-		return nil, fmt.Errorf("RPC client not configured")
-	}
-	return k.rpcClient, nil
 }
 
 // GetBlockDataRange fetches block attestation data for a range of heights via RPC
 func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight uint64) ([]*types.BlockAttestationData, error) {
-	client, err := k.getRPCClient()
-	if err != nil {
-		return nil, err
+	if k.rpcClient == nil {
+		return nil, fmt.Errorf("RPC client not configured")
 	}
 
 	// Use BlockchainInfo to fetch multiple headers in one RPC call
-	blockchainInfo, err := client.BlockchainInfo(ctx, int64(startHeight), int64(endHeight))
+	blockchainInfo, err := k.rpcClient.BlockchainInfo(ctx, int64(startHeight), int64(endHeight))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch blockchain info for range %d-%d: %w", startHeight, endHeight, err)
 	}
@@ -152,18 +134,7 @@ func (k *Keeper) GetBlockDataRange(ctx context.Context, startHeight, endHeight u
 
 // HasRPCClient returns true if an RPC client is configured
 func (k *Keeper) HasRPCClient() bool {
-	k.rpcClientMu.RLock()
-	defer k.rpcClientMu.RUnlock()
 	return k.rpcClient != nil
-}
-
-// StopRPCClient clears the RPC client reference
-// Note: The client lifecycle is managed externally (by the server)
-func (k *Keeper) StopRPCClient() error {
-	k.rpcClientMu.Lock()
-	defer k.rpcClientMu.Unlock()
-	k.rpcClient = nil
-	return nil
 }
 
 // SetChannelKeeper sets the IBC v1 channel keeper for sending packets

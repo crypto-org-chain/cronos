@@ -1487,12 +1487,6 @@ func VerifyAddressFormat(bz []byte) error {
 func (app *App) Close() error {
 	errs := []error{app.BaseApp.Close()}
 
-	// Stop attestation RPC client
-	if err := app.AttestationKeeper.StopRPCClient(); err != nil {
-		app.Logger().Error("Failed to stop attestation RPC client", "error", err)
-		errs = append(errs, err)
-	}
-
 	// Close attestation local finality database
 	if err := app.AttestationKeeper.CloseFinalityDB(); err != nil {
 		app.Logger().Error("Failed to close attestation finality DB", "error", err)
