@@ -2,6 +2,10 @@
 
 ## UNRELEASED
 
+*Jan 13, 2025*
+
+## v1.7.0
+
 ### Improvements
 
 * [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
