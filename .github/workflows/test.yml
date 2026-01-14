@@ -109,6 +109,9 @@ jobs:
       - name: 'instantiate integration test env'
         if: steps.changed-files.outputs.only_changed == 'false'
         run: nix-store -r $(nix-instantiate integration_tests/shell.nix)
+      - name: 'build and cache upgrade test packages'
+        if: steps.changed-files.outputs.only_changed == 'false'
+        run: nix-build integration_tests/configs/upgrade-test-package.nix
 
   testground-test:
     runs-on: ubuntu-latest
