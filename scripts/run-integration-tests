@@ -11,11 +11,18 @@ HUSKY_SKIP_INSTALL=1 npm ci
 npm run typechain
 cd ../..
 TESTS_TO_RUN="${TESTS_TO_RUN:-all}"
+
+# Pre-build upgrade test packages outside of pytest timeout
+if [[ "$TESTS_TO_RUN" == "upgrade" || "$TESTS_TO_RUN" == "all" ]]; then
+  echo "pre-building upgrade test packages (this may take a while if not cached)..."
+  nix-build ./integration_tests/configs/upgrade-test-package.nix
+fi
+
 if [[ "$TESTS_TO_RUN" == "all" ]]; then
   echo "run all tests"
   cmd="pytest -vv -s --session-timeout=6000 --timeout=6000"
 else
   echo "run tests matching $TESTS_TO_RUN"
-  cmd="pytest -vv -s --session-timeout=1800 --timeout=1800 -m '$TESTS_TO_RUN'"
+  cmd="pytest -vv -s --session-timeout=6000 --timeout=6000 -m '$TESTS_TO_RUN'"
 fi
 nix-shell ./integration_tests/shell.nix --run "$cmd"
