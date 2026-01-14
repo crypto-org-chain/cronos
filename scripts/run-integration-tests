@@ -23,6 +23,6 @@ if [[ "$TESTS_TO_RUN" == "all" ]]; then
   cmd="pytest -vv -s --session-timeout=6000 --timeout=6000"
 else
   echo "run tests matching $TESTS_TO_RUN"
-  cmd="pytest -vv -s --session-timeout=6000 --timeout=6000 -m '$TESTS_TO_RUN'"
+  cmd="pytest -vv -s --session-timeout=1800 --timeout=1800 -m '$TESTS_TO_RUN'"
 fi
 nix-shell ./integration_tests/shell.nix --run "$cmd"
