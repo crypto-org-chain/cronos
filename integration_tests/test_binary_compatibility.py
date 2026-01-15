@@ -113,7 +113,7 @@ def setup_binary_compatibility_test_nix(
         post_init=post_init,
         chain_binary=binary1_path,
     ) as cronos:
-        yield cronos, binaries
+        yield cronos, binaries, nodes_with_binary2
 
 
 def check_consensus_failure(cronos):
@@ -214,25 +214,33 @@ def get_compatibility_status(
 
 def display_compatibility_results(
     cronos, progression_results, consensus_errors,
-    binary1_version, binary2_version
+    binary1_version, binary2_version, nodes_with_binary2=None
 ):
     """Display compatibility test results in a formatted table."""
+    if nodes_with_binary2 is None:
+        nodes_with_binary2 = [2]
+
     progressing_count = sum(1 for p in progression_results.values() if p)
     total_nodes = len(cronos.config["validators"])
+    nodes_with_binary1 = [i for i in range(total_nodes)
+                          if i not in nodes_with_binary2]
 
     print(f"\n{'='*60}")
     print("Binary Compatibility Test Results")
     print(f"{'='*60}")
-    print(f"Binary 1 (nodes 0,1): {binary1_version}")
-    print(f"Binary 2 (node 2): {binary2_version}")
+    print(f"Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+          f"{binary1_version}")
+    print(f"Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+          f"{binary2_version}")
     print(f"Nodes progressing: {progressing_count}/{total_nodes}")
     print("\nNode Status:")
     for idx in range(total_nodes):
         progressed = progression_results.get(idx, False)
         has_err, error_msg = consensus_errors.get(idx, (False, None))
 
+        binary = "binary2" if idx in nodes_with_binary2 else "binary1"
         status = "✓ PROGRESSING" if progressed else "✗ STUCK"
-        print(f"  Node {idx}: {status}")
+        print(f"  Node {idx} ({binary}): {status}")
         if has_err and error_msg:
             print(f"    Error: {error_msg}")
     print(f"{'='*60}\n")
@@ -240,14 +248,23 @@ def display_compatibility_results(
     return progressing_count, total_nodes
 
 
-def check_for_breaking_change(cronos, binary1_version, binary2_version):
+def check_for_breaking_change(
+    cronos, binary1_version, binary2_version, nodes_with_binary2=None
+):
     """
     Quick check for breaking change (used during test execution).
     Raises AssertionError immediately if breaking change detected.
     """
+    if nodes_with_binary2 is None:
+        nodes_with_binary2 = [2]
+
+    total_nodes = len(cronos.config["validators"])
+    nodes_with_binary1 = [i for i in range(total_nodes)
+                          if i not in nodes_with_binary2]
+
     # Get current heights
     initial_heights = {}
-    for i in range(len(cronos.config["validators"])):
+    for i in range(total_nodes):
         status = get_node_status(cronos, i)
         if status:
             sync_info = status.get("SyncInfo") or status.get("sync_info")
@@ -259,7 +276,6 @@ def check_for_breaking_change(cronos, binary1_version, binary2_version):
     )
 
     progressing_count = sum(1 for p in progression_results.values() if p)
-    total_nodes = len(cronos.config["validators"])
 
     # If not all nodes progressing, it's breaking
     if progressing_count < total_nodes:
@@ -283,8 +299,10 @@ def check_for_breaking_change(cronos, binary1_version, binary2_version):
             f"Nodes progressing: "
             f"{progressing_nodes if progressing_nodes else 'None'}\n\n"
             f"Binary versions:\n"
-            f"  - Binary 1 (nodes 0,1): {binary1_version}\n"
-            f"  - Binary 2 (node 2): {binary2_version}\n\n"
+            f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+            f"{binary1_version}\n"
+            f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+            f"{binary2_version}\n\n"
             f"Error details:\n{error_summary}\n\n"
             f"The binaries are incompatible. Test cannot continue."
         )
@@ -377,12 +395,19 @@ def test_binary_compatibility(tmp_path_factory):
         export NODES_WITH_BINARY2="2"    # default
         export NODES_WITH_BINARY2="0,1"  # nodes 0,1 run binary2
     """
-    for cronos, binaries in setup_binary_compatibility_test_nix(tmp_path_factory):
+    for cronos, binaries, nodes_with_binary2 in setup_binary_compatibility_test_nix(
+        tmp_path_factory
+    ):
         # Read test configuration from Nix build
         config_file = binaries / "config.json"
         with open(config_file) as f:
             config = json.load(f)
         expect_breaking = config.get("expect_breaking", False)
+
+        # Calculate node assignments for display
+        total_nodes = len(cronos.config["validators"])
+        nodes_with_binary1 = [i for i in range(total_nodes)
+                              if i not in nodes_with_binary2]
 
         print(f"\n{'='*60}")
         print("Testing Binary Compatibility")
@@ -451,7 +476,9 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 2, 0.5, 10)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(cronos, binary1_version, binary2_version)
+            check_for_breaking_change(
+                cronos, binary1_version, binary2_version, nodes_with_binary2
+            )
 
         # 2. Test EVM transaction (simple transfer)
         print("2. Testing EVM transfer...")
@@ -477,7 +504,9 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 2, 0.5, 5)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(cronos, binary1_version, binary2_version)
+            check_for_breaking_change(
+                cronos, binary1_version, binary2_version, nodes_with_binary2
+            )
 
         # 3. Test contract deployment
         print("3. Testing contract deployment...")
@@ -520,7 +549,9 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 3, 0.5, 5)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(cronos, binary1_version, binary2_version)
+            check_for_breaking_change(
+                cronos, binary1_version, binary2_version, nodes_with_binary2
+            )
 
         # Check block progression and consensus errors
         progression_results, consensus_errors = get_compatibility_status(
@@ -530,7 +561,7 @@ def test_binary_compatibility(tmp_path_factory):
         # Display detailed results
         progressing_count, total_nodes = display_compatibility_results(
             cronos, progression_results, consensus_errors,
-            binary1_version, binary2_version
+            binary1_version, binary2_version, nodes_with_binary2
         )
 
         # If not all nodes are progressing, it's a breaking change
@@ -556,8 +587,10 @@ def test_binary_compatibility(tmp_path_factory):
                 f"Nodes progressing: "
                 f"{progressing_nodes if progressing_nodes else 'None'}\n\n"
                 f"Binary versions:\n"
-                f"  - Binary 1 (nodes 0,1): {binary1_version}\n"
-                f"  - Binary 2 (node 2): {binary2_version}\n\n"
+                f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+                f"{binary1_version}\n"
+                f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+                f"{binary2_version}\n\n"
                 f"Error details:\n{error_summary}\n\n"
                 f"The binaries are incompatible and cannot work together.\n"
                 f"Check node logs for more details:\n"
@@ -575,8 +608,10 @@ def test_binary_compatibility(tmp_path_factory):
             pytest.fail(
                 f"Expected breaking change but binaries are compatible:\n"
                 f"  - All {total_nodes} nodes are progressing normally\n"
-                f"  - Binary 1 (nodes 0,1): {binary1_version}\n"
-                f"  - Binary 2 (node 2): {binary2_version}\n\n"
+                f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+                f"{binary1_version}\n"
+                f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+                f"{binary2_version}\n\n"
                 f"Set expect_breaking=false in configs/binary-compat-package.nix"
             )
 
