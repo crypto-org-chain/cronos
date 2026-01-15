@@ -249,11 +249,14 @@ def display_compatibility_results(
 
 
 def check_for_breaking_change(
-    cronos, binary1_version, binary2_version, nodes_with_binary2=None
+    cronos, binary1_version, binary2_version,
+    nodes_with_binary2=None, expect_breaking=False
 ):
     """
-    Quick check for breaking change (used during test execution).
-    Raises AssertionError immediately if breaking change detected.
+    Check for breaking change.
+    If expect_breaking=False and breaking change detected, raises AssertionError.
+    If expect_breaking=True and breaking change detected, returns True.
+    If no breaking change detected, returns False.
     """
     if nodes_with_binary2 is None:
         nodes_with_binary2 = [2]
@@ -293,19 +296,36 @@ def check_for_breaking_change(
             else "  Check node logs for details"
         )
 
-        raise AssertionError(
-            f"BREAKING CHANGE DETECTED during test execution:\n\n"
-            f"Nodes stuck: {stuck_nodes}\n"
-            f"Nodes progressing: "
-            f"{progressing_nodes if progressing_nodes else 'None'}\n\n"
-            f"Binary versions:\n"
-            f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
-            f"{binary1_version}\n"
-            f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
-            f"{binary2_version}\n\n"
-            f"Error details:\n{error_summary}\n\n"
-            f"The binaries are incompatible. Test cannot continue."
-        )
+        if expect_breaking:
+            # Breaking change was expected - this is success
+            print("\n✓ Breaking change detected as expected:")
+            print(f"  Nodes stuck: {stuck_nodes}")
+            print(f"  Nodes progressing: "
+                  f"{progressing_nodes if progressing_nodes else 'None'}")
+            if error_details:
+                print("  Errors detected:")
+                for detail in error_details:
+                    print(f"    {detail}")
+            return True
+        else:
+            # Breaking change was NOT expected - fail the test
+            raise AssertionError(
+                f"BREAKING CHANGE DETECTED during test execution:\n\n"
+                f"Nodes stuck: {stuck_nodes}\n"
+                f"Nodes progressing: "
+                f"{progressing_nodes if progressing_nodes else 'None'}\n\n"
+                f"Binary versions:\n"
+                f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+                f"{binary1_version}\n"
+                f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+                f"{binary2_version}\n\n"
+                f"Error details:\n{error_summary}\n\n"
+                f"The binaries are incompatible. Test cannot continue.\n\n"
+                f"If this is expected, set expect_breaking=true in:\n"
+                f"  configs/binary-compat-package.nix"
+            )
+
+    return False
 
 
 def check_block_progression(
@@ -476,9 +496,12 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 2, 0.5, 10)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(
-                cronos, binary1_version, binary2_version, nodes_with_binary2
-            )
+            if check_for_breaking_change(
+                cronos, binary1_version, binary2_version,
+                nodes_with_binary2, expect_breaking
+            ):
+                # Breaking change expected and detected - test passes
+                return
 
         # 2. Test EVM transaction (simple transfer)
         print("2. Testing EVM transfer...")
@@ -504,9 +527,12 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 2, 0.5, 5)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(
-                cronos, binary1_version, binary2_version, nodes_with_binary2
-            )
+            if check_for_breaking_change(
+                cronos, binary1_version, binary2_version,
+                nodes_with_binary2, expect_breaking
+            ):
+                # Breaking change expected and detected - test passes
+                return
 
         # 3. Test contract deployment
         print("3. Testing contract deployment...")
@@ -549,58 +575,28 @@ def test_binary_compatibility(tmp_path_factory):
             wait_for_new_blocks(cli, 3, 0.5, 5)
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
-            check_for_breaking_change(
-                cronos, binary1_version, binary2_version, nodes_with_binary2
-            )
+            if check_for_breaking_change(
+                cronos, binary1_version, binary2_version,
+                nodes_with_binary2, expect_breaking
+            ):
+                # Breaking change expected and detected - test passes
+                return
 
-        # Check block progression and consensus errors
-        progression_results, consensus_errors = get_compatibility_status(
-            cronos, initial_heights, min_new_blocks=3, timeout=30
+        # Final comprehensive check
+        print("\n" + "="*60)
+        print("Final Compatibility Check")
+        print("="*60)
+        is_breaking = check_for_breaking_change(
+            cronos, binary1_version, binary2_version,
+            nodes_with_binary2, expect_breaking
         )
 
-        # Display detailed results
-        progressing_count, total_nodes = display_compatibility_results(
-            cronos, progression_results, consensus_errors,
-            binary1_version, binary2_version, nodes_with_binary2
-        )
+        if is_breaking:
+            # Breaking change detected and expected - test passes
+            return
 
-        # If not all nodes are progressing, it's a breaking change
-        if progressing_count < total_nodes:
-            stuck_nodes = [i for i, p in progression_results.items() if not p]
-            progressing_nodes = [i for i, p in progression_results.items() if p]
-
-            error_details = []
-            for node_idx in range(total_nodes):
-                has_err, error_msg = consensus_errors.get(node_idx, (False, None))
-                if has_err and error_msg:
-                    error_details.append(f"  Node {node_idx}: {error_msg}")
-
-            error_summary = (
-                "\n".join(error_details) if error_details
-                else "  No specific error patterns found in logs "
-                "(check node logs for details)"
-            )
-
-            pytest.fail(
-                f"BREAKING CHANGE DETECTED: Not all nodes are progressing\n\n"
-                f"Nodes stuck: {stuck_nodes}\n"
-                f"Nodes progressing: "
-                f"{progressing_nodes if progressing_nodes else 'None'}\n\n"
-                f"Binary versions:\n"
-                f"  - Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
-                f"{binary1_version}\n"
-                f"  - Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
-                f"{binary2_version}\n\n"
-                f"Error details:\n{error_summary}\n\n"
-                f"The binaries are incompatible and cannot work together.\n"
-                f"Check node logs for more details:\n"
-                f"  - {cronos.base_dir}/../cronos_777-1-node*.log\n\n"
-                f"If this breaking change is expected, set expect_breaking=true in:\n"
-                f"  configs/binary-compat-package.nix"
-            )
-
-        # All nodes progressing - binaries are compatible!
-        print(f"✓ COMPATIBLE: All {total_nodes} nodes are progressing successfully")
+        # If we reach here, no breaking change detected
+        print("✓ COMPATIBLE: All nodes are progressing successfully")
         print("  The binaries are compatible and can work together\n")
 
         # If we expected breaking but got compatible, fail the test
