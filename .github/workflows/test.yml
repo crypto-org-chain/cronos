@@ -49,6 +49,10 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - name: 'build and cache upgrade test packages'
+        if: steps.changed-files.outputs.only_changed == 'false' && matrix.tests == 'upgrade'
+        run: cachix watch-exec cronos -- nix-build integration_tests/configs/upgrade-test-package.nix
       - name: Run integration tests
         if: steps.changed-files.outputs.only_changed == 'false'
         run: make run-integration-tests
@@ -106,6 +110,7 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: 'instantiate integration test env'
         if: steps.changed-files.outputs.only_changed == 'false'
         run: nix-store -r $(nix-instantiate integration_tests/shell.nix)
@@ -127,6 +132,7 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Run tests
         run: |
           cd testground/benchmark
