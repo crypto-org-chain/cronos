@@ -79,8 +79,7 @@ def setup_binary_compatibility_test_nix(
     # Get node configuration from environment (default: node 2 runs binary2)
     nodes_with_binary2_str = os.environ.get("NODES_WITH_BINARY2", "2")
     nodes_with_binary2 = [
-        int(x.strip()) for x in nodes_with_binary2_str.split(",")
-        if x.strip()
+        int(x.strip()) for x in nodes_with_binary2_str.split(",") if x.strip()
     ]
 
     def post_init(path, base_port, config):
@@ -145,19 +144,25 @@ def check_consensus_failure(cronos):
 
                     # Check for various consensus failure patterns
                     patterns = [
-                        (r"wrong Block\.Header\.AppHash",
-                         "App hash mismatch"),
-                        (r"wrong Block\.Header\.LastResultsHash",
-                         "Last results hash mismatch"),
-                        (r"wrong Block\.Header\.DataHash",
-                         "Data hash mismatch"),
-                        (r"wrong Block\.Header\.ValidatorsHash",
-                         "Validators hash mismatch"),
-                        (r"wrong Block\.Header\.ConsensusHash",
-                         "Consensus hash mismatch"),
+                        (r"wrong Block\.Header\.AppHash", "App hash mismatch"),
+                        (
+                            r"wrong Block\.Header\.LastResultsHash",
+                            "Last results hash mismatch",
+                        ),
+                        (r"wrong Block\.Header\.DataHash", "Data hash mismatch"),
+                        (
+                            r"wrong Block\.Header\.ValidatorsHash",
+                            "Validators hash mismatch",
+                        ),
+                        (
+                            r"wrong Block\.Header\.ConsensusHash",
+                            "Consensus hash mismatch",
+                        ),
                         (r"CONSENSUS FAILURE", "Consensus failure"),
-                        (r"consensus deems this block invalid",
-                         "Block deemed invalid by consensus"),
+                        (
+                            r"consensus deems this block invalid",
+                            "Block deemed invalid by consensus",
+                        ),
                         (r"appHash.*expected.*got", "App hash mismatch"),
                     ]
 
@@ -189,9 +194,7 @@ def get_node_status(cronos, node_index):
         return None
 
 
-def get_compatibility_status(
-    cronos, initial_heights, min_new_blocks=3, timeout=30
-):
+def get_compatibility_status(cronos, initial_heights, min_new_blocks=3, timeout=30):
     """
     Check compatibility status of all nodes.
 
@@ -202,8 +205,11 @@ def get_compatibility_status(
     """
     # Check block progression
     progression_results = check_block_progression(
-        cronos, initial_heights, min_new_blocks=min_new_blocks,
-        timeout=timeout, check_errors=False
+        cronos,
+        initial_heights,
+        min_new_blocks=min_new_blocks,
+        timeout=timeout,
+        check_errors=False,
     )
 
     # Check for consensus failures in logs
@@ -213,8 +219,12 @@ def get_compatibility_status(
 
 
 def display_compatibility_results(
-    cronos, progression_results, consensus_errors,
-    binary1_version, binary2_version, nodes_with_binary2=None
+    cronos,
+    progression_results,
+    consensus_errors,
+    binary1_version,
+    binary2_version,
+    nodes_with_binary2=None,
 ):
     """Display compatibility test results in a formatted table."""
     if nodes_with_binary2 is None:
@@ -222,16 +232,19 @@ def display_compatibility_results(
 
     progressing_count = sum(1 for p in progression_results.values() if p)
     total_nodes = len(cronos.config["validators"])
-    nodes_with_binary1 = [i for i in range(total_nodes)
-                          if i not in nodes_with_binary2]
+    nodes_with_binary1 = [i for i in range(total_nodes) if i not in nodes_with_binary2]
 
     print(f"\n{'='*60}")
     print("Binary Compatibility Test Results")
     print(f"{'='*60}")
-    print(f"Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
-          f"{binary1_version}")
-    print(f"Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
-          f"{binary2_version}")
+    print(
+        f"Binary 1 (nodes {','.join(map(str, nodes_with_binary1))}): "
+        f"{binary1_version}"
+    )
+    print(
+        f"Binary 2 (nodes {','.join(map(str, nodes_with_binary2))}): "
+        f"{binary2_version}"
+    )
     print(f"Nodes progressing: {progressing_count}/{total_nodes}")
     print("\nNode Status:")
     for idx in range(total_nodes):
@@ -249,8 +262,11 @@ def display_compatibility_results(
 
 
 def check_for_breaking_change(
-    cronos, binary1_version, binary2_version,
-    nodes_with_binary2=None, expect_breaking=False
+    cronos,
+    binary1_version,
+    binary2_version,
+    nodes_with_binary2=None,
+    expect_breaking=False,
 ):
     """
     Check for breaking change.
@@ -262,8 +278,7 @@ def check_for_breaking_change(
         nodes_with_binary2 = [2]
 
     total_nodes = len(cronos.config["validators"])
-    nodes_with_binary1 = [i for i in range(total_nodes)
-                          if i not in nodes_with_binary2]
+    nodes_with_binary1 = [i for i in range(total_nodes) if i not in nodes_with_binary2]
 
     # Get current heights
     initial_heights = {}
@@ -292,7 +307,8 @@ def check_for_breaking_change(
                 error_details.append(f"  Node {node_idx}: {error_msg}")
 
         error_summary = (
-            "\n".join(error_details) if error_details
+            "\n".join(error_details)
+            if error_details
             else "  Check node logs for details"
         )
 
@@ -300,8 +316,10 @@ def check_for_breaking_change(
             # Breaking change was expected - this is success
             print("\n✓ Breaking change detected as expected:")
             print(f"  Nodes stuck: {stuck_nodes}")
-            print(f"  Nodes progressing: "
-                  f"{progressing_nodes if progressing_nodes else 'None'}")
+            print(
+                f"  Nodes progressing: "
+                f"{progressing_nodes if progressing_nodes else 'None'}"
+            )
             if error_details:
                 print("  Errors detected:")
                 for detail in error_details:
@@ -386,8 +404,8 @@ def check_block_progression(
                     if has_err and msg
                 ]
                 raise AssertionError(
-                    "Consensus failure detected while waiting for blocks:\n" +
-                    "\n".join(error_msgs)
+                    "Consensus failure detected while waiting for blocks:\n"
+                    + "\n".join(error_msgs)
                 )
             last_error_check = time.time()
 
@@ -426,8 +444,9 @@ def test_binary_compatibility(tmp_path_factory):
 
         # Calculate node assignments for display
         total_nodes = len(cronos.config["validators"])
-        nodes_with_binary1 = [i for i in range(total_nodes)
-                              if i not in nodes_with_binary2]
+        nodes_with_binary1 = [
+            i for i in range(total_nodes) if i not in nodes_with_binary2
+        ]
 
         print(f"\n{'='*60}")
         print("Testing Binary Compatibility")
@@ -438,11 +457,13 @@ def test_binary_compatibility(tmp_path_factory):
         # Show binary versions
         binary1_version = subprocess.run(
             [str(binaries / "binary1/bin/cronosd"), "version"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         binary2_version = subprocess.run(
             [str(binaries / "binary2/bin/cronosd"), "version"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         ).stdout.strip()
 
         print(f"Binary 1 version: {binary1_version}")
@@ -471,9 +492,9 @@ def test_binary_compatibility(tmp_path_factory):
         print(f"Initial heights: {initial_heights}")
 
         # Execute transactions to test state divergence
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Executing transactions to test state consistency...")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         w3 = cronos.w3
 
@@ -497,8 +518,11 @@ def test_binary_compatibility(tmp_path_factory):
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
             if check_for_breaking_change(
-                cronos, binary1_version, binary2_version,
-                nodes_with_binary2, expect_breaking
+                cronos,
+                binary1_version,
+                binary2_version,
+                nodes_with_binary2,
+                expect_breaking,
             ):
                 # Breaking change expected and detected - test passes
                 return
@@ -528,8 +552,11 @@ def test_binary_compatibility(tmp_path_factory):
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
             if check_for_breaking_change(
-                cronos, binary1_version, binary2_version,
-                nodes_with_binary2, expect_breaking
+                cronos,
+                binary1_version,
+                binary2_version,
+                nodes_with_binary2,
+                expect_breaking,
             ):
                 # Breaking change expected and detected - test passes
                 return
@@ -576,19 +603,25 @@ def test_binary_compatibility(tmp_path_factory):
         except TimeoutError:
             print("   ⚠ Timeout waiting for blocks - checking for breaking change...")
             if check_for_breaking_change(
-                cronos, binary1_version, binary2_version,
-                nodes_with_binary2, expect_breaking
+                cronos,
+                binary1_version,
+                binary2_version,
+                nodes_with_binary2,
+                expect_breaking,
             ):
                 # Breaking change expected and detected - test passes
                 return
 
         # Final comprehensive check
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Final Compatibility Check")
-        print("="*60)
+        print("=" * 60)
         is_breaking = check_for_breaking_change(
-            cronos, binary1_version, binary2_version,
-            nodes_with_binary2, expect_breaking
+            cronos,
+            binary1_version,
+            binary2_version,
+            nodes_with_binary2,
+            expect_breaking,
         )
 
         if is_breaking:
@@ -614,4 +647,5 @@ def test_binary_compatibility(tmp_path_factory):
 
 if __name__ == "__main__":
     import sys
+
     pytest.main([__file__, "-v", "-s"] + sys.argv[1:])
