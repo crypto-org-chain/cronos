@@ -1,6 +1,7 @@
 let
   pkgs = import ../../nix { };
-  fetchFlake = repo: rev:
+  fetchFlake =
+    repo: rev:
     (pkgs.flake-compat {
       src = {
         outPath = builtins.fetchTarball "https://github.com/${repo}/archive/${rev}.tar.gz";
@@ -44,4 +45,3 @@ pkgs.runCommand "binary-compat-package" { } ''
   ${builtins.toJSON { inherit expect_breaking; }}
   EOF
 ''
-
