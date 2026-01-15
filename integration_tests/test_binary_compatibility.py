@@ -37,10 +37,7 @@ from .utils import (
 pytestmark = pytest.mark.upgrade
 
 
-def setup_binary_compatibility_test_nix(
-    tmp_path_factory,
-    nix_package="binary-compat-package"
-):
+def setup_binary_compatibility_test_nix(tmp_path_factory, nix_package="binary-compat-package"):
     """
     Setup binary compatibility test using Nix-built binaries.
 
