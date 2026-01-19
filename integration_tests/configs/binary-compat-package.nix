@@ -11,13 +11,11 @@ let
     }).defaultNix;
 
   # Define initialBinary - e.g., previous stable release
-  initialBinary =
-    (fetchFlake "crypto-org-chain/cronos" "f1c7d9ed2430b0fd6356c2fa7f1162f902cd8dd7").default;
+  initialBinary = pkgs.callPackage ../../. { }; # current codebase
 
   # Define newBinary - current/new version
   # This will be the current code being tested
-  newBinary =
-    (fetchFlake "crypto-org-chain/cronos" "f1c7d9ed2430b0fd6356c2fa7f1162f902cd8dd7").default;
+  newBinary = pkgs.callPackage ../../. { }; # current codebase
 
   # Alternative: test between two specific releases
   # Uncomment and modify as needed:
