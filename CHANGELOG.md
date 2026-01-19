@@ -15,6 +15,7 @@
 * [#1939](https://github.com/crypto-org-chain/cronos/pull/1939) Add preinstall in upgrade handler
 * [#1946](https://github.com/crypto-org-chain/cronos/pull/1946) Fix: allow preinstall in case account has a balance
 * [#1947](https://github.com/crypto-org-chain/cronos/pull/1947) Fix: estimate gas not accurate
+* [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) refactor: replace MsgEthereumTxResponse with EthCallResponse in EVM calls 
 
 *Dec 4, 2025*
 
