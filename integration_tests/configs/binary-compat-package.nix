@@ -27,11 +27,10 @@ pkgs.runCommand "binary-compat-package" { } ''
   mkdir -p $out/initial/bin
   mkdir -p $out/new/bin
 
-  # Copy binaries (actual copies, not symlinks)
-  cp -r ${initialBinary}/bin/* $out/initial/bin/
-  cp -r ${newBinary}/bin/* $out/new/bin/
-
-  # Make binaries executable
-  chmod +x $out/initial/bin/*
-  chmod +x $out/new/bin/*
+ # Copy binaries (actual copies, not symlinks)
+  cp -Lr ${initialBinary}/bin/. $out/initial/bin/
+  cp -Lr ${newBinary}/bin/. $out/new/bin/
+  
+ # Make binaries executable
+  find $out/initial/bin $out/new/bin -type f -exec chmod +x {} +
 ''
