@@ -10,7 +10,6 @@ Test fails (BREAKING CHANGE) if any node stops progressing blocks.
 Binaries are defined in configs/binary-compat-package.nix
 """
 
-import os
 import re
 import shutil
 import stat
@@ -84,6 +83,7 @@ def setup_binary_compatibility_test_nix(
     ) as cronos:
         yield cronos, binaries, initial_binary_path, new_binary_path
 
+
 def get_node_status(cronos, node_index):
     """Get status of a specific node."""
     try:
@@ -93,6 +93,7 @@ def get_node_status(cronos, node_index):
     except Exception as e:
         print(f"Failed to get status for node {node_index}: {e}")
         return None
+
 
 def check_consensus_failure(cronos):
     """
@@ -160,6 +161,7 @@ def check_consensus_failure(cronos):
         results[i] = (has_error, error_msg)
 
     return results
+
 
 def check_block_progression(
     cronos, initial_heights, min_new_blocks=5, timeout=60, check_errors=True
@@ -260,7 +262,8 @@ def check_for_breaking_change(
     upgraded_nodes=None,
 ):
     """
-    Check if all nodes are progressing. Raises AssertionError if breaking change detected.
+    Check if all nodes are progressing.
+    Raises AssertionError if breaking change detected.
     """
     if upgraded_nodes is None:
         upgraded_nodes = []
@@ -318,13 +321,13 @@ def check_for_breaking_change(
 def upgrade_node(cronos, node_idx, new_binary_path, initial_version, new_version):
     """
     Upgrade a single node to the new binary.
-    
+
     Args:
         cronos: Cronos instance
         node_idx: Index of the node to upgrade
         new_binary_path: Path to the new binary
-        initial_version: Version string of initial binary (for error reporting)
-        new_version: Version string of new binary (for error reporting)
+        initial_version: Version string of initial binary
+        new_version: Version string of new binary
     """
     chain_id = "cronos_777-1"
     data = cronos.base_dir
@@ -354,22 +357,22 @@ def upgrade_node(cronos, node_idx, new_binary_path, initial_version, new_version
     # Stop the node
     print(f"Stopping node {node_idx}...\n")
     cronos.supervisorctl("stop", node_name)
-    print(f"\n")
+    print()
 
     # Reload supervisor configuration
     print("Reloading supervisor configuration...\n")
     cronos.supervisorctl("update")
-    print(f"\n")
+    print()
 
     # Start the node with new binary
     print(f"Starting node {node_idx} with new binary...\n")
     cronos.supervisorctl("start", node_name)
-    print(f"\n")
+    print()
 
     # Wait for node to restart
     print("Waiting for node to restart...\n")
     time.sleep(10)
-    print(f"\n")
+    print()
 
     # Check if all nodes are still progressing
     print(f"Verifying node {node_idx} can sync with the network...\n")
@@ -385,13 +388,13 @@ def upgrade_node(cronos, node_idx, new_binary_path, initial_version, new_version
 def run_transactions(cronos, phase_name, initial_version, new_version, upgraded_nodes):
     """
     Run a set of transactions to test the network.
-    
+
     Args:
         cronos: Cronos instance
         phase_name: Name of the test phase (for logging)
         initial_version: Version of initial binary (for error reporting)
         new_version: Version of new binary (for error reporting)
-        upgraded_nodes: List of node indices that have been upgraded so far
+        upgraded_nodes: List of node indices that have been upgraded
     """
     print(f"\n{'='*60}")
     print(f"Testing transactions - {phase_name}")
@@ -417,7 +420,8 @@ def run_transactions(cronos, phase_name, initial_version, new_version, upgraded_
     try:
         wait_for_new_blocks(cli, 2, 0.5, 10)
     except TimeoutError:
-        print("   ⚠ Timeout waiting for blocks after MsgSend - checking for breaking change...")
+        print("   ⚠ Timeout waiting for blocks after MsgSend")
+        print("      Checking for breaking change...")
         check_for_breaking_change(cronos, initial_version, new_version, upgraded_nodes)
         raise
 
@@ -443,7 +447,8 @@ def run_transactions(cronos, phase_name, initial_version, new_version, upgraded_
     try:
         wait_for_new_blocks(cli, 2, 0.5, 5)
     except TimeoutError:
-        print("   ⚠ Timeout waiting for blocks after EVM transfer - checking for breaking change...")
+        print("   ⚠ Timeout waiting for blocks after EVM transfer")
+        print("      Checking for breaking change...")
         check_for_breaking_change(cronos, initial_version, new_version, upgraded_nodes)
         raise
 
@@ -502,9 +507,8 @@ def test_binary_compatibility(tmp_path_factory):
     - If any node is stuck at any stage, it's a BREAKING CHANGE (test fails immediately)
     - Transactions are tested after each individual node upgrade
     """
-    for cronos, binaries, initial_binary_path, new_binary_path in setup_binary_compatibility_test_nix(
-        tmp_path_factory
-    ):
+    generator = setup_binary_compatibility_test_nix(tmp_path_factory)
+    for cronos, binaries, initial_binary_path, new_binary_path in generator:
         total_nodes = len(cronos.config["validators"])
 
         print(f"\n{'='*60}")
@@ -527,7 +531,7 @@ def test_binary_compatibility(tmp_path_factory):
         print(f"Initial Binary version: {initial_version}")
         print(f"New Binary version: {new_version}")
         print(f"Total nodes: {total_nodes}")
-        print(f"Upgrade order: node 0 → node 1 → node 2\n")
+        print("Upgrade order: node 0 → node 1 → node 2\n")
 
         cli = cronos.cosmos_cli()
 
@@ -556,23 +560,25 @@ def test_binary_compatibility(tmp_path_factory):
         upgraded_nodes = []
         for node_idx in range(total_nodes):
             # Upgrade the node
-            upgrade_node(cronos, node_idx, new_binary_path, initial_version, new_version)
+            upgrade_node(
+                cronos, node_idx, new_binary_path, initial_version, new_version
+            )
             upgraded_nodes.append(node_idx)
-            
+
             # Test transactions after this node upgrade
             run_transactions(
-                cronos, 
+                cronos,
                 f"After node {node_idx} upgrade",
                 initial_version,
                 new_version,
-                upgraded_nodes
+                upgraded_nodes,
             )
 
         # Final comprehensive check - all nodes upgraded
         print("\n" + "=" * 60)
         print("Final Compatibility Check - All Nodes Upgraded")
         print("=" * 60)
-        
+
         check_for_breaking_change(
             cronos,
             initial_version,
@@ -582,8 +588,14 @@ def test_binary_compatibility(tmp_path_factory):
 
         # If we reach here, no breaking change detected - test passes
         print("\n✓ ROLLING UPGRADE SUCCESSFUL!")
-        print(f"  All {total_nodes} nodes successfully upgraded from {initial_version} to {new_version}")
-        print("  The binaries are compatible and the rolling upgrade completed successfully\n")
+        print(
+            f"  All {total_nodes} nodes successfully upgraded from "
+            f"{initial_version} to {new_version}"
+        )
+        print(
+            "  The binaries are compatible and the rolling upgrade "
+            "completed successfully\n"
+        )
 
 
 if __name__ == "__main__":
