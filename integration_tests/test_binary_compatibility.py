@@ -54,14 +54,15 @@ def setup_binary_compatibility_test_nix(
 
     # Build the Nix package containing both binaries
     nix_file = configdir / f"configs/{nix_package}.nix"
+    nix_result = path / "result"
     print(f"Building Nix package: {nix_file}")
-    cmd = ["nix-build", nix_file]
+    cmd = ["nix-build", nix_file, "--out-link", str(nix_result)]
     print(*cmd)
     subprocess.run(cmd, check=True)
 
     # Copy the binaries directory
     binaries = path / "binaries"
-    shutil.copytree("./result", binaries)
+    shutil.copytree(nix_result, binaries)
     mod = stat.S_IRWXU
     binaries.chmod(mod)
     for d in binaries.iterdir():
