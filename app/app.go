@@ -384,21 +384,27 @@ func New(
 	var mpool mempool.Mempool
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
+	disableTxReplacement := cast.ToBool(appOpts.Get(FlagDisableTxReplacement))
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
-		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump, "disable-tx-replacement", disableTxReplacement)
+		config := mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           mempoolMaxTxs,
-			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
+		}
+
+		if !disableTxReplacement {
+			config.TxReplacement = func(op, np int64, oTx, nTx sdk.Tx) bool {
 				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
 				// otherwise, the Insert will return error
 				threshold := 100 + feeBump
 				return np >= op*threshold/100
-			},
-		})
+			}
+		}
+
+		mpool = mempool.NewPriorityMempool(config)
 	} else {
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
