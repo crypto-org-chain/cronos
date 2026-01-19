@@ -23,14 +23,14 @@ let
   # newBinary = (fetchFlake "crypto-org-chain/cronos" "1aea999eef67a0a01b22422bad94b36e45b9759a").default;
 in
 pkgs.runCommand "binary-compat-package" { } ''
-  # Create directory structure
-  mkdir -p $out/initial/bin
-  mkdir -p $out/new/bin
+   # Create directory structure
+   mkdir -p $out/initial/bin
+   mkdir -p $out/new/bin
 
- # Copy binaries (actual copies, not symlinks)
-  cp -Lr ${initialBinary}/bin/. $out/initial/bin/
-  cp -Lr ${newBinary}/bin/. $out/new/bin/
-  
- # Make binaries executable
-  find $out/initial/bin $out/new/bin -type f -exec chmod +x {} +
+  # Copy binaries (actual copies, not symlinks)
+   cp -Lr ${initialBinary}/bin/. $out/initial/bin/
+   cp -Lr ${newBinary}/bin/. $out/new/bin/
+   
+  # Make binaries executable
+   find $out/initial/bin $out/new/bin -type f -exec chmod +x {} +
 ''
