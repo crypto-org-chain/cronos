@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	dbm "github.com/cosmos/cosmos-db"
+	app "github.com/evmos/ethermint/evmd"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/log"
@@ -15,12 +16,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
-
-	app "github.com/evmos/ethermint/evmd"
 )
 
 func TestDisableTxReplacementRemovesMempoolRule(t *testing.T) {
-	t.Helper()
 
 	db := dbm.NewMemDB()
 	opts := sims.AppOptionsMap{
