@@ -19,8 +19,8 @@ if [[ "$TESTS_TO_RUN" == "upgrade" || "$TESTS_TO_RUN" == "all" ]]; then
 fi
 
 if [[ "$TESTS_TO_RUN" == "all" ]]; then
-  echo "run all tests"
-  cmd="pytest -vv -s --session-timeout=6000 --timeout=6000"
+  echo "run all tests (excluding binary_compatibility)"
+  cmd="pytest -vv -s --session-timeout=6000 --timeout=6000 -m 'not binary_compatibility'"
 else
   echo "run tests matching $TESTS_TO_RUN"
   cmd="pytest -vv -s --session-timeout=1800 --timeout=1800 -m '$TESTS_TO_RUN'"
