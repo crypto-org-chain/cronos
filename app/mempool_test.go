@@ -19,7 +19,6 @@ import (
 )
 
 func TestDisableTxReplacementRemovesMempoolRule(t *testing.T) {
-
 	db := dbm.NewMemDB()
 	opts := sims.AppOptionsMap{
 		flags.FlagHome:            app.DefaultNodeHome,
@@ -35,7 +34,7 @@ func TestDisableTxReplacementRemovesMempoolRule(t *testing.T) {
 		baseapp.SetChainID(TestAppChainID),
 	)
 
-	mp := cronosApp.BaseApp.Mempool()
+	mp := cronosApp.Mempool()
 	priorityPool, ok := mp.(*mempool.PriorityNonceMempool[int64])
 	require.True(t, ok, "expected priority mempool")
 
