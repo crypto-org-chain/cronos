@@ -903,8 +903,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c h1:MOgfS4+FBB8cMkDE2j2VBVsbY+HCkPIu0YsJ/9bbGeQ=
 github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c/go.mod h1:twD9XRA5jj9VUQGELzDO4HPQTNJsoWWfYEL+EUQ2cKY=
-github.com/crypto-org-chain/cometbft v0.0.0-20251014161156-b0e778b18408 h1:7dfWkDRYCsguKrpd0t14nrZ3Xf/9aVHiQrWx5o0DCdo=
-github.com/crypto-org-chain/cometbft v0.0.0-20251014161156-b0e778b18408/go.mod h1:khbgmtxbgwJfMqDmnGY4rl2sQpTdzpPb1f9nqnfpy1o=
+github.com/crypto-org-chain/cometbft v0.0.0-20260126040959-178ea8502144 h1:z0YilxbNefKWly63vdJYTUHX62I1iNvQ3P42x5WMSlE=
+github.com/crypto-org-chain/cometbft v0.0.0-20260126040959-178ea8502144/go.mod h1:khbgmtxbgwJfMqDmnGY4rl2sQpTdzpPb1f9nqnfpy1o=
 github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20251119062431-8d0a31ef043d h1:ffzsdKbhbSSBIMBAGJGjezjEr60A/JgpznOJhMUMbfE=
 github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20251119062431-8d0a31ef043d/go.mod h1:8/AdT5lF3ILCCl/sDQXyBgzWGtcmD1tInWyhYeREVPA=
 github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20241217090828-cfbca9fe8254 h1:NEgy0r3otU/O+0OAjMdEhbn4VotQlg+98hHbD7M23wU=
