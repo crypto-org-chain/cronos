@@ -917,8 +917,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20251203075505-0670ff683f0
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20251203075505-0670ff683f07/go.mod h1:QtmMmgHYQqioX/U2OfucmqDgXMmrL3N8/QXom4UWeKg=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251203075505-0670ff683f07 h1:eMuGwzyL4ond46wHHIybHT9fBoFxfWzkeX87IannqG4=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20251203075505-0670ff683f07/go.mod h1:6sg+tT7xMKDS8HL9Rxq1QsLJHApMuh+vnr2HVl3utl0=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260119082931-8f0688ac65f5 h1:VmJX6/LUIkeOgtp//MXTeIjJvmFEmxhn8gV7TVIzKtc=
-github.com/crypto-org-chain/ethermint v0.22.1-0.20260119082931-8f0688ac65f5/go.mod h1:1IAeOWTwFz9prufLltBg8p1i6YSEehPVVmXJrHUYTGU=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260122091043-f63de39e6f1e h1:TNaGi3GAwagKGvmUJsYceADapmUzE/6905q37LgJWxA=
+github.com/crypto-org-chain/ethermint v0.22.1-0.20260122091043-f63de39e6f1e/go.mod h1:FrMBOJjJFGiWDQUDmwZNKsw2Gz5tvl9AYEfUuD7lvSQ=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6 h1:6KPEi8dWkDSBddQb4NAvEXmNnTXymF3yVeTaT4Hz1iU=
 github.com/crypto-org-chain/go-block-stm v0.0.0-20241213061541-7afe924fb4a6/go.mod h1:iwQTX9xMX8NV9k3o2BiWXA0SswpsZrDk5q3gA7nWYiE=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd h1:ebSnzvM9yKVGFjvoGly7LFQQCS2HuOWMCvQyByJ52Gs=
@@ -1850,8 +1850,8 @@ golang.org/x/crypto v0.13.0/go.mod h1:y6Z2r+Rw4iayiXXAIxJIDAJ1zMW4yaTpebo8fPOliY
 golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
 golang.org/x/crypto v0.23.0/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
 golang.org/x/crypto v0.32.0/go.mod h1:ZnnJkOaASj8g0AjIduWNlq2NRxL0PlBrbKVyZ6V/Ugc=
-golang.org/x/crypto v0.44.0 h1:A97SsFvM3AIwEEmTBiaxPPTYpDC47w720rdiiUvgoAU=
-golang.org/x/crypto v0.44.0/go.mod h1:013i+Nw79BMiQiMsOPcVCB5ZIJbYkerPrGnOa00tvmc=
+golang.org/x/crypto v0.45.0 h1:jMBrvKuj23MTlT0bQEOBcAE0mjg8mK9RXFhRH6nyF3Q=
+golang.org/x/crypto v0.45.0/go.mod h1:XTGrrkGJve7CYK7J8PEww4aY7gM3qMCElcJQ8n8JdX4=
 golang.org/x/exp v0.0.0-20180321215751-8460e604b9de/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20180807140117-3d87b88a115f/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
