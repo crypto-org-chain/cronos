@@ -85,7 +85,7 @@ func setupWithAppOptions(withGenesis bool, invCheckPeriod uint, extra map[string
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			opts[k] = extra[k];
+			opts[k] = extra[k]
 		}
 	}
 	app := New(
