@@ -194,8 +194,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.0.0-20251014161156-b0e778b18408"
-    hash = "sha256-m2NPhw3gOXnWvVBud0zTMf1HfkTHkUZpsm1f9Goajwo="
+    version = "v0.0.0-20260126040959-178ea8502144"
+    hash = "sha256-v6+QdFkhzC+WPGZ3DEQCB6IvTr6lL5pzTpX6waIwecU="
     replaced = "github.com/crypto-org-chain/cometbft"
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.15.0"
@@ -324,8 +324,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260107054325-46538c97abf2"
-    hash = "sha256-MrURu10pIZp3bsnYTLvFa3AoR5EeG9ted7qh4fugp+k="
+    version = "v0.22.1-0.20260126081129-9e97913655b0"
+    hash = "sha256-DLXavEyX/Usz0rW1a6H1tHMzk690WJSoeCI5xZntN1I="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -753,8 +753,8 @@ schema = 3
     version = "v0.17.0"
     hash = "sha256-avV63nZlJxuo3/LLBKQ2a96Nn1wflNtc1Dr7GSPbHAs="
   [mod."golang.org/x/crypto"]
-    version = "v0.44.0"
-    hash = "sha256-KPy3NK37fdQBBppMeJmxYjjE75Pw83FOmLwnGT1go4c="
+    version = "v0.45.0"
+    hash = "sha256-IpNesJYxFcs2jGvagwJrUD/gsJfA3UiETjQwYByXxSY="
   [mod."golang.org/x/exp"]
     version = "v0.0.0-20250305212735-054e65f0b394"
     hash = "sha256-Vgt/CNx/xJYxiKKu0PI7ZSiL/SOfXI4di3Mcyge3aw4="
