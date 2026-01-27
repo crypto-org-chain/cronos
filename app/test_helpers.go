@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -77,8 +78,15 @@ func setupWithAppOptions(withGenesis bool, invCheckPeriod uint, extra map[string
 		flags.FlagHome:            app.DefaultNodeHome,
 		server.FlagInvCheckPeriod: invCheckPeriod,
 	}
-	for k, v := range extra {
-		opts[k] = v
+	if extra != nil {
+		keys := make([]string, 0, len(extra))
+		for k := range extra {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			opts[k] = extra[k];
+		}
 	}
 	app := New(
 		log.NewNopLogger(), db, nil, true,
