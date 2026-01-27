@@ -28,21 +28,21 @@ var (
 func TestNonceInconsistencyWithDisableTxReplacement(t *testing.T) {
 
 	// Testnet reproduction: enabling --cronos.disable-tx-replacement forces
-	// mempoolCacheMaxTxs = -1 (app.go lines 993-1004), so Ethermint's ante cache
+	// mempoolCacheMaxTxs = -1 (app.go lines 993-1004) so Ethermint's ante cache
 	// never stores nonces. Before the v1.7 upgrade, validators already had Tx₁
 	// (nonce=startNonce) from the account under test (the sender declared below)
 	// in CheckTx, so CheckAndSetEthSenderNonce bumped the cached account sequence
 	// to startNonce+1 even though the tx never hit a block. During the upgrade
-	// the mempool is flushed and cache entries disappear, but BaseApp restores
-	// check-state from the last committed block, so after restart the account
-	// sequence is back to startNonce. Re-broadcasting the same tx now passes
-	// CheckTx once (no cache entry) and bumps the sequence to startNonce+1 again.
+	// the mempool was flushed, cache entries disappeared, but BaseApp rebuilt
+	// check-state from the committed block so the sequence fell back to startNonce.
 	//
-	// If operators flush or restart a second time while the cache remains
-	// disabled, CheckTx sees sequence=startNonce+1 with no cached nonce to prove
-	// a pending transaction exists. The ante handler therefore rejects the
-	// replacement with ErrInvalidSequence even though the mempool is empty. This
-	// test wires the full ante-handler stack to demonstrate that behaviour end-to-end.
+	// This test mirrors that sequence of events without wiring the real cache:
+	// - First CheckTx accepts the tx and bumps the in-memory sequence to startNonce+1
+	// - A "restart" is simulated by explicitly resetting the account back to startNonce
+	// - Second CheckTx re-accepts the tx (no cache entry) and bumps the sequence again
+	// - Third CheckTx occurs immediately after and now fails with ErrInvalidSequence
+	//   because the ante handler sees sequence=startNonce+1 but still has no cache
+	//   evidence of a pending tx. The mempool is empty, yet replacement is impossible.
 	app, _ := setupWithAppOptions(false, 0, map[string]interface{}{
 		FlagDisableTxReplacement: true,
 	})
