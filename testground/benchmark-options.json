@@ -1,0 +1,45 @@
+{
+    "outdir": "/data",
+    "tx_type": "simple-transfer",
+    "validators": 3,
+    "fullnodes": 0,
+    "batch_size": 100,
+    "validator_generate_load": true,
+    "num_accounts": 10000,
+    "num_txs": 5,
+    "num_idle": 20,
+    "config_patch": {
+      "mempool": {
+        "size": 100000
+      },
+      "consensus": {
+        "timeout_commit": "20ms"
+      },
+      "db_backend": "rocksdb"
+    },
+    "app_patch": {
+      "async-check-tx": true,
+      "mempool": {
+        "max-txs": -1
+      },
+      "evm": {
+        "block-stm-pre-estimate": true
+      },
+      "memiavl": {
+        "async-commit-buffer": 16
+      },
+      "json-rpc": {
+        "enable-indexer": false
+      }
+    },
+    "genesis_patch": {
+      "consensus": {
+        "params": {
+          "block": {
+            "max_gas": "363000000"
+          }
+        }
+      }
+    }
+  }
+
