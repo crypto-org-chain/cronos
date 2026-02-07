@@ -51,9 +51,7 @@ def get_block_info_hybrid(height, rpc, json_rpc):
     error per block. CometBFT timestamps have nanosecond precision.
     """
     cosmos_blk = block(height, rpc=rpc)
-    timestamp = datetime.fromisoformat(
-        cosmos_blk["result"]["block"]["header"]["time"]
-    )
+    timestamp = datetime.fromisoformat(cosmos_blk["result"]["block"]["header"]["time"])
     eth_blk = block_eth(height, json_rpc=json_rpc)
     txs = len(eth_blk["transactions"])
     return timestamp, txs
