@@ -250,7 +250,6 @@ rm -rf /tmp/data/out
 # Generate data using options file
 docker run --rm \
   -v /tmp/data:/data \
-  -v $(pwd)/testground/benchmark-options.json:/tmp/options.json:ro \
   cronos-testground:latest \
   stateless-testcase generic-gen "$(cat testground/benchmark-options.json)"
 ```
