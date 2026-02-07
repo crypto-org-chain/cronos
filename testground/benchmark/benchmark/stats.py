@@ -89,7 +89,6 @@ def dump_block_stats(
         end = block_height(rpc)
 
     blocks = []
-    tps_list = []
 
     # skip block 1 whose timestamp is not accurate
     prev_timestamp = None
@@ -100,7 +99,6 @@ def dump_block_stats(
             timestamp, txs = get_block_info_cosmos(i, rpc)
         blocks.append((txs, timestamp))
         tps = calculate_tps(blocks[-TPS_WINDOW:])
-        tps_list.append(tps)
         if prev_timestamp is not None:
             bt_ms = (timestamp - prev_timestamp).total_seconds() * 1000
             print(f"block {i} {txs} {timestamp} {bt_ms:.0f}ms {tps:.2f}", file=fp)
