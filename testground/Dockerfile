@@ -1,5 +1,5 @@
 # Multi-architecture Dockerfile for cronos-testground
-# Supports: linux/amd64, linux/arm64 (Apple M1/M2/M3)
+# Supports: linux/amd64, linux/arm64 (Apple M-series CPUs)
 #
 # Build for current platform:
 #   docker build -t cronos-testground .
