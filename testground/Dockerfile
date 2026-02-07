@@ -123,7 +123,7 @@ RUN CGO_ENABLED=1 go build \
     ./cmd/cronosd
 
 # =============================================================================
-# Stage 2: Build Python benchmark package
+# Stage 3: Build Python benchmark package
 # =============================================================================
 FROM python:3.11-slim-bookworm AS python-builder
 
@@ -149,7 +149,7 @@ RUN poetry config virtualenvs.create false \
     && poetry build -f wheel
 
 # =============================================================================
-# Stage 3: Final image
+# Stage 4: Final image
 # =============================================================================
 FROM python:3.11-slim-bookworm
 
