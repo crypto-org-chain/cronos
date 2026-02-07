@@ -7,19 +7,25 @@ from .utils import LOCAL_JSON_RPC, LOCAL_RPC, block, block_eth, block_height
 TPS_WINDOW = 10
 
 
-def calculate_tps(blocks):
+def calculate_tps(blocks, anchor_is_separate=True):
     """
     Calculate TPS for a sequence of blocks.
 
     blocks: list of (tx_count, timestamp) tuples, ordered by height.
-    The first block serves as the time anchor only. Transactions from
-    blocks[1:] are summed, as they were committed between blocks[0].timestamp
-    and blocks[-1].timestamp.
+
+    When anchor_is_separate is True (default), blocks[0] is a pure time
+    anchor whose txs belong to a prior period; only blocks[1:] txs are
+    counted over the interval blocks[0].timestamp .. blocks[-1].timestamp.
+
+    When anchor_is_separate is False, blocks[0] is itself a transaction
+    block with no preceding anchor available; all blocks' txs are counted
+    over the same time interval.
     """
     if len(blocks) < 2:
         return 0
 
-    txs = sum(n for n, _ in blocks[1:])
+    counted = blocks[1:] if anchor_is_separate else blocks
+    txs = sum(n for n, _ in counted)
     _, t1 = blocks[0]
     _, t2 = blocks[-1]
     time_diff = (t2 - t1).total_seconds()
@@ -122,7 +128,11 @@ def dump_block_stats(
     ):
         # Use one block before first tx block as time anchor if available,
         # so the first tx block's transactions are fully counted.
-        anchor_idx = max(first_tx_idx - 1, 0)
+        # When first_tx_idx == 0 there is no preceding block in our data;
+        # the first tx block doubles as the time anchor and its own txs
+        # must still be counted.
+        anchor_is_separate = first_tx_idx > 0
+        anchor_idx = first_tx_idx - 1 if anchor_is_separate else first_tx_idx
         load_blocks = blocks[anchor_idx : last_tx_idx + 1]
 
         # Compute per-block sliding-window TPS and block times within load
@@ -135,18 +145,29 @@ def dump_block_stats(
             bt = (t_curr - t_prev).total_seconds()
             block_times.append(bt)
 
-            # Sliding window TPS ending at this block
+            # Sliding window TPS ending at this block.
+            # The window's first element is a true anchor only when it is
+            # either the separate anchor block (win_start == 0 and
+            # anchor_is_separate) or any interior block (win_start > 0).
             win_start = max(0, j + 1 - TPS_WINDOW)
             window = load_blocks[win_start : j + 1]
             if len(window) >= 2:
-                load_tps_values.append(calculate_tps(window))
+                win_has_anchor = anchor_is_separate or win_start > 0
+                load_tps_values.append(
+                    calculate_tps(window, anchor_is_separate=win_has_anchor)
+                )
 
         # Overall TPS
-        total_txs = sum(n for n, _ in load_blocks[1:])
+        counted = load_blocks[1:] if anchor_is_separate else load_blocks
+        total_txs = sum(n for n, _ in counted)
         _, t_start = load_blocks[0]
         _, t_end = load_blocks[-1]
         load_duration = (t_end - t_start).total_seconds()
-        overall_tps = total_txs / load_duration if load_duration > 0 else 0
+        overall_tps = (
+            calculate_tps(load_blocks, anchor_is_separate=anchor_is_separate)
+            if load_duration > 0
+            else 0
+        )
 
         # TPS stats
         peak_tps = max(load_tps_values) if load_tps_values else 0
@@ -157,10 +178,11 @@ def dump_block_stats(
         fastest_bt = min(block_times) if block_times else 0
         slowest_bt = max(block_times) if block_times else 0
 
+        num_tx_blocks = last_tx_idx - first_tx_idx + 1
         print(f"peak_tps {peak_tps:.2f}", file=fp)
         print(
-            f"load_period blocks {start + anchor_idx}-{start + last_tx_idx}"
-            f" ({last_tx_idx - anchor_idx} blocks, {load_duration:.1f}s)",
+            f"load_period blocks {start + first_tx_idx}-{start + last_tx_idx}"
+            f" ({num_tx_blocks} blocks, {load_duration:.1f}s)",
             file=fp,
         )
         print(f"total_txs {total_txs}", file=fp)
