@@ -505,7 +505,7 @@ func New(
 		authAddr,
 		logger,
 	)
-	app.BankKeeper = bk.WithObjStoreKey(keys[banktypes.ObjectStoreKey])
+	app.BankKeeper = bk.WithObjStoreKey(okeys[banktypes.ObjectStoreKey])
 	// optional: enable sign mode textual by overwriting the default tx config (after setting the bank keeper)
 	enabledSignModes := slices.Clone(authtx.DefaultSignModes)
 	enabledSignModes = append(enabledSignModes, sigtypes.SignMode_SIGN_MODE_TEXTUAL)

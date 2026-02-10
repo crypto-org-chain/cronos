@@ -350,6 +350,12 @@ def exec(c, tmp_path_factory):
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
+    cli = do_upgrade("v1.8", cli.block_height() + 15)
+    check_basic_tx(c)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
     # check preinstall correctly installed
     historical_storage_address = "0x0000F90827F1C53a10cb7A02335B175320002935"
     expected_historical_storage_address_code = (
