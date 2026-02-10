@@ -143,7 +143,7 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 }
 
 // RegisterInvariants registers the capability module's invariants.
-func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
+func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {} //nolint:staticcheck
 
 // InitGenesis performs the capability module's genesis initialization It returns
 // no validator updates.
