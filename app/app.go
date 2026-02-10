@@ -1063,7 +1063,7 @@ func New(
 		if workers == 0 {
 			workers = maxParallelism()
 		}
-		// Setting as true if not block-stm wont work. Current bug in cosmos-sdk.
+		// TODO: Setting as true if not block-stm wont work. Current bug in cosmos-sdk.
 		// Will revert to using the flag once the bug is fixed.
 		// https://github.com/cosmos/cosmos-sdk/issues/25879
 		preEstimate := true
