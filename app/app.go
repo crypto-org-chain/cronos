@@ -49,7 +49,9 @@ import (
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
+	"github.com/cosmos/cosmos-sdk/blockstm"
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	e2ee "github.com/crypto-org-chain/cronos/x/e2ee"
@@ -57,6 +59,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -95,6 +98,7 @@ import (
 	"cosmossdk.io/x/upgrade"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/cosmos/cosmos-sdk/baseapp/txnrunner"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -329,7 +333,7 @@ type App struct {
 	// module configurator
 	configurator module.Configurator
 
-	qms storetypes.RootMultiStore
+	qms storetypes.MultiStore
 
 	blockProposalHandler *ProposalHandler
 
@@ -493,15 +497,15 @@ func New(
 		sdk.GetConfig().GetBech32AccountAddrPrefix(),
 		authAddr,
 	)
-	app.BankKeeper = bankkeeper.NewBaseKeeper(
+	bk := bankkeeper.NewBaseKeeper(
 		appCodec,
 		runtime.NewKVStoreService(keys[banktypes.StoreKey]),
-		okeys[banktypes.ObjectStoreKey],
 		app.AccountKeeper,
 		app.BlockedAddrs(),
 		authAddr,
 		logger,
 	)
+	app.BankKeeper = bk.WithObjStoreKey(keys[banktypes.ObjectStoreKey])
 	// optional: enable sign mode textual by overwriting the default tx config (after setting the bank keeper)
 	enabledSignModes := slices.Clone(authtx.DefaultSignModes)
 	enabledSignModes = append(enabledSignModes, sigtypes.SignMode_SIGN_MODE_TEXTUAL)
@@ -1058,11 +1062,30 @@ func New(
 		if workers == 0 {
 			workers = maxParallelism()
 		}
-		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
+		// Setting as true if not block-stm wont work. Current bug in cosmos-sdk.
+		// Will revert to using the flag once the bug is fixed.
+		// https://github.com/cosmos/cosmos-sdk/issues/25879
+		preEstimate := true
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
-		app.SetTxExecutor(evmapp.STMTxExecutor(app.GetStoreKeys(), workers, preEstimate, app.EvmKeeper, txConfig.TxDecoder()))
+		coinDenom := func(ms storetypes.MultiStore) string {
+			denom := app.EvmKeeper.GetParams(sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())).EvmDenom
+			return denom
+		}
+		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
+			blockstm.NewSTMRunner(
+				app.txConfig.TxDecoder(),
+				app.GetStoreKeys(),
+				workers,
+				preEstimate,
+				coinDenom,
+			),
+		))
 	} else {
-		app.SetTxExecutor(evmapp.DefaultTxExecutor)
+		// SetBlockSTMTxRunner allows for arbitrary replacement of the tx runner for the BaseApp
+		// not just for block-stm execution.
+		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
+			txnrunner.NewDefaultRunner(app.txConfig.TxDecoder()),
+		))
 	}
 
 	return app

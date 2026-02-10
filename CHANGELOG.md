@@ -4,6 +4,7 @@
 
 ### Improvements
 
+* [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
 * [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
 * [#1908](https://github.com/crypto-org-chain/cronos/pull/1908) Add db migration/patch CLI tool
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
