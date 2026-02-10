@@ -30,7 +30,7 @@ let
   # release/v1.6.1
   released1_6 =
     (fetchFlake "crypto-org-chain/cronos" "05e102ef83b9ab0d5b55d46fb90f5fee53a295d2").default;
-  # release/v1.7 
+  # release/v1.7
   released1_7 =
     (fetchFlake "crypto-org-chain/cronos" "40032610e530cc2c0c2fc83f104d6d19efa08ada").default;
   current = pkgs.callPackage ../../. { };
