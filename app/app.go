@@ -917,6 +917,7 @@ func New(
 
 	app.ModuleManager.SetOrderPreBlockers(
 		upgradetypes.ModuleName,
+		authtypes.ModuleName,
 	)
 	app.ModuleManager.SetOrderBeginBlockers(beginBlockersOrder...)
 	app.ModuleManager.SetOrderEndBlockers(endBlockersOrder...)
