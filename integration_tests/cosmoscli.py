@@ -1955,6 +1955,7 @@ class CosmosCLI:
                 "event-query-tx-for",
                 hash,
                 home=self.data_dir,
+                node=self.node_rpc,
             )
         )
 
