@@ -942,6 +942,7 @@ def test_tx_inclusion(cronos, max_gas_wanted):
     )
     cronos.supervisorctl("update")
     wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
+    wait_for_new_blocks(cronos.cosmos_cli(), 1)
 
     # reset to origin_cmd only
     if max_gas_wanted is None:
