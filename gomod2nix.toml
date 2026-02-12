@@ -56,7 +56,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20260206103846-2026d2e0eebc"
+    version = "v0.0.0-20260212033631-868b0bf2e2f0"
     hash = "sha256-iA3rOvT97L+WiZXPoxfyU1wOfWwSnfCx+tQ2R/4yyaY="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -69,7 +69,7 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20260206103846-2026d2e0eebc"
+    version = "v0.0.0-20260212033631-868b0bf2e2f0"
     hash = "sha256-6IbOXpSh7LTpm1Zr6gZldSYqJ6WmHWnO8SsfjKZBAso="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -213,8 +213,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.0.0-20260206103846-2026d2e0eebc"
-    hash = "sha256-t56hU3BW0v1VmUTbpCtTf4dni06zluYJfPMjCaYfeY8="
+    version = "v0.0.0-20260212033631-868b0bf2e2f0"
+    hash = "sha256-uIxzVAU6H4j68T5po3Qt3VzoOwcd3oLkc4bOBqYYLuc="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -257,16 +257,16 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260210032954-197a4dd7e007"
-    hash = "sha256-Xf1Yt+2I9rRASzO0bb/Co46YREn7bOeCqP757gil9sE="
+    version = "v0.0.0-20260212035019-9fdc0a768bba"
+    hash = "sha256-nvS2e/XIVmYkjSyf2BYWzcYF6RrgSLjoebndOdxBY2E="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260210032954-197a4dd7e007"
-    hash = "sha256-VgViF4bYEiW6loanDZM2DKW/ITi4OtSid1r4TUuTqk0="
+    version = "v0.0.0-20260212035019-9fdc0a768bba"
+    hash = "sha256-NjhL+5hI9Ss1zUsitD8+VatSE0+6LTqe+4ReRRm0EBA="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260210032954-197a4dd7e007"
-    hash = "sha256-b7QwNNf8pKMIcQ7VNMxZvmsicDksQcnMc7X1qyej6lk="
+    version = "v0.0.0-20260212035019-9fdc0a768bba"
+    hash = "sha256-PDh6vMWrjOHlA/Z6QzrZdA1shObbN8jYuc6P81EsBxA="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.1"
@@ -321,8 +321,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20260210080530-9ca687c4576d"
-    hash = "sha256-/wQc7+xSHC7xM+sm0iRCznvHJHjBXL9oilhCDITsfuA="
+    version = "v0.0.0-20260212034828-42a9979b5a81"
+    hash = "sha256-31HbdgQ0NIWjOx66seun73/4cCaQ+JYN0RkuPNhlFSM="
     replaced = "github.com/randy-cro/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
@@ -517,8 +517,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.10.3"
-    hash = "sha256-JaIjWMOKsF/WRvsIP0bdkWvu1Q/8aaHcxW4jjE0mmnk="
+    version = "v1.10.4"
+    hash = "sha256-/D7RSFtVXZI9KW8+IK+SFDi+kS/+7I2MXk664IU82/k="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="
