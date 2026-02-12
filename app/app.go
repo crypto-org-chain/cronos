@@ -1063,10 +1063,7 @@ func New(
 		if workers == 0 {
 			workers = maxParallelism()
 		}
-		// TODO: Setting as true if not block-stm wont work. Current bug in cosmos-sdk.
-		// Will revert to using the flag once the bug is fixed.
-		// https://github.com/cosmos/cosmos-sdk/issues/25879
-		preEstimate := true
+		preEstimate := cast.ToBool(appOpts.Get(srvflags.EVMBlockSTMPreEstimate))
 		logger.Info("block-stm executor enabled", "workers", workers, "pre-estimate", preEstimate)
 		coinDenom := func(ms storetypes.MultiStore) string {
 			denom := app.EvmKeeper.GetParams(sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())).EvmDenom
