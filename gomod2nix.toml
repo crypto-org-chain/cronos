@@ -56,9 +56,9 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20260212033631-868b0bf2e2f0"
-    hash = "sha256-iA3rOvT97L+WiZXPoxfyU1wOfWwSnfCx+tQ2R/4yyaY="
-    replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
+    version = "v0.0.0-20260212121241-3b76b21715fb"
+    hash = "sha256-DSHjrwTSngYnwrtSoMw/ak/DCJ8drROy+eMerp7/CzM="
+    replaced = "github.com/randy-cro/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
     version = "v0.1.2"
     hash = "sha256-1VhdIdBDG7jaSiRTNYtoQ3WGaGm+vQ1Qf671zSiWAek="
@@ -69,9 +69,9 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20260212033631-868b0bf2e2f0"
+    version = "v0.0.0-20260212121241-3b76b21715fb"
     hash = "sha256-6IbOXpSh7LTpm1Zr6gZldSYqJ6WmHWnO8SsfjKZBAso="
-    replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
+    replaced = "github.com/randy-cro/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
     version = "v0.2.0"
     hash = "sha256-jLxbW8D1PBG3wJICbiBydwiwLJLn9Ksal5XmJiMM8gk="
@@ -213,9 +213,9 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.0.0-20260212033631-868b0bf2e2f0"
-    hash = "sha256-uIxzVAU6H4j68T5po3Qt3VzoOwcd3oLkc4bOBqYYLuc="
-    replaced = "github.com/crypto-org-chain/cosmos-sdk"
+    version = "v0.0.0-20260212121241-3b76b21715fb"
+    hash = "sha256-XDYx6C8pZx45drReyE9eIjCaJN7zEkaLnxkBceZ7PV0="
+    replaced = "github.com/randy-cro/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
     hash = "sha256-Qm2aC2vaS8tjtMUbHmlBSagOSqbduEEDwc51qvQaBmA="
@@ -321,8 +321,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20260212035903-32db3e0e6e40"
-    hash = "sha256-MkokThJIlyLew27YPuuzZUxFIseL4HDwffhO8Przkuw="
+    version = "v0.0.0-20260212092858-9a95fb196fef"
+    hash = "sha256-JZdry9zOTX33A5vyhSWNb/wD1P9a3UZdtH205wCHr6M="
     replaced = "github.com/randy-cro/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
