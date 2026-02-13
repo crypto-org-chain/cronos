@@ -115,7 +115,7 @@ func TestFullAppSimulation(t *testing.T) {
 		app.BaseApp,
 		StateFn(app),
 		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
-		simtestutil.SimulationOperations(app, app.AppCodec(), config),
+		simtestutil.BuildSimulationOperations(app, app.AppCodec(), config, app.TxConfig()),
 		app.ModuleAccountAddrs(),
 		config,
 		app.AppCodec(),
@@ -157,7 +157,7 @@ func TestAppImportExport(t *testing.T) {
 		app.BaseApp,
 		StateFn(app),
 		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
-		simtestutil.SimulationOperations(app, app.AppCodec(), config),
+		simtestutil.BuildSimulationOperations(app, app.AppCodec(), config, app.TxConfig()),
 		app.ModuleAccountAddrs(),
 		config,
 		app.AppCodec(),
@@ -283,7 +283,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		app.BaseApp,
 		StateFn(app),
 		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
-		simtestutil.SimulationOperations(app, app.AppCodec(), config),
+		simtestutil.BuildSimulationOperations(app, app.AppCodec(), config, app.TxConfig()),
 		app.ModuleAccountAddrs(),
 		config,
 		app.AppCodec(),
@@ -334,7 +334,7 @@ func TestAppSimulationAfterImport(t *testing.T) {
 		newApp.BaseApp,
 		StateFn(app),
 		simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
-		simtestutil.SimulationOperations(newApp, newApp.AppCodec(), config),
+		simtestutil.BuildSimulationOperations(newApp, newApp.AppCodec(), config, newApp.TxConfig()),
 		app.ModuleAccountAddrs(),
 		config,
 		app.AppCodec(),
@@ -387,7 +387,7 @@ func TestAppStateDeterminism(t *testing.T) {
 				app.BaseApp,
 				StateFn(app),
 				simtypes.RandomAccounts, // Replace with own random account function if using keys other than secp256k1
-				simtestutil.SimulationOperations(app, app.AppCodec(), config),
+				simtestutil.BuildSimulationOperations(app, app.AppCodec(), config, app.TxConfig()),
 				app.ModuleAccountAddrs(),
 				config,
 				app.AppCodec(),
