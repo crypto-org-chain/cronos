@@ -274,7 +274,7 @@ rm -rf /tmp/data/out
 
 # Generate data from options file
 docker run --rm -v /tmp/data:/data cronos-testground:latest \
-  stateless-testcase generic-gen "$(cat testground/benchmark-options.json | sed 's|/data|/data/out|')"
+  stateless-testcase generic-gen "$(jq '.outdir = "/data/out"' testground/benchmark-options.json)"
 
 # Patch image
 cd /tmp/data
