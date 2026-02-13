@@ -283,15 +283,15 @@ require (
 
 replace (
 	// release/v0.53.x
-	cosmossdk.io/store => github.com/randy-cro/cosmos-sdk/store v0.0.0-20260212121241-3b76b21715fb
-	cosmossdk.io/x/tx => github.com/randy-cro/cosmos-sdk/x/tx v0.0.0-20260212121241-3b76b21715fb
-	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.0.0-20260212121241-3b76b21715fb
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20260213094140-8daa45900d62
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20260213094140-8daa45900d62
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20260213094140-8daa45900d62
 )
 
 replace (
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260212035019-9fdc0a768bba
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260212035019-9fdc0a768bba
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260212035019-9fdc0a768bba
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260213095350-1e44cafb6b9f
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f
 )
 
 replace (
@@ -307,7 +307,7 @@ replace (
 	// release/v1.15
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// develop
-	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20260212092858-9a95fb196fef
+	github.com/evmos/ethermint => github.com/randy-cro/ethermint v0.0.0-20260213094403-68fd1084aa22
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
