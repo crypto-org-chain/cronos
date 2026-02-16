@@ -915,6 +915,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f/go.mod h1:CjuX1mhIqJ35/rpszxCasdnTWZMevzo3xCKnQoluoMY=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f h1:G1EBwWn909W+pMvLbKjZNqyBTh0LtIQoJCmu7G9yHE8=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f/go.mod h1:juJ9FjpAP168xo+WgwuHHBI8U5bmob7DWNUmkFh+qIg=
+github.com/crypto-org-chain/ethermint v0.0.0-20260213123043-46005e5e706a h1:yNNhPkDc3zKxe/7Y+7UBV9LqyjAfzFNeDR/f6wAXhWc=
+github.com/crypto-org-chain/ethermint v0.0.0-20260213123043-46005e5e706a/go.mod h1:aEx+0+64NBWHEiHUIPhxlunqKslvVnHtpSfrHNLOYZ8=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd h1:ebSnzvM9yKVGFjvoGly7LFQQCS2HuOWMCvQyByJ52Gs=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd/go.mod h1:mf8YiHIb0GR4x4TipcvBUPxJLw1mFdmxzoDi11sDRoI=
 github.com/danieljoos/wincred v1.2.1 h1:dl9cBrupW8+r5250DYkYxocLeZ1Y4vB1kxgtjxw8GQs=
@@ -1612,8 +1614,6 @@ github.com/prometheus/procfs v0.3.0/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.16.1 h1:hZ15bTNuirocR6u0JZ6BAHHmwS1p8B4P6MRqxtzMyRg=
 github.com/prometheus/procfs v0.16.1/go.mod h1:teAbpZRB1iIAJYREa1LsoWUXykVXA1KlTmWl8x/U+Is=
-github.com/randy-cro/ethermint v0.0.0-20260213094403-68fd1084aa22 h1:KV13S1EC5lMqqmoP/t5w7jK6ur7F477qJ0ZvDy1FXso=
-github.com/randy-cro/ethermint v0.0.0-20260213094403-68fd1084aa22/go.mod h1:aEx+0+64NBWHEiHUIPhxlunqKslvVnHtpSfrHNLOYZ8=
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 h1:N/ElC8H3+5XpJzTSTfLsJV/mx9Q9g7kxmchpfZyxgzM=
 github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
