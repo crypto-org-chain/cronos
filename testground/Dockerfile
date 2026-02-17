@@ -29,9 +29,10 @@ RUN apt-get update && apt-get install -y \
     libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy corporate CA certificate if present (for corporate proxy environments)
-# To use: copy your corporate CA cert to testground/corp-ca.crt before building
-# This cert will be reused by other build stages
+# Optional: corporate CA certificate for environments behind TLS-inspecting proxies.
+# If git clone fails with SSL errors during build, obtain your corporate CA cert
+# from your IT team and place it at testground/corp-ca.crt before building.
+# The wildcard glob makes this a no-op when the file is absent.
 COPY testground/corp-ca.crt* /tmp/
 RUN if [ -f /tmp/corp-ca.crt ]; then \
         cp /tmp/corp-ca.crt /usr/local/share/ca-certificates/corp-ca.crt && \
