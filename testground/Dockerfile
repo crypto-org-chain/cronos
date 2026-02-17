@@ -29,9 +29,19 @@ RUN apt-get update && apt-get install -y \
     libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Optional: corporate CA certificate for environments behind TLS-inspecting proxies.
-# If git clone fails with SSL errors during build, obtain your corporate CA cert
-# from your IT team and place it at testground/corp-ca.crt before building.
+# Optional: corporate CA certificate for environments behind TLS-inspecting proxies
+# (e.g. Palo Alto GlobalProtect, Zscaler). Only needed if git clone or network
+# requests fail with SSL errors during the build. Developers not behind a corporate
+# proxy don't need this file at all.
+#
+# How to obtain your .crt file:
+#   1. Ask your IT/security team for the corporate root CA certificate bundle.
+#   2. Export from your system keychain — on macOS, open Keychain Access, find the
+#      corporate root CA certs, and export them as .pem/.crt.
+#   3. Export from your browser — visit any HTTPS site, inspect the certificate
+#      chain, and export the root CA.
+#
+# Place the file at testground/corp-ca.crt before building.
 # The wildcard glob makes this a no-op when the file is absent.
 COPY testground/corp-ca.crt* /tmp/
 RUN if [ -f /tmp/corp-ca.crt ]; then \
