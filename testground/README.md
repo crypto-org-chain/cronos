@@ -24,7 +24,11 @@ docker build -t cronos-testground:latest -f Dockerfile ..
 docker buildx build --platform linux/arm64 -t cronos-testground:arm64 -f Dockerfile ..
 
 # Build multi-arch image (requires docker buildx)
-docker buildx build --platform linux/amd64,linux/arm64 -t cronos-testground:latest -f Dockerfile ..
+# Note: multi-platform builds do NOT load images into the local Docker daemon,
+# so the tag won't be immediately runnable. Use one of these alternatives:
+#   --load   : load a single-platform image locally (cannot combine with multi-platform)
+#   --push   : push multi-arch manifest to a registry for later pull/use
+docker buildx build --platform linux/amd64,linux/arm64 -t cronos-testground:latest --push -f Dockerfile ..
 ```
 
 ### Method 2: Nix Build
