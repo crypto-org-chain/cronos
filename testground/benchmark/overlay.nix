@@ -27,6 +27,18 @@ let
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
         })
       ) buildSystems
+      // lib.genAttrs [
+        "eth-hash"
+        "eth-keys"
+        "eth-keyfile"
+        "rlp"
+        "web3"
+      ] (
+        name:
+        super.${name}.overridePythonAttrs (_: {
+          dontConfigure = true;
+        })
+      )
     );
 
   src =
@@ -49,6 +61,7 @@ let
       projectDir = src nix-gitignore;
       python = python311;
       overrides = overrides { inherit lib poetry2nix; };
+      preferWheels = true;
     };
 
   benchmark-env =
@@ -62,6 +75,7 @@ let
       projectDir = src nix-gitignore;
       python = python311;
       overrides = overrides { inherit lib poetry2nix; };
+      preferWheels = true;
     };
 
 in
