@@ -915,8 +915,8 @@ github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9
 github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f/go.mod h1:CjuX1mhIqJ35/rpszxCasdnTWZMevzo3xCKnQoluoMY=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f h1:G1EBwWn909W+pMvLbKjZNqyBTh0LtIQoJCmu7G9yHE8=
 github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f/go.mod h1:juJ9FjpAP168xo+WgwuHHBI8U5bmob7DWNUmkFh+qIg=
-github.com/crypto-org-chain/ethermint v0.0.0-20260213123043-46005e5e706a h1:yNNhPkDc3zKxe/7Y+7UBV9LqyjAfzFNeDR/f6wAXhWc=
-github.com/crypto-org-chain/ethermint v0.0.0-20260213123043-46005e5e706a/go.mod h1:aEx+0+64NBWHEiHUIPhxlunqKslvVnHtpSfrHNLOYZ8=
+github.com/crypto-org-chain/ethermint v0.0.0-20260219052918-f5ec94d72584 h1:2zqzFwKpwnKMuFsWEO5uYI2AK+nREbztFb4IhsE0RZE=
+github.com/crypto-org-chain/ethermint v0.0.0-20260219052918-f5ec94d72584/go.mod h1:aEx+0+64NBWHEiHUIPhxlunqKslvVnHtpSfrHNLOYZ8=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd h1:ebSnzvM9yKVGFjvoGly7LFQQCS2HuOWMCvQyByJ52Gs=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd/go.mod h1:mf8YiHIb0GR4x4TipcvBUPxJLw1mFdmxzoDi11sDRoI=
 github.com/danieljoos/wincred v1.2.1 h1:dl9cBrupW8+r5250DYkYxocLeZ1Y4vB1kxgtjxw8GQs=

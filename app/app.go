@@ -49,6 +49,7 @@ import (
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -57,6 +58,7 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
+
 	// Force-load the tracer engines to trigger registration
 	"github.com/ethereum/go-ethereum/core/vm"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -997,7 +999,6 @@ func New(
 		logger.Info("Tx replacement is disabled")
 	}
 	if err := app.setAnteHandler(txConfig,
-		cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted)),
 		mempoolCacheMaxTxs,
 		cast.ToStringSlice(appOpts.Get(FlagBlockedAddresses)),
 	); err != nil {
@@ -1089,7 +1090,7 @@ func New(
 }
 
 // use Ethermint's custom AnteHandler
-func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, mempoolMaxTxs int, blacklist []string) error {
+func (app *App) setAnteHandler(txConfig client.TxConfig, mempoolMaxTxs int, blacklist []string) error {
 	if len(blacklist) > 0 {
 		sort.Strings(blacklist)
 		// hash blacklist concatenated
@@ -1126,7 +1127,6 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, me
 		FeeMarketKeeper:        app.FeeMarketKeeper,
 		SignModeHandler:        txConfig.SignModeHandler(),
 		SigGasConsumer:         evmante.DefaultSigVerificationGasConsumer,
-		MaxTxGasWanted:         maxGasWanted,
 		ExtensionOptionChecker: ethermint.HasDynamicFeeExtensionOption,
 		DynamicFeeChecker:      true,
 		DisabledAuthzMsgs: []string{
