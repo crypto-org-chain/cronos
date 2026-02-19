@@ -182,7 +182,7 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 // WeightedOperations returns the all the cronos module operations with their respective weights.
 func (am AppModule) WeightedOperations(simState module.SimulationState) []simtypes.WeightedOperation {
 	return simulation.WeightedOperations(
-		simState.AppParams, simState.Cdc, am.accountKeeper, am.bankKeeper, &am.keeper,
+		simState.AppParams, simState.Cdc, simState.TxConfig, am.accountKeeper, am.bankKeeper, &am.keeper,
 	)
 }
 
