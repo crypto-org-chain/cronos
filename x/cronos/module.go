@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/client/cli"
 	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/x/cronos/simulation"
@@ -26,8 +25,12 @@ import (
 )
 
 var (
-	_ appmodule.AppModule   = AppModule{}
-	_ module.AppModuleBasic = AppModuleBasic{}
+	_ appmodule.AppModule        = AppModule{}
+	_ module.AppModuleBasic      = AppModuleBasic{}
+	_ module.AppModuleSimulation = (*AppModule)(nil)
+	_ module.HasGenesis          = AppModule{}
+	_ module.HasServices         = (*AppModule)(nil)
+	_ appmodule.AppModule        = (*AppModule)(nil)
 	// this line is used by starport scaffolding # ibc/module/interface
 )
 
@@ -149,14 +152,12 @@ func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {} //nolint:stat
 
 // InitGenesis performs the capability module's genesis initialization It returns
 // no validator updates.
-func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) []abci.ValidatorUpdate {
+func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, gs json.RawMessage) {
 	var genState types.GenesisState
 	// Initialize global index to index in genesis state
 	cdc.MustUnmarshalJSON(gs, &genState)
 
 	InitGenesis(ctx, am.keeper, genState)
-
-	return []abci.ValidatorUpdate{}
 }
 
 // ExportGenesis returns the capability module's exported genesis state as raw JSON bytes.
