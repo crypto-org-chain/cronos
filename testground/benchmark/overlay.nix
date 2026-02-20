@@ -30,7 +30,6 @@ let
       //
         lib.genAttrs
           [
-            "ckzg"
             "eth-hash"
             "eth-keys"
             "eth-keyfile"
@@ -43,7 +42,18 @@ let
               dontConfigure = true;
             })
           )
-    );
+    )
+    ++ [
+      # Applied after poetry2nix defaults so the default ckzg postPatch
+      # (substituteInPlace src/Makefile) is already evaluated and can be
+      # safely replaced. Placing this inside withDefaults doesn't work
+      # because defaults run later and the `or` expression breaks.
+      (_self: super: {
+        ckzg = super.ckzg.overridePythonAttrs (_: {
+          postPatch = "";
+        });
+      })
+    ];
 
   src =
     nix-gitignore:
