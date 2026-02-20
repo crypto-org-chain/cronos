@@ -142,6 +142,40 @@ docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA
 | `config_patch` | `{}` | CometBFT config.toml overrides |
 | `app_patch` | `{}` | Cronos app.toml overrides |
 | `genesis_patch` | `{}` | genesis.json overrides |
+| `node_overrides` | `{}` | Per-node overrides keyed by `global_seq` (see below) |
+
+#### Per-Node Overrides (`node_overrides`)
+
+You can apply different settings to individual validators or fullnodes by adding a `node_overrides` map. Keys are the `global_seq` index as a string (validators are `"0"`, `"1"`, ..., fullnodes continue after). Values are dicts that get deep-merged on top of the defaults.
+
+Overridable fields per node:
+- **Config**: `config_patch`, `app_patch`
+- **Load**: `num_accounts`, `num_txs`, `tx_type`, `batch_size`
+- **Behavior**: `validator_generate_load`, `num_idle`
+
+Example -- validator 0 runs sequential execution while others use block-stm, and validator 1 generates more load:
+
+```json
+{
+  "outdir": "/data",
+  "validators": 3,
+  "num_accounts": 10000,
+  "num_txs": 5,
+  "batch_size": 100,
+  "app_patch": { "evm": { "block-stm-workers": 8 } },
+  "node_overrides": {
+    "0": {
+      "app_patch": { "evm": { "block-executor": "sequential" } }
+    },
+    "1": {
+      "num_accounts": 20000,
+      "num_txs": 10
+    }
+  }
+}
+```
+
+Nodes without an entry in `node_overrides` use the top-level defaults unchanged.
 
 #### CometBFT Config Options (`config_patch`)
 

@@ -23,7 +23,9 @@
         "max-txs": -1
       },
       "evm": {
-        "block-stm-pre-estimate": true
+        "block-stm-pre-estimate": false,
+        "block-executor": "block-stm",
+        "block-stm-workers": 8
       },
       "memiavl": {
         "async-commit-buffer": 16
@@ -36,9 +38,15 @@
       "consensus": {
         "params": {
           "block": {
-            "max_gas": "363000000"
+            "max_gas": "105000000"
           }
         }
+      }
+    },
+    "node_overrides": {
+      "0": {
+      },
+      "1": {
       }
     }
   }
