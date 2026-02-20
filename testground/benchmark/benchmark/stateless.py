@@ -75,7 +75,9 @@ def generic_gen(options: dict):
     return _gen(**options)
 
 
-def _resolve_node_overrides(defaults: dict, node_overrides: dict, global_seq: int):
+def _resolve_node_overrides(
+    defaults: dict, node_overrides: Optional[dict], global_seq: int
+):
     """Deep-merge per-node overrides on top of defaults for the given node."""
     if not node_overrides:
         return defaults
