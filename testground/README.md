@@ -7,7 +7,7 @@ The implementation is inspired by [testground](https://github.com/testground/tes
 
 ## Build Image
 
-You can test with the prebuilt images in [github registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground), or build the image locally using one of the methods below.
+You can test with the prebuilt images in [GitHub registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground), or build the image locally using one of the methods below.
 
 ### Method 1: Docker Build (Recommended for Apple Silicon / M1/M2/M3)
 
@@ -33,7 +33,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t cronos-testground:late
 
 ### Method 2: Nix Build
 
->  Prerequisites: nix, for macOS also need [linux remote builder](https://nix.dev/manual/nix/2.22/advanced-topics/distributed-builds.html)
+> Prerequisites: nix, for macOS also need [linux remote builder](https://nix.dev/manual/nix/2.22/advanced-topics/distributed-builds.html)
 
 ```bash
 # From the repository root directory
