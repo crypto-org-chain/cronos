@@ -18,14 +18,8 @@ import tomlkit
 from . import transaction
 from .cli import ChainCommand
 from .echo import run_echo_server
-from .peer import (
-    CONTAINER_CRONOSD_PATH,
-    FULLNODE_GROUP,
-    VALIDATOR_GROUP,
-    gen_genesis,
-    init_node,
-    patch_configs,
-)
+from .peer import (CONTAINER_CRONOSD_PATH, FULLNODE_GROUP, VALIDATOR_GROUP,
+                   gen_genesis, init_node, patch_configs)
 from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
@@ -99,8 +93,15 @@ def _diff_dicts(base, other, path=""):
 
 
 def _print_node_config_summary(
-    validators, fullnodes, num_accounts, num_txs, tx_type, batch_size,
-    config_patch, app_patch, node_overrides,
+    validators,
+    fullnodes,
+    num_accounts,
+    num_txs,
+    tx_type,
+    batch_size,
+    config_patch,
+    app_patch,
+    node_overrides,
 ):
     """Print a summary table of per-node config differences when overrides exist."""
     if not node_overrides:
@@ -176,7 +177,12 @@ def _gen(
         )
         peers.append(
             init_node_local(
-                cli, outdir, VALIDATOR_GROUP, i, global_seq, ip,
+                cli,
+                outdir,
+                VALIDATOR_GROUP,
+                i,
+                global_seq,
+                ip,
                 node_cfg["num_accounts"],
             )
         )
@@ -189,7 +195,12 @@ def _gen(
         )
         peers.append(
             init_node_local(
-                cli, outdir, FULLNODE_GROUP, i, global_seq, ip,
+                cli,
+                outdir,
+                FULLNODE_GROUP,
+                i,
+                global_seq,
+                ip,
                 node_cfg["num_accounts"],
             )
         )
@@ -203,21 +214,33 @@ def _gen(
     for i in range(validators):
         node_cfg = _resolve_node_overrides(
             {"config_patch": config_patch, "app_patch": app_patch},
-            node_overrides, i,
+            node_overrides,
+            i,
         )
         patch_configs_local(
-            peers, genesis, outdir, VALIDATOR_GROUP, i,
-            node_cfg["config_patch"], node_cfg["app_patch"],
+            peers,
+            genesis,
+            outdir,
+            VALIDATOR_GROUP,
+            i,
+            node_cfg["config_patch"],
+            node_cfg["app_patch"],
         )
     for i in range(fullnodes):
         global_seq = i + validators
         node_cfg = _resolve_node_overrides(
             {"config_patch": config_patch, "app_patch": app_patch},
-            node_overrides, global_seq,
+            node_overrides,
+            global_seq,
         )
         patch_configs_local(
-            peers, genesis, outdir, FULLNODE_GROUP, i,
-            node_cfg["config_patch"], node_cfg["app_patch"],
+            peers,
+            genesis,
+            outdir,
+            FULLNODE_GROUP,
+            i,
+            node_cfg["config_patch"],
+            node_cfg["app_patch"],
         )
 
     print("write config")
@@ -236,8 +259,15 @@ def _gen(
     (outdir / "config.json").write_text(json.dumps(cfg))
 
     _print_node_config_summary(
-        validators, fullnodes, num_accounts, num_txs, tx_type, batch_size,
-        config_patch, app_patch, node_overrides,
+        validators,
+        fullnodes,
+        num_accounts,
+        num_txs,
+        tx_type,
+        batch_size,
+        config_patch,
+        app_patch,
+        node_overrides,
     )
 
 
@@ -359,9 +389,7 @@ def _gen_txs(
         cfg = _resolve_node_overrides(defaults, node_overrides, global_seq)
         na, nt = cfg["num_accounts"], cfg["num_txs"]
         print("generating", na * nt, "txs for node", global_seq)
-        txs = transaction.gen(
-            global_seq, na, nt, cfg["tx_type"], cfg["batch_size"]
-        )
+        txs = transaction.gen(global_seq, na, nt, cfg["tx_type"], cfg["batch_size"])
         transaction.save(txs, outdir, global_seq)
         print("saved", len(txs), "txs for node", global_seq)
 

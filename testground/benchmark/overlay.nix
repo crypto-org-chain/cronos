@@ -27,18 +27,21 @@ let
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
         })
       ) buildSystems
-      // lib.genAttrs [
-        "eth-hash"
-        "eth-keys"
-        "eth-keyfile"
-        "rlp"
-        "web3"
-      ] (
-        name:
-        super.${name}.overridePythonAttrs (_: {
-          dontConfigure = true;
-        })
-      )
+      //
+        lib.genAttrs
+          [
+            "eth-hash"
+            "eth-keys"
+            "eth-keyfile"
+            "rlp"
+            "web3"
+          ]
+          (
+            name:
+            super.${name}.overridePythonAttrs (_: {
+              dontConfigure = true;
+            })
+          )
     );
 
   src =
