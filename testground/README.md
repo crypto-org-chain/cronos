@@ -1,344 +1,208 @@
-# Testground
+# Testground Benchmark
 
-The implementation is inspired by [testground](https://github.com/testground/testground), but we did a lot of simplifications to make it easier to deploy:
+A simplified benchmark framework inspired by [testground](https://github.com/testground/testground). Each node gets a unique integer ID; hostnames are derived from that for peer discovery.
 
-- No centralized sync service, each node are assigned an unique continuous integer identifier, and node's hostname can be derived from that, that's how nodes discover each other and build the network.
-- Don't support networking configuration, but we might implement it in the future.
+## Quick Start (All-in-One)
 
-## Build Image
-
-You can test with the prebuilt images in [GitHub registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground), or build the image locally using one of the methods below.
-
-### Method 1: Docker Build (Recommended for Apple Silicon / M1/M2/M3)
-
-Build natively for your platform using Docker:
+Build the image, embed test data, and run -- all in one command:
 
 ```bash
 # From the repository root directory
 cd testground
 
-# Build for current platform (auto-detects ARM64 on M1 Macs)
+# 1. Build image + embed data + run (Docker)
+docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA=true \
+  && mkdir -p /tmp/outputs \
+  && jsonnet -S benchmark/compositions/docker-compose.jsonnet \
+       --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
+     | docker compose -f /dev/stdin up --remove-orphans --force-recreate
+```
+
+Or step-by-step if you prefer more control:
+
+```bash
+# Step 1: Build image
 docker build -t cronos-testground:latest -f Dockerfile ..
 
-# Or explicitly build for ARM64
-docker buildx build --platform linux/arm64 -t cronos-testground:arm64 -f Dockerfile ..
+# Step 2: Update test data (re-gen + patch, reuses existing image)
+docker run --rm -v /tmp/data:/data cronos-testground:latest \
+  stateless-testcase generic-gen "$(jq '.outdir = "/data/out"' benchmark-options.json)"
+echo 'FROM cronos-testground:latest
+ADD ./out /data' | docker build -t cronos-testground:latest -f - /tmp/data
 
-# Build multi-arch image (requires docker buildx)
-# Note: multi-platform builds do NOT load images into the local Docker daemon,
-# so the tag won't be immediately runnable. Use one of these alternatives:
-#   --load   : load a single-platform image locally (cannot combine with multi-platform)
-#   --push   : push multi-arch manifest to a registry for later pull/use
-docker buildx build --platform linux/amd64,linux/arm64 -t cronos-testground:latest --push -f Dockerfile ..
+# Step 3: Run
+mkdir -p /tmp/outputs
+jsonnet -S benchmark/compositions/docker-compose.jsonnet \
+  --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
+  | docker compose -f /dev/stdin up --remove-orphans --force-recreate
 ```
 
-### Method 2: Nix Build
+Results are collected in `/tmp/outputs`.
 
-> Prerequisites: nix, for macOS also need [linux remote builder](https://nix.dev/manual/nix/2.22/advanced-topics/distributed-builds.html)
+## Build Image
+
+### Docker Build (works everywhere)
 
 ```bash
-# From the repository root directory
-$ nix build '.#testground-image'
-# for apple silicon mac: nix build '.#legacyPackages.aarch64-linux.testground-image'
-# for x86 mac: nix build '.#legacyPackages.x86_64-linux.testground-image'
-$ docker load < ./result
-Loaded image: cronos-testground:<imageID>
-$ docker tag cronos-testground:<imageID> ghcr.io/crypto-org-chain/cronos-testground:latest
+cd testground
+
+# Current platform (auto-detects ARM64 on Apple Silicon)
+docker build -t cronos-testground:latest -f Dockerfile ..
+
+# Explicit ARM64 build
+docker buildx build --platform linux/arm64 -t cronos-testground:latest -f Dockerfile ..
+
+# Multi-arch push to registry
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/crypto-org-chain/cronos-testground:latest --push -f Dockerfile ..
 ```
 
-Or one liner like this:
+### Nix Build
+
+> Requires: nix with flakes. macOS also needs a [Linux remote builder](https://nix.dev/manual/nix/2.22/advanced-topics/distributed-builds.html).
 
 ```bash
+# Apple Silicon (M1/M2/M3/M4)
 docker load < $(nix build '.#legacyPackages.aarch64-linux.testground-image' --no-link --print-out-paths) \
-  | grep "^Loaded image:" \
-  | cut -d ' ' -f 3 \
-  | xargs -I{} docker tag {} ghcr.io/crypto-org-chain/cronos-testground:latest
+  | grep "^Loaded image:" | cut -d ' ' -f 3 \
+  | xargs -I{} docker tag {} cronos-testground:latest
+
+# x86_64 Linux / Intel Mac
+docker load < $(nix build '.#legacyPackages.x86_64-linux.testground-image' --no-link --print-out-paths) \
+  | grep "^Loaded image:" | cut -d ' ' -f 3 \
+  | xargs -I{} docker tag {} cronos-testground:latest
 ```
 
-## Generate data files locally
+### Prebuilt Images
 
-You need to have the `cronosd` in `PATH`.
+Available from [GitHub Container Registry](https://github.com/crypto-org-chain/cronos/pkgs/container/cronos-testground):
 
 ```bash
-nix run .#stateless-testcase -- gen /tmp/data/out \
-  --validator-generate-load \
-  --validators 3 \
-  --fullnodes 0 \
-  --num-accounts 800 \
-  --num-txs 20 \
-  --num-idle 20 \
-  --app-patch '{"mempool": {"max-txs": -1}}' \
-  --config-patch '{"mempool": {"size": 10000}}' \
-  --tx-type erc20-transfer \
-  --genesis-patch '{"consensus": {"params": {"block": {"max_gas": "263000000"}}}}'
+docker pull ghcr.io/crypto-org-chain/cronos-testground:latest
+docker tag ghcr.io/crypto-org-chain/cronos-testground:latest cronos-testground:latest
 ```
 
-* `validators`/`fullnodes` is the number of validators/full nodes.
-* `num_accounts` is the number of test accounts for each full node.
-* `num_txs` is the number of test transactions to be sent for each test account.
-* `config`/`app` is the config patch for config/app.toml.
-* `genesis` is the patch for genesis.json.
+## Configure Benchmark
 
-## Embed Test Data Into Image
-
-There are multiple ways to embed test data into the image. See the [V1.4 Benchmark wiki](https://github.com/crypto-org-chain/cronos/wiki/V1.4-Benchmark#summary-table-cronos-140) for benchmark configurations.
-
-### Test Type Options
-
-| Test Type | `tx_type` | `batch_size` |
-|-----------|-----------|--------------|
-| Simple Transfer | `simple-transfer` | `1` |
-| ERC20 Transfer | `erc20-transfer` | `1` |
-| Batch Simple Transfer | `simple-transfer` | `100` |
-| Batch ERC20 Transfer | `erc20-transfer` | `100` |
-
-### Method 1: Embed at Build Time (Options File)
-
-The simplest way - edit the options file and build:
-
-**Step 1: Edit `testground/benchmark-options.json`**
+Edit `testground/benchmark-options.json` before building or patching:
 
 ```json
 {
   "outdir": "/data",
   "validators": 3,
   "fullnodes": 0,
-  "num_accounts": 100,
-  "num_txs": 1000,
-  "num_idle": 20,
+  "num_accounts": 10000,
+  "num_txs": 5,
+  "batch_size": 100,
   "tx_type": "simple-transfer",
-  "batch_size": 1,
   "validator_generate_load": true,
-  "config_patch": {
-    "mempool": {"size": 50000},
-    "consensus": {"timeout_commit": "1s"}
-  },
-  "app_patch": {
-    "mempool": {"max-txs": 50000}
-  },
-  "genesis_patch": {}
+  "num_idle": 20,
+  "config_patch": {},
+  "app_patch": {},
+  "genesis_patch": {},
+  "node_overrides": {}
 }
 ```
 
-**Step 2: Build with embedded data**
-
-```bash
-cd testground
-docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA=true
-```
-
-#### Options File Reference
-
 | Field | Default | Description |
 |-------|---------|-------------|
-| `outdir` | `/data` | Output directory in container (don't change) |
 | `validators` | `3` | Number of validators |
 | `fullnodes` | `0` | Number of full nodes |
 | `num_accounts` | `100` | Test accounts per node |
 | `num_txs` | `1000` | Transactions per account |
-| `num_idle` | `20` | Idle blocks after test |
 | `tx_type` | `simple-transfer` | `simple-transfer` or `erc20-transfer` |
-| `batch_size` | `1` | Transactions per batch (use `100` for batch tests) |
+| `batch_size` | `1` | Txs per batch (`100` for batch tests) |
 | `validator_generate_load` | `true` | Whether validators generate load |
+| `num_idle` | `20` | Idle blocks before stopping |
 | `config_patch` | `{}` | CometBFT config.toml overrides |
 | `app_patch` | `{}` | Cronos app.toml overrides |
 | `genesis_patch` | `{}` | genesis.json overrides |
-| `node_overrides` | `{}` | Per-node overrides keyed by `global_seq` (see below) |
+| `node_overrides` | `{}` | Per-node overrides (see below) |
 
-#### Per-Node Overrides (`node_overrides`)
+### Per-Node Overrides (`node_overrides`)
 
-You can apply different settings to individual validators or fullnodes by adding a `node_overrides` map. Keys are the `global_seq` index as a string (validators are `"0"`, `"1"`, ..., fullnodes continue after). Values are dicts that get deep-merged on top of the defaults.
+Apply different settings to individual nodes. Keys are `global_seq` as strings (validators `"0"`, `"1"`, ...; fullnodes continue after). Values are deep-merged on top of defaults.
 
-Overridable fields per node:
-- **Config**: `config_patch`, `app_patch`
-- **Load**: `num_accounts`, `num_txs`, `tx_type`, `batch_size`
-- **Behavior**: `validator_generate_load`, `num_idle`
-
-Example -- validator 0 runs sequential execution while others use block-stm, and validator 1 generates more load:
+Overridable fields: `config_patch`, `app_patch`, `num_accounts`, `num_txs`, `tx_type`, `batch_size`, `validator_generate_load`, `num_idle`.
 
 ```json
 {
-  "outdir": "/data",
-  "validators": 3,
-  "num_accounts": 10000,
-  "num_txs": 5,
-  "batch_size": 100,
-  "app_patch": { "evm": { "block-stm-workers": 8 } },
   "node_overrides": {
-    "0": {
-      "app_patch": { "evm": { "block-executor": "sequential" } }
-    },
-    "1": {
-      "num_accounts": 20000,
-      "num_txs": 10
-    }
+    "0": { "app_patch": { "evm": { "block-executor": "sequential" } } },
+    "1": { "num_accounts": 20000, "num_txs": 10 }
   }
 }
 ```
 
-Nodes without an entry in `node_overrides` use the top-level defaults unchanged.
+When overrides are active, the benchmark prints a per-node config diff at startup and after results.
 
-#### CometBFT Config Options (`config_patch`)
+### Config Defaults
 
-The benchmark tool applies these defaults automatically:
-- `db_backend`: `rocksdb`
-- `mempool.recheck`: `false`
-- `mempool.size`: `50000`
-- `consensus.timeout_commit`: `1s`
-- `tx_index.indexer`: `null`
+**CometBFT** (`config_patch`): `db_backend: rocksdb`, `mempool.recheck: false`, `mempool.size: 50000`, `consensus.timeout_commit: 1s`, `tx_index.indexer: null`
 
-Example overrides:
+**Cronos App** (`app_patch`): `memiavl.enable: true`, `evm.block-executor: block-stm`, `evm.block-stm-workers: 0`, `evm.block-stm-pre-estimate: true`, `mempool.max-txs: 50000`
 
-```json
-"config_patch": {
-  "mempool": {"size": 100000},
-  "consensus": {"timeout_commit": "500ms"}
-}
-```
+## Embed / Update Test Data
 
-#### Cronos App Options (`app_patch`)
-
-The benchmark tool applies these defaults automatically:
-- `memiavl.enable`: `true`
-- `memiavl.cache-size`: `0`
-- `evm.block-executor`: `block-stm`
-- `evm.block-stm-workers`: `0`
-- `evm.block-stm-pre-estimate`: `true`
-- `mempool.max-txs`: `50000`
-- `json-rpc.enable-indexer`: `true`
-
-Example overrides:
-
-```json
-"app_patch": {
-  "mempool": {"max-txs": -1},
-  "evm": {"block-executor": "sequential"}
-}
-```
-
-#### Genesis Options (`genesis_patch`)
-
-Example - increase block gas limit:
-
-```json
-"genesis_patch": {
-  "consensus": {"params": {"block": {"max_gas": "263000000"}}}
-}
-```
-
-#### Example Configurations
-
-**ERC20 Transfer with 5 validators:**
-
-```json
-{
-  "outdir": "/data",
-  "validators": 5,
-  "fullnodes": 0,
-  "num_accounts": 100,
-  "num_txs": 1000,
-  "tx_type": "erc20-transfer",
-  "batch_size": 1,
-  "validator_generate_load": true
-}
-```
-
-**Batch Simple Transfer (high throughput):**
-
-```json
-{
-  "outdir": "/data",
-  "validators": 3,
-  "fullnodes": 0,
-  "num_accounts": 100,
-  "num_txs": 1000,
-  "tx_type": "simple-transfer",
-  "batch_size": 100,
-  "validator_generate_load": true,
-  "config_patch": {
-    "mempool": {"size": 100000}
-  },
-  "app_patch": {
-    "mempool": {"max-txs": -1}
-  }
-}
-```
-
-### Method 2: Generate Data Then Patch Image (Faster)
-
-This method is faster because it reuses an existing base image and only regenerates test data.
-
-**Step 1: Edit `testground/benchmark-options.json`** (same file as Method 1)
-
-Make sure `outdir` is set to `/data/out` for this method:
-
-```json
-{
-  "outdir": "/data/out",
-  "validators": 3,
-  ...
-}
-```
-
-**Step 2: Generate test data using the options file**
+### Option A: Embed at build time
 
 ```bash
-# Clean up any existing data
-rm -rf /tmp/data/out
-
-# Generate data using options file
-docker run --rm \
-  -v /tmp/data:/data \
-  cronos-testground:latest \
-  stateless-testcase generic-gen "$(cat testground/benchmark-options.json)"
+docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA=true
 ```
 
-**Step 3: Patch the image with generated data**
+Reads `benchmark-options.json` and bakes data into the image.
+
+### Option B: Patch an existing image (faster iteration)
 
 ```bash
-cd /tmp/data
-cat > Dockerfile.patched << 'EOF'
-FROM cronos-testground:latest
-ADD ./out /data
-EOF
-docker build -t cronos-testground:patched -f Dockerfile.patched .
-docker tag cronos-testground:patched cronos-testground:latest
-```
-
-**All-in-one script:**
-
-```bash
-# From repo root directory
-rm -rf /tmp/data/out
-
-# Generate data from options file
+# Generate data
 docker run --rm -v /tmp/data:/data cronos-testground:latest \
   stateless-testcase generic-gen "$(jq '.outdir = "/data/out"' testground/benchmark-options.json)"
 
 # Patch image
-cd /tmp/data
 echo 'FROM cronos-testground:latest
-ADD ./out /data' > Dockerfile.patched
-docker build -t cronos-testground:latest -f Dockerfile.patched .
+ADD ./out /data' | docker build -t cronos-testground:latest -f - /tmp/data
 ```
 
-### Method 3: Using Nix (patchimage command)
+### Option C: Nix patchimage
 
 ```bash
-$ nix run github:crypto-org-chain/cronos#stateless-testcase -- patchimage cronos-testground:latest /tmp/data/out
+nix run .#stateless-testcase -- patchimage cronos-testground:latest /tmp/data/out
 ```
 
-## Run With Docker Compose
+## Run Benchmark
+
+### Docker Compose (local)
 
 ```bash
-$ mkdir /tmp/outputs
-$ jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
-  --ext-str outputs=/tmp/colima \
-  --ext-code nodes=3 \
-  | docker-compose -f /dev/stdin up --remove-orphans --force-recreate
+mkdir -p /tmp/outputs
+jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
+  --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
+  | docker compose -f /dev/stdin up --remove-orphans --force-recreate
 ```
 
-It'll collect the node data files to the `/tmp/outputs` directory.
+Node data and `block_stats.log` are collected in `/tmp/outputs`.
 
-## Run In Cluster
+### Kubernetes
 
-Please use [cronos-testground](https://github.com/crypto-org-chain/cronos-testground) to run the benchmark in k8s cluster.
+Use [cronos-testground](https://github.com/crypto-org-chain/cronos-testground) to run at scale in a k8s cluster.
+
+## Development
+
+### Run tests
+
+```bash
+cd testground/benchmark
+nix develop -c pytest -vv -s
+```
+
+### Lint
+
+```bash
+# Check
+nix-shell -I nixpkgs=./nix -p test-env --run "make lint-py"
+nix-shell -I nixpkgs=./nix -p nixfmt-rfc-style --run "make lint-nix"
+
+# Auto-fix all (Go + Python + Nix)
+make lint-fix-all
+```
