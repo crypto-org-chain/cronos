@@ -416,7 +416,7 @@ def do_run(
         if diffs:
             print(f"[node {global_seq}] config overrides applied:")
             for path, old, new in diffs:
-                if path == "node_overrides":
+                if path == "node_overrides" or path.startswith("node_overrides."):
                     continue
                 print(f"  {path}: {old} -> {new}")
 
@@ -455,7 +455,7 @@ def do_run(
         print()
         print(f"[node {global_seq}] effective config vs defaults:")
         for path, old, new in _diff_dicts(cfg, node_cfg):
-            if path == "node_overrides":
+            if path == "node_overrides" or path.startswith("node_overrides."):
                 continue
             print(f"  {path}: {new}  (default: {old})")
 
