@@ -18,8 +18,14 @@ import tomlkit
 from . import transaction
 from .cli import ChainCommand
 from .echo import run_echo_server
-from .peer import (CONTAINER_CRONOSD_PATH, FULLNODE_GROUP, VALIDATOR_GROUP,
-                   gen_genesis, init_node, patch_configs)
+from .peer import (
+    CONTAINER_CRONOSD_PATH,
+    FULLNODE_GROUP,
+    VALIDATOR_GROUP,
+    gen_genesis,
+    init_node,
+    patch_configs,
+)
 from .stats import dump_block_stats
 from .topology import connect_all
 from .types import PeerPacket
@@ -155,7 +161,7 @@ def _gen(
     config_patch: dict = None,
     app_patch: dict = None,
     genesis_patch: dict = None,
-    node_overrides: dict = None,
+    node_overrides: Optional[dict] = None,
 ):
     config_patch = config_patch or {}
     app_patch = app_patch or {}
@@ -374,7 +380,7 @@ def _gen_txs(
     tx_type: str = "simple-transfer",
     batch_size: int = 1,
     node: Optional[int] = None,
-    node_overrides: dict = None,
+    node_overrides: Optional[dict] = None,
 ):
     outdir = Path(outdir)
     node_overrides = node_overrides or {}

@@ -30,6 +30,7 @@ let
       //
         lib.genAttrs
           [
+            "ckzg"
             "eth-hash"
             "eth-keys"
             "eth-keyfile"
