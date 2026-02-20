@@ -324,7 +324,7 @@ docker build -t cronos-testground:latest -f Dockerfile.patched .
 ### Method 3: Using Nix (patchimage command)
 
 ```bash
-$ nix run github:crypto-org-chain/cronos#stateless-testcase patchimage cronos-testground:latest /tmp/data/out
+$ nix run github:crypto-org-chain/cronos#stateless-testcase -- patchimage cronos-testground:latest /tmp/data/out
 ```
 
 ## Run With Docker Compose
