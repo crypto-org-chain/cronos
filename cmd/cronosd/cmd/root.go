@@ -9,7 +9,6 @@ import (
 	tmcfg "github.com/cometbft/cometbft/config"
 	cmtcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
-	rosettaCmd "github.com/cosmos/rosetta/cmd"
 	memiavlcfg "github.com/crypto-org-chain/cronos-store/store/config"
 	"github.com/crypto-org-chain/cronos/app"
 	config2 "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
@@ -199,12 +198,10 @@ func initRootCmd(
 		rootCmd.AddCommand(databaseCmd)
 	}
 
-	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
+	_, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {
 		panic(err)
 	}
-	// add rosetta
-	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
 }
 
 // genesisCommand builds genesis-related `simd genesis` command. Users may provide application specific commands as a parameter
