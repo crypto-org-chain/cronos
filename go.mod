@@ -24,7 +24,6 @@ require (
 	github.com/cosmos/gogoproto v1.7.2
 	// release/v10.0.x
 	github.com/cosmos/ibc-go/v10 v10.5.0
-	github.com/cosmos/rosetta v0.50.12
 	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f
 	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f
 	github.com/ethereum/go-ethereum v1.15.11
@@ -67,8 +66,6 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.50.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.50.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/PuerkitoBio/purell v1.1.1 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
 	github.com/alitto/pond v1.8.3 // indirect
 	github.com/aws/aws-sdk-go v1.49.0 // indirect
@@ -95,7 +92,6 @@ require (
 	github.com/cockroachdb/pebble v1.1.5 // indirect
 	github.com/cockroachdb/redact v1.1.6 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
-	github.com/coinbase/rosetta-sdk-go/types v1.0.0 // indirect
 	github.com/cometbft/cometbft-db v0.15.0 // indirect
 	github.com/consensys/gnark-crypto v0.18.1 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
@@ -104,7 +100,6 @@ require (
 	github.com/cosmos/iavl v1.2.4-0.20241218014611-3b0ad9922f9f // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v1.0.0 // indirect
-	github.com/cosmos/rosetta-sdk-go v0.10.0 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/creachadair/atomicfile v0.3.1 // indirect
@@ -156,7 +151,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/goware/urlx v0.3.2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -193,7 +187,6 @@ require (
 	github.com/mdp/qrterminal/v3 v3.2.1 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect

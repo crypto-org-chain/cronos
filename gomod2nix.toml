@@ -106,12 +106,6 @@ schema = 3
   [mod."github.com/Microsoft/go-winio"]
     version = "v0.6.2"
     hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
-  [mod."github.com/PuerkitoBio/purell"]
-    version = "v1.1.1"
-    hash = "sha256-Hjf8ZNNdwcRd50A9QNrcCj17gu/6f1iKzVTVrrMrojA="
-  [mod."github.com/PuerkitoBio/urlesc"]
-    version = "v0.0.0-20170810143723-de5bf2ad4578"
-    hash = "sha256-nL0/0QM0Pec83vBlwXvQ8g5SvvZnCQgzD1apxfHNGlg="
   [mod."github.com/VictoriaMetrics/fastcache"]
     version = "v1.12.2"
     hash = "sha256-vwLRs852HD8awlX4ksv/XBYmRqRF1844lPrvSO74SB0="
@@ -190,9 +184,6 @@ schema = 3
   [mod."github.com/cockroachdb/tokenbucket"]
     version = "v0.0.0-20230807174530-cc333fc44b06"
     hash = "sha256-yZdBXkTVzPxRYntI9I2Gu4gkI11m52Nwl8RNNdlXSrA="
-  [mod."github.com/coinbase/rosetta-sdk-go/types"]
-    version = "v1.0.0"
-    hash = "sha256-z/0E0NiEGo7zxM7d94ImgUf8P0/KG6hbP9T4Vuym4p0="
   [mod."github.com/cometbft/cometbft"]
     version = "v0.0.0-20260126040959-178ea8502144"
     hash = "sha256-v6+QdFkhzC+WPGZ3DEQCB6IvTr6lL5pzTpX6waIwecU="
@@ -238,12 +229,6 @@ schema = 3
   [mod."github.com/cosmos/ledger-cosmos-go"]
     version = "v1.0.0"
     hash = "sha256-BtXZ8t9DOw5yleSozMd4giBRHjuXQCyzRimNmgC/nSU="
-  [mod."github.com/cosmos/rosetta"]
-    version = "v0.50.12"
-    hash = "sha256-JKwclO0/CoUXPfGKNTCqOF87vTOoOrH0OV1I1+cPLtI="
-  [mod."github.com/cosmos/rosetta-sdk-go"]
-    version = "v0.10.0"
-    hash = "sha256-WmLq9E9mYV+ms6Tdb43lCoAy6cowkDnK4bvX/ApDzLY="
   [mod."github.com/crate-crypto/go-eth-kzg"]
     version = "v1.3.0"
     hash = "sha256-gDzeqRv6MxBcCOrcR1pDZgGFr1BwTKY8cutVWquRaK4="
@@ -420,9 +405,6 @@ schema = 3
   [mod."github.com/gorilla/websocket"]
     version = "v1.5.3"
     hash = "sha256-vTIGEFMEi+30ZdO6ffMNJ/kId6pZs5bbyqov8xe9BM0="
-  [mod."github.com/goware/urlx"]
-    version = "v0.3.2"
-    hash = "sha256-mLUQnnRkp2ekRY4ddBs+MRee7fzuEZiQRM6CInLWCn0="
   [mod."github.com/grpc-ecosystem/go-grpc-middleware"]
     version = "v1.4.0"
     hash = "sha256-0UymBjkg41C9MPqkBLz/ZY9WbimZrabpJk+8C/X63h8="
@@ -540,9 +522,6 @@ schema = 3
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
-  [mod."github.com/mitchellh/mapstructure"]
-    version = "v1.5.0"
-    hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
   [mod."github.com/mtibben/percent"]
     version = "v0.2.1"
     hash = "sha256-Zj1lpCP6mKQ0UUTMs2By4LC414ou+iJzKkK+eBHfEcc="
