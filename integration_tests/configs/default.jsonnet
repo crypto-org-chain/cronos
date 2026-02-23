@@ -26,6 +26,9 @@
       evm: {
         'block-executor': 'sequential',
       },
+      grpc: {
+        'skip-check-header': true,
+      },
       mempool: {
         'max-txs': 1000,
         'feebump': 10,
