@@ -23,7 +23,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
-  version = "10.6.2";
+  version = "10.9.1";
 
   withLz4 = !stdenv.hostPlatform.isMinGW;
 
