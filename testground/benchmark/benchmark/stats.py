@@ -186,9 +186,7 @@ def scrape_consensus_metrics(prom_text):
             result[f"abci_{method}"] = (avg, cnt)
 
     # block interval
-    avg, cnt = _parse_histogram_avg(
-        lines, "cometbft_consensus_block_interval_seconds"
-    )
+    avg, cnt = _parse_histogram_avg(lines, "cometbft_consensus_block_interval_seconds")
     if avg is not None:
         result["block_interval"] = (avg, cnt)
 
@@ -364,9 +362,7 @@ def dump_block_stats(
     # overall TPS excluding stall time
     stall_time = sum(block_times[j] for j in stall_indices)
     adjusted_duration = load_duration - stall_time
-    overall_tps = (
-        total_txs / adjusted_duration if adjusted_duration > 0 else 0
-    )
+    overall_tps = total_txs / adjusted_duration if adjusted_duration > 0 else 0
 
     peak_tps = max(steady_tps_values) if steady_tps_values else 0
     median_tps = median(steady_tps_values) if steady_tps_values else 0
@@ -380,9 +376,7 @@ def dump_block_stats(
     # --- Gas metrics ---
     counted_gas = load_gas[1:] if anchor_is_separate else load_gas
     total_gas_used = sum(gu for gu, _ in counted_gas)
-    gas_utilizations = [
-        gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0
-    ]
+    gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
     overall_gps = total_gas_used / adjusted_duration if adjusted_duration > 0 else 0
     peak_gps = max(steady_gps_values) if steady_gps_values else 0
     median_gps = median(steady_gps_values) if steady_gps_values else 0
@@ -421,8 +415,7 @@ def dump_block_stats(
         print(f"median_gps {median_gps:.0f}", file=fp)
     if gas_utilizations:
         print(
-            f"median_gas_utilization"
-            f" {median(gas_utilizations) * 100:.1f}%",
+            f"median_gas_utilization" f" {median(gas_utilizations) * 100:.1f}%",
             file=fp,
         )
 
@@ -511,8 +504,7 @@ def dump_block_stats(
         if total_blk_txs > 0:
             reexec_ratio = total_exec / total_blk_txs
             print(
-                f"avg_reexecution_ratio {reexec_ratio:.2f}x"
-                f" (1.00x = no conflicts)",
+                f"avg_reexecution_ratio {reexec_ratio:.2f}x" f" (1.00x = no conflicts)",
                 file=fp,
             )
         if total_exec > 0:
@@ -556,8 +548,7 @@ def dump_block_stats(
             if key in cons:
                 avg_s, cnt = cons[key]
                 print(
-                    f"avg_step_{step.lower()} {avg_s * 1000:.1f}ms"
-                    f" ({cnt} samples)",
+                    f"avg_step_{step.lower()} {avg_s * 1000:.1f}ms" f" ({cnt} samples)",
                     file=fp,
                 )
 
