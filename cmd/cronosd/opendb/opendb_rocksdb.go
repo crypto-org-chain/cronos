@@ -54,6 +54,8 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	}
 
 	ro := grocksdb.NewDefaultReadOptions()
+	ro.SetAsyncIO(true)
+	ro.SetAutoReadaheadSize(true)
 	wo := grocksdb.NewDefaultWriteOptions()
 	woSync := grocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
@@ -62,7 +64,7 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 
 // loadLatestOptions try to load options from existing db, returns nil if not exists.
 func loadLatestOptions(dir string) (*grocksdb.Options, error) {
-	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, grocksdb.NewLRUCache(BlockCacheSize))
+	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, grocksdb.NewHyperClockCache(BlockCacheSize, 0))
 	if err != nil {
 		// not found is not an error
 		if strings.HasPrefix(err.Error(), "NotFound: ") {
@@ -99,7 +101,7 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
 
-	bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
+	bbto.SetBlockCache(grocksdb.NewHyperClockCache(BlockCacheSize, 0))
 
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
