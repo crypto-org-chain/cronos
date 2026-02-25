@@ -231,13 +231,3 @@ cd testground/benchmark
 nix develop -c pytest -vv -s
 ```
 
-### Lint
-
-```bash
-# Check
-nix-shell -I nixpkgs=./nix -p test-env --run "make lint-py"
-nix-shell -I nixpkgs=./nix -p nixfmt-rfc-style --run "make lint-nix"
-
-# Auto-fix all (Go + Python + Nix)
-make lint-fix-all
-```
