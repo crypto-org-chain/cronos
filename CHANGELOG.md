@@ -3,7 +3,7 @@
 ## UNRELEASED
 
 ### Improvements
-
+* [#1977](https://github.com/crypto-org-chain/cronos/pull/1977) feat: update rocksdb to v10.9.1 and add tuning profiles.
 * [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
 * [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
 
