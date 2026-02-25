@@ -16,9 +16,21 @@ type CronosConfig struct {
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
 }
 
+type RocksDBConfig struct {
+	// Defines the tuning profile for RocksDB based on the node's primary workload.
+	// Valid values: "", "validator", "rpc", "archive"
+	NodeType string `mapstructure:"node_type"`
+}
+
 func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
+	}
+}
+
+func DefaultRocksDBConfig() RocksDBConfig {
+	return RocksDBConfig{
+		NodeType: "",
 	}
 }

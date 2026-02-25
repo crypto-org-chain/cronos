@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/spf13/cast"
+
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/linxGnu/grocksdb"
 
@@ -16,10 +18,37 @@ import (
 // BlockCacheSize 3G block cache
 const BlockCacheSize = 3 << 30
 
-func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
+type RocksDBTuneUpOptions struct {
+	EnableAsyncIo                bool
+	EnableAutoReadaheadSize      bool
+	EnableOptimizeForPointLookup bool
+	EnableHyperClockCache        bool
+}
+
+func OpenDB(appOpts types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
+	
+	tuneUpOpts := RocksDBTuneUpOptions{}
+	if appOpts != nil {
+		if v := appOpts.Get("rocksdb.node_type"); v != nil {
+			nodeType := cast.ToString(v)
+			switch strings.ToLower(nodeType) {
+			case "validator":
+				tuneUpOpts.EnableOptimizeForPointLookup = true
+			case "rpc":
+				tuneUpOpts.EnableAutoReadaheadSize = true
+				tuneUpOpts.EnableOptimizeForPointLookup = true
+				tuneUpOpts.EnableHyperClockCache = true
+			case "archive":
+				tuneUpOpts.EnableAsyncIo = true
+				tuneUpOpts.EnableAutoReadaheadSize = true
+				tuneUpOpts.EnableHyperClockCache = true
+			}
+		}
+	}
+
 	if backendType == dbm.RocksDBBackend {
-		return openRocksdb(filepath.Join(dataDir, "application.db"), false)
+		return openRocksdb(filepath.Join(dataDir, "application.db"), false, tuneUpOpts)
 	}
 
 	return dbm.NewDB("application", backendType, dataDir)
@@ -29,19 +58,19 @@ func OpenDB(_ types.AppOptions, home string, backendType dbm.BackendType) (dbm.D
 func OpenReadOnlyDB(home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	if backendType == dbm.RocksDBBackend {
-		return openRocksdb(filepath.Join(dataDir, "application.db"), true)
+		return openRocksdb(filepath.Join(dataDir, "application.db"), true, RocksDBTuneUpOptions{})
 	}
 
 	return dbm.NewDB("application", backendType, dataDir)
 }
 
-func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
-	opts, err := loadLatestOptions(dir)
+func openRocksdb(dir string, readonly bool, tuneUpOpts RocksDBTuneUpOptions) (dbm.DB, error) {
+	opts, err := loadLatestOptions(dir, tuneUpOpts.EnableHyperClockCache)
 	if err != nil {
 		return nil, err
 	}
 	// customize rocksdb options
-	opts = NewRocksdbOptions(opts, false)
+	opts = NewRocksdbOptions(opts, false, tuneUpOpts)
 
 	var db *grocksdb.DB
 	if readonly {
@@ -54,8 +83,12 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 	}
 
 	ro := grocksdb.NewDefaultReadOptions()
-	ro.SetAsyncIO(true)
-	ro.SetAutoReadaheadSize(true)
+	if tuneUpOpts.EnableAsyncIo {
+		ro.SetAsyncIO(true)
+	}
+	if tuneUpOpts.EnableAutoReadaheadSize {
+		ro.SetAutoReadaheadSize(true)
+	}
 	wo := grocksdb.NewDefaultWriteOptions()
 	woSync := grocksdb.NewDefaultWriteOptions()
 	woSync.SetSync(true)
@@ -63,8 +96,14 @@ func openRocksdb(dir string, readonly bool) (dbm.DB, error) {
 }
 
 // loadLatestOptions try to load options from existing db, returns nil if not exists.
-func loadLatestOptions(dir string) (*grocksdb.Options, error) {
-	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, grocksdb.NewHyperClockCache(BlockCacheSize, 0))
+func loadLatestOptions(dir string, enableHyperClockCache bool) (*grocksdb.Options, error) {
+	var cache *grocksdb.Cache
+	if enableHyperClockCache {
+		cache = grocksdb.NewHyperClockCache(BlockCacheSize, 0)
+	} else {
+		cache = grocksdb.NewLRUCache(BlockCacheSize)
+	}
+	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, cache)
 	if err != nil {
 		// not found is not an error
 		if strings.HasPrefix(err.Error(), "NotFound: ") {
@@ -87,7 +126,7 @@ func loadLatestOptions(dir string) (*grocksdb.Options, error) {
 
 // NewRocksdbOptions build options for `application.db`,
 // it overrides existing options if provided, otherwise create new one assuming it's a new database.
-func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Options {
+func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool, tuneUpOpts RocksDBTuneUpOptions) *grocksdb.Options {
 	if opts == nil {
 		opts = grocksdb.NewDefaultOptions()
 		// only enable dynamic-level-bytes on new db, don't override for existing db
@@ -97,11 +136,18 @@ func NewRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool) *grocksdb.Opt
 	opts.IncreaseParallelism(runtime.NumCPU())
 	opts.OptimizeLevelStyleCompaction(512 * 1024 * 1024)
 	opts.SetTargetFileSizeMultiplier(2)
+	if tuneUpOpts.EnableOptimizeForPointLookup {
+		opts.OptimizeForPointLookup(BlockCacheSize / (1024 * 1024))
+	}
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
 
-	bbto.SetBlockCache(grocksdb.NewHyperClockCache(BlockCacheSize, 0))
+	if tuneUpOpts.EnableHyperClockCache {
+		bbto.SetBlockCache(grocksdb.NewHyperClockCache(BlockCacheSize, 0))
+	} else {
+		bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
+	}
 
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
 	bbto.SetFilterPolicy(grocksdb.NewRibbonHybridFilterPolicy(9.9, 1))
