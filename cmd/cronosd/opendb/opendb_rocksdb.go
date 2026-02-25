@@ -3,6 +3,7 @@
 package opendb
 
 import (
+	"fmt"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/linxGnu/grocksdb"
 
 	"github.com/cosmos/cosmos-sdk/server/types"
+	cronosconfig "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 // BlockCacheSize 3G block cache
@@ -28,26 +30,28 @@ type RocksDBTuneUpOptions struct {
 func OpenDB(appOpts types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
 	
-	tuneUpOpts := RocksDBTuneUpOptions{}
-	if appOpts != nil {
-		if v := appOpts.Get("rocksdb.node_type"); v != nil {
-			nodeType := cast.ToString(v)
-			switch strings.ToLower(nodeType) {
-			case "validator":
-				tuneUpOpts.EnableOptimizeForPointLookup = true
-			case "rpc":
-				tuneUpOpts.EnableAutoReadaheadSize = true
-				tuneUpOpts.EnableOptimizeForPointLookup = true
-				tuneUpOpts.EnableHyperClockCache = true
-			case "archive":
-				tuneUpOpts.EnableAsyncIo = true
-				tuneUpOpts.EnableAutoReadaheadSize = true
-				tuneUpOpts.EnableHyperClockCache = true
+	if backendType == dbm.RocksDBBackend {
+		tuneUpOpts := RocksDBTuneUpOptions{}
+		if appOpts != nil {
+			if v := appOpts.Get("rocksdb.node_type"); v != nil {
+				cfg := cronosconfig.RocksDBConfig{NodeType: cast.ToString(v)}
+				if err := cfg.Validate(); err != nil {
+					return nil, fmt.Errorf("invalid rocksdb configuration: %w", err)
+				}
+				switch cfg.NodeType {
+				case cronosconfig.NodeTypeValidator:
+					tuneUpOpts.EnableOptimizeForPointLookup = true
+				case cronosconfig.NodeTypeRPC:
+					tuneUpOpts.EnableAutoReadaheadSize = true
+					tuneUpOpts.EnableOptimizeForPointLookup = true
+					tuneUpOpts.EnableHyperClockCache = true
+				case cronosconfig.NodeTypeArchive:
+					tuneUpOpts.EnableAsyncIo = true
+					tuneUpOpts.EnableAutoReadaheadSize = true
+					tuneUpOpts.EnableHyperClockCache = true
+				}
 			}
 		}
-	}
-
-	if backendType == dbm.RocksDBBackend {
 		return openRocksdb(filepath.Join(dataDir, "application.db"), false, tuneUpOpts)
 	}
 
