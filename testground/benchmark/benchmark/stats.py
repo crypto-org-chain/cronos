@@ -171,9 +171,7 @@ def scrape_consensus_metrics(prom_text):
             result[f"step_{step}"] = (avg, cnt)
 
     # FinalizeBlock processing time (histogram in ms)
-    avg, cnt = _parse_histogram_avg(
-        lines, "cometbft_state_block_processing_time"
-    )
+    avg, cnt = _parse_histogram_avg(lines, "cometbft_state_block_processing_time")
     if avg is not None:
         result["finalize_block_ms"] = (avg, cnt)
 
@@ -338,11 +336,11 @@ def dump_block_stats(
     # Use the 25th-percentile block time as the "normal" baseline.
     # Blocks slower than STALL_MULT × baseline are stalls (e.g. tx-flood
     # overwhelming the proposer) and are excluded from timing summaries.
-    STALL_MULT = 5
+    stall_mult = 5
     stall_indices = set()
     if len(block_times) >= 4:
         q1 = quantiles(block_times, n=4)[0]
-        stall_threshold = q1 * STALL_MULT
+        stall_threshold = q1 * stall_mult
         for j, bt in enumerate(block_times):
             if bt > stall_threshold:
                 stall_indices.add(j)

@@ -27,7 +27,7 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .stats import dump_block_stats, scrape_blockstm_metrics, _fetch_prometheus
+from .stats import _fetch_prometheus, dump_block_stats, scrape_blockstm_metrics
 from .topology import connect_all
 from .types import PeerPacket
 from .utils import (
@@ -127,7 +127,8 @@ class BlockSTMMonitor:
                 h = block_height(self._rpc)
                 if h != self._last_height:
                     self._last_height = h
-                    stm = scrape_blockstm_metrics(_fetch_prometheus())
+                    prom_text = _fetch_prometheus()
+                    stm = scrape_blockstm_metrics(prom_text)
                     if stm:
                         executed = stm.get("executed_txs", 0)
                         validated = stm.get("validated_txs", 0)
