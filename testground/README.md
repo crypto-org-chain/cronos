@@ -14,8 +14,9 @@ cd testground
 docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA=true \
   && mkdir -p /tmp/outputs \
   && jsonnet -S benchmark/compositions/docker-compose.jsonnet \
-       --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
-     | docker compose -f /dev/stdin up --remove-orphans --force-recreate
+       --ext-str outputs=/tmp/outputs --ext-code nodes=3 > /tmp/docker-compose-testground.yaml \
+  && docker compose -f /tmp/docker-compose-testground.yaml down 2>/dev/null; \
+     docker compose -f /tmp/docker-compose-testground.yaml up --remove-orphans --force-recreate
 ```
 
 Or step-by-step if you prefer more control:
@@ -33,8 +34,9 @@ ADD ./out /data' | docker build -t cronos-testground:latest -f - /tmp/data
 # Step 3: Run
 mkdir -p /tmp/outputs
 jsonnet -S benchmark/compositions/docker-compose.jsonnet \
-  --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
-  | docker compose -f /dev/stdin up --remove-orphans --force-recreate
+  --ext-str outputs=/tmp/outputs --ext-code nodes=3 > /tmp/docker-compose-testground.yaml
+docker compose -f /tmp/docker-compose-testground.yaml down 2>/dev/null
+docker compose -f /tmp/docker-compose-testground.yaml up --remove-orphans --force-recreate
 ```
 
 Results are collected in `/tmp/outputs`.
@@ -105,7 +107,7 @@ Edit `testground/benchmark-options.json` before building or patching:
 ```
 
 | Field | Default | Description |
-|-------|---------|-------------|
+| ----- | ------- | ----------- |
 | `validators` | `3` | Number of validators |
 | `fullnodes` | `0` | Number of full nodes |
 | `num_accounts` | `100` | Test accounts per node |
@@ -177,15 +179,16 @@ nix run .#stateless-testcase -- patchimage cronos-testground:latest /tmp/data/ou
 ```bash
 mkdir -p /tmp/outputs
 jsonnet -S testground/benchmark/compositions/docker-compose.jsonnet \
-  --ext-str outputs=/tmp/outputs --ext-code nodes=3 \
-  | docker compose -f /dev/stdin up --remove-orphans --force-recreate
+  --ext-str outputs=/tmp/outputs --ext-code nodes=3 > /tmp/docker-compose-testground.yaml
+docker compose -f /tmp/docker-compose-testground.yaml down 2>/dev/null
+docker compose -f /tmp/docker-compose-testground.yaml up --remove-orphans --force-recreate
 ```
 
 Node data and `block_stats.log` are collected in `/tmp/outputs`.
 
 ### Kubernetes
 
-Use [cronos-testground](https://github.com/crypto-org-chain/cronos-testground) to run at scale in a k8s cluster.
+See [KUBERNETES.md](KUBERNETES.md) for Indexed Job and StatefulSet deployment guides.
 
 ## Development
 

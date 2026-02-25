@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import List, Optional
@@ -26,10 +27,17 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .stats import dump_block_stats
+from .stats import dump_block_stats, scrape_blockstm_metrics, _fetch_prometheus
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import Tee, block_height, block_txs, wait_for_block, wait_for_port
+from .utils import (
+    Tee,
+    block_height,
+    block_txs,
+    mempool_status,
+    wait_for_block,
+    wait_for_port,
+)
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
@@ -37,6 +45,97 @@ DEFAULT_CHAIN_ID = "cronos_777-1"
 # the container must be deployed with the prefixed name
 HOSTNAME_TEMPLATE = "testplan-{index}"
 ECHO_SERVER_PORT = 26659
+LOCAL_RPC = "http://127.0.0.1:26657"
+
+
+class MempoolMonitor:
+    """Background thread that polls CometBFT mempool during the load period.
+
+    Records the peak (n_txs, n_bytes) observed at each block height so that
+    dump_block_stats can report accurate mempool pressure instead of always
+    seeing 0 when queried post-hoc.
+    """
+
+    def __init__(self, rpc=LOCAL_RPC, interval=0.2):
+        self._rpc = rpc
+        self._interval = interval
+        self._data = {}
+        self._stop = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self._thread = threading.Thread(target=self._poll, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def data(self):
+        """Dict mapping block height to (peak_n_txs, peak_n_bytes)."""
+        return dict(self._data)
+
+    def _poll(self):
+        while not self._stop.is_set():
+            try:
+                h = block_height(self._rpc)
+                n_txs, n_bytes = mempool_status(self._rpc)
+                prev = self._data.get(h, (0, 0))
+                self._data[h] = (max(prev[0], n_txs), max(prev[1], n_bytes))
+            except Exception:
+                pass
+            self._stop.wait(self._interval)
+
+
+class BlockSTMMonitor:
+    """Background thread that records Block-STM gauges at each new block height.
+
+    The Cosmos SDK Block-STM executor sets Prometheus gauges (not counters)
+    that are overwritten on every FinalizeBlock.  This monitor polls the
+    telemetry endpoint and captures the (executed_txs, validated_txs) snapshot
+    whenever the block height advances, so dump_block_stats can report
+    accurate per-block averages instead of a stale post-hoc value.
+    """
+
+    def __init__(self, rpc=LOCAL_RPC, interval=0.3):
+        self._rpc = rpc
+        self._interval = interval
+        self._data = {}  # height -> (executed, validated)
+        self._stop = threading.Event()
+        self._thread = None
+        self._last_height = 0
+
+    def start(self):
+        self._thread = threading.Thread(target=self._poll, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def data(self):
+        """Dict mapping block height to (executed_txs, validated_txs)."""
+        return dict(self._data)
+
+    def _poll(self):
+        while not self._stop.is_set():
+            try:
+                h = block_height(self._rpc)
+                if h != self._last_height:
+                    self._last_height = h
+                    stm = scrape_blockstm_metrics(_fetch_prometheus())
+                    if stm:
+                        executed = stm.get("executed_txs", 0)
+                        validated = stm.get("validated_txs", 0)
+                        if executed > 0:
+                            self._data[h] = (executed, validated)
+            except Exception:
+                pass
+            self._stop.wait(self._interval)
 
 
 @click.group()
@@ -164,6 +263,7 @@ def _gen(
     app_patch: dict = None,
     genesis_patch: dict = None,
     node_overrides: Optional[dict] = None,
+    **_kwargs,
 ):
     config_patch = config_patch or {}
     app_patch = app_patch or {}
@@ -443,15 +543,45 @@ def do_run(
     wait_for_port(8545)
     wait_for_block(cli, 3)
 
+    monitor = MempoolMonitor()
+    monitor.start()
+    stm_monitor = BlockSTMMonitor()
+    stm_monitor.start()
+
     if txs:
-        asyncio.run(transaction.send(txs))
-        print("sent", len(txs), "txs")
+        # Send in a background thread so blocks are produced concurrently.
+        # Pacing with time.sleep prevents the CheckTx flood that saturates
+        # the CPU and starves the consensus goroutine, causing repeated
+        # round timeouts at the Propose step.
+        chunk_size = node_cfg.get("send_batch_size", 2000)
+        send_interval = node_cfg.get("send_interval", 0.2)
+
+        def _send_paced():
+            for i in range(0, len(txs), chunk_size):
+                chunk = txs[i : i + chunk_size]
+                asyncio.run(transaction.send(chunk, batch_size=chunk_size))
+                if i + chunk_size < len(txs):
+                    time.sleep(send_interval)
+            print("sent", len(txs), "txs")
+
+        sender = threading.Thread(target=_send_paced, daemon=True)
+        sender.start()
 
     # node quit when the chain is idle or halted for a while
     detect_idle_halted(node_cfg["num_idle"], 5)
 
+    if txs:
+        sender.join(timeout=30)
+
+    monitor.stop()
+    stm_monitor.stop()
+
     with (home / "block_stats.log").open("w") as logfile:
-        dump_block_stats(Tee(logfile, sys.stdout))
+        dump_block_stats(
+            Tee(logfile, sys.stdout),
+            mempool_data=monitor.data,
+            stm_data=stm_monitor.data,
+        )
 
     if cfg.get("node_overrides", {}).get(str(global_seq)):
         print()

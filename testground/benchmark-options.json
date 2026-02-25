@@ -5,15 +5,20 @@
     "fullnodes": 0,
     "batch_size": 100,
     "validator_generate_load": true,
-    "num_accounts": 10000,
-    "num_txs": 5,
+    "num_accounts": 2400,
+    "num_txs": 100,
     "num_idle": 20,
+    "send_batch_size": 2000,
+    "send_interval": 0.2,
     "config_patch": {
       "mempool": {
-        "size": 100000
+        "size": 10000
       },
       "consensus": {
-        "timeout_commit": "20ms"
+        "timeout_commit": "20ms",
+        "timeout_propose": "500ms",
+        "timeout_prevote": "300ms",
+        "timeout_precommit": "300ms"
       },
       "db_backend": "rocksdb"
     },
@@ -24,8 +29,7 @@
       },
       "evm": {
         "block-stm-pre-estimate": false,
-        "block-executor": "block-stm",
-        "block-stm-workers": 8
+        "block-executor": "block-stm"
       },
       "memiavl": {
         "async-commit-buffer": 16
