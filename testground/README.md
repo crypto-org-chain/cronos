@@ -93,15 +93,17 @@ Edit `testground/benchmark-options.json` before building or patching:
   "outdir": "/data",
   "validators": 3,
   "fullnodes": 0,
-  "num_accounts": 10000,
-  "num_txs": 5,
+  "num_accounts": 2400,
+  "num_txs": 100,
   "batch_size": 100,
   "tx_type": "simple-transfer",
   "validator_generate_load": true,
   "num_idle": 20,
-  "config_patch": {},
-  "app_patch": {},
-  "genesis_patch": {},
+  "send_batch_size": 2000,
+  "send_interval": 0.2,
+  "config_patch": { ... },
+  "app_patch": { ... },
+  "genesis_patch": { ... },
   "node_overrides": {}
 }
 ```
@@ -110,28 +112,32 @@ Edit `testground/benchmark-options.json` before building or patching:
 | ----- | ------- | ----------- |
 | `validators` | `3` | Number of validators |
 | `fullnodes` | `0` | Number of full nodes |
-| `num_accounts` | `100` | Test accounts per node |
-| `num_txs` | `1000` | Transactions per account |
+| `num_accounts` | `2400` | Test accounts per node |
+| `num_txs` | `100` | Transactions per account |
 | `tx_type` | `simple-transfer` | `simple-transfer` or `erc20-transfer` |
-| `batch_size` | `1` | Txs per batch (`100` for batch tests) |
+| `batch_size` | `100` | Txs generated per batch |
 | `validator_generate_load` | `true` | Whether validators generate load |
 | `num_idle` | `20` | Idle blocks before stopping |
+| `send_batch_size` | `2000` | Txs per send chunk (paced sending) |
+| `send_interval` | `0.2` | Seconds between send chunks |
 | `config_patch` | `{}` | CometBFT config.toml overrides |
 | `app_patch` | `{}` | Cronos app.toml overrides |
 | `genesis_patch` | `{}` | genesis.json overrides |
 | `node_overrides` | `{}` | Per-node overrides (see below) |
 
+**Tx sending**: Transactions are sent in a background thread using paced batches to avoid flooding the mempool and stalling consensus. `send_batch_size` controls how many txs are sent per chunk, and `send_interval` is the pause between chunks. Increase `send_interval` or decrease `send_batch_size` if you see consensus round timeouts in the node logs.
+
 ### Per-Node Overrides (`node_overrides`)
 
 Apply different settings to individual nodes. Keys are `global_seq` as strings (validators `"0"`, `"1"`, ...; fullnodes continue after). Values are deep-merged on top of defaults.
 
-Overridable fields: `config_patch`, `app_patch`, `num_accounts`, `num_txs`, `tx_type`, `batch_size`, `validator_generate_load`, `num_idle`.
+Overridable fields: `config_patch`, `app_patch`, `num_accounts`, `num_txs`, `tx_type`, `batch_size`, `validator_generate_load`, `num_idle`, `send_batch_size`, `send_interval`.
 
 ```json
 {
   "node_overrides": {
     "0": { "app_patch": { "evm": { "block-executor": "sequential" } } },
-    "1": { "num_accounts": 20000, "num_txs": 10 }
+    "1": { "num_accounts": 20000, "num_txs": 10, "send_batch_size": 1000 }
   }
 }
 ```
@@ -140,9 +146,35 @@ When overrides are active, the benchmark prints a per-node config diff at startu
 
 ### Config Defaults
 
-**CometBFT** (`config_patch`): `db_backend: rocksdb`, `mempool.recheck: false`, `mempool.size: 50000`, `consensus.timeout_commit: 1s`, `tx_index.indexer: null`
+These defaults are applied by the benchmark framework. Values in `config_patch` / `app_patch` / `genesis_patch` from `benchmark-options.json` are deep-merged on top of these.
 
-**Cronos App** (`app_patch`): `memiavl.enable: true`, `evm.block-executor: block-stm`, `evm.block-stm-workers: 0`, `evm.block-stm-pre-estimate: true`, `mempool.max-txs: 50000`
+**CometBFT** (`config_patch`):
+
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `db_backend` | `rocksdb` | Storage backend |
+| `mempool.recheck` | `false` | Skip tx re-validation after block commit |
+| `mempool.size` | `10000` | Max txs in mempool |
+| `consensus.timeout_commit` | `1s` | Idle wait after commit before proposing |
+| `consensus.timeout_propose` | `500ms` | Max time to wait for a proposal |
+| `consensus.timeout_prevote` | `300ms` | Max time to wait for prevotes |
+| `consensus.timeout_precommit` | `300ms` | Max time to wait for precommits |
+| `tx_index.indexer` | `null` | Disable tx indexing for throughput |
+| `instrumentation.prometheus` | `true` | Enable Prometheus metrics |
+
+**Cronos App** (`app_patch`):
+
+| Key | Default | Description |
+| --- | ------- | ----------- |
+| `memiavl.enable` | `true` | In-memory IAVL for faster state access |
+| `evm.block-executor` | `block-stm` | Parallel tx execution (`sequential` to disable) |
+| `evm.block-stm-workers` | `0` | Worker count (0 = auto-detect CPUs) |
+| `evm.block-stm-pre-estimate` | `true` | Pre-estimate write sets to reduce conflicts |
+| `mempool.max-txs` | `10000` | App-side mempool limit |
+| `telemetry.enabled` | `true` | Enable Cosmos SDK telemetry |
+| `telemetry.prometheus-retention-time` | `600` | Prometheus metric retention (seconds) |
+
+**Genesis** (`genesis_patch`): Use to set `consensus.params.block.max_gas` (e.g. `"105000000"` for ~5000 simple transfers per block at 21000 gas each).
 
 ## Embed / Update Test Data
 
