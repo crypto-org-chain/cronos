@@ -27,6 +27,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 				EnableAutoReadaheadSize:      false,
 				EnableOptimizeForPointLookup: false,
 				EnableHyperClockCache:        false,
+				EnableDirectIOForCompaction:  false,
 			},
 		},
 		{
@@ -36,6 +37,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 				EnableAutoReadaheadSize:      false,
 				EnableOptimizeForPointLookup: true,
 				EnableHyperClockCache:        false,
+				EnableDirectIOForCompaction:  false,
 			},
 		},
 		{
@@ -45,6 +47,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 				EnableAutoReadaheadSize:      true,
 				EnableOptimizeForPointLookup: true,
 				EnableHyperClockCache:        true,
+				EnableDirectIOForCompaction:  true,
 			},
 		},
 		{
@@ -54,6 +57,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 				EnableAutoReadaheadSize:      true,
 				EnableOptimizeForPointLookup: true,
 				EnableHyperClockCache:        true,
+				EnableDirectIOForCompaction:  true,
 			},
 		},
 	}

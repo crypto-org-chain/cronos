@@ -24,6 +24,7 @@ type RocksDBTuneUpOptions struct {
 	EnableAutoReadaheadSize      bool
 	EnableOptimizeForPointLookup bool
 	EnableHyperClockCache        bool
+	EnableDirectIOForCompaction  bool
 }
 
 func OpenDB(appOpts types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
@@ -44,11 +45,13 @@ func OpenDB(appOpts types.AppOptions, home string, backendType dbm.BackendType) 
 					tuneUpOpts.EnableAutoReadaheadSize = true
 					tuneUpOpts.EnableOptimizeForPointLookup = true
 					tuneUpOpts.EnableHyperClockCache = true
+					tuneUpOpts.EnableDirectIOForCompaction = true
 				case cronosconfig.NodeTypeArchive:
 					tuneUpOpts.EnableAsyncIo = true
 					tuneUpOpts.EnableAutoReadaheadSize = true
 					tuneUpOpts.EnableHyperClockCache = true
 					tuneUpOpts.EnableOptimizeForPointLookup = true
+					tuneUpOpts.EnableDirectIOForCompaction = true
 				}
 			}
 		}
@@ -153,6 +156,9 @@ func newRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool, tuneUpOpts Ro
 	if tuneUpOpts.EnableOptimizeForPointLookup {
 		opts.SetMemTablePrefixBloomSizeRatio(0.02)
 		opts.SetMemtableWholeKeyFiltering(true)
+	}
+	if tuneUpOpts.EnableDirectIOForCompaction {
+		opts.SetUseDirectIOForFlushAndCompaction(true)
 	}
 
 	// block based table options
