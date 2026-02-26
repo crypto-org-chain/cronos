@@ -72,7 +72,7 @@ buildGoApplication rec {
   );
 
   postFixup = lib.optionalString (stdenv.isDarwin && rocksdb != null) ''
-    ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.8.dylib" "${rocksdb}/lib/librocksdb.dylib" $out/bin/cronosd
+    ${stdenv.cc.bintools.targetPrefix}install_name_tool -change "@rpath/librocksdb.${lib.versions.major rocksdb.version}.dylib" "${rocksdb}/lib/librocksdb.dylib" $out/bin/cronosd
   '';
 
   doCheck = false;

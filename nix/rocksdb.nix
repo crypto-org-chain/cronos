@@ -23,7 +23,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
-  version = "10.9.1";
+  version = "10.10.1";
 
   withLz4 = !stdenv.hostPlatform.isMinGW;
 
@@ -31,7 +31,7 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "facebook";
     repo = finalAttrs.pname;
     rev = "v${finalAttrs.version}";
-    sha256 = "sha256-Sl5o2uQBS+D43PX827FGTpLIcW6msksFFxGxDyqBdIs=";
+    sha256 = "sha256-gszW+YY8ZZ7cRVCIXuahGopqqswNRnagZLUYYmRxzGY=";
   };
 
   nativeBuildInputs = [
@@ -106,7 +106,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   postPatch = ''
     substituteInPlace port/mmap.cc \
-      --replace 'std::memcpy(this, &other, sizeof(*this));' \
+      --replace 'std::memcpy(static_cast<void*>(this), &other, sizeof(*this));' \
       'std::memcpy(static_cast<void*>(this), static_cast<const void*>(&other), sizeof(*this));'
   '';
 
