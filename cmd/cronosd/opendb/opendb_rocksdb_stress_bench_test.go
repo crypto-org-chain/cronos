@@ -66,7 +66,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 	for i := 0; i < numKeys; i++ {
 		keys[i] = []byte(fmt.Sprintf("key_%010d", i))
 		values[i] = make([]byte, 256) // 256 bytes per value
-		rand.Read(values[i])
+		_, _ = rand.Read(values[i])
 	}
 
 	for _, cfg := range configs {
@@ -77,7 +77,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 			defer os.RemoveAll(tmpDir)
 
 			dbDir := filepath.Join(tmpDir, "data", "application.db")
-			err = os.MkdirAll(dbDir, 0755)
+			err = os.MkdirAll(dbDir, 0o755)
 			require.NoError(b, err)
 
 			// Open database

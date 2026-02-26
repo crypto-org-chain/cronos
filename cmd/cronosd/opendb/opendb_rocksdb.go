@@ -8,13 +8,12 @@ import (
 	"runtime"
 	"strings"
 
+	dbm "github.com/cosmos/cosmos-db"
+	cronosconfig "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cast"
 
-	dbm "github.com/cosmos/cosmos-db"
-	"github.com/linxGnu/grocksdb"
-
 	"github.com/cosmos/cosmos-sdk/server/types"
-	cronosconfig "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 // BlockCacheSize 3G block cache
@@ -29,7 +28,7 @@ type RocksDBTuneUpOptions struct {
 
 func OpenDB(appOpts types.AppOptions, home string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(home, "data")
-	
+
 	if backendType == dbm.RocksDBBackend {
 		tuneUpOpts := RocksDBTuneUpOptions{}
 		if appOpts != nil {
