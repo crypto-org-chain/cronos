@@ -108,6 +108,7 @@ func loadLatestOptions(dir string, enableHyperClockCache bool) (*grocksdb.Option
 	}
 	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, cache)
 	if err != nil {
+		cache.Destroy()
 		// not found is not an error
 		if strings.HasPrefix(err.Error(), "NotFound: ") {
 			return nil, nil
