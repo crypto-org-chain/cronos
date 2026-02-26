@@ -109,7 +109,10 @@ func openRocksdb(dir string, readonly bool, tuneUpOpts RocksDBTuneUpOptions) (db
 
 // loadLatestOptions try to load options from existing db, returns nil if not exists.
 func loadLatestOptions(dir string, cache *grocksdb.Cache) (*grocksdb.Options, error) {
-	opts, err := grocksdb.LoadLatestOptions(dir, grocksdb.NewDefaultEnv(), true, cache)
+	env := grocksdb.NewDefaultEnv()
+	defer env.Destroy()
+
+	opts, err := grocksdb.LoadLatestOptions(dir, env, true, cache)
 	if err != nil {
 		// not found is not an error
 		if strings.HasPrefix(err.Error(), "NotFound: ") {
@@ -117,17 +120,18 @@ func loadLatestOptions(dir string, cache *grocksdb.Cache) (*grocksdb.Options, er
 		}
 		return nil, err
 	}
+	defer opts.Destroy()
 
 	cfNames := opts.ColumnFamilyNames()
 	cfOpts := opts.ColumnFamilyOpts()
 
 	for i := 0; i < len(cfNames); i++ {
 		if cfNames[i] == "default" {
-			return &cfOpts[i], nil
+			return cfOpts[i].Clone(), nil
 		}
 	}
 
-	return opts.Options(), nil
+	return opts.Options().Clone(), nil
 }
 
 // NewRocksdbOptions build options for `application.db`,
