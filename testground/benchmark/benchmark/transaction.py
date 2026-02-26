@@ -253,12 +253,24 @@ async def async_sendtx(session, raw, rpc, sync=False):
         return True
 
 
-async def send(txs, rpc=LOCAL_RPC, sync=False):
+async def send(txs, rpc=LOCAL_RPC, sync=False, batch_size=500, batch_interval=0.5):
+    """Send transactions to the node in rate-limited batches.
+
+    Sends ``batch_size`` txs concurrently, pauses ``batch_interval`` seconds,
+    then sends the next batch.  The pause lets the chain produce blocks and
+    drain the mempool between batches, preventing the CheckTx flood that
+    overwhelms the proposer and causes repeated consensus round timeouts.
+    """
     connector = aiohttp.TCPConnector(limit=CONNECTION_POOL_SIZE)
     async with aiohttp.ClientSession(
         connector=connector, json_serialize=ujson.dumps
     ) as session:
-        tasks = [
-            asyncio.ensure_future(async_sendtx(session, raw, rpc, sync)) for raw in txs
-        ]
-        await asyncio.gather(*tasks)
+        for i in range(0, len(txs), batch_size):
+            chunk = txs[i : i + batch_size]
+            tasks = [
+                asyncio.ensure_future(async_sendtx(session, raw, rpc, sync))
+                for raw in chunk
+            ]
+            await asyncio.gather(*tasks)
+            if i + batch_size < len(txs) and batch_interval > 0:
+                await asyncio.sleep(batch_interval)
