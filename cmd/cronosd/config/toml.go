@@ -24,6 +24,7 @@ const DefaultRocksDBConfigTemplate = `
 [rocksdb]
 
 # Defines the tuning profile for RocksDB based on the node's primary workload.
+# This is an experimental feature for performance optimization.
 # Valid values:
 # - ""          (default): standard configuration, safe for all nodes.
 # - "validator" : optimizes for lowest latency point-lookups (state reads) during block execution.
