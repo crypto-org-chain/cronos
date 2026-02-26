@@ -106,7 +106,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   postPatch = ''
     substituteInPlace port/mmap.cc \
-      --replace 'std::memcpy(static_cast<void*>(this), &other, sizeof(*this));' \
+      --replace 'std::memcpy(this, &other, sizeof(*this));' \
       'std::memcpy(static_cast<void*>(this), static_cast<const void*>(&other), sizeof(*this));'
   '';
 
