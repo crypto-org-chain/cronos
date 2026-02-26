@@ -52,7 +52,7 @@ func BenchmarkRocksDBStressConcurrent(b *testing.B) {
 			tuneOpts: RocksDBTuneUpOptions{
 				EnableAsyncIo:                true,
 				EnableAutoReadaheadSize:      true,
-				EnableOptimizeForPointLookup: false,
+				EnableOptimizeForPointLookup: true,
 				EnableHyperClockCache:        true,
 			},
 		},
