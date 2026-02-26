@@ -7,11 +7,13 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import List, Optional
 
 import click
+import jsonmerge
 import tomlkit
 
 from . import transaction
@@ -25,10 +27,17 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .stats import dump_block_stats
+from .stats import _fetch_prometheus, dump_block_stats, scrape_blockstm_metrics
 from .topology import connect_all
 from .types import PeerPacket
-from .utils import Tee, block_height, block_txs, wait_for_block, wait_for_port
+from .utils import (
+    Tee,
+    block_height,
+    block_txs,
+    mempool_status,
+    wait_for_block,
+    wait_for_port,
+)
 
 # use cronosd on host machine
 LOCAL_CRONOSD_PATH = "cronosd"
@@ -36,6 +45,98 @@ DEFAULT_CHAIN_ID = "cronos_777-1"
 # the container must be deployed with the prefixed name
 HOSTNAME_TEMPLATE = "testplan-{index}"
 ECHO_SERVER_PORT = 26659
+LOCAL_RPC = "http://127.0.0.1:26657"
+
+
+class MempoolMonitor:
+    """Background thread that polls CometBFT mempool during the load period.
+
+    Records the peak (n_txs, n_bytes) observed at each block height so that
+    dump_block_stats can report accurate mempool pressure instead of always
+    seeing 0 when queried post-hoc.
+    """
+
+    def __init__(self, rpc=LOCAL_RPC, interval=0.2):
+        self._rpc = rpc
+        self._interval = interval
+        self._data = {}
+        self._stop = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self._thread = threading.Thread(target=self._poll, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def data(self):
+        """Dict mapping block height to (peak_n_txs, peak_n_bytes)."""
+        return dict(self._data)
+
+    def _poll(self):
+        while not self._stop.is_set():
+            try:
+                h = block_height(self._rpc)
+                n_txs, n_bytes = mempool_status(self._rpc)
+                prev = self._data.get(h, (0, 0))
+                self._data[h] = (max(prev[0], n_txs), max(prev[1], n_bytes))
+            except Exception:
+                pass
+            self._stop.wait(self._interval)
+
+
+class BlockSTMMonitor:
+    """Background thread that records Block-STM gauges at each new block height.
+
+    The Cosmos SDK Block-STM executor sets Prometheus gauges (not counters)
+    that are overwritten on every FinalizeBlock.  This monitor polls the
+    telemetry endpoint and captures the (executed_txs, validated_txs) snapshot
+    whenever the block height advances, so dump_block_stats can report
+    accurate per-block averages instead of a stale post-hoc value.
+    """
+
+    def __init__(self, rpc=LOCAL_RPC, interval=0.3):
+        self._rpc = rpc
+        self._interval = interval
+        self._data = {}  # height -> (executed, validated)
+        self._stop = threading.Event()
+        self._thread = None
+        self._last_height = 0
+
+    def start(self):
+        self._thread = threading.Thread(target=self._poll, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def data(self):
+        """Dict mapping block height to (executed_txs, validated_txs)."""
+        return dict(self._data)
+
+    def _poll(self):
+        while not self._stop.is_set():
+            try:
+                h = block_height(self._rpc)
+                if h != self._last_height:
+                    self._last_height = h
+                    prom_text = _fetch_prometheus()
+                    stm = scrape_blockstm_metrics(prom_text)
+                    if stm:
+                        executed = stm.get("executed_txs", 0)
+                        validated = stm.get("validated_txs", 0)
+                        if executed > 0:
+                            self._data[h] = (executed, validated)
+            except Exception:
+                pass
+            self._stop.wait(self._interval)
 
 
 @click.group()
@@ -74,6 +175,80 @@ def generic_gen(options: dict):
     return _gen(**options)
 
 
+def _resolve_node_overrides(
+    defaults: dict, node_overrides: Optional[dict], global_seq: int
+):
+    """Deep-merge per-node overrides on top of defaults for the given node."""
+    if not node_overrides:
+        return defaults
+    overrides = node_overrides.get(str(global_seq))
+    if not overrides:
+        return defaults
+    return jsonmerge.merge(defaults, overrides)
+
+
+def _diff_dicts(base, other, path=""):
+    """Yield (dotted_path, base_val, other_val) for all leaf differences."""
+    all_keys = set(list(base.keys()) + list(other.keys()))
+    for k in sorted(all_keys):
+        p = f"{path}.{k}" if path else k
+        v1 = base.get(k)
+        v2 = other.get(k)
+        if isinstance(v1, dict) and isinstance(v2, dict):
+            yield from _diff_dicts(v1, v2, p)
+        elif v1 != v2:
+            yield p, v1, v2
+
+
+def _print_node_config_summary(
+    validators,
+    fullnodes,
+    num_accounts,
+    num_txs,
+    tx_type,
+    batch_size,
+    config_patch,
+    app_patch,
+    node_overrides,
+):
+    """Print a summary table of per-node config differences when overrides exist."""
+    if not node_overrides:
+        return
+
+    total = validators + fullnodes
+    defaults = {
+        "num_accounts": num_accounts,
+        "num_txs": num_txs,
+        "tx_type": tx_type,
+        "batch_size": batch_size,
+        "config_patch": config_patch,
+        "app_patch": app_patch,
+    }
+
+    print()
+    print("=" * 60)
+    print("Per-node configuration differences")
+    print("=" * 60)
+
+    for seq in range(total):
+        overrides = node_overrides.get(str(seq))
+        if not overrides:
+            continue
+        role = "validator" if seq < validators else "fullnode"
+        group_seq = seq if seq < validators else seq - validators
+        resolved = _resolve_node_overrides(defaults, node_overrides, seq)
+        diffs = list(_diff_dicts(defaults, resolved))
+        if not diffs:
+            continue
+        print(f"\n  {role} {group_seq} (global_seq={seq}):")
+        for path, old, new in diffs:
+            print(f"    {path}: {old} -> {new}")
+
+    print()
+    print("=" * 60)
+    print()
+
+
 def _gen(
     outdir: str,
     hostname_template: str = HOSTNAME_TEMPLATE,
@@ -88,10 +263,13 @@ def _gen(
     config_patch: dict = None,
     app_patch: dict = None,
     genesis_patch: dict = None,
+    node_overrides: Optional[dict] = None,
+    **_kwargs,
 ):
     config_patch = config_patch or {}
     app_patch = app_patch or {}
     genesis_patch = genesis_patch or {}
+    node_overrides = node_overrides or {}
 
     outdir = Path(outdir)
     cli = ChainCommand(LOCAL_CRONOSD_PATH)
@@ -103,18 +281,36 @@ def _gen(
         print("init validator", i)
         global_seq = i
         ip = hostname_template.format(index=global_seq)
+        node_cfg = _resolve_node_overrides(
+            {"num_accounts": num_accounts}, node_overrides, global_seq
+        )
         peers.append(
             init_node_local(
-                cli, outdir, VALIDATOR_GROUP, i, global_seq, ip, num_accounts
+                cli,
+                outdir,
+                VALIDATOR_GROUP,
+                i,
+                global_seq,
+                ip,
+                node_cfg["num_accounts"],
             )
         )
     for i in range(fullnodes):
         print("init fullnode", i)
         global_seq = i + validators
         ip = hostname_template.format(index=global_seq)
+        node_cfg = _resolve_node_overrides(
+            {"num_accounts": num_accounts}, node_overrides, global_seq
+        )
         peers.append(
             init_node_local(
-                cli, outdir, FULLNODE_GROUP, i, global_seq, ip, num_accounts
+                cli,
+                outdir,
+                FULLNODE_GROUP,
+                i,
+                global_seq,
+                ip,
+                node_cfg["num_accounts"],
             )
         )
 
@@ -123,20 +319,37 @@ def _gen(
     genesis = gen_genesis(cli, outdir / VALIDATOR_GROUP / "0", peers, genesis_patch)
 
     print("patch genesis")
-    # write genesis file and patch config files
+    # write genesis file and patch config files, applying per-node overrides
     for i in range(validators):
+        node_cfg = _resolve_node_overrides(
+            {"config_patch": config_patch, "app_patch": app_patch},
+            node_overrides,
+            i,
+        )
         patch_configs_local(
-            peers, genesis, outdir, VALIDATOR_GROUP, i, config_patch, app_patch
+            peers,
+            genesis,
+            outdir,
+            VALIDATOR_GROUP,
+            i,
+            node_cfg["config_patch"],
+            node_cfg["app_patch"],
         )
     for i in range(fullnodes):
+        global_seq = i + validators
+        node_cfg = _resolve_node_overrides(
+            {"config_patch": config_patch, "app_patch": app_patch},
+            node_overrides,
+            global_seq,
+        )
         patch_configs_local(
             peers,
             genesis,
             outdir,
             FULLNODE_GROUP,
             i,
-            config_patch,
-            app_patch,
+            node_cfg["config_patch"],
+            node_cfg["app_patch"],
         )
 
     print("write config")
@@ -150,7 +363,21 @@ def _gen(
         "batch_size": batch_size,
         "validator_generate_load": validator_generate_load,
     }
+    if node_overrides:
+        cfg["node_overrides"] = node_overrides
     (outdir / "config.json").write_text(json.dumps(cfg))
+
+    _print_node_config_summary(
+        validators,
+        fullnodes,
+        num_accounts,
+        num_txs,
+        tx_type,
+        batch_size,
+        config_patch,
+        app_patch,
+        node_overrides,
+    )
 
 
 @cli.command()
@@ -239,11 +466,12 @@ def generate_load(datadir: Path, global_seq: int):
     manually generate load to an existing node
     """
     cfg = json.loads((datadir / "config.json").read_text())
-    txs = prepare_txs(cfg, datadir, global_seq)
+    node_cfg = _resolve_node_overrides(cfg, cfg.get("node_overrides"), global_seq)
+    txs = prepare_txs(node_cfg, datadir, global_seq)
     asyncio.run(transaction.send(txs))
     print("sent", len(txs), "txs")
     print("wait for 20 idle blocks")
-    detect_idle_halted(cfg["num_idle"], 20)
+    detect_idle_halted(node_cfg["num_idle"], 20)
     dump_block_stats(sys.stdout)
 
 
@@ -255,12 +483,22 @@ def _gen_txs(
     tx_type: str = "simple-transfer",
     batch_size: int = 1,
     node: Optional[int] = None,
+    node_overrides: Optional[dict] = None,
 ):
     outdir = Path(outdir)
+    node_overrides = node_overrides or {}
+    defaults = {
+        "num_accounts": num_accounts,
+        "num_txs": num_txs,
+        "tx_type": tx_type,
+        "batch_size": batch_size,
+    }
 
     def job(global_seq):
-        print("generating", num_accounts * num_txs, "txs for node", global_seq)
-        txs = transaction.gen(global_seq, num_accounts, num_txs, tx_type, batch_size)
+        cfg = _resolve_node_overrides(defaults, node_overrides, global_seq)
+        na, nt = cfg["num_accounts"], cfg["num_txs"]
+        print("generating", na * nt, "txs for node", global_seq)
+        txs = transaction.gen(global_seq, na, nt, cfg["tx_type"], cfg["batch_size"])
         transaction.save(txs, outdir, global_seq)
         print("saved", len(txs), "txs for node", global_seq)
 
@@ -274,8 +512,19 @@ def _gen_txs(
 def do_run(
     datadir: Path, home: Path, cronosd: str, group: str, global_seq: int, cfg: dict
 ):
-    if group == FULLNODE_GROUP or cfg.get("validator_generate_load", True):
-        txs = prepare_txs(cfg, datadir, global_seq)
+    node_cfg = _resolve_node_overrides(cfg, cfg.get("node_overrides"), global_seq)
+
+    if cfg.get("node_overrides", {}).get(str(global_seq)):
+        diffs = list(_diff_dicts(cfg, node_cfg))
+        if diffs:
+            print(f"[node {global_seq}] config overrides applied:")
+            for path, old, new in diffs:
+                if path == "node_overrides" or path.startswith("node_overrides."):
+                    continue
+                print(f"  {path}: {old} -> {new}")
+
+    if group == FULLNODE_GROUP or node_cfg.get("validator_generate_load", True):
+        txs = prepare_txs(node_cfg, datadir, global_seq)
     else:
         txs = []
 
@@ -295,15 +544,53 @@ def do_run(
     wait_for_port(8545)
     wait_for_block(cli, 3)
 
+    monitor = MempoolMonitor()
+    monitor.start()
+    stm_monitor = BlockSTMMonitor()
+    stm_monitor.start()
+
     if txs:
-        asyncio.run(transaction.send(txs))
-        print("sent", len(txs), "txs")
+        # Send in a background thread so blocks are produced concurrently.
+        # Pacing with time.sleep prevents the CheckTx flood that saturates
+        # the CPU and starves the consensus goroutine, causing repeated
+        # round timeouts at the Propose step.
+        chunk_size = node_cfg.get("send_batch_size", 2000)
+        send_interval = node_cfg.get("send_interval", 0.2)
+
+        def _send_paced():
+            for i in range(0, len(txs), chunk_size):
+                chunk = txs[i : i + chunk_size]
+                asyncio.run(transaction.send(chunk, batch_size=chunk_size))
+                if i + chunk_size < len(txs):
+                    time.sleep(send_interval)
+            print("sent", len(txs), "txs")
+
+        sender = threading.Thread(target=_send_paced, daemon=True)
+        sender.start()
 
     # node quit when the chain is idle or halted for a while
-    detect_idle_halted(cfg["num_idle"], 5)
+    detect_idle_halted(node_cfg["num_idle"], 5)
+
+    if txs:
+        sender.join(timeout=30)
+
+    monitor.stop()
+    stm_monitor.stop()
 
     with (home / "block_stats.log").open("w") as logfile:
-        dump_block_stats(Tee(logfile, sys.stdout))
+        dump_block_stats(
+            Tee(logfile, sys.stdout),
+            mempool_data=monitor.data,
+            stm_data=stm_monitor.data,
+        )
+
+    if cfg.get("node_overrides", {}).get(str(global_seq)):
+        print()
+        print(f"[node {global_seq}] effective config vs defaults:")
+        for path, old, new in _diff_dicts(cfg, node_cfg):
+            if path == "node_overrides" or path.startswith("node_overrides."):
+                continue
+            print(f"  {path}: {new}  (default: {old})")
 
     proc.kill()
     proc.wait(20)

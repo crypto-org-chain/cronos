@@ -35,7 +35,7 @@ def interact(cmd, ignore_error=False, input=None, stderr=subprocess.STDOUT, **kw
         **kwargs,
     )
     # begin = time.perf_counter()
-    (stdout, _) = proc.communicate(input=input)
+    stdout, _ = proc.communicate(input=input)
     # print('[%.02f] %s' % (time.perf_counter() - begin, cmd))
     if not ignore_error:
         assert proc.returncode == 0, f'{stdout.decode("utf-8")} ({cmd})'

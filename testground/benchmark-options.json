@@ -1,0 +1,57 @@
+{
+    "outdir": "/data",
+    "tx_type": "simple-transfer",
+    "validators": 3,
+    "fullnodes": 0,
+    "batch_size": 100,
+    "validator_generate_load": true,
+    "num_accounts": 2400,
+    "num_txs": 100,
+    "num_idle": 20,
+    "send_batch_size": 2000,
+    "send_interval": 0.2,
+    "config_patch": {
+      "mempool": {
+        "size": 10000
+      },
+      "consensus": {
+        "timeout_commit": "20ms",
+        "timeout_propose": "500ms",
+        "timeout_prevote": "300ms",
+        "timeout_precommit": "300ms"
+      },
+      "db_backend": "rocksdb"
+    },
+    "app_patch": {
+      "async-check-tx": true,
+      "mempool": {
+        "max-txs": -1
+      },
+      "evm": {
+        "block-stm-pre-estimate": false,
+        "block-executor": "block-stm"
+      },
+      "memiavl": {
+        "async-commit-buffer": 16
+      },
+      "json-rpc": {
+        "enable-indexer": false
+      }
+    },
+    "genesis_patch": {
+      "consensus": {
+        "params": {
+          "block": {
+            "max_gas": "105000000"
+          }
+        }
+      }
+    },
+    "node_overrides": {
+      "0": {
+      },
+      "1": {
+      }
+    }
+  }
+

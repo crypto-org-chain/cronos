@@ -183,6 +183,17 @@ def block_eth(height: int, json_rpc=LOCAL_JSON_RPC):
     ).json()["result"]
 
 
+def block_results(height, rpc=LOCAL_RPC):
+    return requests.get(f"{rpc}/block_results?height={height}").json()
+
+
+def mempool_status(rpc=LOCAL_RPC):
+    """Return (n_txs, total_bytes) from CometBFT's unconfirmed txs endpoint."""
+    rsp = requests.get(f"{rpc}/num_unconfirmed_txs").json()
+    r = rsp.get("result", {})
+    return int(r.get("n_txs", 0)), int(r.get("total_bytes", 0))
+
+
 def block_txs(height, rpc=LOCAL_RPC):
     return block(height, rpc=rpc)["result"]["block"]["data"]["txs"]
 
