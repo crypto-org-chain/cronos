@@ -7,7 +7,11 @@ before and after the v1.8 upgrade.
 from dateutil.parser import isoparse
 
 from .cosmoscli import module_address
-from .utils import wait_for_block_time, wait_for_new_blocks, submit_gov_proposal
+from .utils import (
+    submit_gov_proposal,
+    wait_for_block_time,
+    wait_for_new_blocks,
+)
 
 
 def set_send_enabled(cronos, send_enabled_list):

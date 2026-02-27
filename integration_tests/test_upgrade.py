@@ -19,6 +19,7 @@ from .staking_v1_8 import (
     postupgrade_check_staking,
     preupgrade_staking_setup,
 )
+
 from .utils import (
     ADDRS,
     CONTRACTS,
