@@ -364,7 +364,7 @@ def exec(c, tmp_path_factory):
     historical_storage_address_code = w3.eth.get_code(historical_storage_address)
     assert historical_storage_address_code == HexBytes(
         expected_historical_storage_address_code
-    ) 
+    )
 
     staking_info = preupgrade_staking_setup(c, cli)
 

@@ -364,7 +364,7 @@ class CosmosCLI:
         res = json.loads(res)
         res = res.get("pool") or res
         return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
-    
+
     def validator_delegations(self, val_addr):
         return json.loads(
             self.raw(
@@ -372,8 +372,7 @@ class CosmosCLI:
                 "staking",
                 "delegations",
                 val_addr,
-                output="json", 
-                node=self.node_rpc,
+                output="json",                node=self.node_rpc,
             )
         ).get("delegation_responses") or []
 
@@ -387,7 +386,7 @@ class CosmosCLI:
                 output="json",
                 node=self.node_rpc,
             )
-        ).get("unbonding_responses") or [] 
+        ).get("unbonding_responses") or []
 
     def redelegations(self, delegator_addr, src_val_addr, dst_val_addr):
         return json.loads(
@@ -1214,8 +1213,8 @@ class CosmosCLI:
             "gas_prices": DEFAULT_GAS_PRICE,
             "gas": "auto",
             "gas_adjustment": "1.5",
-            # suppress gas estimate output, needed for json to parse correctly when gas="auto"
-            "stderr": subprocess.DEVNULL, 
+            # suppress gas estimate output for json parsing when gas="auto"
+            "stderr": subprocess.DEVNULL,
         }
 
     def set_send_enabled(self, send_enabled_list, cronos):
@@ -1246,7 +1245,7 @@ class CosmosCLI:
                     "params": params,
                 }
             ],
-        )  
+        )
 
     def gov_propose_token_mapping_change_legacy(
         self, denom, contract, symbol, decimal, **kwargs

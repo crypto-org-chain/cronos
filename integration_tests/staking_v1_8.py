@@ -4,22 +4,23 @@ Staking test utilities for v1.8 upgrade testing.
 This module contains functions to set up and verify staking state
 before and after the v1.8 upgrade.
 """
-import json
 from dateutil.parser import isoparse
 
 from .utils import wait_for_block_time, wait_for_new_blocks
+
 
 def unbond_validators(cli, val_addrs):
     bond_denom = cli.staking_params()["params"].get("bond_denom")
     for val_addr in val_addrs:
         validator_info = cli.validator(val_addr)
         tokens = validator_info["validator"]["tokens"]
-        
+
         # Unbond all self-delegation to make node0 validator unbonding
         rsp = cli.unbond(val_addr, f"{tokens}{bond_denom}", "validator")
-        assert rsp["code"] == 0, f"Failed to unbond validator: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 2)
-        
+        assert rsp["code"] == 0, \
+            f"Failed to unbond validator: {rsp.get('raw_log', rsp)}"
+        wait_for_new_blocks(cli, 1)
+
         # Verify validator status changed to UNBONDING
         validator_info_after = cli.validator(val_addr)
         val_data_after = validator_info_after["validator"]
@@ -28,6 +29,7 @@ def unbond_validators(cli, val_addrs):
             f"Expected validator to be UNBONDING, got {status}. " \
             f"Total tokens: {val_data_after.get('tokens')}, " \
             f"Min self delegation: {val_data_after.get('min_self_delegation')}"
+
 
 def unbond_delegations(cli, n, val_addrs):
     bond_denom = cli.staking_params()["params"].get("bond_denom")
@@ -41,7 +43,10 @@ def unbond_delegations(cli, n, val_addrs):
         cli.create_account(account_name)
         delegator_addr = cli.address(account_name)
         delegator_accounts.append((account_name, delegator_addr))
-        rsp = cli.transfer("community1", delegator_addr, f"1000000000000000000basetcro,{stake_amount_coin}")
+        rsp = cli.transfer(
+            "community1", delegator_addr,
+            f"1000000000000000000basetcro,{stake_amount_coin}"
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
         wait_for_new_blocks(cli, 1)
 
@@ -50,14 +55,19 @@ def unbond_delegations(cli, n, val_addrs):
         val_addr = val_addrs[i % len(val_addrs)]
         rsp = cli.delegate(val_addr, stake_amount_coin, account_name)
         assert rsp["code"] == 0, f"Failed to delegate: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 2)
+        wait_for_new_blocks(cli, 1)
 
         # unbond
         unbond_amount_coin = f"{stake_amount // 2}{bond_denom}"
         rsp = cli.unbond(val_addr, unbond_amount_coin, account_name)
-        assert rsp["code"] == 0, f"Failed to unbond delegation {i}: {rsp.get('raw_log', rsp)}"
+        assert rsp["code"] == 0, \
+            f"Failed to unbond delegation {i}: {rsp.get('raw_log', rsp)}"
         wait_for_new_blocks(cli, 1)
-        print(f"Unbonding delegation {i} of {unbond_amount_coin} from {delegator_addr} to {val_addr}")
+        print(
+            f"Unbonding delegation {i} of {unbond_amount_coin}"
+            f" from {delegator_addr} to {val_addr}"
+        )
+
 
 def redelegate(cli, n, val_addrs):
     bond_denom = cli.staking_params()["params"].get("bond_denom")
@@ -71,7 +81,7 @@ def redelegate(cli, n, val_addrs):
         # Alternate between the bonded validators as src/dst
         from_val = val_addrs[i % len(val_addrs)]
         to_val = val_addrs[(i + 1) % len(val_addrs)]
-        
+
         account_info = {
             "account_name": account_name,
             "delegator_addr": redelegator_addr,
@@ -81,7 +91,10 @@ def redelegate(cli, n, val_addrs):
         redelegator_accounts.append(account_info)
 
         # Fund the account
-        rsp = cli.transfer("community1", redelegator_addr, f"1000000000000000000basetcro,{stake_amount_coin}")
+        rsp = cli.transfer(
+            "community1", redelegator_addr,
+            f"1000000000000000000basetcro,{stake_amount_coin}"
+        )
         assert rsp["code"] == 0, rsp["raw_log"]
         wait_for_new_blocks(cli, 1)
 
@@ -90,24 +103,26 @@ def redelegate(cli, n, val_addrs):
         redelegator_addr = account_info["delegator_addr"]
         from_val = account_info["validator_src_addr"]
         to_val = account_info["validator_dst_addr"]
-        
+
         # Delegate to from_val first
         rsp = cli.delegate(from_val, stake_amount_coin, account_name)
         assert rsp["code"] == 0, f"Failed to delegate: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 2)
+        wait_for_new_blocks(cli, 1)
 
         # Redelegate
         unbond_amount_coin = f"{stake_amount // 2}{bond_denom}"
         rsp = cli.redelegate(to_val, from_val, unbond_amount_coin, account_name)
-        assert rsp["code"] == 0, f"Failed to redelegate {i}: {rsp.get('raw_log', rsp)}"
+        assert rsp["code"] == 0, \
+            f"Failed to redelegate {i}: {rsp.get('raw_log', rsp)}"
         wait_for_new_blocks(cli, 1)
 
         print(f"Redelegation {i} of {unbond_amount_coin} from {from_val} to {to_val}")
-    
+
     return redelegator_accounts
 
-def get_val_addr_by_status(cli,status=None):
-    all_validators = cli.validators()   
+
+def get_val_addr_by_status(cli, status=None):
+    all_validators = cli.validators()
     unbonding_val_addrs = []
     if status is None:
         return [val["operator_address"] for val in all_validators]
@@ -116,8 +131,9 @@ def get_val_addr_by_status(cli,status=None):
             unbonding_val_addrs.append(val["operator_address"])
     return unbonding_val_addrs
 
+
 def get_unbonding_delegations(cli):
-    all_validators = cli.validators()   
+    all_validators = cli.validators()
     unbonding_delegations = []
     for val in all_validators:
         for ubd in cli.validator_unbonding_delegations(val["operator_address"]):
@@ -128,7 +144,8 @@ def get_unbonding_delegations(cli):
                 })
     return unbonding_delegations
 
-def get_redelegations(cli,redelegations_before):
+
+def get_redelegations(cli, redelegations_before):
     redelegations_after = []
     for redel_before in redelegations_before:
         try:
@@ -140,31 +157,37 @@ def get_redelegations(cli,redelegations_before):
             for redel in redel_responses:
                 if redel.get("entries"):
                     redelegations_after.append({
-                        "delegator_addr": redel["redelegation"]["delegator_address"],
-                        "validator_src_addr": redel["redelegation"]["validator_src_address"],
-                        "validator_dst_addr": redel["redelegation"]["validator_dst_address"],
+                        "delegator_addr": redel["redelegation"][
+                            "delegator_address"
+                        ],
+                        "validator_src_addr": redel["redelegation"][
+                            "validator_src_address"
+                        ],
+                        "validator_dst_addr": redel["redelegation"][
+                            "validator_dst_address"
+                        ],
                     })
         except Exception as e:
             if "NotFound" not in str(e):
                 raise
     return redelegations_after
 
+
 def preupgrade_staking_setup(c, cli):
     """
-    Set up and verify unbonding validators, unbonding delegations, and redelegations
-    before the v1.8 upgrade.
+    Set up and verify unbonding validators, unbonding delegations, and
+    redelegations before the v1.8 upgrade.
 
     Creates:
     - 1 unbonding validator (by unbonding all self-delegation from validator 0)
-    - 4 unbonding delegations (3 from the 2 remaining bonded validators + 1 from the unbonding validator)
+    - 4 unbonding delegations (3 from the 2 remaining bonded validators
+      + 1 from the unbonding validator)
     - 3 redelegations (3 between the 2 remaining bonded validators)
 
-    Ensures that the state remains consistent and the unbonding validators, unbonding delegations, and redelegations eventually matures after the upgrade.
+    Ensures that the state remains consistent and the unbonding validators,
+    unbonding delegations, and redelegations eventually mature after the upgrade.
     """
-    from .utils import submit_gov_proposal
-    from .cosmoscli import module_address
-
-    # Enable basetcro transfers via governance (disabled in genesis for early upgrade tests)
+    # Enable basetcro transfers via governance (disabled in genesis)
     cli.set_send_enabled([{"denom": "basetcro", "enabled": True}], c)
 
     # Update unbonding_time to 180s
@@ -181,7 +204,8 @@ def preupgrade_staking_setup(c, cli):
 
     validators = cli.validators()
     all_val_addrs = [v["operator_address"] for v in validators]
-    assert len(all_val_addrs) >= 3, f"Need at least 3 validators, got {len(all_val_addrs)}"
+    assert len(all_val_addrs) >= 3, \
+        f"Need at least 3 validators, got {len(all_val_addrs)}"
     unbonding_val_addrs = [node0_val_addr]
     # Use the other 2 bonded validators for delegations and redelegations
     delegation_val_addrs = [v for v in all_val_addrs if v != node0_val_addr][:2]
@@ -199,7 +223,6 @@ def preupgrade_staking_setup(c, cli):
     unbonding_delegations_before = get_unbonding_delegations(cli)
     redelegations_before = get_redelegations(cli, redelegator_accounts)
 
-
     print(f"Before upgrade: {len(unbonding_validators_before)} unbonding validators, "
           f"{len(unbonding_delegations_before)} unbonding delegations, "
           f"{len(redelegations_before)} redelegations")
@@ -210,6 +233,7 @@ def preupgrade_staking_setup(c, cli):
         "redelegations_before": redelegations_before,
     }
 
+
 def postupgrade_check_staking(c, cli, preupgrade_staking_info):
     """
     Verify that unbonding validators, unbonding delegations, and redelegations
@@ -218,9 +242,10 @@ def postupgrade_check_staking(c, cli, preupgrade_staking_info):
     0 redelegations.
     """
     unbonding_validators_before = preupgrade_staking_info["unbonding_validators_before"]
-    unbonding_delegations_before = preupgrade_staking_info["unbonding_delegations_before"]
+    unbonding_delegations_before = preupgrade_staking_info[
+        "unbonding_delegations_before"
+    ]
     redelegations_before = preupgrade_staking_info["redelegations_before"]
-    redelegator_addrs = list(set([r["delegator_addr"] for r in redelegations_before]))
 
     all_validators = cli.validators()
 
@@ -267,15 +292,19 @@ def postupgrade_check_staking(c, cli, preupgrade_staking_info):
     max_completion_time = max(completion_times)
     print(f"Waiting for all entries to mature by {max_completion_time}...")
     wait_for_block_time(cli, max_completion_time)
-    
+
     # A couple extra blocks for the chain to process the maturations
     wait_for_new_blocks(cli, 2)
 
     # --- Post-maturation assertions ---
 
-    unbonded_or_unbonding_vals = get_val_addr_by_status(cli, "BOND_STATUS_UNBONDED") + get_val_addr_by_status(cli, "BOND_STATUS_UNBONDING")
+    unbonded_or_unbonding_vals = (
+        get_val_addr_by_status(cli, "BOND_STATUS_UNBONDED")
+        + get_val_addr_by_status(cli, "BOND_STATUS_UNBONDING")
+    )
     assert len(unbonded_or_unbonding_vals) == 0, \
-        f"Expected 0 unbonded validator after maturation, got {len(unbonded_validators)}"
+        f"Expected 0 unbonded/unbonding validators after maturation, " \
+        f"got {len(unbonded_or_unbonding_vals)}"
 
     remaining_ubds = get_unbonding_delegations(cli)
     assert len(remaining_ubds) == 0, \
@@ -285,5 +314,7 @@ def postupgrade_check_staking(c, cli, preupgrade_staking_info):
     assert len(remaining_redels) == 0, \
         f"Expected no redelegations after maturation, got {len(remaining_redels)}"
 
-    print("Post-upgrade check passed: 1 unbonded validator and removed from the validator set, all unbonding delegations and redelegations matured")
-
+    print(
+        "Post-upgrade check passed: 1 unbonded validator removed from the "
+        "validator set, all unbonding delegations and redelegations matured"
+    )
