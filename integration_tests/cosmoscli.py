@@ -14,7 +14,7 @@ import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info
+from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info, submit_gov_proposal
 
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
@@ -364,6 +364,44 @@ class CosmosCLI:
         res = json.loads(res)
         res = res.get("pool") or res
         return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
+    
+    def validator_delegations(self, val_addr):
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "delegations",
+                val_addr,
+                output="json", 
+                node=self.node_rpc,
+            )
+        ).get("delegation_responses") or []
+
+    def validator_unbonding_delegations(self, val_addr):
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "unbonding-delegations-from",
+                val_addr,
+                output="json",
+                node=self.node_rpc,
+            )
+        ).get("unbonding_responses") or [] 
+
+    def redelegations(self, delegator_addr, src_val_addr, dst_val_addr):
+        return json.loads(
+            self.raw(
+                "query",
+                "staking",
+                "redelegation",
+                delegator_addr,
+                src_val_addr,
+                dst_val_addr,
+                output="json",
+                node=self.node_rpc,
+            )
+        ).get("redelegation_responses") or []
 
     def transfer(
         self,
@@ -409,63 +447,48 @@ class CosmosCLI:
             )
         )
 
-    def delegate_amount(self, to_addr, amount, from_addr, gas_price=None):
-        if gas_price is None:
-            return json.loads(
+    def delegate(self, to_addr, coin, from_addr, **kwargs):
+        default_kwargs = self.get_default_kwargs()
+        return json.loads(
                 self.raw(
                     "tx",
                     "staking",
                     "delegate",
                     to_addr,
-                    amount,
+                    coin,
                     "-y",
                     home=self.data_dir,
                     from_=from_addr,
                     keyring_backend="test",
                     chain_id=self.chain_id,
                     node=self.node_rpc,
-                )
-            )
-        else:
-            return json.loads(
-                self.raw(
-                    "tx",
-                    "staking",
-                    "delegate",
-                    to_addr,
-                    amount,
-                    "-y",
-                    home=self.data_dir,
-                    from_=from_addr,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
-                    node=self.node_rpc,
-                    gas_prices=gas_price,
+                    **(default_kwargs | kwargs)
                 )
             )
 
-    # to_addr: croclcl1...  , from_addr: cro1...
-    def unbond_amount(self, to_addr, amount, from_addr):
+    def unbond(self, val_addr, coin, from_addr, **kwargs):
+        default_kwargs = self.get_default_kwargs()
         return json.loads(
             self.raw(
                 "tx",
                 "staking",
                 "unbond",
-                to_addr,
-                amount,
+                val_addr,
+                coin,
                 "-y",
                 home=self.data_dir,
                 from_=from_addr,
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                **(default_kwargs | kwargs)
             )
         )
 
-    # to_validator_addr: crocncl1...  ,  from_from_validator_addraddr: crocl1...
-    def redelegate_amount(
-        self, to_validator_addr, from_validator_addr, amount, from_addr
+    def redelegate(
+        self, to_validator_addr, from_validator_addr, coin, from_addr, **kwargs
     ):
+        default_kwargs = self.get_default_kwargs()
         return json.loads(
             self.raw(
                 "tx",
@@ -473,13 +496,14 @@ class CosmosCLI:
                 "redelegate",
                 from_validator_addr,
                 to_validator_addr,
-                amount,
+                coin,
                 "-y",
                 home=self.data_dir,
                 from_=from_addr,
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
+                **(default_kwargs | kwargs)
             )
         )
 
@@ -1190,7 +1214,39 @@ class CosmosCLI:
             "gas_prices": DEFAULT_GAS_PRICE,
             "gas": "auto",
             "gas_adjustment": "1.5",
+            # suppress gas estimate output, needed for json to parse correctly when gas="auto"
+            "stderr": subprocess.DEVNULL, 
         }
+
+    def set_send_enabled(self, send_enabled_list, cronos):
+        authority = module_address("gov")
+        msg = "/cosmos.bank.v1beta1.MsgSetSendEnabled"
+        submit_gov_proposal(
+            cronos,
+            msg,
+            messages=[
+                {
+                    "@type": msg,
+                    "authority": authority,
+                    "send_enabled": send_enabled_list,
+                }
+            ],
+        )
+
+    def update_staking_params(self, params, cronos):
+        authority = module_address("gov")
+        msg = "/cosmos.staking.v1beta1.MsgUpdateParams"
+        submit_gov_proposal(
+            cronos,
+            msg,
+            messages=[
+                {
+                    "@type": msg,
+                    "authority": authority,
+                    "params": params,
+                }
+            ],
+        )  
 
     def gov_propose_token_mapping_change_legacy(
         self, denom, contract, symbol, decimal, **kwargs
@@ -1210,7 +1266,6 @@ class CosmosCLI:
                 decimal,
                 "-y",
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
                 **(default_kwargs | kwargs),
             )
         )
@@ -1296,7 +1351,6 @@ class CosmosCLI:
                     node=self.node_rpc,
                     keyring_backend="test",
                     chain_id=self.chain_id,
-                    stderr=subprocess.DEVNULL,
                     **(default_kwargs | kwargs),
                 )
             )
@@ -1317,7 +1371,6 @@ class CosmosCLI:
                     node=self.node_rpc,
                     keyring_backend="test",
                     chain_id=self.chain_id,
-                    stderr=subprocess.DEVNULL,
                     **(default_kwargs | kwargs),
                 )
             )
@@ -1338,7 +1391,6 @@ class CosmosCLI:
                         node=self.node_rpc,
                         keyring_backend="test",
                         chain_id=self.chain_id,
-                        stderr=subprocess.DEVNULL,
                         **(default_kwargs | kwargs),
                     )
                 )
@@ -1745,7 +1797,6 @@ class CosmosCLI:
                 limit,
                 "-y",
                 home=self.data_dir,
-                stderr=subprocess.DEVNULL,
                 **(default_kwargs | kwargs),
             )
         )
