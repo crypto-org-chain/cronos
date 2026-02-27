@@ -86,6 +86,7 @@ func openRocksdb(dir string, readonly bool, tuneUpOpts RocksDBTuneUpOptions) (db
 	}
 	// customize rocksdb options
 	opts = newRocksdbOptions(opts, false, tuneUpOpts, cache)
+	defer opts.Destroy()
 
 	var db *grocksdb.DB
 	if readonly {
@@ -163,13 +164,18 @@ func newRocksdbOptions(opts *grocksdb.Options, sstFileWriter bool, tuneUpOpts Ro
 
 	// block based table options
 	bbto := grocksdb.NewDefaultBlockBasedTableOptions()
+	defer bbto.Destroy()
 
 	if cache != nil {
 		bbto.SetBlockCache(cache)
 	} else if tuneUpOpts.EnableHyperClockCache {
-		bbto.SetBlockCache(grocksdb.NewHyperClockCache(BlockCacheSize, 0))
+		c := grocksdb.NewHyperClockCache(BlockCacheSize, 0)
+		defer c.Destroy()
+		bbto.SetBlockCache(c)
 	} else {
-		bbto.SetBlockCache(grocksdb.NewLRUCache(BlockCacheSize))
+		c := grocksdb.NewLRUCache(BlockCacheSize)
+		defer c.Destroy()
+		bbto.SetBlockCache(c)
 	}
 
 	// http://rocksdb.org/blog/2021/12/29/ribbon-filter.html
