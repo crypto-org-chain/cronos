@@ -8,6 +8,10 @@
 * [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
 * [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
 
+### Bug fixes
+
+* [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
+
 *Jan 26, 2026*
 
 ## v1.7.0
