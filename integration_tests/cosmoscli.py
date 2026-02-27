@@ -366,42 +366,51 @@ class CosmosCLI:
         return int(res["bonded_tokens" if bonded else "not_bonded_tokens"])
 
     def validator_delegations(self, val_addr):
-        return json.loads(
-            self.raw(
-                "query",
-                "staking",
-                "delegations",
-                val_addr,
-                output="json",
-                node=self.node_rpc,
-            ),
-        ).get("delegation_responses") or []
+        return (
+            json.loads(
+                self.raw(
+                    "query",
+                    "staking",
+                    "delegations",
+                    val_addr,
+                    output="json",
+                    node=self.node_rpc,
+                ),
+            ).get("delegation_responses")
+            or []
+        )
 
     def validator_unbonding_delegations(self, val_addr):
-        return json.loads(
-            self.raw(
-                "query",
-                "staking",
-                "unbonding-delegations-from",
-                val_addr,
-                output="json",
-                node=self.node_rpc,
-            )
-        ).get("unbonding_responses") or []
+        return (
+            json.loads(
+                self.raw(
+                    "query",
+                    "staking",
+                    "unbonding-delegations-from",
+                    val_addr,
+                    output="json",
+                    node=self.node_rpc,
+                )
+            ).get("unbonding_responses")
+            or []
+        )
 
     def redelegations(self, delegator_addr, src_val_addr, dst_val_addr):
-        return json.loads(
-            self.raw(
-                "query",
-                "staking",
-                "redelegation",
-                delegator_addr,
-                src_val_addr,
-                dst_val_addr,
-                output="json",
-                node=self.node_rpc,
-            )
-        ).get("redelegation_responses") or []
+        return (
+            json.loads(
+                self.raw(
+                    "query",
+                    "staking",
+                    "redelegation",
+                    delegator_addr,
+                    src_val_addr,
+                    dst_val_addr,
+                    output="json",
+                    node=self.node_rpc,
+                )
+            ).get("redelegation_responses")
+            or []
+        )
 
     def transfer(
         self,
@@ -450,21 +459,21 @@ class CosmosCLI:
     def delegate(self, to_addr, coin, from_addr, **kwargs):
         default_kwargs = self.get_default_kwargs()
         return json.loads(
-                self.raw(
-                    "tx",
-                    "staking",
-                    "delegate",
-                    to_addr,
-                    coin,
-                    "-y",
-                    home=self.data_dir,
-                    from_=from_addr,
-                    keyring_backend="test",
-                    chain_id=self.chain_id,
-                    node=self.node_rpc,
-                    **(default_kwargs | kwargs)
-                )
+            self.raw(
+                "tx",
+                "staking",
+                "delegate",
+                to_addr,
+                coin,
+                "-y",
+                home=self.data_dir,
+                from_=from_addr,
+                keyring_backend="test",
+                chain_id=self.chain_id,
+                node=self.node_rpc,
+                **(default_kwargs | kwargs),
             )
+        )
 
     def unbond(self, val_addr, coin, from_addr, **kwargs):
         default_kwargs = self.get_default_kwargs()
@@ -481,7 +490,7 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
-                **(default_kwargs | kwargs)
+                **(default_kwargs | kwargs),
             )
         )
 
@@ -503,7 +512,7 @@ class CosmosCLI:
                 keyring_backend="test",
                 chain_id=self.chain_id,
                 node=self.node_rpc,
-                **(default_kwargs | kwargs)
+                **(default_kwargs | kwargs),
             )
         )
 
