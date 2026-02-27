@@ -15,11 +15,7 @@ from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
-from .staking_v1_8 import (
-    postupgrade_check_staking,
-    preupgrade_staking_setup,
-)
-
+from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
 from .utils import (
     ADDRS,
     CONTRACTS,
