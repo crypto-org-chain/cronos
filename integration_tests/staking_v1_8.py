@@ -188,12 +188,12 @@ def preupgrade_staking_setup(cli):
     unbonding delegations, and redelegations eventually mature after the upgrade.
     """
     # Enable basetcro transfers via governance (disabled in genesis)
-    cli.set_send_enabled([{"denom": "basetcro", "enabled": True}], c)
+    cli.set_send_enabled([{"denom": "basetcro", "enabled": True}], cli)
 
     # Update unbonding_time to 180s
     updated_params = cli.staking_params()["params"].copy()
     updated_params["unbonding_time"] = "180s"
-    cli.update_staking_params(updated_params, c)
+    cli.update_staking_params(updated_params, cli)
     staking_params = cli.staking_params()["params"]
     new_unbonding_time = staking_params.get("unbonding_time")
     print(f"Unbonding time successfully changed to: {new_unbonding_time}")

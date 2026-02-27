@@ -88,19 +88,26 @@
       name: 'community',
       coins: '10000000000000000000000basetcro',
       mnemonic: '${COMMUNITY_MNEMONIC}',
-    }, {
-      name: 'signer1',
-      coins: '20000000000000000000000basetcro',
-      mnemonic: '${SIGNER1_MNEMONIC}',
     }, 
     {
       name: 'community1',
-      coins: '1000000000000000000000stake,10000000000000000000000basetcro',
+      coins: '1000000000000000000000stake',
       mnemonic: '${COMMUNITY1_MNEMONIC}',
-    },{
+    },
+    {
+      name: 'signer1',
+      coins: '20000000000000000000000basetcro',
+      mnemonic: '${SIGNER1_MNEMONIC}',
+    },
+    {
       name: 'signer2',
       coins: '30000000000000000000000basetcro',
       mnemonic: '${SIGNER2_MNEMONIC}',
+    },
+    {
+      name: 'signer3',
+      coins: '30000000000000000000000basetcro',
+      mnemonic: '${SIGNER3_MNEMONIC}',
     }],
     genesis: {
       consensus: {
