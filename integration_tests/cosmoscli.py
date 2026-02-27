@@ -372,7 +372,8 @@ class CosmosCLI:
                 "staking",
                 "delegations",
                 val_addr,
-                output="json",                node=self.node_rpc,
+                output="json",
+                node=self.node_rpc,
             )
         ).get("delegation_responses") or []
 

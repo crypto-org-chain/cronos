@@ -14,6 +14,8 @@ config {
         },
       },
     }] + super.validators[1:],
+     // add stake funds to community1 for v1.8 staking test to work, adding directly to default.jsonnet causes other test to fail
+    accounts: std.map(function(a) if a.name == 'community1' then a { coins: '100000000000000000000stake,' + a.coins } else a, super.accounts),
     genesis+: {
       app_state+: {
         bank+: {
