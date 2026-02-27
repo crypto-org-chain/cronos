@@ -366,7 +366,7 @@ def exec(c, tmp_path_factory):
         expected_historical_storage_address_code
     )
 
-    staking_info = preupgrade_staking_setup(cli)
+    staking_info = preupgrade_staking_setup(cli, c)
 
     height = cli.block_height()
     target_height_v18 = height + 15

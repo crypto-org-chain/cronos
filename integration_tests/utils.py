@@ -40,10 +40,8 @@ ACCOUNTS = {
     "validator2": Account.from_mnemonic(os.getenv("VALIDATOR2_MNEMONIC")),
     "validator3": Account.from_mnemonic(os.getenv("VALIDATOR3_MNEMONIC")),
     "community": Account.from_mnemonic(os.getenv("COMMUNITY_MNEMONIC")),
-    "community1": Account.from_mnemonic(os.getenv("COMMUNITY1_MNEMONIC")),
     "signer1": Account.from_mnemonic(os.getenv("SIGNER1_MNEMONIC")),
     "signer2": Account.from_mnemonic(os.getenv("SIGNER2_MNEMONIC")),
-    "signer3": Account.from_mnemonic(os.getenv("SIGNER3_MNEMONIC")),
 }
 KEYS = {name: account.key for name, account in ACCOUNTS.items()}
 ADDRS = {name: account.address for name, account in ACCOUNTS.items()}

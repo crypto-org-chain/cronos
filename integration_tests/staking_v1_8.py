@@ -52,7 +52,7 @@ def unbond_validators(cli, val_addrs):
         rsp = cli.unbond(val_addr, f"{tokens}{bond_denom}", "validator")
         assert rsp["code"] == 0, \
             f"Failed to unbond validator: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 1)
+        wait_for_new_blocks(cli, 2)
 
         # Verify validator status changed to UNBONDING
         validator_info_after = cli.validator(val_addr)
@@ -88,14 +88,14 @@ def unbond_delegations(cli, n, val_addrs):
         val_addr = val_addrs[i % len(val_addrs)]
         rsp = cli.delegate(val_addr, stake_amount_coin, account_name)
         assert rsp["code"] == 0, f"Failed to delegate: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 1)
+        wait_for_new_blocks(cli, 2)
 
         # unbond
         unbond_amount_coin = f"{stake_amount // 2}{bond_denom}"
         rsp = cli.unbond(val_addr, unbond_amount_coin, account_name)
         assert rsp["code"] == 0, \
             f"Failed to unbond delegation {i}: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 1)
+        wait_for_new_blocks(cli, 2)
         print(
             f"Unbonding delegation {i} of {unbond_amount_coin}"
             f" from {delegator_addr} to {val_addr}"
@@ -140,14 +140,14 @@ def redelegate(cli, n, val_addrs):
         # Delegate to from_val first
         rsp = cli.delegate(from_val, stake_amount_coin, account_name)
         assert rsp["code"] == 0, f"Failed to delegate: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 1)
+        wait_for_new_blocks(cli, 2)
 
         # Redelegate
         unbond_amount_coin = f"{stake_amount // 2}{bond_denom}"
         rsp = cli.redelegate(to_val, from_val, unbond_amount_coin, account_name)
         assert rsp["code"] == 0, \
             f"Failed to redelegate {i}: {rsp.get('raw_log', rsp)}"
-        wait_for_new_blocks(cli, 1)
+        wait_for_new_blocks(cli, 2)
 
         print(f"Redelegation {i} of {unbond_amount_coin} from {from_val} to {to_val}")
 
@@ -206,7 +206,7 @@ def get_redelegations(cli, redelegations_before):
     return redelegations_after
 
 
-def preupgrade_staking_setup(cli):
+def preupgrade_staking_setup(cli, cronos):
     """
     Set up and verify unbonding validators, unbonding delegations, and
     redelegations before the v1.8 upgrade.
@@ -221,12 +221,12 @@ def preupgrade_staking_setup(cli):
     unbonding delegations, and redelegations eventually mature after the upgrade.
     """
     # Enable basetcro transfers via governance (disabled in genesis)
-    set_send_enabled(cli, [{"denom": "basetcro", "enabled": True}])
+    set_send_enabled(cronos, [{"denom": "basetcro", "enabled": True}])
 
     # Update unbonding_time to 180s
     updated_params = cli.staking_params()["params"].copy()
     updated_params["unbonding_time"] = "180s"
-    update_staking_params(cli, updated_params)
+    update_staking_params(cronos, updated_params)
     staking_params = cli.staking_params()["params"]
     new_unbonding_time = staking_params.get("unbonding_time")
     print(f"Unbonding time successfully changed to: {new_unbonding_time}")
