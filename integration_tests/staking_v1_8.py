@@ -6,7 +6,40 @@ before and after the v1.8 upgrade.
 """
 from dateutil.parser import isoparse
 
-from .utils import wait_for_block_time, wait_for_new_blocks
+from .cosmoscli import module_address
+from .utils import wait_for_block_time, wait_for_new_blocks, submit_gov_proposal
+
+
+def set_send_enabled(cronos, send_enabled_list):
+    authority = module_address("gov")
+    msg = "/cosmos.bank.v1beta1.MsgSetSendEnabled"
+    submit_gov_proposal(
+        cronos,
+        msg,
+        messages=[
+            {
+                "@type": msg,
+                "authority": authority,
+                "send_enabled": send_enabled_list,
+            }
+        ],
+    )
+
+
+def update_staking_params(cronos, params):
+    authority = module_address("gov")
+    msg = "/cosmos.staking.v1beta1.MsgUpdateParams"
+    submit_gov_proposal(
+        cronos,
+        msg,
+        messages=[
+            {
+                "@type": msg,
+                "authority": authority,
+                "params": params,
+            }
+        ],
+    )
 
 
 def unbond_validators(cli, val_addrs):
@@ -188,12 +221,12 @@ def preupgrade_staking_setup(cli):
     unbonding delegations, and redelegations eventually mature after the upgrade.
     """
     # Enable basetcro transfers via governance (disabled in genesis)
-    cli.set_send_enabled([{"denom": "basetcro", "enabled": True}])
+    set_send_enabled(cli, [{"denom": "basetcro", "enabled": True}])
 
     # Update unbonding_time to 180s
     updated_params = cli.staking_params()["params"].copy()
     updated_params["unbonding_time"] = "180s"
-    cli.update_staking_params(updated_params)
+    update_staking_params(cli, updated_params)
     staking_params = cli.staking_params()["params"]
     new_unbonding_time = staking_params.get("unbonding_time")
     print(f"Unbonding time successfully changed to: {new_unbonding_time}")

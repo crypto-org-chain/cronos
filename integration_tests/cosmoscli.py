@@ -14,7 +14,7 @@ import requests
 from dateutil.parser import isoparse
 from pystarport.utils import build_cli_args_safe, format_doc_string, interact
 
-from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info, submit_gov_proposal
+from .utils import CRONOS_ADDRESS_PREFIX, get_sync_info
 
 # the default initial base fee used by integration tests
 DEFAULT_GAS_PRICE = "100000000000basetcro"
@@ -1217,36 +1217,6 @@ class CosmosCLI:
             # suppress gas estimate output for json parsing when gas="auto"
             "stderr": subprocess.DEVNULL,
         }
-
-    def set_send_enabled(self, send_enabled_list, cronos):
-        authority = module_address("gov")
-        msg = "/cosmos.bank.v1beta1.MsgSetSendEnabled"
-        submit_gov_proposal(
-            cronos,
-            msg,
-            messages=[
-                {
-                    "@type": msg,
-                    "authority": authority,
-                    "send_enabled": send_enabled_list,
-                }
-            ],
-        )
-
-    def update_staking_params(self, params, cronos):
-        authority = module_address("gov")
-        msg = "/cosmos.staking.v1beta1.MsgUpdateParams"
-        submit_gov_proposal(
-            cronos,
-            msg,
-            messages=[
-                {
-                    "@type": msg,
-                    "authority": authority,
-                    "params": params,
-                }
-            ],
-        )
 
     def gov_propose_token_mapping_change_legacy(
         self, denom, contract, symbol, decimal, **kwargs
