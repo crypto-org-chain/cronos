@@ -173,7 +173,7 @@ def get_redelegations(cli, redelegations_before):
     return redelegations_after
 
 
-def preupgrade_staking_setup(c, cli):
+def preupgrade_staking_setup(cli):
     """
     Set up and verify unbonding validators, unbonding delegations, and
     redelegations before the v1.8 upgrade.
@@ -234,7 +234,7 @@ def preupgrade_staking_setup(c, cli):
     }
 
 
-def postupgrade_check_staking(c, cli, preupgrade_staking_info):
+def postupgrade_check_staking(cli, preupgrade_staking_info):
     """
     Verify that unbonding validators, unbonding delegations, and redelegations
     persist correctly after the v1.8 upgrade, then wait for all entries to mature

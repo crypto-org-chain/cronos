@@ -366,14 +366,14 @@ def exec(c, tmp_path_factory):
         expected_historical_storage_address_code
     )
 
-    staking_info = preupgrade_staking_setup(c, cli)
+    staking_info = preupgrade_staking_setup(cli)
 
     height = cli.block_height()
     target_height_v18 = height + 15
 
     cli = do_upgrade("v1.8", target_height_v18)
 
-    postupgrade_check_staking(c, cli, staking_info)
+    postupgrade_check_staking(cli, staking_info)
     check_basic_tx(c)
 
 
