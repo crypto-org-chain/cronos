@@ -1,3 +1,5 @@
+// Configuration for binary compatibility testing
+// This is a simplified config with 3 validators for testing mixed binary versions
 {
   dotenv: '../../scripts/.env',
   'cronos_777-1': {
@@ -23,81 +25,25 @@
         'block-range-cap': 10000,
         'logs-cap': 10000,
       },
-      evm: {
-        'block-executor': 'sequential',
-      },
-      grpc: {
-        'skip-check-header': true,
-      },
-      mempool: {
-        'max-txs': 1000,
-        'feebump': 10,
-      },
     },
+    // 3 validators for binary compatibility testing
     validators: [{
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR1_MNEMONIC}',
-      client_config: {
-        'broadcast-mode': 'sync',
-      },
-      'app-config': {
-        memiavl: {
-          enable: true,
-          'zero-copy': true,
-          'snapshot-interval': 5,
-          'cache-size': 0,
-          'async-commit-buffer': 5,
-        },
-        versiondb: {
-          enable: true,
-        },
-        evm: {
-          'block-executor': 'block-stm',
-          'block-stm-workers': 32,
-        },
-      },
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR2_MNEMONIC}',
-      client_config: {
-        'broadcast-mode': 'sync',
-      },
-      config: {
-        db_backend: 'pebbledb',
-      },
-      'app-config': {
-        'app-db-backend': 'pebbledb',
-      },
     }, {
       coins: '1000000000000000000stake,10000000000000000000000basetcro',
       staked: '1000000000000000000stake',
       mnemonic: '${VALIDATOR3_MNEMONIC}',
-      client_config: {
-        'broadcast-mode': 'sync',
-      },
-      config: {
-        db_backend: 'goleveldb',
-      },
-      'app-config': {
-        'app-db-backend': 'goleveldb',
-      },
     }],
     accounts: [{
       name: 'community',
       coins: '10000000000000000000000basetcro',
       mnemonic: '${COMMUNITY_MNEMONIC}',
-    }, 
-    {
-      name: 'signer1',
-      coins: '20000000000000000000000basetcro',
-      mnemonic: '${SIGNER1_MNEMONIC}',
-    },
-    {
-      name: 'signer2',
-      coins: '30000000000000000000000basetcro',
-      mnemonic: '${SIGNER2_MNEMONIC}',
     }],
     genesis: {
       consensus: {
@@ -121,29 +67,17 @@
             ibc_cro_denom: '${IBC_CRO_DENOM}',
           },
         },
-        e2ee: {
-          keys: [{
-            address: 'crc16z0herz998946wr659lr84c8c556da55dc34hh',
-            key: 'age1k3mpspxytgvx6e0jja0xgrtzz7vw2p00c2a3xmq5ygfzhwh4wg0s35z4c8',
-          }],
-        },
         gov: {
           params: {
-            expedited_voting_period: '1s',
-            voting_period: '10s',
-            max_deposit_period: '10s',
+            expedited_voting_period: '10s',
+            voting_period: '30s',
+            max_deposit_period: '30s',
             min_deposit: [
               {
                 denom: 'basetcro',
                 amount: '1',
               },
             ],
-          },
-        },
-        transfer: {
-          params: {
-            receive_enabled: true,
-            send_enabled: true,
           },
         },
         feemarket: {
@@ -156,3 +90,4 @@
     },
   },
 }
+

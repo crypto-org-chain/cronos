@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	errorsmod "cosmossdk.io/errors"
-	simappparams "cosmossdk.io/simapp/params"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -30,7 +30,7 @@ const (
 
 // WeightedOperations generate SimulateUpdateTokenMapping operation.
 func WeightedOperations(
-	appParams simtypes.AppParams, cdc codec.JSONCodec,
+	appParams simtypes.AppParams, cdc codec.JSONCodec, txConfig client.TxConfig,
 	ak types.AccountKeeper, bk types.BankKeeper, k *keeper.Keeper,
 ) simulation.WeightedOperations {
 	var weightMsgUpdateTokenMapping int
@@ -44,13 +44,13 @@ func WeightedOperations(
 	return simulation.WeightedOperations{
 		simulation.NewWeightedOperation(
 			weightMsgUpdateTokenMapping,
-			SimulateUpdateTokenMapping(ak, bk, k),
+			SimulateUpdateTokenMapping(txConfig, ak, bk, k),
 		),
 	}
 }
 
 // SimulateUpdateTokenMapping generate mocked MsgUpdateTokenMapping message, apply the message and assert the results.
-func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *keeper.Keeper) simtypes.Operation {
+func SimulateUpdateTokenMapping(txConfig client.TxConfig, ak types.AccountKeeper, bk types.BankKeeper, k *keeper.Keeper) simtypes.Operation {
 	return func(
 		r *rand.Rand, app *baseapp.BaseApp, ctx sdk.Context,
 		accs []simtypes.Account, chainID string,
@@ -79,7 +79,7 @@ func SimulateUpdateTokenMapping(ak types.AccountKeeper, bk types.BankKeeper, k *
 		txCtx := simulation.OperationInput{
 			R:               r,
 			App:             app,
-			TxGen:           simappparams.MakeTestEncodingConfig().TxConfig,
+			TxGen:           txConfig,
 			Cdc:             nil,
 			Msg:             msg,
 			Context:         ctx,

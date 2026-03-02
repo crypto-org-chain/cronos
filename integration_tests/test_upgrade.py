@@ -15,6 +15,7 @@ from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
+from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -169,7 +170,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name in ("v1.5", "v1.6", "v1.7"):
+        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8"):
             rsp = cli.submit_gov_proposal(
                 "community",
                 "software-upgrade",
@@ -361,6 +362,16 @@ def exec(c, tmp_path_factory):
     assert historical_storage_address_code == HexBytes(
         expected_historical_storage_address_code
     )
+
+    staking_info = preupgrade_staking_setup(cli, c)
+
+    height = cli.block_height()
+    target_height_v18 = height + 15
+
+    cli = do_upgrade("v1.8", target_height_v18)
+
+    postupgrade_check_staking(cli, staking_info)
+    check_basic_tx(c)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

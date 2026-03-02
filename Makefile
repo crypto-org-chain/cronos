@@ -134,7 +134,14 @@ lint-fix:
 
 lint-py:
 	flake8 --show-source --count --statistics \
-          --format="::error file=%(path)s,line=%(row)d,col=%(col)d::%(path)s:%(row)d:%(col)d: %(code)s %(text)s" \
+          --format="::error file=%(path)s,line=%(row)d,col=%(col)d::%(path)s:%(row)d:%(col)d: %(code)s %(text)s"
+
+lint-py-fix:
+	isort --profile black .
+	black .
+
+lint-md:
+	markdownlint '**/*.md' --ignore node_modules
 
 lint-nix:
 	find . \( -path './integration_tests/contracts' -o -path './contracts' -o -path './chain-main-*' \) -prune -o -name "*.nix" -print | xargs nixfmt -c
@@ -142,7 +149,9 @@ lint-nix:
 lint-nix-fix:
 	find . \( -path './integration_tests/contracts' -o -path './contracts' -o -path './chain-main-*' \) -prune -o -name "*.nix" -print | xargs nixfmt
 
-.PHONY: lint-install lint lint-fix lint-py lint-nix lint-nix-fix
+lint-all: lint lint-py lint-nix lint-md
+
+.PHONY: lint-install lint lint-fix lint-py lint-py-fix lint-nix lint-nix-fix lint-md lint-all
 
 ###############################################################################
 ###                                Releasing                                ###

@@ -4,6 +4,17 @@
 
 ### Improvements
 
+* [#1970](https://github.com/crypto-org-chain/cronos/pull/1970) feat(testground): refine testground test process in local
+* [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
+* [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
+* [#1978](https://github.com/crypto-org-chain/cronos/pull/1978) feat(cosmos-sdk): Optimize staking end-block queue through using pending queue slots instead of iterators.
+
+*Jan 26, 2026*
+
+## v1.7.0
+
+### Improvements
+
 * [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
 * [#1908](https://github.com/crypto-org-chain/cronos/pull/1908) Add db migration/patch CLI tool
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
@@ -13,6 +24,16 @@
 * [#1941](https://github.com/crypto-org-chain/cronos/pull/1941) fix: return calculated gas instead of panic for RelayerContract, add guards for ica precompile and ibc getSourceChannelId
 * [#1932](https://github.com/crypto-org-chain/cronos/pull/1932) Support create_access_list
 * [#1939](https://github.com/crypto-org-chain/cronos/pull/1939) Add preinstall in upgrade handler
+
+
+### Bug fixes
+
+* [#1946](https://github.com/crypto-org-chain/cronos/pull/1946) Fix: allow preinstall in case account has a balance
+* [#1947](https://github.com/crypto-org-chain/cronos/pull/1947) Fix: estimate gas not accurate
+* [#1929](https://github.com/crypto-org-chain/ethermint/pull/1929) fix: add check on evm transaction tip
+* [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) refactor: replace MsgEthereumTxResponse with EthCallResponse in EVM calls 
+* [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) fix: eip712 legacy signature verify 
+* [#1963](https://github.com/crypto-org-chain/cronos/pull/1963) fix: apply tachyon patch
 
 *Dec 4, 2025*
 
