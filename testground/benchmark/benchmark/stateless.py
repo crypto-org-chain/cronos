@@ -264,6 +264,8 @@ def _gen(
     app_patch: dict = None,
     genesis_patch: dict = None,
     node_overrides: Optional[dict] = None,
+    send_batch_size: int = 2000,
+    send_interval: float = 0.2,
     **_kwargs,
 ):
     config_patch = config_patch or {}
@@ -362,6 +364,8 @@ def _gen(
         "tx_type": tx_type,
         "batch_size": batch_size,
         "validator_generate_load": validator_generate_load,
+        "send_batch_size": send_batch_size,
+        "send_interval": send_interval,
     }
     if node_overrides:
         cfg["node_overrides"] = node_overrides
