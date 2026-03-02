@@ -8,6 +8,7 @@
 * [#1970](https://github.com/crypto-org-chain/cronos/pull/1970) feat(testground): refine testground test process in local
 * [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
 * [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
+* [#1978](https://github.com/crypto-org-chain/cronos/pull/1978) feat(cosmos-sdk): Optimize staking end-block queue through using pending queue slots instead of iterators.
 
 *Jan 26, 2026*
 
