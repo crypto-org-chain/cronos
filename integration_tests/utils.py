@@ -202,7 +202,8 @@ def approve_proposal(
             )
             assert rsp["code"] == 0, rsp["raw_log"]
 
-        wait_for_new_blocks(cli, 1)
+        # wait for 3 blocks to ensure all votes are counted (to prevent flakiness)
+        wait_for_new_blocks(cli, 3)
         assert (
             int(cli.query_tally(proposal_id)[vote_option + "_count"])
             == cli.staking_pool()

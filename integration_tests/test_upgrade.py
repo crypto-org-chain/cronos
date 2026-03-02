@@ -15,6 +15,7 @@ from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
+from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -350,12 +351,6 @@ def exec(c, tmp_path_factory):
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
 
-    cli = do_upgrade("v1.8", cli.block_height() + 15)
-    check_basic_tx(c)
-
-    tx_af = w3.provider.make_request(method, params)
-    assert tx_af.get("result") == tx_bf.get("result"), tx_af
-
     # check preinstall correctly installed
     historical_storage_address = "0x0000F90827F1C53a10cb7A02335B175320002935"
     expected_historical_storage_address_code = (
@@ -367,6 +362,16 @@ def exec(c, tmp_path_factory):
     assert historical_storage_address_code == HexBytes(
         expected_historical_storage_address_code
     )
+
+    staking_info = preupgrade_staking_setup(cli, c)
+
+    height = cli.block_height()
+    target_height_v18 = height + 15
+
+    cli = do_upgrade("v1.8", target_height_v18)
+
+    postupgrade_check_staking(cli, staking_info)
+    check_basic_tx(c)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):
