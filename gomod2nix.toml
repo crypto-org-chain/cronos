@@ -56,7 +56,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20260224041117-a4ab01baa583"
+    version = "v0.0.0-20260302034140-0a32cbcd7f1b"
     hash = "sha256-vXJBzc0ZxdjYYn2V5jfzOumbY4VUnMfYtMYfYzzD56M="
     replaced = "github.com/randy-cro/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -69,7 +69,7 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20260224041117-a4ab01baa583"
+    version = "v0.0.0-20260302034140-0a32cbcd7f1b"
     hash = "sha256-3A5GTl5NRD4zH3PsSd450C6HvU2zi4I7b4Zqu+L9YAo="
     replaced = "github.com/randy-cro/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -213,8 +213,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.0.0-20260224041117-a4ab01baa583"
-    hash = "sha256-iWk/SPdYF4vokwn4RK8my5ewSygLcnLC/EQFz9kmpYA="
+    version = "v0.0.0-20260302034140-0a32cbcd7f1b"
+    hash = "sha256-1GbLu9giziKDsCFRLP5zdvtrWuxjhUG7pPY1eCRJlXE="
     replaced = "github.com/randy-cro/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"

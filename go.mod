@@ -278,9 +278,9 @@ require (
 
 // release/v0.50.x
 replace (
-	cosmossdk.io/store => github.com/randy-cro/cosmos-sdk/store v0.0.0-20260224041117-a4ab01baa583
-	cosmossdk.io/x/tx => github.com/randy-cro/cosmos-sdk/x/tx v0.0.0-20260224041117-a4ab01baa583
-	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.0.0-20260224041117-a4ab01baa583
+	cosmossdk.io/store => github.com/randy-cro/cosmos-sdk/store v0.0.0-20260302034140-0a32cbcd7f1b
+	cosmossdk.io/x/tx => github.com/randy-cro/cosmos-sdk/x/tx v0.0.0-20260302034140-0a32cbcd7f1b
+	github.com/cosmos/cosmos-sdk => github.com/randy-cro/cosmos-sdk v0.0.0-20260302034140-0a32cbcd7f1b
 )
 
 replace (
