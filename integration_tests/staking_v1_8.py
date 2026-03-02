@@ -223,7 +223,6 @@ def preupgrade_staking_setup(cli, cronos):
     Creates:
     - 1 unbonding validator (by unbonding all self-delegation from validator 0)
     - 4 unbonding delegations (3 from the 2 remaining bonded validators
-      + 1 from the unbonding validator)
     - 3 redelegations (3 between the 2 remaining bonded validators)
 
     Ensures that the state remains consistent and the unbonding validators,
