@@ -56,7 +56,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20260213094140-8daa45900d62"
+    version = "v0.0.0-20260225091603-a269634fef7b"
     hash = "sha256-iA3rOvT97L+WiZXPoxfyU1wOfWwSnfCx+tQ2R/4yyaY="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -69,7 +69,7 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20260213094140-8daa45900d62"
+    version = "v0.0.0-20260225091603-a269634fef7b"
     hash = "sha256-6IbOXpSh7LTpm1Zr6gZldSYqJ6WmHWnO8SsfjKZBAso="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -204,8 +204,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.0.0-20260213094140-8daa45900d62"
-    hash = "sha256-S/qKiYxwRhYiiFGSNfbRVRpbQ+XozgT2I28l2rU9gEU="
+    version = "v0.0.0-20260225091603-a269634fef7b"
+    hash = "sha256-XuQVwBiOFncrks0g0+oTV2dcyfrmsV7eB/USJcUEzak="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -306,8 +306,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20260219052918-f5ec94d72584"
-    hash = "sha256-8qdwqSphBH39l1HUvmTd5YCT0S7QcVXWlPNfw2iofgQ="
+    version = "v0.0.0-20260226040804-1eb56a5f94f1"
+    hash = "sha256-WA2IZ88/oXHzhG5UOXdeka8eHHVAzRQqH+/SY1jPvYg="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"

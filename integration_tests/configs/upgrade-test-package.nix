@@ -1,5 +1,18 @@
 let
   pkgs = import ../../nix { };
+  # v1.0.15 pins nixpkgs release-22.11 whose default go is 1.19.8.
+  # That binary is missing the LC_UUID load command required by macOS 15.
+  # Inject go = pkgs.go into the attrs so selectGo short-circuits and
+  # uses the current Go instead of scanning for a matching EOL version.
+  buildGoApplicationWithGo =
+    attrs:
+    pkgs.buildGoApplication (
+      attrs
+      // {
+        go = pkgs.go;
+        modRoot = attrs.modRoot or ".";
+      }
+    );
   fetchFlake =
     repo: rev:
     (pkgs.flake-compat {
@@ -11,7 +24,10 @@ let
     }).defaultNix;
   # v1.0.15
   releasedGenesis =
-    (fetchFlake "crypto-org-chain/cronos" "1f5e2618362303d91f621b47cbc1115cf4fa0195").default;
+    (fetchFlake "crypto-org-chain/cronos" "1f5e2618362303d91f621b47cbc1115cf4fa0195").default.override
+      {
+        buildGoApplication = buildGoApplicationWithGo;
+      };
   # release/v1.1.x
   released1_1 =
     (fetchFlake "crypto-org-chain/cronos" "69a80154b6b24fca15f3562e2c4b312ee1092220").default;

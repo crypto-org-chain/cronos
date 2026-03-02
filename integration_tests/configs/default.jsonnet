@@ -88,11 +88,13 @@
       name: 'community',
       coins: '10000000000000000000000basetcro',
       mnemonic: '${COMMUNITY_MNEMONIC}',
-    }, {
+    }, 
+    {
       name: 'signer1',
       coins: '20000000000000000000000basetcro',
       mnemonic: '${SIGNER1_MNEMONIC}',
-    }, {
+    },
+    {
       name: 'signer2',
       coins: '30000000000000000000000basetcro',
       mnemonic: '${SIGNER2_MNEMONIC}',
