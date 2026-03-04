@@ -78,6 +78,9 @@ func openRocksdb(dir string, readonly bool, tuneUpOpts RocksDBTuneUpOptions) (db
 	} else {
 		cache = grocksdb.NewLRUCache(BlockCacheSize)
 	}
+
+	// explicitly destroy cache to avoid memory leak. RocksDB holds a shared_ptr to the cache
+	// after table factory setup. Destroy() just decrements the refcount.
 	defer cache.Destroy()
 
 	opts, err := loadLatestOptions(dir, cache)
