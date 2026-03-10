@@ -124,8 +124,15 @@ stdenv.mkDerivation (finalAttrs: {
               echo "LIBRARY liblz4.dll"
               echo "EXPORTS"
               ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" \
-                | awk '/\\+base/ && $NF ~ /^LZ4/ {print $NF}'
+                | awk '/\[[[:space:]]*[0-9]+\][[:space:]]+LZ4/ {print $NF}'
             } > "$lz4_import_dir/lz4.def"
+
+            # If export extraction fails, the generated import library will be empty
+            # and RocksDB will fail to link with undefined references to LZ4_* symbols.
+            if ! grep -q '^LZ4' "$lz4_import_dir/lz4.def"; then
+              echo "failed to extract LZ4 exports from $lz4_dll" >&2
+              exit 1
+            fi
 
             ${stdenv.cc.bintools.targetPrefix}dlltool \
               --dllname liblz4.dll \
