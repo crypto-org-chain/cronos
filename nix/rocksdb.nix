@@ -126,31 +126,18 @@ stdenv.mkDerivation (finalAttrs: {
             mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
 
             def_file="$lz4_import_dir/lz4.def"
-            exports_file="$lz4_import_dir/lz4.exports"
             {
               echo "LIBRARY liblz4.dll"
               echo "EXPORTS"
-            } > "$def_file"
-
-            # Extract exported LZ4 symbols to generate a working import library.
-            # `nm` output format for PE files can vary; only use it if it actually yields symbols.
-            : > "$exports_file"
-            ${stdenv.cc.bintools.targetPrefix}nm -g --defined-only "$lz4_dll" 2>/dev/null \
-              | awk '{print $3}' \
-              | awk '/^LZ4/ {print}' > "$exports_file" || true
-            if [ ! -s "$exports_file" ]; then
               ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" 2>/dev/null \
-                | awk '/^[[:space:]]*\[/ && $NF ~ /^LZ4/ { print $NF }' > "$exports_file" || true
-            fi
-            cat "$exports_file" >> "$def_file"
+                | awk '/^[[:space:]]*\[/ && $NF ~ /^LZ4/ { print $NF }'
+            } > "$def_file"
 
             # If export extraction fails, the generated import library will be empty
             # and RocksDB will fail to link with undefined references to LZ4_* symbols.
             if ! grep -q '^LZ4' "$def_file"; then
               echo "ERROR: failed to extract LZ4 exports from $lz4_dll" >&2
-              echo "=== nm output ===" >&2
-              ${stdenv.cc.bintools.targetPrefix}nm -g --defined-only "$lz4_dll" >&2 || true
-              echo "=== objdump -p output ===" >&2
+              echo "objdump output:" >&2
               ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" >&2 || true
               exit 1
             fi
