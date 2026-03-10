@@ -117,26 +117,47 @@ stdenv.mkDerivation (finalAttrs: {
             lz4_out=${if lz4 ? out then lz4.out else lz4}
             lz4_dev=${if lz4 ? dev then lz4.dev else lz4}
             lz4_dll=$lz4_out/bin/liblz4.dll
+            if [ ! -f "$lz4_dll" ]; then
+              echo "ERROR: $lz4_dll not found, listing lz4 package contents:" >&2
+              find "$lz4_out" -name "*.dll" >&2 || true
+              exit 1
+            fi
             lz4_import_dir=$PWD/lz4-import
             mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
 
+            def_file="$lz4_import_dir/lz4.def"
+            exports_file="$lz4_import_dir/lz4.exports"
             {
               echo "LIBRARY liblz4.dll"
               echo "EXPORTS"
-              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" \
-                | awk '/\[[[:space:]]*[0-9]+\][[:space:]]+LZ4/ {print $NF}'
-            } > "$lz4_import_dir/lz4.def"
+            } > "$def_file"
+
+            # Extract exported LZ4 symbols to generate a working import library.
+            # `nm` output format for PE files can vary; only use it if it actually yields symbols.
+            : > "$exports_file"
+            ${stdenv.cc.bintools.targetPrefix}nm -g --defined-only "$lz4_dll" 2>/dev/null \
+              | awk '{print $3}' \
+              | awk '/^LZ4/ {print}' > "$exports_file" || true
+            if [ ! -s "$exports_file" ]; then
+              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" 2>/dev/null \
+                | awk '/^[[:space:]]*\[/ && $NF ~ /^LZ4/ { print $NF }' > "$exports_file" || true
+            fi
+            cat "$exports_file" >> "$def_file"
 
             # If export extraction fails, the generated import library will be empty
             # and RocksDB will fail to link with undefined references to LZ4_* symbols.
-            if ! grep -q '^LZ4' "$lz4_import_dir/lz4.def"; then
-              echo "failed to extract LZ4 exports from $lz4_dll" >&2
+            if ! grep -q '^LZ4' "$def_file"; then
+              echo "ERROR: failed to extract LZ4 exports from $lz4_dll" >&2
+              echo "=== nm output ===" >&2
+              ${stdenv.cc.bintools.targetPrefix}nm -g --defined-only "$lz4_dll" >&2 || true
+              echo "=== objdump -p output ===" >&2
+              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" >&2 || true
               exit 1
             fi
 
             ${stdenv.cc.bintools.targetPrefix}dlltool \
               --dllname liblz4.dll \
-              --def "$lz4_import_dir/lz4.def" \
+              --def "$def_file" \
               --output-lib "$lz4_import_dir/lib/liblz4.dll.a"
 
             cat > "$lz4_import_dir/lib/pkgconfig/liblz4.pc" <<EOF
