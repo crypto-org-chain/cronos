@@ -276,6 +276,7 @@ func initAppConfig() (string, interface{}) {
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
 		Cronos    config2.CronosConfig     `mapstructure:"cronos"`
+		RocksDB   config2.RocksDBConfig    `mapstructure:"rocksdb"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -285,9 +286,10 @@ func initAppConfig() (string, interface{}) {
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
 		Cronos:    config2.DefaultCronosConfig(),
+		RocksDB:   config2.DefaultRocksDBConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate + config2.DefaultRocksDBConfigTemplate, customAppConfig
 }
 
 // newApp creates the application
