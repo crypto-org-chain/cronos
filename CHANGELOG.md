@@ -17,6 +17,7 @@
 
 ### Bug fixes
 
+* [#1982](https://github.com/crypto-org-chain/cronos/pull/1982) fix(nix): enable LZ4 support for Windows builds.
 * [#1946](https://github.com/crypto-org-chain/cronos/pull/1946) Fix: allow preinstall in case account has a balance
 * [#1947](https://github.com/crypto-org-chain/cronos/pull/1947) Fix: estimate gas not accurate
 * [#1929](https://github.com/crypto-org-chain/ethermint/pull/1929) fix: add check on evm transaction tip
