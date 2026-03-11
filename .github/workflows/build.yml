@@ -51,6 +51,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Wine packages often live in Ubuntu's Universe repo and may pull
+          # key bits via Recommends; avoid --no-install-recommends here.
+
           # Best-effort retries to reduce transient apt flakiness.
           for i in 1 2 3; do
             sudo apt-get update && break
@@ -61,10 +64,23 @@ jobs:
             sleep 5
           done
 
+          # Some Wine packages require i386 deps (WoW64). Adding the arch is
+          # idempotent; keep failures non-fatal.
+          sudo dpkg --add-architecture i386 >/dev/null 2>&1 || true
+
+          for i in 1 2 3; do
+            sudo apt-get update && break
+            if [ "$i" -eq 3 ]; then
+              echo "apt-get update (after add-architecture) failed after retries" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
           install_wine_pkg() {
             pkg="$1"
             err=""
-            if err=$(sudo apt-get install -y --no-install-recommends "$pkg" 2>&1); then
+            if err=$(sudo apt-get install -y "$pkg" 2>&1); then
               return 0
             fi
             # Treat these as "package not found / not installable".
@@ -76,31 +92,35 @@ jobs:
             return 1
           }
 
-          for i in 1 2 3; do
-            rc=0
-            install_wine_pkg wine64 || rc=$?
-            if [ "$rc" -eq 0 ]; then
-              break
-            fi
-            if [ "$rc" -eq 2 ]; then
-              # Some ubuntu images use `wine` package name instead of `wine64`.
-              rc2=0
-              install_wine_pkg wine || rc2=$?
-              if [ "$rc2" -eq 0 ]; then
-                break
-              fi
-              if [ "$rc2" -eq 2 ]; then
-                echo "Neither wine64 nor wine packages are available on this runner" >&2
+          # Try each candidate package name in order; retry transient failures.
+          # rc=0: installed  rc=2: package not available (try next)  rc=1: transient error (retry)
+          wine_installed=false
+          for pkg in wine64 wine wine-development wine-stable; do
+            for i in 1 2 3; do
+              rc=0
+              install_wine_pkg "$pkg" || rc=$?
+              if [ "$rc" -eq 0 ]; then wine_installed=true; break 2; fi
+              if [ "$rc" -eq 2 ]; then break; fi  # not on this runner, try next
+              if [ "$i" -eq 3 ]; then
+                echo "apt-get install $pkg failed after retries" >&2
                 exit 1
               fi
-            fi
-
-            if [ "$i" -eq 3 ]; then
-              echo "apt-get install wine failed after retries" >&2
-              exit 1
-            fi
-            sleep 5
+              sleep 5
+            done
           done
+
+          if [ "$wine_installed" = false ]; then
+            echo "None of wine64, wine, wine-development, or wine-stable packages are available on this runner" >&2
+            exit 1
+          fi
+
+          # Sanity check: ensure a runnable Wine binary is on PATH.
+          if ! command -v wine64 >/dev/null 2>&1 && ! command -v wine >/dev/null 2>&1; then
+            echo "ERROR: Wine package installed but no wine binary found on PATH" >&2
+            dpkg -l | awk 'BEGIN{IGNORECASE=1} /^ii/ && $2 ~ /^wine/ {print}' >&2 || true
+            ls -la /usr/bin/wine* >&2 || true
+            exit 1
+          fi
 
       - name: Smoke test Windows tarballs under Wine
         if: matrix.os == 'ubuntu-latest' && steps.changed-files.outputs.any_changed == 'true'
@@ -140,6 +160,8 @@ jobs:
             WINE_BIN="$(command -v wine)"
           else
             echo "ERROR: wine not found" >&2
+            dpkg -l | awk 'BEGIN{IGNORECASE=1} /^ii/ && $2 ~ /^wine/ {print}' >&2 || true
+            ls -la /usr/bin/wine* >&2 || true
             exit 1
           fi
 
@@ -218,29 +240,18 @@ jobs:
               if [ -f ./cronosd.exe ]; then
                 exe_rel="./cronosd.exe"
               else
-                shopt -s nullglob globstar
-                all_exe=(./**/cronosd.exe)
-                nested_exe=()
-                for p in "${all_exe[@]}"; do
-                  # With globstar, ** may also match "zero directories", so
-                  # filter out the root path explicitly.
-                  if [ "$p" != "./cronosd.exe" ]; then
-                    nested_exe+=("$p")
-                  fi
-                done
-
-                if [ ${#nested_exe[@]} -ge 1 ]; then
-                  if [ ${#nested_exe[@]} -gt 1 ]; then
-                    echo "ERROR: multiple cronosd.exe candidates found after extracting $tarball" >&2
-                    printf '%s\n' "${nested_exe[@]}" >&2
-                    exit 1
-                  fi
-                  exe_rel="${nested_exe[0]}"
-                else
+                # find any nested cronosd.exe (mindepth 2 excludes root-level)
+                mapfile -t nested_exe < <(find . -mindepth 2 -name cronosd.exe 2>/dev/null)
+                if [ ${#nested_exe[@]} -eq 0 ]; then
                   echo "ERROR: cronosd.exe not found after extracting $tarball" >&2
                   ls -la >&2 || true
                   exit 1
+                elif [ ${#nested_exe[@]} -gt 1 ]; then
+                  echo "ERROR: multiple cronosd.exe candidates found after extracting $tarball" >&2
+                  printf '%s\n' "${nested_exe[@]}" >&2
+                  exit 1
                 fi
+                exe_rel="${nested_exe[0]}"
               fi
               exe_dir="$(dirname "$exe_rel")"
               exe_name="$(basename "$exe_rel")"

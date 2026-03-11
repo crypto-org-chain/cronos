@@ -126,10 +126,11 @@ stdenv.mkDerivation (finalAttrs: {
             mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
 
             def_file="$lz4_import_dir/lz4.def"
+            objdump_out=$(${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" 2>&1 || true)
             {
               echo "LIBRARY liblz4.dll"
               echo "EXPORTS"
-              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" 2>/dev/null \
+              echo "$objdump_out" \
                 | awk '/^[[:space:]]*\[/ && $NF ~ /^LZ4/ { print $NF }'
             } > "$def_file"
 
@@ -138,7 +139,7 @@ stdenv.mkDerivation (finalAttrs: {
             if ! grep -q '^LZ4' "$def_file"; then
               echo "ERROR: failed to extract LZ4 exports from $lz4_dll" >&2
               echo "objdump output:" >&2
-              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" >&2 || true
+              echo "$objdump_out" >&2
               exit 1
             fi
 
