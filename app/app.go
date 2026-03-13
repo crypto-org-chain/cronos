@@ -47,7 +47,6 @@ import (
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
-	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
@@ -57,11 +56,9 @@ import (
 	e2eekeyring "github.com/crypto-org-chain/cronos/x/e2ee/keyring"
 	e2eetypes "github.com/crypto-org-chain/cronos/x/e2ee/types"
 	"github.com/ethereum/go-ethereum/common"
-	// Force-load the tracer engines to trigger registration
-	"github.com/ethereum/go-ethereum/core/vm"
+
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
-	ethparams "github.com/ethereum/go-ethereum/params"
 	"github.com/evmos/ethermint/ante/cache"
 	evmenc "github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/ethereum/eip712"
@@ -346,7 +343,7 @@ func New(
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
-	// this line is used by starport scaffolding # stargate/app/newArgument
+// this line is used by starport scaffolding # stargate/app/newArgument
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -646,21 +643,13 @@ func New(
 	// Set authority to x/gov module account to only expect the module account to update params
 	evmS := app.GetSubspace(evmtypes.ModuleName)
 
-	gasConfig := storetypes.TransientGasConfig()
 	app.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec,
 		keys[evmtypes.StoreKey], okeys[evmtypes.ObjectStoreKey], authtypes.NewModuleAddress(govtypes.ModuleName),
 		app.AccountKeeper, app.BankKeeper, app.StakingKeeper, app.FeeMarketKeeper,
 		tracer,
 		evmS,
-		[]evmkeeper.CustomContractFn{
-			func(_ sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
-				return cronosprecompiles.NewRelayerContract(app.IBCKeeper, appCodec, rules, app.Logger())
-			},
-			func(ctx sdk.Context, rules ethparams.Rules) vm.PrecompiledContract {
-				return cronosprecompiles.NewIcaContract(ctx, app.ICAControllerKeeper, &app.CronosKeeper, appCodec, gasConfig)
-			},
-		},
+		[]evmkeeper.CustomContractFn{},
 		cast.ToUint64(appOpts.Get(server.FlagQueryGasLimit)),
 	)
 
@@ -709,7 +698,7 @@ func New(
 
 	app.GovKeeper = *govKeeper.SetHooks(
 		govtypes.NewMultiGovHooks(
-		// register the governance hooks
+			// register the governance hooks
 		),
 	)
 
