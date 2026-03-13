@@ -308,7 +308,7 @@ func (k Keeper) onPacketResult(
 	if res.Failed() {
 		return fmt.Errorf("IBC callback EVM execution reverted: %s", res.VmError)
 	}
-	return err
+	return nil
 }
 
 func (k Keeper) IBCOnAcknowledgementPacketCallback(
