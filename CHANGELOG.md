@@ -12,10 +12,10 @@
 
 ### Bug fixes
 
-* [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) fix(testground): fix send_batch_size&send_interval setup failed in testground.
+* [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
 
 ### Chores:
-* [#1977](https://github.com/crypto-org-chain/cronos/pull/1977) Remove unused precompiles
+* [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
 
 
 *Jan 26, 2026*
