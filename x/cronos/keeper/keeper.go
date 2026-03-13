@@ -301,7 +301,13 @@ func (k Keeper) onPacketResult(
 		return err
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
-	_, _, err = k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
+	_, res, err := k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
+	if err != nil {
+		return err
+	}
+	if res.Failed() {
+		return fmt.Errorf("IBC callback EVM execution reverted: %s", res.VmError)
+	}
 	return err
 }
 
