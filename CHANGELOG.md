@@ -16,6 +16,10 @@
 * [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
 
 
+### Chores:
+* [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
+
+
 *Jan 26, 2026*
 
 ## v1.7.0
