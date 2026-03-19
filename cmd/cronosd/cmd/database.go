@@ -12,8 +12,9 @@ func DatabaseCmd() *cobra.Command {
 		Long: `Commands for managing Cronos databases.
 
 Available subcommands:
-  migrate - Migrate databases between different backend types
-  patch   - Patch specific block heights into existing databases
+  migrate       - Migrate databases between different backend types
+  patch         - Patch specific block heights into existing databases
+  fix-unlucky-tx - Patch missing ethereum_tx events for false-failed txs
 
 Use "cronosd database [command] --help" for more information about a command.`,
 		Aliases: []string{"db"},
@@ -23,6 +24,7 @@ Use "cronosd database [command] --help" for more information about a command.`,
 	cmd.AddCommand(
 		MigrateCmd(),
 		PatchCmd(),
+		FixUnluckyTxCmd(),
 	)
 
 	return cmd
