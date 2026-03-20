@@ -45,6 +45,11 @@ func FixUnluckyTxCmd() *cobra.Command {
 			ctx := server.GetServerContextFromCmd(cmd)
 			clientCtx := client.GetClientContextFromCmd(cmd)
 
+			debug, err := cmd.Flags().GetBool(FlagDatabaseDebug)
+			if err != nil {
+				return err
+			}
+
 			minBlockHeight, err := cmd.Flags().GetInt(FlagMinBlockHeight)
 			if err != nil {
 				return err
@@ -54,6 +59,9 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			databaseDebugf(debug, "fix-unlucky-tx: home=%s chain-id=%s min-block-height=%d input=%q",
+				ctx.Config.RootDir, chainID, minBlockHeight, args[0])
 
 			var blocksFile io.Reader
 			if args[0] == "-" {
@@ -71,6 +79,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			databaseDebugf(debug, "fix-unlucky-tx: opened blockstore, state db, and tx indexer")
 
 			scanner := bufio.NewScanner(blocksFile)
 			for scanner.Scan() {
@@ -89,11 +98,21 @@ func FixUnluckyTxCmd() *cobra.Command {
 					return err
 				}
 
+				databaseDebugf(debug, "fix-unlucky-tx: block=%d finalize_tx_results=%d", blockNumber, len(blockResults.TxResults))
+
 				// find unlucky tx
 				txIndex := int64(-1)
 				for i, txResult := range blockResults.TxResults {
+					if txResult == nil {
+						databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d nil ExecTxResult", blockNumber, i)
+						continue
+					}
+					databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d code=%d gas_used=%d events=%d exceeds_block_gas=%v",
+						blockNumber, i, txResult.Code, txResult.GasUsed, len(txResult.Events), TxExceedsBlockGasLimit(txResult))
+
 					if TxExceedsBlockGasLimit(txResult) {
 						if len(txResult.Events) > 0 && txResult.Events[len(txResult.Events)-1].Type == evmtypes.TypeMsgEthereumTx {
+							databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d already patched (last event is ethereum_tx), skipping", blockNumber, i)
 							// already patched
 							break
 						}
@@ -125,6 +144,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 							}
 							txResult.Events = append(txResult.Events, evt)
 						}
+						databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d saving state and tx indexer (%d msgs)", blockNumber, i, len(tx.GetMsgs()))
 						if err := tmDB.stateStore.SaveFinalizeBlockResponse(blockNumber, blockResults); err != nil {
 							return err
 						}
@@ -150,6 +170,7 @@ func FixUnluckyTxCmd() *cobra.Command {
 										if err != nil {
 											return err
 										}
+										databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d eth tx_index=%d", blockNumber, i, txIndex)
 									}
 								}
 							}
@@ -158,11 +179,17 @@ func FixUnluckyTxCmd() *cobra.Command {
 				}
 			}
 
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+			databaseDebugf(debug, "fix-unlucky-tx: finished scanning input")
+
 			return nil
 		},
 	}
 	cmd.Flags().String(flags.FlagChainID, "cronosmainnet_25-1", "network chain ID, only useful for psql tx indexer backend")
 	cmd.Flags().Int(FlagMinBlockHeight, 2693800, "Reject block heights below this value (block 6541 is always allowed as a known exception).")
+	cmd.Flags().Bool(FlagDatabaseDebug, false, "Print verbose progress and per-tx diagnostics to stderr")
 
 	return cmd
 }

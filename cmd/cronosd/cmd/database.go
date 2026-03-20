@@ -1,8 +1,21 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 )
+
+// FlagDatabaseDebug enables verbose stderr logging for database maintenance subcommands.
+const FlagDatabaseDebug = "debug"
+
+func databaseDebugf(debug bool, format string, args ...any) {
+	if !debug {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[database] debug: "+format+"\n", args...)
+}
 
 // DatabaseCmd returns the database command with subcommands
 func DatabaseCmd() *cobra.Command {

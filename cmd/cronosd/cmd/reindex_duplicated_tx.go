@@ -36,6 +36,11 @@ but the indexer still holds a different (typically failed) result.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := server.GetServerContextFromCmd(cmd)
 
+			debug, err := cmd.Flags().GetBool(FlagDatabaseDebug)
+			if err != nil {
+				return err
+			}
+
 			chainID, err := cmd.Flags().GetString(flags.FlagChainID)
 			if err != nil {
 				return err
@@ -49,6 +54,7 @@ but the indexer still holds a different (typically failed) result.`,
 			if err != nil {
 				return err
 			}
+			databaseDebugf(debug, "reindex-duplicated-tx: opened blockstore, state db, and tx indexer")
 
 			processBlock := func(height int64) error {
 				blockResult, err := tmDB.stateStore.LoadFinalizeBlockResponse(height)
@@ -60,8 +66,12 @@ but the indexer still holds a different (typically failed) result.`,
 					return fmt.Errorf("block not found: %d", height)
 				}
 
+				databaseDebugf(debug, "reindex-duplicated-tx: block=%d chain_block_txs=%d finalize_tx_results=%d",
+					height, len(block.Txs), len(blockResult.TxResults))
+
 				for txIndex, txResult := range blockResult.TxResults {
 					if txResult == nil {
+						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d nil ExecTxResult", height, txIndex)
 						continue
 					}
 					if txIndex >= len(block.Txs) {
@@ -74,9 +84,12 @@ but the indexer still holds a different (typically failed) result.`,
 						return err
 					}
 					if indexed == nil {
+						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d no indexer entry hash=%x", height, txIndex, txHash)
 						continue
 					}
 					if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
+						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d mismatch block_code=%d indexed_code=%d hash=%x print_only=%v",
+							height, txIndex, txResult.Code, indexed.Result.Code, txHash, printTxs)
 						if printTxs {
 							fmt.Println(height, txIndex)
 							continue
@@ -91,6 +104,7 @@ but the indexer still holds a different (typically failed) result.`,
 						if err := tmDB.txIndexer.Index(result); err != nil {
 							return err
 						}
+						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d reindexed", height, txIndex)
 					}
 				}
 
@@ -101,6 +115,9 @@ but the indexer still holds a different (typically failed) result.`,
 			if err != nil {
 				return err
 			}
+
+			databaseDebugf(debug, "reindex-duplicated-tx: home=%s chain-id=%s concurrency=%d print-txs=%v",
+				ctx.Config.RootDir, chainID, concurrency, printTxs)
 
 			blockChan := make(chan int64, concurrency)
 			var wg sync.WaitGroup
@@ -136,19 +153,23 @@ but the indexer still holds a different (typically failed) result.`,
 			}
 			findBlock := func() error {
 				if len(blocksFile) > 0 {
+					databaseDebugf(debug, "reindex-duplicated-tx: enqueueing heights from file=%s", blocksFile)
 					file, err := os.Open(blocksFile)
 					if err != nil {
 						return err
 					}
 					defer file.Close()
 					scanner := bufio.NewScanner(file)
+					var n int
 					for scanner.Scan() {
 						blockNumber, err := strconv.ParseInt(scanner.Text(), 10, 64)
 						if err != nil {
 							return err
 						}
 						blockChan <- blockNumber
+						n++
 					}
+					databaseDebugf(debug, "reindex-duplicated-tx: enqueued %d heights from file", n)
 					return scanner.Err()
 				}
 				startHeight, err := cmd.Flags().GetInt(FlagReindexStartBlock)
@@ -166,6 +187,7 @@ but the indexer still holds a different (typically failed) result.`,
 					return fmt.Errorf("invalid end-block %d, smaller than start-block", endHeight)
 				}
 
+				databaseDebugf(debug, "reindex-duplicated-tx: enqueueing heights %d..%d (%d blocks)", startHeight, endHeight, endHeight-startHeight+1)
 				for height := startHeight; height <= endHeight; height++ {
 					blockChan <- int64(height)
 				}
@@ -181,6 +203,7 @@ but the indexer still holds a different (typically failed) result.`,
 
 			wg.Wait()
 
+			databaseDebugf(debug, "reindex-duplicated-tx: workers finished err=%v", ctCtx.Err())
 			return ctCtx.Err()
 		},
 	}
@@ -190,6 +213,7 @@ but the indexer still holds a different (typically failed) result.`,
 	cmd.Flags().Int(FlagReindexStartBlock, 1, "Start of the block range to scan, inclusive")
 	cmd.Flags().Int(FlagReindexEndBlock, -1, "End of the block range to scan, inclusive")
 	cmd.Flags().Int(FlagReindexConcurrency, runtime.NumCPU(), "Number of concurrent workers")
+	cmd.Flags().Bool(FlagDatabaseDebug, false, "Print verbose progress and per-tx diagnostics to stderr")
 
 	return cmd
 }
