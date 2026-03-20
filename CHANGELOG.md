@@ -7,6 +7,7 @@
 * [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
 * [#1908](https://github.com/crypto-org-chain/cronos/pull/1908) Add db migration/patch CLI tool
 * [#1990](https://github.com/crypto-org-chain/cronos/pull/1990) Add `database fix-unlucky-tx` CLI to patch missing `ethereum_tx` events when block gas limit is exceeded (known pre-upgrade exception: block 6541); see `docs/fix-unlucky-tx.md`
+* [cronos#522](https://github.com/crypto-org-chain/cronos/pull/522) Add `database reindex-duplicated-tx` CLI to re-index txs where the indexer disagrees with successful block results (duplicated-tx issue)
 * [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
 * [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
 * [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
