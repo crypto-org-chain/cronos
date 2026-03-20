@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +17,17 @@ func databaseDebugf(debug bool, format string, args ...any) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "[database] debug: "+format+"\n", args...)
+}
+
+func formatExecTxResultForDebug(r *abci.ExecTxResult) string {
+	if r == nil {
+		return "<nil>"
+	}
+	b, err := json.Marshal(r)
+	if err != nil {
+		return fmt.Sprintf("%+v", r)
+	}
+	return string(b)
 }
 
 // DatabaseCmd returns the database command with subcommands

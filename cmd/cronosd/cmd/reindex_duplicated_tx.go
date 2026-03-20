@@ -79,14 +79,20 @@ but the indexer still holds a different (typically failed) result.`,
 					}
 					tx := block.Txs[txIndex]
 					txHash := tx.Hash()
+					databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d block_txResult=%s hash=%x",
+						height, txIndex, formatExecTxResultForDebug(txResult), txHash)
+
 					indexed, err := tmDB.txIndexer.Get(txHash)
 					if err != nil {
 						return err
 					}
 					if indexed == nil {
-						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d no indexer entry hash=%x", height, txIndex, txHash)
+						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d no indexer entry", height, txIndex)
 						continue
 					}
+					databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d indexed_ExecTxResult=%s",
+						height, txIndex, formatExecTxResultForDebug(&indexed.Result))
+
 					if txResult.Code == 0 && txResult.Code != indexed.Result.Code {
 						databaseDebugf(debug, "reindex-duplicated-tx: block=%d tx=%d mismatch block_code=%d indexed_code=%d hash=%x print_only=%v",
 							height, txIndex, txResult.Code, indexed.Result.Code, txHash, printTxs)

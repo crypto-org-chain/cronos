@@ -107,8 +107,8 @@ func FixUnluckyTxCmd() *cobra.Command {
 						databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d nil ExecTxResult", blockNumber, i)
 						continue
 					}
-					databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d code=%d gas_used=%d events=%d exceeds_block_gas=%v",
-						blockNumber, i, txResult.Code, txResult.GasUsed, len(txResult.Events), TxExceedsBlockGasLimit(txResult))
+					databaseDebugf(debug, "fix-unlucky-tx: block=%d tx=%d exceeds_block_gas=%v txResult=%s",
+						blockNumber, i, TxExceedsBlockGasLimit(txResult), formatExecTxResultForDebug(txResult))
 
 					if TxExceedsBlockGasLimit(txResult) {
 						if len(txResult.Events) > 0 && txResult.Events[len(txResult.Events)-1].Type == evmtypes.TypeMsgEthereumTx {
