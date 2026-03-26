@@ -302,7 +302,7 @@ replace (
 	// release/v1.15
 	github.com/ethereum/go-ethereum => github.com/crypto-org-chain/go-ethereum v1.10.20-0.20250815065500-a4fbafcae0dd
 	// backport/pr-861-get-tx-receipt-boundary-check
-	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260326011913-f3406ac49e31
+	github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.22.1-0.20260326155354-a8bd0a4ff83d
 	// Fix upstream GHSA-h395-qcrw-5vmq and GHSA-3vp4-m3rf-835h vulnerabilities.
 	// TODO Remove it: https://github.com/cosmos/cosmos-sdk/issues/10409
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.0
