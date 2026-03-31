@@ -12,6 +12,7 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -215,6 +216,19 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
 }
 
+func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
+	resp, err := k.evmKeeper.Code(sdk.WrapSDKContext(ctx), &evmtypes.QueryCodeRequest{
+		Address: contract.Hex(),
+	})
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "failed to query contract code (%s): %v", contract.Hex(), err)
+	}
+	if len(resp.Code) == 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "no contract code at address (%s)", contract.Hex())
+	}
+	return nil
+}
+
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
 func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
 	if types.IsSourceCoin(msg.Denom) {
@@ -257,7 +271,14 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		k.bankKeeper.SetDenomMetaData(ctx, metadata)
 
 		// update the mapping
-		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
+		if !common.IsHexAddress(msg.Contract) {
+			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+		}
+		contract := common.HexToAddress(msg.Contract)
+		if err := k.ensureContractCode(ctx, contract); err != nil {
+			return err
+		}
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
 	} else {
@@ -270,6 +291,9 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 			// update the mapping
 			contract := common.HexToAddress(msg.Contract)
+			if err := k.ensureContractCode(ctx, contract); err != nil {
+				return err
+			}
 			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 				return err
 			}
