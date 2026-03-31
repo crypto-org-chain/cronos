@@ -217,7 +217,7 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 }
 
 func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
-	resp, err := k.evmKeeper.Code(sdk.WrapSDKContext(ctx), &evmtypes.QueryCodeRequest{
+	resp, err := k.evmKeeper.Code(ctx, &evmtypes.QueryCodeRequest{
 		Address: contract.Hex(),
 	})
 	if err != nil {
