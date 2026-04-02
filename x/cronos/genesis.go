@@ -38,7 +38,10 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 		if !common.IsHexAddress(m.Contract) {
 			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
 		}
-		k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract))
+		if err := k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
+			k.Logger(ctx).Info("skipping auto contract import, external mapping already exists",
+				"denom", m.Denom, "contract", m.Contract, "error", err)
+		}
 	}
 
 	// this line is used by starport scaffolding # genesis/module/init
