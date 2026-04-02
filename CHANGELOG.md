@@ -14,7 +14,7 @@
 
 * [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
 * [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
-
+* [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
