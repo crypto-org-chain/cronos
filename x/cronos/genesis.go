@@ -55,6 +55,8 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 
 	// this line is used by starport scaffolding # ibc/genesis/export
 
+	// Auto and external contracts are mutually exclusive per denom: SetExternalContractForDenom
+	// retires any auto mapping for the same denom.
 	return &types.GenesisState{
 		Params:            k.GetParams(ctx),
 		ExternalContracts: k.GetExternalContracts(ctx),
