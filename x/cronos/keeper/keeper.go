@@ -12,6 +12,7 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -115,7 +116,7 @@ func (k Keeper) GetContractByDenom(ctx sdk.Context, denom string) (contract comm
 	if !found {
 		contract, found = k.getAutoContractByDenom(ctx, denom)
 	}
-	return
+	return contract, found
 }
 
 // GetDenomByContract find native denom by contract address
@@ -158,7 +159,7 @@ func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping)
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // GetAutoContracts returns all auto-deployed contract mappings
@@ -171,7 +172,7 @@ func (k Keeper) GetAutoContracts(ctx sdk.Context) (out []types.TokenMapping) {
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // DeleteExternalContractForDenom delete the external contract mapping for native denom,
@@ -213,6 +214,19 @@ func (k Keeper) OnRecvVouchers(
 
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
+}
+
+func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
+	resp, err := k.evmKeeper.Code(ctx, &evmtypes.QueryCodeRequest{
+		Address: contract.Hex(),
+	})
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "failed to query contract code (%s): %v", contract.Hex(), err)
+	}
+	if len(resp.Code) == 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "no contract code at address (%s)", contract.Hex())
+	}
+	return nil
 }
 
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
@@ -257,7 +271,14 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		k.bankKeeper.SetDenomMetaData(ctx, metadata)
 
 		// update the mapping
-		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
+		if !common.IsHexAddress(msg.Contract) {
+			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+		}
+		contract := common.HexToAddress(msg.Contract)
+		if err := k.ensureContractCode(ctx, contract); err != nil {
+			return err
+		}
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
 	} else {
@@ -270,6 +291,9 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 			// update the mapping
 			contract := common.HexToAddress(msg.Contract)
+			if err := k.ensureContractCode(ctx, contract); err != nil {
+				return err
+			}
 			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 				return err
 			}
@@ -301,8 +325,14 @@ func (k Keeper) onPacketResult(
 		return err
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
-	_, _, err = k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
-	return err
+	_, res, err := k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
+	if err != nil {
+		return err
+	}
+	if res.Failed() {
+		return fmt.Errorf("IBC callback EVM execution reverted: %s", res.VmError)
+	}
+	return nil
 }
 
 func (k Keeper) IBCOnAcknowledgementPacketCallback(
