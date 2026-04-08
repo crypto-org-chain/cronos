@@ -23,15 +23,15 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "rocksdb";
-  version = "10.6.2";
+  version = "10.9.1";
 
-  withLz4 = !stdenv.hostPlatform.isMinGW;
+  withLz4 = true;
 
   src = fetchFromGitHub {
     owner = "facebook";
     repo = finalAttrs.pname;
     rev = "v${finalAttrs.version}";
-    sha256 = "sha256-Sl5o2uQBS+D43PX827FGTpLIcW6msksFFxGxDyqBdIs=";
+    sha256 = "sha256-AdYt97tcZdj4Kyq0mGl+JreOybKn04tSVvdyaFQWuy4=";
   };
 
   nativeBuildInputs = [
@@ -117,19 +117,35 @@ stdenv.mkDerivation (finalAttrs: {
             lz4_out=${if lz4 ? out then lz4.out else lz4}
             lz4_dev=${if lz4 ? dev then lz4.dev else lz4}
             lz4_dll=$lz4_out/bin/liblz4.dll
+            if [ ! -f "$lz4_dll" ]; then
+              echo "ERROR: $lz4_dll not found, listing lz4 package contents:" >&2
+              find "$lz4_out" -name "*.dll" >&2 || true
+              exit 1
+            fi
             lz4_import_dir=$PWD/lz4-import
             mkdir -p "$lz4_import_dir/lib" "$lz4_import_dir/lib/pkgconfig" "$lz4_import_dir/lib/cmake/lz4"
 
+            def_file="$lz4_import_dir/lz4.def"
+            objdump_out=$(${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" 2>&1 || true)
             {
               echo "LIBRARY liblz4.dll"
               echo "EXPORTS"
-              ${stdenv.cc.bintools.targetPrefix}objdump -p "$lz4_dll" \
-                | awk '/\\+base/ && $NF ~ /^LZ4/ {print $NF}'
-            } > "$lz4_import_dir/lz4.def"
+              echo "$objdump_out" \
+                | awk '/^[[:space:]]*\[/ && $NF ~ /^LZ4/ { print $NF }'
+            } > "$def_file"
+
+            # If export extraction fails, the generated import library will be empty
+            # and RocksDB will fail to link with undefined references to LZ4_* symbols.
+            if ! grep -q '^LZ4' "$def_file"; then
+              echo "ERROR: failed to extract LZ4 exports from $lz4_dll" >&2
+              echo "objdump output:" >&2
+              echo "$objdump_out" >&2
+              exit 1
+            fi
 
             ${stdenv.cc.bintools.targetPrefix}dlltool \
               --dllname liblz4.dll \
-              --def "$lz4_import_dir/lz4.def" \
+              --def "$def_file" \
               --output-lib "$lz4_import_dir/lib/liblz4.dll.a"
 
             cat > "$lz4_import_dir/lib/pkgconfig/liblz4.pc" <<EOF

@@ -14,6 +14,11 @@ config {
         },
       },
     }] + super.validators[1:],
+    accounts: super.accounts + [{
+      name: 'community1',
+      coins: '1000000000000000000000stake,10000000000000000000000basetcro',
+      mnemonic: '${COMMUNITY1_MNEMONIC}',
+    }],
     genesis+: {
       app_state+: {
         bank+: {
