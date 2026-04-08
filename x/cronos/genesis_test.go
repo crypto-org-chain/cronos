@@ -110,6 +110,43 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 			},
 			false,
 		},
+		{
+			"Correct cronos token mapping",
+			func() {},
+			&types.GenesisState{
+				Params: types.DefaultParams(),
+				ExternalContracts: []types.TokenMapping{
+					{
+						Denom:    "cronos0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000000",
+					},
+				},
+				AutoContracts: []types.TokenMapping{
+					{
+						Denom:    "cronos0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000000",
+					},
+				},
+			},
+			false,
+		},
+		{
+			"Conflicting auto mapping panics",
+			func() {},
+			&types.GenesisState{
+				AutoContracts: []types.TokenMapping{
+					{
+						Denom:    "gravity0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000001",
+					},
+					{
+						Denom:    "gravity0x0000000000000000000000000000000000000001",
+						Contract: "0x0000000000000000000000000000000000000001",
+					},
+				},
+			},
+			true,
+		},
 	}
 
 	for _, tc := range testCases {

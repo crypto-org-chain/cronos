@@ -186,7 +186,7 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"success, delete external clears legacy auto mapping",
+			"success, delete external falls back to legacy auto mapping",
 			func() {
 				keeper := suite.app.CronosKeeper
 				store := suite.ctx.KVStore(suite.app.GetKey(types.StoreKey))
@@ -207,10 +207,12 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				deleted := keeper.DeleteExternalContractForDenom(suite.ctx, legacyDenom)
 				suite.Require().True(deleted)
 
-				_, found = keeper.GetContractByDenom(suite.ctx, legacyDenom)
-				suite.Require().False(found)
-				_, found = keeper.GetDenomByContract(suite.ctx, legacyAuto)
-				suite.Require().False(found)
+				contract, found := keeper.GetContractByDenom(suite.ctx, legacyDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyAuto, contract)
+				denomByAuto, found := keeper.GetDenomByContract(suite.ctx, legacyAuto)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyDenom, denomByAuto)
 				_, found = keeper.GetDenomByContract(suite.ctx, legacyExternal)
 				suite.Require().False(found)
 			},
@@ -239,12 +241,59 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
+			"success, source denom keeps auto mapping when external set",
+			func() {
+				keeper := suite.app.CronosKeeper
+
+				sourceAuto := common.BigToAddress(big.NewInt(12))
+				sourceDenom := "cronos" + sourceAuto.Hex()
+				sourceExternal := common.BigToAddress(big.NewInt(13))
+
+				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, sourceAuto)
+				suite.Require().NoError(err)
+
+				err = keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceExternal)
+				suite.Require().NoError(err)
+
+				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(sourceExternal, contract)
+
+				autoMappings := keeper.GetAutoContracts(suite.ctx)
+				foundAuto := false
+				for _, mapping := range autoMappings {
+					if mapping.Denom == sourceDenom {
+						foundAuto = true
+						suite.Require().Equal(sourceAuto.Hex(), mapping.Contract)
+					}
+				}
+				suite.Require().True(foundAuto)
+
+				deleted := keeper.DeleteExternalContractForDenom(suite.ctx, sourceDenom)
+				suite.Require().True(deleted)
+
+				contract, found = keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(sourceAuto, contract)
+			},
+		},
+		{
 			"failure, multiple denoms map to same contract",
 			func() {
 				keeper := suite.app.CronosKeeper
 				err := keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
 				suite.Require().NoError(err)
 				err = keeper.SetExternalContractForDenom(suite.ctx, denom2, autoContract)
+				suite.Require().Error(err)
+			},
+		},
+		{
+			"failure, multiple denoms map to same auto contract",
+			func() {
+				keeper := suite.app.CronosKeeper
+				err := keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
+				suite.Require().NoError(err)
+				err = keeper.SetAutoContractForDenom(suite.ctx, denom2, autoContract)
 				suite.Require().Error(err)
 			},
 		},
@@ -256,6 +305,107 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				suite.Require().NoError(err)
 				err = keeper.SetExternalContractForDenom(suite.ctx, denom2, externalContract)
 				suite.Require().Error(err)
+			},
+		},
+		{
+			"success, SetExternal does not delete reverse entry owned by another denom",
+			func() {
+				// Bug-1 regression: SetExternalContractForDenom must not delete
+				// ContractToDenomKey(auto) when that entry already belongs to denom2.
+				keeper := suite.app.CronosKeeper
+				store := suite.ctx.KVStore(suite.app.GetKey(types.StoreKey))
+
+				legacyDenom := denom + "legacy2"
+				legacyAuto := common.BigToAddress(big.NewInt(7))
+				denom2External := common.BigToAddress(big.NewInt(9))
+
+				// Corrupted state: legacyDenom auto points to legacyAuto, but reverse entry
+				// is already owned by denom2.
+				store.Set(types.DenomToAutoContractKey(legacyDenom), legacyAuto.Bytes())
+				store.Set(types.DenomToExternalContractKey(denom2), legacyAuto.Bytes())
+				store.Set(types.ContractToDenomKey(legacyAuto.Bytes()), []byte(denom2))
+
+				// Set a new external for legacyDenom; the auto cleanup must NOT delete
+				// ContractToDenomKey(legacyAuto) since it now belongs to denom2.
+				err := keeper.SetExternalContractForDenom(suite.ctx, legacyDenom, denom2External)
+				suite.Require().NoError(err)
+
+				// denom2's mapping must still be intact.
+				contract, found := keeper.GetContractByDenom(suite.ctx, denom2)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyAuto, contract)
+				denomByLegacyAuto, found := keeper.GetDenomByContract(suite.ctx, legacyAuto)
+				suite.Require().True(found)
+				suite.Require().Equal(denom2, denomByLegacyAuto)
+			},
+		},
+		{
+			"success, DeleteExternal does not delete reverse entry owned by another denom",
+			func() {
+				// Bug-1 regression: DeleteExternalContractForDenom must not delete
+				// ContractToDenomKey(auto) when that entry already belongs to denom2.
+				keeper := suite.app.CronosKeeper
+				store := suite.ctx.KVStore(suite.app.GetKey(types.StoreKey))
+
+				legacyDenom := denom + "legacy3"
+				legacyAuto := common.BigToAddress(big.NewInt(10))
+				legacyExternal := common.BigToAddress(big.NewInt(11))
+
+				// Corrupted state: legacyDenom auto points to legacyAuto, but reverse entry
+				// is already owned by denom2.
+				store.Set(types.DenomToAutoContractKey(legacyDenom), legacyAuto.Bytes())
+				store.Set(types.DenomToExternalContractKey(legacyDenom), legacyExternal.Bytes())
+				store.Set(types.ContractToDenomKey(legacyExternal.Bytes()), []byte(legacyDenom))
+				store.Set(types.DenomToExternalContractKey(denom2), legacyAuto.Bytes())
+				store.Set(types.ContractToDenomKey(legacyAuto.Bytes()), []byte(denom2))
+
+				// Delete legacyDenom's external. The auto cleanup must NOT delete
+				// ContractToDenomKey(legacyAuto) since it now belongs to denom2.
+				deleted := keeper.DeleteExternalContractForDenom(suite.ctx, legacyDenom)
+				suite.Require().True(deleted)
+
+				// legacyDenom should not retain a conflicting auto mapping.
+				_, found := keeper.GetContractByDenom(suite.ctx, legacyDenom)
+				suite.Require().False(found)
+
+				// denom2's mapping must still be intact.
+				contract, found := keeper.GetContractByDenom(suite.ctx, denom2)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyAuto, contract)
+				denomByLegacyAuto, found := keeper.GetDenomByContract(suite.ctx, legacyAuto)
+				suite.Require().True(found)
+				suite.Require().Equal(denom2, denomByLegacyAuto)
+			},
+		},
+		{
+			"success, DeleteExternal fixes stale reverse entry owned by no one",
+			func() {
+				keeper := suite.app.CronosKeeper
+				store := suite.ctx.KVStore(suite.app.GetKey(types.StoreKey))
+
+				legacyDenom := denom + "legacy4"
+				legacyAuto := common.BigToAddress(big.NewInt(12))
+				legacyExternal := common.BigToAddress(big.NewInt(13))
+				staleDenom := denom + "stale"
+
+				// Corrupted state: legacyDenom auto points to legacyAuto,
+				// but reverse entry points to staleDenom which owns nothing.
+				store.Set(types.DenomToAutoContractKey(legacyDenom), legacyAuto.Bytes())
+				store.Set(types.DenomToExternalContractKey(legacyDenom), legacyExternal.Bytes())
+				store.Set(types.ContractToDenomKey(legacyExternal.Bytes()), []byte(legacyDenom))
+				store.Set(types.ContractToDenomKey(legacyAuto.Bytes()), []byte(staleDenom))
+
+				deleted := keeper.DeleteExternalContractForDenom(suite.ctx, legacyDenom)
+				suite.Require().True(deleted)
+
+				// Reverse entry should be repaired to legacyDenom.
+				denomByLegacyAuto, found := keeper.GetDenomByContract(suite.ctx, legacyAuto)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyDenom, denomByLegacyAuto)
+
+				contract, found := keeper.GetContractByDenom(suite.ctx, legacyDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(legacyAuto, contract)
 			},
 		},
 	}
