@@ -9,7 +9,6 @@ import (
 	tmcfg "github.com/cometbft/cometbft/config"
 	cmtcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
-	rosettaCmd "github.com/cosmos/rosetta/cmd"
 	memiavlcfg "github.com/crypto-org-chain/cronos-store/store/config"
 	"github.com/crypto-org-chain/cronos/app"
 	config2 "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
@@ -199,12 +198,10 @@ func initRootCmd(
 		rootCmd.AddCommand(databaseCmd)
 	}
 
-	rootCmd, err := srvflags.AddGlobalFlags(rootCmd)
+	_, err := srvflags.AddGlobalFlags(rootCmd)
 	if err != nil {
 		panic(err)
 	}
-	// add rosetta
-	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Codec))
 }
 
 // genesisCommand builds genesis-related `simd genesis` command. Users may provide application specific commands as a parameter
@@ -218,7 +215,7 @@ func genesisCommand(txConfig client.TxConfig, basicManager module.BasicManager, 
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
-	crisis.AddModuleInitFlags(startCmd)
+	crisis.AddModuleInitFlags(startCmd) //nolint:staticcheck
 	cronos.AddModuleInitFlags(startCmd)
 	// this line is used by starport scaffolding # stargate/root/initFlags
 }
@@ -279,6 +276,7 @@ func initAppConfig() (string, interface{}) {
 		MemIAVL   memiavlcfg.MemIAVLConfig `mapstructure:"memiavl"`
 		VersionDB VersionDBConfig          `mapstructure:"versiondb"`
 		Cronos    config2.CronosConfig     `mapstructure:"cronos"`
+		RocksDB   config2.RocksDBConfig    `mapstructure:"rocksdb"`
 	}
 
 	tpl, cfg := servercfg.AppConfig("")
@@ -288,9 +286,10 @@ func initAppConfig() (string, interface{}) {
 		MemIAVL:   memiavlcfg.DefaultMemIAVLConfig(),
 		VersionDB: DefaultVersionDBConfig(),
 		Cronos:    config2.DefaultCronosConfig(),
+		RocksDB:   config2.DefaultRocksDBConfig(),
 	}
 
-	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate, customAppConfig
+	return tpl + memiavlcfg.DefaultConfigTemplate + DefaultVersionDBTemplate + config2.DefaultCronosConfigTemplate + config2.DefaultRocksDBConfigTemplate, customAppConfig
 }
 
 // newApp creates the application

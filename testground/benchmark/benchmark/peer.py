@@ -142,8 +142,14 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
             "recheck": False,
             "size": MEMPOOL_SIZE,
         },
-        "consensus": {"timeout_commit": "1s"},
+        "consensus": {
+            "timeout_commit": "1s",
+            "timeout_propose": "500ms",
+            "timeout_prevote": "300ms",
+            "timeout_precommit": "300ms",
+        },
         "tx_index": {"indexer": "null"},
+        "instrumentation": {"prometheus": True},
     }
     default_app_patch = {
         "minimum-gas-prices": "0basecro",
@@ -159,6 +165,10 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
             "block-stm-pre-estimate": True,
         },
         "json-rpc": {"enable-indexer": True},
+        "telemetry": {
+            "enabled": True,
+            "prometheus-retention-time": 600,
+        },
     }
     # update persistent_peers and other configs in config.toml
     config_patch = jsonmerge.merge(
