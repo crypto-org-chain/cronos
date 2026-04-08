@@ -13,6 +13,12 @@
 ### Bug fixes
 
 * [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
+* [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
+* [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
+
+### Chores:
+* [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
+
 
 *Jan 26, 2026*
 
@@ -33,6 +39,7 @@
 
 ### Bug fixes
 
+* [#1982](https://github.com/crypto-org-chain/cronos/pull/1982) fix(nix): enable LZ4 support for Windows builds.
 * [#1946](https://github.com/crypto-org-chain/cronos/pull/1946) Fix: allow preinstall in case account has a balance
 * [#1947](https://github.com/crypto-org-chain/cronos/pull/1947) Fix: estimate gas not accurate
 * [#1929](https://github.com/crypto-org-chain/ethermint/pull/1929) fix: add check on evm transaction tip

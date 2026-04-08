@@ -20,6 +20,9 @@ func NewTokenMappingChangeProposalHandler(k keeper.Keeper) govtypes.Handler {
 			if !types.IsValidCoinDenom(c.Denom) {
 				return errors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid coin denom %s", c.Denom)
 			}
+			if err := c.ValidateBasic(); err != nil {
+				return err
+			}
 
 			msg := types.MsgUpdateTokenMapping{
 				Denom:    c.Denom,
