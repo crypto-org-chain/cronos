@@ -9,10 +9,13 @@ from pathlib import Path
 
 import pytest
 import requests
+from hexbytes import HexBytes
 from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
+from web3 import exceptions
 
 from .network import Cronos, setup_custom_cronos
+from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -167,7 +170,7 @@ def exec(c, tmp_path_factory):
 
     def do_upgrade(plan_name, target, mode=None):
         print(f"upgrade {plan_name} height: {target}")
-        if plan_name == "v1.5":
+        if plan_name in ("v1.5", "v1.6", "v1.7", "v1.8"):
             rsp = cli.submit_gov_proposal(
                 "community",
                 "software-upgrade",
@@ -230,7 +233,7 @@ def exec(c, tmp_path_factory):
         w3,
         CONTRACTS["Random"],
     )
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(exceptions.Web3RPCError) as e_info:
         random_contract.caller.randomTokenId()
     assert "invalid memory address or nil pointer dereference" in str(e_info.value)
     contract = deploy_contract(w3, CONTRACTS["TestERC20A"])
@@ -335,6 +338,40 @@ def exec(c, tmp_path_factory):
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    cli = do_upgrade("v1.6", cli.block_height() + 15)
+    check_basic_tx(c)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    cli = do_upgrade("v1.7", cli.block_height() + 15)
+    check_basic_tx(c)
+
+    tx_af = w3.provider.make_request(method, params)
+    assert tx_af.get("result") == tx_bf.get("result"), tx_af
+
+    # check preinstall correctly installed
+    historical_storage_address = "0x0000F90827F1C53a10cb7A02335B175320002935"
+    expected_historical_storage_address_code = (
+        "3373fffffffffffffffffffffffffffffffffffffffe14604657602036036042575f356001"
+        "43038111604257611fff81430311604257611fff9006545f5260205ff35b5f5ffd5b5f3561"
+        "1fff60014303065500"
+    )
+    historical_storage_address_code = w3.eth.get_code(historical_storage_address)
+    assert historical_storage_address_code == HexBytes(
+        expected_historical_storage_address_code
+    )
+
+    staking_info = preupgrade_staking_setup(cli, c)
+
+    height = cli.block_height()
+    target_height_v18 = height + 15
+
+    cli = do_upgrade("v1.8", target_height_v18)
+
+    postupgrade_check_staking(cli, staking_info)
+    check_basic_tx(c)
 
 
 def test_cosmovisor_upgrade(custom_cronos: Cronos, tmp_path_factory):

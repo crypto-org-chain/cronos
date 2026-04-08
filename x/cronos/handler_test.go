@@ -6,9 +6,10 @@ import (
 	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/crypto-org-chain/cronos/v2/app"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/x/cronos"
+	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/suite"
 
@@ -126,14 +127,53 @@ func (suite *CronosTestSuite) TestMsgTransferTokens() {
 func (suite *CronosTestSuite) TestUpdateTokenMapping() {
 	suite.SetupTest()
 
-	denom := "gravity0x6E7eef2b30585B2A4D45Ba9312015d5354FDB067"
-	contract := "0x57f96e6B86CdeFdB3d412547816a82E3E0EbF9D2"
+	contractAddr, err := suite.app.CronosKeeper.DeployModuleCRC21(suite.ctx, "Test")
+	suite.Require().NoError(err)
+	contract := contractAddr.Hex()
+	denom := "gravity" + contract
 
 	msg := types.NewMsgUpdateTokenMapping(suite.address.String(), denom, contract, "", 0)
-	err := suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, msg)
+	err = suite.app.CronosKeeper.RegisterOrUpdateTokenMapping(suite.ctx, msg)
 	suite.Require().NoError(err)
 
 	contractAddr, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, denom)
 	suite.Require().True(found)
 	suite.Require().Equal(contract, contractAddr.Hex())
+}
+
+func (suite *CronosTestSuite) TestTokenMappingProposalHandlerValidateBasic() {
+	suite.SetupTest()
+
+	handler := cronos.NewTokenMappingChangeProposalHandler(suite.app.CronosKeeper)
+
+	// invalid proposal (empty title) must be rejected
+	suite.Run("invalid proposal rejected", func() {
+		proposal := &types.TokenMappingChangeProposal{
+			Title:       "",
+			Description: "description",
+			Denom:       "gravity0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+			Contract:    "0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+			Symbol:      "SYM",
+			Decimal:     0,
+		}
+		err := handler(suite.ctx, proposal)
+		suite.Require().Error(err)
+	})
+
+	// valid proposal with a deployed contract must succeed
+	suite.Run("valid proposal accepted", func() {
+		contractAddr, err := suite.app.CronosKeeper.DeployModuleCRC21(suite.ctx, "Test")
+		suite.Require().NoError(err)
+
+		proposal := &types.TokenMappingChangeProposal{
+			Title:       "Map test token",
+			Description: "description",
+			Denom:       "gravity" + contractAddr.Hex(),
+			Contract:    contractAddr.Hex(),
+			Symbol:      "SYM",
+			Decimal:     0,
+		}
+		err = handler(suite.ctx, proposal)
+		suite.Require().NoError(err)
+	})
 }

@@ -58,8 +58,9 @@ type EvmLogHandler interface {
 // EvmKeeper defines the interface for evm keeper
 type EvmKeeper interface {
 	GetNonce(ctx sdk.Context, addr common.Address) uint64
-	ApplyMessage(ctx sdk.Context, msg *core.Message, tracer *tracing.Hooks, commit bool) (*evmtypes.MsgEthereumTxResponse, error)
+	ApplyMessage(ctx sdk.Context, msg *core.Message, tracer *tracing.Hooks, commit bool) (*evmtypes.EVMResult, error)
 	GetParams(ctx sdk.Context) evmtypes.Params
+	Code(goCtx context.Context, req *evmtypes.QueryCodeRequest) (*evmtypes.QueryCodeResponse, error)
 
 	// to replay the messages
 	EthereumTx(goCtx context.Context, msg *evmtypes.MsgEthereumTx) (*evmtypes.MsgEthereumTxResponse, error)

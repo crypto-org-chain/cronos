@@ -19,13 +19,13 @@ jobs:
     timeout-minutes: 240
     strategy:
       matrix:
-        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas]
+        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas, mint, evm]
     env:
       TESTS_TO_RUN: ${{ matrix.tests }}
     steps:
       - name: Create more disk space
         run: sudo rm -rf /usr/share/dotnet && sudo rm -rf /opt/ghc && sudo rm -rf "/usr/local/share/boost" && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: changed-files
@@ -37,7 +37,7 @@ jobs:
             **/*.md
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
@@ -46,9 +46,12 @@ jobs:
         with:
           name: cronos
           extraPullNames: dapp
-          # github don't pass secrets for pull request from fork repos,
-          # in that case the push is disabled naturally.
+
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - name: 'build and cache upgrade test packages'
+        if: steps.changed-files.outputs.only_changed == 'false' && matrix.tests == 'upgrade' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        run: cachix watch-exec cronos -- nix-build integration_tests/configs/upgrade-test-package.nix
       - name: Run integration tests
         if: steps.changed-files.outputs.only_changed == 'false'
         run: make run-integration-tests
@@ -64,7 +67,7 @@ jobs:
       - name: Convert coverage data
         if: steps.changed-files.outputs.only_changed == 'false'
         run: |
-          nix profile install ./nix#go_1_22
+          nix profile install ./nix#go_1_25
           go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
         if: steps.changed-files.outputs.only_changed == 'false'
@@ -82,7 +85,7 @@ jobs:
         os: [macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: changed-files
@@ -94,7 +97,7 @@ jobs:
             **/*.md
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
@@ -106,6 +109,7 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: 'instantiate integration test env'
         if: steps.changed-files.outputs.only_changed == 'false'
         run: nix-store -r $(nix-instantiate integration_tests/shell.nix)
@@ -113,12 +117,12 @@ jobs:
   testground-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
@@ -127,6 +131,7 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: Run tests
         run: |
           cd testground/benchmark

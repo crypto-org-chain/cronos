@@ -6,7 +6,14 @@ from hexbytes import HexBytes
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, bech32_to_eth, wait_for_new_blocks, wait_for_port
+from .utils import (
+    ADDRS,
+    bech32_to_eth,
+    derive_new_account,
+    fund_acc,
+    wait_for_new_blocks,
+    wait_for_port,
+)
 
 
 def test_register(cronos: Cronos):
@@ -150,3 +157,86 @@ def test_invalid_block_list(cronos):
     with pytest.raises(AssertionError) as exc:
         cli.store_blocklist(cipherfile, _from="validator")
     assert "failed to read header" in str(exc.value)
+
+
+def test_block_list_eip7022(cronos):
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
+    w3 = cronos.w3
+    # create new account
+    acc = derive_new_account(n=12)
+    fund_acc(w3, acc)
+    acc_nonce = w3.eth.get_transaction_count(acc.address)
+    # set blocklist
+    encrypt_to_validators(cli, {"addresses": [acc.address]})
+
+    target_address = "0x4Cd241E8d1510e30b2076397afc7508Ae59C66c9"
+
+    sender = cli.address("signer2")
+    auth = {
+        "chainId": w3.eth.chain_id,
+        "address": target_address,
+        "nonce": acc_nonce,
+    }
+    signed_auth = acc.sign_authorization(auth)
+    tx = {
+        "chainId": w3.eth.chain_id,
+        "type": 4,
+        "to": acc.address,
+        "gas": 50000,
+        "maxFeePerGas": 10000000000000,
+        "maxPriorityFeePerGas": 10000,
+        "authorizationList": [signed_auth],
+        "data": b"",
+        "from": to_checksum_address(bech32_to_eth(sender)),
+    }
+
+    base_port = cronos.base_port(0)
+    wait_for_port(ports.evmrpc_ws_port(base_port))
+    flt = w3.eth.filter("pending")
+    assert flt.get_new_entries() == []
+
+    txhash = w3.eth.send_transaction(tx).hex()
+    nonce = get_nonce(cli, sender)
+    # check tx in mempool
+    assert HexBytes(txhash) in w3.eth.get_filter_changes(flt.filter_id)
+
+    # clear blocklist
+    encrypt_to_validators(cli, {})
+
+    # the blocked tx should be unblocked now
+    wait_for_new_blocks(cli, 1)
+    assert nonce + 1 == get_nonce(cli, sender)
+    assert w3.eth.get_filter_changes(flt.filter_id) == []
+
+
+def test_block_list_contract(cronos):
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
+    user = cli.address("signer2")
+    blocked_destination = cli.address("signer1")
+    # set blocklist
+    encrypt_to_validators(cli, {"addresses": [blocked_destination]})
+    tx = {
+        "from": to_checksum_address(bech32_to_eth(user)),
+        "to": to_checksum_address(bech32_to_eth(blocked_destination)),
+        "value": 1,
+    }
+    base_port = cronos.base_port(0)
+    wait_for_port(ports.evmrpc_ws_port(base_port))
+    w3 = cronos.w3
+    flt = w3.eth.filter("pending")
+    assert flt.get_new_entries() == []
+
+    txhash = w3.eth.send_transaction(tx).hex()
+    nonce = get_nonce(cli, user)
+    # check tx in mempool
+    assert HexBytes(txhash) in w3.eth.get_filter_changes(flt.filter_id)
+
+    # clear blocklist
+    encrypt_to_validators(cli, {})
+
+    # the blocked tx should be unblocked now
+    wait_for_new_blocks(cli, 1)
+    assert nonce + 1 == get_nonce(cli, user)
+    assert w3.eth.get_filter_changes(flt.filter_id) == []

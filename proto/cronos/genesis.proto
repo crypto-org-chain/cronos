@@ -6,7 +6,7 @@ import "cronos/cronos.proto";
 
 // this line is used by starport scaffolding # genesis/proto/import
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
 // GenesisState defines the cronos module's genesis state.
 message GenesisState {

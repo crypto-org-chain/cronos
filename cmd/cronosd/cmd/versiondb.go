@@ -1,14 +1,13 @@
 //go:build rocksdb
-// +build rocksdb
 
 package cmd
 
 import (
 	"sort"
 
-	"github.com/crypto-org-chain/cronos/v2/app"
-	"github.com/crypto-org-chain/cronos/v2/cmd/cronosd/opendb"
-	versiondbclient "github.com/crypto-org-chain/cronos/versiondb/client"
+	versiondbclient "github.com/crypto-org-chain/cronos-store/versiondb/client"
+	"github.com/crypto-org-chain/cronos/app"
+	"github.com/crypto-org-chain/cronos/cmd/cronosd/opendb"
 	"github.com/linxGnu/grocksdb"
 	"github.com/spf13/cobra"
 )
@@ -25,7 +24,7 @@ func ChangeSetCmd() *cobra.Command {
 		DefaultStores:  storeNames,
 		OpenReadOnlyDB: opendb.OpenReadOnlyDB,
 		AppRocksDBOptions: func(sstFileWriter bool) *grocksdb.Options {
-			return opendb.NewRocksdbOptions(nil, sstFileWriter)
+			return opendb.NewRocksdbOptions(nil, sstFileWriter, opendb.RocksDBTuneUpOptions{})
 		},
 	})
 }
