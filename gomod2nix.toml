@@ -79,8 +79,8 @@ schema = 3
     version = "v1.2.1"
     hash = "sha256-9ZJdrmqBj43zSvStt0r25wjSfnvitdx3GYtM3urHcaA="
   [mod."filippo.io/edwards25519"]
-    version = "v1.1.0"
-    hash = "sha256-9ACANrgWZSd5HYPfDZHY8DVbPSC9LOMgy8deq3rDOoc="
+    version = "v1.1.1"
+    hash = "sha256-Uv7VeL9tVGn+0lRfEaRJcTsU2WWlvNSjTpkbKzuuQhM="
   [mod."github.com/99designs/go-keychain"]
     version = "v0.0.0-20191008050251-8e49817e8af4"
     hash = "sha256-4EndKcspGC3GOPCmctXF1NnWzxWwMyY/OQpFMmr8Sc0="
@@ -242,16 +242,16 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260213095350-1e44cafb6b9f"
-    hash = "sha256-nvS2e/XIVmYkjSyf2BYWzcYF6RrgSLjoebndOdxBY2E="
+    version = "v0.0.0-20260226040813-703ea3d46c70"
+    hash = "sha256-dE4NW6ycr2uaDJms+In3pwDwCaNDHMIAbu2Li2RJBqk="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260213095350-1e44cafb6b9f"
-    hash = "sha256-ShQ3FYpqKzjs8EFJIvpbCNUp34FBuNCGZAqWvg8G1Fk="
+    version = "v0.0.0-20260226040813-703ea3d46c70"
+    hash = "sha256-y89RSeGMoClpzZxnCOi0Eq1Kvx4nDYmZywGeUK8qcJA="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260213095350-1e44cafb6b9f"
-    hash = "sha256-jDPVDFGkrKoaK8rhAMtmD+yZufzokoTBCKQDUeT2nzI="
+    version = "v0.0.0-20260226040813-703ea3d46c70"
+    hash = "sha256-IXaPYyaiguHB8rc6KAKr6pVd65LyeB8H6e3Sm1e3pbg="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.1"
@@ -322,8 +322,8 @@ schema = 3
     version = "v0.35.0"
     hash = "sha256-LUyUYunzgGawb+Ng5+HwoKM7jLAW9A+d9fvSDqv2dxU="
   [mod."github.com/go-jose/go-jose/v4"]
-    version = "v4.1.3"
-    hash = "sha256-WfogdTIRu4yDtCVX5fzz/+kKVPwX/hXBl+nY31XFHNc="
+    version = "v4.1.4"
+    hash = "sha256-MKoJKXup1jfwOyN8mHXu1CQ8fvFJTaEf3K2LVtNSRhc="
   [mod."github.com/go-kit/kit"]
     version = "v0.13.0"
     hash = "sha256-EncDzq0JVtY+NLlW5lD+nbVewNYTTrfzlOxI4PuwREw="
@@ -499,8 +499,8 @@ schema = 3
     version = "v1.10.9"
     hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
   [mod."github.com/linxGnu/grocksdb"]
-    version = "v1.10.4"
-    hash = "sha256-/D7RSFtVXZI9KW8+IK+SFDi+kS/+7I2MXk664IU82/k="
+    version = "v1.10.7"
+    hash = "sha256-heU4fQSj9j8Tg1hVwFrBBXZ0SX0cqrLUvsQY6H3tpJM="
   [mod."github.com/manifoldco/promptui"]
     version = "v0.9.0"
     hash = "sha256-Fe2OPoyRExZejwtUBivKhfJAJW7o9b1eyYpgDlWQ1No="

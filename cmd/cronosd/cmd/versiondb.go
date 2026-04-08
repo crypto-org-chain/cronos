@@ -24,7 +24,7 @@ func ChangeSetCmd() *cobra.Command {
 		DefaultStores:  storeNames,
 		OpenReadOnlyDB: opendb.OpenReadOnlyDB,
 		AppRocksDBOptions: func(sstFileWriter bool) *grocksdb.Options {
-			return opendb.NewRocksdbOptions(nil, sstFileWriter)
+			return opendb.NewRocksdbOptions(nil, sstFileWriter, opendb.RocksDBTuneUpOptions{})
 		},
 	})
 }
