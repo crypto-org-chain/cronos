@@ -1,5 +1,4 @@
 //go:build rocksdb
-// +build rocksdb
 
 package dbmigrate
 
@@ -11,7 +10,7 @@ import (
 
 // PrepareRocksDBOptions returns RocksDB options for migration
 func PrepareRocksDBOptions() interface{} {
-	return opendb.NewRocksdbOptions(nil, false)
+	return opendb.NewRocksdbOptions(nil, false, opendb.RocksDBTuneUpOptions{})
 }
 
 // openRocksDBForMigration opens a RocksDB database for migration (write mode)
