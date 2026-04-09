@@ -156,7 +156,7 @@ func (k Keeper) ensureContractNotMapped(ctx sdk.Context, denom string, address c
 		return nil
 	}
 	if k.contractOwnedByDenom(ctx, existingDenom, address) {
-		return fmt.Errorf("the contract is already registered: %s", address.Hex())
+		return errors.Wrapf(types.ErrContractAlreadyRegistered, "contract %s is already registered for denom %s", address.Hex(), existingDenom)
 	}
 	// stale reverse entry
 	store.Delete(types.ContractToDenomKey(address.Bytes()))

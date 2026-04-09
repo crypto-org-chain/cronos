@@ -98,13 +98,13 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 				ExternalContracts: []types.TokenMapping{
 					{
 						Denom:    "ibc/6B5A664BF0AF4F71B2F0BAA33141E2F1321242FBD5D19762F541EC971ACB0865",
-						Contract: "0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000001",
 					},
 				},
 				AutoContracts: []types.TokenMapping{
 					{
 						Denom:    "gravity0x0000000000000000000000000000000000000000",
-						Contract: "0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000002",
 					},
 				},
 			},
@@ -118,13 +118,13 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 				ExternalContracts: []types.TokenMapping{
 					{
 						Denom:    "cronos0x0000000000000000000000000000000000000000",
-						Contract: "0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000003",
 					},
 				},
 				AutoContracts: []types.TokenMapping{
 					{
 						Denom:    "cronos0x0000000000000000000000000000000000000000",
-						Contract: "0x0000000000000000000000000000000000000000",
+						Contract: "0x0000000000000000000000000000000000000004",
 					},
 				},
 			},
@@ -151,6 +151,7 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
+			suite.SetupTest()
 			tc.malleate()
 			if tc.expPanic {
 				suite.Require().Panics(
