@@ -104,7 +104,9 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 		if err != nil {
 			return err
 		}
-		k.SetAutoContractForDenom(ctx, coin.Denom, contract)
+		if err = k.SetAutoContractForDenom(ctx, coin.Denom, contract); err != nil {
+			return err
+		}
 
 		k.Logger(ctx).Info(fmt.Sprintf("contract address %s created for coin denom %s", contract.String(), coin.Denom))
 	}
