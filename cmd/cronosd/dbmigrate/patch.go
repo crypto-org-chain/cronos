@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -740,8 +741,8 @@ func incrementBytes(b []byte) []byte {
 	copy(incremented, b)
 
 	// Increment from the last byte, carrying over if necessary
-	for i := len(incremented) - 1; i >= 0; i-- {
-		if incremented[i] < 0xFF {
+	for i, v := range slices.Backward(incremented) {
+		if v < 0xFF {
 			incremented[i]++
 			return incremented
 		}
