@@ -741,13 +741,13 @@ func incrementBytes(b []byte) []byte {
 	copy(incremented, b)
 
 	// Increment from the last byte, carrying over if necessary
-	for _, v := range slices.Backward(incremented) {
+	for i, v := range slices.Backward(incremented) {
 		if v < 0xFF {
-			v++
+			incremented[i]++
 			return incremented
 		}
 		// If byte is 0xFF, set to 0x00 and continue to carry
-		v = 0x00
+		incremented[i] = 0x00
 	}
 
 	// If all bytes were 0xFF, return nil to signal no exclusive upper bound
