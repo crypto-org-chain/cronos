@@ -126,23 +126,69 @@ func (k Keeper) GetDenomByContract(ctx sdk.Context, contract common.Address) (de
 	if len(bz) == 0 {
 		return "", false
 	}
+	denom = string(bz)
+	// Cross-check against current mapping to avoid stale reverse entries in legacy state.
+	current, ok := k.GetContractByDenom(ctx, denom)
+	if !ok || current != contract {
+		return "", false
+	}
+	return denom, true
+}
 
-	return string(bz), true
+func (k Keeper) contractOwnedByDenom(ctx sdk.Context, denom string, address common.Address) bool {
+	if ext, found := k.getExternalContractByDenom(ctx, denom); found && ext == address {
+		return true
+	}
+	if auto, found := k.getAutoContractByDenom(ctx, denom); found && auto == address {
+		return true
+	}
+	return false
+}
+
+func (k Keeper) ensureContractNotMapped(ctx sdk.Context, denom string, address common.Address) error {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.ContractToDenomKey(address.Bytes()))
+	if len(bz) == 0 {
+		return nil
+	}
+	existingDenom := string(bz)
+	if existingDenom == denom {
+		return nil
+	}
+	if k.contractOwnedByDenom(ctx, existingDenom, address) {
+		return errors.Wrapf(types.ErrContractAlreadyRegistered, "contract %s is already registered for denom %s", address.Hex(), existingDenom)
+	}
+	// stale reverse entry
+	store.Delete(types.ContractToDenomKey(address.Bytes()))
+	return nil
+}
+
+func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, denom string) {
+	if bz := store.Get(types.ContractToDenomKey(address.Bytes())); len(bz) != 0 && string(bz) == denom {
+		store.Delete(types.ContractToDenomKey(address.Bytes()))
+	}
 }
 
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	// check the contract is not registered already
-	_, found := k.GetDenomByContract(ctx, address)
-	if found {
-		return fmt.Errorf("the contract is already registered: %s", address.Hex())
+	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
+		return err
 	}
 
 	store := ctx.KVStore(k.storeKey)
 	existing, found := k.getExternalContractByDenom(ctx, denom)
 	if found {
 		// remove existing mapping
-		store.Delete(types.ContractToDenomKey(existing.Bytes()))
+		deleteReverseIfOwned(store, existing, denom)
+	}
+	if !types.IsSourceCoin(denom) {
+		auto, found := k.getAutoContractByDenom(ctx, denom)
+		if found {
+			// retire auto mapping when external mapping is set for non-source denoms
+			store.Delete(types.DenomToAutoContractKey(denom))
+			deleteReverseIfOwned(store, auto, denom)
+		}
 	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
@@ -184,15 +230,36 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 		return false
 	}
 	store.Delete(types.DenomToExternalContractKey(denom))
-	store.Delete(types.ContractToDenomKey(contract.Bytes()))
+	deleteReverseIfOwned(store, contract, denom)
+	if auto, found := k.getAutoContractByDenom(ctx, denom); found {
+		bz := store.Get(types.ContractToDenomKey(auto.Bytes()))
+		if len(bz) == 0 {
+			store.Set(types.ContractToDenomKey(auto.Bytes()), []byte(denom))
+		} else if existingDenom := string(bz); existingDenom != denom {
+			if k.contractOwnedByDenom(ctx, existingDenom, auto) {
+				// auto address is already owned by another denom; drop local auto mapping
+				store.Delete(types.DenomToAutoContractKey(denom))
+			} else {
+				// stale reverse entry
+				store.Set(types.ContractToDenomKey(auto.Bytes()), []byte(denom))
+			}
+		}
+	}
 	return true
 }
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
-func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) {
+func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	store := ctx.KVStore(k.storeKey)
+	if _, found := k.getExternalContractByDenom(ctx, denom); found && !types.IsSourceCoin(denom) {
+		return errors.Wrapf(types.ErrExternalMappingExists, "external mapping already exists for denom %s", denom)
+	}
+	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
+		return err
+	}
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+	return nil
 }
 
 // OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure
@@ -223,7 +290,7 @@ func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) err
 	if err != nil {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "failed to query contract code (%s): %v", contract.Hex(), err)
 	}
-	if len(resp.Code) == 0 {
+	if resp == nil || len(resp.Code) == 0 {
 		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "no contract code at address (%s)", contract.Hex())
 	}
 	return nil
@@ -234,6 +301,17 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 	if types.IsSourceCoin(msg.Denom) {
 		_, err := types.GetContractAddressFromDenom(msg.Denom)
 		if err != nil {
+			return err
+		}
+
+		if !common.IsHexAddress(msg.Contract) {
+			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+		}
+		contract := common.HexToAddress(msg.Contract)
+		if err := k.ensureContractCode(ctx, contract); err != nil {
+			return err
+		}
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
 
@@ -269,18 +347,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 		}
 		k.bankKeeper.SetDenomMetaData(ctx, metadata)
-
-		// update the mapping
-		if !common.IsHexAddress(msg.Contract) {
-			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
-		}
-		contract := common.HexToAddress(msg.Contract)
-		if err := k.ensureContractCode(ctx, contract); err != nil {
-			return err
-		}
-		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
-			return err
-		}
 	} else {
 		if len(msg.Contract) == 0 {
 			// delete existing mapping
