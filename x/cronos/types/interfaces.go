@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/tracing"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
@@ -59,6 +60,7 @@ type EvmLogHandler interface {
 type EvmKeeper interface {
 	GetNonce(ctx sdk.Context, addr common.Address) uint64
 	ApplyMessage(ctx sdk.Context, msg *core.Message, tracer *tracing.Hooks, commit bool) (*evmtypes.EVMResult, error)
+	ApplyInternalMessage(ctx sdk.Context, msg *core.Message, stateDB vm.StateDB) (*evmtypes.EVMResult, error)
 	GetParams(ctx sdk.Context) evmtypes.Params
 
 	// to replay the messages

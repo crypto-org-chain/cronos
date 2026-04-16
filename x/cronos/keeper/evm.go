@@ -37,18 +37,27 @@ func (k Keeper) CallEVM(ctx sdk.Context, to *common.Address, data []byte, value 
 		SkipNonceChecks:  false,
 		SkipFromEOACheck: false,
 	}
+
+	// Detect nested call: if an outer StateDB already exists in the context,
+	// use ApplyInternalMessage to reuse it instead of creating a new one.
+	// This prevents the stale-cache vulnerability where a second StateDB's
+	// commit invalidates the outer StateDB's cached state.
+	if outerStateDB, ok := ctx.Value(statedb.StateDBContextKey).(vm.StateDB); ok {
+		ret, err := k.evmKeeper.ApplyInternalMessage(ctx, msg, outerStateDB)
+		if err != nil {
+			return nil, nil, err
+		}
+		// No log re-emission needed: since we reused the outer StateDB,
+		// logs emitted by the nested evm.Call() are already in the outer
+		// StateDB's log list.
+		return msg, ret, nil
+	}
+
+	// Top-level case: use the original ApplyMessage path.
 	ret, err := k.evmKeeper.ApplyMessage(ctx, msg, nil, true)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// if the call is from an precompiled contract call, then re-emit the logs into the original stateDB.
-	if stateDB, ok := ctx.Value(statedb.StateDBContextKey).(vm.StateDB); ok {
-		for _, l := range ret.Logs {
-			stateDB.AddLog(l.ToEthereum())
-		}
-	}
-
 	return msg, ret, nil
 }
 

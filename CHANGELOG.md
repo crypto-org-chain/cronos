@@ -26,6 +26,7 @@
 * [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) refactor: replace MsgEthereumTxResponse with EthCallResponse in EVM calls 
 * [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) fix: eip712 legacy signature verify 
 * [#1963](https://github.com/crypto-org-chain/cronos/pull/1963) fix: apply tachyon patch
+* [#2014](https://github.com/crypto-org-chain/cronos/pull/2014) fix: prevent nested stateDB in precompile call
 
 *Dec 4, 2025*
 
