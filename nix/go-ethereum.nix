@@ -3,8 +3,7 @@
   stdenv,
   buildGoModule,
   fetchFromGitHub,
-  libobjc,
-  IOKit,
+  apple-sdk_15,
 }:
 
 let
@@ -58,9 +57,9 @@ buildGoModule rec {
   ];
 
   # Fix for usb-related segmentation faults on darwin
+  # In nixpkgs 25.11, add the SDK which provides all frameworks including IOKit
   propagatedBuildInputs = lib.optionals stdenv.isDarwin [
-    libobjc
-    IOKit
+    apple-sdk_15
   ];
 
   meta = with lib; {

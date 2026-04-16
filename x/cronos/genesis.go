@@ -1,10 +1,11 @@
 package cronos
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,8 +19,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 
 	for _, m := range genState.ExternalContracts {
-		// Only allowed to bootstrap external token at genesis
-		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) {
+		// Only allow IBC, gravity, or cronos denoms at genesis.
+		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) && !types.IsValidCronosDenom(m.Denom) {
 			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
 		}
 		if !common.IsHexAddress(m.Contract) {
@@ -31,14 +32,21 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 
 	for _, m := range genState.AutoContracts {
-		// Only allowed to bootstrap external token at genesis
-		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) {
+		// Only allow IBC, gravity, or cronos denoms at genesis.
+		if !types.IsValidIBCDenom(m.Denom) && !types.IsValidGravityDenom(m.Denom) && !types.IsValidCronosDenom(m.Denom) {
 			panic(fmt.Sprintf("Invalid denom to map to contract: %s", m.Denom))
 		}
 		if !common.IsHexAddress(m.Contract) {
 			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
 		}
-		k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract))
+		if err := k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
+			if errors.Is(err, types.ErrExternalMappingExists) {
+				k.Logger(ctx).Info("skipping auto contract import, external mapping already exists",
+					"denom", m.Denom, "contract", m.Contract, "error", err)
+				continue
+			}
+			panic(err)
+		}
 	}
 
 	// this line is used by starport scaffolding # genesis/module/init
@@ -52,6 +60,8 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 
 	// this line is used by starport scaffolding # ibc/genesis/export
 
+	// Auto and external contracts are mutually exclusive for non-source denoms:
+	// SetExternalContractForDenom retires any auto mapping for the same denom.
 	return &types.GenesisState{
 		Params:            k.GetParams(ctx),
 		ExternalContracts: k.GetExternalContracts(ctx),

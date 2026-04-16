@@ -2,6 +2,111 @@
 
 ## UNRELEASED
 
+### Improvements
+
+* [#1977](https://github.com/crypto-org-chain/cronos/pull/1977) Upgrade rocksdb to v10.9.1 and add tuning profiles.
+* [#1970](https://github.com/crypto-org-chain/cronos/pull/1970) feat(testground): refine testground test process in local
+* [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
+* [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
+* [#1978](https://github.com/crypto-org-chain/cronos/pull/1978) feat(cosmos-sdk): Optimize staking end-block queue through using pending queue slots instead of iterators.
+
+### Bug fixes
+
+* [#1979](https://github.com/crypto-org-chain/cronos/pull/1979) fix(testground): fix send_batch_size&send_interval setup failed in testground.
+* [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
+* [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
+* [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
+
+### Chores:
+* [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
+
+
+*Jan 26, 2026*
+
+## v1.7.0
+
+### Improvements
+
+* [#1895](https://github.com/crypto-org-chain/cronos/pull/1895) feat: use cronos store.
+* [#1908](https://github.com/crypto-org-chain/cronos/pull/1908) Add db migration/patch CLI tool
+* [#1875](https://github.com/crypto-org-chain/cronos/pull/1875) Support for preinstalls
+* [#1882](https://github.com/crypto-org-chain/cronos/pull/1882) Support for eip2935
+* [#1880](https://github.com/crypto-org-chain/cronos/pull/1880) Move module from v2 to v1 to follow semver convention
+* [#1933](https://github.com/crypto-org-chain/cronos/pull/1933) Chore: add validation for HeaderHashNum and HistoryServeWindow in evm params
+* [#1941](https://github.com/crypto-org-chain/cronos/pull/1941) fix: return calculated gas instead of panic for RelayerContract, add guards for ica precompile and ibc getSourceChannelId
+* [#1932](https://github.com/crypto-org-chain/cronos/pull/1932) Support create_access_list
+* [#1939](https://github.com/crypto-org-chain/cronos/pull/1939) Add preinstall in upgrade handler
+
+
+### Bug fixes
+
+* [#1982](https://github.com/crypto-org-chain/cronos/pull/1982) fix(nix): enable LZ4 support for Windows builds.
+* [#1946](https://github.com/crypto-org-chain/cronos/pull/1946) Fix: allow preinstall in case account has a balance
+* [#1947](https://github.com/crypto-org-chain/cronos/pull/1947) Fix: estimate gas not accurate
+* [#1929](https://github.com/crypto-org-chain/ethermint/pull/1929) fix: add check on evm transaction tip
+* [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) refactor: replace MsgEthereumTxResponse with EthCallResponse in EVM calls 
+* [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) fix: eip712 legacy signature verify 
+* [#1963](https://github.com/crypto-org-chain/cronos/pull/1963) fix: apply tachyon patch
+
+*Dec 4, 2025*
+
+## v1.6.1
+
+### Bug fixes
+
+[#1929](https://github.com/crypto-org-chain/ethermint/pull/1929) fix: add check on evm transaction tip
+
+*Dec 1, 2025*
+
+## v1.6.0
+
+### Improvements
+
+* [#1903](https://github.com/crypto-org-chain/cronos/pull/1903) Feat: check authorization list in e2ee.
+* [#1922](https://github.com/crypto-org-chain/cronos/pull/1922) Feat: check destination address in the blocklist
+* [#1924](https://github.com/crypto-org-chain/cronos/pull/1924) Fix: check authorisation address in the blocklist
+
+### Bug fixes
+
+* [#1918](https://github.com/crypto-org-chain/cronos/pull/1918) Chore: cleanup and improve x/mint params validation and test in cosmos-sdk
+
+
+*Nov 30, 2025*
+
+## v1.5.4
+
+### Improvements
+
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Chore: cleanup release by reverting #1892, #1893 and #1850.
+* [#1901](https://github.com/crypto-org-chain/cronos/pull/1901) Feat: add mempool.feebump and disable-tx-replacement flags.
+* [#1911](https://github.com/crypto-org-chain/cronos/pull/1911) Fix: bug on multiple tx replacements
+
+
+*Oct 30, 2025*
+
+## v1.5.3
+
+### Bug fixes
+* [#1898](https://github.com/crypto-org-chain/cronos/pull/1898) Check authorisation list for blocklisted address.
+
+## v1.5.2
+
+* [#1892](https://github.com/crypto-org-chain/cronos/pull/1892) fix: disable memiavl cache when optimistic execution is enabled.
+* [#1893](https://github.com/crypto-org-chain/cronos/pull/1893) Normalize cache validator queue key to be UTC.
+* [#1850](https://github.com/crypto-org-chain/cronos/pull/1850) Optimize staking endblocker execution by caching queue entries from iterators. Upgrade RocksDB to `v10.4.2` and enable asyncIO.
+
+*Oct 15, 2025*
+
+## v1.5.1
+
+* [#1869](https://github.com/crypto-org-chain/cronos/pull/1869) Add missing tx context during vm initialisation
+* [#1872](https://github.com/crypto-org-chain/cronos/pull/1872) fix(evm): support 4byteTracer for tracer
+* [#1888](https://github.com/crypto-org-chain/cronos/pull/1888) Patch comet bft (GHSA-hrhf-2vcr-ghch)
+
+*Sep 4, 2025*
+
+## v1.5.0
+
 ### State Machine Breaking
 
 * [#1731](https://github.com/crypto-org-chain/cronos/pull/1804) Upgrade to ibc-go v10.1.1
@@ -10,12 +115,20 @@
 
 
 ### Improvements
+
 * [#1841](https://github.com/crypto-org-chain/cronos/pull/1841) Ci: use `golangci-lint run --fix`.
 * [#1779](https://github.com/crypto-org-chain/cronos/pull/1779) Upgrade rocksdb to `v9.11.2`.
 * [#1824](https://github.com/crypto-org-chain/cronos/pull/1824) Rework on github actions.
 * [#1826](https://github.com/crypto-org-chain/cronos/pull/1826) Update linter and tidy up code.
 * [#1807](https://github.com/crypto-org-chain/cronos/pull/1807) Update go-ethereum version to [v1.15.11](https://github.com/ethereum/go-ethereum/releases/tag/v1.15.11).
 * [#1840](https://github.com/crypto-org-chain/cronos/pull/1840) Tx replacement support.
+* [#1851](https://github.com/crypto-org-chain/cronos/pull/1850) Add default value of CancunTime and PragueTime in chain config.
+* [#1863](https://github.com/crypto-org-chain/cronos/pull/1863) Support EIP-7702 transaction type
+* [#1867](https://github.com/crypto-org-chain/cronos/pull/1867) Add authorizationList from `eth_getTransactionByHash` response for EIP-7702 transactions
+
+### Bug fixes
+
+* [#1858](https://github.com/crypto-org-chain/cronos/pull/1858) Fix version not found during pruning.
 
 *Jun 20, 2025*
 

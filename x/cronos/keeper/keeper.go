@@ -9,9 +9,10 @@ import (
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
-	cronosprecompiles "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper/precompiles"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -115,7 +116,7 @@ func (k Keeper) GetContractByDenom(ctx sdk.Context, denom string) (contract comm
 	if !found {
 		contract, found = k.getAutoContractByDenom(ctx, denom)
 	}
-	return
+	return contract, found
 }
 
 // GetDenomByContract find native denom by contract address
@@ -125,23 +126,69 @@ func (k Keeper) GetDenomByContract(ctx sdk.Context, contract common.Address) (de
 	if len(bz) == 0 {
 		return "", false
 	}
+	denom = string(bz)
+	// Cross-check against current mapping to avoid stale reverse entries in legacy state.
+	current, ok := k.GetContractByDenom(ctx, denom)
+	if !ok || current != contract {
+		return "", false
+	}
+	return denom, true
+}
 
-	return string(bz), true
+func (k Keeper) contractOwnedByDenom(ctx sdk.Context, denom string, address common.Address) bool {
+	if ext, found := k.getExternalContractByDenom(ctx, denom); found && ext == address {
+		return true
+	}
+	if auto, found := k.getAutoContractByDenom(ctx, denom); found && auto == address {
+		return true
+	}
+	return false
+}
+
+func (k Keeper) ensureContractNotMapped(ctx sdk.Context, denom string, address common.Address) error {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.ContractToDenomKey(address.Bytes()))
+	if len(bz) == 0 {
+		return nil
+	}
+	existingDenom := string(bz)
+	if existingDenom == denom {
+		return nil
+	}
+	if k.contractOwnedByDenom(ctx, existingDenom, address) {
+		return errors.Wrapf(types.ErrContractAlreadyRegistered, "contract %s is already registered for denom %s", address.Hex(), existingDenom)
+	}
+	// stale reverse entry
+	store.Delete(types.ContractToDenomKey(address.Bytes()))
+	return nil
+}
+
+func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, denom string) {
+	if bz := store.Get(types.ContractToDenomKey(address.Bytes())); len(bz) != 0 && string(bz) == denom {
+		store.Delete(types.ContractToDenomKey(address.Bytes()))
+	}
 }
 
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	// check the contract is not registered already
-	_, found := k.GetDenomByContract(ctx, address)
-	if found {
-		return fmt.Errorf("the contract is already registered: %s", address.Hex())
+	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
+		return err
 	}
 
 	store := ctx.KVStore(k.storeKey)
 	existing, found := k.getExternalContractByDenom(ctx, denom)
 	if found {
 		// remove existing mapping
-		store.Delete(types.ContractToDenomKey(existing.Bytes()))
+		deleteReverseIfOwned(store, existing, denom)
+	}
+	if !types.IsSourceCoin(denom) {
+		auto, found := k.getAutoContractByDenom(ctx, denom)
+		if found {
+			// retire auto mapping when external mapping is set for non-source denoms
+			store.Delete(types.DenomToAutoContractKey(denom))
+			deleteReverseIfOwned(store, auto, denom)
+		}
 	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
@@ -158,7 +205,7 @@ func (k Keeper) GetExternalContracts(ctx sdk.Context) (out []types.TokenMapping)
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // GetAutoContracts returns all auto-deployed contract mappings
@@ -171,7 +218,7 @@ func (k Keeper) GetAutoContracts(ctx sdk.Context) (out []types.TokenMapping) {
 			Contract: common.BytesToAddress(iter.Value()).Hex(),
 		})
 	}
-	return
+	return out
 }
 
 // DeleteExternalContractForDenom delete the external contract mapping for native denom,
@@ -183,15 +230,36 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 		return false
 	}
 	store.Delete(types.DenomToExternalContractKey(denom))
-	store.Delete(types.ContractToDenomKey(contract.Bytes()))
+	deleteReverseIfOwned(store, contract, denom)
+	if auto, found := k.getAutoContractByDenom(ctx, denom); found {
+		bz := store.Get(types.ContractToDenomKey(auto.Bytes()))
+		if len(bz) == 0 {
+			store.Set(types.ContractToDenomKey(auto.Bytes()), []byte(denom))
+		} else if existingDenom := string(bz); existingDenom != denom {
+			if k.contractOwnedByDenom(ctx, existingDenom, auto) {
+				// auto address is already owned by another denom; drop local auto mapping
+				store.Delete(types.DenomToAutoContractKey(denom))
+			} else {
+				// stale reverse entry
+				store.Set(types.ContractToDenomKey(auto.Bytes()), []byte(denom))
+			}
+		}
+	}
 	return true
 }
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
-func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) {
+func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	store := ctx.KVStore(k.storeKey)
+	if _, found := k.getExternalContractByDenom(ctx, denom); found && !types.IsSourceCoin(denom) {
+		return errors.Wrapf(types.ErrExternalMappingExists, "external mapping already exists for denom %s", denom)
+	}
+	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
+		return err
+	}
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+	return nil
 }
 
 // OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure
@@ -215,11 +283,35 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
 }
 
+func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
+	resp, err := k.evmKeeper.Code(ctx, &evmtypes.QueryCodeRequest{
+		Address: contract.Hex(),
+	})
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "failed to query contract code (%s): %v", contract.Hex(), err)
+	}
+	if resp == nil || len(resp.Code) == 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "no contract code at address (%s)", contract.Hex())
+	}
+	return nil
+}
+
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
 func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
 	if types.IsSourceCoin(msg.Denom) {
 		_, err := types.GetContractAddressFromDenom(msg.Denom)
 		if err != nil {
+			return err
+		}
+
+		if !common.IsHexAddress(msg.Contract) {
+			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+		}
+		contract := common.HexToAddress(msg.Contract)
+		if err := k.ensureContractCode(ctx, contract); err != nil {
+			return err
+		}
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
 
@@ -255,11 +347,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 		}
 		k.bankKeeper.SetDenomMetaData(ctx, metadata)
-
-		// update the mapping
-		if err := k.SetExternalContractForDenom(ctx, msg.Denom, common.HexToAddress(msg.Contract)); err != nil {
-			return err
-		}
 	} else {
 		if len(msg.Contract) == 0 {
 			// delete existing mapping
@@ -270,6 +357,9 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 			// update the mapping
 			contract := common.HexToAddress(msg.Contract)
+			if err := k.ensureContractCode(ctx, contract); err != nil {
+				return err
+			}
 			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 				return err
 			}
@@ -301,8 +391,14 @@ func (k Keeper) onPacketResult(
 		return err
 	}
 	gasLimit := k.GetParams(ctx).MaxCallbackGas
-	_, _, err = k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
-	return err
+	_, res, err := k.CallEVM(ctx, &senderAddr, data, big.NewInt(0), gasLimit)
+	if err != nil {
+		return err
+	}
+	if res.Failed() {
+		return fmt.Errorf("IBC callback EVM execution reverted: %s", res.VmError)
+	}
+	return nil
 }
 
 func (k Keeper) IBCOnAcknowledgementPacketCallback(

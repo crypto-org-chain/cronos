@@ -10,9 +10,10 @@ from eth_bloom import BloomFilter
 from eth_utils import abi, big_endian_to_int
 from hexbytes import HexBytes
 from pystarport import cluster, ports
+from web3 import Web3, exceptions
 
 from .cosmoscli import CosmosCLI, module_address
-from .network import Geth
+from .network import Geth, setup_custom_cronos
 from .utils import (
     ADDRS,
     CONTRACTS,
@@ -25,14 +26,12 @@ from .utils import (
     contract_path,
     deploy_contract,
     derive_new_account,
-    get_account_nonce,
+    fund_acc,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
-    modify_command_in_supervisor_config,
-    replace_transaction,
+    remove_cancun_prague_params,
     send_transaction,
-    send_txs,
     sign_transaction,
     submit_any_proposal,
     submit_gov_proposal,
@@ -116,7 +115,7 @@ def test_events(cluster, suspend_capture):
         w3,
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
-        exp_gas_used=641641,
+        exp_gas_used=564724,
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
@@ -156,7 +155,7 @@ def test_minimal_gas_price(cronos):
         "to": "0x0000000000000000000000000000000000000000",
         "value": 10000,
     }
-    with pytest.raises(ValueError):
+    with pytest.raises(exceptions.Web3RPCError):
         send_transaction(
             w3,
             {**tx, "gasPrice": 1},
@@ -429,7 +428,7 @@ def test_transaction(cronos):
     initial_block_number = w3.eth.get_block_number()
 
     # tx already in mempool
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -443,7 +442,7 @@ def test_transaction(cronos):
     assert "tx already in mempool" in str(exc)
 
     # invalid sequence
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -457,7 +456,7 @@ def test_transaction(cronos):
     assert "invalid sequence" in str(exc)
 
     # out of gas
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -471,7 +470,7 @@ def test_transaction(cronos):
     assert "out of gas" in str(exc)
 
     # insufficient fee
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(exceptions.Web3RPCError) as exc:
         send_transaction(
             w3,
             {
@@ -567,7 +566,9 @@ def assert_receipt_transaction_and_block(w3, futures):
     assert len(block_receipts) == 4
     for i, block_receipt in enumerate(block_receipts):
         assert block_receipt["blockNumber"] == hex(receipts[i]["blockNumber"])
-        assert block_receipt["transactionHash"] == receipts[i]["transactionHash"].hex()
+        assert block_receipt["transactionHash"] == Web3.to_hex(
+            receipts[i]["transactionHash"]
+        )
         assert block_receipt["cumulativeGasUsed"] == hex(
             receipts[i]["cumulativeGasUsed"]
         )
@@ -669,13 +670,22 @@ def test_message_call(cronos):
     assert len(receipt.logs) == iterations
 
 
-def test_suicide(cluster):
+@pytest.fixture(scope="module")
+def custom_cronos(tmp_path_factory):
+    path = tmp_path_factory.mktemp("pre_cancun")
+    # init with genesis binary
+    cfg = Path(__file__).parent / ("configs/default.jsonnet")
+    yield from setup_custom_cronos(path, 26530, cfg)
+
+
+def test_suicide_pre_cancun(custom_cronos):
     """
     test compliance of contract suicide
     - within the tx, after contract suicide, the code is still available.
     - after the tx, the code is not available.
     """
-    w3 = cluster.w3
+    remove_cancun_prague_params(custom_cronos)
+    w3 = custom_cronos.w3
     destroyee = deploy_contract(
         w3,
         contract_path("Destroyee", "TestSuicide.sol"),
@@ -694,6 +704,42 @@ def test_suicide(cluster):
     assert receipt.status == 1
 
     assert len(w3.eth.get_code(destroyee.address)) == 0
+
+
+def test_suicide_post_cancun(cluster):
+    """
+    after EIP-6780, SELFDESTRUCT will recover all funds to the target
+    but not delete the account, except when called in the same transaction as creation
+    """
+    w3 = cluster.w3
+    destroyee = deploy_contract(
+        w3,
+        contract_path("Destroyee", "TestSuicide.sol"),
+    )
+    destroyer = deploy_contract(
+        w3,
+        contract_path("Destroyer", "TestSuicide.sol"),
+    )
+
+    balance_wanted = 1000000000000000000
+    fund_acc(w3, destroyee, balance_wanted)
+    assert w3.eth.get_balance(destroyee.address) == balance_wanted
+    assert w3.eth.get_balance(destroyer.address) == 0
+
+    old_code_destroyee = w3.eth.get_code(destroyee.address)
+    old_code_destroyer = w3.eth.get_code(destroyer.address)
+    assert len(old_code_destroyee) > 0
+    assert len(old_code_destroyer) > 0
+
+    tx = destroyer.functions.check_codesize_after_suicide(
+        destroyee.address
+    ).build_transaction()
+    receipt = send_transaction(w3, tx)
+    assert receipt.status == 1
+
+    assert w3.eth.get_code(destroyee.address) == old_code_destroyee
+    assert w3.eth.get_balance(destroyee.address) == 0
+    assert w3.eth.get_balance(destroyer.address) == balance_wanted
 
 
 def test_batch_tx(cronos):
@@ -749,7 +795,7 @@ def test_batch_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [h.hex()])["result"]
+        w3.provider.make_request("debug_traceTransaction", [Web3.to_hex(h)])["result"]
         for h in tx_hashes
     ]
 
@@ -815,7 +861,8 @@ def test_failed_transfer_tx(cronos):
 
     # check traceTransaction
     rsps = [
-        w3.provider.make_request("debug_traceTransaction", [h.hex()]) for h in tx_hashes
+        w3.provider.make_request("debug_traceTransaction", [Web3.to_hex(h)])
+        for h in tx_hashes
     ]
     for rsp, receipt in zip(rsps, receipts):
         if receipt.status == 1:
@@ -864,63 +911,6 @@ def test_contract(cronos):
     # call contract
     greeter_call_result = contract.caller.greet()
     assert "world" == greeter_call_result
-
-
-origin_cmd = None
-
-
-@pytest.mark.unmarked
-@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000, None])
-def test_tx_inclusion(cronos, max_gas_wanted):
-    """
-    - send multiple heavy transactions at the same time.
-    - check they are included in consecutively blocks without failure.
-
-    test against different max-gas-wanted configuration.
-    """
-
-    def fn(cmd):
-        global origin_cmd
-        if origin_cmd is None:
-            origin_cmd = cmd
-        if max_gas_wanted is None:
-            return origin_cmd
-        return f"{origin_cmd} --evm.max-tx-gas-wanted {max_gas_wanted}"
-
-    modify_command_in_supervisor_config(
-        cronos.base_dir / "tasks.ini",
-        lambda cmd: fn(cmd),
-    )
-    cronos.supervisorctl("update")
-    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
-
-    # reset to origin_cmd only
-    if max_gas_wanted is None:
-        return
-
-    cli = cronos.cosmos_cli()
-    w3 = cronos.w3
-    block_gas_limit = 81500000
-    tx_gas_limit = 80000000
-    max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
-    print("max_tx_in_block", max_tx_in_block)
-    to = ADDRS["validator"]
-    params = {"gas": tx_gas_limit}
-    _, sended_hash_set = send_txs(w3, cli, to, list(KEYS.values())[0:4], params)
-    block_nums = [
-        w3.eth.wait_for_transaction_receipt(h).blockNumber for h in sended_hash_set
-    ]
-    block_nums.sort()
-    print(f"all block numbers: {block_nums}")
-    # the transactions should be included according to max_gas_wanted
-    if max_tx_in_block == 1:
-        for block_num, next_block_num in zip(block_nums, block_nums[1:]):
-            assert next_block_num == block_num + 1 or next_block_num == block_num + 2
-    else:
-        for num in block_nums[1:max_tx_in_block]:
-            assert num == block_nums[0]
-        for num in block_nums[max_tx_in_block:]:
-            assert num == block_nums[0] + 1 or num == block_nums[0] + 2
 
 
 def test_replay_protection(cronos):
@@ -1002,7 +992,7 @@ def test_block_stm_delete(cronos):
             "nonce": nonce + n,
         }
         signed = sign_transaction(w3, tx, acc.key)
-        txhash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
         txhashes.append(txhash)
     for txhash in txhashes[0 : total - 1]:
         res = w3.eth.wait_for_transaction_receipt(txhash)
@@ -1032,45 +1022,112 @@ def test_textual(cronos):
     assert rsp["code"] == 0, rsp["raw_log"]
 
 
-def test_tx_replacement(cronos):
+def test_block_tx_properties(cronos):
+    """
+    test block tx properties on cronos network
+    - deploy test contract
+    - call contract
+    - check all values are correct in log
+    """
     w3 = cronos.w3
-    gas_price = w3.eth.gas_price
-    nonce = get_account_nonce(w3)
-    initial_balance = w3.eth.get_balance(ADDRS["community"])
-    txhash = replace_transaction(
+    contract = deploy_contract(
         w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1,
-            "gasPrice": gas_price,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        {
-            "to": ADDRS["community"],
-            "value": 5,
-            "gasPrice": gas_price * 2,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        KEYS["validator"],
-    )["transactionHash"]
-    tx1 = w3.eth.get_transaction(txhash)
-    assert tx1["transactionIndex"] == 0
-    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+        CONTRACTS["TestBlockTxProperties"],
+    )
 
-    # check that already accepted transaction cannot be replaced
-    txhash_noreplacemenet = send_transaction(
-        w3,
-        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
-        KEYS["validator"],
-    )["transactionHash"]
-    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
-    assert tx2["transactionIndex"] == 0
+    tx = contract.functions.emitTxDetails().build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
 
-    with pytest.raises(ValueError) as exc:
-        w3.eth.replace_transaction(
-            txhash_noreplacemenet,
-            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+    assert receipt.status == 1
+    assert len(receipt.logs) == 1
+
+    assert contract.address == receipt.logs[0]["address"]
+    event_signature = HexBytes(
+        abi.event_signature_to_log_topic(
+            "TxDetailsEvent(address,address,uint256,bytes,uint256,uint256,bytes4)"
         )
-    assert "has already been mined" in str(exc)
+    )
+    assert event_signature == receipt.logs[0]["topics"][0]
+    validator_hex_address = HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"]))
+    assert validator_hex_address == receipt.logs[0]["topics"][1]
+    assert validator_hex_address == receipt.logs[0]["topics"][2]
+
+    # check event values
+    tx_details_event = contract.events.TxDetailsEvent().process_receipt(receipt)
+    data = tx_details_event[0]["args"]
+    assert data["origin"] == ADDRS["validator"]
+    assert data["sender"] == ADDRS["validator"]
+    assert data["value"] == 0
+    assert data["data"] == bytes.fromhex("8e091b5e")
+    assert data["price"] > 0
+    assert data["gas"] == 3633
+    assert data["sig"] == bytes.fromhex("8e091b5e")
+
+
+def test_access_list(cronos):
+    """
+    Send a transaction and check that the node preserves the access list
+    """
+    w3 = cronos.w3
+
+    to_address = ADDRS["community"]
+    storage_key = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    access_list = [
+        {
+            "address": to_address,
+            "storageKeys": [storage_key],
+        },
+    ]
+
+    txhash = w3.eth.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": to_address,
+            "value": 1000,
+            "accessList": access_list,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+    rpc_tx = w3.eth.get_transaction(txhash)
+    assert rpc_tx.accessList == access_list
+
+    # Deploy a contract and call a function hitting multiple slots
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestAccessList"],
+    )
+
+    tx_data = contract.functions.touchSlots(123, 456).build_transaction(
+        {"from": ADDRS["validator"]}
+    )["data"]
+
+    tx = {
+        "from": ADDRS["validator"],
+        "to": contract.address,
+        "data": tx_data,
+        "value": hex(0),
+        "gas": hex(500000),
+    }
+
+    access_list = w3.provider.make_request("eth_createAccessList", [tx, "latest"])
+    assert (
+        access_list["result"]["accessList"][0]["address"].lower()
+        == contract.address.lower()
+    )
+    storage_keys = access_list["result"]["accessList"][0]["storageKeys"]
+    assert len(storage_keys) == 3
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000000".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000001".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x30939a3db93623b4b889c7802487ba975ac3bc59182f4c2dff55b302788334ec".lower()
+        in [k.lower() for k in storage_keys]
+    )

@@ -456,10 +456,18 @@ def ibc_multi_transfer(ibc):
         else:
             return False
 
-    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{channel1}", "base_denom": denom0}
+    denom = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+
+    assert denom["base"] == denom0
+    assert denom["trace"] == [{"port_id": "transfer", "channel_id": channel1}]
+
     for i, _ in enumerate(users):
-        wait_for_fn("assert balance", lambda: assert_trace_balance(addrs1[i]))
+        addr = addrs1[i]
+
+        def check_balance(addr=addr):
+            return assert_trace_balance(addr)
+
+        wait_for_fn("assert balance", check_balance)
 
     # chainmain-1 -> cronos_777-1
     amt = amount // 2
@@ -484,7 +492,12 @@ def ibc_multi_transfer(ibc):
             assert rsp["code"] == 0, rsp["raw_log"]
 
         for i, _ in enumerate(users):
-            wait_for_fn("assert balance", lambda: assert_balance(addrs0[i]))
+            addr = addrs0[i]
+
+            def check_balance(addr=addr):
+                return assert_balance(addr)
+
+            wait_for_fn("assert balance", check_balance)
 
         old_balance0 += amt
 
@@ -561,8 +574,9 @@ def ibc_incentivized_transfer(ibc):
     assert user0_balances == expected, user0_balances
     path = f"transfer/{dst_channel}/{base_denom0}"
     denom_hash = ibc_denom(dst_channel, base_denom0)
-    denom_trace = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
-    assert denom_trace == {"path": f"transfer/{dst_channel}", "base_denom": base_denom0}
+    denom = chains[1].ibc_denom_trace(path, ibc.chainmain.node_rpc(0))
+    assert denom["base"] == base_denom0
+    assert denom["trace"] == [{"port_id": "transfer", "channel_id": dst_channel}]
     user1_balances = get_balances(ibc.chainmain, user1)
     expected = [
         {"denom": base_denom1, "amount": f"{old_user1_base}"},

@@ -101,14 +101,14 @@ func (desc *EventDescriptor) ConvertEvent(
 }
 
 func toUnderScore(input string) string {
-	var output string
+	var output strings.Builder
 	for i, s := range input {
 		if i > 0 && s >= 'A' && s <= 'Z' {
-			output += "_"
+			output.WriteString("_")
 		}
-		output += string(s)
+		output.WriteString(string(s))
 	}
-	return strings.ToLower(output)
+	return strings.ToLower(output.String())
 }
 
 func getArguments(args abi.Arguments, indexed bool) []string {

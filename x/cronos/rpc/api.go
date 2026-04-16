@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -98,20 +98,20 @@ func (api *CronosAPI) getBlockDetail(blockNrOrHash rpctypes.BlockNumberOrHash) (
 	resBlock, err = api.getBlock(blockNrOrHash)
 	if err != nil {
 		api.logger.Debug("block not found", "height", blockNrOrHash, "error", err.Error())
-		return
+		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 	}
 	blockNumber = resBlock.Block.Height
 	blockHash = common.BytesToHash(resBlock.Block.Header.Hash()).Hex()
 	blockRes, err = api.backend.TendermintBlockResultByNumber(&blockNumber)
 	if err != nil {
 		api.logger.Debug("failed to retrieve block results", "height", blockNum, "error", err.Error())
-		return
+		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 	}
 	baseFee, err = api.backend.BaseFee(blockRes)
 	if err != nil {
-		return
+		return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 	}
-	return
+	return resBlock, blockNumber, blockHash, blockRes, baseFee, err
 }
 
 // GetTransactionReceiptsByBlock returns all the transaction receipts included in the block.
@@ -382,5 +382,5 @@ func (api *CronosAPI) getBlock(blockNrOrHash rpctypes.BlockNumberOrHash) (blk *c
 		}
 		blk, err = api.backend.TendermintBlockByNumber(blockNumber)
 	}
-	return
+	return blk, err
 }

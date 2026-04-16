@@ -5,6 +5,8 @@ contract Destroyee {
     function destroy() public {
         selfdestruct(payable(msg.sender));
     }
+
+    receive() external payable {}
 }
 
 contract Destroyer {
@@ -17,4 +19,6 @@ contract Destroyer {
         }
         require(_size > 0);
     }
+
+    receive() external payable {}
 }

@@ -9,11 +9,11 @@ import (
 	icacontrollertypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/controller/types"
 	icatypes "github.com/cosmos/ibc-go/v10/modules/apps/27-interchain-accounts/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
-	cronosevents "github.com/crypto-org-chain/cronos/v2/x/cronos/events"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/ica"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/icacallback"
-	cronoseventstypes "github.com/crypto-org-chain/cronos/v2/x/cronos/events/types"
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	cronosevents "github.com/crypto-org-chain/cronos/x/cronos/events"
+	"github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/ica"
+	"github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/icacallback"
+	cronoseventstypes "github.com/crypto-org-chain/cronos/x/cronos/events/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -103,6 +103,9 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size
 	baseCost := uint64(len(input)) * ic.kvGasConfig.WriteCostPerByte
 	var methodID [4]byte
+	if len(input) < 4 {
+		return baseCost
+	}
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
 	if icaMethodNamesByID[methodID] == SubmitMsgsMethodName {
@@ -116,6 +119,9 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
 	// parse input
+	if len(contract.Input) < 4 {
+		return nil, errors.New("input too short")
+	}
 	methodID := contract.Input[:4]
 	method, err := icaABI.MethodById(methodID)
 	if err != nil {

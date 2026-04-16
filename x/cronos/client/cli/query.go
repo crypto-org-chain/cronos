@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/types"
+	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	rpctypes "github.com/evmos/ethermint/rpc/types"
 	"github.com/spf13/cobra"
 
