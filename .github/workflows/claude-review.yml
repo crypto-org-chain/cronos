@@ -65,7 +65,7 @@ jobs:
             }
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR NUMBER: ${{ github.event.issue.number }}
 
             Never suggest GitHub Action SHA changes from memory — verify with `gh api repos/{owner}/{repo}/commits/{tag} --jq '.sha'` first.
 
