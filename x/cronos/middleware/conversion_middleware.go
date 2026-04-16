@@ -5,7 +5,7 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
 	"github.com/cosmos/ibc-go/v10/modules/core/exported"
-	cronoskeeper "github.com/crypto-org-chain/cronos/v2/x/cronos/keeper"
+	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 
 	"cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"

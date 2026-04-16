@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/crypto-org-chain/cronos/v2/x/cronos/events/bindings/cosmos/precompile/bank"
+	"github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/bank"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"

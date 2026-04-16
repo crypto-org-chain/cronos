@@ -19,10 +19,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, macos-14]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - id: changed-files
@@ -32,6 +32,9 @@ jobs:
             **/*.go
             *.mod
             *.sum
+            **/*.nix
+            .github/workflows/build.yml
+            scripts/release.sh
       - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.any_changed == 'true'
         with:
@@ -42,6 +45,254 @@ jobs:
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
+
+      - name: Install Wine (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest' && steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          set -euo pipefail
+
+          # Wine packages often live in Ubuntu's Universe repo and may pull
+          # key bits via Recommends; avoid --no-install-recommends here.
+
+          # Best-effort retries to reduce transient apt flakiness.
+          for i in 1 2 3; do
+            sudo apt-get update && break
+            if [ "$i" -eq 3 ]; then
+              echo "apt-get update failed after retries" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          # Some Wine packages require i386 deps (WoW64). Adding the arch is
+          # idempotent; keep failures non-fatal.
+          sudo dpkg --add-architecture i386 >/dev/null 2>&1 || true
+
+          for i in 1 2 3; do
+            sudo apt-get update && break
+            if [ "$i" -eq 3 ]; then
+              echo "apt-get update (after add-architecture) failed after retries" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          install_wine_pkg() {
+            pkg="$1"
+            err=""
+            if err=$(sudo apt-get install -y "$pkg" 2>&1); then
+              return 0
+            fi
+            # Treat these as "package not found / not installable".
+            if echo "$err" | grep -Eq "Unable to locate package $pkg|Package ['\"]?$pkg['\"]? has no installation candidate|Package ['\"]?$pkg['\"]? has no available version|Package ['\"]?$pkg['\"]? is not available"; then
+              echo "$err" >&2
+              return 2
+            fi
+            echo "$err" >&2
+            return 1
+          }
+
+          # Try each candidate package name in order; retry transient failures.
+          # rc=0: installed  rc=2: package not available (try next)  rc=1: transient error (retry)
+          wine_installed=false
+          for pkg in wine64 wine wine-development wine-stable; do
+            for i in 1 2 3; do
+              rc=0
+              install_wine_pkg "$pkg" || rc=$?
+              if [ "$rc" -eq 0 ]; then wine_installed=true; break 2; fi
+              if [ "$rc" -eq 2 ]; then break; fi  # not on this runner, try next
+              if [ "$i" -eq 3 ]; then
+                echo "apt-get install $pkg failed after retries" >&2
+                exit 1
+              fi
+              sleep 5
+            done
+          done
+
+          if [ "$wine_installed" = false ]; then
+            echo "None of wine64, wine, wine-development, or wine-stable packages are available on this runner" >&2
+            exit 1
+          fi
+
+          # Sanity check: ensure a runnable Wine binary is on PATH.
+          if ! command -v wine64 >/dev/null 2>&1 && ! command -v wine >/dev/null 2>&1; then
+            echo "ERROR: Wine package installed but no wine binary found on PATH" >&2
+            dpkg -l | awk 'BEGIN{IGNORECASE=1} /^ii/ && $2 ~ /^wine/ {print}' >&2 || true
+            ls -la /usr/bin/wine* >&2 || true
+            exit 1
+          fi
+
+      - name: Smoke test Windows tarballs under Wine
+        if: matrix.os == 'ubuntu-latest' && steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          set -euo pipefail
+
+          # Ensure deterministic string comparisons / sorting.
+          export LC_ALL=C
+
+          # Keep Wine output mostly quiet, but retain useful error lines.
+          # WINEDEBUG tokens use the form class+channel (e.g. warn+all).
+          export WINEDEBUG=-all,err+all
+          export WINEARCH=win64
+          export WINEPREFIX="$PWD/wine-prefix"
+          # Prevent Wine from attempting to prompt/download optional components.
+          export WINEDLLOVERRIDES="mscoree,mshtml="
+
+          cleanup_wine() {
+            if command -v wineserver >/dev/null 2>&1; then
+              wineserver -k >/dev/null 2>&1 || true
+            fi
+            if [ "${1:-}" = "full" ]; then
+              rm -rf "$WINEPREFIX" >/dev/null 2>&1 || true
+            fi
+          }
+          trap 'cleanup_wine full' EXIT
+
+          if ! command -v timeout >/dev/null 2>&1; then
+            echo "ERROR: timeout command not found" >&2
+            exit 1
+          fi
+
+          if command -v wine64 >/dev/null 2>&1; then
+            WINE_BIN="$(command -v wine64)"
+          elif command -v wine >/dev/null 2>&1; then
+            # Some runners only expose `wine` (which may still support 64-bit).
+            WINE_BIN="$(command -v wine)"
+          else
+            echo "ERROR: wine not found" >&2
+            dpkg -l | awk 'BEGIN{IGNORECASE=1} /^ii/ && $2 ~ /^wine/ {print}' >&2 || true
+            ls -la /usr/bin/wine* >&2 || true
+            exit 1
+          fi
+
+          echo "Using Wine binary: $WINE_BIN"
+          "$WINE_BIN" --version || true
+
+          shopt -s nullglob
+          tarballs=(./cronos_*_Windows_x86_64.tar.gz)
+
+          if [ ${#tarballs[@]} -eq 0 ]; then
+            echo "No Windows tarballs found"
+            exit 1
+          fi
+
+          workspace="$PWD"
+
+          fixture_root="$workspace/wine-test-fixture"
+          fixture_home="$fixture_root/home"
+          fixture_dbdir="$fixture_home/data/application.db"
+
+          rm -rf "$fixture_root"
+
+          nix develop "$workspace"#rocksdb -c bash -c '
+            set -euo pipefail
+            dbdir="$1"
+
+            rm -rf "$dbdir"
+            mkdir -p "$dbdir"
+
+            # Keep this small, but ensure data is compressible so RocksDB does not
+            # fall back to no-compression for tiny/uncompressible blocks.
+            val="$(printf "a%.0s" {1..64})"
+            args=(batchput)
+            for i in {1..50}; do
+              args+=("k$i" "$val")
+            done
+            ldb --db="$dbdir" --compression_type=lz4 --create_if_missing "${args[@]}" >/dev/null
+            ldb --db="$dbdir" --compression_type=lz4 compact >/dev/null
+
+            shopt -s nullglob
+            sst_files=("$dbdir"/*.sst)
+            if [ ${#sst_files[@]} -eq 0 ]; then
+              echo "No SST files created in $dbdir" >&2
+              exit 1
+            fi
+
+            found=0
+            for sst in "${sst_files[@]}"; do
+              if sst_dump --file="$sst" --command=identify --show_properties | grep -Eqi "SST file compression algo:.*(kLZ4Compression|LZ4)([^A-Za-z0-9_]|$)"; then
+                found=1
+                break
+              fi
+            done
+
+            if [ "$found" -ne 1 ]; then
+              echo "Expected LZ4 compression in SST properties" >&2
+              sst_dump --file="${sst_files[0]}" --command=identify --show_properties >&2 || true
+              exit 1
+            fi
+          ' bash "$fixture_dbdir" < /dev/null
+
+          for tarball in "${tarballs[@]}"; do
+            echo "Testing $tarball"
+            base="${tarball##*/}"
+            dir="wine-test/${base%.tar.gz}"
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            tar -xzf "$tarball" -C "$dir"
+
+            # Ensure a clean Wine prefix for each tarball.
+            cleanup_wine full
+
+            (
+              cd "$dir"
+
+              if [ -f ./cronosd.exe ]; then
+                exe_rel="./cronosd.exe"
+              else
+                # find any nested cronosd.exe (mindepth 2 excludes root-level)
+                mapfile -t nested_exe < <(find . -mindepth 2 -name cronosd.exe 2>/dev/null)
+                if [ ${#nested_exe[@]} -eq 0 ]; then
+                  echo "ERROR: cronosd.exe not found after extracting $tarball" >&2
+                  ls -la >&2 || true
+                  exit 1
+                elif [ ${#nested_exe[@]} -gt 1 ]; then
+                  echo "ERROR: multiple cronosd.exe candidates found after extracting $tarball" >&2
+                  printf '%s\n' "${nested_exe[@]}" >&2
+                  exit 1
+                fi
+                exe_rel="${nested_exe[0]}"
+              fi
+              exe_dir="$(dirname "$exe_rel")"
+              exe_name="$(basename "$exe_rel")"
+
+              cd "$exe_dir"
+              echo "Running $exe_rel under Wine"
+              rc=0
+              timeout --kill-after=10s 120s "$WINE_BIN" "./$exe_name" version < /dev/null || rc=$?
+              if [ "$rc" -ne 0 ]; then
+                echo "ERROR: Wine failed to run $exe_rel (exit $rc)" >&2
+                if command -v file >/dev/null 2>&1; then
+                  file "./$exe_name" >&2 || true
+                fi
+                exit "$rc"
+              fi
+
+              home="db-smoke-home"
+              rm -rf "$home"
+              cp -R "$fixture_home" "$home"
+
+              rc=0
+              timeout --kill-after=20s 180s "$WINE_BIN" "./$exe_name" db migrate \
+                --home "$home" \
+                --source-backend rocksdb \
+                --target-backend goleveldb \
+                --db-type app \
+                --verify=false \
+                --batch-size 10 \
+                < /dev/null || rc=$?
+              if [ "$rc" -ne 0 ]; then
+                echo "ERROR: db migrate failed under Wine for $exe_rel (exit $rc)" >&2
+                if command -v file >/dev/null 2>&1; then
+                  file "./$exe_name" >&2 || true
+                fi
+                exit "$rc"
+              fi
+            )
+
+            cleanup_wine
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: "cronosd-tarball-${{ matrix.os }}"
@@ -52,10 +303,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - id: changed-files
@@ -74,7 +325,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       - name: test & coverage report creation
         run: |
-          nix develop .#rocksdb -c make test test-versiondb
+          nix develop .#rocksdb -c make test
         if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
@@ -88,13 +339,13 @@ jobs:
       - uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt,./memiavl/coverage.txt,./store/coverage.txt,./versiondb/coverage.txt
+          files: ./coverage.txt
         if: steps.changed-files.outputs.any_changed == 'true'
 
   gomod2nix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: changed-files
@@ -105,7 +356,7 @@ jobs:
             go.sum
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -129,7 +380,7 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: changed-files
@@ -139,7 +390,7 @@ jobs:
             contracts
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
+          nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.any_changed == 'true'

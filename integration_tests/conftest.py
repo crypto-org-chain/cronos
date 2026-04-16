@@ -23,6 +23,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "ibc_update_client: marks ibc updateclient test")
     config.addinivalue_line("markers", "gov: marks gov related tests")
     config.addinivalue_line("markers", "gas: marks gas related tests")
+    config.addinivalue_line("markers", "mint: marks mint module tests")
 
 
 def pytest_collection_modifyitems(items, config):

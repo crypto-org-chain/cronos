@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	v2 "github.com/crypto-org-chain/cronos/v2/x/cronos/migrations/v2"
+	v2 "github.com/crypto-org-chain/cronos/x/cronos/migrations/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"

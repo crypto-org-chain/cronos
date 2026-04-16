@@ -8,7 +8,7 @@ import "ethermint/evm/v1/tx.proto";
 import "cronos/cronos.proto";
 // this line is used by starport scaffolding # 1
 
-option go_package = "github.com/crypto-org-chain/cronos/v2/x/cronos/types";
+option go_package = "github.com/crypto-org-chain/cronos/x/cronos/types";
 
 // Query defines the gRPC querier service.
 service Query {
