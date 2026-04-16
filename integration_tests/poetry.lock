@@ -2374,14 +2374,14 @@ zstd = ["backports-zstd (>=1.0.0) ; python_version < \"3.14\""]
 
 [[package]]
 name = "web3"
-version = "7.13.0"
+version = "7.15.0"
 description = "web3: A Python library for interacting with Ethereum"
 optional = false
 python-versions = "<4,>=3.8"
 groups = ["main"]
 files = [
-    {file = "web3-7.13.0-py3-none-any.whl", hash = "sha256:4da7e953300577b7dadbaf430e5fd4479b127b1ad4910234b230fdcb8a49f735"},
-    {file = "web3-7.13.0.tar.gz", hash = "sha256:281795e0f5d404c1374e1771f6710bb43e0c975f3141366eb1680763edfb4806"},
+    {file = "web3-7.15.0-py3-none-any.whl", hash = "sha256:bbeba510aaa4eb3c99662d911db9d2a648ab40f608cf0269065f7db1d1d0b0c0"},
+    {file = "web3-7.15.0.tar.gz", hash = "sha256:2a2bcbab8fcf120c2256ddbdc88fcc80a47c100ad758659a980e9fab66609171"},
 ]
 
 [package.dependencies]
@@ -2401,10 +2401,10 @@ typing-extensions = ">=4.0.1"
 websockets = ">=10.0.0,<16.0.0"
 
 [package.extras]
-dev = ["build (>=0.9.0)", "bump_my_version (>=0.19.0)", "eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "ipython", "mypy (==1.10.0)", "pre-commit (>=3.4.0)", "py-geth (>=5.1.0)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.18.1,<0.23)", "pytest-mock (>=1.10)", "pytest-xdist (>=2.4.0)", "setuptools (>=38.6.0)", "sphinx (>=6.0.0)", "sphinx-autobuild (>=2021.3.14)", "sphinx_rtd_theme (>=1.0.0)", "towncrier (>=24,<25)", "tox (>=4.0.0)", "tqdm (>4.32)", "twine (>=1.13)", "wheel"]
+dev = ["build (>=0.9.0)", "bump_my_version (>=0.19.0)", "eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "ipython", "mypy (==1.10.0)", "pre-commit (>=3.4.0)", "py-geth (>=6.4.0)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.18.1,<0.23)", "pytest-mock (>=1.10)", "pytest-xdist (>=2.4.0)", "setuptools (>=38.6.0)", "sphinx (>=6.0.0)", "sphinx-autobuild (>=2021.3.14)", "sphinx_rtd_theme (>=1.0.0)", "towncrier (>=24,<25)", "tox (>=4.0.0)", "tqdm (>4.32)", "twine (>=1.13)", "wheel"]
 docs = ["sphinx (>=6.0.0)", "sphinx-autobuild (>=2021.3.14)", "sphinx_rtd_theme (>=1.0.0)", "towncrier (>=24,<25)"]
-test = ["eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "mypy (==1.10.0)", "pre-commit (>=3.4.0)", "py-geth (>=5.1.0)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.18.1,<0.23)", "pytest-mock (>=1.10)", "pytest-xdist (>=2.4.0)", "tox (>=4.0.0)"]
-tester = ["eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "py-geth (>=5.1.0)"]
+test = ["eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "mypy (==1.10.0)", "pre-commit (>=3.4.0)", "py-geth (>=6.4.0)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.18.1,<0.23)", "pytest-mock (>=1.10)", "pytest-xdist (>=2.4.0)", "tox (>=4.0.0)"]
+tester = ["eth-tester[py-evm] (>=0.13.0b1,<0.14.0b1)", "py-geth (>=6.4.0)"]
 
 [[package]]
 name = "websockets"
