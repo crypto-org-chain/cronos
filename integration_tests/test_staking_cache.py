@@ -27,6 +27,7 @@ pytestmark = pytest.mark.staking
 # skip these integration tests as they are not up to date.
 pytest.skip("skipping staking cache tests", allow_module_level=True)
 
+
 @pytest.fixture(scope="function")
 def cronos_staking_cache(tmp_path_factory):
     """Setup cronos cluster with different staking cache sizes per node."""
