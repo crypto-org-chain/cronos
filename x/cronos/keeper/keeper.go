@@ -178,6 +178,14 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 
 	store := ctx.KVStore(k.storeKey)
 	existing, found := k.getExternalContractByDenom(ctx, denom)
+	if types.IsSourceCoin(denom) {
+		current, active := k.GetContractByDenom(ctx, denom)
+		if active && current != address {
+			if err := k.migrateSourceReserve(ctx, current, address); err != nil {
+				return err
+			}
+		}
+	}
 	if found {
 		// remove existing mapping
 		deleteReverseIfOwned(store, existing, denom)
@@ -267,16 +275,17 @@ func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
 	receiver string,
-) {
+) error {
 	cacheCtx, commit := ctx.CacheContext()
 	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
-	if err == nil {
-		commit()
-	} else {
+	if err != nil {
 		k.Logger(ctx).Error(
 			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
 				receiver, tokens.String(), err))
+		return err
 	}
+	commit()
+	return nil
 }
 
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
@@ -296,6 +305,32 @@ func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) err
 	return nil
 }
 
+func (k Keeper) migrateSourceReserve(ctx sdk.Context, oldContract, newContract common.Address) error {
+	if oldContract == newContract {
+		return nil
+	}
+
+	cacheCtx, commit := ctx.CacheContext()
+
+	balanceRaw, err := k.CallModuleCRC21(cacheCtx, oldContract, "balanceOf", types.EVMModuleAddress)
+	if err != nil {
+		return err
+	}
+	reserve := big.NewInt(0).SetBytes(balanceRaw)
+	if reserve.Sign() == 0 {
+		return nil
+	}
+
+	if _, err := k.CallModuleCRC21(cacheCtx, oldContract, "burn_by_cronos_module", types.EVMModuleAddress, reserve); err != nil {
+		return err
+	}
+	if _, err := k.CallModuleCRC21(cacheCtx, newContract, "mint_by_cronos_module", types.EVMModuleAddress, reserve); err != nil {
+		return err
+	}
+	commit()
+	return nil
+}
+
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
 func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
 	if types.IsSourceCoin(msg.Denom) {
@@ -303,7 +338,6 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		if err != nil {
 			return err
 		}
-
 		if !common.IsHexAddress(msg.Contract) {
 			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
 		}

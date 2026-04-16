@@ -245,11 +245,19 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			func() {
 				keeper := suite.app.CronosKeeper
 
-				sourceAuto := common.BigToAddress(big.NewInt(12))
+				sourceAuto, err := keeper.DeployModuleCRC21(suite.ctx, "SourceAuto")
+				suite.Require().NoError(err)
+				nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, types.EVMModuleAddress)
+				err = suite.app.EvmKeeper.SetAccount(suite.ctx, types.EVMModuleAddress, statedb.Account{
+					Nonce:    nonce + 1,
+					CodeHash: common.BytesToHash(ethcrypto.Keccak256(nil)).Bytes(),
+				})
+				suite.Require().NoError(err)
+				sourceExternal, err := keeper.DeployModuleCRC21(suite.ctx, "SourceExternal")
+				suite.Require().NoError(err)
 				sourceDenom := "cronos" + sourceAuto.Hex()
-				sourceExternal := common.BigToAddress(big.NewInt(13))
 
-				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, sourceAuto)
+				err = keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, sourceAuto)
 				suite.Require().NoError(err)
 
 				err = keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceExternal)
@@ -440,6 +448,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 		coins     sdk.Coins
 		malleate  func()
 		postCheck func()
+		expErr    bool
 	}{
 		{
 			"state reverted after error",
@@ -462,6 +471,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(0), evmCoin.Amount)
 			},
+			true,
 		},
 		{
 			"state committed upon success",
@@ -484,6 +494,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(1230000000000), evmCoin.Amount)
 			},
+			false,
 		},
 	}
 
@@ -504,7 +515,12 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			suite.app.CronosKeeper = cronosKeeper
 
 			tc.malleate()
-			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			err := suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			if tc.expErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
 			tc.postCheck()
 		})
 	}
@@ -654,6 +670,36 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			nil,
 		},
 		{
+			"Source token, contract mismatch with embedded denom address, no error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+				Contract: "0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b884",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func(msg *types.MsgUpdateTokenMapping) {
+				replacement := common.BigToAddress(big.NewInt(200))
+				code := []byte{0x1}
+				codeHash := ethcrypto.Keccak256Hash(code)
+				suite.app.EvmKeeper.SetCode(suite.ctx, codeHash.Bytes(), code)
+				err := suite.app.EvmKeeper.SetAccount(suite.ctx, replacement, statedb.Account{
+					Nonce:    0,
+					CodeHash: codeHash.Bytes(),
+				})
+				suite.Require().NoError(err)
+				msg.Contract = replacement.Hex()
+			},
+			false,
+			true,
+			"cronos",
+			func(msg *types.MsgUpdateTokenMapping) {
+				contract, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, msg.Denom)
+				suite.Require().True(found)
+				suite.Require().Equal(common.HexToAddress(msg.Contract), contract)
+			},
+		},
+		{
 			"Source token, denom correct, no error",
 			types.MsgUpdateTokenMapping{
 				Sender:   "",
@@ -737,4 +783,91 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			}
 		})
 	}
+}
+
+func (suite *KeeperTestSuite) TestSourceDenomRemapMigratesReserve() {
+	suite.SetupTest()
+
+	keeper := suite.app.CronosKeeper
+	oldContract, err := keeper.DeployModuleCRC21(suite.ctx, "Old")
+	suite.Require().NoError(err)
+	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, types.EVMModuleAddress)
+	err = suite.app.EvmKeeper.SetAccount(suite.ctx, types.EVMModuleAddress, statedb.Account{
+		Nonce:    nonce + 1,
+		CodeHash: common.BytesToHash(ethcrypto.Keccak256(nil)).Bytes(),
+	})
+	suite.Require().NoError(err)
+	newContract, err := keeper.DeployModuleCRC21(suite.ctx, "New")
+	suite.Require().NoError(err)
+
+	denom := "cronos" + oldContract.Hex()
+	msg := types.MsgUpdateTokenMapping{
+		Sender:   "",
+		Denom:    denom,
+		Contract: oldContract.Hex(),
+		Symbol:   "OLD",
+		Decimal:  6,
+	}
+	err = keeper.RegisterOrUpdateTokenMapping(suite.ctx, &msg)
+	suite.Require().NoError(err)
+
+	reserve := big.NewInt(1000)
+	_, err = keeper.CallModuleCRC21(suite.ctx, oldContract, "mint_by_cronos_module", types.EVMModuleAddress, reserve)
+	suite.Require().NoError(err)
+
+	msg.Contract = newContract.Hex()
+	msg.Symbol = "NEW"
+	err = keeper.RegisterOrUpdateTokenMapping(suite.ctx, &msg)
+	suite.Require().NoError(err)
+
+	contract, found := keeper.GetContractByDenom(suite.ctx, denom)
+	suite.Require().True(found)
+	suite.Require().Equal(newContract, contract)
+
+	oldReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, oldContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Zero(big.NewInt(0).SetBytes(oldReserveRaw).Sign())
+
+	newReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, newContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Equal(0, reserve.Cmp(big.NewInt(0).SetBytes(newReserveRaw)))
+}
+
+func (suite *KeeperTestSuite) TestSetExternalContractForDenomMigratesActiveSourceReserve() {
+	suite.SetupTest()
+
+	keeper := suite.app.CronosKeeper
+	oldContract, err := keeper.DeployModuleCRC21(suite.ctx, "Old")
+	suite.Require().NoError(err)
+	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, types.EVMModuleAddress)
+	err = suite.app.EvmKeeper.SetAccount(suite.ctx, types.EVMModuleAddress, statedb.Account{
+		Nonce:    nonce + 1,
+		CodeHash: common.BytesToHash(ethcrypto.Keccak256(nil)).Bytes(),
+	})
+	suite.Require().NoError(err)
+	newContract, err := keeper.DeployModuleCRC21(suite.ctx, "New")
+	suite.Require().NoError(err)
+
+	denom := "cronos" + oldContract.Hex()
+	err = keeper.SetAutoContractForDenom(suite.ctx, denom, oldContract)
+	suite.Require().NoError(err)
+
+	reserve := big.NewInt(1234)
+	_, err = keeper.CallModuleCRC21(suite.ctx, oldContract, "mint_by_cronos_module", types.EVMModuleAddress, reserve)
+	suite.Require().NoError(err)
+
+	err = keeper.SetExternalContractForDenom(suite.ctx, denom, newContract)
+	suite.Require().NoError(err)
+
+	contract, found := keeper.GetContractByDenom(suite.ctx, denom)
+	suite.Require().True(found)
+	suite.Require().Equal(newContract, contract)
+
+	oldReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, oldContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Zero(big.NewInt(0).SetBytes(oldReserveRaw).Sign())
+
+	newReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, newContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Equal(0, reserve.Cmp(big.NewInt(0).SetBytes(newReserveRaw)))
 }

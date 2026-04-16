@@ -149,14 +149,20 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 			}
 			denom := im.getIbcDenomFromDataForRefund(data.Token)
 			if im.canBeConverted(ctx, denom) {
-				return im.convertVouchers(
+				if err := im.convertVouchers(
 					ctx,
 					data.Token.Amount,
 					data.Sender,
 					data.Receiver,
 					denom,
 					true,
-				)
+				); err != nil {
+					im.cronoskeeper.Logger(ctx).Error(
+						"failed to convert refund vouchers on acknowledgement",
+						"denom", denom,
+						"error", err,
+					)
+				}
 			}
 		}
 	}
@@ -180,14 +186,20 @@ func (im IBCConversionModule) OnTimeoutPacket(
 		}
 		denom := im.getIbcDenomFromDataForRefund(data.Token)
 		if im.canBeConverted(ctx, denom) {
-			return im.convertVouchers(
+			if err := im.convertVouchers(
 				ctx,
 				data.Token.Amount,
 				data.Sender,
 				data.Receiver,
 				denom,
 				true,
-			)
+			); err != nil {
+				im.cronoskeeper.Logger(ctx).Error(
+					"failed to convert refund vouchers on timeout",
+					"denom", denom,
+					"error", err,
+				)
+			}
 		}
 
 	}
@@ -209,12 +221,11 @@ func (im IBCConversionModule) convertVouchers(
 			"unable to parse transfer amount (%s) into sdk.Int in middleware", amount)
 	}
 	token := sdk.NewCoin(denom, transferAmount)
+	recipient := receiver
 	if isSender {
-		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), sender)
-	} else {
-		im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), receiver)
+		recipient = sender
 	}
-	return nil
+	return im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), recipient)
 }
 
 func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool {
