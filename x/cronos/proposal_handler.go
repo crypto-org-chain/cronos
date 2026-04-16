@@ -16,10 +16,6 @@ func NewTokenMappingChangeProposalHandler(k keeper.Keeper) govtypes.Handler {
 	return func(ctx sdk.Context, content govtypes.Content) error {
 		switch c := content.(type) {
 		case *types.TokenMappingChangeProposal:
-			// check first that the denom is one of the denom supported by cronos
-			if !types.IsValidCoinDenom(c.Denom) {
-				return errors.Wrapf(sdkerrors.ErrInvalidRequest, "invalid coin denom %s", c.Denom)
-			}
 			if err := c.ValidateBasic(); err != nil {
 				return err
 			}
