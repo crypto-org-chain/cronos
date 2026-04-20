@@ -1,6 +1,6 @@
 # Changelog
 
-## UNRELEASED
+## v1.7.5
 
 ### Improvements
 
