@@ -296,6 +296,9 @@ replace (
 	github.com/cometbft/cometbft => github.com/crypto-org-chain/cometbft v0.0.0-20260126040959-178ea8502144
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
+
+	// Temporary fix for client state query issue
+	github.com/cosmos/ibc-go/v10 => github.com/jayt106/ibc-go/v10 v10.0.0-20260420161113-f8d610fd4607
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
