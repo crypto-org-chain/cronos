@@ -6,6 +6,7 @@ import (
 	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
 	"github.com/cosmos/ibc-go/v10/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
+	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 
 	"cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -162,6 +163,11 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 						"denom", denom,
 						"error", err,
 					)
+					ctx.EventManager().EmitEvent(cronostypes.NewRefundVoucherConversionFailedEvent(
+						cronostypes.RefundPathAcknowledgement,
+						denom,
+						err.Error(),
+					))
 				}
 			}
 		}
@@ -199,6 +205,11 @@ func (im IBCConversionModule) OnTimeoutPacket(
 					"denom", denom,
 					"error", err,
 				)
+				ctx.EventManager().EmitEvent(cronostypes.NewRefundVoucherConversionFailedEvent(
+					cronostypes.RefundPathTimeout,
+					denom,
+					err.Error(),
+				))
 			}
 		}
 
