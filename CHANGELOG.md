@@ -18,7 +18,6 @@
 * [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
 * [#2016](https://github.com/crypto-org-chain/cronos/pull/2016) fix(cronos): migrate source reserves on token remaps
 
-
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
 * [#2017](https://github.com/crypto-org-chain/cronos/pull/2017) chore(deps): bump ibc to 10.5.1

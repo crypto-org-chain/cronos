@@ -345,9 +345,7 @@ func (k Keeper) migrateSourceReserve(ctx sdk.Context, oldContract, newContract c
 		return nil, nil
 	}
 
-	cacheCtx, commit := ctx.CacheContext()
-
-	balanceRaw, err := k.CallModuleCRC21(cacheCtx, oldContract, "balanceOf", types.EVMModuleAddress)
+	balanceRaw, err := k.CallModuleCRC21(ctx, oldContract, "balanceOf", types.EVMModuleAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -356,6 +354,7 @@ func (k Keeper) migrateSourceReserve(ctx sdk.Context, oldContract, newContract c
 		return nil, nil
 	}
 
+	cacheCtx, commit := ctx.CacheContext()
 	if _, err := k.CallModuleCRC21(cacheCtx, oldContract, "burn_by_cronos_module", types.EVMModuleAddress, reserve); err != nil {
 		return nil, err
 	}
