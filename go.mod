@@ -23,7 +23,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.53.4
 	github.com/cosmos/gogoproto v1.7.2
 	// release/v10.0.x
-	github.com/cosmos/ibc-go/v10 v10.5.0
+	github.com/cosmos/ibc-go/v10 v10.5.1
 	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f
 	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f
 	github.com/ethereum/go-ethereum v1.15.11
