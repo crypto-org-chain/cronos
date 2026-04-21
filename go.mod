@@ -297,7 +297,7 @@ replace (
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
 
-	// Temporary fix for client state query issue
+	// TODO: remove temporary fix for client state query issue v10.5.0-cronos
 	github.com/cosmos/ibc-go/v10 => github.com/crypto-org-chain/ibc-go/v10 v10.0.0-20260421013314-1a60e77d1cba
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
