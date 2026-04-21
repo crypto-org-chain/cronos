@@ -298,7 +298,7 @@ replace (
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
 
 	// Temporary fix for client state query issue
-	github.com/cosmos/ibc-go/v10 => github.com/jayt106/ibc-go/v10 v10.0.0-20260420161113-f8d610fd4607
+	github.com/cosmos/ibc-go/v10 => github.com/crypto-org-chain/ibc-go/v10 v10.0.0-20260421013314-1a60e77d1cba
 	// dgrijalva/jwt-go is deprecated and doesn't receive security updates.
 	// TODO: remove it: https://github.com/cosmos/cosmos-sdk/issues/13134
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
