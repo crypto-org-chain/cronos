@@ -1208,6 +1208,16 @@ func (app *App) BlockedAddrs() map[string]bool {
 		blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
 	}
 
+	// Block the bech32 forms of the zero address and all ethereum precompile
+	// addresses (0x00..0xff). Without this, bankKeeper.SendCoins can silently
+	// move native coins to an address that has no private key and is not a
+	// module account — see the CRC21 IBC-conversion fail-open vulnerability.
+	for i := 0; i < 0x100; i++ {
+		var addr common.Address
+		addr[19] = byte(i)
+		blockedAddrs[sdk.AccAddress(addr.Bytes()).String()] = true
+	}
+
 	return blockedAddrs
 }
 

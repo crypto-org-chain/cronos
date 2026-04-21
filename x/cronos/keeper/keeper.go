@@ -12,6 +12,7 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
+	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
@@ -169,6 +170,28 @@ func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, deno
 	}
 }
 
+// validateCRC21Target rejects contract addresses that cannot be valid CRC21
+// targets, preventing IBC voucher conversion from silently stranding funds at
+// zero / precompile / EOA bech32 addresses.
+func (k Keeper) validateCRC21Target(ctx sdk.Context, addr common.Address) error {
+	if addr == (common.Address{}) {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "crc21 contract must not be zero address")
+	}
+	// geth precompiles live in 0x01..0xff; any address strictly below 0x0100
+	// is either the zero address or a precompile and cannot hold bytecode.
+	if addr.Big().Cmp(big.NewInt(256)) < 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
+			"crc21 contract must not be in precompile range: %s", addr.Hex())
+	}
+	acct := k.accountKeeper.GetAccount(ctx, sdk.AccAddress(addr.Bytes()))
+	ethAcct, ok := acct.(ethermint.EthAccountI)
+	if !ok || evmtypes.IsEmptyCodeHash(ethAcct.GetCodeHash().Bytes()) {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
+			"crc21 contract has no bytecode: %s", addr.Hex())
+	}
+	return nil
+}
+
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	// check the contract is not registered already
@@ -308,6 +331,9 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
 		}
 		contract := common.HexToAddress(msg.Contract)
+		if err := k.validateCRC21Target(ctx, contract); err != nil {
+			return err
+		}
 		if err := k.ensureContractCode(ctx, contract); err != nil {
 			return err
 		}

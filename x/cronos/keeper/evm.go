@@ -68,6 +68,29 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 	return res.Ret, nil
 }
 
+// balanceOfCRC21 probes balanceOf(owner) on the target contract and decodes the
+// uint256 return. Empty or malformed return data is treated as an error so
+// non-CRC21 targets (precompiles, EOAs, unrelated contracts) cannot be mistaken
+// for a successful query.
+func (k Keeper) balanceOfCRC21(ctx sdk.Context, contract, owner common.Address) (*big.Int, error) {
+	ret, err := k.CallModuleCRC21(ctx, contract, "balanceOf", owner)
+	if err != nil {
+		return nil, err
+	}
+	out, err := types.ModuleCRC21Contract.ABI.Unpack("balanceOf", ret)
+	if err != nil {
+		return nil, fmt.Errorf("crc21 balanceOf unpack failed on %s: %w", contract.Hex(), err)
+	}
+	if len(out) != 1 {
+		return nil, fmt.Errorf("crc21 balanceOf returned %d values on %s", len(out), contract.Hex())
+	}
+	bal, ok := out[0].(*big.Int)
+	if !ok || bal == nil {
+		return nil, fmt.Errorf("crc21 balanceOf returned non-uint256 on %s", contract.Hex())
+	}
+	return bal, nil
+}
+
 // DeployModuleCRC21 deploy an embed crc21 contract
 func (k Keeper) DeployModuleCRC21(ctx sdk.Context, denom string) (common.Address, error) {
 	ctor, err := types.ModuleCRC21Contract.ABI.Pack("", denom, uint8(0), false)
@@ -113,6 +136,10 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 
 	isSource := types.IsSourceCoin(coin.Denom)
 	coins := sdk.NewCoins(coin)
+	preBal, err := k.balanceOfCRC21(ctx, contract, sender)
+	if err != nil {
+		return fmt.Errorf("crc21 balanceOf probe failed for %s: %w", contract.Hex(), err)
+	}
 	if isSource {
 		// burn coins
 		err = k.bankKeeper.SendCoinsFromAccountToModule(ctx, sdk.AccAddress(sender.Bytes()), types.ModuleName, sdk.NewCoins(coin))
@@ -139,6 +166,19 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 		if err != nil {
 			return err
 		}
+	}
+
+	// Require the CRC21 recipient balance to have actually increased by coin.Amount.
+	// Guards against targets where the mint/transfer call returned success (res.Failed() == false)
+	// without issuing any tokens (e.g., zero address, precompiles, EOAs, non-CRC21 contracts).
+	postBal, err := k.balanceOfCRC21(ctx, contract, sender)
+	if err != nil {
+		return fmt.Errorf("crc21 balanceOf post-check failed for %s: %w", contract.Hex(), err)
+	}
+	delta := new(big.Int).Sub(postBal, preBal)
+	if delta.Cmp(coin.Amount.BigInt()) != 0 {
+		return fmt.Errorf("crc21 balance delta mismatch on %s: expected %s, got %s",
+			contract.Hex(), coin.Amount.String(), delta.String())
 	}
 
 	return nil
