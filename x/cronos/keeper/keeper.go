@@ -178,10 +178,13 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 
 	store := ctx.KVStore(k.storeKey)
 	existing, found := k.getExternalContractByDenom(ctx, denom)
+	var commitReserve func()
 	if types.IsSourceCoin(denom) {
 		current, active := k.GetContractByDenom(ctx, denom)
 		if active && current != address {
-			if err := k.migrateSourceReserve(ctx, current, address); err != nil {
+			var err error
+			commitReserve, err = k.migrateSourceReserve(ctx, current, address)
+			if err != nil {
 				return err
 			}
 		}
@@ -200,6 +203,9 @@ func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, addre
 	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+	if commitReserve != nil {
+		commitReserve()
+	}
 	return nil
 }
 
@@ -308,30 +314,31 @@ func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) err
 	return nil
 }
 
-func (k Keeper) migrateSourceReserve(ctx sdk.Context, oldContract, newContract common.Address) error {
+// migrateSourceReserve stages burn/mint on a CacheContext and returns commit to merge into ctx.
+// Caller must run commit() only after KV mapping updates so denom→contract and reserves stay aligned.
+func (k Keeper) migrateSourceReserve(ctx sdk.Context, oldContract, newContract common.Address) (commit func(), err error) {
 	if oldContract == newContract {
-		return nil
+		return nil, nil
 	}
 
 	cacheCtx, commit := ctx.CacheContext()
 
 	balanceRaw, err := k.CallModuleCRC21(cacheCtx, oldContract, "balanceOf", types.EVMModuleAddress)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	reserve := big.NewInt(0).SetBytes(balanceRaw)
 	if reserve.Sign() == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if _, err := k.CallModuleCRC21(cacheCtx, oldContract, "burn_by_cronos_module", types.EVMModuleAddress, reserve); err != nil {
-		return err
+		return nil, err
 	}
 	if _, err := k.CallModuleCRC21(cacheCtx, newContract, "mint_by_cronos_module", types.EVMModuleAddress, reserve); err != nil {
-		return err
+		return nil, err
 	}
-	commit()
-	return nil
+	return commit, nil
 }
 
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
