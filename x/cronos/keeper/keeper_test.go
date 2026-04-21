@@ -871,3 +871,42 @@ func (suite *KeeperTestSuite) TestSetExternalContractForDenomMigratesActiveSourc
 	suite.Require().NoError(err)
 	suite.Require().Equal(0, reserve.Cmp(big.NewInt(0).SetBytes(newReserveRaw)))
 }
+
+func (suite *KeeperTestSuite) TestSetAutoContractForDenomMigratesSourceReserveAutoToAuto() {
+	suite.SetupTest()
+
+	keeper := suite.app.CronosKeeper
+	oldContract, err := keeper.DeployModuleCRC21(suite.ctx, "AutoOld")
+	suite.Require().NoError(err)
+	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, types.EVMModuleAddress)
+	err = suite.app.EvmKeeper.SetAccount(suite.ctx, types.EVMModuleAddress, statedb.Account{
+		Nonce:    nonce + 1,
+		CodeHash: common.BytesToHash(ethcrypto.Keccak256(nil)).Bytes(),
+	})
+	suite.Require().NoError(err)
+	newContract, err := keeper.DeployModuleCRC21(suite.ctx, "AutoNew")
+	suite.Require().NoError(err)
+
+	denom := "cronos" + oldContract.Hex()
+	err = keeper.SetAutoContractForDenom(suite.ctx, denom, oldContract)
+	suite.Require().NoError(err)
+
+	reserve := big.NewInt(999)
+	_, err = keeper.CallModuleCRC21(suite.ctx, oldContract, "mint_by_cronos_module", types.EVMModuleAddress, reserve)
+	suite.Require().NoError(err)
+
+	err = keeper.SetAutoContractForDenom(suite.ctx, denom, newContract)
+	suite.Require().NoError(err)
+
+	contract, found := keeper.GetContractByDenom(suite.ctx, denom)
+	suite.Require().True(found)
+	suite.Require().Equal(newContract, contract)
+
+	oldReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, oldContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Zero(big.NewInt(0).SetBytes(oldReserveRaw).Sign())
+
+	newReserveRaw, err := keeper.CallModuleCRC21(suite.ctx, newContract, "balanceOf", types.EVMModuleAddress)
+	suite.Require().NoError(err)
+	suite.Require().Equal(0, reserve.Cmp(big.NewInt(0).SetBytes(newReserveRaw)))
+}

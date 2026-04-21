@@ -271,8 +271,32 @@ func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address c
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
+
+	var commitReserve func()
+	// Source + no external: GetContractByDenom is the auto contract; auto→auto remap must move reserve.
+	// If external exists, that contract is active; auto row is dormant—do not migrate here (see SetExternalContractForDenom).
+	if types.IsSourceCoin(denom) {
+		if _, extFound := k.getExternalContractByDenom(ctx, denom); !extFound {
+			current, active := k.GetContractByDenom(ctx, denom)
+			if active && current != address {
+				var err error
+				commitReserve, err = k.migrateSourceReserve(ctx, current, address)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	prevAuto, prevFound := k.getAutoContractByDenom(ctx, denom)
+	if prevFound && prevAuto != address {
+		deleteReverseIfOwned(store, prevAuto, denom)
+	}
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
+	if commitReserve != nil {
+		commitReserve()
+	}
 	return nil
 }
 
