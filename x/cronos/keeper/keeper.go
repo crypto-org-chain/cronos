@@ -263,6 +263,19 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
+	if types.IsSourceCoin(denom) {
+		contractFromDenom, err := types.GetContractAddressFromDenom(denom)
+		if err != nil {
+			return err
+		}
+		if address != common.HexToAddress(contractFromDenom) {
+			return errors.Wrapf(
+				sdkerrors.ErrInvalidRequest,
+				"source denom %s can only map to embedded contract %s, got %s",
+				denom, common.HexToAddress(contractFromDenom).Hex(), address.Hex(),
+			)
+		}
+	}
 	store := ctx.KVStore(k.storeKey)
 	if _, found := k.getExternalContractByDenom(ctx, denom); found && !types.IsSourceCoin(denom) {
 		return errors.Wrapf(types.ErrExternalMappingExists, "external mapping already exists for denom %s", denom)

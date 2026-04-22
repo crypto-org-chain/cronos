@@ -123,7 +123,7 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 				},
 				AutoContracts: []types.TokenMapping{
 					{
-						Denom:    "cronos0x0000000000000000000000000000000000000000",
+						Denom:    "cronos0x0000000000000000000000000000000000000004",
 						Contract: "0x0000000000000000000000000000000000000004",
 					},
 				},

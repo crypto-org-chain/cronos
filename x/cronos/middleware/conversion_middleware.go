@@ -118,6 +118,12 @@ func (im IBCConversionModule) OnRecvPacket(
 				false,
 			)
 			if err != nil {
+				im.cronoskeeper.Logger(ctx).Error(
+					"failed to convert vouchers on recv",
+					"denom", denom,
+					"receiver", data.Receiver,
+					"error", err,
+				)
 				return channeltypes.NewErrorAcknowledgement(err)
 			}
 		}
