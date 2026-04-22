@@ -171,6 +171,19 @@ func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, deno
 
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
+	if types.IsSourceCoin(denom) {
+		contractFromDenom, err := types.GetContractAddressFromDenom(denom)
+		if err != nil {
+			return err
+		}
+		if address != common.HexToAddress(contractFromDenom) {
+			return errors.Wrapf(
+				sdkerrors.ErrInvalidRequest,
+				"source denom %s can only map to embedded contract %s, got %s",
+				denom, common.HexToAddress(contractFromDenom).Hex(), address.Hex(),
+			)
+		}
+	}
 	// check the contract is not registered already
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
@@ -267,16 +280,17 @@ func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
 	receiver string,
-) {
+) error {
 	cacheCtx, commit := ctx.CacheContext()
 	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
-	if err == nil {
-		commit()
-	} else {
+	if err != nil {
 		k.Logger(ctx).Error(
 			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
 				receiver, tokens.String(), err))
+		return err
 	}
+	commit()
+	return nil
 }
 
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {

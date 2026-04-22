@@ -241,23 +241,22 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"success, source denom keeps auto mapping when external set",
+			"success, source denom external must match embedded; delete external restores auto mapping",
 			func() {
 				keeper := suite.app.CronosKeeper
 
 				sourceAuto := common.BigToAddress(big.NewInt(12))
 				sourceDenom := "cronos" + sourceAuto.Hex()
-				sourceExternal := common.BigToAddress(big.NewInt(13))
 
 				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, sourceAuto)
 				suite.Require().NoError(err)
 
-				err = keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceExternal)
+				err = keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceAuto)
 				suite.Require().NoError(err)
 
 				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
 				suite.Require().True(found)
-				suite.Require().Equal(sourceExternal, contract)
+				suite.Require().Equal(sourceAuto, contract)
 
 				autoMappings := keeper.GetAutoContracts(suite.ctx)
 				foundAuto := false
@@ -275,6 +274,21 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				contract, found = keeper.GetContractByDenom(suite.ctx, sourceDenom)
 				suite.Require().True(found)
 				suite.Require().Equal(sourceAuto, contract)
+			},
+		},
+		{
+			"failure, source denom external mapping must match embedded address",
+			func() {
+				keeper := suite.app.CronosKeeper
+
+				sourceAuto := common.BigToAddress(big.NewInt(12))
+				sourceDenom := "cronos" + sourceAuto.Hex()
+				mismatched := common.BigToAddress(big.NewInt(13))
+
+				err := keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, mismatched)
+				suite.Require().Error(err)
+				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().False(found)
 			},
 		},
 		{
@@ -440,6 +454,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 		coins     sdk.Coins
 		malleate  func()
 		postCheck func()
+		expErr    bool
 	}{
 		{
 			"state reverted after error",
@@ -462,6 +477,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(0), evmCoin.Amount)
 			},
+			true,
 		},
 		{
 			"state committed upon success",
@@ -484,6 +500,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(1230000000000), evmCoin.Amount)
 			},
+			false,
 		},
 	}
 
@@ -504,7 +521,12 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			suite.app.CronosKeeper = cronosKeeper
 
 			tc.malleate()
-			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			err := suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			if tc.expErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
 			tc.postCheck()
 		})
 	}
@@ -648,6 +670,31 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				Decimal:  0,
 			},
 			nil,
+			true,
+			false,
+			"",
+			nil,
+		},
+		{
+			"Source token, contract mismatch with embedded denom address, error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+				Contract: "0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b884",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func(msg *types.MsgUpdateTokenMapping) {
+				code := []byte{0x1}
+				codeHash := ethcrypto.Keccak256Hash(code)
+				suite.app.EvmKeeper.SetCode(suite.ctx, codeHash.Bytes(), code)
+				replacement := common.HexToAddress(msg.Contract)
+				err := suite.app.EvmKeeper.SetAccount(suite.ctx, replacement, statedb.Account{
+					Nonce:    0,
+					CodeHash: codeHash.Bytes(),
+				})
+				suite.Require().NoError(err)
+			},
 			true,
 			false,
 			"",
