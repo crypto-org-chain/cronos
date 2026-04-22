@@ -383,6 +383,9 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 			}
 			// update the mapping
 			contract := common.HexToAddress(msg.Contract)
+			if err := k.validateCRC21Target(ctx, contract); err != nil {
+				return err
+			}
 			if err := k.ensureContractCode(ctx, contract); err != nil {
 				return err
 			}

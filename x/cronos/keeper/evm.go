@@ -72,6 +72,11 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 // uint256 return. Empty or malformed return data is treated as an error so
 // non-CRC21 targets (precompiles, EOAs, unrelated contracts) cannot be mistaken
 // for a successful query.
+//
+// Note: guards against accidental fail-open only. A hostile CRC21 contract that
+// returns arbitrary balanceOf values can still defeat the delta check in
+// ConvertCoinFromNativeToCRC21; the registration-time validateCRC21Target and
+// bytecode checks are the real admission gate for untrusted contracts.
 func (k Keeper) balanceOfCRC21(ctx sdk.Context, contract, owner common.Address) (*big.Int, error) {
 	ret, err := k.CallModuleCRC21(ctx, contract, "balanceOf", owner)
 	if err != nil {

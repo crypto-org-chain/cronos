@@ -48,6 +48,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -333,6 +334,12 @@ type App struct {
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
+
+	// blockedAddrs is the map of bech32 addresses forbidden as bank SendCoins
+	// recipients. It is shared by reference with BankKeeper so that entries
+	// appended post-construction (e.g. from an upgrade handler) take effect
+	// without requiring keeper reinitialization.
+	blockedAddrs map[string]bool
 }
 
 // New returns a reference to an initialized chain.
@@ -1041,6 +1048,13 @@ func New(
 			// otherwise, just emit error log
 			app.Logger().Error("failed to update blocklist", "error", err)
 		}
+
+		// If the CRC21 fix upgrade has already been applied on this chain,
+		// re-apply the bank-level precompile blocks on startup so the in-memory
+		// map stays consistent with on-chain state after a binary restart.
+		if done, err := app.UpgradeKeeper.GetDoneHeight(app.NewUncachedContext(false, cmtproto.Header{}), "v1.8"); err == nil && done > 0 {
+			app.ActivateCRC21PrecompileBlocks()
+		}
 	}
 
 	if blockSTMEnabled {
@@ -1201,24 +1215,37 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 }
 
 // BlockedAddrs returns all the app's module account addresses that are not
-// allowed to receive external tokens.
+// allowed to receive external tokens. The returned map is memoized and shared
+// by reference with BankKeeper, so subsequent mutations (e.g. from
+// ActivateCRC21PrecompileBlocks via the CRC21 fix upgrade handler) propagate
+// without requiring keeper reconstruction.
 func (app *App) BlockedAddrs() map[string]bool {
+	if app.blockedAddrs != nil {
+		return app.blockedAddrs
+	}
 	blockedAddrs := make(map[string]bool)
 	for acc := range maccPerms {
 		blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
 	}
+	app.blockedAddrs = blockedAddrs
+	return app.blockedAddrs
+}
 
-	// Block the bech32 forms of the zero address and all ethereum precompile
-	// addresses (0x00..0xff). Without this, bankKeeper.SendCoins can silently
-	// move native coins to an address that has no private key and is not a
-	// module account — see the CRC21 IBC-conversion fail-open vulnerability.
+// ActivateCRC21PrecompileBlocks adds the bech32 forms of 0x00..0xff to the
+// blocked addresses map shared with BankKeeper. Once active, SendCoins refuses
+// to move native coins to the zero address or any Ethereum precompile bech32
+// address — closing the CRC21 IBC-conversion fail-open vulnerability at the
+// bank layer. Must only be invoked from a named upgrade handler so all
+// validators activate the consensus-breaking behavior at the same height.
+func (app *App) ActivateCRC21PrecompileBlocks() {
+	if app.blockedAddrs == nil {
+		app.BlockedAddrs()
+	}
 	for i := 0; i < 0x100; i++ {
 		var addr common.Address
 		addr[19] = byte(i)
-		blockedAddrs[sdk.AccAddress(addr.Bytes()).String()] = true
+		app.blockedAddrs[sdk.AccAddress(addr.Bytes()).String()] = true
 	}
-
-	return blockedAddrs
 }
 
 // LegacyAmino returns SimApp's amino codec.
