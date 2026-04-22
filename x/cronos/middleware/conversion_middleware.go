@@ -157,6 +157,8 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 					denom,
 					true,
 				); err != nil {
+					// Intentional: log and continue so the IBC refund is not blocked.
+					// Sender keeps the refunded IBC vouchers and can retry conversion manually.
 					im.cronoskeeper.Logger(ctx).Error(
 						"failed to convert refund vouchers on acknowledgement",
 						"denom", denom,
@@ -194,6 +196,8 @@ func (im IBCConversionModule) OnTimeoutPacket(
 				denom,
 				true,
 			); err != nil {
+				// Intentional: log and continue so the IBC refund is not blocked.
+				// Sender keeps the refunded IBC vouchers and can retry conversion manually.
 				im.cronoskeeper.Logger(ctx).Error(
 					"failed to convert refund vouchers on timeout",
 					"denom", denom,
@@ -223,9 +227,8 @@ func (im IBCConversionModule) convertVouchers(
 	token := sdk.NewCoin(denom, transferAmount)
 	if isSender {
 		return im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), sender)
-	} else {
-		return im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), receiver)
 	}
+	return im.cronoskeeper.OnRecvVouchers(ctx, sdk.NewCoins(token), receiver)
 }
 
 func (im IBCConversionModule) canBeConverted(ctx sdk.Context, denom string) bool {

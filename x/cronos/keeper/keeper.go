@@ -275,18 +275,15 @@ func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address c
 	return nil
 }
 
-// OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure
+// OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure.
+// Callers are responsible for logging or surfacing the returned error.
 func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
 	receiver string,
 ) error {
 	cacheCtx, commit := ctx.CacheContext()
-	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
-	if err != nil {
-		k.Logger(ctx).Error(
-			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
-				receiver, tokens.String(), err))
+	if err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens); err != nil {
 		return err
 	}
 	commit()
