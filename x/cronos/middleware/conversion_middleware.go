@@ -168,6 +168,7 @@ func (im IBCConversionModule) OnAcknowledgementPacket(
 					im.cronoskeeper.Logger(ctx).Error(
 						"failed to convert refund vouchers on acknowledgement",
 						"denom", denom,
+						"sender", data.Sender,
 						"error", err,
 					)
 				}
@@ -207,6 +208,7 @@ func (im IBCConversionModule) OnTimeoutPacket(
 				im.cronoskeeper.Logger(ctx).Error(
 					"failed to convert refund vouchers on timeout",
 					"denom", denom,
+					"sender", data.Sender,
 					"error", err,
 				)
 			}

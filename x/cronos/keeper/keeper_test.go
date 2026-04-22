@@ -292,6 +292,21 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
+			"failure, source denom auto mapping must match embedded address",
+			func() {
+				keeper := suite.app.CronosKeeper
+
+				sourceAuto := common.BigToAddress(big.NewInt(14))
+				sourceDenom := "cronos" + sourceAuto.Hex()
+				mismatched := common.BigToAddress(big.NewInt(15))
+
+				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, mismatched)
+				suite.Require().Error(err)
+				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().False(found)
+			},
+		},
+		{
 			"failure, multiple denoms map to same contract",
 			func() {
 				keeper := suite.app.CronosKeeper
