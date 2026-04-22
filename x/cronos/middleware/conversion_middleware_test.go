@@ -6,20 +6,18 @@ import (
 	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
 	"github.com/cosmos/ibc-go/v10/modules/core/exported"
-	"github.com/stretchr/testify/require"
-
-	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmiddleware "github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
+	"github.com/stretchr/testify/require"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // noopIBCModule is a stub porttypes.IBCModule used to isolate middleware behavior.
