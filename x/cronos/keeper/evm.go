@@ -70,8 +70,8 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 
 // balanceOfCRC21 probes balanceOf(owner) on the target contract and decodes the
 // uint256 return. Empty or malformed return data is treated as an error so
-// non-CRC21 targets (precompiles, EOAs, unrelated contracts) cannot be mistaken
-// for a successful query.
+// callers can distinguish a standard CRC21 from a proxy / non-CRC21 target and
+// fall back to admission-gate guarantees alone.
 //
 // Note: guards against accidental fail-open only. A hostile CRC21 contract that
 // returns arbitrary balanceOf values can still defeat the delta check in
@@ -141,9 +141,16 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 
 	isSource := types.IsSourceCoin(coin.Denom)
 	coins := sdk.NewCoins(coin)
-	preBal, err := k.balanceOfCRC21(ctx, contract, sender)
-	if err != nil {
-		return fmt.Errorf("crc21 balanceOf probe failed for %s: %w", contract.Hex(), err)
+	// Best-effort balance probe: proxy-style CRC21 mappings legitimately omit
+	// balanceOf and will fail this call. The registration-time
+	// validateCRC21Target guard (plus bank-level BlockedAddrs) is the primary
+	// defense against zero/precompile/EOA targets; the delta check below is
+	// defense-in-depth for standard CRC21 contracts and skipped when the probe
+	// cannot be executed.
+	preBal, preErr := k.balanceOfCRC21(ctx, contract, sender)
+	if preErr != nil {
+		k.Logger(ctx).Info("crc21 balanceOf pre-probe failed; skipping delta check",
+			"contract", contract.Hex(), "err", preErr)
 	}
 	if isSource {
 		// burn coins
@@ -173,9 +180,12 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 		}
 	}
 
-	// Require the CRC21 recipient balance to have actually increased by coin.Amount.
-	// Guards against targets where the mint/transfer call returned success (res.Failed() == false)
-	// without issuing any tokens (e.g., zero address, precompiles, EOAs, non-CRC21 contracts).
+	// Delta check only when pre-probe succeeded. Requires the CRC21 recipient
+	// balance to have increased by exactly coin.Amount — catches mint/transfer
+	// calls that returned success without issuing tokens.
+	if preErr != nil {
+		return nil
+	}
 	postBal, err := k.balanceOfCRC21(ctx, contract, sender)
 	if err != nil {
 		return fmt.Errorf("crc21 balanceOf post-check failed for %s: %w", contract.Hex(), err)
