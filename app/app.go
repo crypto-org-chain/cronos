@@ -334,10 +334,8 @@ type App struct {
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 
-	// blockedAddrs is the map of bech32 addresses forbidden as bank SendCoins
-	// recipients. It is shared by reference with BankKeeper so that entries
-	// appended post-construction (e.g. from an upgrade handler) take effect
-	// without requiring keeper reinitialization.
+	// blockedAddrs is shared by reference with BankKeeper so mutations from the
+	// v1.8 upgrade handler propagate without keeper reconstruction.
 	blockedAddrs map[string]bool
 }
 
@@ -1048,10 +1046,13 @@ func New(
 			app.Logger().Error("failed to update blocklist", "error", err)
 		}
 
-		// If the CRC21 fix upgrade has already been applied on this chain,
-		// re-apply the bank-level precompile blocks on startup so the in-memory
-		// map stays consistent with on-chain state after a binary restart.
-		if done, err := app.UpgradeKeeper.GetDoneHeight(app.NewUncachedContext(false, cmtproto.Header{}), "v1.8"); err == nil && done > 0 {
+		// Rehydrate the CRC21 precompile blocks if the upgrade was applied in a
+		// prior run — keeps the in-memory map consistent with on-chain state.
+		ctx := app.NewUncachedContext(false, cmtproto.Header{})
+		done, err := app.UpgradeKeeper.GetDoneHeight(ctx, "v1.8")
+		if err != nil {
+			app.Logger().Error("failed to query v1.8 upgrade height", "error", err)
+		} else if done > 0 {
 			app.ActivateCRC21PrecompileBlocks()
 		}
 	}
@@ -1213,37 +1214,30 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
-// BlockedAddrs returns all the app's module account addresses that are not
-// allowed to receive external tokens. The returned map is memoized and shared
-// by reference with BankKeeper, so subsequent mutations (e.g. from
-// ActivateCRC21PrecompileBlocks via the CRC21 fix upgrade handler) propagate
-// without requiring keeper reconstruction.
+// BlockedAddrs returns the memoized map of bech32 addresses forbidden as bank
+// SendCoins recipients. Returned by reference and shared with BankKeeper —
+// mutations via ActivateCRC21PrecompileBlocks propagate without reconstruction.
 func (app *App) BlockedAddrs() map[string]bool {
 	if app.blockedAddrs != nil {
 		return app.blockedAddrs
 	}
-	blockedAddrs := make(map[string]bool)
+	app.blockedAddrs = make(map[string]bool)
 	for acc := range maccPerms {
-		blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
+		app.blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
 	}
-	app.blockedAddrs = blockedAddrs
 	return app.blockedAddrs
 }
 
-// ActivateCRC21PrecompileBlocks adds the bech32 forms of 0x00..0xff to the
-// blocked addresses map shared with BankKeeper. Once active, SendCoins refuses
-// to move native coins to the zero address or any Ethereum precompile bech32
-// address — closing the CRC21 IBC-conversion fail-open vulnerability at the
-// bank layer. Must only be invoked from a named upgrade handler so all
-// validators activate the consensus-breaking behavior at the same height.
+// ActivateCRC21PrecompileBlocks adds bech32 forms of 0x00..0xff to the shared
+// blocked map. Must only be invoked from the v1.8 upgrade handler (or rehydrated
+// at startup when that upgrade is already applied) so validators switch on the
+// consensus-breaking bank rules at the same height.
 func (app *App) ActivateCRC21PrecompileBlocks() {
-	if app.blockedAddrs == nil {
-		app.BlockedAddrs()
-	}
+	blocked := app.BlockedAddrs()
 	for i := 0; i < 0x100; i++ {
 		var addr common.Address
 		addr[19] = byte(i)
-		app.blockedAddrs[sdk.AccAddress(addr.Bytes()).String()] = true
+		blocked[sdk.AccAddress(addr.Bytes()).String()] = true
 	}
 }
 

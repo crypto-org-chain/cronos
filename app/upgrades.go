@@ -14,9 +14,6 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 	planName := "v1.8"
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			// Activate the CRC21 precompile blocks at upgrade height. Shared-map
-			// reference means subsequent BankKeeper.SendCoins calls see the new
-			// entries without keeper reinitialization.
 			app.ActivateCRC21PrecompileBlocks()
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},

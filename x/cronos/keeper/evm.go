@@ -68,30 +68,23 @@ func (k Keeper) CallModuleCRC21(ctx sdk.Context, contract common.Address, method
 	return res.Ret, nil
 }
 
-// balanceOfCRC21 probes balanceOf(owner) on the target contract and decodes the
-// uint256 return. Empty or malformed return data is treated as an error so
-// callers can distinguish a standard CRC21 from a proxy / non-CRC21 target and
-// fall back to admission-gate guarantees alone.
-//
-// Note: guards against accidental fail-open only. A hostile CRC21 contract that
-// returns arbitrary balanceOf values can still defeat the delta check in
-// ConvertCoinFromNativeToCRC21; the registration-time validateCRC21Target and
-// bytecode checks are the real admission gate for untrusted contracts.
+// balanceOfCRC21 probes balanceOf(owner) and decodes the uint256 return.
+// Returns an error if the target lacks balanceOf or returns malformed data; the
+// delta check in ConvertCoinFromNativeToCRC21 falls back to admission-gate
+// guarantees alone. Does not defend against a hostile CRC21 that fakes the
+// balance — validateCRC21Target at registration is the real admission gate.
 func (k Keeper) balanceOfCRC21(ctx sdk.Context, contract, owner common.Address) (*big.Int, error) {
 	ret, err := k.CallModuleCRC21(ctx, contract, "balanceOf", owner)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("crc21 balanceOf on %s: %w", contract.Hex(), err)
 	}
 	out, err := types.ModuleCRC21Contract.ABI.Unpack("balanceOf", ret)
-	if err != nil {
-		return nil, fmt.Errorf("crc21 balanceOf unpack failed on %s: %w", contract.Hex(), err)
-	}
-	if len(out) != 1 {
-		return nil, fmt.Errorf("crc21 balanceOf returned %d values on %s", len(out), contract.Hex())
+	if err != nil || len(out) != 1 {
+		return nil, fmt.Errorf("crc21 balanceOf decode on %s: %w", contract.Hex(), err)
 	}
 	bal, ok := out[0].(*big.Int)
 	if !ok || bal == nil {
-		return nil, fmt.Errorf("crc21 balanceOf returned non-uint256 on %s", contract.Hex())
+		return nil, fmt.Errorf("crc21 balanceOf non-uint256 on %s", contract.Hex())
 	}
 	return bal, nil
 }
@@ -141,12 +134,9 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 
 	isSource := types.IsSourceCoin(coin.Denom)
 	coins := sdk.NewCoins(coin)
-	// Best-effort balance probe: proxy-style CRC21 mappings legitimately omit
-	// balanceOf and will fail this call. The registration-time
-	// validateCRC21Target guard (plus bank-level BlockedAddrs) is the primary
-	// defense against zero/precompile/EOA targets; the delta check below is
-	// defense-in-depth for standard CRC21 contracts and skipped when the probe
-	// cannot be executed.
+	// Best-effort: proxy-style CRC21s legitimately omit balanceOf. Skip the
+	// delta check when the probe fails; validateCRC21Target at registration is
+	// the primary admission gate.
 	preBal, preErr := k.balanceOfCRC21(ctx, contract, sender)
 	if preErr != nil {
 		k.Logger(ctx).Info("crc21 balanceOf pre-probe failed; skipping delta check",
@@ -180,8 +170,7 @@ func (k Keeper) ConvertCoinFromNativeToCRC21(ctx sdk.Context, sender common.Addr
 		}
 	}
 
-	// Delta check only when pre-probe succeeded. Requires the CRC21 recipient
-	// balance to have increased by exactly coin.Amount — catches mint/transfer
+	// Delta check only runs when pre-probe succeeded. Catches mint/transfer
 	// calls that returned success without issuing tokens.
 	if preErr != nil {
 		return nil
