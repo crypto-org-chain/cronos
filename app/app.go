@@ -1048,11 +1048,15 @@ func New(
 
 		// Rehydrate the CRC21 precompile blocks if the upgrade was applied in a
 		// prior run — keeps the in-memory map consistent with on-chain state.
+		// A query error cannot be distinguished from "not yet upgraded"; fail
+		// closed so the node does not boot with a bank map that silently
+		// diverges from consensus state.
 		ctx := app.NewUncachedContext(false, cmtproto.Header{})
 		done, err := app.UpgradeKeeper.GetDoneHeight(ctx, "v1.8")
 		if err != nil {
-			app.Logger().Error("failed to query v1.8 upgrade height", "error", err)
-		} else if done > 0 {
+			tmos.Exit(fmt.Sprintf("failed to query v1.8 upgrade height: %s", err))
+		}
+		if done > 0 {
 			app.ActivateCRC21PrecompileBlocks()
 		}
 	}
