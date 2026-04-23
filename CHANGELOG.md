@@ -16,7 +16,7 @@
 * [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
 * [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
 * [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
-* [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos)!: prevent silent fund loss on CRC21 conversion to invalid targets (zero address, precompile range, EOAs); bank-level blocking of 0x00..0xff is gated behind the `v1.8` upgrade handler for coordinated activation.
+* [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos)!: prevent silent fund loss on CRC21 conversion
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
