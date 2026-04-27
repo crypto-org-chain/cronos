@@ -75,6 +75,8 @@ jobs:
             - Security implications
             - Performance considerations
 
+            Identify all state-breaking changes and alert the user when they are detected (No breaking changes should be merged in release branches)
+
             Note: The PR branch is already checked out in the current working directory.
 
             Use `gh pr comment` for top-level feedback.
