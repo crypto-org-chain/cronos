@@ -1197,6 +1197,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
+	app.ActivateCRC21PrecompileBlocks()
 	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, app.ModuleManager.GetVersionMap()); err != nil {
 		return nil, err
 	}
@@ -1241,9 +1242,9 @@ func (app *App) BlockedAddrs() map[string]bool {
 }
 
 // ActivateCRC21PrecompileBlocks adds bech32 forms of 0x00..0xff to the shared
-// blocked map. Must only be invoked from the v1.8 upgrade handler (or rehydrated
-// at startup when that upgrade is already applied) so validators switch on the
-// consensus-breaking bank rules at the same height.
+// blocked map. Invoked during InitChainer for fresh networks, during the v1.8
+// upgrade handler, and rehydrated at startup when that upgrade is already
+// applied so validators switch on consensus-breaking bank rules at same height.
 func (app *App) ActivateCRC21PrecompileBlocks() {
 	blocked := app.blockedAddrsLive()
 	for i := 0; i < 0x100; i++ {
