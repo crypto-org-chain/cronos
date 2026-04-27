@@ -99,7 +99,14 @@ jobs:
             - Performance considerations
 
             Identify all state-breaking changes and alert the user when they are detected (No breaking changes should be merged in release branches)
-
+            This includes :
+            - Consensus Impact: These changes demand that all validators upgrade to the new version to maintain network consensus.
+            - Module Changes: Examples include modifications to core module functionality, such as altering the transaction structure, 
+            changing how messages are signed, or changing state serialization (e.g., changing Amino JSON support).
+            -In-Place Migrations: Modern Cosmos SDK upgrades use "in-place store migrations" to update data structures within the state machine to align with the new code.
+            - Required Procedures: Historically, these required exporting the entire chain state, running migration scripts on the JSON, 
+            and starting a new chain (Genesis migration), though in-place migration is now preferred.
+            
             The workspace is checked out to the PR head: ${{ steps.pr.outputs.repository }} at ref ${{ steps.pr.outputs.ref }} (not the default branch).
 
             Use `gh pr comment` for top-level feedback.
