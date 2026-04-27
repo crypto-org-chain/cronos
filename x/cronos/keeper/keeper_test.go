@@ -596,7 +596,7 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				codeHash := ethcrypto.Keccak256Hash(code)
 				suite.app.EvmKeeper.SetCode(suite.ctx, codeHash.Bytes(), code)
 				existingContract := common.HexToAddress(contractAddress)
-				updatedContract := common.BigToAddress(big.NewInt(2))
+				updatedContract := common.BigToAddress(new(big.Int).SetUint64(0x10000))
 				err := suite.app.EvmKeeper.SetAccount(suite.ctx, existingContract, statedb.Account{
 					Nonce:    0,
 					CodeHash: codeHash.Bytes(),

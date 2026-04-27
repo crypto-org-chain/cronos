@@ -333,6 +333,10 @@ type App struct {
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
+
+	// blockedAddrs is shared by reference with BankKeeper so mutations from the
+	// v1.8 upgrade handler propagate without keeper reconstruction.
+	blockedAddrs map[string]bool
 }
 
 // New returns a reference to an initialized chain.
@@ -495,7 +499,7 @@ func New(
 		appCodec,
 		runtime.NewKVStoreService(keys[banktypes.StoreKey]),
 		app.AccountKeeper,
-		app.BlockedAddrs(),
+		app.blockedAddrsLive(),
 		authAddr,
 		logger,
 	)
@@ -1041,6 +1045,20 @@ func New(
 			// otherwise, just emit error log
 			app.Logger().Error("failed to update blocklist", "error", err)
 		}
+
+		// Rehydrate the CRC21 precompile blocks if the upgrade was applied in a
+		// prior run — keeps the in-memory map consistent with on-chain state.
+		// A query error cannot be distinguished from "not yet upgraded"; fail
+		// closed so the node does not boot with a bank map that silently
+		// diverges from consensus state.
+		ctx := app.NewUncachedContext(false, cmtproto.Header{})
+		done, err := app.UpgradeKeeper.GetDoneHeight(ctx, "v1.8")
+		if err != nil {
+			tmos.Exit(fmt.Sprintf("failed to query v1.8 upgrade height: %s", err))
+		}
+		if done > 0 {
+			app.ActivateCRC21PrecompileBlocks()
+		}
 	}
 
 	if blockSTMEnabled {
@@ -1179,6 +1197,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 	if err := json.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
 	}
+	app.ActivateCRC21PrecompileBlocks()
 	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, app.ModuleManager.GetVersionMap()); err != nil {
 		return nil, err
 	}
@@ -1200,15 +1219,39 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
-// BlockedAddrs returns all the app's module account addresses that are not
-// allowed to receive external tokens.
-func (app *App) BlockedAddrs() map[string]bool {
-	blockedAddrs := make(map[string]bool)
-	for acc := range maccPerms {
-		blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
+func (app *App) blockedAddrsLive() map[string]bool {
+	if app.blockedAddrs != nil {
+		return app.blockedAddrs
 	}
+	app.blockedAddrs = make(map[string]bool)
+	for acc := range maccPerms {
+		app.blockedAddrs[authtypes.NewModuleAddress(acc).String()] = !allowedReceivingModAcc[acc]
+	}
+	return app.blockedAddrs
+}
 
-	return blockedAddrs
+// BlockedAddrs returns a defensive copy of bech32 addresses forbidden as bank
+// SendCoins recipients.
+func (app *App) BlockedAddrs() map[string]bool {
+	blocked := app.blockedAddrsLive()
+	blockedCopy := make(map[string]bool, len(blocked))
+	for addr, isBlocked := range blocked {
+		blockedCopy[addr] = isBlocked
+	}
+	return blockedCopy
+}
+
+// ActivateCRC21PrecompileBlocks adds bech32 forms of 0x00..0xff to the shared
+// blocked map. Invoked during InitChainer for fresh networks, during the v1.8
+// upgrade handler, and rehydrated at startup when that upgrade is already
+// applied so validators switch on consensus-breaking bank rules at same height.
+func (app *App) ActivateCRC21PrecompileBlocks() {
+	blocked := app.blockedAddrsLive()
+	for i := 0; i < 0x100; i++ {
+		var addr common.Address
+		addr[19] = byte(i)
+		blocked[sdk.AccAddress(addr.Bytes()).String()] = true
+	}
 }
 
 // LegacyAmino returns SimApp's amino codec.
