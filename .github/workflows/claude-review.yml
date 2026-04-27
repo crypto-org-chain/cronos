@@ -41,7 +41,6 @@ jobs:
             }
 
       # issue_comment runs with github.ref on the default branch; resolve the PR head explicitly
-      # (same idea as build.yml: octokit request to github.event.issue.pull_request.url).
       - name: Resolve PR head for checkout
         id: pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
