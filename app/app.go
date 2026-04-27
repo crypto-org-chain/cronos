@@ -499,7 +499,7 @@ func New(
 		appCodec,
 		runtime.NewKVStoreService(keys[banktypes.StoreKey]),
 		app.AccountKeeper,
-		app.BlockedAddrs(),
+		app.blockedAddrsLive(),
 		authAddr,
 		logger,
 	)
@@ -1218,10 +1218,7 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
-// BlockedAddrs returns the memoized map of bech32 addresses forbidden as bank
-// SendCoins recipients. Returned by reference and shared with BankKeeper —
-// mutations via ActivateCRC21PrecompileBlocks propagate without reconstruction.
-func (app *App) BlockedAddrs() map[string]bool {
+func (app *App) blockedAddrsLive() map[string]bool {
 	if app.blockedAddrs != nil {
 		return app.blockedAddrs
 	}
@@ -1232,12 +1229,23 @@ func (app *App) BlockedAddrs() map[string]bool {
 	return app.blockedAddrs
 }
 
+// BlockedAddrs returns a defensive copy of bech32 addresses forbidden as bank
+// SendCoins recipients.
+func (app *App) BlockedAddrs() map[string]bool {
+	blocked := app.blockedAddrsLive()
+	blockedCopy := make(map[string]bool, len(blocked))
+	for addr, isBlocked := range blocked {
+		blockedCopy[addr] = isBlocked
+	}
+	return blockedCopy
+}
+
 // ActivateCRC21PrecompileBlocks adds bech32 forms of 0x00..0xff to the shared
 // blocked map. Must only be invoked from the v1.8 upgrade handler (or rehydrated
 // at startup when that upgrade is already applied) so validators switch on the
 // consensus-breaking bank rules at the same height.
 func (app *App) ActivateCRC21PrecompileBlocks() {
-	blocked := app.BlockedAddrs()
+	blocked := app.blockedAddrsLive()
 	for i := 0; i < 0x100; i++ {
 		var addr common.Address
 		addr[19] = byte(i)
