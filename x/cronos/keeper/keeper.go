@@ -187,7 +187,8 @@ func validateSourceDenomContract(denom string, address common.Address, isSource 
 	return nil
 }
 
-// SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
+// SetExternalContractForDenom sets denom→external CRC21 mapping, replacing a prior external if any.
+// For non-source denoms it also removes a conflicting auto mapping. Source denoms must use the address embedded in denom.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	isSource := types.IsSourceCoin(denom)
 	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
