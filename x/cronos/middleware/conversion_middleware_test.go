@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	storetypes "cosmossdk.io/store/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
@@ -18,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/require"
+
+	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -87,6 +88,7 @@ func setupMiddlewareContext(t *testing.T) (*app.App, sdk.Context, sdk.AccAddress
 }
 
 func setupMiddlewareTest(t *testing.T) (cronosmiddleware.IBCConversionModule, sdk.Context, sdk.AccAddress, sdk.AccAddress) {
+	t.Helper()
 	testApp, ctx, sender, receiver := setupMiddlewareContext(t)
 	im := cronosmiddleware.NewIBCConversionModule(noopIBCModule{}, testApp.CronosKeeper)
 	return im, ctx, sender, receiver
