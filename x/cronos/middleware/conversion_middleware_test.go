@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	storetypes "cosmossdk.io/store/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
@@ -14,6 +15,7 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmiddleware "github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/require"
 
@@ -52,7 +54,18 @@ func (noopIBCModule) OnTimeoutPacket(sdk.Context, string, channeltypes.Packet, s
 	return nil
 }
 
-func setupMiddlewareTest(t *testing.T) (cronosmiddleware.IBCConversionModule, sdk.Context, sdk.AccAddress, sdk.AccAddress) {
+type markingIBCModule struct {
+	noopIBCModule
+	storeKey  storetypes.StoreKey
+	markerKey []byte
+}
+
+func (m markingIBCModule) OnRecvPacket(ctx sdk.Context, _ string, _ channeltypes.Packet, _ sdk.AccAddress) exported.Acknowledgement {
+	ctx.KVStore(m.storeKey).Set(m.markerKey, []byte{1})
+	return channeltypes.NewResultAcknowledgement([]byte("ok"))
+}
+
+func setupMiddlewareContext(t *testing.T) (*app.App, sdk.Context, sdk.AccAddress, sdk.AccAddress) {
 	t.Helper()
 
 	senderPriv, err := ethsecp256k1.GenerateKey()
@@ -70,6 +83,11 @@ func setupMiddlewareTest(t *testing.T) (cronosmiddleware.IBCConversionModule, sd
 		Time:    time.Now().UTC(),
 	})
 
+	return testApp, ctx, sender, receiver
+}
+
+func setupMiddlewareTest(t *testing.T) (cronosmiddleware.IBCConversionModule, sdk.Context, sdk.AccAddress, sdk.AccAddress) {
+	testApp, ctx, sender, receiver := setupMiddlewareContext(t)
 	im := cronosmiddleware.NewIBCConversionModule(noopIBCModule{}, testApp.CronosKeeper)
 	return im, ctx, sender, receiver
 }
@@ -116,4 +134,49 @@ func TestIBCConversionMiddleware_OnTimeoutPacket_RefundConversionFailure(t *test
 
 	err := im.OnTimeoutPacket(ctx, transferTypes.V1, packet, sdk.AccAddress{})
 	require.NoError(t, err, "refund timeout path must not propagate conversion error")
+}
+
+func TestIBCConversionMiddleware_OnRecvPacket_ConversionFailureRollsBackRecv(t *testing.T) {
+	testApp, ctx, sender, _ := setupMiddlewareContext(t)
+	markerKey := []byte("recv_marker")
+
+	im := cronosmiddleware.NewIBCConversionModule(
+		markingIBCModule{
+			storeKey:  testApp.GetKey(cronostypes.StoreKey),
+			markerKey: markerKey,
+		},
+		testApp.CronosKeeper,
+	)
+	mappedDenom := "basecro"
+	require.NoError(
+		t,
+		testApp.CronosKeeper.SetAutoContractForDenom(
+			ctx,
+			mappedDenom,
+			common.HexToAddress("0x0000000000000000000000000000000000000001"),
+		),
+	)
+	data := transferTypes.NewFungibleTokenPacketData(
+		"transfer/channel-0/"+mappedDenom,
+		"100",
+		sender.String(),
+		"invalid",
+		"",
+	)
+	packet := channeltypes.NewPacket(
+		data.GetBytes(),
+		1,
+		"transfer",
+		"channel-0",
+		"transfer",
+		"channel-1",
+		clienttypes.NewHeight(0, 100),
+		0,
+	)
+
+	ack := im.OnRecvPacket(ctx, transferTypes.V1, packet, sdk.AccAddress{})
+	require.False(t, ack.Success(), "conversion failure should return error ack")
+
+	store := ctx.KVStore(testApp.GetKey(cronostypes.StoreKey))
+	require.Empty(t, store.Get(markerKey), "recv-side writes should rollback on conversion failure")
 }
