@@ -169,6 +169,18 @@ func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, deno
 	}
 }
 
+func (k Keeper) ensureDenomNotMapped(ctx sdk.Context, denom string) error {
+	if contract, found := k.GetContractByDenom(ctx, denom); found {
+		return errors.Wrapf(
+			types.ErrDenomAlreadyMapped,
+			"denom %s is already mapped to contract %s",
+			denom,
+			contract.Hex(),
+		)
+	}
+	return nil
+}
+
 func validateSourceDenomContract(denom string, address common.Address, isSource bool) error {
 	if !isSource {
 		return nil
@@ -187,32 +199,20 @@ func validateSourceDenomContract(denom string, address common.Address, isSource 
 	return nil
 }
 
-// SetExternalContractForDenom sets denom→external CRC21 mapping, replacing a prior external if any.
-// For non-source denoms it also removes a conflicting auto mapping. Source denoms must use the address embedded in denom.
+// SetExternalContractForDenom sets denom→external CRC21 mapping for an unmapped denom.
+// Source denoms must use the address embedded in denom.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	isSource := types.IsSourceCoin(denom)
-	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
+	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
 	}
-	// check the contract is not registered already
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
-
+	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
+		return err
+	}
 	store := ctx.KVStore(k.storeKey)
-	existing, found := k.getExternalContractByDenom(ctx, denom)
-	if found {
-		// remove existing mapping
-		deleteReverseIfOwned(store, existing, denom)
-	}
-	if !isSource {
-		auto, found := k.getAutoContractByDenom(ctx, denom)
-		if found {
-			// retire auto mapping when external mapping is set for non-source denoms
-			store.Delete(types.DenomToAutoContractKey(denom))
-			deleteReverseIfOwned(store, auto, denom)
-		}
-	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 	return nil
@@ -274,16 +274,16 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 // SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	isSource := types.IsSourceCoin(denom)
-	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
+	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
-	}
-	store := ctx.KVStore(k.storeKey)
-	if _, found := k.getExternalContractByDenom(ctx, denom); found && !isSource {
-		return errors.Wrapf(types.ErrExternalMappingExists, "external mapping already exists for denom %s", denom)
 	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
+	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
+		return err
+	}
+	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 	return nil
