@@ -270,10 +270,14 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
+	isSource := types.IsSourceCoin(denom)
 	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
 	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
+		return err
+	}
+	if err := validateContractAddressForSourceDenom(denom, address, isSource); err != nil {
 		return err
 	}
 	store := ctx.KVStore(k.storeKey)
