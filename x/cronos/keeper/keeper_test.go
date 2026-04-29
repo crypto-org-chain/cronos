@@ -250,7 +250,7 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"failure, source denom external mapping must match embedded address",
+			"success, source denom external mapping does not enforce embedded address in keeper setter",
 			func() {
 				keeper := suite.app.CronosKeeper
 
@@ -259,13 +259,14 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				mismatched := common.BigToAddress(big.NewInt(13))
 
 				err := keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, mismatched)
-				suite.Require().Error(err)
-				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
-				suite.Require().False(found)
+				suite.Require().NoError(err)
+				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(mismatched, contract)
 			},
 		},
 		{
-			"failure, source denom auto mapping must match embedded address",
+			"success, source denom auto mapping does not enforce embedded address in keeper setter",
 			func() {
 				keeper := suite.app.CronosKeeper
 
@@ -274,9 +275,10 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				mismatched := common.BigToAddress(big.NewInt(15))
 
 				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, mismatched)
-				suite.Require().Error(err)
-				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
-				suite.Require().False(found)
+				suite.Require().NoError(err)
+				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().True(found)
+				suite.Require().Equal(mismatched, contract)
 			},
 		},
 		{

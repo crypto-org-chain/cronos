@@ -181,7 +181,7 @@ func (k Keeper) ensureDenomNotMapped(ctx sdk.Context, denom string) error {
 	return nil
 }
 
-func validateSourceDenomContract(denom string, address common.Address, isSource bool) error {
+func validateContractAddressForSourceDenom(denom string, address common.Address, isSource bool) error {
 	if !isSource {
 		return nil
 	}
@@ -191,8 +191,8 @@ func validateSourceDenomContract(denom string, address common.Address, isSource 
 	}
 	if address != common.HexToAddress(contractFromDenom) {
 		return errors.Wrapf(
-			sdkerrors.ErrInvalidRequest,
-			"source denom %s is immutable and must map to its embedded contract %s, got %s",
+			types.ErrSourceDenomContractMismatch,
+			"The contract address for source denom %s is %s, mismatch with requested contract %s",
 			denom, common.HexToAddress(contractFromDenom).Hex(), address.Hex(),
 		)
 	}
@@ -200,18 +200,15 @@ func validateSourceDenomContract(denom string, address common.Address, isSource 
 }
 
 // SetExternalContractForDenom sets denom→external CRC21 mapping for an unmapped denom.
-// Source denoms must use the address embedded in denom.
+// Caller is responsible for source-denom specific validation before calling this method.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
-	isSource := types.IsSourceCoin(denom)
 	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
 	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
-	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
-		return err
-	}
+
 	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
@@ -273,14 +270,10 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
-	isSource := types.IsSourceCoin(denom)
 	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
 		return err
 	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
-		return err
-	}
-	if err := validateSourceDenomContract(denom, address, isSource); err != nil {
 		return err
 	}
 	store := ctx.KVStore(k.storeKey)
@@ -336,6 +329,10 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		if err := k.ensureContractCode(ctx, contract); err != nil {
 			return err
 		}
+		if err := validateContractAddressForSourceDenom(msg.Denom, contract, true); err != nil {
+			return err
+		}
+
 		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
