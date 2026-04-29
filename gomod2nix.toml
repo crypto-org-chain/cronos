@@ -56,8 +56,8 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20241217090828-cfbca9fe8254"
-    hash = "sha256-0c5h9pwaR3ZlmA3pnme39K8zn9WyrI1C1GRRDVH39Ug="
+    version = "v0.0.0-20260429121403-7f07a6ff7d49"
+    hash = "sha256-vXJBzc0ZxdjYYn2V5jfzOumbY4VUnMfYtMYfYzzD56M="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
     version = "v0.1.2"
@@ -69,7 +69,7 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20241217090828-cfbca9fe8254"
+    version = "v0.0.0-20260429121403-7f07a6ff7d49"
     hash = "sha256-3A5GTl5NRD4zH3PsSd450C6HvU2zi4I7b4Zqu+L9YAo="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -148,12 +148,15 @@ schema = 3
   [mod."github.com/btcsuite/btcd/chaincfg/chainhash"]
     version = "v1.1.0"
     hash = "sha256-F+EqvufC+KBslZV/vL8ph6MqDoVD5ic5rVaM27reDqo="
+  [mod."github.com/bytedance/gopkg"]
+    version = "v0.1.3"
+    hash = "sha256-GyUbPfn41y/mgj0cQOa4tm+aj70C2K50VBZxZc/tcZE="
   [mod."github.com/bytedance/sonic"]
-    version = "v1.14.0"
-    hash = "sha256-caxXESTGRVGIOMyhgZTVxjVTyoT7LkGdPjQh17H7S7Y="
+    version = "v1.15.1"
+    hash = "sha256-BX34mtCwdbAo2Jt+vGLjo/IA8FBp0DP613o65JCl7Pk="
   [mod."github.com/bytedance/sonic/loader"]
-    version = "v0.3.0"
-    hash = "sha256-nYgehtTjd3INGcLqwKKzXEmjIbKYlpeDnYwewH/pskQ="
+    version = "v0.5.1"
+    hash = "sha256-fbUguA0wNj+aggu3oHaEzkduQVO4oawcvjohfgUmha8="
   [mod."github.com/cenkalti/backoff/v4"]
     version = "v4.3.0"
     hash = "sha256-wfVjNZsGG1WoNC5aL+kdcy6QXPgZo4THAevZ1787md8="
@@ -164,8 +167,8 @@ schema = 3
     version = "v1.5.1"
     hash = "sha256-6wKd6/JZ9/O7FwSyNKE3KOt8fVPZEunqbTHQUxlOUNc="
   [mod."github.com/cloudwego/base64x"]
-    version = "v0.1.5"
-    hash = "sha256-MyUYTveN48DhnL8mwAgCRuMExLct98uzSPsmYlfaa4I="
+    version = "v0.1.6"
+    hash = "sha256-VzYJsGubsDk3FAMH6e0Xk0Cl4HtUFHHmWkVASUYidsI="
   [mod."github.com/cncf/xds/go"]
     version = "v0.0.0-20251022180443-0feb69152e9f"
     hash = "sha256-AQkkkXO3EoaSWu6cAg7b6zAJ+zD0uOpgN08l0MEsAaI="
@@ -213,8 +216,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20251119062431-8d0a31ef043d"
-    hash = "sha256-VxQus9ynUK8nAZh3ubNXRcxJsITzgndjd7UYYgMt6C0="
+    version = "v0.50.6-0.20260429121403-7f07a6ff7d49"
+    hash = "sha256-GCSHX8jL0Mn+r5G0/zeevdVGv9sex3jNpdo8q0zNZMI="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
     version = "v1.0.0"
@@ -258,15 +261,15 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
+    version = "v0.0.0-20260429121538-3f57193d8754"
     hash = "sha256-9Zebgh4yp/tqrIgWdwLLsALa3BdkHwSLt5f2iidX+Zs="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
-    hash = "sha256-OCh8b4Vb5UVb6rSmf/RAsTj4MjaedgtUocFdQ4Zoj1U="
+    version = "v0.0.0-20260429121538-3f57193d8754"
+    hash = "sha256-5T0o4SjyrPHhTuVzGTN+SqNc+Se2erm6Pl/DDvs5QFs="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20251203075505-0670ff683f07"
+    version = "v0.0.0-20260429121538-3f57193d8754"
     hash = "sha256-u/QCh16u5UMKgC6KHiUkuHnF8L2BHxDVL+mf837jRI4="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
