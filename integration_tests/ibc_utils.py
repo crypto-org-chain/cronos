@@ -727,14 +727,13 @@ def cronos_transfer_source_tokens_with_proxy(ibc):
     assert proxycrc20.caller.crc20() == contract.address
 
     cronos_cli = ibc.cronos.cosmos_cli()
-    # Source denoms are immutable and must map to embedded contract address.
-    # Remapping source denom to proxy contract must fail.
+    # Pointing source token denom at another contract must be rejected.
     rsp = cronos_cli.update_token_mapping(
         denom, proxycrc20.address, symbol, 6, from_="validator"
     )
     assert rsp["code"] != 0
     assert "source denom" in rsp["raw_log"]
-    assert "embedded contract" in rsp["raw_log"]
+    assert "mismatch" in rsp["raw_log"]
 
 
 def wait_for_check_channel_ready(cli, connid, channel_id, target="STATE_OPEN"):
