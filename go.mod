@@ -24,8 +24,8 @@ require (
 	github.com/cosmos/gogoproto v1.7.2
 	// release/v10.0.x
 	github.com/cosmos/ibc-go/v10 v10.5.1
-	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f
-	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260429133114-826a90ed2665
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
@@ -276,15 +276,15 @@ require (
 
 replace (
 	// release/v0.53.x
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20260427124937-6f7076d311bb
-	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20260427124937-6f7076d311bb
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20260427124937-6f7076d311bb
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20260429121423-b2964e469e87
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20260429121423-b2964e469e87
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20260429121423-b2964e469e87
 )
 
 replace (
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260428081953-ec5db6748182
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260428081953-ec5db6748182
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260428081953-ec5db6748182
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260429133114-826a90ed2665
 )
 
 replace (
