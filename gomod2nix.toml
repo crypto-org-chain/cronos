@@ -56,7 +56,7 @@ schema = 3
     version = "v0.0.0-20230608160436-666c345ad23d"
     hash = "sha256-6BMBA98BpK3jG6++ZE4LdPQwwpS+lZ0GLMRF1fO4UfM="
   [mod."cosmossdk.io/store"]
-    version = "v0.0.0-20260427124538-8ae3300e5dc6"
+    version = "v0.0.0-20260429121403-7f07a6ff7d49"
     hash = "sha256-vXJBzc0ZxdjYYn2V5jfzOumbY4VUnMfYtMYfYzzD56M="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/store"
   [mod."cosmossdk.io/tools/confix"]
@@ -69,7 +69,7 @@ schema = 3
     version = "v0.1.1"
     hash = "sha256-aps3LfnQau1TYeccGwtqHQvy1Rudc9+O+iVAwXBKyDw="
   [mod."cosmossdk.io/x/tx"]
-    version = "v0.0.0-20260427124538-8ae3300e5dc6"
+    version = "v0.0.0-20260429121403-7f07a6ff7d49"
     hash = "sha256-3A5GTl5NRD4zH3PsSd450C6HvU2zi4I7b4Zqu+L9YAo="
     replaced = "github.com/crypto-org-chain/cosmos-sdk/x/tx"
   [mod."cosmossdk.io/x/upgrade"]
@@ -216,7 +216,7 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20260427124538-8ae3300e5dc6"
+    version = "v0.50.6-0.20260429121403-7f07a6ff7d49"
     hash = "sha256-GCSHX8jL0Mn+r5G0/zeevdVGv9sex3jNpdo8q0zNZMI="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/go-bip39"]
@@ -261,15 +261,15 @@ schema = 3
     version = "v0.0.24"
     hash = "sha256-4vUukHONOjNn0qfQr4esK6TWfPWsIp+rbdz65og84lw="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260421120331-9fb3a0448959"
+    version = "v0.0.0-20260429121538-3f57193d8754"
     hash = "sha256-9Zebgh4yp/tqrIgWdwLLsALa3BdkHwSLt5f2iidX+Zs="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260421120331-9fb3a0448959"
-    hash = "sha256-SBma9ofMFwv/fwYrTPtIJ8jfwCxjN6nn0+1di58lIr0="
+    version = "v0.0.0-20260429121538-3f57193d8754"
+    hash = "sha256-5T0o4SjyrPHhTuVzGTN+SqNc+Se2erm6Pl/DDvs5QFs="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260421120331-9fb3a0448959"
+    version = "v0.0.0-20260429121538-3f57193d8754"
     hash = "sha256-u/QCh16u5UMKgC6KHiUkuHnF8L2BHxDVL+mf837jRI4="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/crypto-org-chain/go-block-stm"]
