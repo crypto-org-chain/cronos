@@ -40,8 +40,8 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 			panic(fmt.Sprintf("Invalid contract address: %s", m.Contract))
 		}
 		if err := k.SetAutoContractForDenom(ctx, m.Denom, common.HexToAddress(m.Contract)); err != nil {
-			if errors.Is(err, types.ErrExternalMappingExists) {
-				k.Logger(ctx).Info("skipping auto contract import, external mapping already exists",
+			if errors.Is(err, types.ErrExternalMappingExists) || errors.Is(err, types.ErrDenomAlreadyMapped) {
+				k.Logger(ctx).Info("skipping auto contract import, denom mapping already exists",
 					"denom", m.Denom, "contract", m.Contract, "error", err)
 				continue
 			}
