@@ -17,6 +17,7 @@
 * [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
 * [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
 * [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos): reject CRC21 token-mapping registrations targeting the zero address or the Ethereum precompile range.
+* [#2037](https://github.com/crypto-org-chain/cronos/pull/2037) fix(sim): skip MsgUpdateTokenMapping when contract address has no code.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
