@@ -284,9 +284,6 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 }
 
 func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
-	if contract == (common.Address{}) {
-		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "crc21 contract must not be zero address")
-	}
 	if contract.Big().Cmp(big.NewInt(256)) < 0 {
 		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
 			"crc21 contract must not be in precompile range: %s", contract.Hex())
