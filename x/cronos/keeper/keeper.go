@@ -12,7 +12,6 @@ import (
 	cronosprecompiles "github.com/crypto-org-chain/cronos/x/cronos/keeper/precompiles"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
-	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/errors"
@@ -170,27 +169,6 @@ func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, deno
 	}
 }
 
-// validateCRC21Target rejects addresses that cannot hold a valid CRC21
-// contract: zero address, geth precompile range (< 0x0100), and accounts with
-// empty code hash. Without this, IBC voucher conversion silently strands funds
-// at bech32 addresses with no private key.
-func (k Keeper) validateCRC21Target(ctx sdk.Context, addr common.Address) error {
-	if addr == (common.Address{}) {
-		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "crc21 contract must not be zero address")
-	}
-	if addr.Big().Cmp(big.NewInt(256)) < 0 {
-		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
-			"crc21 contract must not be in precompile range: %s", addr.Hex())
-	}
-	acct := k.accountKeeper.GetAccount(ctx, sdk.AccAddress(addr.Bytes()))
-	ethAcct, ok := acct.(ethermint.EthAccountI)
-	if !ok || evmtypes.IsEmptyCodeHash(ethAcct.GetCodeHash().Bytes()) {
-		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
-			"crc21 contract has no bytecode: %s", addr.Hex())
-	}
-	return nil
-}
-
 // SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
 	// check the contract is not registered already
@@ -305,54 +283,96 @@ func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
 }
 
-// registerExternalContract parses, validates, and installs the external
-// contract mapping for denom. Shared by source and non-source branches of
-// RegisterOrUpdateTokenMapping.
-func (k Keeper) registerExternalContract(ctx sdk.Context, denom, contractHex string) error {
-	if !common.IsHexAddress(contractHex) {
-		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", contractHex)
+func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
+	if contract == (common.Address{}) {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "crc21 contract must not be zero address")
 	}
-	contract := common.HexToAddress(contractHex)
-	if err := k.validateCRC21Target(ctx, contract); err != nil {
-		return err
+	if contract.Big().Cmp(big.NewInt(256)) < 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
+			"crc21 contract must not be in precompile range: %s", contract.Hex())
 	}
-	return k.SetExternalContractForDenom(ctx, denom, contract)
+	resp, err := k.evmKeeper.Code(ctx, &evmtypes.QueryCodeRequest{
+		Address: contract.Hex(),
+	})
+	if err != nil {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress, "failed to query contract code (%s): %v", contract.Hex(), err)
+	}
+	if resp == nil || len(resp.Code) == 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidRequest, "no contract code at address (%s)", contract.Hex())
+	}
+	return nil
 }
 
 // RegisterOrUpdateTokenMapping update the token mapping, register a coin metadata if needed
 func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpdateTokenMapping) error {
-	if !types.IsSourceCoin(msg.Denom) {
+	if types.IsSourceCoin(msg.Denom) {
+		_, err := types.GetContractAddressFromDenom(msg.Denom)
+		if err != nil {
+			return err
+		}
+
+		if !common.IsHexAddress(msg.Contract) {
+			return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+		}
+		contract := common.HexToAddress(msg.Contract)
+		if err := k.ensureContractCode(ctx, contract); err != nil {
+			return err
+		}
+		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
+			return err
+		}
+
+		// check that the coin is registered, otherwise register it
+		metadata, exist := k.bankKeeper.GetDenomMetaData(ctx, msg.Denom)
+		if !exist {
+			// create new metadata
+			metadata = banktypes.Metadata{
+				Base: msg.Denom,
+				Name: msg.Denom,
+			}
+		}
+		// update existing metadata
+		metadata.Symbol = msg.Symbol
+		metadata.Display = strings.ToLower(msg.Symbol)
+		if msg.Decimal != 0 {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+				{
+					Denom:    metadata.Display,
+					Exponent: msg.Decimal,
+				},
+			}
+		} else {
+			metadata.DenomUnits = []*banktypes.DenomUnit{
+				{
+					Denom:    metadata.Base,
+					Exponent: 0,
+				},
+			}
+		}
+		k.bankKeeper.SetDenomMetaData(ctx, metadata)
+	} else {
 		if len(msg.Contract) == 0 {
+			// delete existing mapping
 			k.DeleteExternalContractForDenom(ctx, msg.Denom)
-			return nil
-		}
-		return k.registerExternalContract(ctx, msg.Denom, msg.Contract)
-	}
-
-	if _, err := types.GetContractAddressFromDenom(msg.Denom); err != nil {
-		return err
-	}
-	if err := k.registerExternalContract(ctx, msg.Denom, msg.Contract); err != nil {
-		return err
-	}
-
-	metadata, exist := k.bankKeeper.GetDenomMetaData(ctx, msg.Denom)
-	if !exist {
-		metadata = banktypes.Metadata{
-			Base: msg.Denom,
-			Name: msg.Denom,
+		} else {
+			if !common.IsHexAddress(msg.Contract) {
+				return errors.Wrapf(sdkerrors.ErrInvalidAddress, "invalid contract address (%s)", msg.Contract)
+			}
+			// update the mapping
+			contract := common.HexToAddress(msg.Contract)
+			if err := k.ensureContractCode(ctx, contract); err != nil {
+				return err
+			}
+			if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
+				return err
+			}
 		}
 	}
-	metadata.Symbol = msg.Symbol
-	metadata.Display = strings.ToLower(msg.Symbol)
-	metadata.DenomUnits = []*banktypes.DenomUnit{{Denom: metadata.Base, Exponent: 0}}
-	if msg.Decimal != 0 {
-		metadata.DenomUnits = append(metadata.DenomUnits, &banktypes.DenomUnit{
-			Denom:    metadata.Display,
-			Exponent: msg.Decimal,
-		})
-	}
-	k.bankKeeper.SetDenomMetaData(ctx, metadata)
+
 	return nil
 }
 
