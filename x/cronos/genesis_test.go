@@ -117,13 +117,13 @@ func (suite *CronosTestSuite) TestInitGenesis() {
 				Params: types.DefaultParams(),
 				ExternalContracts: []types.TokenMapping{
 					{
-						Denom:    "cronos0x0000000000000000000000000000000000000000",
+						Denom:    "cronos0x0000000000000000000000000000000000000003",
 						Contract: "0x0000000000000000000000000000000000000003",
 					},
 				},
 				AutoContracts: []types.TokenMapping{
 					{
-						Denom:    "cronos0x0000000000000000000000000000000000000000",
+						Denom:    "cronos0x0000000000000000000000000000000000000004",
 						Contract: "0x0000000000000000000000000000000000000004",
 					},
 				},

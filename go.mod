@@ -23,9 +23,9 @@ require (
 	github.com/cosmos/cosmos-sdk v0.53.4
 	github.com/cosmos/gogoproto v1.7.2
 	// release/v10.0.x
-	github.com/cosmos/ibc-go/v10 v10.5.0
-	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260213095350-1e44cafb6b9f
-	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260213095350-1e44cafb6b9f
+	github.com/cosmos/ibc-go/v10 v10.5.1
+	github.com/crypto-org-chain/cronos-store/store v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260429133114-826a90ed2665
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/golang/protobuf v1.5.4
@@ -78,8 +78,8 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic v1.14.2 // indirect
-	github.com/bytedance/sonic/loader v0.4.0 // indirect
+	github.com/bytedance/sonic v1.15.1 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
@@ -276,15 +276,15 @@ require (
 
 replace (
 	// release/v0.53.x
-	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20260225091603-a269634fef7b
-	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20260225091603-a269634fef7b
-	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20260225091603-a269634fef7b
+	cosmossdk.io/store => github.com/crypto-org-chain/cosmos-sdk/store v0.0.0-20260429121423-b2964e469e87
+	cosmossdk.io/x/tx => github.com/crypto-org-chain/cosmos-sdk/x/tx v0.0.0-20260429121423-b2964e469e87
+	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.0.0-20260429121423-b2964e469e87
 )
 
 replace (
-	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260226040813-703ea3d46c70
-	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260226040813-703ea3d46c70
-	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260226040813-703ea3d46c70
+	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260429133114-826a90ed2665
+	github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260429133114-826a90ed2665
 )
 
 replace (

@@ -290,7 +290,7 @@ func (suite *KeeperTestSuite) TestIbcTransferCoins() {
 				err := suite.MintCoins(address, sdk.NewCoins(sdk.NewCoin(CorrectCronosDenom, sdkmath.NewInt(123))))
 				suite.Require().NoError(err)
 				// Add support for the IBC token
-				err = suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectCronosDenom, common.HexToAddress("0x11"))
+				err = suite.app.CronosKeeper.SetAutoContractForDenom(suite.ctx, CorrectCronosDenom, common.HexToAddress("0xc1b37f2abdb778f540fa5db8e1fd2eadfc9a05ed"))
 				suite.Require().NoError(err)
 			},
 			errors.New("invalid channel id for ibc transfer of source token"),
