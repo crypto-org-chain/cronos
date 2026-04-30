@@ -161,28 +161,15 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				_, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().False(found)
 
-				err := keeper.SetAutoContractForDenom(suite.ctx, denom1, autoContract)
+				err := keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
 				suite.Require().NoError(err)
 
 				contract, found := keeper.GetContractByDenom(suite.ctx, denom1)
 				suite.Require().True(found)
-				suite.Require().Equal(autoContract, contract)
-				denomByContract, found := keeper.GetDenomByContract(suite.ctx, autoContract)
+				suite.Require().Equal(externalContract, contract)
+				denomByContract, found := keeper.GetDenomByContract(suite.ctx, externalContract)
 				suite.Require().True(found)
 				suite.Require().Equal(denom1, denomByContract)
-
-				err = keeper.SetExternalContractForDenom(suite.ctx, denom1, externalContract)
-				suite.Require().NoError(err)
-
-				contract, found = keeper.GetContractByDenom(suite.ctx, denom1)
-				suite.Require().True(found)
-				suite.Require().Equal(externalContract, contract)
-				_, found = keeper.GetDenomByContract(suite.ctx, autoContract)
-				suite.Require().False(found)
-				autoContracts := keeper.GetAutoContracts(suite.ctx)
-				for _, mapping := range autoContracts {
-					suite.Require().NotEqual(denom1, mapping.Denom)
-				}
 			},
 		},
 		{
@@ -241,40 +228,56 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"success, source denom keeps auto mapping when external set",
+			"success, source denom external matches embedded address",
 			func() {
 				keeper := suite.app.CronosKeeper
 
 				sourceAuto := common.BigToAddress(big.NewInt(12))
 				sourceDenom := "cronos" + sourceAuto.Hex()
-				sourceExternal := common.BigToAddress(big.NewInt(13))
 
-				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, sourceAuto)
-				suite.Require().NoError(err)
-
-				err = keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceExternal)
+				err := keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, sourceAuto)
 				suite.Require().NoError(err)
 
 				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
 				suite.Require().True(found)
-				suite.Require().Equal(sourceExternal, contract)
-
-				autoMappings := keeper.GetAutoContracts(suite.ctx)
-				foundAuto := false
-				for _, mapping := range autoMappings {
-					if mapping.Denom == sourceDenom {
-						foundAuto = true
-						suite.Require().Equal(sourceAuto.Hex(), mapping.Contract)
-					}
-				}
-				suite.Require().True(foundAuto)
+				suite.Require().Equal(sourceAuto, contract)
 
 				deleted := keeper.DeleteExternalContractForDenom(suite.ctx, sourceDenom)
 				suite.Require().True(deleted)
 
-				contract, found = keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				_, found = keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().False(found)
+			},
+		},
+		{
+			"success, SetExternalContractForDenom accepts mismatched contract for source denom",
+			func() {
+				keeper := suite.app.CronosKeeper
+
+				sourceAuto := common.BigToAddress(big.NewInt(12))
+				sourceDenom := "cronos" + sourceAuto.Hex()
+				mismatched := common.BigToAddress(big.NewInt(13))
+
+				err := keeper.SetExternalContractForDenom(suite.ctx, sourceDenom, mismatched)
+				suite.Require().NoError(err)
+				contract, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
 				suite.Require().True(found)
-				suite.Require().Equal(sourceAuto, contract)
+				suite.Require().Equal(mismatched, contract)
+			},
+		},
+		{
+			"failure, SetAutoContractForDenom rejects mismatched contract for source denom",
+			func() {
+				keeper := suite.app.CronosKeeper
+
+				sourceAuto := common.BigToAddress(big.NewInt(14))
+				sourceDenom := "cronos" + sourceAuto.Hex()
+				mismatched := common.BigToAddress(big.NewInt(15))
+
+				err := keeper.SetAutoContractForDenom(suite.ctx, sourceDenom, mismatched)
+				suite.Require().Error(err)
+				_, found := keeper.GetContractByDenom(suite.ctx, sourceDenom)
+				suite.Require().False(found)
 			},
 		},
 		{
@@ -308,7 +311,7 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 			},
 		},
 		{
-			"success, SetExternal does not delete reverse entry owned by another denom",
+			"failure, SetExternal rejects mapped denom and keeps reverse entry owned by another denom",
 			func() {
 				// Bug-1 regression: SetExternalContractForDenom must not delete
 				// ContractToDenomKey(auto) when that entry already belongs to denom2.
@@ -328,7 +331,7 @@ func (suite *KeeperTestSuite) TestDenomContractMap() {
 				// Set a new external for legacyDenom; the auto cleanup must NOT delete
 				// ContractToDenomKey(legacyAuto) since it now belongs to denom2.
 				err := keeper.SetExternalContractForDenom(suite.ctx, legacyDenom, denom2External)
-				suite.Require().NoError(err)
+				suite.Require().Error(err)
 
 				// denom2's mapping must still be intact.
 				contract, found := keeper.GetContractByDenom(suite.ctx, denom2)
@@ -440,6 +443,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 		coins     sdk.Coins
 		malleate  func()
 		postCheck func()
+		expErr    bool
 	}{
 		{
 			"state reverted after error",
@@ -462,6 +466,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(0), evmCoin.Amount)
 			},
+			true,
 		},
 		{
 			"state committed upon success",
@@ -484,6 +489,7 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 				evmCoin := suite.GetBalance(address, suite.evmParam.EvmDenom)
 				suite.Require().Equal(sdkmath.NewInt(1230000000000), evmCoin.Amount)
 			},
+			false,
 		},
 	}
 
@@ -504,7 +510,12 @@ func (suite *KeeperTestSuite) TestOnRecvVouchers() {
 			suite.app.CronosKeeper = cronosKeeper
 
 			tc.malleate()
-			suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			err := suite.app.CronosKeeper.OnRecvVouchers(suite.ctx, tc.coins, address.String())
+			if tc.expErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
 			tc.postCheck()
 		})
 	}
@@ -583,7 +594,7 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 			nil,
 		},
 		{
-			"Non source token, already exists, no error",
+			"Non source token, already exists, error",
 			types.MsgUpdateTokenMapping{
 				Sender:   "",
 				Denom:    "gravity" + contractAddress,
@@ -611,17 +622,10 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				suite.Require().NoError(err)
 				msg.Contract = updatedContract.Hex()
 			},
-			false,
+			true,
 			false,
 			"",
-			func(msg *types.MsgUpdateTokenMapping) {
-				expectedContract := common.HexToAddress(msg.Contract)
-				contract, found := suite.app.CronosKeeper.GetContractByDenom(suite.ctx, msg.Denom)
-				suite.Require().True(found)
-				suite.Require().Equal(expectedContract, contract)
-				_, found = suite.app.CronosKeeper.GetDenomByContract(suite.ctx, common.HexToAddress(contractAddress))
-				suite.Require().False(found)
-			},
+			nil,
 		},
 		{
 			"Source token, invalid denom, error",
@@ -648,6 +652,31 @@ func (suite *KeeperTestSuite) TestRegisterOrUpdateTokenMapping() {
 				Decimal:  0,
 			},
 			nil,
+			true,
+			false,
+			"",
+			nil,
+		},
+		{
+			"Source token, contract mismatch with embedded denom address, error",
+			types.MsgUpdateTokenMapping{
+				Sender:   "",
+				Denom:    "cronos0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b883",
+				Contract: "0xF6D4FeCB1a6fb7C2CA350169A050D483bd87b884",
+				Symbol:   "",
+				Decimal:  0,
+			},
+			func(msg *types.MsgUpdateTokenMapping) {
+				code := []byte{0x1}
+				codeHash := ethcrypto.Keccak256Hash(code)
+				suite.app.EvmKeeper.SetCode(suite.ctx, codeHash.Bytes(), code)
+				replacement := common.HexToAddress(msg.Contract)
+				err := suite.app.EvmKeeper.SetAccount(suite.ctx, replacement, statedb.Account{
+					Nonce:    0,
+					CodeHash: codeHash.Bytes(),
+				})
+				suite.Require().NoError(err)
+			},
 			true,
 			false,
 			"",

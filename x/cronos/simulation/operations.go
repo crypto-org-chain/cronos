@@ -1,20 +1,16 @@
 package simulation
 
 import (
-	"errors"
 	"math/rand"
 
 	"github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 
-	errorsmod "cosmossdk.io/errors"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 )
@@ -71,7 +67,11 @@ func SimulateUpdateTokenMapping(txConfig client.TxConfig, ak types.AccountKeeper
 		denom := GenIbcCroDenom(r)
 		contractBytes := make([]byte, 20)
 		r.Read(contractBytes)
-		contract := common.BytesToAddress(contractBytes).String()
+		contractAddr := common.BytesToAddress(contractBytes)
+		if !k.HasContractCode(ctx, contractAddr) {
+			return simtypes.NoOpMsg(types.ModuleName, sdk.MsgTypeURL(&types.MsgUpdateTokenMapping{}), "no contract code at address"), nil, nil
+		}
+		contract := contractAddr.String()
 		expendable := bk.SpendableCoins(ctx, simAccount.Address)
 
 		msg := types.NewMsgUpdateTokenMapping(simAccount.Address.String(), denom, contract, "", 0)
@@ -90,11 +90,7 @@ func SimulateUpdateTokenMapping(txConfig client.TxConfig, ak types.AccountKeeper
 			CoinsSpentInMsg: expendable,
 		}
 
-		oper, ops, err := simulation.GenAndDeliverTxWithRandFees(txCtx)
-		if simAccount.Address.String() != cronosAdmin && errors.Is(err, errorsmod.Wrap(sdkerrors.ErrUnauthorized, "msg sender is not authorized")) {
-			return simtypes.NoOpMsg(types.ModuleName, msg.Type(), "unauthorized tx should fail"), nil, nil
-		}
-		return oper, ops, err
+		return simulation.GenAndDeliverTxWithRandFees(txCtx)
 	}
 }
 

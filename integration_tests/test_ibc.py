@@ -215,6 +215,6 @@ def test_cronos_transfer_source_tokens(ibc):
 
 def test_cronos_transfer_source_tokens_with_proxy(ibc):
     """
-    test sending crc20 tokens originated from cronos to crypto-org-chain
+    test source-token proxy remap is rejected
     """
     cronos_transfer_source_tokens_with_proxy(ibc)

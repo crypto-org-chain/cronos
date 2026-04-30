@@ -169,27 +169,47 @@ func deleteReverseIfOwned(store storetypes.KVStore, address common.Address, deno
 	}
 }
 
-// SetExternalContractForDenom set the external contract for native denom, replace the old one if any existing.
+func (k Keeper) ensureDenomNotMapped(ctx sdk.Context, denom string) error {
+	if contract, found := k.GetContractByDenom(ctx, denom); found {
+		return errors.Wrapf(
+			types.ErrDenomAlreadyMapped,
+			"denom %s is already mapped to contract %s",
+			denom,
+			contract.Hex(),
+		)
+	}
+	return nil
+}
+
+func validateContractAddressForSourceDenom(denom string, address common.Address, isSource bool) error {
+	if !isSource {
+		return nil
+	}
+	contractFromDenom, err := types.GetContractAddressFromDenom(denom)
+	if err != nil {
+		return err
+	}
+	if address != common.HexToAddress(contractFromDenom) {
+		return errors.Wrapf(
+			types.ErrSourceDenomContractMismatch,
+			"The contract address for source denom %s is %s, mismatch with requested contract %s",
+			denom, common.HexToAddress(contractFromDenom).Hex(), address.Hex(),
+		)
+	}
+	return nil
+}
+
+// SetExternalContractForDenom sets denom→external CRC21 mapping for an unmapped denom.
+// Caller is responsible for source-denom specific validation before calling this method.
 func (k Keeper) SetExternalContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
-	// check the contract is not registered already
+	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
+		return err
+	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
 
 	store := ctx.KVStore(k.storeKey)
-	existing, found := k.getExternalContractByDenom(ctx, denom)
-	if found {
-		// remove existing mapping
-		deleteReverseIfOwned(store, existing, denom)
-	}
-	if !types.IsSourceCoin(denom) {
-		auto, found := k.getAutoContractByDenom(ctx, denom)
-		if found {
-			// retire auto mapping when external mapping is set for non-source denoms
-			store.Delete(types.DenomToAutoContractKey(denom))
-			deleteReverseIfOwned(store, auto, denom)
-		}
-	}
 	store.Set(types.DenomToExternalContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 	return nil
@@ -250,37 +270,43 @@ func (k Keeper) DeleteExternalContractForDenom(ctx sdk.Context, denom string) bo
 
 // SetAutoContractForDenom set the auto deployed contract for native denom
 func (k Keeper) SetAutoContractForDenom(ctx sdk.Context, denom string, address common.Address) error {
-	store := ctx.KVStore(k.storeKey)
-	if _, found := k.getExternalContractByDenom(ctx, denom); found && !types.IsSourceCoin(denom) {
-		return errors.Wrapf(types.ErrExternalMappingExists, "external mapping already exists for denom %s", denom)
+	isSource := types.IsSourceCoin(denom)
+	if err := validateContractAddressForSourceDenom(denom, address, isSource); err != nil {
+		return err
+	}
+	if err := k.ensureDenomNotMapped(ctx, denom); err != nil {
+		return err
 	}
 	if err := k.ensureContractNotMapped(ctx, denom, address); err != nil {
 		return err
 	}
+	store := ctx.KVStore(k.storeKey)
 	store.Set(types.DenomToAutoContractKey(denom), address.Bytes())
 	store.Set(types.ContractToDenomKey(address.Bytes()), []byte(denom))
 	return nil
 }
 
-// OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure
+// OnRecvVouchers try to convert ibc voucher to evm coins, revert the state in case of failure.
+// Callers are responsible for logging or surfacing the returned error.
 func (k Keeper) OnRecvVouchers(
 	ctx sdk.Context,
 	tokens sdk.Coins,
 	receiver string,
-) {
+) error {
 	cacheCtx, commit := ctx.CacheContext()
-	err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens)
-	if err == nil {
-		commit()
-	} else {
-		k.Logger(ctx).Error(
-			fmt.Sprintf("Failed to convert vouchers to evm tokens for receiver %s, coins %s. Receive error %s",
-				receiver, tokens.String(), err))
+	if err := k.ConvertVouchersToEvmCoins(cacheCtx, receiver, tokens); err != nil {
+		return err
 	}
+	commit()
+	return nil
 }
 
 func (k Keeper) GetAccount(ctx sdk.Context, addr sdk.AccAddress) sdk.AccountI {
 	return k.accountKeeper.GetAccount(ctx, addr)
+}
+
+func (k Keeper) HasContractCode(ctx sdk.Context, contract common.Address) bool {
+	return k.ensureContractCode(ctx, contract) == nil
 }
 
 func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
@@ -311,6 +337,10 @@ func (k Keeper) RegisterOrUpdateTokenMapping(ctx sdk.Context, msg *types.MsgUpda
 		if err := k.ensureContractCode(ctx, contract); err != nil {
 			return err
 		}
+		if err := validateContractAddressForSourceDenom(msg.Denom, contract, true); err != nil {
+			return err
+		}
+
 		if err := k.SetExternalContractForDenom(ctx, msg.Denom, contract); err != nil {
 			return err
 		}
