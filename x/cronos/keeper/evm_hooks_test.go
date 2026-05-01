@@ -21,9 +21,9 @@ import (
 func (suite *KeeperTestSuite) TestEvmHooks() {
 	suite.SetupTest()
 
-	contract := common.BigToAddress(big.NewInt(1))
-	recipient := common.BigToAddress(big.NewInt(3))
-	sender := common.BigToAddress(big.NewInt(4))
+	contract := common.BigToAddress(big.NewInt(0x101))
+	recipient := common.BigToAddress(big.NewInt(0x103))
+	sender := common.BigToAddress(big.NewInt(0x104))
 
 	testCases := []struct {
 		msg      string

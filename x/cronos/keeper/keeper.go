@@ -310,6 +310,10 @@ func (k Keeper) HasContractCode(ctx sdk.Context, contract common.Address) bool {
 }
 
 func (k Keeper) ensureContractCode(ctx sdk.Context, contract common.Address) error {
+	if contract.Big().Cmp(big.NewInt(256)) < 0 {
+		return errors.Wrapf(sdkerrors.ErrInvalidAddress,
+			"crc21 contract must not be in precompile range: %s", contract.Hex())
+	}
 	resp, err := k.evmKeeper.Code(ctx, &evmtypes.QueryCodeRequest{
 		Address: contract.Hex(),
 	})
