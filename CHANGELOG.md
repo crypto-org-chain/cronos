@@ -23,6 +23,7 @@
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
 * [#2017](https://github.com/crypto-org-chain/cronos/pull/2017) chore(deps): bump ibc to 10.5.1
+* [#2038](https://github.com/crypto-org-chain/cronos/pull/2038) chore(ci): improve ci running
 
 
 

@@ -156,9 +156,6 @@ jobs:
     timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '^1.25.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v4
         if: github.event_name == 'issue_comment'
@@ -169,9 +166,13 @@ jobs:
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v4
-        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25.0'
+          cache: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -212,9 +213,6 @@ jobs:
     timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '^1.25.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v4
         if: github.event_name == 'issue_comment'
@@ -225,9 +223,13 @@ jobs:
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v4
-        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25.0'
+          cache: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -268,9 +270,6 @@ jobs:
     timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '^1.25.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v4
         if: github.event_name == 'issue_comment'
@@ -281,9 +280,13 @@ jobs:
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v4
-        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25.0'
+          cache: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
@@ -324,9 +327,6 @@ jobs:
     timeout-minutes: 120
     needs: [build, install-runsim]
     steps:
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '^1.25.0'
       - name: Checkout Comment PR Branch
         uses: actions/checkout@v4
         if: github.event_name == 'issue_comment'
@@ -337,9 +337,13 @@ jobs:
           ref: ${{ needs.build.outputs.ref }}
       - name: Normal check out code
         uses: actions/checkout@v4
-        if: github.event_name == 'push' || github.event_name == 'pull_request' 
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         with:
           submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.25.0'
+          cache: true
       - name: Display go version
         run: go version
       # the original repo technote-space does not include auto_merge_enabled into target events
