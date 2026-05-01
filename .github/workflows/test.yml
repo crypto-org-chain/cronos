@@ -40,8 +40,8 @@ jobs:
         if: matrix.tests == 'upgrade' && github.event_name == 'pull_request' && steps.changed-files.outputs.only_changed == 'false'
         with:
           files: |
-            app/upgrades/**
-            x/cronos/**
+            app/**
+            x/**
             integration_tests/test_upgrade.py
             integration_tests/configs/cosmovisor.jsonnet
             integration_tests/configs/upgrade-test-package.nix
