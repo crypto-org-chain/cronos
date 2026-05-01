@@ -10,12 +10,29 @@ let
     }
     .${pkgs.stdenv.system} or (throw "unsupported system: ${pkgs.stdenv.system}");
   # Download a pre-built release binary instead of compiling from source.
-  # The release tarballs have structure ./bin/cronosd, so fetchTarball strips
-  # the leading ./ and the result already contains bin/cronosd at its root.
+  # builtins.fetchTarball strips the single top-level dir (bin/) so the result
+  # contains just `cronosd` at its root.
+  # On Linux the binary needs ELF repatching (autoPatchelfHook) to work outside
+  # its original Nix closure; on Darwin the Mach-O binary runs as-is.
   fetchRelease =
     tag: version:
-    builtins.fetchTarball {
-      url = "https://github.com/crypto-org-chain/cronos/releases/download/${tag}/cronos_${version}_${arch}.tar.gz";
+    let
+      src = builtins.fetchTarball {
+        url = "https://github.com/crypto-org-chain/cronos/releases/download/${tag}/cronos_${version}_${arch}.tar.gz";
+      };
+    in
+    pkgs.stdenv.mkDerivation {
+      name = "cronos-release-${tag}";
+      dontUnpack = true;
+      nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.isLinux pkgs.autoPatchelfHook;
+      buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux (
+        with pkgs; [ stdenv.cc.cc.lib zlib ]
+      );
+      installPhase = ''
+        mkdir -p $out/bin
+        cp ${src}/cronosd $out/bin/cronosd
+        chmod +x $out/bin/cronosd
+      '';
     };
   current = pkgs.callPackage ../../. { };
 in
