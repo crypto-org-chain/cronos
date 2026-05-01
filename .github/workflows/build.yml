@@ -42,6 +42,8 @@ jobs:
           # github don't pass secrets for pull request from fork repos,
           # in that case the push is disabled naturally.
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v9
+        if: steps.changed-files.outputs.any_changed == 'true'
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -50,6 +52,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && steps.changed-files.outputs.any_changed == 'true'
         run: |
           set -euo pipefail
+
+          # ubuntu-latest ships wine64 pre-installed; skip apt if already on PATH.
+          if command -v wine64 >/dev/null 2>&1 || command -v wine >/dev/null 2>&1; then
+            echo "Wine already available, skipping install"
+            exit 0
+          fi
 
           # Wine packages often live in Ubuntu's Universe repo and may pull
           # key bits via Recommends; avoid --no-install-recommends here.
