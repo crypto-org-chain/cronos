@@ -47,6 +47,8 @@ jobs:
       - name: Run build
         run: ./scripts/release.sh
         if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          SKIP_TESTNET: "1"
 
       - name: Install Wine (Ubuntu only)
         if: matrix.os == 'ubuntu-latest' && steps.changed-files.outputs.any_changed == 'true'
