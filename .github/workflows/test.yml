@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 240
     strategy:
       matrix:
-        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, gov, upgrade, slow, gas, mint, evm]
+        tests: [unmarked, ibc, ibc_rly_evm, ibc_rly_gas, ibc_timeout, ibc_update_client, ica, upgrade, slow, evm, "gov or gas or mint"]
     env:
       TESTS_TO_RUN: ${{ matrix.tests }}
     steps:
@@ -41,6 +41,17 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
         if: steps.changed-files.outputs.only_changed == 'false'
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v9
+        if: steps.changed-files.outputs.only_changed == 'false'
+      - uses: actions/cache@v4
+        if: steps.changed-files.outputs.only_changed == 'false'
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-integration-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-integration-
       - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
         if: steps.changed-files.outputs.only_changed == 'false'
         with:
