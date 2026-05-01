@@ -1,7 +1,12 @@
 name: Semgrep
 on:
   # Scan changed files in PRs, block on new issues only (existing issues ignored)
-  pull_request: {}
+  pull_request:
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/semgrep.yml'
   push:
     branches:
       - main
@@ -26,10 +31,7 @@ jobs:
       # Run the "semgrep ci" command on the command line of the docker image.
       - run: semgrep ci
         env:
-           # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable. 
+           # Add the rules that Semgrep uses by setting the SEMGREP_RULES environment variable.
            SEMGREP_RULES: p/golang # more at semgrep.dev/explore
            SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-           # Uncomment SEMGREP_TIMEOUT to set this job's timeout (in seconds):
-           # Default timeout is 1800 seconds (30 minutes).
-           # Set to 0 to disable the timeout.
-           # SEMGREP_TIMEOUT: 300
+           SEMGREP_TIMEOUT: 600

@@ -35,14 +35,38 @@ jobs:
             docs
             *.md
             **/*.md
+      - id: changed-upgrade-files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+        if: matrix.tests == 'upgrade' && github.event_name == 'pull_request' && steps.changed-files.outputs.only_changed == 'false'
+        with:
+          files: |
+            app/**
+            x/**
+            integration_tests/test_upgrade.py
+            integration_tests/configs/cosmovisor.jsonnet
+            integration_tests/configs/upgrade-test-package.nix
+      - id: skip-upgrade
+        if: matrix.tests == 'upgrade' && github.event_name == 'pull_request' && steps.changed-upgrade-files.outputs.any_changed == 'false'
+        run: echo "skip=true" >> $GITHUB_OUTPUT
       - uses: cachix/install-nix-action@fc6e360bedc9ee72d75e701397f0bb30dce77568 # v31.5.2
         with:
           nix_path: nixpkgs=channel:nixos-25.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-        if: steps.changed-files.outputs.only_changed == 'false'
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v9
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
+      - uses: actions/cache@v4
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-integration-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-integration-
       - uses: cachix/cachix-action@6a9a34cdd93d0ae4b4b59fd678660efb08109f2f # v12
-        if: steps.changed-files.outputs.only_changed == 'false'
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         with:
           name: cronos
           extraPullNames: dapp
@@ -50,10 +74,10 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
       - name: 'build and cache upgrade test packages'
-        if: steps.changed-files.outputs.only_changed == 'false' && matrix.tests == 'upgrade' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        if: steps.changed-files.outputs.only_changed == 'false' && matrix.tests == 'upgrade' && steps.skip-upgrade.outputs.skip != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
         run: cachix watch-exec cronos -- nix-build integration_tests/configs/upgrade-test-package.nix
       - name: Run integration tests
-        if: steps.changed-files.outputs.only_changed == 'false'
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         run: make run-integration-tests
       - name: 'Tar debug files'
         if: failure()
@@ -65,12 +89,12 @@ jobs:
           path: debug_files.tar.gz
           if-no-files-found: ignore
       - name: Convert coverage data
-        if: steps.changed-files.outputs.only_changed == 'false'
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         run: |
           nix profile install ./nix#go_1_25
           go tool covdata textfmt -i=coverage -o profile.txt
       - name: Upload coverage report
-        if: steps.changed-files.outputs.only_changed == 'false'
+        if: steps.changed-files.outputs.only_changed == 'false' && steps.skip-upgrade.outputs.skip != 'true'
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
