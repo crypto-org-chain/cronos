@@ -27,7 +27,11 @@ let
       dontUnpack = true;
       nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.isLinux pkgs.autoPatchelfHook;
       buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux (
-        with pkgs; [ stdenv.cc.cc.lib zlib ]
+        with pkgs;
+        [
+          stdenv.cc.cc.lib
+          zlib
+        ]
       );
       installPhase = ''
         mkdir -p $out/bin
@@ -96,10 +100,10 @@ pkgs.linkFarm "upgrade-test-package" [
   }
   {
     name = "v1.7";
-    path = fetchRelease "v1.7.0" "1.7.0" {
-      Linux_x86_64 = "1h330ld4ay8c12j2jrjxx8x25j21w4g9r99r6h8xdnknc5i3a3j6";
-      Linux_arm64 = "0xzm8d6jmyn5sjcq4s47pr4xbg6cmb12sq2l4k504i9zlf1dlsr9";
-      Darwin_arm64 = "1xxxjcdxd5wx71x6s9zvr7wx9hznf5s2h2xvybxjn7vvs624vn0i";
+    path = fetchRelease "v1.7.5" "1.7.5" {
+      Linux_x86_64 = "0ay6xxlmjl6xl5bq4023v482s5999k9v0vg72hy8wm8hfmg97s5z";
+      Linux_arm64 = "1hdh4f1x3zn0jcx4f76sd1k4v5ijijcphk4437lsl5mkpxzmyffk";
+      Darwin_arm64 = "1hkwqsgkv1qqpcapqhg4vapwz3gxsv2j6sxqqaf3d9cpb7j418av";
     };
   }
   {
