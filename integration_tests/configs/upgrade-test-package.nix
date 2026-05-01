@@ -1,110 +1,88 @@
 let
   pkgs = import ../../nix { };
-  # Map Nix system tuple → cronos release arch string.
-  # Darwin x86_64 (Intel) is not supported — no release binaries since v1.7.0.
-  arch =
-    {
-      "x86_64-linux" = "Linux_x86_64";
-      "aarch64-linux" = "Linux_arm64";
-      "aarch64-darwin" = "Darwin_arm64";
-    }
-    .${pkgs.stdenv.system} or (throw "unsupported system: ${pkgs.stdenv.system}");
-  # Download a pre-built release binary instead of compiling from source.
-  # pkgs.fetchzip strips the single top-level dir (bin/) so the result
-  # contains just `cronosd` at its root.
-  # On Linux the binary needs ELF repatching (autoPatchelfHook) to work outside
-  # its original Nix closure; on Darwin the Mach-O binary runs as-is.
-  fetchRelease =
-    tag: version: sha256s:
-    let
-      src = pkgs.fetchzip {
-        url = "https://github.com/crypto-org-chain/cronos/releases/download/${tag}/cronos_${version}_${arch}.tar.gz";
-        sha256 = sha256s.${arch};
+  # v1.0.15 pins nixpkgs release-22.11 whose default go is 1.19.8.
+  # That binary is missing the LC_UUID load command required by macOS 15.
+  # Inject go = pkgs.go into the attrs so selectGo short-circuits and
+  # uses the current Go instead of scanning for a matching EOL version.
+  buildGoApplicationWithGo =
+    attrs:
+    pkgs.buildGoApplication (
+      attrs
+      // {
+        go = pkgs.go;
+        modRoot = attrs.modRoot or ".";
+      }
+    );
+  fetchFlake =
+    repo: rev:
+    (pkgs.flake-compat {
+      src = {
+        outPath = builtins.fetchTarball "https://github.com/${repo}/archive/${rev}.tar.gz";
+        inherit rev;
+        shortRev = builtins.substring 0 7 rev;
       };
-    in
-    pkgs.stdenv.mkDerivation {
-      name = "cronos-release-${tag}";
-      dontUnpack = true;
-      nativeBuildInputs = pkgs.lib.optional pkgs.stdenv.isLinux pkgs.autoPatchelfHook;
-      buildInputs = pkgs.lib.optionals pkgs.stdenv.isLinux (
-        with pkgs;
-        [
-          stdenv.cc.cc.lib
-          zlib
-        ]
-      );
-      installPhase = ''
-        mkdir -p $out/bin
-        cp ${src}/cronosd $out/bin/cronosd
-        chmod +x $out/bin/cronosd
-      '';
-    };
+    }).defaultNix;
+  # v1.0.15
+  releasedGenesis =
+    (fetchFlake "crypto-org-chain/cronos" "1f5e2618362303d91f621b47cbc1115cf4fa0195").default.override
+      {
+        buildGoApplication = buildGoApplicationWithGo;
+      };
+  # release/v1.1.x
+  released1_1 =
+    (fetchFlake "crypto-org-chain/cronos" "69a80154b6b24fca15f3562e2c4b312ee1092220").default;
+  # release/v1.2.x
+  released1_2 =
+    (fetchFlake "crypto-org-chain/cronos" "1aea999eef67a0a01b22422bad94b36e45b9759a").default;
+  # release/v1.3.x
+  released1_3 =
+    (fetchFlake "crypto-org-chain/cronos" "dd3cea2df41732ef030a1f830244e340f3cf6bf0").default;
+  # release/v1.4.8
+  released1_4 =
+    (fetchFlake "crypto-org-chain/cronos" "513fda768eb6d0602df1abe48abd4d2cda7a2a11").default;
+  # release/v1.5.4
+  released1_5 =
+    (fetchFlake "crypto-org-chain/cronos" "5ccd423a14f100f4e485d0fb6aa8fa4b96d11b60").default;
+  # release/v1.6.1
+  released1_6 =
+    (fetchFlake "crypto-org-chain/cronos" "05e102ef83b9ab0d5b55d46fb90f5fee53a295d2").default;
+  # release/v1.7
+  released1_7 =
+    (fetchFlake "crypto-org-chain/cronos" "40032610e530cc2c0c2fc83f104d6d19efa08ada").default;
   current = pkgs.callPackage ../../. { };
 in
 pkgs.linkFarm "upgrade-test-package" [
   {
     name = "genesis";
-    path = fetchRelease "v1.0.15" "1.0.15" {
-      Linux_x86_64 = "1ny07hv238la7l1nmbyxj0mi1xivdni5wipm8hp2hn203dyi1c23";
-      Linux_arm64 = "0jvnlfdqxvlzqzcmfibkkxjy2a77qfkcg557y562rg8a380brgd2";
-      Darwin_arm64 = "10w93r1b7d66yzgmwr3mj69j0n370xplwbh1zlds78ig41r5a4ir";
-    };
+    path = releasedGenesis;
   }
   {
     name = "v1.1.0";
-    path = fetchRelease "v1.1.1" "1.1.1" {
-      Linux_x86_64 = "1gq9wh911l51za3wx8xsph6nlmdn2b0arlyxhdk09w0ibb8llh6q";
-      Linux_arm64 = "1mjnngssdbjdvbh6gbi1zgb775m0fnraryali9dr4mb385554n5g";
-      Darwin_arm64 = "0y68gwbad7yij07frhgs1kmmgp0xkasfls5bvqq998hv1mqamhil";
-    };
+    path = released1_1;
   }
   {
     name = "v1.2";
-    path = fetchRelease "v1.2.0" "1.2.0" {
-      Linux_x86_64 = "1gf0w22f21js48k8i9c2dyxzz5jd5zndklc060mymfrcicf286hl";
-      Linux_arm64 = "13xcr1j5zz4p110mny0723dk5w03pkniysqck4hmnfmkq89c98f7";
-      Darwin_arm64 = "1adyzvgwfbngfm4x4vik9imdjgrpgkxj4d40pmb45zkghj83gx8d";
-    };
+    path = released1_2;
   }
   {
     name = "v1.3";
-    path = fetchRelease "v1.3.4" "1.3.4" {
-      Linux_x86_64 = "0hwdix4i5j4pd4373dmsfq5b7z6lwpz1c05yililiqfj292h54v8";
-      Linux_arm64 = "0fb7svkpnd3rlyhhp5h3bdsdkhfr5w95fxw8ibm86b52pnpwg7a3";
-      Darwin_arm64 = "0kjsmz7dwg18r11rxir2gygsn1xlh1sbnvfm30c6706hqj1a86g8";
-    };
+    path = released1_3;
   }
   {
     name = "v1.4";
-    path = fetchRelease "v1.4.8" "1.4.8" {
-      Linux_x86_64 = "0g5kdpi2xbrwazrj4x123c44sz6sz1sk01h80mf802s7s709hard";
-      Linux_arm64 = "1z9rh5j0jj6rqnwr1hwdvp7ci20jaaf7jqi01amxhds5g9in53sv";
-      Darwin_arm64 = "14bmwpz4y63a2xqif3b6hpan5g9gj5pgqff5jzhd4p4cs2f2mk62";
-    };
+    path = released1_4;
   }
   {
     name = "v1.5";
-    path = fetchRelease "v1.5.4" "1.5.4" {
-      Linux_x86_64 = "0zc5zpzkpf8gblrrcx34sr330kpk3p60bb4xi4qdpwz1jakj4md1";
-      Linux_arm64 = "10lkyl1gm3g09zg1bmalr6q1ncy667rb571ai42nlj06p5kh2xsw";
-      Darwin_arm64 = "1vspwlgva9pjk7pv74vgi1nr0bcgjwphwspdpr1mafqi6f94rrhn";
-    };
+    path = released1_5;
   }
   {
     name = "v1.6";
-    path = fetchRelease "v1.6.1" "1.6.1" {
-      Linux_x86_64 = "1rypf0iwpib9pl7qghjv72sj5v7z5xj288jncg5qaply9v09fh57";
-      Linux_arm64 = "0lg9lkj23ldpr15q4p3avicc4lkjvya07z033rsz5hn3rif62kg6";
-      Darwin_arm64 = "15am423rq2lxydq7pprfj8bf9mx91cq22yn87aw9hd3lhx3g4zl9";
-    };
+    path = released1_6;
   }
   {
     name = "v1.7";
-    path = fetchRelease "v1.7.0" "1.7.0" {
-      Linux_x86_64 = "1h330ld4ay8c12j2jrjxx8x25j21w4g9r99r6h8xdnknc5i3a3j6";
-      Linux_arm64 = "0xzm8d6jmyn5sjcq4s47pr4xbg6cmb12sq2l4k504i9zlf1dlsr9";
-      Darwin_arm64 = "1xxxjcdxd5wx71x6s9zvr7wx9hznf5s2h2xvybxjn7vvs624vn0i";
-    };
+    path = released1_7;
   }
   {
     name = "v1.8";
