@@ -16,7 +16,8 @@
 * [#1987](https://github.com/crypto-org-chain/cronos/pull/1987) fix: fix ibc call back response.
 * [#1997](https://github.com/crypto-org-chain/cronos/pull/1997) fix(gov): validate token-mapping proposals and require contract code.
 * [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
-* [#2029] (https://github.com/crypto-org-chain/cronos/pull/2029) fix(cronos): enforce source denom mapping immutability
+* [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos): reject CRC21 token-mapping registrations targeting the zero address or the Ethereum precompile range.
+* [#2029](https://github.com/crypto-org-chain/cronos/pull/2029) fix(cronos): enforce source denom mapping immutability
 * [#2037](https://github.com/crypto-org-chain/cronos/pull/2037) fix(sim): skip MsgUpdateTokenMapping when contract address has no code.
 
 ### Chores:
