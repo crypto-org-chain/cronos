@@ -185,8 +185,8 @@ schema = 3
     version = "v0.0.0-20230807174530-cc333fc44b06"
     hash = "sha256-yZdBXkTVzPxRYntI9I2Gu4gkI11m52Nwl8RNNdlXSrA="
   [mod."github.com/cometbft/cometbft"]
-    version = "v0.0.0-20260126040959-178ea8502144"
-    hash = "sha256-v6+QdFkhzC+WPGZ3DEQCB6IvTr6lL5pzTpX6waIwecU="
+    version = "v0.0.0-20260508002330-86a5112f4be3"
+    hash = "sha256-9AMYmgTCU3oL+AknT+VBoFWeBQ55+XNvYNozZtNkodA="
     replaced = "github.com/crypto-org-chain/cometbft"
   [mod."github.com/cometbft/cometbft-db"]
     version = "v0.15.0"
@@ -496,8 +496,8 @@ schema = 3
     version = "v0.0.0-20230210071639-db0e7ed11263"
     hash = "sha256-SKFGLsJV6G4xIQ5IU+qq9EY3v0/I8B/CTMcDOhXGfc4="
   [mod."github.com/lib/pq"]
-    version = "v1.10.9"
-    hash = "sha256-Gl6dLtL+yk6UrTTWfas43aM4lP/pNa2l7+ITXnjQyKs="
+    version = "v1.12.0"
+    hash = "sha256-SJfVo5IyW7rb8O6CyrPoCPhrfqbDhw448VMxmTaVYWw="
   [mod."github.com/linxGnu/grocksdb"]
     version = "v1.10.7"
     hash = "sha256-heU4fQSj9j8Tg1hVwFrBBXZ0SX0cqrLUvsQY6H3tpJM="
@@ -517,8 +517,8 @@ schema = 3
     version = "v3.2.1"
     hash = "sha256-OqRnO3cSJfMZwOivLgWw0bozmUMaoPVsm/8R/GwyBh0="
   [mod."github.com/minio/highwayhash"]
-    version = "v1.0.3"
-    hash = "sha256-5M2Y3d0hnvo8JHz6910upUNbRRaUVes90F0jaIzo4pE="
+    version = "v1.0.4"
+    hash = "sha256-GW5irfhrYqrhUOrBavARHslApXnWz3rVoU/PcphA6no="
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
@@ -541,8 +541,8 @@ schema = 3
     version = "v2.2.4"
     hash = "sha256-8qQIPldbsS5RO8v/FW/se3ZsAyvLzexiivzJCbGRg2Q="
   [mod."github.com/petermattis/goid"]
-    version = "v0.0.0-20240813172612-4fcff4a6cae7"
-    hash = "sha256-tfb/0LbMHJQsmxwaj2RItXiYn2AVd05E92Z/vp+rJhs="
+    version = "v0.0.0-20250813065127-a731cc31b4fe"
+    hash = "sha256-67f5PY1iAwKwnX7EeNkNoLlh01FAqXILXwxeScsCvNc="
   [mod."github.com/pion/dtls/v2"]
     version = "v2.2.7"
     hash = "sha256-57RnGRwM1QMWkN5NJ5qr/ueb1EBNrgM0oQ8xs/5340s="
@@ -598,8 +598,8 @@ schema = 3
     version = "v0.11.0"
     hash = "sha256-PUX8dzJtkD8YDZFNqpHnl4qgb0tE1W/DLnL7V+/d1z4="
   [mod."github.com/sasha-s/go-deadlock"]
-    version = "v0.3.5"
-    hash = "sha256-1vyxWqOTVVVeodipm/tpDgRKUMkEdkoLWSgtiVZaZmw="
+    version = "v0.3.9"
+    hash = "sha256-eH87hn1sP9O8BEHt3M899Cw2HYFNuzRXdYlnJQJfdsI="
   [mod."github.com/shirou/gopsutil"]
     version = "v3.21.11+incompatible"
     hash = "sha256-tcH5zN94yZhKtg8wAUfojlqdyguifuPTBLPso3KF7QA="
