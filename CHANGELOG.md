@@ -19,7 +19,7 @@
 * [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos): reject CRC21 token-mapping registrations targeting the zero address or the Ethereum precompile range.
 * [#2029](https://github.com/crypto-org-chain/cronos/pull/2029) fix(cronos): enforce source denom mapping immutability
 * [#2037](https://github.com/crypto-org-chain/cronos/pull/2037) fix(sim): skip MsgUpdateTokenMapping when contract address has no code.
-* [#](https://github.com/crypto-org-chain/ethermint/pull/) fix(evm): enforce floor-data-gas
+* [#2041](https://github.com/crypto-org-chain/ethermint/pull/2041) fix(evm): enforce floor-data-gas
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
