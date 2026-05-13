@@ -161,8 +161,20 @@ def test_tx_replacement(cronos_mempool):
     w3 = cronos_mempool.w3
     sender = ADDRS["validator"]
     # drain any pending txs from prior tests before starting
-    while w3.eth.get_transaction_count(sender, "pending") != w3.eth.get_transaction_count(sender):
+    max_drain_blocks = 20
+    for drain_i in range(max_drain_blocks):
+        pending = w3.eth.get_transaction_count(sender, "pending")
+        latest = w3.eth.get_transaction_count(sender)
+        if pending == latest:
+            break
         wait_for_new_blocks(cronos_mempool.cosmos_cli(), 1)
+    else:
+        pending = w3.eth.get_transaction_count(sender, "pending")
+        latest = w3.eth.get_transaction_count(sender)
+        assert False, (
+            f"mempool drain timed out after {max_drain_blocks} blocks: "
+            f"sender={sender}, pending_nonce={pending}, latest_nonce={latest}"
+        )
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     priority_fee = w3.eth.max_priority_fee
     nonce = get_account_nonce(w3)
