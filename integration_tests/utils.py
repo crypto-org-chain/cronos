@@ -473,6 +473,13 @@ def send_transaction(w3, tx, key=KEYS["validator"]):
 
 
 def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
+    # Sign and send both txs via send_raw_transaction rather than using
+    # w3.eth.replace_transaction, which internally fetches the old tx via
+    # eth_getTransactionByHash then calls eth_sendTransaction — two round
+    # trips that create a race window: a block commit between them evicts
+    # the old nonce from AnteCache, causing the new tx to see ex=false and
+    # fail with "invalid nonce" instead of "fit the replacement rule".
+    # Sending both as raw txs eliminates the round-trip gap; errors raise.
     signed_old = sign_transaction(w3, old_tx, key)
     w3.eth.send_raw_transaction(signed_old.raw_transaction)
     signed_new = sign_transaction(w3, new_tx, key)

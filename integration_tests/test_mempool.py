@@ -162,7 +162,7 @@ def test_tx_replacement(cronos_mempool):
     sender = ADDRS["validator"]
     # drain any pending txs from prior tests before starting
     max_drain_blocks = 20
-    for drain_i in range(max_drain_blocks):
+    for _ in range(max_drain_blocks):
         pending = w3.eth.get_transaction_count(sender, "pending")
         latest = w3.eth.get_transaction_count(sender)
         if pending == latest:

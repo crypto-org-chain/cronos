@@ -204,6 +204,10 @@ func TestLaneReplacementFeeBumpPerLane(t *testing.T) {
 	require.NoError(t, pool.Insert(ctx.WithPriority(100), txA))
 	require.NoError(t, pool.Insert(ctx.WithPriority(10), txB))
 
+	// Replacement uses the envelope's overall priority (max across all lanes = 100)
+	// as the baseline, so the 10% bump threshold is 110 for ALL lanes. candidateLow
+	// (priority 109) fails even though it would satisfy lane B's individual threshold
+	// (10 * 110/100 = 11). This is intentional all-or-nothing cross-lane semantics.
 	err := pool.Insert(ctx.WithPriority(109), candidateLow)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "replacement rule")
@@ -281,7 +285,10 @@ func TestInnerMsgCapZeroUsesDefaultCap(t *testing.T) {
 	tx64 := buildEthEnvelopeTx(t, msgs64...)
 	require.NoError(t, interfaces.ValidateEthBasic(ctx, tx64, &params, nil))
 
-	msgs65 := append([]*evmtypes.MsgEthereumTx{}, msgs64...)
+	// Pre-allocate cap=len+1 so the append below always triggers a new backing
+	// array regardless of Go's growth heuristics.
+	msgs65 := make([]*evmtypes.MsgEthereumTx, len(msgs64), len(msgs64)+1)
+	copy(msgs65, msgs64)
 	msgs65 = append(msgs65, newSignedEthMsg(t, ethSigner, TestEthChainID, acc, uint64(len(msgs65)+1), 2))
 	tx65 := buildEthEnvelopeTx(t, msgs65...)
 	err := interfaces.ValidateEthBasic(ctx, tx65, &params, nil)
@@ -394,6 +401,7 @@ func TestBatchSelectionEmitsEachBatchOnce(t *testing.T) {
 	batchSelected := 0
 	iter := pool.Select(ctx, nil)
 	for iter != nil {
+		// iter.Tx() returns a mempool.WrappedTx; .Tx is the inner sdk.Tx.
 		if bytes.Equal(batchBytes, mustEncodeTx(t, iter.Tx().Tx)) {
 			batchSelected++
 		}
