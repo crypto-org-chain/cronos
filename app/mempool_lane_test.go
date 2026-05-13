@@ -314,7 +314,7 @@ func TestInnerMsgCapGovernanceUpdate(t *testing.T) {
 
 	params.MaxEthMsgsPerTx = 2
 	authority := authtypes.NewModuleAddress(govtypes.ModuleName).String()
-	_, err := app.EvmKeeper.UpdateParams(sdk.WrapSDKContext(ctx), &evmtypes.MsgUpdateParams{
+	_, err := app.EvmKeeper.UpdateParams(ctx, &evmtypes.MsgUpdateParams{
 		Authority: authority,
 		Params:    params,
 	})
