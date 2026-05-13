@@ -473,9 +473,10 @@ def send_transaction(w3, tx, key=KEYS["validator"]):
 
 
 def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
-    signed = sign_transaction(w3, old_tx, key)
-    old_tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-    new_txhash = w3.eth.replace_transaction(old_tx_hash, new_tx)
+    signed_old = sign_transaction(w3, old_tx, key)
+    w3.eth.send_raw_transaction(signed_old.raw_transaction)
+    signed_new = sign_transaction(w3, new_tx, key)
+    new_txhash = w3.eth.send_raw_transaction(signed_new.raw_transaction)
     return w3.eth.wait_for_transaction_receipt(new_txhash)
 
 
