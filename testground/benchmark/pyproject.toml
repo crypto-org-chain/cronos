@@ -22,7 +22,7 @@ jsonmerge = "^1.9.2"
 backoff = "^2.2.1"
 cprotobuf = "^0.1.11"
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.2"
+pytest = "^9.0"
 pytest-github-actions-annotate-failures = "^0.2.0"
 black = "^26.3.1"
 flake8 = "^7.1.1"
