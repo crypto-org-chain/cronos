@@ -2329,23 +2329,24 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "web3"
-version = "6.20.0"
+version = "6.20.4"
 description = "web3.py"
 optional = false
 python-versions = ">=3.7.2"
 groups = ["main"]
 files = [
-    {file = "web3-6.20.0-py3-none-any.whl", hash = "sha256:ec09882d21378b688210cf29385e82b604bdc18fe5c2e238bf3b5fe2a6e6dbbc"},
-    {file = "web3-6.20.0.tar.gz", hash = "sha256:b04725517502cad4f15e39356eaf7c4fcb0127c7728f83eec8cbafb5b6455f33"},
+    {file = "web3-6.20.4-py3-none-any.whl", hash = "sha256:a6e1c428a54bf0fd398fbf006d00235898aed794476177ce73f7db177d2ad16c"},
+    {file = "web3-6.20.4.tar.gz", hash = "sha256:7f3cdceca369be3eb959ce3905783cd021a0786f40c60b01e40ae2ba538e6e3f"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.7.4.post0"
+ckzg = "<2"
 eth-abi = ">=4.0.0"
 eth-account = ">=0.8.0,<0.13"
 eth-hash = {version = ">=0.5.1", extras = ["pycryptodome"]}
-eth-typing = ">=3.0.0,<4.2.0 || >4.2.0"
-eth-utils = ">=2.1.0"
+eth-typing = ">=3.0.0,<4.2.0 || >4.2.0,<5.0.0"
+eth-utils = ">=2.1.0,<5"
 hexbytes = ">=0.1.0,<0.4.0"
 jsonschema = ">=4.0.0"
 lru-dict = ">=1.1.6,<1.3.0"
@@ -2354,13 +2355,13 @@ pyunormalize = ">=15.0.0"
 pywin32 = {version = ">=223", markers = "platform_system == \"Windows\""}
 requests = ">=2.16.0"
 typing-extensions = ">=4.0.1"
-websockets = ">=10.0.0"
+websockets = ">=10.0.0,<14.0.0"
 
 [package.extras]
-dev = ["build (>=0.9.0)", "bumpversion", "eth-tester[py-evm] (>=0.11.0b1,<0.12.0b1) ; python_version > \"3.7\"", "eth-tester[py-evm] (>=0.9.0b1,<0.10.0b1) ; python_version <= \"3.7\"", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "importlib-metadata (<5.0) ; python_version < \"3.8\"", "ipfshttpclient (==0.8.0a2)", "pre-commit (>=2.21.0)", "py-geth (>=3.14.0)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.21.2,<0.23)", "pytest-mock (>=1.10)", "pytest-watch (>=4.2)", "pytest-xdist (>=1.29)", "setuptools (>=38.6.0)", "sphinx (>=5.3.0)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)", "tox (>=3.18.0)", "tqdm (>4.32)", "twine (>=1.13)", "when-changed (>=0.3.0)"]
-docs = ["sphinx (>=5.3.0)", "sphinx-rtd-theme (>=1.0.0)", "towncrier (>=21,<22)"]
+dev = ["build (>=0.9.0)", "bumpversion", "eth-tester[py-evm] (>=0.11.0b1,<0.12.0b1) ; python_version > \"3.7\"", "eth-tester[py-evm] (>=0.9.0b1,<0.10.0b1) ; python_version <= \"3.7\"", "flaky (>=3.7.0)", "hypothesis (>=3.31.2)", "importlib-metadata (<5.0) ; python_version < \"3.8\"", "ipfshttpclient (==0.8.0a2)", "pre-commit (>=2.21.0)", "py-geth (>=3.14.0,<4)", "pytest (>=7.0.0)", "pytest-asyncio (>=0.21.2,<0.23)", "pytest-mock (>=1.10)", "pytest-watch (>=4.2)", "pytest-xdist (>=1.29)", "setuptools (>=38.6.0)", "sphinx (>=5.3.0)", "sphinx_rtd_theme (>=1.0.0)", "towncrier (>=21,<22)", "tox (>=3.18.0)", "tqdm (>4.32)", "twine (>=1.13)", "when-changed (>=0.3.0)"]
+docs = ["sphinx (>=5.3.0)", "sphinx_rtd_theme (>=1.0.0)", "towncrier (>=21,<22)"]
 ipfs = ["ipfshttpclient (==0.8.0a2)"]
-tester = ["eth-tester[py-evm] (>=0.11.0b1,<0.12.0b1) ; python_version > \"3.7\"", "eth-tester[py-evm] (>=0.9.0b1,<0.10.0b1) ; python_version <= \"3.7\"", "py-geth (>=3.14.0)"]
+tester = ["eth-tester[py-evm] (>=0.11.0b1,<0.12.0b1) ; python_version > \"3.7\"", "eth-tester[py-evm] (>=0.9.0b1,<0.10.0b1) ; python_version <= \"3.7\"", "py-geth (>=3.14.0,<4)"]
 
 [[package]]
 name = "websocket-client"
