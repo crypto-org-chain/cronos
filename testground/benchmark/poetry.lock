@@ -951,19 +951,19 @@ develop = ["build", "twine"]
 
 [[package]]
 name = "flake8-isort"
-version = "6.1.1"
+version = "7.0.0"
 description = "flake8 plugin that integrates isort"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "flake8_isort-6.1.1-py3-none-any.whl", hash = "sha256:0fec4dc3a15aefbdbe4012e51d5531a2eb5fa8b981cdfbc882296a59b54ede12"},
-    {file = "flake8_isort-6.1.1.tar.gz", hash = "sha256:c1f82f3cf06a80c13e1d09bfae460e9666255d5c780b859f19f8318d420370b3"},
+    {file = "flake8_isort-7.0.0-py3-none-any.whl", hash = "sha256:c301a0e55fc77582348e636194b84b1a0baf0dfdaa6eddf3b0eeea75f8be7f36"},
+    {file = "flake8_isort-7.0.0.tar.gz", hash = "sha256:a677199d1197f826eb69084e7ac272f208f4583363285f43111c34272abe7e5d"},
 ]
 
 [package.dependencies]
 flake8 = "*"
-isort = ">=5.0.0,<6"
+isort = ">=5.0.0"
 
 [package.extras]
 test = ["pytest"]
@@ -2585,4 +2585,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "681e0ec86195e329005e82e59b8bcb0c102d129a67412127fcaee7ecfedf813f"
+content-hash = "203282e41628bfb5700a0aceebf78795cc4698eba02504a9161a25f79bca1c8a"
