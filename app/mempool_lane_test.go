@@ -122,7 +122,7 @@ func newLaneTestMempool(feeBump int64) *mempool.MultiLanePriorityNonceMempool[in
 func TestAppUsesMultiLanePriorityMempool(t *testing.T) {
 	app := Setup(t, sdk.AccAddress(newEthTestAccount(t).ethAddress.Bytes()).String())
 
-	_, ok := app.BaseApp.Mempool().(*mempool.MultiLanePriorityNonceMempool[int64])
+	_, ok := app.Mempool().(*mempool.MultiLanePriorityNonceMempool[int64])
 	require.True(t, ok)
 }
 
