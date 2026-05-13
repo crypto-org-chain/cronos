@@ -385,8 +385,8 @@ func New(
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
-		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
+		logger.Info("NewMultiLanePriorityMempool is enabled", "feebump", feeBump)
+		mpool = mempool.NewMultiLanePriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
 			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
 			MaxTx:           mempoolMaxTxs,
