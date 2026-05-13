@@ -27,6 +27,7 @@
 * [#1959](https://github.com/crypto-org-chain/cronos/pull/1959) fix: eip712 legacy signature verify 
 * [#1963](https://github.com/crypto-org-chain/cronos/pull/1963) fix: apply tachyon patch
 * [#2027](https://github.com/crypto-org-chain/cronos/pull/2027) fix(ibc): update ibc-go dependency for ibc clientstates query issue
+* [#1998](https://github.com/crypto-org-chain/cronos/pull/1998) fix(cronos): retire auto mapping on denom remap.
 
 *Dec 4, 2025*
 
