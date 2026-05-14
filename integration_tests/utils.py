@@ -481,10 +481,18 @@ def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
     # fail with "invalid nonce" instead of "fit the replacement rule".
     # Sending both as raw txs eliminates the round-trip gap; errors raise.
     signed_old = sign_transaction(w3, old_tx, key)
-    old_txhash = w3.eth.send_raw_transaction(signed_old.raw_transaction)  # noqa: F841
+    old_txhash = w3.eth.send_raw_transaction(signed_old.raw_transaction)
     signed_new = sign_transaction(w3, new_tx, key)
     new_txhash = w3.eth.send_raw_transaction(signed_new.raw_transaction)
-    return w3.eth.wait_for_transaction_receipt(new_txhash)
+    receipt = w3.eth.wait_for_transaction_receipt(new_txhash)
+    # Verify replacement actually evicted the old tx: both share the same nonce,
+    # so if new_txhash was mined, old_txhash must not have a receipt.
+    old_receipt = w3.eth.get_transaction_receipt(old_txhash)
+    assert old_receipt is None, (
+        f"old tx {old_txhash.hex()} was mined before replacement; "
+        f"eviction did not occur"
+    )
+    return receipt
 
 
 def cronos_address_from_mnemonics(mnemonics, prefix=CRONOS_ADDRESS_PREFIX):
