@@ -2,7 +2,7 @@ from hexbytes import HexBytes
 
 from .cosmoscli import module_address
 from .network import Cronos
-from .utils import submit_gov_proposal
+from .utils import ADDRS, submit_gov_proposal
 
 
 def test_preinstalls(cronos: Cronos):
@@ -11,6 +11,21 @@ def test_preinstalls(cronos: Cronos):
     """
     w3 = cronos.w3
     create2address = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
+
+    # transfer to the preinstall address to make sure it
+    # works even if it has non-zero balance
+    txhash = w3.eth.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": create2address,
+            "value": 5,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+    assert receipt.gasUsed == 21000
+
+    # ensure its empty
     create2code = w3.eth.get_code(create2address)
     assert create2code == HexBytes("0x")
 

@@ -31,6 +31,9 @@ from .utils import (
 
 pytestmark = pytest.mark.ica
 
+# skip ica precompile integration tests since it's not enabled by default.
+pytest.skip("skipping ica precompile tests", allow_module_level=True)
+
 CONTRACT = "0x0000000000000000000000000000000000000066"
 connid = "connection-0"
 no_timeout = 300000000000

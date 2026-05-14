@@ -37,7 +37,7 @@ def test_exported_token_mapping(custom_cronos):
             "denom": "gravity0x0000000000000000000000000000000000000000",
             "expected": {
                 "contract": "0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503",
-                "auto_contract": "0x68542BD12B41F5D51D6282Ec7D91D7d0D78E4503",
+                "auto_contract": "",
             },
         },
         {

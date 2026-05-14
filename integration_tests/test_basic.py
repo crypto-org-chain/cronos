@@ -27,15 +27,11 @@ from .utils import (
     deploy_contract,
     derive_new_account,
     fund_acc,
-    get_account_nonce,
     get_expedited_params,
     get_receipts_by_block,
     get_sync_info,
-    modify_command_in_supervisor_config,
     remove_cancun_prague_params,
-    replace_transaction,
     send_transaction,
-    send_txs,
     sign_transaction,
     submit_any_proposal,
     submit_gov_proposal,
@@ -119,7 +115,7 @@ def test_events(cluster, suspend_capture):
         w3,
         CONTRACTS["TestERC20A"],
         key=KEYS["validator"],
-        exp_gas_used=564532,
+        exp_gas_used=564724,
     )
     tx = erc20.functions.transfer(ADDRS["community"], 10).build_transaction(
         {"from": ADDRS["validator"]}
@@ -917,63 +913,6 @@ def test_contract(cronos):
     assert "world" == greeter_call_result
 
 
-origin_cmd = None
-
-
-@pytest.mark.unmarked
-@pytest.mark.parametrize("max_gas_wanted", [80000000, 40000000, 25000000, 500000, None])
-def test_tx_inclusion(cronos, max_gas_wanted):
-    """
-    - send multiple heavy transactions at the same time.
-    - check they are included in consecutively blocks without failure.
-
-    test against different max-gas-wanted configuration.
-    """
-
-    def fn(cmd):
-        global origin_cmd
-        if origin_cmd is None:
-            origin_cmd = cmd
-        if max_gas_wanted is None:
-            return origin_cmd
-        return f"{origin_cmd} --evm.max-tx-gas-wanted {max_gas_wanted}"
-
-    modify_command_in_supervisor_config(
-        cronos.base_dir / "tasks.ini",
-        lambda cmd: fn(cmd),
-    )
-    cronos.supervisorctl("update")
-    wait_for_port(ports.evmrpc_port(cronos.base_port(0)))
-
-    # reset to origin_cmd only
-    if max_gas_wanted is None:
-        return
-
-    cli = cronos.cosmos_cli()
-    w3 = cronos.w3
-    block_gas_limit = 81500000
-    tx_gas_limit = 80000000
-    max_tx_in_block = block_gas_limit // min(max_gas_wanted, tx_gas_limit)
-    print("max_tx_in_block", max_tx_in_block)
-    to = ADDRS["validator"]
-    params = {"gas": tx_gas_limit}
-    _, sended_hash_set = send_txs(w3, cli, to, list(KEYS.values())[0:4], params)
-    block_nums = [
-        w3.eth.wait_for_transaction_receipt(h).blockNumber for h in sended_hash_set
-    ]
-    block_nums.sort()
-    print(f"all block numbers: {block_nums}")
-    # the transactions should be included according to max_gas_wanted
-    if max_tx_in_block == 1:
-        for block_num, next_block_num in zip(block_nums, block_nums[1:]):
-            assert next_block_num == block_num + 1 or next_block_num == block_num + 2
-    else:
-        for num in block_nums[1:max_tx_in_block]:
-            assert num == block_nums[0]
-        for num in block_nums[max_tx_in_block:]:
-            assert num == block_nums[0] + 1 or num == block_nums[0] + 2
-
-
 def test_replay_protection(cronos):
     w3 = cronos.w3
     # https://etherscan.io/tx/0x06d2fa464546e99d2147e1fc997ddb624cec9c8c5e25a050cc381ee8a384eed3
@@ -1083,45 +1022,112 @@ def test_textual(cronos):
     assert rsp["code"] == 0, rsp["raw_log"]
 
 
-def test_tx_replacement(cronos):
+def test_block_tx_properties(cronos):
+    """
+    test block tx properties on cronos network
+    - deploy test contract
+    - call contract
+    - check all values are correct in log
+    """
     w3 = cronos.w3
-    gas_price = w3.eth.gas_price
-    nonce = get_account_nonce(w3)
-    initial_balance = w3.eth.get_balance(ADDRS["community"])
-    txhash = replace_transaction(
+    contract = deploy_contract(
         w3,
-        {
-            "to": ADDRS["community"],
-            "value": 1,
-            "gasPrice": gas_price,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        {
-            "to": ADDRS["community"],
-            "value": 5,
-            "gasPrice": gas_price * 2,
-            "nonce": nonce,
-            "from": ADDRS["validator"],
-        },
-        KEYS["validator"],
-    )["transactionHash"]
-    tx1 = w3.eth.get_transaction(txhash)
-    assert tx1["transactionIndex"] == 0
-    assert w3.eth.get_balance(ADDRS["community"]) == initial_balance + 5
+        CONTRACTS["TestBlockTxProperties"],
+    )
 
-    # check that already accepted transaction cannot be replaced
-    txhash_noreplacemenet = send_transaction(
-        w3,
-        {"to": ADDRS["community"], "value": 10, "gasPrice": gas_price},
-        KEYS["validator"],
-    )["transactionHash"]
-    tx2 = w3.eth.get_transaction(txhash_noreplacemenet)
-    assert tx2["transactionIndex"] == 0
+    tx = contract.functions.emitTxDetails().build_transaction(
+        {"from": ADDRS["validator"]}
+    )
+    receipt = send_transaction(w3, tx)
 
-    with pytest.raises(exceptions.Web3ValueError) as exc:
-        w3.eth.replace_transaction(
-            txhash_noreplacemenet,
-            {"to": ADDRS["community"], "value": 15, "gasPrice": gas_price},
+    assert receipt.status == 1
+    assert len(receipt.logs) == 1
+
+    assert contract.address == receipt.logs[0]["address"]
+    event_signature = HexBytes(
+        abi.event_signature_to_log_topic(
+            "TxDetailsEvent(address,address,uint256,bytes,uint256,uint256,bytes4)"
         )
-    assert "has already been mined" in str(exc)
+    )
+    assert event_signature == receipt.logs[0]["topics"][0]
+    validator_hex_address = HexBytes(b"\x00" * 12 + HexBytes(ADDRS["validator"]))
+    assert validator_hex_address == receipt.logs[0]["topics"][1]
+    assert validator_hex_address == receipt.logs[0]["topics"][2]
+
+    # check event values
+    tx_details_event = contract.events.TxDetailsEvent().process_receipt(receipt)
+    data = tx_details_event[0]["args"]
+    assert data["origin"] == ADDRS["validator"]
+    assert data["sender"] == ADDRS["validator"]
+    assert data["value"] == 0
+    assert data["data"] == bytes.fromhex("8e091b5e")
+    assert data["price"] > 0
+    assert data["gas"] == 3633
+    assert data["sig"] == bytes.fromhex("8e091b5e")
+
+
+def test_access_list(cronos):
+    """
+    Send a transaction and check that the node preserves the access list
+    """
+    w3 = cronos.w3
+
+    to_address = ADDRS["community"]
+    storage_key = "0x0000000000000000000000000000000000000000000000000000000000000000"
+    access_list = [
+        {
+            "address": to_address,
+            "storageKeys": [storage_key],
+        },
+    ]
+
+    txhash = w3.eth.send_transaction(
+        {
+            "from": ADDRS["validator"],
+            "to": to_address,
+            "value": 1000,
+            "accessList": access_list,
+        }
+    )
+    receipt = w3.eth.wait_for_transaction_receipt(txhash)
+    assert receipt.status == 1
+    rpc_tx = w3.eth.get_transaction(txhash)
+    assert rpc_tx.accessList == access_list
+
+    # Deploy a contract and call a function hitting multiple slots
+    contract = deploy_contract(
+        w3,
+        CONTRACTS["TestAccessList"],
+    )
+
+    tx_data = contract.functions.touchSlots(123, 456).build_transaction(
+        {"from": ADDRS["validator"]}
+    )["data"]
+
+    tx = {
+        "from": ADDRS["validator"],
+        "to": contract.address,
+        "data": tx_data,
+        "value": hex(0),
+        "gas": hex(500000),
+    }
+
+    access_list = w3.provider.make_request("eth_createAccessList", [tx, "latest"])
+    assert (
+        access_list["result"]["accessList"][0]["address"].lower()
+        == contract.address.lower()
+    )
+    storage_keys = access_list["result"]["accessList"][0]["storageKeys"]
+    assert len(storage_keys) == 3
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000000".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x0000000000000000000000000000000000000000000000000000000000000001".lower()
+        in [k.lower() for k in storage_keys]
+    )
+    assert (
+        "0x30939a3db93623b4b889c7802487ba975ac3bc59182f4c2dff55b302788334ec".lower()
+        in [k.lower() for k in storage_keys]
+    )

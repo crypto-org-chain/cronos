@@ -57,7 +57,9 @@ func (k Keeper) GetSourceChannelID(ctx sdk.Context, ibcVoucherDenom string) (cha
 	if !exists {
 		return "", errors.Wrapf(types.ErrIbcCroDenomInvalid, "%s is invalid", ibcVoucherDenom)
 	}
-
+	if len(denomTrace.Trace) == 0 {
+		return "", errors.Wrapf(types.ErrIbcCroDenomInvalid, "%s has empty denom trace", ibcVoucherDenom)
+	}
 	// the path has for format port/channelId
 	return denomTrace.Trace[0].ChannelId, nil
 }

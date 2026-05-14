@@ -27,7 +27,33 @@ let
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ map (a: self.${a}) systems;
         })
       ) buildSystems
-    );
+      //
+        lib.genAttrs
+          [
+            "eth-hash"
+            "eth-keys"
+            "eth-keyfile"
+            "rlp"
+            "web3"
+          ]
+          (
+            name:
+            super.${name}.overridePythonAttrs (_: {
+              dontConfigure = true;
+            })
+          )
+    )
+    ++ [
+      # Applied after poetry2nix defaults so the default ckzg postPatch
+      # (substituteInPlace src/Makefile) is already evaluated and can be
+      # safely replaced. Placing this inside withDefaults doesn't work
+      # because defaults run later and the `or` expression breaks.
+      (_self: super: {
+        ckzg = super.ckzg.overridePythonAttrs (_: {
+          postPatch = "";
+        });
+      })
+    ];
 
   src =
     nix-gitignore:
@@ -49,6 +75,7 @@ let
       projectDir = src nix-gitignore;
       python = python311;
       overrides = overrides { inherit lib poetry2nix; };
+      preferWheels = true;
     };
 
   benchmark-env =
@@ -62,6 +89,7 @@ let
       projectDir = src nix-gitignore;
       python = python311;
       overrides = overrides { inherit lib poetry2nix; };
+      preferWheels = true;
     };
 
 in

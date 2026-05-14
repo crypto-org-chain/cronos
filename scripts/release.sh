@@ -47,7 +47,12 @@ else
     exit 1
 fi
 
-for network in "" "-testnet"; do
+networks=("" "-testnet")
+if [[ "${SKIP_TESTNET:-}" == "1" ]]; then
+    networks=("")
+fi
+
+for network in "${networks[@]}"; do
     for t in $hosts; do
         IFS=',' read name host <<< "${t}"
         build "$network" "$host" "$name"

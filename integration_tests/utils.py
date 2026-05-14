@@ -65,11 +65,13 @@ TEST_CONTRACTS = {
     "TestICA": "TestICA.sol",
     "Random": "Random.sol",
     "TestRelayer": "TestRelayer.sol",
+    "TestBlockTxProperties": "TestBlockTxProperties.sol",
     "Simple7702Account": "Simple7702Account.sol",
     "Simple7702Counter": "Simple7702Counter.sol",
     "Utils": "Utils.sol",
     "Counter": "Counter.sol",
     "TestEip2935": "TestEip2935.sol",
+    "TestAccessList": "TestAccessList.sol",
 }
 
 
@@ -200,7 +202,8 @@ def approve_proposal(
             )
             assert rsp["code"] == 0, rsp["raw_log"]
 
-        wait_for_new_blocks(cli, 1)
+        # wait for 3 blocks to ensure all votes are counted (to prevent flakiness)
+        wait_for_new_blocks(cli, 3)
         assert (
             int(cli.query_tally(proposal_id)[vote_option + "_count"])
             == cli.staking_pool()

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package memiavl;
 
-option go_package = "github.com/crypto-org-chain/cronos/memiavl";
+option go_package = "github.com/crypto-org-chain/cronos-store/memiavl";
 
 // KVPair represents a key-value pair
 message KVPair {

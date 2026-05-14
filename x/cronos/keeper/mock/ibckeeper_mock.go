@@ -9,6 +9,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const (
+	emptyTraceIbcDenomHash = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+	EmptyTraceIbcDenom     = "ibc/" + emptyTraceIbcDenomHash
+)
+
 type IbcKeeperMock struct{}
 
 func (i IbcKeeperMock) Transfer(goCtx context.Context, msg *types.MsgTransfer) (*types.MsgTransferResponse, error) {
@@ -30,6 +35,13 @@ func (i IbcKeeperMock) GetDenom(ctx sdk.Context, denomTraceHash tmbytes.HexBytes
 				{PortId: "transfer", ChannelId: "channel-0"},
 			},
 			Base: "correctIBCToken",
+		}, true
+	}
+
+	if denomTraceHash.String() == emptyTraceIbcDenomHash {
+		return types.Denom{
+			Trace: []types.Hop{},
+			Base:  "emptyTraceToken",
 		}, true
 	}
 	return types.Denom{}, false

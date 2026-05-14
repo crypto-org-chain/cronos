@@ -21,6 +21,9 @@ cronos_777-1:
     - name: community
       coins: 10000000000000000000000basetcro
       mnemonic: ${COMMUNITY_MNEMONIC}
+    - name: community1
+      coins: 10000000000000000000000basetcro,100000000000000000000stake
+      mnemonic: ${COMMUNITY1_MNEMONIC}
     - name: signer1
       coins: 20000000000000000000000basetcro
       mnemonic: ${SIGNER1_MNEMONIC}
