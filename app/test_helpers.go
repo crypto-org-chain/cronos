@@ -72,6 +72,11 @@ func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 	opts := simtestutil.AppOptionsMap{
 		flags.FlagHome:            app.DefaultNodeHome,
 		server.FlagInvCheckPeriod: invCheckPeriod,
+		// Explicitly enable MultiLanePriorityMempool; both flags must be >= 0.
+		// Without these, New() sees nil from AppOptionsMap.Get and cast.ToInt(nil)
+		// returns 0 — which happens to satisfy the >= 0 gate — but is fragile.
+		server.FlagMempoolMaxTxs: 0,
+		FlagMempoolFeeBump:       int64(0),
 	}
 	app := New(
 		log.NewNopLogger(), db, nil, true,

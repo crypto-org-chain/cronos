@@ -481,7 +481,7 @@ def replace_transaction(w3, old_tx, new_tx, key=KEYS["validator"]):
     # fail with "invalid nonce" instead of "fit the replacement rule".
     # Sending both as raw txs eliminates the round-trip gap; errors raise.
     signed_old = sign_transaction(w3, old_tx, key)
-    w3.eth.send_raw_transaction(signed_old.raw_transaction)
+    old_txhash = w3.eth.send_raw_transaction(signed_old.raw_transaction)  # noqa: F841
     signed_new = sign_transaction(w3, new_tx, key)
     new_txhash = w3.eth.send_raw_transaction(signed_new.raw_transaction)
     return w3.eth.wait_for_transaction_receipt(new_txhash)
