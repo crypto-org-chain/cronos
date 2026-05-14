@@ -3,6 +3,7 @@ package dbmigrate
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -27,12 +28,7 @@ type HeightRange struct {
 func (hr HeightRange) IsWithinRange(height int64) bool {
 	// If specific heights are set, check if height is in the list
 	if len(hr.SpecificHeights) > 0 {
-		for _, h := range hr.SpecificHeights {
-			if h == height {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(hr.SpecificHeights, height)
 	}
 
 	// Otherwise use range check
@@ -127,12 +123,12 @@ func ParseHeightFlag(heightStr string) (HeightRange, error) {
 	}
 
 	// Check if it's a range (contains '-')
-	if bytes.IndexByte([]byte(heightStr), '-') >= 0 {
+	if strings.ContainsRune(heightStr, '-') {
 		return parseHeightRange(heightStr)
 	}
 
 	// Check if it contains commas (multiple heights)
-	if bytes.IndexByte([]byte(heightStr), ',') >= 0 {
+	if strings.ContainsRune(heightStr, ',') {
 		return parseSpecificHeights(heightStr)
 	}
 
