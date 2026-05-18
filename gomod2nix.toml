@@ -148,12 +148,15 @@ schema = 3
   [mod."github.com/btcsuite/btcd/chaincfg/chainhash"]
     version = "v1.1.0"
     hash = "sha256-F+EqvufC+KBslZV/vL8ph6MqDoVD5ic5rVaM27reDqo="
+  [mod."github.com/bytedance/gopkg"]
+    version = "v0.1.3"
+    hash = "sha256-GyUbPfn41y/mgj0cQOa4tm+aj70C2K50VBZxZc/tcZE="
   [mod."github.com/bytedance/sonic"]
-    version = "v1.14.0"
-    hash = "sha256-caxXESTGRVGIOMyhgZTVxjVTyoT7LkGdPjQh17H7S7Y="
+    version = "v1.15.1"
+    hash = "sha256-BX34mtCwdbAo2Jt+vGLjo/IA8FBp0DP613o65JCl7Pk="
   [mod."github.com/bytedance/sonic/loader"]
-    version = "v0.3.0"
-    hash = "sha256-nYgehtTjd3INGcLqwKKzXEmjIbKYlpeDnYwewH/pskQ="
+    version = "v0.5.1"
+    hash = "sha256-fbUguA0wNj+aggu3oHaEzkduQVO4oawcvjohfgUmha8="
   [mod."github.com/cenkalti/backoff/v4"]
     version = "v4.3.0"
     hash = "sha256-wfVjNZsGG1WoNC5aL+kdcy6QXPgZo4THAevZ1787md8="
@@ -164,8 +167,8 @@ schema = 3
     version = "v1.5.1"
     hash = "sha256-6wKd6/JZ9/O7FwSyNKE3KOt8fVPZEunqbTHQUxlOUNc="
   [mod."github.com/cloudwego/base64x"]
-    version = "v0.1.5"
-    hash = "sha256-MyUYTveN48DhnL8mwAgCRuMExLct98uzSPsmYlfaa4I="
+    version = "v0.1.6"
+    hash = "sha256-VzYJsGubsDk3FAMH6e0Xk0Cl4HtUFHHmWkVASUYidsI="
   [mod."github.com/cncf/xds/go"]
     version = "v0.0.0-20251022180443-0feb69152e9f"
     hash = "sha256-AQkkkXO3EoaSWu6cAg7b6zAJ+zD0uOpgN08l0MEsAaI="
@@ -325,8 +328,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260420091208-c05ed0bf5c85"
-    hash = "sha256-FKCqp6UH3AflEj4Izmr9MPBGYZTR9J1NKg5GjjtNq2w="
+    version = "v0.22.1-0.20260518052627-65c2f1981c85"
+    hash = "sha256-wQ86knQiZrxlU/pFGogTXY8N/PlSapbdD18uXpUjhMw="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.17.0"
