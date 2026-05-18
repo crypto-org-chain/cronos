@@ -155,6 +155,12 @@ def test_mempool_nonce(cronos_mempool):
         )
         assert orig_nonce + 4 + i == local_nonce
 
+    # drain remaining pending txs so subsequent tests start with clean nonce state
+    for _ in range(10):
+        if w3.eth.get_transaction_count(sender) >= local_nonce:
+            break
+        wait_for_new_blocks(cli, 1, sleep=0.1)
+
 
 @pytest.mark.flaky(max_runs=3)
 def test_tx_replacement(cronos_mempool):
