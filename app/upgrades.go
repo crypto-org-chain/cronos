@@ -2,11 +2,12 @@ package app
 
 import (
 	"context"
-
-	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 // RegisterUpgradeHandlers returns if store loader is overridden
@@ -14,9 +15,34 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 	planName := "v1.8"
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+			// Populate staking queue pending-slot indexes (cosmos-sdk PR #26023
+			// optimization, exposed as opt-in utility per crypto-org-chain
+			// cosmos-sdk PR #1814 instead of an auto-migration).
+			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
+				return fromVM, fmt.Errorf("populate queue pending slots: %w", err)
+			}
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
+
+	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
+	if err != nil {
+		// Missing file returns (Plan{}, nil); a real error here means the file
+		// exists but is unreadable or malformed. At an upgrade height this
+		// would silently skip StoreUpgrades wiring, so fail fast.
+		panic(err)
+	}
+	if upgradeInfo.Name == planName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
+		// No store-key churn from v0.53→v0.54 in this app, but follow the
+		// cosmos-sdk recommended pattern (UpgradeStoreLoader pins the load to
+		// upgradeHeight and is the canonical loader for upgrade boots).
+		// See https://docs.cosmos.network/sdk/latest/upgrade/upgrade
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: []string{},
+		}
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		return true
+	}
 
 	return false
 }

@@ -11,65 +11,55 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type mockTxSelector struct {
+// stubTxSelector lets a test control the parent TxSelector return value.
+type stubTxSelector struct {
 	baseapp.TxSelector
+	parentReturn bool
+	calls        int
+	lastMemTx    sdk.Tx
+	lastTxBz     []byte
 }
 
-func (mts *mockTxSelector) SelectTxForProposalFast(ctx context.Context, txs [][]byte) [][]byte {
-	// For testing purposes, simply return the txs as is
-	return txs
+func (s *stubTxSelector) SelectTxForProposal(_ context.Context, _, _ uint64, memTx sdk.Tx, txBz []byte) bool {
+	s.calls++
+	s.lastMemTx = memTx
+	s.lastTxBz = txBz
+	return s.parentReturn
 }
 
-func TestSelectTxForProposalFast(t *testing.T) {
-	ctx := context.Background()
+func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
+	txDecoder := func([]byte) (sdk.Tx, error) { return nil, nil }
 
-	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		// Mock tx decoder; returns a dummy tx
-		return nil, nil
-	}
-
-	validateTx := func(tx sdk.Tx, txBz []byte) error {
-		// Mock validation logic: return error if txBz is "invalid"
+	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
 		if string(txBz) == "invalid" {
 			return errors.New("invalid tx")
 		}
 		return nil
 	}
 
-	mockSelector := &mockTxSelector{}
-
-	extTxSelector := NewExtTxSelector(mockSelector, txDecoder, validateTx)
-
-	t.Run("Empty transaction list", func(t *testing.T) {
-		txs := [][]byte{}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Empty(t, result)
+	t.Run("validation failure short-circuits and parent not called", func(t *testing.T) {
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("invalid"))
+		require.False(t, ok)
+		require.Equal(t, 0, parent.calls, "parent must not be invoked when ValidateTx errors")
 	})
 
-	t.Run("All valid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("valid1"), []byte("valid2"), []byte("valid3")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, txs, result)
+	t.Run("validation success delegates to parent (true passthrough)", func(t *testing.T) {
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("valid"))
+		require.True(t, ok)
+		require.Equal(t, 1, parent.calls)
+		require.Nil(t, parent.lastMemTx, "memTx must be nil to bypass parent gas-wanted check")
+		require.Equal(t, []byte("valid"), parent.lastTxBz)
 	})
 
-	t.Run("All invalid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("invalid"), []byte("invalid"), []byte("invalid")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Empty(t, result)
-	})
-
-	t.Run("Mixed valid and invalid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("valid1"), []byte("invalid"), []byte("valid2"), []byte("invalid"), []byte("valid3")}
-		expected := [][]byte{[]byte("valid1"), []byte("valid2"), []byte("valid3")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, expected, result)
-	})
-
-	t.Run("Edge cases in the filtering logic", func(t *testing.T) {
-		// Edge case: first and last transactions are invalid
-		txs := [][]byte{[]byte("invalid"), []byte("valid1"), []byte("valid2"), []byte("invalid")}
-		expected := [][]byte{[]byte("valid1"), []byte("valid2")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, expected, result)
+	t.Run("validation success delegates to parent (false passthrough)", func(t *testing.T) {
+		parent := &stubTxSelector{parentReturn: false}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("valid"))
+		require.False(t, ok)
+		require.Equal(t, 1, parent.calls)
 	})
 }

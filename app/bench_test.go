@@ -24,7 +24,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
@@ -101,7 +101,7 @@ func benchmarkERC20Transfer(b *testing.B, db dbm.DB, appOpts servertypes.AppOpti
 	gasPrice := big.NewInt(100000000000)
 	bigZero := big.NewInt(0)
 
-	app := New(log.NewNopLogger(), db, nil, true, appOpts, baseapp.SetChainID(TestAppChainID))
+	app := New(log.NewNopLogger(), db, true, appOpts, baseapp.SetChainID(TestAppChainID))
 	defer app.Close()
 
 	ethSigner := ethtypes.LatestSignerForChainID(TestEthChainID)

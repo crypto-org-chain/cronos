@@ -11,7 +11,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 )
 
 // setupBlockstoreTestDB creates a test blockstore database with sample block data

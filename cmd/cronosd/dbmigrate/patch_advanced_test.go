@@ -14,7 +14,7 @@ import (
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 )
 
 // setupTxIndexWithEthereumEvents creates a tx_index database with Ethereum transaction events

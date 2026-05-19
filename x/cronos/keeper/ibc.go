@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	ibcclienttypes "github.com/cosmos/ibc-go/v11/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-metrics"
@@ -66,10 +66,10 @@ func (k Keeper) ConvertVouchersToEvmCoins(ctx sdk.Context, from string, coins sd
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				telemetry.SetGaugeWithLabels(
+				telemetry.SetGaugeWithLabels( //nolint:staticcheck
 					[]string{"tx", "msg", "ConvertVouchersToEvmCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)}, //nolint:staticcheck
 				)
 			}
 		}
@@ -147,10 +147,10 @@ func (k Keeper) IbcTransferCoins(ctx sdk.Context, from, destination string, coin
 	defer func() {
 		for _, a := range coins {
 			if a.Amount.IsInt64() {
-				telemetry.SetGaugeWithLabels(
+				telemetry.SetGaugeWithLabels( //nolint:staticcheck
 					[]string{"tx", "msg", "IbcTransferCoins"},
 					float32(a.Amount.Int64()),
-					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)},
+					[]metrics.Label{telemetry.NewLabel("denom", a.Denom)}, //nolint:staticcheck
 				)
 			}
 		}
