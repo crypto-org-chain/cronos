@@ -21,6 +21,7 @@
 * [#2037](https://github.com/crypto-org-chain/cronos/pull/2037) fix(sim): skip MsgUpdateTokenMapping when contract address has no code.
 * [#2041](https://github.com/crypto-org-chain/ethermint/pull/2041) fix(evm): enforce floor-data-gas
 * [#2065](https://github.com/crypto-org-chain/cronos/pull/2065) fix(versiondb): ignore non-leaf nodes data in restore-versiondb cli command.
+* [#2068](https://github.com/crypto-org-chain/cronos/pull/2068) fix(ante): enforce eip-1559 cost balance check even if it is not checkTx.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
