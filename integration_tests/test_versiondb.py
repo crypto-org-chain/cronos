@@ -5,7 +5,13 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, send_transaction, w3_wait_for_block, w3_wait_for_new_blocks, wait_for_port
+from .utils import (
+    ADDRS,
+    send_transaction,
+    w3_wait_for_block,
+    w3_wait_for_new_blocks,
+    wait_for_port,
+)
 
 
 def test_versiondb_migration(cronos: Cronos):
