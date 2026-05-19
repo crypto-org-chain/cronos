@@ -19,6 +19,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Bypass proxy.golang.org for forks pinned to non-default branches whose
+  # SHAs the proxy hasn't indexed yet. Drop once cosmos-sdk v0.54 PRs merge.
+  GOPRIVATE: github.com/crypto-org-chain/cronos-store
+
 jobs:
   member:
     name: Check whether it is triggered by team members with issue_comment or push or pull_request
@@ -110,7 +115,7 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'pull_request' 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
       - name: Display go version
         run: go version
       - run: make build
@@ -131,7 +136,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
       - name: Display go version
         run: go version
       - name: Install runsim
@@ -171,7 +176,7 @@ jobs:
           submodules: true
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
           cache: true
       - name: Display go version
         run: go version
@@ -228,7 +233,7 @@ jobs:
           submodules: true
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
           cache: true
       - name: Display go version
         run: go version
@@ -285,7 +290,7 @@ jobs:
           submodules: true
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
           cache: true
       - name: Display go version
         run: go version
@@ -342,7 +347,7 @@ jobs:
           submodules: true
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
           cache: true
       - name: Display go version
         run: go version

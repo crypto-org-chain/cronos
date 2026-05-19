@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"io"
 	"os"
 	"slices"
 
@@ -25,7 +24,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -35,6 +34,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/pruning"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/client/snapshot"
+	"github.com/cosmos/cosmos-sdk/contrib/x/crisis"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -46,7 +46,6 @@ import (
 	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 )
 
@@ -61,7 +60,7 @@ func NewRootCmd() *cobra.Command {
 	app.SetConfig()
 
 	tempApp := app.New(
-		log.NewNopLogger(), dbm.NewMemDB(), nil, true,
+		log.NewNopLogger(), dbm.NewMemDB(), true,
 		simtestutil.NewAppOptionsWithFlagHome(app.DefaultNodeHome),
 	)
 	encodingConfig := tempApp.EncodingConfig()
@@ -296,12 +295,11 @@ func initAppConfig() (string, interface{}) {
 func newApp(
 	logger log.Logger,
 	db dbm.DB,
-	traceStore io.Writer,
 	appOpts servertypes.AppOptions,
 ) servertypes.Application {
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 	return app.New(
-		logger, db, traceStore, true,
+		logger, db, true,
 		appOpts,
 		baseappOptions...,
 	)
@@ -311,7 +309,6 @@ func newApp(
 func appExport(
 	logger log.Logger,
 	db dbm.DB,
-	traceStore io.Writer,
 	height int64,
 	forZeroHeight bool,
 	jailAllowedAddrs []string,
@@ -336,13 +333,13 @@ func appExport(
 
 	var cronosApp *app.App
 	if height != -1 {
-		cronosApp = app.New(logger, db, traceStore, false, appOpts)
+		cronosApp = app.New(logger, db, false, appOpts)
 
 		if err := cronosApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		cronosApp = app.New(logger, db, traceStore, true, appOpts)
+		cronosApp = app.New(logger, db, true, appOpts)
 	}
 
 	return cronosApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)

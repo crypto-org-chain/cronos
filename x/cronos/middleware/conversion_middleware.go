@@ -1,10 +1,10 @@
 package middleware
 
 import (
-	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v10/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v11/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v11/modules/core/exported"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 
 	"cosmossdk.io/errors"
@@ -26,6 +26,12 @@ func NewIBCConversionModule(app porttypes.IBCModule, ck cronoskeeper.Keeper) IBC
 		app:          app,
 		cronoskeeper: ck,
 	}
+}
+
+// SetICS4Wrapper forwards the ICS4Wrapper to the underlying application so the
+// conversion middleware participates in the IBC v11 stack assembly contract.
+func (im IBCConversionModule) SetICS4Wrapper(wrapper porttypes.ICS4Wrapper) {
+	im.app.SetICS4Wrapper(wrapper)
 }
 
 // OnChanOpenInit implements the IBCModule interface

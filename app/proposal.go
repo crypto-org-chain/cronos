@@ -39,39 +39,14 @@ func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, valida
 	}
 }
 
-func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte, gasWanted uint64) bool {
+func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
 	if err := ts.ValidateTx(memTx, txBz); err != nil {
 		return false
 	}
 
 	// don't pass `memTx` to parent selector so it don't check tx gas wanted against block gas limit,
 	// it conflicts with the max-tx-gas-wanted logic.
-	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, nil, txBz, gasWanted)
-}
-
-func (ts *ExtTxSelector) SelectTxForProposalFast(ctx context.Context, txs [][]byte) [][]byte {
-	var invalidTxs []int
-	for i, txBz := range txs {
-		if err := ts.ValidateTx(nil, txBz); err != nil {
-			invalidTxs = append(invalidTxs, i)
-		}
-	}
-
-	if len(invalidTxs) > 0 {
-		filtered := make([][]byte, 0, len(txs)-len(invalidTxs))
-		var offset int
-		for i, txBz := range txs {
-			if offset < len(invalidTxs) && i == invalidTxs[offset] {
-				offset++
-				continue
-			}
-			filtered = append(filtered, txBz)
-		}
-
-		txs = filtered
-	}
-
-	return ts.TxSelector.SelectTxForProposalFast(ctx, txs)
+	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, nil, txBz)
 }
 
 type ProposalHandler struct {

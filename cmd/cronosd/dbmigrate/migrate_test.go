@@ -12,7 +12,7 @@ import (
 	"github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 )
 
 // setupTestDB creates a test database with sample data

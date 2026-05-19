@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.25.8'
+          go-version: '1.25.9'
       - uses: actions/checkout@v6
       - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
         with:
@@ -47,7 +47,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-golangci-lint-
       - name: run golangci-lint
+        env:
+          GOPRIVATE: github.com/crypto-org-chain/cronos-store
+          GONOPROXY: github.com/crypto-org-chain/cronos-store
+          GONOSUMCHECK: github.com/crypto-org-chain/cronos-store
+          GOFLAGS: -mod=mod
         run: |
+          go env -w GOPRIVATE=github.com/crypto-org-chain/cronos-store
+          go env -w GONOPROXY=github.com/crypto-org-chain/cronos-store
           nix profile install -f ./nix golangci-lint
           nix profile install -f ./nix rocksdb
           export PKG_CONFIG_PATH=$HOME/.nix-profile/lib/pkgconfig

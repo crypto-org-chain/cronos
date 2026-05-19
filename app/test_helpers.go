@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/errors"
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 	sdkmath "cosmossdk.io/math"
 
 	baseapp "github.com/cosmos/cosmos-sdk/baseapp"
@@ -74,7 +74,7 @@ func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
 		server.FlagInvCheckPeriod: invCheckPeriod,
 	}
 	app := New(
-		log.NewNopLogger(), db, nil, true,
+		log.NewNopLogger(), db, true,
 		opts,
 		baseapp.SetChainID(TestAppChainID),
 	)

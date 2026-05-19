@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	transfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/lib"
 	generated "github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/ethereum/go-ethereum/common"

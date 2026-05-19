@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	simappparams "cosmossdk.io/simapp/params"
-	storetypes "cosmossdk.io/store/types"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
