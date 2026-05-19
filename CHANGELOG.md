@@ -24,6 +24,7 @@
 * [#2068](https://github.com/crypto-org-chain/cronos/pull/2068) fix(ante): enforce eip-1559 cost balance check even if it is not checkTx.
 * [#2070](https://github.com/crypto-org-chain/cronos/pull/2070) fix(ci): fix github pr labeler to match v6 format.
 * [#2069](https://github.com/crypto-org-chain/cronos/pull/2069) fix(test): flaky test_mempool integration test.
+* [#2071](https://github.com/crypto-org-chain/cronos/pull/2071) fix(test): fix flaky ibc and versiondb integration tests.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
