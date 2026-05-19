@@ -98,7 +98,6 @@ def test_blocked_to_contract_address(cronos_mempool):
     assert "destination address is blocked" in str(exc)
 
 
-@pytest.mark.flaky(max_runs=3)
 def test_mempool_nonce(cronos_mempool):
     """
     test the nonce logic in check-tx after new block is created.
