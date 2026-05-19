@@ -16,7 +16,7 @@ jobs:
     env:
       GO111MODULE: on
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af # v3
         with:
           SUFFIX_FILTER: |
@@ -30,7 +30,7 @@ jobs:
           args: '-no-fail -fmt sarif -out results.sarif ./...'
         if: "env.GIT_DIFF_FILTERED != ''"
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: results.sarif
