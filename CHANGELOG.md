@@ -22,6 +22,7 @@
 * [#2041](https://github.com/crypto-org-chain/ethermint/pull/2041) fix(evm): enforce floor-data-gas
 * [#2065](https://github.com/crypto-org-chain/cronos/pull/2065) fix(versiondb): ignore non-leaf nodes data in restore-versiondb cli command.
 * [#2068](https://github.com/crypto-org-chain/cronos/pull/2068) fix(ante): enforce eip-1559 cost balance check even if it is not checkTx.
+* [#2069](https://github.com/crypto-org-chain/cronos/pull/2069) fix(test): flaky test_mempool integration test.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles

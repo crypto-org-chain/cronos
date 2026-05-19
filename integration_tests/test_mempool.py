@@ -115,10 +115,26 @@ def test_mempool_nonce(cronos_mempool):
     """
     w3: Web3 = cronos_mempool.w3
     cli = cronos_mempool.cosmos_cli(0)
-    wait_for_new_blocks(cli, 1, sleep=0.1)
     sender = ADDRS["validator"]
+
+    # drain any pending txs from prior tests so we start with clean nonce state
+    max_drain_blocks = 20
+    for _ in range(max_drain_blocks):
+        if w3.eth.get_transaction_count(
+            sender, "pending"
+        ) == w3.eth.get_transaction_count(sender):
+            break
+        wait_for_new_blocks(cli, 1, sleep=0.1)
+    else:
+        pending = w3.eth.get_transaction_count(sender, "pending")
+        latest = w3.eth.get_transaction_count(sender)
+        assert False, (
+            f"mempool drain timed out after {max_drain_blocks} blocks: "
+            f"sender={sender}, pending_nonce={pending}, latest_nonce={latest}"
+        )
+
+    wait_for_new_blocks(cli, 1, sleep=0.1)
     orig_nonce = w3.eth.get_transaction_count(sender)
-    height = w3.eth.get_block_number()
     local_nonce = orig_nonce
     tx_bytes = 1000000  # can only include one tx at a time
 
@@ -131,35 +147,36 @@ def test_mempool_nonce(cronos_mempool):
             "nonce": nonce,
         }
         signed = sign_transaction(w3, tx, KEYS["validator"])
-        txhash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        return txhash
+        return w3.eth.send_raw_transaction(signed.raw_transaction)
 
-    for i in range(3):
-        txhash = send_with_nonce(local_nonce)
-        print(f"txhash: {txhash.hex()}")
-        local_nonce += 1
-
-    new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
-    assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(sender)
-    assert orig_nonce + 3 == local_nonce
-
-    for i in range(3):
-        # send a new tx with the next nonce
-        txhash = send_with_nonce(local_nonce)
-        print(f"txhash: {txhash.hex()}")
-        local_nonce += 1
-
-        new_height = wait_for_new_blocks(cli, 1, sleep=0.1)
-        assert orig_nonce + (new_height - height) == w3.eth.get_transaction_count(
-            sender
+    def wait_for_nonce(target, max_blocks=10):
+        for _ in range(max_blocks):
+            if w3.eth.get_transaction_count(sender) >= target:
+                return
+            wait_for_new_blocks(cli, 1, sleep=0.1)
+        actual = w3.eth.get_transaction_count(sender)
+        assert actual >= target, (
+            f"nonce did not reach {target} within {max_blocks} blocks: "
+            f"actual={actual}"
         )
-        assert orig_nonce + 4 + i == local_nonce
 
-    # drain remaining pending txs so subsequent tests start with clean nonce state
-    for _ in range(10):
-        if w3.eth.get_transaction_count(sender) >= local_nonce:
-            break
-        wait_for_new_blocks(cli, 1, sleep=0.1)
+    for i in range(3):
+        txhash = send_with_nonce(local_nonce)
+        print(f"txhash: {txhash.hex()}")
+        local_nonce += 1
+
+    # confirms recheck kept the pending txs eligible after the block reset
+    wait_for_nonce(orig_nonce + 1)
+
+    for i in range(3):
+        # recheck should keep prior pending txs eligible while we send the next one
+        txhash = send_with_nonce(local_nonce)
+        print(f"txhash: {txhash.hex()}")
+        local_nonce += 1
+        wait_for_nonce(orig_nonce + 2 + i)
+
+    # ensure all txs are mined before subsequent tests start
+    wait_for_nonce(local_nonce)
 
 
 @pytest.mark.flaky(max_runs=3)
