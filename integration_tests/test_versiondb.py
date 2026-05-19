@@ -5,7 +5,7 @@ import tomlkit
 from pystarport import ports
 
 from .network import Cronos
-from .utils import ADDRS, send_transaction, w3_wait_for_new_blocks, wait_for_port
+from .utils import ADDRS, send_transaction, w3_wait_for_block, w3_wait_for_new_blocks, wait_for_port
 
 
 def test_versiondb_migration(cronos: Cronos):
@@ -85,6 +85,10 @@ def test_versiondb_migration(cronos: Cronos):
     )
     for i in range(len(cronos.config["validators"])):
         wait_for_port(ports.evmrpc_port(cronos.base_port(i)))
+    # wait for consensus to be stable after restart
+    w3_wait_for_new_blocks(w3, 2)
+    # ensure the node has replayed up to block1 before historical queries
+    w3_wait_for_block(w3, block1)
 
     assert w3.eth.get_balance(community, block_identifier=block0) == balance0
     assert w3.eth.get_balance(community, block_identifier=block1) == balance1

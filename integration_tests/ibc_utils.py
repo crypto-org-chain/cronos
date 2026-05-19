@@ -775,6 +775,7 @@ def wait_for_check_tx(cli, adr, num_txs, timeout=None):
     if timeout is None:
         wait_for_fn("transfer tx", check_tx)
     else:
+        raised = False
         try:
             print(f"should assert timeout err when pass {timeout}s")
             wait_for_fn("transfer tx", check_tx, timeout=timeout)
@@ -793,6 +794,7 @@ def wait_for_status_change(tcontract, channel_id, seq, timeout=None):
     if timeout is None:
         wait_for_fn("current status", check_status)
     else:
+        raised = False
         try:
             print(f"should assert timeout err when pass {timeout}s")
             wait_for_fn("current status", check_status, timeout=timeout)
