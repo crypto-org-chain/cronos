@@ -1,31 +1,53 @@
 cli:
-  - client/**/*
-  - x/*/client/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - client/**/*
+          - x/*/client/**/*
+
 nix:
-  - nix/**
-  - default.nix
-  - docker.nix
-  - flake.nix
+  - changed-files:
+      - any-glob-to-any-file:
+          - nix/**
+          - default.nix
+          - docker.nix
+          - flake.nix
+
 simulation:
-  - types/simulation/**/*
-  - x/simulation/**/*
-  - x/*/simulation/**/*
-  - simsx/**/*
-  - tools/benchmark/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - types/simulation/**/*
+          - x/simulation/**/*
+          - x/*/simulation/**/*
+          - simsx/**/*
+          - tools/benchmark/**/*
+
 adr:
-  - docs/architecture/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/architecture/**/*
+
 build:
-  - Makefile
-  - Dockerfile
-  - docker-compose.yml
-  - scripts/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - Makefile
+          - Dockerfile
+          - docker-compose.yml
+          - scripts/*
+
 ci:
-  - .github/**
-  - buf.work.yaml
-  - .golangci.yml
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - buf.work.yaml
+          - .golangci.yml
 
 # modules
 cronos:
-  - x/cronos/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - x/cronos/**/*
+
 e2ee:
-  - x/e2ee/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - x/e2ee/**/*
