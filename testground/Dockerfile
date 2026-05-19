@@ -80,7 +80,7 @@ RUN git clone --depth 1 --branch v10.6.2 https://github.com/facebook/rocksdb.git
 # =============================================================================
 # Stage 2: Build cronosd
 # =============================================================================
-FROM golang:1.25-bookworm AS cronosd-builder
+FROM golang:1.25.8-bookworm AS cronosd-builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
