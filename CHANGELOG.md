@@ -19,11 +19,15 @@
 * [#2030](https://github.com/crypto-org-chain/cronos/pull/2030) fix(cronos): reject CRC21 token-mapping registrations targeting the zero address or the Ethereum precompile range.
 * [#2029](https://github.com/crypto-org-chain/cronos/pull/2029) fix(cronos): enforce source denom mapping immutability
 * [#2037](https://github.com/crypto-org-chain/cronos/pull/2037) fix(sim): skip MsgUpdateTokenMapping when contract address has no code.
+* [#2041](https://github.com/crypto-org-chain/ethermint/pull/2041) fix(evm): enforce floor-data-gas
+* [#2065](https://github.com/crypto-org-chain/cronos/pull/2065) fix(versiondb): ignore non-leaf nodes data in restore-versiondb cli command.
+* [#2068](https://github.com/crypto-org-chain/cronos/pull/2068) fix(ante): enforce eip-1559 cost balance check even if it is not checkTx.
 
 ### Chores:
 * [#1986](https://github.com/crypto-org-chain/cronos/pull/1986) Remove unused precompiles
 * [#2017](https://github.com/crypto-org-chain/cronos/pull/2017) chore(deps): bump ibc to 10.5.1
 * [#2038](https://github.com/crypto-org-chain/cronos/pull/2038) chore(ci): improve ci running
+* [#2048](https://github.com/crypto-org-chain/cronos/pull/2048) refactor: use slices.Contains and strings.ContainsRune to simplify code
 * [#2044](https://github.com/crypto-org-chain/cronos/pull/2044) ci: fix dependabot workflows and drain PR backlog
 
 
