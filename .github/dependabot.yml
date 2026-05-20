@@ -32,6 +32,10 @@ updates:
   open-pull-requests-limit: 10
   labels:
   - dependencies
+  ignore:
+  # Tracked via .github/workflows/dependabot-ethermint.yml (pseudo-version on develop).
+  - dependency-name: "github.com/evmos/ethermint"
+  - dependency-name: "github.com/crypto-org-chain/ethermint"
   groups:
     cosmos-sdk:
       patterns:
