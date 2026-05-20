@@ -97,7 +97,7 @@ func (suite *KeeperTestSuite) DoSetupTest(t *testing.T) {
 		CodeHash:    common.BytesToHash(ethcrypto.Keccak256(nil)).String(),
 	}
 
-	acc.AccountNumber = suite.app.AccountKeeper.NextAccountNumber(suite.ctx)
+	acc.AccountNumber = suite.app.AccountKeeper.NextAccountNumber(suite.ctx, acc)
 	suite.app.AccountKeeper.SetAccount(suite.ctx, acc)
 
 	valAddr := sdk.ValAddress(suite.address.Bytes())

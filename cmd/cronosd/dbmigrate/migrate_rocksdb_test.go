@@ -13,7 +13,7 @@ import (
 	"github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 )
 
 // newRocksDBOptions creates RocksDB options similar to the app configuration

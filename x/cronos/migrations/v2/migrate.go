@@ -4,9 +4,8 @@ import (
 	"github.com/crypto-org-chain/cronos/x/cronos/exported"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 
-	storetypes "cosmossdk.io/store/types"
-
 	"github.com/cosmos/cosmos-sdk/codec"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

@@ -2,6 +2,10 @@ BUILDDIR ?= $(CURDIR)/build
 PACKAGES=$(shell go list ./... | grep -v '/simulation')
 COVERAGE ?= coverage.txt
 
+# Bypass proxy.golang.org for forks pinned to non-default branches whose SHAs
+# the proxy hasn't indexed yet. Drop once cosmos-sdk v0.54 PRs merge upstream.
+export GOPRIVATE ?= github.com/crypto-org-chain/cronos-store
+
 GOPATH ?= $(shell $(GO) env GOPATH)
 BINDIR ?= ~/go/bin
 NETWORK ?= mainnet

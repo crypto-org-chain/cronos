@@ -1,8 +1,8 @@
 package events
 
 import (
-	transfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
+	transfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
 	ica "github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/ica"
 	relayer "github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/relayer"
 	cronoseventstypes "github.com/crypto-org-chain/cronos/x/cronos/events/types"

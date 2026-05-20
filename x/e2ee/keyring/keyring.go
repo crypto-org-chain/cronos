@@ -78,7 +78,7 @@ func New(
 			PassPrefix:      prefix,
 		})
 	default:
-		return nil, errorsmod.Wrap(sdkkeyring.ErrUnknownBacked, backend)
+		return nil, errorsmod.Wrap(sdkkeyring.ErrUnknownBackend, backend)
 	}
 
 	if err != nil {

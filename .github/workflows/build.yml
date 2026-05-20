@@ -11,6 +11,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Bypass proxy.golang.org for forks pinned to non-default branches whose
+  # SHAs the proxy hasn't indexed yet. Drop once cosmos-sdk v0.54 PRs merge.
+  GOPRIVATE: github.com/crypto-org-chain/cronos-store
+
 jobs:
   build:
     strategy:
