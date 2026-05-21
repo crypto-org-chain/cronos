@@ -5,10 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 // stubTxSelector lets a test control the parent TxSelector return value.
@@ -61,5 +63,120 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("valid"))
 		require.False(t, ok)
 		require.Equal(t, 1, parent.calls)
+	})
+}
+
+// nonNoOpMempool wraps NoOpMempool so it still satisfies the Mempool interface
+// but is NOT type-equal to NoOpMempool. Used to drive fastNoOpPrepareProposal's
+// delegation branch.
+type nonNoOpMempool struct {
+	mempool.NoOpMempool
+}
+
+func TestFastNoOpPrepareProposal(t *testing.T) {
+	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
+		if string(txBz) == "invalid" {
+			return errors.New("invalid tx")
+		}
+		return nil
+	}
+
+	t.Run("non-NoOp mempool delegates to default handler", func(t *testing.T) {
+		var calls int
+		want := &abci.ResponsePrepareProposal{Txs: [][]byte{[]byte("from-default")}}
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			calls++
+			return want, nil
+		}
+		h := fastNoOpPrepareProposal(nonNoOpMempool{}, def, rejectInvalid)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 1 << 20,
+			Txs:        [][]byte{[]byte("a")},
+		})
+		require.NoError(t, err)
+		require.Equal(t, 1, calls, "default handler must be invoked for non-NoOp mempool")
+		require.Same(t, want, got)
+	})
+
+	t.Run("NoOp mempool filters invalid txs and preserves order", func(t *testing.T) {
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked for NoOp mempool")
+			return nil, nil
+		}
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, def, rejectInvalid)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 1 << 20,
+			Txs: [][]byte{
+				[]byte("ok-1"),
+				[]byte("invalid"),
+				[]byte("ok-2"),
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
+	})
+
+	t.Run("NoOp mempool respects MaxTxBytes and stops at boundary", func(t *testing.T) {
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked")
+			return nil, nil
+		}
+		acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, def, acceptAll)
+		// Each tx is 4 bytes; budget for exactly two.
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 8,
+			Txs: [][]byte{
+				[]byte("aaaa"),
+				[]byte("bbbb"),
+				[]byte("cccc"),
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("aaaa"), []byte("bbbb")}, got.Txs)
+	})
+
+	t.Run("NoOp mempool with MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked")
+			return nil, nil
+		}
+		acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, def, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 0,
+			Txs:        [][]byte{[]byte("a")},
+		})
+		require.NoError(t, err)
+		require.Empty(t, got.Txs)
+	})
+
+	t.Run("nil mempool follows fast path", func(t *testing.T) {
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked when mempool is nil")
+			return nil, nil
+		}
+		h := fastNoOpPrepareProposal(nil, def, rejectInvalid)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 1 << 20,
+			Txs:        [][]byte{[]byte("ok"), []byte("invalid")},
+		})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("ok")}, got.Txs)
+	})
+
+	t.Run("NoOp mempool with empty req.Txs returns empty proposal", func(t *testing.T) {
+		def := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked")
+			return nil, nil
+		}
+		acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, def, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 1 << 20,
+			Txs:        nil,
+		})
+		require.NoError(t, err)
+		require.Empty(t, got.Txs)
 	})
 }
