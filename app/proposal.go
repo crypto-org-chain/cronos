@@ -52,9 +52,7 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 
 // fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
 // mempool is nil or NoOp, drops the per-tx TxDecode + AnteHandler re-run that
-// cosmos-sdk v0.54's NewDefaultProposalHandler performs (cosmos-sdk removed
-// the legacy `NewDefaultProposalHandlerFast` opt-out, regressing per-block
-// proposer cost on archives/non-priority validators). It applies the cronos
+// cosmos-sdk v0.54's NewDefaultProposalHandler performs. It applies the cronos
 // `validateTx` block-list filter at byte-level and respects req.MaxTxBytes,
 // matching the prior fast path. Real (priority) mempools delegate to the
 // upstream default to preserve ordering semantics.
