@@ -154,6 +154,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	}
 	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
 	mustNotInvoke := func(t *testing.T) sdk.PrepareProposalHandler {
+		t.Helper()
 		return func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 			t.Fatal("default handler must not be invoked on fast path")
 			return nil, nil
