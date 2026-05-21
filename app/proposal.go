@@ -15,6 +15,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
@@ -45,6 +46,49 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 	}
 
 	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
+}
+
+// fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
+// mempool is nil or NoOp, drops the per-tx TxDecode + AnteHandler re-run that
+// cosmos-sdk v0.54's NewDefaultProposalHandler performs (cosmos-sdk removed
+// the legacy `NewDefaultProposalHandlerFast` opt-out, regressing per-block
+// proposer cost on archives/non-priority validators). It applies the cronos
+// `validateTx` block-list filter at byte-level and respects req.MaxTxBytes,
+// matching the prior fast path. Real (priority) mempools delegate to the
+// upstream default to preserve ordering semantics.
+func fastNoOpPrepareProposal(
+	mp mempool.Mempool,
+	defaultHandler sdk.PrepareProposalHandler,
+	validateTx func(sdk.Tx, []byte) error,
+) sdk.PrepareProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		_, isNoOp := mp.(mempool.NoOpMempool)
+		if mp != nil && !isNoOp {
+			return defaultHandler(ctx, req)
+		}
+
+		maxTxBytes := req.MaxTxBytes
+		if maxTxBytes <= 0 {
+			return &abci.ResponsePrepareProposal{}, nil
+		}
+
+		var (
+			selected   [][]byte
+			totalBytes int64
+		)
+		for _, txBz := range req.Txs {
+			next := totalBytes + int64(len(txBz))
+			if next > maxTxBytes {
+				break
+			}
+			if err := validateTx(nil, txBz); err != nil {
+				continue
+			}
+			selected = append(selected, txBz)
+			totalBytes = next
+		}
+		return &abci.ResponsePrepareProposal{Txs: selected}, nil
+	}
 }
 
 type ProposalHandler struct {
