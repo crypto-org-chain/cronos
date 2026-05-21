@@ -42,7 +42,7 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 		// cosmos-sdk recommended pattern (UpgradeStoreLoader pins the load to
 		// upgradeHeight and is the canonical loader for upgrade boots).
 		// See https://docs.cosmos.network/sdk/latest/upgrade/upgrade
-		storeUpgrades := storetypes.StoreUpgrades{}
+		storeUpgrades := storetypes.StoreUpgrades{
 			Added: []string{},
 		}
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
