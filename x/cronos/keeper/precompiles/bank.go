@@ -72,6 +72,10 @@ func (bc *BankContract) Address() common.Address {
 	return bankContractAddress
 }
 
+func (bc *BankContract) Name() string {
+	return "bank"
+}
+
 // RequiredGas calculates the contract gas use
 func (bc *BankContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size

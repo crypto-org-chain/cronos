@@ -130,6 +130,10 @@ func (bc *RelayerContract) Address() common.Address {
 	return relayerContractAddress
 }
 
+func (bc *RelayerContract) Name() string {
+	return "relayer"
+}
+
 // RequiredGas calculates the contract gas use
 // `max(0, len(input) * DefaultTxSizeCostPerByte + requiredGasTable[methodPrefix] - intrinsicGas)`
 func (bc *RelayerContract) RequiredGas(input []byte) (gas uint64) {
