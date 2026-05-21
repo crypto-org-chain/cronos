@@ -1,0 +1,44 @@
+name: Dependabot Ethermint
+on:
+  schedule:
+    # Same time as dependabot.yml gomod updates (UTC).
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-ethermint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.10"
+          check-latest: true
+      - name: Update ethermint to latest develop
+        run: ./scripts/go-update-ethermint.sh
+      - name: Tidy all Go modules
+        run: ./scripts/go-mod-tidy-all.sh
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - name: Update gomod2nix.toml
+        run: nix develop -c gomod2nix
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@271a8d4600533c947ebf0adecd62ce0019f27226 # v7.0.8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: dependabot/go_modules/ethermint-develop
+          delete-branch: true
+          labels: dependencies
+          title: "build(deps): bump github.com/crypto-org-chain/ethermint to latest develop"
+          commit-message: "build(deps): bump github.com/crypto-org-chain/ethermint to latest develop"
+          body: |
+            Automated update of the `github.com/evmos/ethermint` replace directive to the latest commit on [develop](https://github.com/crypto-org-chain/ethermint/tree/develop).
+
+            Also regenerates `gomod2nix.toml`.
