@@ -32,6 +32,10 @@ updates:
   open-pull-requests-limit: 10
   labels:
   - dependencies
+  ignore:
+  # Tracked via .github/workflows/dependabot-ethermint.yml (pseudo-version on develop).
+  - dependency-name: "github.com/evmos/ethermint"
+  - dependency-name: "github.com/crypto-org-chain/ethermint"
   groups:
     cosmos-sdk:
       patterns:
@@ -41,42 +45,6 @@ updates:
       patterns:
       - "go.opentelemetry.io/*"
     gomod-minor-patch:
-      update-types:
-      - minor
-      - patch
-- package-ecosystem: pip
-  directory: "/integration_tests"
-  schedule:
-    interval: weekly
-  open-pull-requests-limit: 5
-  labels:
-  - dependencies
-  groups:
-    pip-minor-patch:
-      update-types:
-      - minor
-      - patch
-- package-ecosystem: pip
-  directory: "/testground/benchmark"
-  schedule:
-    interval: weekly
-  open-pull-requests-limit: 5
-  labels:
-  - dependencies
-  groups:
-    pip-minor-patch:
-      update-types:
-      - minor
-      - patch
-- package-ecosystem: npm
-  directory: "/integration_tests/contracts"
-  schedule:
-    interval: weekly
-  open-pull-requests-limit: 5
-  labels:
-  - dependencies
-  groups:
-    npm-minor-patch:
       update-types:
       - minor
       - patch
