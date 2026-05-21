@@ -409,7 +409,11 @@ func New(
 			blockProposalHandler.ValidateTransaction,
 		))
 
-		app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
+		app.SetPrepareProposal(fastNoOpPrepareProposal(
+			mpool,
+			defaultProposalHandler.PrepareProposalHandler(),
+			blockProposalHandler.ValidateTransaction,
+		))
 
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
