@@ -81,9 +81,11 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 		return nil
 	}
 	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
-	mustNotInvoke := func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		t.Fatal("default handler must not be invoked on fast path")
-		return nil, nil
+	mustNotInvoke := func(t *testing.T) sdk.PrepareProposalHandler {
+		return func(_ sdk.Context, _ *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+			t.Fatal("default handler must not be invoked on fast path")
+			return nil, nil
+		}
 	}
 
 	t.Run("non-NoOp mempool delegates to default handler", func(t *testing.T) {
@@ -104,7 +106,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 
 	t.Run("NoOp mempool filters invalid txs and preserves order", func(t *testing.T) {
-		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke, rejectInvalid)
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), rejectInvalid)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 1 << 20,
 			Txs: [][]byte{
@@ -118,7 +120,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 
 	t.Run("NoOp mempool respects MaxTxBytes and stops at boundary", func(t *testing.T) {
-		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke, acceptAll)
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), acceptAll)
 		// Each tx is 4 bytes; budget for exactly two.
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 8,
@@ -133,7 +135,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 
 	t.Run("NoOp mempool with MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {
-		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke, acceptAll)
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), acceptAll)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 0,
 			Txs:        [][]byte{[]byte("a")},
@@ -143,7 +145,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 
 	t.Run("nil mempool follows fast path", func(t *testing.T) {
-		h := fastNoOpPrepareProposal(nil, mustNotInvoke, rejectInvalid)
+		h := fastNoOpPrepareProposal(nil, mustNotInvoke(t), rejectInvalid)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 1 << 20,
 			Txs:        [][]byte{[]byte("ok"), []byte("invalid")},
@@ -153,7 +155,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 
 	t.Run("NoOp mempool with empty req.Txs returns empty proposal", func(t *testing.T) {
-		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke, acceptAll)
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), acceptAll)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 1 << 20,
 			Txs:        nil,
