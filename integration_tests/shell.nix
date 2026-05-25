@@ -14,7 +14,6 @@ pkgs.mkShell {
     pkgs.chain-maind
     pkgs.hermes
     pkgs.rly
-    pkgs.poetry
   ];
   shellHook = ''
     mkdir -p ./coverage
