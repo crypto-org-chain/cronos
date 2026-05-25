@@ -20,7 +20,13 @@
         "timeout_prevote": "300ms",
         "timeout_precommit": "300ms"
       },
-      "db_backend": "rocksdb"
+      "db_backend": "rocksdb",
+      "event_bus_buffer_capacity": 128,
+      "p2p": {
+        "libp2p": {
+          "enabled": true
+        }
+      }
     },
     "app_patch": {
       "async-check-tx": true,
