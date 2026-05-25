@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import itertools
 import json
 import tempfile
@@ -28,6 +30,50 @@ MEMPOOL_SIZE = 10000
 VALIDATOR_GROUP = "validators"
 FULLNODE_GROUP = "fullnodes"
 CONTAINER_CRONOSD_PATH = "/bin/cronosd"
+
+# base58btc alphabet
+_B58 = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def _b58encode(data: bytes) -> str:
+    n = int.from_bytes(data, "big")
+    out = bytearray()
+    while n > 0:
+        n, r = divmod(n, 58)
+        out.append(_B58[r])
+    # leading zeros → leading '1'
+    for b in data:
+        if b == 0:
+            out.append(_B58[0])
+        else:
+            break
+    return out[::-1].decode()
+
+
+def libp2p_id_from_node_key(node_key_path: Path) -> str:
+    """Derive libp2p peer ID from CometBFT Ed25519 node_key.json.
+
+    Matches go-libp2p `peer.IDFromPublicKey` for an Ed25519 key:
+      - protobuf-marshal PublicKey{Type=Ed25519(1), Data=pub32}
+      - keys ≤ 42 bytes use identity multihash (code 0x00)
+      - otherwise sha256 multihash (code 0x12)
+      - base58btc encode
+    """
+    nk = json.loads(node_key_path.read_text())
+    priv = base64.b64decode(nk["priv_key"]["value"])
+    # tendermint Ed25519 priv: 64 bytes (seed-expanded || pub)
+    pub = priv[32:]
+    if len(pub) != 32:
+        raise ValueError(f"unexpected ed25519 pub length: {len(pub)}")
+    # protobuf wire: field 1 varint=1 ("\x08\x01"); field 2 lendelim 32B ("\x12\x20" + pub)
+    marshaled = b"\x08\x01\x12\x20" + pub
+    if len(marshaled) <= 42:
+        # identity multihash: code 0x00 + length + data
+        mh = b"\x00" + bytes([len(marshaled)]) + marshaled
+    else:
+        h = hashlib.sha256(marshaled).digest()
+        mh = b"\x12\x20" + h
+    return _b58encode(mh)
 
 
 def init_node(
@@ -76,10 +122,12 @@ def init_node(
 
     node_id = cli("comet", "show-node-id", **default_kwargs)
     peer_id = f"{node_id}@{ip}:26656"
+    libp2p_id = libp2p_id_from_node_key(home / "config" / "node_key.json")
     peer = PeerPacket(
         ip=str(ip),
         node_id=node_id,
         peer_id=peer_id,
+        libp2p_id=libp2p_id,
         accounts=accounts,
     )
 
@@ -134,7 +182,13 @@ def gen_genesis(
     )
 
 
-def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
+def patch_configs(
+    home: Path,
+    peers: str,
+    config_patch: dict,
+    app_patch: dict,
+    libp2p_peers: List[dict] = None,
+):
     default_config_patch = {
         "db_backend": "rocksdb",
         "p2p": {"addr_book_strict": False},
@@ -170,13 +224,17 @@ def patch_configs(home: Path, peers: str, config_patch: dict, app_patch: dict):
             "prometheus-retention-time": 600,
         },
     }
-    # update persistent_peers and other configs in config.toml
+    libp2p_enabled = bool(
+        config_patch
+        and config_patch.get("p2p", {}).get("libp2p", {}).get("enabled")
+    )
+    if libp2p_enabled and libp2p_peers is not None:
+        peer_patch = {"p2p": {"libp2p": {"bootstrap_peers": libp2p_peers}}}
+    else:
+        peer_patch = {"p2p": {"persistent_peers": peers}}
     config_patch = jsonmerge.merge(
         default_config_patch,
-        jsonmerge.merge(
-            config_patch,
-            {"p2p": {"persistent_peers": peers}},
-        ),
+        jsonmerge.merge(config_patch, peer_patch),
     )
     app_patch = jsonmerge.merge(default_app_patch, app_patch)
     patch_toml(home / "config" / "config.toml", config_patch)
