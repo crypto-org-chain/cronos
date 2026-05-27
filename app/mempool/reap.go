@@ -16,19 +16,29 @@ const TypeApp = "app"
 // priority-ordered mempool until the byte or gas hint passed by the
 // CometBFT AppReactor is reached. A hint value of 0 is treated as
 // "no cap" per CometBFT convention. Used when mempool.type=app.
+//
+// Implementation collects sdk.Tx pointers under the pool mutex via
+// SelectBy, then releases the mutex before encoding + size/gas capping.
+// Holding the pool mutex across encode would block concurrent Insert
+// from peer InsertTx + RPC CheckTx during a 5K-tx iteration, which
+// dominates app-mempool latency under load.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder) sdk.ReapTxsHandler {
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
+		var snapshot []sdk.Tx
+		mempool.SelectBy(context.Background(), mpool, nil, func(tx sdk.Tx) bool {
+			if tx == nil {
+				return false
+			}
+			snapshot = append(snapshot, tx)
+			return true
+		})
+
 		var (
-			txs        [][]byte
+			txs        = make([][]byte, 0, len(snapshot))
 			totalBytes uint64
 			totalGas   uint64
 		)
-		ctx := context.Background()
-		for it := mpool.Select(ctx, nil); it != nil; it = it.Next() {
-			tx := it.Tx()
-			if tx == nil {
-				break
-			}
+		for _, tx := range snapshot {
 			bz, err := txEncoder(tx)
 			if err != nil {
 				continue

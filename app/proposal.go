@@ -45,9 +45,8 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 		return false
 	}
 
-	// don't pass `memTx` to parent selector so it don't check tx gas wanted against block gas limit,
-	// it conflicts with the max-tx-gas-wanted logic.
-	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, nil, txBz)
+	// Pass memTx so the parent selector can read tx gas wanted and stop at maxBlockGas.
+	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
 }
 
 // fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
