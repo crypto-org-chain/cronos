@@ -41,6 +41,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v11/modules/light-clients/07-tendermint"
 	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
 	"github.com/crypto-org-chain/cronos/client/docs"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -171,6 +172,7 @@ const (
 	FlagUnsafeDummyCheckTx           = "unsafe-dummy-check-tx"
 
 	FlagMempoolFeeBump = "mempool.feebump"
+	FlagMempoolType    = "mempool.type"
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
@@ -398,6 +400,7 @@ func New(
 		mpool = mempool.NoOpMempool{}
 	}
 	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
+	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -418,6 +421,14 @@ func New(
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
+
+		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
+		// ReapTxs honors RequestReapTxs.MaxBytes/MaxGas hints from the AppReactor.
+		if mempoolType == cronosmempool.TypeApp {
+			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
+			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(mpool, txDecoder))
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder()))
+		}
 	})
 
 	blockSTMEnabled := cast.ToString(appOpts.Get(srvflags.EVMBlockExecutor)) == "block-stm"
