@@ -397,6 +397,8 @@ replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v
 
 replace github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0.0-20260521170220-d7fd0a9e9bfb
 
+replace github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
+
 replace github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260521170543-f0cfdca73e7c
 
 replace github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260521170543-f0cfdca73e7c
