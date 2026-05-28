@@ -423,14 +423,12 @@ func New(
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 
 		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
-		// InsertTx routes through BaseApp.CheckTx so AnteHandler validates
-		// peer-relayed txs (the cronos stopgap until cosmos-sdk wires
-		// AnteHandler into the default InsertTx path). ReapTxs honors
-		// RequestReapTxs.MaxBytes/MaxGas hints from the AppReactor.
+		// InsertTx uses BaseApp's default (runs AnteHandler chain via
+		// RunTx(execModeCheck) — see baseapp/abci.go). cronos overrides ReapTxs
+		// only, to honor RequestReapTxs.MaxBytes/MaxGas hints from the AppReactor.
 		switch mempoolType {
 		case cronosmempool.TypeApp:
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
-			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app))
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), logger.With("module", "app-mempool")))
 		case "", "flood":
 			// default flood path; no app-side hooks.
