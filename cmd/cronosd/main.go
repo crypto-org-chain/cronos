@@ -6,8 +6,8 @@ import (
 	"github.com/crypto-org-chain/cronos/app"
 	"github.com/crypto-org-chain/cronos/cmd/cronosd/cmd"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func init() {
