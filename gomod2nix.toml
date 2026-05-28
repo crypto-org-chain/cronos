@@ -92,6 +92,9 @@ schema = 3
   [mod."github.com/Microsoft/go-winio"]
     version = "v0.6.2"
     hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
+  [mod."github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime"]
+    version = "v0.0.0-20260116142910-60249400e523"
+    hash = "sha256-YB2ZfbMIKJ4+Mce44MEtWCftwEKitb4wxh6I38AAIAw="
   [mod."github.com/RoaringBitmap/roaring/v2"]
     version = "v2.18.0"
     hash = "sha256-pD2Rfq6P8CN0WuYgmgto4Ha74q8KG2iHVwTo2oSfRLM="
@@ -355,9 +358,12 @@ schema = 3
   [mod."github.com/ethereum/c-kzg-4844/v2"]
     version = "v2.1.5"
     hash = "sha256-v23w5QE40Xv9VNd87a6d4TT8+pAWu509kMSdMGB3qoc="
+  [mod."github.com/ethereum/go-bigmodexpfix"]
+    version = "v0.0.0-20250911101455-f9e208c548ab"
+    hash = "sha256-4NBADIRV6mJ645F8u5MKxfNv9S1XgCs+pXwPOCoI06s="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.20-0.20250815065500-a4fbafcae0dd"
-    hash = "sha256-OmMBbpVvQyRszQZulQdcdJXBqZLtLLeznQjbgyMyAbk="
+    version = "v1.10.20-0.20260521015249-663dca6c618e"
+    hash = "sha256-+WbliqGbS1A9VoccD15twT4JURG8k7ThaGXoDj02KJU="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/ethereum/go-verkle"]
     version = "v0.2.2"
@@ -372,6 +378,9 @@ schema = 3
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.4"
     hash = "sha256-c1JKoRSndwwOyOxq9ddCe+8qn7mG9uRq2o/822x5O/c="
+  [mod."github.com/ferranbt/fastssz"]
+    version = "v0.1.4"
+    hash = "sha256-BPwVA8BDQmSBPX/kAx7IE7XMNrhBYire2iQsP0icj2s="
   [mod."github.com/flynn/noise"]
     version = "v1.1.0"
     hash = "sha256-gHCdm9oJTKO+aUGWCw9LM/WHrZT2K6C5+j7VLXpqK48="
@@ -630,6 +639,9 @@ schema = 3
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
+  [mod."github.com/mitchellh/mapstructure"]
+    version = "v1.5.0"
+    hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
   [mod."github.com/mr-tron/base58"]
     version = "v1.3.0"
     hash = "sha256-LN6yaKmfTdAG3T3zFIrZlMtIRPxIot4uWsk4YG6hYZI="
