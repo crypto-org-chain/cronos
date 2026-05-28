@@ -111,34 +111,35 @@ func (im IBCConversionModule) OnRecvPacket(
 ) exported.Acknowledgement {
 	cacheCtx, commit := ctx.CacheContext()
 	ack := im.app.OnRecvPacket(cacheCtx, channelVersion, packet, relayer)
-	if ack.Success() {
-		data, err := transferTypes.UnmarshalPacketData(packet.GetData(), channelVersion, "")
-		if err != nil {
-			return channeltypes.NewErrorAcknowledgement(errors.Wrap(sdkerrors.ErrUnknownRequest,
-				"cannot unmarshal ICS-20 transfer packet data in middleware"))
+	if !ack.Success() {
+		// Underlying transfer failed: discard cacheCtx writes and return the
+		// failure ack. Committing would persist a half-applied transfer.
+		return ack
+	}
+	data, err := transferTypes.UnmarshalPacketData(packet.GetData(), channelVersion, "")
+	if err != nil {
+		return channeltypes.NewErrorAcknowledgement(errors.Wrap(sdkerrors.ErrUnknownRequest,
+			"cannot unmarshal ICS-20 transfer packet data in middleware"))
+	}
+	denom := im.getIbcDenomFromPacketAndData(packet, data.Token)
+	if im.canBeConverted(cacheCtx, denom) {
+		transferAmount, ok := sdkmath.NewIntFromString(data.Token.Amount)
+		if !ok {
+			return channeltypes.NewErrorAcknowledgement(errors.Wrapf(
+				transferTypes.ErrInvalidAmount,
+				"unable to parse transfer amount (%s) into sdk.Int in middleware",
+				data.Token.Amount,
+			))
 		}
-		denom := im.getIbcDenomFromPacketAndData(packet, data.Token)
-		// Check if it can be converted
-		if im.canBeConverted(cacheCtx, denom) {
-			transferAmount, ok := sdkmath.NewIntFromString(data.Token.Amount)
-			if !ok {
-				return channeltypes.NewErrorAcknowledgement(errors.Wrapf(
-					transferTypes.ErrInvalidAmount,
-					"unable to parse transfer amount (%s) into sdk.Int in middleware",
-					data.Token.Amount,
-				))
-			}
-			token := sdk.NewCoin(denom, transferAmount)
-			err = im.cronoskeeper.ConvertVouchersToEvmCoins(cacheCtx, data.Receiver, sdk.NewCoins(token))
-			if err != nil {
-				im.cronoskeeper.Logger(ctx).Error(
-					"failed to convert vouchers on recv",
-					"denom", denom,
-					"receiver", data.Receiver,
-					"error", err,
-				)
-				return channeltypes.NewErrorAcknowledgement(err)
-			}
+		token := sdk.NewCoin(denom, transferAmount)
+		if err := im.cronoskeeper.ConvertVouchersToEvmCoins(cacheCtx, data.Receiver, sdk.NewCoins(token)); err != nil {
+			im.cronoskeeper.Logger(ctx).Error(
+				"failed to convert vouchers on recv",
+				"denom", denom,
+				"receiver", data.Receiver,
+				"error", err,
+			)
+			return channeltypes.NewErrorAcknowledgement(err)
 		}
 	}
 	commit()

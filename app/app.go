@@ -415,6 +415,7 @@ func New(
 		app.SetPrepareProposal(fastNoOpPrepareProposal(
 			mpool,
 			defaultProposalHandler.PrepareProposalHandler(),
+			txDecoder,
 			blockProposalHandler.ValidateTransaction,
 		))
 
