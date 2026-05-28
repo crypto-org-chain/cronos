@@ -384,6 +384,7 @@ require (
 replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
 
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260528032327-7d79ddc38152
 	// solves bug on pruning "version does not exist"
