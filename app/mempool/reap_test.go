@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	protov2 "google.golang.org/protobuf/proto"
 
-	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 // stubFeeTx implements sdk.FeeTx with a configurable gas value and a
@@ -20,12 +20,12 @@ type stubFeeTx struct {
 	wire []byte
 }
 
-func (s *stubFeeTx) GetMsgs() []sdk.Msg                       { return nil }
-func (s *stubFeeTx) GetMsgsV2() ([]protov2.Message, error)    { return nil, nil }
-func (s *stubFeeTx) GetGas() uint64                           { return s.gas }
-func (s *stubFeeTx) GetFee() sdk.Coins                        { return nil }
-func (s *stubFeeTx) FeePayer() []byte                         { return nil }
-func (s *stubFeeTx) FeeGranter() []byte                       { return nil }
+func (s *stubFeeTx) GetMsgs() []sdk.Msg                    { return nil }
+func (s *stubFeeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (s *stubFeeTx) GetGas() uint64                        { return s.gas }
+func (s *stubFeeTx) GetFee() sdk.Coins                     { return nil }
+func (s *stubFeeTx) FeePayer() []byte                      { return nil }
+func (s *stubFeeTx) FeeGranter() []byte                    { return nil }
 
 type stubIterator struct {
 	txs []sdk.Tx
@@ -55,14 +55,15 @@ func (m *stubMempool) Insert(_ context.Context, tx sdk.Tx) error {
 	m.txs = append(m.txs, tx)
 	return nil
 }
+
 func (m *stubMempool) Select(_ context.Context, _ [][]byte) sdkmempool.Iterator {
 	if len(m.txs) == 0 {
 		return nil
 	}
 	return &stubIterator{txs: m.txs}
 }
-func (m *stubMempool) CountTx() int               { return len(m.txs) }
-func (m *stubMempool) Remove(_ sdk.Tx) error      { return nil }
+func (m *stubMempool) CountTx() int          { return len(m.txs) }
+func (m *stubMempool) Remove(_ sdk.Tx) error { return nil }
 
 // minimal pool helpers below
 
