@@ -71,7 +71,10 @@ func (m *stubMempool) Remove(_ sdk.Tx) error { return nil }
 // minimal pool helpers below
 
 func encoderFixedWire(tx sdk.Tx) ([]byte, error) {
-	if s, ok := tx.(*stubFeeTx); ok {
+	switch s := tx.(type) {
+	case *stubFeeTx:
+		return s.wire, nil
+	case *signerTx:
 		return s.wire, nil
 	}
 	return nil, errors.New("unsupported tx type")
