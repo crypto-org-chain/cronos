@@ -65,7 +65,7 @@ def libp2p_id_from_node_key(node_key_path: Path) -> str:
     pub = priv[32:]
     if len(pub) != 32:
         raise ValueError(f"unexpected ed25519 pub length: {len(pub)}")
-    # protobuf wire: field 1 varint=1 ("\x08\x01"); field 2 lendelim 32B ("\x12\x20" + pub)
+    # protobuf wire: field 1 varint=1 ("\x08\x01"); field 2 lendelim 32B
     marshaled = b"\x08\x01\x12\x20" + pub
     if len(marshaled) <= 42:
         # identity multihash: code 0x00 + length + data
@@ -225,8 +225,7 @@ def patch_configs(
         },
     }
     libp2p_enabled = bool(
-        config_patch
-        and config_patch.get("p2p", {}).get("libp2p", {}).get("enabled")
+        config_patch and config_patch.get("p2p", {}).get("libp2p", {}).get("enabled")
     )
     if libp2p_enabled and libp2p_peers is not None:
         peer_patch = {"p2p": {"libp2p": {"bootstrap_peers": libp2p_peers}}}
