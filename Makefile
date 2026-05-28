@@ -112,7 +112,14 @@ install: check-network print-ledger go.sum
 test:
 	@go test -tags=objstore -v -mod=readonly $(PACKAGES) -coverprofile=$(COVERAGE) -covermode=atomic
 
-.PHONY: all clean build install test
+# Mempool concurrency tests must run with -race because reap_test.go drives
+# concurrent Insert + reap to exercise SelectBy snapshot consistency. The
+# race detector is the only way to catch regressions in the underlying lock
+# discipline (cosmos-sdk PR #1751).
+test-race-mempool:
+	@go test -tags=objstore -race -mod=readonly ./app/mempool/...
+
+.PHONY: all clean build install test test-race-mempool
 
 clean:
 	rm -rf $(BUILDDIR)/

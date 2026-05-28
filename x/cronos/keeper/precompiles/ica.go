@@ -111,13 +111,13 @@ func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	}
 	copy(methodID[:], input[:4])
 	requiredGas, ok := icaGasRequiredByMethod[methodID]
+	if !ok {
+		return baseCost
+	}
 	if icaMethodNamesByID[methodID] == SubmitMsgsMethodName {
 		requiredGas += ic.cronosKeeper.GetParams(ic.ctx).MaxCallbackGas
 	}
-	if ok {
-		return requiredGas + baseCost
-	}
-	return baseCost
+	return requiredGas + baseCost
 }
 
 func (ic *IcaContract) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]byte, error) {
