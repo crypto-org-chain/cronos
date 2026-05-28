@@ -424,10 +424,15 @@ func New(
 
 		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
 		// ReapTxs honors RequestReapTxs.MaxBytes/MaxGas hints from the AppReactor.
-		if mempoolType == cronosmempool.TypeApp {
+		switch mempoolType {
+		case cronosmempool.TypeApp:
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(mpool, txDecoder))
-			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder()))
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), logger.With("module", "app-mempool")))
+		case "", "flood":
+			// default flood path; no app-side hooks.
+		default:
+			logger.Warn("unrecognized mempool.type; ABCI app hooks not registered", "type", mempoolType)
 		}
 	})
 
