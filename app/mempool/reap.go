@@ -17,12 +17,6 @@ const TypeApp = "app"
 // priority-ordered mempool until the byte or gas hint passed by the
 // CometBFT AppReactor is reached. A hint value of 0 is treated as
 // "no cap" per CometBFT convention. Used when mempool.type=app.
-//
-// Implementation collects sdk.Tx pointers under the pool mutex via
-// SelectBy, then releases the mutex before encoding + size/gas capping.
-// Holding the pool mutex across encode would block concurrent Insert
-// from peer InsertTx + RPC CheckTx during a 5K-tx iteration, which
-// dominates app-mempool latency under load.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder) sdk.ReapTxsHandler {
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
 		var snapshot []sdk.Tx
@@ -68,12 +62,6 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder) sdk.ReapT
 //   - 0 (CodeTypeOK)   accepted
 //   - 1                permanent reject (decode failure)
 //   - >= CodeTypeRetry retryable (insert failure, e.g. capacity)
-//
-// The PriorityNonceMempool's default tx-priority extractor calls
-// sdk.UnwrapSDKContext(ctx).Priority(), which panics on a plain
-// context.Background. We therefore pass a zero-value sdk.Context with
-// Priority=0; CheckTx-based priority lands separately via the AppMempool
-// CheckTx flow.
 func NewInsertTxHandler(mpool mempool.Mempool, txDecoder sdk.TxDecoder) sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		tx, err := txDecoder(req.Tx)

@@ -201,13 +201,6 @@ func (fixedSignerExtractor) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, erro
 	return []sdkmempool.SignerData{{Signer: s.sender, Sequence: s.nonce}}, nil
 }
 
-// TestReapTxs_ConcurrentInsertRace exercises the SelectBy lock semantics
-// of the production reap path against a real PriorityNonceMempool. Run
-// with `go test -race`. Pre-60ed80ad the handler used Select() and iterated
-// without holding mp.mtx; concurrent Insert mutated the priority skiplist
-// mid-iteration. Under -race that path produces "concurrent map read and
-// map write" or skiplist data-race reports. After the fix the snapshot
-// runs entirely under SelectBy's lock, so this test must not race.
 func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
