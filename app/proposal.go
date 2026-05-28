@@ -51,14 +51,21 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 }
 
 // fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
-// mempool is nil or NoOp, drops the per-tx TxDecode + AnteHandler re-run that
-// cosmos-sdk v0.54's NewDefaultProposalHandler performs. It applies the cronos
-// `validateTx` block-list filter at byte-level and respects req.MaxTxBytes,
-// matching the prior fast path. Real (priority) mempools delegate to the
+// mempool is nil or NoOp, skips the per-tx TxDecode that cosmos-sdk v0.54's
+// NewDefaultProposalHandler performs (and that aborts the proposal on a single
+// malformed tx). It applies the cronos `validateTx` block-list filter and
+// respects req.MaxTxBytes. When the consensus param MaxGas is set, it also
+// caps total selected gas — required so proposals do not exceed the
+// consensus gas budget under NoOp.
+//
+// When MaxGas > 0 the handler must decode each tx to read its gas; the "fast
+// path" then matters only for fault tolerance (a decode failure skips the
+// offending tx instead of aborting). Real (priority) mempools delegate to the
 // upstream default to preserve ordering semantics.
 func fastNoOpPrepareProposal(
 	mp mempool.Mempool,
 	defaultHandler sdk.PrepareProposalHandler,
+	txDecoder sdk.TxDecoder,
 	validateTx func(sdk.Tx, []byte) error,
 ) sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
@@ -72,20 +79,52 @@ func fastNoOpPrepareProposal(
 			return &abci.ResponsePrepareProposal{}, nil
 		}
 
+		var maxBlockGas uint64
+		if b := ctx.ConsensusParams().Block; b != nil && b.MaxGas > 0 {
+			maxBlockGas = uint64(b.MaxGas)
+		}
+
 		var (
 			selected   [][]byte
 			totalBytes int64
+			totalGas   uint64
 		)
 		for _, txBz := range req.Txs {
-			next := totalBytes + int64(len(txBz))
-			if next > maxTxBytes {
+			nextBytes := totalBytes + int64(len(txBz))
+			if nextBytes > maxTxBytes {
 				break
 			}
-			if err := validateTx(nil, txBz); err != nil {
+
+			// Decode only when we need gas accounting; otherwise let
+			// validateTx lazily decode if its blocklist demands it.
+			var tx sdk.Tx
+			if maxBlockGas > 0 {
+				decoded, err := txDecoder(txBz)
+				if err != nil {
+					continue
+				}
+				tx = decoded
+			}
+
+			if err := validateTx(tx, txBz); err != nil {
 				continue
 			}
+
+			if maxBlockGas > 0 {
+				if feeTx, ok := tx.(sdk.FeeTx); ok {
+					nextGas := totalGas + feeTx.GetGas()
+					if nextGas > maxBlockGas {
+						break
+					}
+					totalGas = nextGas
+				}
+				// Non-FeeTx: admitted without gas accounting. All cronos txs implement
+				// sdk.FeeTx (cosmos auth.Tx does), so this branch is unreachable in
+				// practice but safe — a non-FeeTx cannot inflate totalGas past the cap.
+			}
+
 			selected = append(selected, txBz)
-			totalBytes = next
+			totalBytes = nextBytes
 		}
 		return &abci.ResponsePrepareProposal{Txs: selected}, nil
 	}

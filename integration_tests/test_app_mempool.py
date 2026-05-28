@@ -17,13 +17,7 @@ import pytest
 from web3 import Web3
 
 from .network import setup_custom_cronos
-from .utils import (
-    ADDRS,
-    CONTRACTS,
-    KEYS,
-    deploy_contract,
-    sign_transaction,
-)
+from .utils import ADDRS, CONTRACTS, KEYS, deploy_contract, sign_transaction
 
 pytestmark = pytest.mark.slow
 

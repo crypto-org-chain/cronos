@@ -315,4 +315,22 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 	if got, want := mp.CountTx(), writers*txsPerWriter; got != want {
 		t.Fatalf("CountTx = %d, want %d", got, want)
 	}
+
+	// Snapshot stability: after writers stop, two consecutive reaps with the
+	// same caps must return the same number of txs. This catches gross
+	// iterator drift caused by SelectBy mutating internal state. We don't
+	// assert per-tx uniqueness — the upstream priority mempool iterator can
+	// emit a tx more than once when many entries share the same priority;
+	// that's tracked in cosmos/cosmos-sdk#1751 and out of scope here.
+	resp1, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("final reap 1: %v", err)
+	}
+	resp2, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("final reap 2: %v", err)
+	}
+	if len(resp1.Txs) != len(resp2.Txs) {
+		t.Fatalf("reap result count drifted: %d vs %d on stable pool", len(resp1.Txs), len(resp2.Txs))
+	}
 }

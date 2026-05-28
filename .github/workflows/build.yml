@@ -337,6 +337,10 @@ jobs:
         run: |
           nix develop .#rocksdb -c make test
         if: steps.changed-files.outputs.any_changed == 'true'
+      - name: race-detector mempool tests
+        run: |
+          nix develop .#rocksdb -c make test-race-mempool
+        if: steps.changed-files.outputs.any_changed == 'true'
       - name: filter out proto files
         run: |
           excludelist+=" $(find ./ -type f -name '*.pb.go')"
