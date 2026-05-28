@@ -875,6 +875,7 @@ def remove_cancun_prague_params(cronos):
     p = cli.query_params("evm")
     del p["chain_config"]["cancun_time"]
     del p["chain_config"]["prague_time"]
+    del p["chain_config"]["osaka_time"]
     authority = cosmos_module_address("gov")
     msg = "/ethermint.evm.v1.MsgUpdateParams"
     submit_gov_proposal(
@@ -891,3 +892,4 @@ def remove_cancun_prague_params(cronos):
     p = cli.query_params("evm")
     assert not p["chain_config"]["cancun_time"]
     assert not p["chain_config"]["prague_time"]
+    assert not p["chain_config"]["osaka_time"]

@@ -10,6 +10,7 @@
 * [#1976](https://github.com/crypto-org-chain/cronos/pull/1976) Minor improvements for cosmos-sdk v0.53.4 upgrade.
 * [#1978](https://github.com/crypto-org-chain/cronos/pull/1978) feat(cosmos-sdk): Optimize staking end-block queue through using pending queue slots instead of iterators.
 * [#2080](https://github.com/crypto-org-chain/cronos/pull/2080) feat: upgrade to cosmos-sdk v0.54.3 + ibc-go v11 + cometbft v0.39.
+* [#2081](https://github.com/crypto-org-chain/cronos/pull/2081) Upgrade go-ethereum version to `v1.16.9`, enable Osaka hardfork.
 
 ### Bug fixes
 
