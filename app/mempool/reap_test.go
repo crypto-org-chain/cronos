@@ -3,6 +3,9 @@ package mempool_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -179,5 +182,91 @@ func TestInsertTx_DecodeFails(t *testing.T) {
 	}
 	if resp.Code != 1 {
 		t.Fatalf("Code = %d, want 1 (permanent reject)", resp.Code)
+	}
+}
+
+// signerTx wraps stubFeeTx with explicit sender/nonce so a fixed
+// SignerExtractor can route it into PriorityNonceMempool without needing
+// a full SigVerifiableTx implementation.
+type signerTx struct {
+	*stubFeeTx
+	sender sdk.AccAddress
+	nonce  uint64
+}
+
+type fixedSignerExtractor struct{}
+
+func (fixedSignerExtractor) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
+	s := tx.(*signerTx)
+	return []sdkmempool.SignerData{{Signer: s.sender, Sequence: s.nonce}}, nil
+}
+
+// TestReapTxs_ConcurrentInsertRace exercises the SelectBy lock semantics
+// of the production reap path against a real PriorityNonceMempool. Run
+// with `go test -race`. Pre-60ed80ad the handler used Select() and iterated
+// without holding mp.mtx; concurrent Insert mutated the priority skiplist
+// mid-iteration. Under -race that path produces "concurrent map read and
+// map write" or skiplist data-race reports. After the fix the snapshot
+// runs entirely under SelectBy's lock, so this test must not race.
+func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
+	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+		TxPriority:      sdkmempool.NewDefaultTxPriority(),
+		SignerExtractor: fixedSignerExtractor{},
+		MaxTx:           10_000,
+	})
+
+	const writers = 4
+	const txsPerWriter = 500
+	handler := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire)
+	insertCtx := sdk.Context{}.WithPriority(0)
+
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+
+	for w := 0; w < writers; w++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			sender := sdk.AccAddress(fmt.Sprintf("sender%02d-padding-bytes", id))
+			for n := uint64(0); n < txsPerWriter; n++ {
+				tx := &signerTx{
+					stubFeeTx: &stubFeeTx{gas: 1, wire: []byte{byte(id), byte(n)}},
+					sender:    sender,
+					nonce:     n,
+				}
+				if err := mp.Insert(insertCtx, tx); err != nil {
+					t.Errorf("insert err: %v", err)
+					return
+				}
+			}
+		}(w)
+	}
+
+	var reapErr atomic.Value
+	reaperDone := make(chan struct{})
+	go func() {
+		defer close(reaperDone)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			if _, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0}); err != nil {
+				reapErr.Store(err)
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(done)
+	<-reaperDone
+
+	if v := reapErr.Load(); v != nil {
+		t.Fatalf("reap err: %v", v)
+	}
+	if got, want := mp.CountTx(), writers*txsPerWriter; got != want {
+		t.Fatalf("CountTx = %d, want %d", got, want)
 	}
 }
