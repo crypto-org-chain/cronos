@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/log/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -67,28 +68,43 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, logger lo
 	}
 }
 
-// NewInsertTxHandler returns a sdk.InsertTxHandler that decodes the tx
-// and inserts it into the mempool. Code mapping follows ABCI semantics:
-//   - 0 (CodeTypeOK)   accepted
-//   - 1                permanent reject (decode failure)
-//   - >= CodeTypeRetry retryable (insert failure, e.g. capacity)
+// CheckTxRunner is the subset of *baseapp.BaseApp that NewInsertTxHandler
+// needs. Defined as an interface so tests can stub it without spinning up
+// a full BaseApp.
+type CheckTxRunner interface {
+	CheckTx(*abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
+}
+
+// NewInsertTxHandler returns a sdk.InsertTxHandler that routes peer-relayed
+// txs through BaseApp.CheckTx so AnteHandler validation runs before
+// mempool admission. CheckTx itself calls mempool.Insert on success
+// (RunTx execModeCheck), so the handler does not insert separately.
 //
-// SECURITY: this path does NOT run AnteHandler — peer-relayed txs enter
-// the mempool without sig/fee/nonce validation. MaxTx caps memory, and
-// PrepareProposal-time validateTx still filters block-listed addresses,
-// but the priority mempool will hold unverified txs until block commit.
-// Until cosmos-sdk wires AnteHandler into InsertTx, mempool.type=app is
-// not equivalent to mempool.type=flood w.r.t. peer trust.
-func NewInsertTxHandler(mpool mempool.Mempool, txDecoder sdk.TxDecoder) sdk.InsertTxHandler {
+// Code mapping follows ABCI semantics:
+//   - 0 (CodeTypeOK)   accepted
+//   - >= CodeTypeRetry retryable (e.g. mempool full)
+//   - other non-zero   permanent reject (decode/AnteHandler failure)
+//
+// This is the cronos-side stopgap for the cosmos-sdk v0.54 gap where the
+// default InsertTx hook does not run AnteHandler. Once the SDK ships a
+// patch that wires AnteHandler into the default InsertTx path, drop this
+// wrapper and rely on the SDK default.
+func NewInsertTxHandler(app CheckTxRunner) sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		tx, err := txDecoder(req.Tx)
+		res, err := app.CheckTx(&abci.RequestCheckTx{
+			Tx:   req.Tx,
+			Type: abci.CheckTxType_New,
+		})
 		if err != nil {
 			return &abci.ResponseInsertTx{Code: codeRejectDecodeFail}, nil
 		}
-		ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(0)
-		if err := mpool.Insert(ctx, tx); err != nil {
+		switch {
+		case res.Code == abci.CodeTypeOK:
+			return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
+		case res.Codespace == sdkerrors.RootCodespace && res.Code == sdkerrors.ErrMempoolIsFull.ABCICode():
 			return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
+		default:
+			return &abci.ResponseInsertTx{Code: res.Code}, nil
 		}
-		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
 }
