@@ -68,7 +68,7 @@ func NewInsertTxHandler(mpool mempool.Mempool, txDecoder sdk.TxDecoder) sdk.Inse
 		if err != nil {
 			return &abci.ResponseInsertTx{Code: 1}, nil
 		}
-		ctx := sdk.Context{}.WithPriority(0)
+		ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(0)
 		if err := mpool.Insert(ctx, tx); err != nil {
 			return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
 		}
