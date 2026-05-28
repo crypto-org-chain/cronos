@@ -98,6 +98,10 @@ func (ic *IcaContract) Address() common.Address {
 	return icaContractAddress
 }
 
+func (ic *IcaContract) Name() string {
+	return "ica"
+}
+
 // RequiredGas calculates the contract gas use
 func (ic *IcaContract) RequiredGas(input []byte) uint64 {
 	// base cost to prevent large input size
