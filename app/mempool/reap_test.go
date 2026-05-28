@@ -15,6 +15,7 @@ import (
 	"cosmossdk.io/log/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -157,11 +158,21 @@ func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 	}
 }
 
+// stubCheckTxRunner stands in for *baseapp.BaseApp in InsertTxHandler tests.
+// It returns a fixed ResponseCheckTx so the handler's code-mapping logic
+// can be exercised without spinning up a real BaseApp.
+type stubCheckTxRunner struct {
+	res *abci.ResponseCheckTx
+	err error
+}
+
+func (s *stubCheckTxRunner) CheckTx(*abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+	return s.res, s.err
+}
+
 func TestInsertTx_OK(t *testing.T) {
-	pool := &stubMempool{}
-	h := cronosmempool.NewInsertTxHandler(pool, func(b []byte) (sdk.Tx, error) {
-		return &stubFeeTx{gas: 1, wire: b}, nil
-	})
+	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{Code: abci.CodeTypeOK}}
+	h := cronosmempool.NewInsertTxHandler(runner)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("hello")})
 	if err != nil {
@@ -170,18 +181,52 @@ func TestInsertTx_OK(t *testing.T) {
 	if resp.Code != abci.CodeTypeOK {
 		t.Fatalf("Code = %d, want %d", resp.Code, abci.CodeTypeOK)
 	}
-	if pool.CountTx() != 1 {
-		t.Fatalf("pool size = %d, want 1", pool.CountTx())
+}
+
+func TestInsertTx_AnteHandlerReject(t *testing.T) {
+	// AnteHandler reject — sig fail / nonce gap / unauthorized: a non-zero
+	// non-Retry code. Handler must propagate the code to the peer so they
+	// don't retry.
+	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{
+		Code:      sdkerrors.ErrUnauthorized.ABCICode(),
+		Codespace: sdkerrors.RootCodespace,
+	}}
+	h := cronosmempool.NewInsertTxHandler(runner)
+
+	resp, err := h(&abci.RequestInsertTx{Tx: []byte("garbage")})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if resp.Code == abci.CodeTypeOK || resp.Code >= abci.CodeTypeRetry {
+		t.Fatalf("Code = %d, want non-OK and < CodeTypeRetry (permanent reject)", resp.Code)
 	}
 }
 
-func TestInsertTx_DecodeFails(t *testing.T) {
-	pool := &stubMempool{}
-	h := cronosmempool.NewInsertTxHandler(pool, func(_ []byte) (sdk.Tx, error) {
-		return nil, errors.New("bad tx")
-	})
+func TestInsertTx_MempoolFullRetryable(t *testing.T) {
+	// ErrMempoolIsFull (sdk codespace, code 20) must map to CodeTypeRetry
+	// so the peer retries with backoff instead of dropping the tx.
+	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{
+		Code:      sdkerrors.ErrMempoolIsFull.ABCICode(),
+		Codespace: sdkerrors.RootCodespace,
+	}}
+	h := cronosmempool.NewInsertTxHandler(runner)
 
-	resp, err := h(&abci.RequestInsertTx{Tx: []byte("garbage")})
+	resp, err := h(&abci.RequestInsertTx{Tx: []byte("ok")})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if resp.Code != abci.CodeTypeRetry {
+		t.Fatalf("Code = %d, want %d (CodeTypeRetry)", resp.Code, abci.CodeTypeRetry)
+	}
+}
+
+func TestInsertTx_RunnerErrorRejects(t *testing.T) {
+	// Runner returns an error (unknown CheckTxType / RPC failure) — treat
+	// as permanent reject so the peer drops the tx.
+	runner := &stubCheckTxRunner{err: errors.New("unknown checkTx type")}
+	h := cronosmempool.NewInsertTxHandler(runner)
+
+	resp, err := h(&abci.RequestInsertTx{Tx: []byte("x")})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -206,35 +251,34 @@ func (fixedSignerExtractor) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, erro
 	return []sdkmempool.SignerData{{Signer: s.sender, Sequence: s.nonce}}, nil
 }
 
-// TestInsertReap_NonceOrderingPerSender verifies that for a single sender,
-// txs inserted via NewInsertTxHandler in shuffled nonce order are returned
-// by NewReapTxsHandler in ascending nonce order — the per-sender invariant
-// that downstream block proposers rely on.
-func TestInsertReap_NonceOrderingPerSender(t *testing.T) {
+// TestReapTxs_NonceOrderingPerSender verifies that for a single sender,
+// txs inserted into the priority mempool in shuffled nonce order are
+// returned by NewReapTxsHandler in ascending nonce order — the per-sender
+// invariant that downstream block proposers rely on.
+//
+// Insertion bypasses NewInsertTxHandler (which now goes through BaseApp.CheckTx
+// and would require a real app to run). This exercises only the reap path.
+func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
 		SignerExtractor: fixedSignerExtractor{},
 		MaxTx:           100,
 	})
 	sender := sdk.AccAddress("sender00-padding-bytes")
-
-	decoder := func(b []byte) (sdk.Tx, error) {
-		return &signerTx{
-			stubFeeTx: &stubFeeTx{gas: 21_000, wire: b},
-			sender:    sender,
-			nonce:     uint64(b[0]),
-		}, nil
-	}
-	insert := cronosmempool.NewInsertTxHandler(mp, decoder)
-	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, log.NewNopLogger())
+	ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(0)
 
 	for _, n := range []byte{3, 0, 4, 1, 2} {
-		resp, err := insert(&abci.RequestInsertTx{Tx: []byte{n}})
-		if err != nil || resp.Code != abci.CodeTypeOK {
-			t.Fatalf("insert nonce=%d: code=%d err=%v", n, resp.Code, err)
+		tx := &signerTx{
+			stubFeeTx: &stubFeeTx{gas: 21_000, wire: []byte{n}},
+			sender:    sender,
+			nonce:     uint64(n),
+		}
+		if err := mp.Insert(ctx, tx); err != nil {
+			t.Fatalf("insert nonce=%d: %v", n, err)
 		}
 	}
 
+	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, log.NewNopLogger())
 	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("reap: %v", err)
@@ -250,9 +294,7 @@ func TestInsertReap_NonceOrderingPerSender(t *testing.T) {
 }
 
 // TestReapTxs_PriorityDescending verifies that txs inserted with varying
-// ctx.Priority() values are reaped highest-priority-first. Insertion bypasses
-// NewInsertTxHandler (which always sets priority=0); this exercises the
-// CheckTx path where AnteHandler stamps priority on the SDK ctx.
+// ctx.Priority() values are reaped highest-priority-first.
 func TestReapTxs_PriorityDescending(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
@@ -286,54 +328,6 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 	for i, tx := range resp.Txs {
 		if got := tx[0]; got != want[i] {
 			t.Fatalf("resp.Txs[%d][0] = %d, want %d (priority desc)", i, got, want[i])
-		}
-	}
-}
-
-// priorityCapturingMempool records ctx.Priority() on each Insert call so
-// tests can assert what priority value the handler stamped on the SDK ctx.
-// Other Mempool methods are stubbed and not exercised here.
-type priorityCapturingMempool struct {
-	priorities []int64
-}
-
-func (m *priorityCapturingMempool) Insert(ctx context.Context, _ sdk.Tx) error {
-	m.priorities = append(m.priorities, sdk.UnwrapSDKContext(ctx).Priority())
-	return nil
-}
-
-func (*priorityCapturingMempool) Select(context.Context, [][]byte) sdkmempool.Iterator {
-	return nil
-}
-func (m *priorityCapturingMempool) CountTx() int      { return len(m.priorities) }
-func (*priorityCapturingMempool) Remove(sdk.Tx) error { return nil }
-
-// TestInsertTxHandler_StampsPriorityZero locks in the contract that
-// NewInsertTxHandler hands the underlying mempool an SDK ctx with
-// priority=0, regardless of any "gas tip" the decoded tx might carry.
-// The ABCI InsertTx hook does not run AnteHandler, so there is no
-// authoritative priority to copy. If this contract changes (e.g. we
-// start computing a deterministic priority from the decoded tx),
-// update both NewInsertTxHandler and this test.
-func TestInsertTxHandler_StampsPriorityZero(t *testing.T) {
-	mp := &priorityCapturingMempool{}
-	insert := cronosmempool.NewInsertTxHandler(mp, func(b []byte) (sdk.Tx, error) {
-		return &stubFeeTx{gas: uint64(b[0]) * 1000, wire: b}, nil
-	})
-
-	for _, g := range []byte{50, 5, 200, 10, 100} {
-		resp, err := insert(&abci.RequestInsertTx{Tx: []byte{g}})
-		if err != nil || resp.Code != abci.CodeTypeOK {
-			t.Fatalf("insert gas=%d: code=%d err=%v", g, resp.Code, err)
-		}
-	}
-
-	if got, want := len(mp.priorities), 5; got != want {
-		t.Fatalf("captured %d priorities, want %d", got, want)
-	}
-	for i, p := range mp.priorities {
-		if p != 0 {
-			t.Fatalf("priorities[%d] = %d, want 0", i, p)
 		}
 	}
 }
