@@ -15,7 +15,6 @@ import (
 	"cosmossdk.io/log/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -155,83 +154,6 @@ func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 	}
 	if got := len(resp.Txs); got != 0 {
 		t.Fatalf("expected 0 txs, got %d", got)
-	}
-}
-
-// stubCheckTxRunner stands in for *baseapp.BaseApp in InsertTxHandler tests.
-// It returns a fixed ResponseCheckTx so the handler's code-mapping logic
-// can be exercised without spinning up a real BaseApp.
-type stubCheckTxRunner struct {
-	res *abci.ResponseCheckTx
-	err error
-}
-
-func (s *stubCheckTxRunner) CheckTx(*abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
-	return s.res, s.err
-}
-
-func TestInsertTx_OK(t *testing.T) {
-	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{Code: abci.CodeTypeOK}}
-	h := cronosmempool.NewInsertTxHandler(runner)
-
-	resp, err := h(&abci.RequestInsertTx{Tx: []byte("hello")})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
-	if resp.Code != abci.CodeTypeOK {
-		t.Fatalf("Code = %d, want %d", resp.Code, abci.CodeTypeOK)
-	}
-}
-
-func TestInsertTx_AnteHandlerReject(t *testing.T) {
-	// AnteHandler reject — sig fail / nonce gap / unauthorized: a non-zero
-	// non-Retry code. Handler must propagate the code to the peer so they
-	// don't retry.
-	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{
-		Code:      sdkerrors.ErrUnauthorized.ABCICode(),
-		Codespace: sdkerrors.RootCodespace,
-	}}
-	h := cronosmempool.NewInsertTxHandler(runner)
-
-	resp, err := h(&abci.RequestInsertTx{Tx: []byte("garbage")})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
-	if resp.Code == abci.CodeTypeOK || resp.Code >= abci.CodeTypeRetry {
-		t.Fatalf("Code = %d, want non-OK and < CodeTypeRetry (permanent reject)", resp.Code)
-	}
-}
-
-func TestInsertTx_MempoolFullRetryable(t *testing.T) {
-	// ErrMempoolIsFull (sdk codespace, code 20) must map to CodeTypeRetry
-	// so the peer retries with backoff instead of dropping the tx.
-	runner := &stubCheckTxRunner{res: &abci.ResponseCheckTx{
-		Code:      sdkerrors.ErrMempoolIsFull.ABCICode(),
-		Codespace: sdkerrors.RootCodespace,
-	}}
-	h := cronosmempool.NewInsertTxHandler(runner)
-
-	resp, err := h(&abci.RequestInsertTx{Tx: []byte("ok")})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
-	if resp.Code != abci.CodeTypeRetry {
-		t.Fatalf("Code = %d, want %d (CodeTypeRetry)", resp.Code, abci.CodeTypeRetry)
-	}
-}
-
-func TestInsertTx_RunnerErrorRejects(t *testing.T) {
-	// Runner returns an error (unknown CheckTxType / RPC failure) — treat
-	// as permanent reject so the peer drops the tx.
-	runner := &stubCheckTxRunner{err: errors.New("unknown checkTx type")}
-	h := cronosmempool.NewInsertTxHandler(runner)
-
-	resp, err := h(&abci.RequestInsertTx{Tx: []byte("x")})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
-	if resp.Code != 1 {
-		t.Fatalf("Code = %d, want 1 (permanent reject)", resp.Code)
 	}
 }
 

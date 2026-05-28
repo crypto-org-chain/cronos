@@ -393,7 +393,7 @@ replace (
 	github.com/tidwall/btree => github.com/crypto-org-chain/btree v0.0.0-20240406140148-2687063b042c
 )
 
-replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260521144821-f2bcc1893cf0
+replace github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260528033636-6da0b040dc18
 
 replace github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0.0-20260521170220-d7fd0a9e9bfb
 
