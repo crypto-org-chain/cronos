@@ -11,6 +11,7 @@ Build the image, embed test data, and run -- all in one command:
 cd testground
 
 # 1. Build image + embed data + run (Docker)
+./scripts/setup-udp-buffers.sh &&
 docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA=true \
   && mkdir -p /tmp/outputs \
   && jsonnet -S benchmark/compositions/docker-compose.jsonnet \
@@ -22,16 +23,19 @@ docker build -t cronos-testground:latest -f Dockerfile .. --build-arg EMBED_DATA
 Or step-by-step if you prefer more control:
 
 ```bash
-# Step 1: Build image
+# Step 1: execute shell script for the libp2p UDP buffer
+./scripts/setup-udp-buffers.sh
+
+# Step 2: Build image
 docker build -t cronos-testground:latest -f Dockerfile ..
 
-# Step 2: Update test data (re-gen + patch, reuses existing image)
+# Step 3: Update test data (re-gen + patch, reuses existing image)
 docker run --rm -v /tmp/data:/data cronos-testground:latest \
   stateless-testcase generic-gen "$(jq '.outdir = "/data/out"' benchmark-options.json)"
 echo 'FROM cronos-testground:latest
 ADD ./out /data' | docker build -t cronos-testground:latest -f - /tmp/data
 
-# Step 3: Run
+# Step 4: Run
 mkdir -p /tmp/outputs
 jsonnet -S benchmark/compositions/docker-compose.jsonnet \
   --ext-str outputs=/tmp/outputs --ext-code nodes=3 > /tmp/docker-compose-testground.yaml
