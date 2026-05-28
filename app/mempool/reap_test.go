@@ -204,6 +204,138 @@ func (fixedSignerExtractor) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, erro
 	return []sdkmempool.SignerData{{Signer: s.sender, Sequence: s.nonce}}, nil
 }
 
+// TestInsertReap_NonceOrderingPerSender verifies that for a single sender,
+// txs inserted via NewInsertTxHandler in shuffled nonce order are returned
+// by NewReapTxsHandler in ascending nonce order — the per-sender invariant
+// that downstream block proposers rely on.
+func TestInsertReap_NonceOrderingPerSender(t *testing.T) {
+	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+		TxPriority:      sdkmempool.NewDefaultTxPriority(),
+		SignerExtractor: fixedSignerExtractor{},
+		MaxTx:           100,
+	})
+	sender := sdk.AccAddress("sender00-padding-bytes")
+
+	decoder := func(b []byte) (sdk.Tx, error) {
+		return &signerTx{
+			stubFeeTx: &stubFeeTx{gas: 21_000, wire: b},
+			sender:    sender,
+			nonce:     uint64(b[0]),
+		}, nil
+	}
+	insert := cronosmempool.NewInsertTxHandler(mp, decoder)
+	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire)
+
+	for _, n := range []byte{3, 0, 4, 1, 2} {
+		resp, err := insert(&abci.RequestInsertTx{Tx: []byte{n}})
+		if err != nil || resp.Code != abci.CodeTypeOK {
+			t.Fatalf("insert nonce=%d: code=%d err=%v", n, resp.Code, err)
+		}
+	}
+
+	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("reap: %v", err)
+	}
+	if got, want := len(resp.Txs), 5; got != want {
+		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
+	}
+	for i, tx := range resp.Txs {
+		if got, want := tx[0], byte(i); got != want {
+			t.Fatalf("resp.Txs[%d][0] = %d, want %d (nonce ascending)", i, got, want)
+		}
+	}
+}
+
+// TestReapTxs_PriorityDescending verifies that txs inserted with varying
+// ctx.Priority() values are reaped highest-priority-first. Insertion bypasses
+// NewInsertTxHandler (which always sets priority=0); this exercises the
+// CheckTx path where AnteHandler stamps priority on the SDK ctx.
+func TestReapTxs_PriorityDescending(t *testing.T) {
+	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
+		TxPriority:      sdkmempool.NewDefaultTxPriority(),
+		SignerExtractor: fixedSignerExtractor{},
+		MaxTx:           100,
+	})
+	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire)
+
+	priorities := []int64{10, 100, 50, 200, 5}
+	for i, p := range priorities {
+		sender := sdk.AccAddress(fmt.Sprintf("sender%02d-padding-bytes", i))
+		tx := &signerTx{
+			stubFeeTx: &stubFeeTx{gas: 21_000, wire: []byte{byte(p)}},
+			sender:    sender,
+			nonce:     0,
+		}
+		ctx := sdk.Context{}.WithContext(context.Background()).WithPriority(p)
+		if err := mp.Insert(ctx, tx); err != nil {
+			t.Fatalf("insert priority=%d: %v", p, err)
+		}
+	}
+
+	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("reap: %v", err)
+	}
+	if got, want := len(resp.Txs), len(priorities); got != want {
+		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
+	}
+	want := []byte{200, 100, 50, 10, 5}
+	for i, tx := range resp.Txs {
+		if got := tx[0]; got != want[i] {
+			t.Fatalf("resp.Txs[%d][0] = %d, want %d (priority desc)", i, got, want[i])
+		}
+	}
+}
+
+// priorityCapturingMempool records ctx.Priority() on each Insert call so
+// tests can assert what priority value the handler stamped on the SDK ctx.
+// Other Mempool methods are stubbed and not exercised here.
+type priorityCapturingMempool struct {
+	priorities []int64
+}
+
+func (m *priorityCapturingMempool) Insert(ctx context.Context, _ sdk.Tx) error {
+	m.priorities = append(m.priorities, sdk.UnwrapSDKContext(ctx).Priority())
+	return nil
+}
+
+func (*priorityCapturingMempool) Select(context.Context, [][]byte) sdkmempool.Iterator {
+	return nil
+}
+func (m *priorityCapturingMempool) CountTx() int      { return len(m.priorities) }
+func (*priorityCapturingMempool) Remove(sdk.Tx) error { return nil }
+
+// TestInsertTxHandler_StampsPriorityZero locks in the contract that
+// NewInsertTxHandler hands the underlying mempool an SDK ctx with
+// priority=0, regardless of any "gas tip" the decoded tx might carry.
+// The ABCI InsertTx hook does not run AnteHandler, so there is no
+// authoritative priority to copy. If this contract changes (e.g. we
+// start computing a deterministic priority from the decoded tx),
+// update both NewInsertTxHandler and this test.
+func TestInsertTxHandler_StampsPriorityZero(t *testing.T) {
+	mp := &priorityCapturingMempool{}
+	insert := cronosmempool.NewInsertTxHandler(mp, func(b []byte) (sdk.Tx, error) {
+		return &stubFeeTx{gas: uint64(b[0]) * 1000, wire: b}, nil
+	})
+
+	for _, g := range []byte{50, 5, 200, 10, 100} {
+		resp, err := insert(&abci.RequestInsertTx{Tx: []byte{g}})
+		if err != nil || resp.Code != abci.CodeTypeOK {
+			t.Fatalf("insert gas=%d: code=%d err=%v", g, resp.Code, err)
+		}
+	}
+
+	if got, want := len(mp.priorities), 5; got != want {
+		t.Fatalf("captured %d priorities, want %d", got, want)
+	}
+	for i, p := range mp.priorities {
+		if p != 0 {
+			t.Fatalf("priorities[%d] = %d, want 0", i, p)
+		}
+	}
+}
+
 func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
