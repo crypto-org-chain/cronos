@@ -399,8 +399,8 @@ replace github.com/evmos/ethermint => github.com/crypto-org-chain/ethermint v0.0
 
 replace github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
 
-replace github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260521170543-f0cfdca73e7c
+replace github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260528012743-d2e65045cb13
 
-replace github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260521170543-f0cfdca73e7c
+replace github.com/crypto-org-chain/cronos-store/versiondb => github.com/crypto-org-chain/cronos-store/versiondb v0.0.0-20260528012743-d2e65045cb13
 
-replace github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260521170543-f0cfdca73e7c
+replace github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260528012743-d2e65045cb13
