@@ -3,12 +3,24 @@ package app
 import (
 	"bytes"
 	"container/list"
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+// xxhashSeed randomises shard assignment at startup so an attacker cannot
+// precompute which tx bytes land in which shard and flood a single shard.
+var xxhashSeed = func() uint64 {
+	var b [8]byte
+	if _, err := cryptorand.Read(b[:]); err != nil {
+		panic(err)
+	}
+	return binary.LittleEndian.Uint64(b[:])
+}()
 
 const (
 	decodeCacheSize = 10_000
@@ -98,7 +110,7 @@ func newDecodeCache() *decodeCache {
 }
 
 func (c *decodeCache) get(bz []byte) (sdk.Tx, bool) {
-	h := xxhash.Sum64(bz)
+	h := xxhash.Sum64(bz) ^ xxhashSeed
 	return c.shards[h%shardCount].get(h, bz)
 }
 
@@ -106,7 +118,7 @@ func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
 	if len(bz) > maxCachedTxBytes {
 		return
 	}
-	h := xxhash.Sum64(bz)
+	h := xxhash.Sum64(bz) ^ xxhashSeed
 	c.shards[h%shardCount].set(h, bz, tx)
 }
 
