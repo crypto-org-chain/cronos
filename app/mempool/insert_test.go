@@ -16,8 +16,9 @@ import (
 
 // stubRunner is a test double for txRunner.
 type stubRunner struct {
-	runTx func([]byte) error
-	calls atomic.Int64
+	runTx  func([]byte) error
+	calls  atomic.Int64
+	height atomic.Int64
 }
 
 func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, ms storetypes.MultiStore, cache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -26,6 +27,10 @@ func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex
 		return sdk.GasInfo{}, nil, nil, s.runTx(txBytes)
 	}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func (s *stubRunner) LastBlockHeight() int64 {
+	return s.height.Load()
 }
 
 func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
@@ -128,6 +133,8 @@ func (r *captureExecModeRunner) RunTx(mode sdk.ExecMode, _ []byte, _ sdk.Tx, _ i
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
+func (r *captureExecModeRunner) LastBlockHeight() int64 { return 0 }
+
 func TestInsertTxHandler_SeenCacheRingWrap(t *testing.T) {
 	const size = 4
 	runner := &stubRunner{}
@@ -163,6 +170,47 @@ func TestInsertTxHandler_RetryOnWrappedMempoolFull(t *testing.T) {
 	resp, _ := h(&abci.RequestInsertTx{Tx: []byte("tx")})
 	if resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry for wrapped ErrMempoolTxMaxCapacity, got %d", resp.Code)
+	}
+}
+
+// TestInsertTxHandler_SeenCacheClearsOnHeightAdvance verifies that a tx
+// admitted at height N is re-validated through the AnteHandler the first
+// time the handler is called at height > N. This is the guard against stale
+// cache hits when the underlying account state changes across a block
+// commit (nonce consumed, balance drained, signing key rotated).
+func TestInsertTxHandler_SeenCacheClearsOnHeightAdvance(t *testing.T) {
+	runner := &stubRunner{}
+	runner.height.Store(10)
+	h := newInsertTxHandler(runner, 16)
+
+	tx := []byte("repeat-across-blocks")
+
+	// First admission at height 10: triggers RunTx, caches the hash.
+	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
+		t.Fatalf("first call: unexpected error: %v", err)
+	}
+	if got := runner.calls.Load(); got != 1 {
+		t.Fatalf("expected 1 RunTx call after first admission, got %d", got)
+	}
+
+	// Same height: cache hit, no RunTx.
+	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
+		t.Fatalf("second call: unexpected error: %v", err)
+	}
+	if got := runner.calls.Load(); got != 1 {
+		t.Fatalf("same-height re-delivery should hit cache; got %d RunTx calls", got)
+	}
+
+	// Block commits; height advances. Next handler call must clear the
+	// cache and re-run the AnteHandler so a tx that became invalid in the
+	// committed block (nonce consumed / balance drained / key rotated)
+	// cannot be admitted as a stale cache hit.
+	runner.height.Store(11)
+	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
+		t.Fatalf("post-commit call: unexpected error: %v", err)
+	}
+	if got := runner.calls.Load(); got != 2 {
+		t.Fatalf("height advance must force AnteHandler re-run; got %d RunTx calls", got)
 	}
 }
 
@@ -209,6 +257,6 @@ func BenchmarkInsertSeenCache_Has(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		c.Has(h)
+		c.HasAtHeight(h, 0)
 	}
 }

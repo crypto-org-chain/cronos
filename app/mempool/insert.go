@@ -21,6 +21,7 @@ const DefaultInsertTxCacheSize = 16384
 // *baseapp.BaseApp satisfies this interface; tests may inject stubs.
 type txRunner interface {
 	RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, txMultiStore storetypes.MultiStore, incarnationCache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error)
+	LastBlockHeight() int64
 }
 
 // Compile-time check: *baseapp.BaseApp implements txRunner.
@@ -30,14 +31,13 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // txs via RunTx(execModeCheck) before admitting them to the mempool.
 //
 // A FIFO seen-cache of size cacheSize (0 = disabled) deduplicates AnteHandler
-// invocations when the same tx is gossiped by multiple peers. The cache is a
-// short-window dedup mechanism: a tx that was valid at first admission and
-// recorded in the cache is unconditionally returned as CodeTypeOK on gossip
-// re-delivery, even if it has since become invalid (nonce consumed, account
-// drained, key rotated). The mempool itself still rejects duplicates on
-// Insert, and stale entries are eventually evicted from the ring, so the
-// practical risk is bounded by the gossip window. The cache does not
-// interact with mempool eviction signals.
+// invocations when the same tx is gossiped by multiple peers. The cache is
+// scoped to a single block height: it is fully cleared whenever the committed
+// block height advances, so stale entries from a tx whose nonce was consumed,
+// account drained, or signing key rotated cannot survive across a block
+// commit. Within a height, the cache assumes a short gossip window and does
+// not interact with mempool eviction signals; the mempool itself still
+// rejects duplicates on Insert.
 //
 // Must be registered with BaseApp.SetInsertTxHandler before Seal.
 func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int) sdk.InsertTxHandler {
@@ -53,7 +53,7 @@ func newInsertTxHandler(runner txRunner, cacheSize int) sdk.InsertTxHandler {
 		var hash [32]byte
 		if cache != nil {
 			hash = sha256.Sum256(req.Tx)
-			if cache.Has(hash) {
+			if cache.HasAtHeight(hash, runner.LastBlockHeight()) {
 				return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 			}
 		}
@@ -75,14 +75,17 @@ func newInsertTxHandler(runner txRunner, cacheSize int) sdk.InsertTxHandler {
 }
 
 // insertSeenCache is a fixed-size FIFO ring buffer of tx-hashes used to skip
-// redundant AnteHandler runs when multiple peers gossip the same tx.
+// redundant AnteHandler runs when multiple peers gossip the same tx. Entries
+// are scoped to a single block height: HasAtHeight clears the cache the
+// first time it observes a height greater than the last observed one.
 type insertSeenCache struct {
-	mu   sync.Mutex
-	ring [][32]byte
-	set  map[[32]byte]struct{}
-	pos  int
-	n    int
-	max  int
+	mu         sync.Mutex
+	ring       [][32]byte
+	set        map[[32]byte]struct{}
+	pos        int
+	n          int
+	max        int
+	lastHeight int64
 }
 
 func newInsertSeenCache(max int) *insertSeenCache {
@@ -93,9 +96,20 @@ func newInsertSeenCache(max int) *insertSeenCache {
 	}
 }
 
-func (c *insertSeenCache) Has(h [32]byte) bool {
+// HasAtHeight reports whether h is in the cache, after first evicting all
+// entries if height advanced since the last call. Eviction is required so a
+// tx whose nonce was consumed, account drained, or signing key rotated in a
+// committed block is re-validated through the AnteHandler instead of being
+// admitted as a stale cache hit.
+func (c *insertSeenCache) HasAtHeight(h [32]byte, height int64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if height > c.lastHeight {
+		clear(c.set)
+		c.pos = 0
+		c.n = 0
+		c.lastHeight = height
+	}
 	_, ok := c.set[h]
 	return ok
 }
