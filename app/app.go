@@ -350,6 +350,8 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
+	txDecodeCache := newDecodeCache()
+	cachingDecoder := newCachingDecoder(txDecoder, txDecodeCache)
 	eip712.SetEncodingConfig(encodingConfig)
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
@@ -415,7 +417,7 @@ func New(
 		app.SetPrepareProposal(fastNoOpPrepareProposal(
 			mpool,
 			defaultProposalHandler.PrepareProposalHandler(),
-			txDecoder,
+			cachingDecoder,
 			blockProposalHandler.ValidateTransaction,
 		))
 
@@ -462,6 +464,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
+	bApp.SetTxDecoder(cachingDecoder)
 
 	keys, tkeys, okeys := StoreKeys()
 
@@ -470,7 +473,7 @@ func New(
 		BaseApp:              bApp,
 		cdc:                  cdc,
 		txConfig:             txConfig,
-		txDecoder:            txDecoder,
+		txDecoder:            cachingDecoder,
 		appCodec:             appCodec,
 		interfaceRegistry:    interfaceRegistry,
 		invCheckPeriod:       invCheckPeriod,

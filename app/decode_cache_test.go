@@ -1,0 +1,255 @@
+package app
+
+import (
+	"container/list"
+	"encoding/binary"
+	"errors"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"github.com/cespare/xxhash/v2"
+	protov2 "google.golang.org/protobuf/proto"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+// cacheTx is a minimal sdk.Tx stub used in decode cache tests.
+type cacheTx struct{ id uint64 }
+
+func (c *cacheTx) GetMsgs() []sdk.Msg                    { return nil }
+func (c *cacheTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+
+func makeRaw(id uint64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, id)
+	return b
+}
+
+// makeDecoder returns a TxDecoder that counts calls and returns a cacheTx.
+// Payloads shorter than 8 bytes return an error (never cached).
+func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
+	t.Helper()
+	var calls atomic.Int64
+	dec := func(bz []byte) (sdk.Tx, error) {
+		calls.Add(1)
+		if len(bz) < 8 {
+			return nil, errors.New("too short")
+		}
+		return &cacheTx{id: binary.LittleEndian.Uint64(bz)}, nil
+	}
+	return dec, &calls
+}
+
+func TestDecodeCache_HitAndMiss(t *testing.T) {
+	base, calls := makeDecoder(t)
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	raw := makeRaw(42)
+
+	tx1, err := dec(raw)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("base calls = %d, want 1", got)
+	}
+	if got := tx1.(*cacheTx).id; got != 42 {
+		t.Fatalf("first decode tx.id = %d, want 42", got)
+	}
+
+	tx2, err := dec(raw)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("base calls = %d after cache hit, want 1", got)
+	}
+	if tx1 != tx2 {
+		t.Fatal("cache returned different tx pointer on hit")
+	}
+	if got := tx2.(*cacheTx).id; got != 42 {
+		t.Fatalf("cached tx.id = %d, want 42 (cache returned wrong tx)", got)
+	}
+}
+
+func TestDecodeCache_ErrorNotCached(t *testing.T) {
+	base, calls := makeDecoder(t)
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	bad := []byte{1, 2} // too short → error from base
+
+	if _, err := dec(bad); err == nil {
+		t.Fatal("expected error on first call")
+	}
+	if _, err := dec(bad); err == nil {
+		t.Fatal("expected error on retry")
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("base calls = %d, want 2 (errors must not be cached)", got)
+	}
+}
+
+func TestDecodeCache_DifferentPayloads(t *testing.T) {
+	base, calls := makeDecoder(t)
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	const n = 10
+	for i := uint64(0); i < n; i++ {
+		if _, err := dec(makeRaw(i)); err != nil {
+			t.Fatalf("id %d: %v", i, err)
+		}
+	}
+	if got := calls.Load(); got != n {
+		t.Fatalf("base calls = %d, want %d (each distinct key is a miss)", got, n)
+	}
+	for i := uint64(0); i < n; i++ {
+		if _, err := dec(makeRaw(i)); err != nil {
+			t.Fatalf("re-decode id %d: %v", i, err)
+		}
+	}
+	if got := calls.Load(); got != n {
+		t.Fatalf("base calls = %d after re-decode, want still %d (all hits)", got, n)
+	}
+}
+
+// TestDecodeCache_LRUEviction tests LRU ordering directly against a single
+// cacheShard, sidestepping hash distribution across shards.
+func TestDecodeCache_LRUEviction(t *testing.T) {
+	s := &cacheShard{items: make(map[uint64]*list.Element, shardCacheSize)}
+
+	// Fill shard to capacity with keys 0..shardCacheSize-1.
+	for i := 0; i < shardCacheSize; i++ {
+		bz := makeRaw(uint64(i))
+		s.set(xxhash.Sum64(bz), bz, &cacheTx{id: uint64(i)})
+	}
+
+	// Access key 0 — promotes it to MRU.
+	h0 := xxhash.Sum64(makeRaw(0))
+	if _, ok := s.get(h0, makeRaw(0)); !ok {
+		t.Fatal("key 0 missing before eviction test")
+	}
+
+	// Insert one new key. Shard is full, so LRU (key 1, never re-accessed)
+	// must be evicted, NOT key 0 (MRU).
+	newBz := makeRaw(uint64(shardCacheSize))
+	s.set(xxhash.Sum64(newBz), newBz, &cacheTx{id: uint64(shardCacheSize)})
+
+	if _, ok := s.get(h0, makeRaw(0)); !ok {
+		t.Fatal("LRU evicted key 0 (recently used); should have evicted key 1")
+	}
+	h1 := xxhash.Sum64(makeRaw(1))
+	if _, ok := s.get(h1, makeRaw(1)); ok {
+		t.Fatal("key 1 (LRU) should have been evicted")
+	}
+}
+
+// countEntries returns the total number of entries across all shards.
+// Test helper only — not needed in production code.
+func countEntries(c *decodeCache) int {
+	total := 0
+	for i := range c.shards {
+		c.shards[i].mu.Lock()
+		total += len(c.shards[i].items)
+		c.shards[i].mu.Unlock()
+	}
+	return total
+}
+
+// TestDecodeCache_EvictionBounded verifies that after inserting 2× capacity
+// the cache retains at most decodeCacheSize entries (eviction is working).
+func TestDecodeCache_EvictionBounded(t *testing.T) {
+	base, _ := makeDecoder(t)
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	for i := uint64(0); i < 2*decodeCacheSize; i++ {
+		if _, err := dec(makeRaw(i)); err != nil {
+			t.Fatalf("insert %d: %v", i, err)
+		}
+	}
+
+	got := countEntries(c)
+	if got == 0 {
+		t.Fatal("cache is empty after inserts — no entries were cached")
+	}
+	if got > decodeCacheSize {
+		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, decodeCacheSize)
+	}
+}
+
+func TestDecodeCache_Concurrent(t *testing.T) {
+	base, calls := makeDecoder(t)
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	const goroutines = 16
+	const itersPerG = 200
+
+	var wg sync.WaitGroup
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < itersPerG; i++ {
+				raw := makeRaw(uint64(id*itersPerG + i))
+				if _, err := dec(raw); err != nil {
+					t.Errorf("goroutine %d iter %d first decode: %v", id, i, err)
+				}
+				// Second call exercises concurrent cache hits on same key
+				if _, err := dec(raw); err != nil {
+					t.Errorf("goroutine %d iter %d re-decode: %v", id, i, err)
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	// Each goroutine decodes a unique key twice; first call misses, second hits.
+	// Keys are disjoint across goroutines (id*itersPerG + i) and total 3200 < 10000
+	// so no eviction. Expected calls == goroutines*itersPerG (exactly one miss
+	// per unique key).
+	want := int64(goroutines * itersPerG)
+	if got := calls.Load(); got != want {
+		t.Fatalf("cache hit rate wrong: calls=%d, want %d (one miss per unique key)", got, want)
+	}
+}
+
+// TestDecodeCache_SkipLargePayloads verifies that payloads exceeding
+// maxCachedTxBytes are decoded successfully but never cached — protects
+// against memory DoS via adversarial large transactions.
+func TestDecodeCache_SkipLargePayloads(t *testing.T) {
+	calls := atomic.Int64{}
+	base := func(bz []byte) (sdk.Tx, error) {
+		calls.Add(1)
+		return &cacheTx{id: uint64(len(bz))}, nil
+	}
+	c := newDecodeCache()
+	dec := newCachingDecoder(base, c)
+
+	big := make([]byte, maxCachedTxBytes+1)
+	for i := 0; i < 3; i++ {
+		if _, err := dec(big); err != nil {
+			t.Fatalf("iter %d: %v", i, err)
+		}
+	}
+	if got := calls.Load(); got != 3 {
+		t.Fatalf("oversize payload was cached: calls=%d, want 3 (each call must miss)", got)
+	}
+
+	// Boundary: exactly maxCachedTxBytes should be cached.
+	calls.Store(0)
+	atSize := make([]byte, maxCachedTxBytes)
+	if _, err := dec(atSize); err != nil {
+		t.Fatalf("at-size payload first decode: %v", err)
+	}
+	if _, err := dec(atSize); err != nil {
+		t.Fatalf("at-size payload second decode: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("at-size payload not cached: calls=%d, want 1", got)
+	}
+}
