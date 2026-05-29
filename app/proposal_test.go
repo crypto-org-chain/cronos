@@ -14,6 +14,17 @@ import (
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
 type stubTx struct{ sdk.Tx }
 
+// gasOnlyTx is a minimal sdk.FeeTx whose only non-zero field is gas.
+type gasOnlyTx struct {
+	sdk.Tx
+	gas uint64
+}
+
+func (g gasOnlyTx) GetGas() uint64   { return g.gas }
+func (g gasOnlyTx) GetFee() sdk.Coins { return nil }
+func (g gasOnlyTx) FeePayer() []byte  { return nil }
+func (g gasOnlyTx) FeeGranter() []byte { return nil }
+
 // stubTxSelector lets a test control the parent TxSelector return value.
 type stubTxSelector struct {
 	baseapp.TxSelector
@@ -107,10 +118,7 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 		require.Equal(t, 1, parent.calls)
 	})
 
-	// Validates the key invariant: ValidateTx receives the original memTx while the
-	// parent selector receives nil — preventing the parent from enforcing block gas
-	// against tx.GetGas() (which conflicts with max-tx-gas-wanted logic).
-	t.Run("validates with original memTx but forwards nil to parent", func(t *testing.T) {
+	t.Run("validate receives original memTx", func(t *testing.T) {
 		origTx := &stubTx{}
 		var capturedValidateTx sdk.Tx
 		captureValidate := func(tx sdk.Tx, _ []byte) error {
@@ -124,7 +132,7 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 
 		require.True(t, ok)
 		require.Same(t, origTx, capturedValidateTx, "ValidateTx must receive the original memTx")
-		require.Nil(t, parent.lastMemTx, "parent must receive nil memTx to skip block-gas enforcement")
+		require.Same(t, origTx, parent.lastMemTx.(*stubTx), "parent must also receive the original memTx")
 	})
 }
 
