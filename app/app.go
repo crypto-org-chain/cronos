@@ -177,6 +177,7 @@ const (
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagDisableTxDecodeCache       = "cronos.disable-tx-decode-cache"
+	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
 )
 
 var Forks = []Fork{}
@@ -432,13 +433,18 @@ func New(
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 
 		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
-		// InsertTx uses BaseApp's default (runs AnteHandler chain via
-		// RunTx(execModeCheck) — see baseapp/abci.go). cronos overrides ReapTxs
-		// only, to honor RequestReapTxs.MaxBytes/MaxGas hints from the AppReactor.
+		// InsertTxHandler runs the AnteHandler chain via RunTx(execModeCheck) with
+		// a seen-cache to deduplicate gossip fan-out. ReapTxsHandler honors
+		// MaxBytes/MaxGas hints from the CometBFT AppReactor.
 		switch mempoolType {
 		case cronosmempool.TypeApp:
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), logger.With("module", "app-mempool")))
+			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
+			if insertTxCacheSize == 0 {
+				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
+			}
+			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize))
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:
