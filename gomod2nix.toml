@@ -95,9 +95,12 @@ schema = 3
   [mod."github.com/RoaringBitmap/roaring/v2"]
     version = "v2.18.0"
     hash = "sha256-pD2Rfq6P8CN0WuYgmgto4Ha74q8KG2iHVwTo2oSfRLM="
+  [mod."github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime"]
+    version = "v0.0.0-20251001021608-1fe7b43fc4d6"
+    hash = "sha256-h4q2tJctpX/913sTgr1OJgmrY9gFBv9/+RzvjpYJ+K4="
   [mod."github.com/VictoriaMetrics/fastcache"]
-    version = "v1.12.2"
-    hash = "sha256-vwLRs852HD8awlX4ksv/XBYmRqRF1844lPrvSO74SB0="
+    version = "v1.13.0"
+    hash = "sha256-B11EnHNBXrs3ayXVF9OTevYZsPp1E7IwPL+S9/QH+XA="
   [mod."github.com/alitto/pond"]
     version = "v1.8.3"
     hash = "sha256-Iaiw4a8Up0tB2iu8xdmXKHwXBGWBBGnqMGfZYWNc1ng="
@@ -278,8 +281,8 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-BtXZ8t9DOw5yleSozMd4giBRHjuXQCyzRimNmgC/nSU="
   [mod."github.com/crate-crypto/go-eth-kzg"]
-    version = "v1.3.0"
-    hash = "sha256-gDzeqRv6MxBcCOrcR1pDZgGFr1BwTKY8cutVWquRaK4="
+    version = "v1.4.0"
+    hash = "sha256-46WtXOdjXppg4zh+5CpUwkWZ0gsEjnIm98cSQOXUV1I="
   [mod."github.com/crate-crypto/go-ipa"]
     version = "v0.0.0-20240724233137-53bbb0ceb27a"
     hash = "sha256-LQqXqcuo3mRwRgdO4O5rLLJqW635KCAD0tcdOImk0rA="
@@ -353,18 +356,21 @@ schema = 3
     version = "v1.3.3"
     hash = "sha256-NsI6A4CBVTpAq4gsmv66sMx0gvY0J0kF/t9zbtlRLr4="
   [mod."github.com/ethereum/c-kzg-4844/v2"]
-    version = "v2.1.0"
-    hash = "sha256-ZHAbUWu8EfYyFMjFPKfiqFRMnG7VrPNkGFCpYzs2Euo="
+    version = "v2.1.5"
+    hash = "sha256-v23w5QE40Xv9VNd87a6d4TT8+pAWu509kMSdMGB3qoc="
+  [mod."github.com/ethereum/go-bigmodexpfix"]
+    version = "v0.0.0-20250911101455-f9e208c548ab"
+    hash = "sha256-4NBADIRV6mJ645F8u5MKxfNv9S1XgCs+pXwPOCoI06s="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.20-0.20250815065500-a4fbafcae0dd"
-    hash = "sha256-0CCzoKMaH3jywAUtzkVdq9WDWLjUbulbOphpL14r8tI="
+    version = "v1.10.20-0.20260519073000-f0daeaf2c9e7"
+    hash = "sha256-zWwpHGmJpSCOtxRxyuZYQzQbnXBnwB4mCEDB4sC4t7g="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/ethereum/go-verkle"]
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.0.0-20260521170220-d7fd0a9e9bfb"
-    hash = "sha256-sNf481Jhf4phM9p+7Tnw1sojOix0O6cWIIayB5Fsn08="
+    version = "v0.22.1-0.20260528022355-1ecc64324773"
+    hash = "sha256-2Nmlz+HMKzVZMNwlsaC3jOGsqVnW0NBxdBnuw244t0A="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
@@ -372,9 +378,9 @@ schema = 3
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.4"
     hash = "sha256-c1JKoRSndwwOyOxq9ddCe+8qn7mG9uRq2o/822x5O/c="
-  [mod."github.com/flynn/noise"]
-    version = "v1.1.0"
-    hash = "sha256-gHCdm9oJTKO+aUGWCw9LM/WHrZT2K6C5+j7VLXpqK48="
+  [mod."github.com/ferranbt/fastssz"]
+    version = "v0.1.4"
+    hash = "sha256-BPwVA8BDQmSBPX/kAx7IE7XMNrhBYire2iQsP0icj2s="
   [mod."github.com/fsnotify/fsnotify"]
     version = "v1.9.0"
     hash = "sha256-WtpE1N6dpHwEvIub7Xp/CrWm0fd6PX7MKA4PV44rp2g="
@@ -412,8 +418,8 @@ schema = 3
     version = "v0.0.0-20190726142602-4481cbc300e2"
     hash = "sha256-R7Gb9+Zjy80FbQSDGketoVEqfdOQKuOVTfWRjQ5kxZY="
   [mod."github.com/gofrs/flock"]
-    version = "v0.8.1"
-    hash = "sha256-pm3JJjYx+DjthmmdnIZQ4PvvtUVlpUTGiucIvmNI0dY="
+    version = "v0.12.1"
+    hash = "sha256-clC0E7x21vaNcDpnmbgn07KqVQdjHXqvwTRKwed5cjc="
   [mod."github.com/gogo/googleapis"]
     version = "v1.4.1"
     hash = "sha256-4KgwVRIA6GOV/Lkv11c/vj2RMlgu4ZMjwJGeyb2DZC4="
@@ -622,20 +628,17 @@ schema = 3
     version = "v0.0.0-20190314235656-172688c1accc"
     hash = "sha256-Euf1BdkoiYc37obpR66425I1Xjn4wvO+cRz4mOsGueE="
   [mod."github.com/minio/highwayhash"]
-    version = "v1.0.4"
-    hash = "sha256-GW5irfhrYqrhUOrBavARHslApXnWz3rVoU/PcphA6no="
+    version = "v1.0.3"
+    hash = "sha256-5M2Y3d0hnvo8JHz6910upUNbRRaUVes90F0jaIzo4pE="
   [mod."github.com/minio/sha256-simd"]
-    version = "v1.0.1"
-    hash = "sha256-4hfGDIQaWq8fvtGzHDhoK9v2IocXnJY7OAL6saMJbmA="
+    version = "v1.0.0"
+    hash = "sha256-oEo/BoMqSLdwSjrhHTiFjl5Om4MVLNQXDJINk6Z110Y="
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
-  [mod."github.com/mr-tron/base58"]
-    version = "v1.3.0"
-    hash = "sha256-LN6yaKmfTdAG3T3zFIrZlMtIRPxIot4uWsk4YG6hYZI="
-  [mod."github.com/mschoch/smat"]
-    version = "v0.2.0"
-    hash = "sha256-DZvUJXjIcta3U+zxzgU3wpoGn/V4lpBY7Xme8aQUi+E="
+  [mod."github.com/mitchellh/mapstructure"]
+    version = "v1.5.0"
+    hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
   [mod."github.com/mtibben/percent"]
     version = "v0.2.1"
     hash = "sha256-Zj1lpCP6mKQ0UUTMs2By4LC414ou+iJzKkK+eBHfEcc="
@@ -841,8 +844,8 @@ schema = 3
     version = "v1.6.0"
     hash = "sha256-LspbjTniiq2xAICSXmgqP7carwlNaLqnCTQfw2pa80A="
   [mod."github.com/supranational/blst"]
-    version = "v0.3.16"
-    hash = "sha256-R4zABpBK/qAjKiMcr+YF4jR7/8jw6yxP+uRPRP7mI1A="
+    version = "v0.3.16-0.20250831170142-f48500c1fdbe"
+    hash = "sha256-vhfXG6AUAnZzsy5V8w3bAqaLwkgJhTpE1UDxntfHcts="
   [mod."github.com/syndtr/goleveldb"]
     version = "v1.0.1-0.20210819022825-2ae1ddf74ef7"
     hash = "sha256-36a4hgVQfwtS2zhylKpQuFhrjdc/Y8pF0dxc26jcZIU="
