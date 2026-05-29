@@ -28,12 +28,12 @@ func NewIBCConversionModule(app porttypes.IBCModule, ck cronoskeeper.Keeper) IBC
 	}
 }
 
-// SetICS4Wrapper is required by the ibc-go v11 porttypes.IBCModule interface
-// (added when middlewares became responsible for setting their own upper
-// wrapper). The transfer stack here is not currently wrapped by any upper
-// middleware, so this method is never invoked by the router; it forwards to
-// the underlying app for forward-compat once cronos adopts the v11
-// IBCStackBuilder pattern.
+// SetICS4Wrapper implements porttypes.IBCModule.SetICS4Wrapper (required by
+// ibc-go v11). IBCConversionModule does NOT implement porttypes.Middleware:
+// it omits ICS4Wrapper embedding and SetUnderlyingApplication, so it is
+// incompatible with IBCStackBuilder.Next which expects a full Middleware.
+// This method only forwards the wrapper to the underlying app; callers that
+// need full Middleware semantics must use a type that satisfies that interface.
 func (im IBCConversionModule) SetICS4Wrapper(wrapper porttypes.ICS4Wrapper) {
 	im.app.SetICS4Wrapper(wrapper)
 }

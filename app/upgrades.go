@@ -15,13 +15,18 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 	planName := "v1.8"
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			// Populate staking queue pending-slot indexes (cosmos-sdk PR #26023
+			toVM, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			if err != nil {
+				return toVM, err
+			}
+			// Populate staking queue pending-slot indexes after migrations so the
+			// indexes are built on fully-migrated queue keys (cosmos-sdk PR #26023
 			// optimization, exposed as opt-in utility per crypto-org-chain
 			// cosmos-sdk PR #1814 instead of an auto-migration).
 			if err := app.StakingKeeper.PopulateQueuePendingSlots(ctx); err != nil {
-				return fromVM, fmt.Errorf("populate queue pending slots: %w", err)
+				return toVM, fmt.Errorf("populate queue pending slots: %w", err)
 			}
-			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+			return toVM, nil
 		},
 	)
 

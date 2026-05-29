@@ -11,6 +11,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
+type stubTx struct{ sdk.Tx }
+
 // stubTxSelector lets a test control the parent TxSelector return value.
 type stubTxSelector struct {
 	baseapp.TxSelector
@@ -62,4 +65,25 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 		require.False(t, ok)
 		require.Equal(t, 1, parent.calls)
 	})
+
+	// Validates the key invariant: ValidateTx receives the original memTx while the
+	// parent selector receives nil — preventing the parent from enforcing block gas
+	// against tx.GetGas() (which conflicts with max-tx-gas-wanted logic).
+	t.Run("validates with original memTx but forwards nil to parent", func(t *testing.T) {
+		origTx := &stubTx{}
+		var capturedValidateTx sdk.Tx
+		captureValidate := func(tx sdk.Tx, _ []byte) error {
+			capturedValidateTx = tx
+			return nil
+		}
+
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, captureValidate)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, origTx, []byte("valid"))
+
+		require.True(t, ok)
+		require.Same(t, origTx, capturedValidateTx, "ValidateTx must receive the original memTx")
+		require.Nil(t, parent.lastMemTx, "parent must receive nil memTx to skip block-gas enforcement")
+	})
 }
+
