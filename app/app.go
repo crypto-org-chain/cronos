@@ -448,7 +448,7 @@ func New(
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:
-			logger.Warn("unrecognized mempool.type; ABCI app hooks not registered", "type", mempoolType)
+			panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 		}
 	})
 

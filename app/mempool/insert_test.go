@@ -212,4 +212,3 @@ func BenchmarkInsertSeenCache_Has(b *testing.B) {
 		c.Has(h)
 	}
 }
-
