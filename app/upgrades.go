@@ -9,12 +9,14 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
+const planName = "v1.8"
+
 // RegisterUpgradeHandlers returns if store loader is overridden.
 // No store-key churn from v0.53→v0.54 in this app, so the default
 // MaxVersionStoreLoader (set by the caller when this returns false)
 // covers both regular and upgrade-height boots.
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
-	app.UpgradeKeeper.SetUpgradeHandler("v1.8",
+	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			toVM, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 			if err != nil {

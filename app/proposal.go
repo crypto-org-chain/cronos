@@ -111,11 +111,11 @@ func fastNoOpPrepareProposal(
 
 			if maxBlockGas > 0 {
 				if feeTx, ok := tx.(sdk.FeeTx); ok {
-					nextGas := totalGas + feeTx.GetGas()
-					if nextGas > maxBlockGas {
+					gasWanted := feeTx.GetGas()
+					if gasWanted > maxBlockGas-totalGas {
 						break
 					}
-					totalGas = nextGas
+					totalGas += gasWanted
 				}
 				// Non-FeeTx: admitted without gas accounting. All cronos txs implement
 				// sdk.FeeTx (cosmos auth.Tx does), so this branch is unreachable in

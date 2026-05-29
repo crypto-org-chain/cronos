@@ -70,7 +70,7 @@ func newInsertTxHandler(runner txRunner, cacheSize int) sdk.InsertTxHandler {
 // insertSeenCache is a fixed-size FIFO ring buffer of tx-hashes used to skip
 // redundant AnteHandler runs when multiple peers gossip the same tx.
 type insertSeenCache struct {
-	mu  sync.Mutex
+	mu   sync.Mutex
 	ring [][32]byte
 	set  map[[32]byte]struct{}
 	pos  int
