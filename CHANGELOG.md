@@ -12,6 +12,7 @@
 * [#2089](https://github.com/crypto-org-chain/cronos/pull/2089) feat: upgrade to cosmos-sdk v0.54.3 + ibc-go v11 + cometbft v0.39.
 * [#2081](https://github.com/crypto-org-chain/cronos/pull/2081) Upgrade go-ethereum version to `v1.16.9`, enable Osaka hardfork.
 * [#2091](https://github.com/crypto-org-chain/cronos/pull/2091) feat(app): v0.54 upgrade perf optimizations + app-mempool feature.
+* feat(app): make tx-decode cache size and per-entry max-tx-bytes configurable via `cronos.tx-decode-cache-size` (default 10000; set to 0 to disable) and `cronos.tx-decode-cache-max-tx-bytes` (default 65536). Replaces the deprecated `cronos.disable-tx-decode-cache` flag — operators using the old key must migrate to `tx-decode-cache-size = 0`.
 
 ### Bug fixes
 

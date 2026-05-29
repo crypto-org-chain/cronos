@@ -10,6 +10,8 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 // xxhashSeed randomizes shard assignment at startup so an attacker cannot
@@ -23,8 +25,7 @@ var xxhashSeed = func() uint64 {
 }()
 
 const (
-	defaultDecodeCacheSize = 10_000
-	// defaultMaxCachedTxBytes caps per-entry raw payload size by default.
+	// maxCachedTxBytes commentary applies to the default value (cmdcfg.DefaultTxDecodeCacheMaxTxBytes).
 	// The wire-byte footprint ceiling is cache size * this value (~640 MiB
 	// at defaults), but the cached value is a fully-decoded sdk.Tx whose
 	// heap footprint (proto messages, slices, interface values) is several
@@ -33,7 +34,6 @@ const (
 	// are decoded normally but not cached, preventing an adversary submitting
 	// MaxTxBytes-sized txs from exhausting RAM via the cache. Tunable via
 	// cronos.tx-decode-cache-max-tx-bytes; should not exceed mempool.max-tx-bytes.
-	defaultMaxCachedTxBytes = 64 * 1024
 
 	shardCount = 16
 )
@@ -117,15 +117,12 @@ type decodeCache struct {
 // cap of maxTxBytes. Pass <=0 for either to fall back to defaults.
 func newDecodeCache(size, maxTxBytes int) *decodeCache {
 	if size <= 0 {
-		size = defaultDecodeCacheSize
+		size = cmdcfg.DefaultTxDecodeCacheSize
 	}
 	if maxTxBytes <= 0 {
-		maxTxBytes = defaultMaxCachedTxBytes
+		maxTxBytes = cmdcfg.DefaultTxDecodeCacheMaxTxBytes
 	}
 	shardCap := (size + shardCount - 1) / shardCount
-	if shardCap < 1 {
-		shardCap = 1
-	}
 	c := &decodeCache{maxTxBytes: maxTxBytes}
 	for i := range c.shards {
 		c.shards[i].cap = shardCap

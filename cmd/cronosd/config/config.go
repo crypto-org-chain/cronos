@@ -26,6 +26,14 @@ type CronosConfig struct {
 	TxDecodeCacheMaxTxBytes int `mapstructure:"tx-decode-cache-max-tx-bytes"`
 }
 
+// Tx-decode cache defaults are kept here (and not in app/) because
+// cmd/cronosd/config is imported by app/, and the canonical defaults must
+// be reachable from both DefaultCronosConfig() and app's New().
+const (
+	DefaultTxDecodeCacheSize       = 10000
+	DefaultTxDecodeCacheMaxTxBytes = 65536
+)
+
 const (
 	NodeTypeDefault   = ""
 	NodeTypeValidator = "validator"
@@ -55,8 +63,8 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
-		TxDecodeCacheSize:          10000,
-		TxDecodeCacheMaxTxBytes:    65536,
+		TxDecodeCacheSize:          DefaultTxDecodeCacheSize,
+		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
 	}
 }
 

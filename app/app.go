@@ -42,6 +42,7 @@ import (
 	memiavlstore "github.com/crypto-org-chain/cronos-store/store"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/crypto-org-chain/cronos/client/docs"
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	"github.com/crypto-org-chain/cronos/x/cronos"
 	cronosclient "github.com/crypto-org-chain/cronos/x/cronos/client"
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -178,6 +179,10 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
+	// flagDisableTxDecodeCacheLegacy is the deprecated v1.x knob; only
+	// retained to surface a startup warning when an operator's app.toml
+	// still sets it. Replace with tx-decode-cache-size = 0.
+	flagDisableTxDecodeCacheLegacy = "cronos.disable-tx-decode-cache"
 	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
 )
 
@@ -354,18 +359,32 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
 	var activeDecoder sdk.TxDecoder
-	decodeCacheSize := cast.ToInt(appOpts.Get(FlagTxDecodeCacheSize))
-	if appOpts.Get(FlagTxDecodeCacheSize) == nil {
-		decodeCacheSize = defaultDecodeCacheSize
+	if appOpts.Get(flagDisableTxDecodeCacheLegacy) != nil {
+		logger.Error("ignoring deprecated cronos.disable-tx-decode-cache; set cronos.tx-decode-cache-size = 0 to disable the cache")
 	}
-	maxTxBytes := cast.ToInt(appOpts.Get(FlagTxDecodeCacheMaxTxBytes))
-	if appOpts.Get(FlagTxDecodeCacheMaxTxBytes) == nil {
-		maxTxBytes = defaultMaxCachedTxBytes
+	decodeCacheSize := cmdcfg.DefaultTxDecodeCacheSize
+	if v := appOpts.Get(FlagTxDecodeCacheSize); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			logger.Error("invalid cronos.tx-decode-cache-size; falling back to default", "value", v, "default", decodeCacheSize, "err", err)
+		} else {
+			decodeCacheSize = parsed
+		}
+	}
+	maxTxBytes := cmdcfg.DefaultTxDecodeCacheMaxTxBytes
+	if v := appOpts.Get(FlagTxDecodeCacheMaxTxBytes); v != nil {
+		parsed, err := cast.ToIntE(v)
+		if err != nil {
+			logger.Error("invalid cronos.tx-decode-cache-max-tx-bytes; falling back to default", "value", v, "default", maxTxBytes, "err", err)
+		} else if parsed > 0 {
+			maxTxBytes = parsed
+		}
 	}
 	if decodeCacheSize <= 0 {
 		logger.Info("tx-decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
+		logger.Info("tx-decode cache enabled", "size", decodeCacheSize, "max-tx-bytes", maxTxBytes)
 		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(decodeCacheSize, maxTxBytes))
 	}
 	eip712.SetEncodingConfig(encodingConfig)
