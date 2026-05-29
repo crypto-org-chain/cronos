@@ -19,6 +19,11 @@ type CronosConfig struct {
 	DisableTxReplacement bool `mapstructure:"disable-tx-replacement"`
 	// Set to true to disable optimistic execution.
 	DisableOptimisticExecution bool `mapstructure:"disable-optimistic-execution"`
+	// Capacity of the sharded LRU tx-decode cache. Set to 0 to disable.
+	TxDecodeCacheSize int `mapstructure:"tx-decode-cache-size"`
+	// Per-entry raw payload byte cap. Txs larger than this are decoded but
+	// not cached, bounding heap impact. Should not exceed mempool.max-tx-bytes.
+	TxDecodeCacheMaxTxBytes int `mapstructure:"tx-decode-cache-max-tx-bytes"`
 }
 
 const (
@@ -50,6 +55,8 @@ func DefaultCronosConfig() CronosConfig {
 	return CronosConfig{
 		DisableTxReplacement:       false,
 		DisableOptimisticExecution: false,
+		TxDecodeCacheSize:          10000,
+		TxDecodeCacheMaxTxBytes:    65536,
 	}
 }
 

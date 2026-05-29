@@ -23,19 +23,19 @@ var xxhashSeed = func() uint64 {
 }()
 
 const (
-	decodeCacheSize = 10_000
-	// maxCachedTxBytes caps per-entry raw payload size. The wire-byte
-	// footprint ceiling is decodeCacheSize * maxCachedTxBytes (~640 MiB),
-	// but the cached value is a fully-decoded sdk.Tx whose heap footprint
-	// (proto messages, slices, interface values) can be several times the
-	// raw bytes. Operators sizing memory should not rely on this constant
-	// as a hard upper bound on RSS impact. Txs above the threshold are
-	// decoded normally but not cached, preventing an adversary submitting
-	// MaxTxBytes-sized txs from exhausting RAM via the cache.
-	maxCachedTxBytes = 64 * 1024
+	defaultDecodeCacheSize = 10_000
+	// defaultMaxCachedTxBytes caps per-entry raw payload size by default.
+	// The wire-byte footprint ceiling is cache size * this value (~640 MiB
+	// at defaults), but the cached value is a fully-decoded sdk.Tx whose
+	// heap footprint (proto messages, slices, interface values) is several
+	// times the raw bytes. Operators sizing memory should not rely on this
+	// constant as a hard upper bound on RSS impact. Txs above the threshold
+	// are decoded normally but not cached, preventing an adversary submitting
+	// MaxTxBytes-sized txs from exhausting RAM via the cache. Tunable via
+	// cronos.tx-decode-cache-max-tx-bytes; should not exceed mempool.max-tx-bytes.
+	defaultMaxCachedTxBytes = 64 * 1024
 
-	shardCount     = 16
-	shardCacheSize = decodeCacheSize / shardCount // 625 per shard
+	shardCount = 16
 )
 
 type lruItem struct {
@@ -49,6 +49,7 @@ type lruItem struct {
 // Eviction is LRU: the front of the list is most-recently-used.
 type cacheShard struct {
 	mu    sync.Mutex
+	cap   int
 	items map[uint64]*list.Element
 	lru   list.List // front = MRU, back = LRU; zero value is empty list
 }
@@ -90,7 +91,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 		s.lru.Remove(el)
 	}
 
-	if s.lru.Len() >= shardCacheSize {
+	if s.lru.Len() >= s.cap {
 		back := s.lru.Back()
 		delete(s.items, back.Value.(*lruItem).h)
 		s.lru.Remove(back)
@@ -107,13 +108,28 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 // returned tx as read-only; any mutation of the tx wrapper or its inner
 // messages will leak across phases.
 type decodeCache struct {
-	shards [shardCount]cacheShard
+	shards     [shardCount]cacheShard
+	maxTxBytes int
 }
 
-func newDecodeCache() *decodeCache {
-	c := &decodeCache{}
+// newDecodeCache returns a sharded LRU cache with total capacity ~size
+// (rounded up so each shard holds at least 1 entry) and per-entry payload
+// cap of maxTxBytes. Pass <=0 for either to fall back to defaults.
+func newDecodeCache(size, maxTxBytes int) *decodeCache {
+	if size <= 0 {
+		size = defaultDecodeCacheSize
+	}
+	if maxTxBytes <= 0 {
+		maxTxBytes = defaultMaxCachedTxBytes
+	}
+	shardCap := (size + shardCount - 1) / shardCount
+	if shardCap < 1 {
+		shardCap = 1
+	}
+	c := &decodeCache{maxTxBytes: maxTxBytes}
 	for i := range c.shards {
-		c.shards[i].items = make(map[uint64]*list.Element, shardCacheSize)
+		c.shards[i].cap = shardCap
+		c.shards[i].items = make(map[uint64]*list.Element, shardCap)
 	}
 	return c
 }
@@ -124,7 +140,7 @@ func (c *decodeCache) get(bz []byte) (sdk.Tx, bool) {
 }
 
 func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
-	if len(bz) > maxCachedTxBytes {
+	if len(bz) > c.maxTxBytes {
 		return
 	}
 	h := xxhash.Sum64(bz) ^ xxhashSeed

@@ -176,7 +176,8 @@ const (
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
-	FlagDisableTxDecodeCache       = "cronos.disable-tx-decode-cache"
+	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
+	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
 	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
 )
 
@@ -353,11 +354,19 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
 	var activeDecoder sdk.TxDecoder
-	if cast.ToBool(appOpts.Get(FlagDisableTxDecodeCache)) {
+	decodeCacheSize := cast.ToInt(appOpts.Get(FlagTxDecodeCacheSize))
+	if appOpts.Get(FlagTxDecodeCacheSize) == nil {
+		decodeCacheSize = defaultDecodeCacheSize
+	}
+	maxTxBytes := cast.ToInt(appOpts.Get(FlagTxDecodeCacheMaxTxBytes))
+	if appOpts.Get(FlagTxDecodeCacheMaxTxBytes) == nil {
+		maxTxBytes = defaultMaxCachedTxBytes
+	}
+	if decodeCacheSize <= 0 {
 		logger.Info("tx-decode cache disabled")
 		activeDecoder = txDecoder
 	} else {
-		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache())
+		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache(decodeCacheSize, maxTxBytes))
 	}
 	eip712.SetEncodingConfig(encodingConfig)
 

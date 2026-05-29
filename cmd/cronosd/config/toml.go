@@ -13,6 +13,18 @@ disable-tx-replacement = {{ .Cronos.DisableTxReplacement }}
 
 # Set to true to disable optimistic execution (not recommended on validator nodes).
 disable-optimistic-execution = {{ .Cronos.DisableOptimisticExecution }}
+
+# Capacity of the sharded LRU tx-decode cache. Set to 0 to disable the cache
+# entirely (raw decoder used). Default 10000.
+tx-decode-cache-size = {{ .Cronos.TxDecodeCacheSize }}
+
+# Per-entry raw payload byte cap for the tx-decode cache. Txs whose wire bytes
+# exceed this size are decoded normally but not cached, bounding the heap
+# footprint of the cache against adversarial large transactions. Worst-case
+# raw-byte cache footprint is roughly tx-decode-cache-size * this value; the
+# decoded heap footprint is typically several times larger. Should not exceed
+# mempool.max-tx-bytes. Default 65536 (64 KiB) covers >p99 of EVM tx sizes.
+tx-decode-cache-max-tx-bytes = {{ .Cronos.TxDecodeCacheMaxTxBytes }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

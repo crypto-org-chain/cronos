@@ -43,7 +43,7 @@ func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 
 func TestDecodeCache_HitAndMiss(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
 	raw := makeRaw(42)
@@ -76,7 +76,7 @@ func TestDecodeCache_HitAndMiss(t *testing.T) {
 
 func TestDecodeCache_ErrorNotCached(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
 	bad := []byte{1, 2} // too short → error from base
@@ -94,7 +94,7 @@ func TestDecodeCache_ErrorNotCached(t *testing.T) {
 
 func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
 	const n = 10
@@ -119,7 +119,8 @@ func TestDecodeCache_DifferentPayloads(t *testing.T) {
 // TestDecodeCache_LRUEviction tests LRU ordering directly against a single
 // cacheShard, sidestepping hash distribution across shards.
 func TestDecodeCache_LRUEviction(t *testing.T) {
-	s := &cacheShard{items: make(map[uint64]*list.Element, shardCacheSize)}
+	const shardCacheSize = defaultDecodeCacheSize / shardCount
+	s := &cacheShard{cap: shardCacheSize, items: make(map[uint64]*list.Element, shardCacheSize)}
 
 	// Fill shard to capacity with keys 0..shardCacheSize-1.
 	for i := 0; i < shardCacheSize; i++ {
@@ -160,13 +161,13 @@ func countEntries(c *decodeCache) int {
 }
 
 // TestDecodeCache_EvictionBounded verifies that after inserting 2× capacity
-// the cache retains at most decodeCacheSize entries (eviction is working).
+// the cache retains at most defaultDecodeCacheSize entries (eviction is working).
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
-	for i := uint64(0); i < 2*decodeCacheSize; i++ {
+	for i := uint64(0); i < 2*defaultDecodeCacheSize; i++ {
 		if _, err := dec(makeRaw(i)); err != nil {
 			t.Fatalf("insert %d: %v", i, err)
 		}
@@ -176,14 +177,14 @@ func TestDecodeCache_EvictionBounded(t *testing.T) {
 	if got == 0 {
 		t.Fatal("cache is empty after inserts — no entries were cached")
 	}
-	if got > decodeCacheSize {
-		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, decodeCacheSize)
+	if got > defaultDecodeCacheSize {
+		t.Fatalf("cache exceeds capacity: %d entries > %d limit", got, defaultDecodeCacheSize)
 	}
 }
 
 func TestDecodeCache_Concurrent(t *testing.T) {
 	base, calls := makeDecoder(t)
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
 	const goroutines = 16
@@ -219,18 +220,18 @@ func TestDecodeCache_Concurrent(t *testing.T) {
 }
 
 // TestDecodeCache_SkipLargePayloads verifies that payloads exceeding
-// maxCachedTxBytes are decoded successfully but never cached — protects
-// against memory DoS via adversarial large transactions.
+// the configured maxTxBytes are decoded successfully but never cached —
+// protects against memory DoS via adversarial large transactions.
 func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 	calls := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
 		calls.Add(1)
 		return &cacheTx{id: uint64(len(bz))}, nil
 	}
-	c := newDecodeCache()
+	c := newDecodeCache(defaultDecodeCacheSize, defaultMaxCachedTxBytes)
 	dec := newCachingDecoder(base, c)
 
-	big := make([]byte, maxCachedTxBytes+1)
+	big := make([]byte, defaultMaxCachedTxBytes+1)
 	for i := 0; i < 3; i++ {
 		if _, err := dec(big); err != nil {
 			t.Fatalf("iter %d: %v", i, err)
@@ -240,9 +241,9 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 		t.Fatalf("oversize payload was cached: calls=%d, want 3 (each call must miss)", got)
 	}
 
-	// Boundary: exactly maxCachedTxBytes should be cached.
+	// Boundary: exactly defaultMaxCachedTxBytes should be cached.
 	calls.Store(0)
-	atSize := make([]byte, maxCachedTxBytes)
+	atSize := make([]byte, defaultMaxCachedTxBytes)
 	if _, err := dec(atSize); err != nil {
 		t.Fatalf("at-size payload first decode: %v", err)
 	}
