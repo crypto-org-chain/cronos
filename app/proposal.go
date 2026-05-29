@@ -45,7 +45,6 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 		return false
 	}
 
-
 	// Pass memTx so the parent selector can read tx gas wanted and stop at maxBlockGas.
 	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
 }
