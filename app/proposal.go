@@ -98,11 +98,10 @@ func fastNoOpPrepareProposal(
 			// validateTx lazily decode if its blocklist demands it.
 			var tx sdk.Tx
 			if maxBlockGas > 0 {
-				decoded, err := txDecoder(txBz)
-				if err != nil {
+				var err error
+				if tx, err = txDecoder(txBz); err != nil {
 					continue
 				}
-				tx = decoded
 			}
 
 			if err := validateTx(tx, txBz); err != nil {

@@ -126,12 +126,12 @@ def test_bad_signature_rejected_at_admission(cronos_app_mempool):
     ), msg
 
 
-def test_underfee_tx_rejected_at_admission(cronos_app_mempool):
-    """A tx with gasPrice below the node's minimum is rejected at admission."""
+def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
+    """A tx with gas-limit below intrinsic 21000 is rejected at admission."""
     w3: Web3 = cronos_app_mempool.w3
-    # default.jsonnet sets minimum-gas-prices=0basetcro, so use a clearly
-    # too-low gas to trip the eth fee-checker via insufficient gas-limit
-    # rather than min-gas-price.
+    # default.jsonnet sets minimum-gas-prices=0basetcro, so trip the eth
+    # fee-checker via insufficient gas-limit (below 21000 intrinsic) rather
+    # than min-gas-price.
     tx = {
         "to": ADDRS["community"],
         "value": 1,
