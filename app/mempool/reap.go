@@ -23,7 +23,7 @@ const TypeApp = "app"
 // Caps are applied as a prefix scan: the loop breaks at the first tx
 // that exceeds either MaxBytes or MaxGas, not the best-fit later in
 // the snapshot. This matches the SDK's default proposal handler
-// behaviour and avoids O(n^2) scanning, but means a large high-priority
+// behavior and avoids O(n^2) scanning, but means a large high-priority
 // tx early in the snapshot can leave budget headroom unused even if
 // smaller txs further down would fit.
 //
