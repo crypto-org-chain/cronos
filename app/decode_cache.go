@@ -12,7 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// xxhashSeed randomises shard assignment at startup so an attacker cannot
+// xxhashSeed randomizes shard assignment at startup so an attacker cannot
 // precompute which tx bytes land in which shard and flood a single shard.
 var xxhashSeed = func() uint64 {
 	var b [8]byte
