@@ -24,11 +24,14 @@ var xxhashSeed = func() uint64 {
 
 const (
 	decodeCacheSize = 10_000
-	// maxCachedTxBytes caps per-entry payload size to bound worst-case
-	// memory at decodeCacheSize * maxCachedTxBytes (~640MB). Txs above
-	// this threshold are decoded normally but not cached. Covers normal
-	// traffic (transfers, ERC20, most contract calls) and prevents an
-	// adversary submitting MaxTxBytes-sized txs from exhausting RAM.
+	// maxCachedTxBytes caps per-entry raw payload size. The wire-byte
+	// footprint ceiling is decodeCacheSize * maxCachedTxBytes (~640 MiB),
+	// but the cached value is a fully-decoded sdk.Tx whose heap footprint
+	// (proto messages, slices, interface values) can be several times the
+	// raw bytes. Operators sizing memory should not rely on this constant
+	// as a hard upper bound on RSS impact. Txs above the threshold are
+	// decoded normally but not cached, preventing an adversary submitting
+	// MaxTxBytes-sized txs from exhausting RAM via the cache.
 	maxCachedTxBytes = 64 * 1024
 
 	shardCount     = 16
@@ -50,6 +53,12 @@ type cacheShard struct {
 	lru   list.List // front = MRU, back = LRU; zero value is empty list
 }
 
+// get returns the cached tx if h matches and the stored payload bytes equal
+// bz. On hash collision (same h, different bz) it returns (nil, false) — a
+// silent miss — without evicting the colliding entry. The caller re-decodes
+// and calls set, which then evicts the stale entry. With the seeded 64-bit
+// xxhash and 625 entries per shard, collisions are rare enough that this
+// "let set handle it" path is preferable to forward-eviction in get.
 func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

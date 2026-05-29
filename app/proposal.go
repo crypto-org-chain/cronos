@@ -112,7 +112,7 @@ func fastNoOpPrepareProposal(
 			if maxBlockGas > 0 {
 				if feeTx, ok := tx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
-					if gasWanted > maxBlockGas-totalGas {
+					if totalGas+gasWanted > maxBlockGas {
 						break
 					}
 					totalGas += gasWanted

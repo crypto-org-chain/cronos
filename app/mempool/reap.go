@@ -20,6 +20,13 @@ const TypeApp = "app"
 // CometBFT AppReactor is reached. A hint value of 0 is treated as
 // "no cap" per CometBFT convention. Used when mempool.type=app.
 //
+// Caps are applied as a prefix scan: the loop breaks at the first tx
+// that exceeds either MaxBytes or MaxGas, not the best-fit later in
+// the snapshot. This matches the SDK's default proposal handler
+// behaviour and avoids O(n^2) scanning, but means a large high-priority
+// tx early in the snapshot can leave budget headroom unused even if
+// smaller txs further down would fit.
+//
 // Encoder errors are logged but do not abort the reap; the offending tx
 // is skipped so the rest of the snapshot can still ship.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, logger log.Logger) sdk.ReapTxsHandler {

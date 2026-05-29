@@ -30,7 +30,14 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // txs via RunTx(execModeCheck) before admitting them to the mempool.
 //
 // A FIFO seen-cache of size cacheSize (0 = disabled) deduplicates AnteHandler
-// invocations when the same tx is gossiped by multiple peers.
+// invocations when the same tx is gossiped by multiple peers. The cache is a
+// short-window dedup mechanism: a tx that was valid at first admission and
+// recorded in the cache is unconditionally returned as CodeTypeOK on gossip
+// re-delivery, even if it has since become invalid (nonce consumed, account
+// drained, key rotated). The mempool itself still rejects duplicates on
+// Insert, and stale entries are eventually evicted from the ring, so the
+// practical risk is bounded by the gossip window. The cache does not
+// interact with mempool eviction signals.
 //
 // Must be registered with BaseApp.SetInsertTxHandler before Seal.
 func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int) sdk.InsertTxHandler {

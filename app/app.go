@@ -408,7 +408,7 @@ func New(
 		logger.Info("NoOpMempool is enabled")
 		mpool = mempool.NoOpMempool{}
 	}
-	blockProposalHandler := NewProposalHandler(txDecoder, identity, addressCodec)
+	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
@@ -417,7 +417,7 @@ func New(
 		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
 		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
 			baseapp.NewDefaultTxSelector(),
-			txDecoder,
+			activeDecoder,
 			blockProposalHandler.ValidateTransaction,
 		))
 
@@ -470,13 +470,13 @@ func New(
 		baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
 	}
 
-	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
-	bApp := baseapp.NewBaseApp(Name, logger, db, txConfig.TxDecoder(), baseAppOptions...)
+	// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx.
+	// Pass activeDecoder so any sub-component captured during NewBaseApp benefits from the decode cache.
+	bApp := baseapp.NewBaseApp(Name, logger, db, activeDecoder, baseAppOptions...)
 
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
-	bApp.SetTxDecoder(activeDecoder)
 
 	keys, tkeys, okeys := StoreKeys()
 
