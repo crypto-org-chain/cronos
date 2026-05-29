@@ -252,8 +252,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20260529015127-970d65592c53"
-    hash = "sha256-DyteafCCO6bOhoDc1CAbOQQioA4+LOOEgnhcf5gihDI="
+    version = "v0.50.6-0.20260528032327-7d79ddc38152"
+    hash = "sha256-bFOUvD/vdu2h8wqEEuGqanpOsnnHMEyUZ2eV7lPUjH0="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/cosmos-sdk/store/v2"]
     version = "v2.0.0"
@@ -293,16 +293,16 @@ schema = 3
     version = "v0.0.29"
     hash = "sha256-QP39Y1YMGWQSIAaD92s6LVLERgwh+5004a7U3flUTU8="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260528212236-50bdfdcb9e27"
-    hash = "sha256-KXTsI8pudQp59ao8BsvRdkWsBI4XlTjaBIS2Kee9l1A="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-AZq4GbSOCEk9OynShJuJRKM2MrMfza2KZAjvqZIfAaA="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260528212236-50bdfdcb9e27"
-    hash = "sha256-kfg2Ps+CgciBrxbHGT3lMzvoXBCI30EiP7apiHbPdnU="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-qw6Fa+vkFFHnHbpE0rcA8pogkF/JoE+bu736Bs2M8do="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260528212236-50bdfdcb9e27"
-    hash = "sha256-kAMEqiWqO8NJMTfxRwj7ir3MWqWWTAkVdnYxAqMm6nc="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-hf9mPPRXFXAio8WLoI1+wNR9pXF4p9pKMBusW5zTiF0="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.3"
@@ -369,8 +369,8 @@ schema = 3
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260528212839-eb38211db6e6"
-    hash = "sha256-j47gS8w6wqtgq/HOY3mktNVgb1uZIXrwFseMH5FwCXg="
+    version = "v0.22.1-0.20260528204018-f6683e1e255b"
+    hash = "sha256-OwIpJInlYV89RUMIMs67SjtjfujtgoFsB0R6AVe+/d8="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
