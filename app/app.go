@@ -176,6 +176,7 @@ const (
 
 	FlagDisableTxReplacement       = "cronos.disable-tx-replacement"
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
+	FlagDisableTxDecodeCache       = "cronos.disable-tx-decode-cache"
 )
 
 var Forks = []Fork{}
@@ -350,8 +351,13 @@ func New(
 	txConfig := encodingConfig.TxConfig
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
-	txDecodeCache := newDecodeCache()
-	cachingDecoder := newCachingDecoder(txDecoder, txDecodeCache)
+	var activeDecoder sdk.TxDecoder
+	if cast.ToBool(appOpts.Get(FlagDisableTxDecodeCache)) {
+		logger.Info("tx-decode cache disabled")
+		activeDecoder = txDecoder
+	} else {
+		activeDecoder = newCachingDecoder(txDecoder, newDecodeCache())
+	}
 	eip712.SetEncodingConfig(encodingConfig)
 
 	homePath := cast.ToString(appOpts.Get(flags.FlagHome))
@@ -417,7 +423,7 @@ func New(
 		app.SetPrepareProposal(fastNoOpPrepareProposal(
 			mpool,
 			defaultProposalHandler.PrepareProposalHandler(),
-			cachingDecoder,
+			activeDecoder,
 			blockProposalHandler.ValidateTransaction,
 		))
 
@@ -464,7 +470,7 @@ func New(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 	bApp.SetTxEncoder(txConfig.TxEncoder())
-	bApp.SetTxDecoder(cachingDecoder)
+	bApp.SetTxDecoder(activeDecoder)
 
 	keys, tkeys, okeys := StoreKeys()
 
@@ -473,7 +479,7 @@ func New(
 		BaseApp:              bApp,
 		cdc:                  cdc,
 		txConfig:             txConfig,
-		txDecoder:            cachingDecoder,
+		txDecoder:            activeDecoder,
 		appCodec:             appCodec,
 		interfaceRegistry:    interfaceRegistry,
 		invCheckPeriod:       invCheckPeriod,
