@@ -43,6 +43,9 @@ schema = 3
   [mod."cosmossdk.io/errors"]
     version = "v1.1.0"
     hash = "sha256-j4b3rqKIxy7coi9j2v45IYfeIq7VVrviEabO04lCBkk="
+  [mod."cosmossdk.io/log"]
+    version = "v1.6.1"
+    hash = "sha256-wz5TjyHP+24VL57msJLVepTqNChSE2WMW9Dt33AyPWo="
   [mod."cosmossdk.io/log/v2"]
     version = "v2.1.0"
     hash = "sha256-gw+YjeHALwuduXGAf+XBZ7RczZZvt6XYkwxVeoDqEtQ="
@@ -52,6 +55,9 @@ schema = 3
   [mod."cosmossdk.io/schema"]
     version = "v1.1.0"
     hash = "sha256-AXXiVWQsEEWe4eRwbFuLsF/dU0dnnK56Zz7e64fLGFA="
+  [mod."cosmossdk.io/store"]
+    version = "v1.1.2"
+    hash = "sha256-TkdI18LmXWRN9Wg/GZbu8/7ZEKEpKRJyoe9Cr0TEWMM="
   [mod."cosmossdk.io/tools/confix"]
     version = "v0.1.2"
     hash = "sha256-1VhdIdBDG7jaSiRTNYtoQ3WGaGm+vQ1Qf671zSiWAek="
@@ -92,12 +98,12 @@ schema = 3
   [mod."github.com/Microsoft/go-winio"]
     version = "v0.6.2"
     hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
+  [mod."github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime"]
+    version = "v0.0.0-20260116142910-60249400e523"
+    hash = "sha256-YB2ZfbMIKJ4+Mce44MEtWCftwEKitb4wxh6I38AAIAw="
   [mod."github.com/RoaringBitmap/roaring/v2"]
     version = "v2.18.0"
     hash = "sha256-pD2Rfq6P8CN0WuYgmgto4Ha74q8KG2iHVwTo2oSfRLM="
-  [mod."github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime"]
-    version = "v0.0.0-20251001021608-1fe7b43fc4d6"
-    hash = "sha256-h4q2tJctpX/913sTgr1OJgmrY9gFBv9/+RzvjpYJ+K4="
   [mod."github.com/VictoriaMetrics/fastcache"]
     version = "v1.13.0"
     hash = "sha256-B11EnHNBXrs3ayXVF9OTevYZsPp1E7IwPL+S9/QH+XA="
@@ -252,8 +258,8 @@ schema = 3
     version = "v1.0.0-beta.5"
     hash = "sha256-Fy/PbsOsd6iq0Njy3DVWK6HqWsogI+MkE8QslHGWyVg="
   [mod."github.com/cosmos/cosmos-sdk"]
-    version = "v0.50.6-0.20260521144821-f2bcc1893cf0"
-    hash = "sha256-g5aV6nGUjopIYPPJ9Aa+2KNh3KKYQL33j3MHbI7Dkio="
+    version = "v0.50.6-0.20260528032327-7d79ddc38152"
+    hash = "sha256-bFOUvD/vdu2h8wqEEuGqanpOsnnHMEyUZ2eV7lPUjH0="
     replaced = "github.com/crypto-org-chain/cosmos-sdk"
   [mod."github.com/cosmos/cosmos-sdk/store/v2"]
     version = "v2.0.0"
@@ -293,16 +299,16 @@ schema = 3
     version = "v0.0.29"
     hash = "sha256-QP39Y1YMGWQSIAaD92s6LVLERgwh+5004a7U3flUTU8="
   [mod."github.com/crypto-org-chain/cronos-store/memiavl"]
-    version = "v0.0.0-20260521170543-f0cfdca73e7c"
-    hash = "sha256-2Fb2Ve8/4qjQm4+IVSPopGipm7+SKa4v23vsKpoF8mw="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-AZq4GbSOCEk9OynShJuJRKM2MrMfza2KZAjvqZIfAaA="
     replaced = "github.com/crypto-org-chain/cronos-store/memiavl"
   [mod."github.com/crypto-org-chain/cronos-store/store"]
-    version = "v0.0.0-20260521170543-f0cfdca73e7c"
-    hash = "sha256-1h9nZGFVwCgCl83IC2PTFHHANkhttsYXhE1cO5sLOKw="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-qw6Fa+vkFFHnHbpE0rcA8pogkF/JoE+bu736Bs2M8do="
     replaced = "github.com/crypto-org-chain/cronos-store/store"
   [mod."github.com/crypto-org-chain/cronos-store/versiondb"]
-    version = "v0.0.0-20260521170543-f0cfdca73e7c"
-    hash = "sha256-w9N9OSW4sCmMTCY5qnBEAsYkucaoDgsHIbPV4zAT498="
+    version = "v0.0.0-20260529153812-1f2f45ec5a3c"
+    hash = "sha256-hf9mPPRXFXAio8WLoI1+wNR9pXF4p9pKMBusW5zTiF0="
     replaced = "github.com/crypto-org-chain/cronos-store/versiondb"
   [mod."github.com/danieljoos/wincred"]
     version = "v1.2.3"
@@ -362,15 +368,15 @@ schema = 3
     version = "v0.0.0-20250911101455-f9e208c548ab"
     hash = "sha256-4NBADIRV6mJ645F8u5MKxfNv9S1XgCs+pXwPOCoI06s="
   [mod."github.com/ethereum/go-ethereum"]
-    version = "v1.10.20-0.20260519073000-f0daeaf2c9e7"
-    hash = "sha256-zWwpHGmJpSCOtxRxyuZYQzQbnXBnwB4mCEDB4sC4t7g="
+    version = "v1.10.20-0.20260521015249-663dca6c618e"
+    hash = "sha256-+WbliqGbS1A9VoccD15twT4JURG8k7ThaGXoDj02KJU="
     replaced = "github.com/crypto-org-chain/go-ethereum"
   [mod."github.com/ethereum/go-verkle"]
     version = "v0.2.2"
     hash = "sha256-0MLfSJKdeK3Z7tWAXTdzwB4091dmyxIX38S5SKH5QAw="
   [mod."github.com/evmos/ethermint"]
-    version = "v0.22.1-0.20260528022355-1ecc64324773"
-    hash = "sha256-2Nmlz+HMKzVZMNwlsaC3jOGsqVnW0NBxdBnuw244t0A="
+    version = "v0.22.1-0.20260528204018-f6683e1e255b"
+    hash = "sha256-OwIpJInlYV89RUMIMs67SjtjfujtgoFsB0R6AVe+/d8="
     replaced = "github.com/crypto-org-chain/ethermint"
   [mod."github.com/fatih/color"]
     version = "v1.18.0"
@@ -381,6 +387,9 @@ schema = 3
   [mod."github.com/ferranbt/fastssz"]
     version = "v0.1.4"
     hash = "sha256-BPwVA8BDQmSBPX/kAx7IE7XMNrhBYire2iQsP0icj2s="
+  [mod."github.com/flynn/noise"]
+    version = "v1.1.0"
+    hash = "sha256-gHCdm9oJTKO+aUGWCw9LM/WHrZT2K6C5+j7VLXpqK48="
   [mod."github.com/fsnotify/fsnotify"]
     version = "v1.9.0"
     hash = "sha256-WtpE1N6dpHwEvIub7Xp/CrWm0fd6PX7MKA4PV44rp2g="
@@ -628,17 +637,23 @@ schema = 3
     version = "v0.0.0-20190314235656-172688c1accc"
     hash = "sha256-Euf1BdkoiYc37obpR66425I1Xjn4wvO+cRz4mOsGueE="
   [mod."github.com/minio/highwayhash"]
-    version = "v1.0.3"
-    hash = "sha256-5M2Y3d0hnvo8JHz6910upUNbRRaUVes90F0jaIzo4pE="
+    version = "v1.0.4"
+    hash = "sha256-GW5irfhrYqrhUOrBavARHslApXnWz3rVoU/PcphA6no="
   [mod."github.com/minio/sha256-simd"]
-    version = "v1.0.0"
-    hash = "sha256-oEo/BoMqSLdwSjrhHTiFjl5Om4MVLNQXDJINk6Z110Y="
+    version = "v1.0.1"
+    hash = "sha256-4hfGDIQaWq8fvtGzHDhoK9v2IocXnJY7OAL6saMJbmA="
   [mod."github.com/mitchellh/go-homedir"]
     version = "v1.1.0"
     hash = "sha256-oduBKXHAQG8X6aqLEpqZHs5DOKe84u6WkBwi4W6cv3k="
   [mod."github.com/mitchellh/mapstructure"]
     version = "v1.5.0"
     hash = "sha256-ztVhGQXs67MF8UadVvG72G3ly0ypQW0IRDdOOkjYwoE="
+  [mod."github.com/mr-tron/base58"]
+    version = "v1.3.0"
+    hash = "sha256-LN6yaKmfTdAG3T3zFIrZlMtIRPxIot4uWsk4YG6hYZI="
+  [mod."github.com/mschoch/smat"]
+    version = "v0.2.0"
+    hash = "sha256-DZvUJXjIcta3U+zxzgU3wpoGn/V4lpBY7Xme8aQUi+E="
   [mod."github.com/mtibben/percent"]
     version = "v0.2.1"
     hash = "sha256-Zj1lpCP6mKQ0UUTMs2By4LC414ou+iJzKkK+eBHfEcc="
@@ -844,8 +859,8 @@ schema = 3
     version = "v1.6.0"
     hash = "sha256-LspbjTniiq2xAICSXmgqP7carwlNaLqnCTQfw2pa80A="
   [mod."github.com/supranational/blst"]
-    version = "v0.3.16-0.20250831170142-f48500c1fdbe"
-    hash = "sha256-vhfXG6AUAnZzsy5V8w3bAqaLwkgJhTpE1UDxntfHcts="
+    version = "v0.3.16"
+    hash = "sha256-R4zABpBK/qAjKiMcr+YF4jR7/8jw6yxP+uRPRP7mI1A="
   [mod."github.com/syndtr/goleveldb"]
     version = "v1.0.1-0.20210819022825-2ae1ddf74ef7"
     hash = "sha256-36a4hgVQfwtS2zhylKpQuFhrjdc/Y8pF0dxc26jcZIU="
@@ -854,9 +869,8 @@ schema = 3
     version = "v0.16.0"
     hash = "sha256-JW4zO/0vMzf1dXLePOqaMtiLUZgNbuIseh9GV+jQlf0="
   [mod."github.com/tidwall/btree"]
-    version = "v0.0.0-20240406140148-2687063b042c"
-    hash = "sha256-8eDLGHhw4qXG6MEa7w5Q9KLwOobXr8Vn5qqyQhuipQw="
-    replaced = "github.com/crypto-org-chain/btree"
+    version = "v1.8.1"
+    hash = "sha256-QsYonFnbD/zaxUYAJMzDNI3ju0TjcBJrh8/DBhaJfbM="
   [mod."github.com/tidwall/gjson"]
     version = "v1.18.0"
     hash = "sha256-CO6hqDu8Y58Po6A01e5iTpwiUBQ5khUZsw7czaJHw0I="
@@ -1038,8 +1052,8 @@ schema = 3
     version = "v0.36.0"
     hash = "sha256-ZhyOvy9ptbV+pna/CNyQFr5cKRn5O+B2QzkQAISKgco="
   [mod."golang.org/x/net"]
-    version = "v0.54.0"
-    hash = "sha256-/EoIXzTQzK/yP/lxOyx0Z/bhns4FdPTIF4uyt4gIP80="
+    version = "v0.55.0"
+    hash = "sha256-Phi2mSmBGOJcvqPPAit3uqF3UP8SKRI9dHj6yTM3s5s="
   [mod."golang.org/x/oauth2"]
     version = "v0.36.0"
     hash = "sha256-evS7WkMrpgonmTcqtWFpC5rSKZN8O+vnAhNUs1MS9kw="
@@ -1047,8 +1061,8 @@ schema = 3
     version = "v0.20.0"
     hash = "sha256-ybcjhCfK6lroUM0yswUvWooW8MOQZBXyiSqoxG6Uy0Y="
   [mod."golang.org/x/sys"]
-    version = "v0.44.0"
-    hash = "sha256-JDlj+PKsG6I6kjv5JyOUNreY51u5An0oZ5OZMHZSk+A="
+    version = "v0.45.0"
+    hash = "sha256-hkBoNazrDA67ER6sWhb+EKxx9nJ24+nz3zGy+zT5Hvw="
   [mod."golang.org/x/telemetry"]
     version = "v0.0.0-20260508192327-42602be52be6"
     hash = "sha256-jK+VMNDRQd4CLjTMX59k+6QMwWxdRQF9ErEgsQN5D+s="
