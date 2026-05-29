@@ -18,17 +18,6 @@ import (
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
 type stubTx struct{ sdk.Tx }
 
-// gasOnlyTx is a minimal sdk.FeeTx whose only non-zero field is gas.
-type gasOnlyTx struct {
-	sdk.Tx
-	gas uint64
-}
-
-func (g gasOnlyTx) GetGas() uint64     { return g.gas }
-func (g gasOnlyTx) GetFee() sdk.Coins  { return nil }
-func (g gasOnlyTx) FeePayer() []byte   { return nil }
-func (g gasOnlyTx) FeeGranter() []byte { return nil }
-
 // stubTxSelector lets a test control the parent TxSelector return value.
 type stubTxSelector struct {
 	baseapp.TxSelector
