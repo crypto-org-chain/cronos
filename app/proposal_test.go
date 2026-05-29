@@ -20,9 +20,9 @@ type gasOnlyTx struct {
 	gas uint64
 }
 
-func (g gasOnlyTx) GetGas() uint64   { return g.gas }
-func (g gasOnlyTx) GetFee() sdk.Coins { return nil }
-func (g gasOnlyTx) FeePayer() []byte  { return nil }
+func (g gasOnlyTx) GetGas() uint64     { return g.gas }
+func (g gasOnlyTx) GetFee() sdk.Coins  { return nil }
+func (g gasOnlyTx) FeePayer() []byte   { return nil }
 func (g gasOnlyTx) FeeGranter() []byte { return nil }
 
 // stubTxSelector lets a test control the parent TxSelector return value.
@@ -135,4 +135,3 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 		require.Same(t, origTx, parent.lastMemTx.(*stubTx), "parent must also receive the original memTx")
 	})
 }
-
