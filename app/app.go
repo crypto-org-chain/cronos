@@ -466,10 +466,13 @@ func New(
 		// MaxBytes/MaxGas hints from the CometBFT AppReactor.
 		switch mempoolType {
 		case cronosmempool.TypeApp:
+			if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp {
+				panic("mempool.type=app requires mempool.max-txs >= 0 and mempool.fee-bump >= 0 (currently using NoOpMempool; ReapTxsHandler would produce empty blocks)")
+			}
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), logger.With("module", "app-mempool")))
 			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
-			if insertTxCacheSize == 0 {
+			if insertTxCacheSize <= 0 {
 				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
 			}
 			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize))
