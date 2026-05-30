@@ -26,7 +26,12 @@ var xxhashSeed = func() uint64 {
 
 const (
 	// maxCachedTxBytes commentary applies to the default value (cmdcfg.DefaultTxDecodeCacheMaxTxBytes).
-	// The wire-byte footprint ceiling is cache size * this value (~640 MiB
+	// The raw-byte footprint ceiling is cache_size × max_tx_bytes (~640 MiB at
+	// defaults). The actual RSS impact is higher because each cached entry is a
+	// fully-decoded sdk.Tx (proto messages, interface values, slices) which
+	// typically occupies several times the raw bytes. Txs above max_tx_bytes are
+	// decoded normally but not cached, preventing an adversary submitting
+	// MaxTxBytes-sized txs from exhausting RAM via the cache.
 	// at defaults), but the cached value is a fully-decoded sdk.Tx whose
 	// heap footprint (proto messages, slices, interface values) is several
 	// times the raw bytes. Operators sizing memory should not rely on this
