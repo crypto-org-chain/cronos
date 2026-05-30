@@ -8,10 +8,9 @@ import (
 	"sync"
 
 	"github.com/cespare/xxhash/v2"
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 // xxhashSeed randomizes shard assignment at startup so an attacker cannot

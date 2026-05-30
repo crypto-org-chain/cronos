@@ -9,11 +9,10 @@ import (
 	"testing"
 
 	"github.com/cespare/xxhash/v2"
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 	protov2 "google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
 )
 
 // cacheTx is a minimal sdk.Tx stub used in decode cache tests.
