@@ -25,7 +25,8 @@
     "app_patch": {
       "async-check-tx": true,
       "mempool": {
-        "max-txs": -1
+        "max-txs": 10000,
+        "feebump": 10
       },
       "evm": {
         "block-stm-pre-estimate": false,

@@ -49,9 +49,9 @@ RUN if [ -f /tmp/corp-ca.crt ]; then \
         update-ca-certificates; \
     fi
 
-# Build RocksDB 10.6.2 (same version as nix/rocksdb.nix)
+# Build RocksDB 10.9.1 (same version as nix/rocksdb.nix)
 WORKDIR /rocksdb
-RUN git clone --depth 1 --branch v10.6.2 https://github.com/facebook/rocksdb.git . \
+RUN git clone --depth 1 --branch v10.9.1 https://github.com/facebook/rocksdb.git . \
     && sed -i 's/std::memcpy(this, &other, sizeof(\*this));/std::memcpy(static_cast<void*>(this), static_cast<const void*>(\&other), sizeof(*this));/' port/mmap.cc \
     && mkdir build && cd build \
     && cmake .. -G Ninja \
