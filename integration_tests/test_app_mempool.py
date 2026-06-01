@@ -157,13 +157,12 @@ def test_tx_replacement_rfc(cronos_app_mempool):
                    -> PriorityNonceMempool.Insert(A') replaces A
     Only A' reaches a block; A produces no receipt.
 
-    Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100.
-    Test uses 120% (20% above threshold) for stable margin.
+    Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100
+    (Go integer arithmetic). base*12//10 satisfies this for all integer base >= 0.
     """
     w3: Web3 = cronos_app_mempool.w3
     key = KEYS["validator"]
-    sender = ADDRS["validator"]
-    nonce = w3.eth.get_transaction_count(sender)
+    nonce = w3.eth.get_transaction_count(ADDRS["validator"])
     base_gas_price = w3.eth.gas_price
 
     # tx A: submitted first, will be displaced
@@ -177,7 +176,8 @@ def test_tx_replacement_rfc(cronos_app_mempool):
     signed_a = sign_transaction(w3, tx_a, key)
     hash_a = w3.eth.send_raw_transaction(signed_a.raw_transaction)
 
-    # tx A': same nonce, 20% higher gasPrice (feebump=10 → 10% min; 20% margin)
+    # tx A': same nonce, higher gasPrice — satisfies feebump=10 threshold
+    # (base*12//10 >= base*110//100 for all integer base >= 0)
     tx_a_prime = {
         "to": ADDRS["community"],
         "value": 2,
