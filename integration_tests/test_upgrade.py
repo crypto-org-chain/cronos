@@ -14,8 +14,8 @@ from pystarport import ports
 from pystarport.cluster import SUPERVISOR_CONFIG_FILE
 from web3 import exceptions
 
-from .network import Cronos, setup_custom_cronos
 from .ibc_v18 import check_ibc_client_states, preupgrade_ibc_snapshot
+from .network import Cronos, setup_custom_cronos
 from .staking_v1_8 import postupgrade_check_staking, preupgrade_staking_setup
 from .utils import (
     ADDRS,
@@ -365,7 +365,7 @@ def exec(c, tmp_path_factory):
     )
 
     staking_info = preupgrade_staking_setup(cli, c)
-    ibc_snapshot = preupgrade_ibc_snapshot(port)
+    ibc_snapshot = preupgrade_ibc_snapshot(ports.api_port(base_port))
 
     height = cli.block_height()
     target_height_v18 = height + 15
@@ -374,7 +374,7 @@ def exec(c, tmp_path_factory):
 
     postupgrade_check_staking(cli, staking_info)
     check_basic_tx(c)
-    check_ibc_client_states(port, ibc_snapshot)
+    check_ibc_client_states(ports.api_port(base_port), ibc_snapshot)
 
     tx_af = w3.provider.make_request(method, params)
     assert tx_af.get("result") == tx_bf.get("result"), tx_af

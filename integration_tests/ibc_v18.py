@@ -17,10 +17,10 @@ def preupgrade_ibc_snapshot(port):
     pre-upgrade clients survive the upgrade intact.
     """
     url = f"http://127.0.0.1:{port}/ibc/core/client/v1/client_states"
-    resp = requests.get(url)
-    assert resp.status_code == 200, (
-        f"GET {url} returned {resp.status_code}: {resp.text}"
-    )
+    resp = requests.get(url, timeout=10)
+    assert (
+        resp.status_code == 200
+    ), f"GET {url} returned {resp.status_code}: {resp.text}"
     data = resp.json()
     assert "client_states" in data, f"missing client_states in response: {data}"
     return {
@@ -42,10 +42,10 @@ def check_ibc_client_states(port, snapshot=None):
     any existing IBC clients.
     """
     url = f"http://127.0.0.1:{port}/ibc/core/client/v1/client_states"
-    resp = requests.get(url)
-    assert resp.status_code == 200, (
-        f"GET {url} returned {resp.status_code}: {resp.text}"
-    )
+    resp = requests.get(url, timeout=10)
+    assert (
+        resp.status_code == 200
+    ), f"GET {url} returned {resp.status_code}: {resp.text}"
     data = resp.json()
     assert "client_states" in data, f"missing client_states field in response: {data}"
 
