@@ -329,6 +329,8 @@ github.com/crypto-org-chain/ethermint v0.22.1-0.20260528204018-f6683e1e255b h1:3
 github.com/crypto-org-chain/ethermint v0.22.1-0.20260528204018-f6683e1e255b/go.mod h1:+KYccHfFJQ6J2gsINufYi4+ZqiTjbjOBYnnsdu6FeLs=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
+github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe h1:fAMN/waUc5ktvpAaUtOsekTzAKwdP1boM71ONmya/ZQ=
+github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe/go.mod h1:iWlzLuCu+ctVbQwoVf5z51HE5e/NE8/pwnLVVDmP++4=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
 github.com/danieljoos/wincred v1.2.3/go.mod h1:6qqX0WNrS4RzPZ1tnroDzq9kY3fu1KwE7MRLQK4X0bs=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

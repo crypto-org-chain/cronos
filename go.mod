@@ -389,6 +389,8 @@ replace (
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260601063535-2cd50b219979
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
+
+	github.com/cosmos/ibc-go/v11 => github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe
 	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260529153812-1f2f45ec5a3c
 
 	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3c
