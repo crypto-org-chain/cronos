@@ -16,7 +16,7 @@
         "type": "app",
         "broadcast": true,
         "reap_max_gas": 105000000,
-        "reap_interval": "1s"
+        "reap_interval": "500ms"
       },
       "consensus": {
         "timeout_commit": "20ms",
