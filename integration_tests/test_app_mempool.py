@@ -144,3 +144,55 @@ def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
         w3.eth.send_raw_transaction(signed.raw_transaction)
     msg = str(exc_info.value).lower()
     assert any(s in msg for s in ("gas", "intrinsic", "insufficient")), msg
+
+
+def test_tx_replacement_rfc(cronos_app_mempool):
+    """Same-nonce tx with +20% gasPrice replaces the original in mempool.
+
+    Verifies the three-cache interaction path:
+      send_raw(A') -> insertSeenCache miss (different bytes)
+                   -> RunTx -> AnteCache.Exists(X, N) == true
+                   -> nonce check skipped (replacement allowed)
+                   -> PriorityNonceMempool.Insert(A') replaces A
+    Only A' reaches a block; A produces no receipt.
+
+    Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100.
+    Test uses 120% (20% above threshold) for stable margin.
+    """
+    w3: Web3 = cronos_app_mempool.w3
+    key = KEYS["validator"]
+    sender = ADDRS["validator"]
+    nonce = w3.eth.get_transaction_count(sender)
+    base_gas_price = w3.eth.gas_price
+
+    # tx A: submitted first, will be displaced
+    tx_a = {
+        "to": ADDRS["community"],
+        "value": 1,
+        "nonce": nonce,
+        "gas": 21000,
+        "gasPrice": base_gas_price,
+    }
+    signed_a = sign_transaction(w3, tx_a, key)
+    hash_a = w3.eth.send_raw_transaction(signed_a.raw_transaction)
+
+    # tx A': same nonce, 20% higher gasPrice (feebump=10 → 10% min; 20% margin)
+    tx_a_prime = {
+        "to": ADDRS["community"],
+        "value": 2,
+        "nonce": nonce,
+        "gas": 21000,
+        "gasPrice": base_gas_price * 12 // 10,
+    }
+    signed_a_prime = sign_transaction(w3, tx_a_prime, key)
+    hash_a_prime = w3.eth.send_raw_transaction(signed_a_prime.raw_transaction)
+
+    # A' must land in a block
+    receipt_prime = w3.eth.wait_for_transaction_receipt(hash_a_prime, timeout=30)
+    assert receipt_prime.status == 1
+
+    # A must NOT land — it was evicted by replacement before reap
+    receipt_a = w3.eth.get_transaction_receipt(hash_a)
+    assert receipt_a is None, (
+        f"original tx should have been replaced but was mined: {receipt_a}"
+    )
