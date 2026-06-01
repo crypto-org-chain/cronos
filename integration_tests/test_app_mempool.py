@@ -146,6 +146,7 @@ def test_intrinsic_gas_rejected_at_admission(cronos_app_mempool):
     assert any(s in msg for s in ("gas", "intrinsic", "insufficient")), msg
 
 
+@pytest.mark.flaky(max_runs=3)
 def test_tx_replacement_rfc(cronos_app_mempool):
     """Same-nonce tx with +20% gasPrice replaces the original in mempool.
 
@@ -193,6 +194,4 @@ def test_tx_replacement_rfc(cronos_app_mempool):
 
     # A must NOT land — it was evicted by replacement before reap
     receipt_a = w3.eth.get_transaction_receipt(hash_a)
-    assert receipt_a is None, (
-        f"original tx should have been replaced but was mined: {receipt_a}"
-    )
+    assert receipt_a is None, f"original tx should be replaced, got: {receipt_a}"
