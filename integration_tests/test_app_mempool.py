@@ -14,6 +14,7 @@ pass AnteHandler before mempool admission. These tests verify:
 from pathlib import Path
 
 import pytest
+import web3
 from web3 import Web3
 
 from .network import setup_custom_cronos
@@ -193,5 +194,8 @@ def test_tx_replacement_rfc(cronos_app_mempool):
     assert receipt_prime.status == 1
 
     # A must NOT land — it was evicted by replacement before reap
-    receipt_a = w3.eth.get_transaction_receipt(hash_a)
+    try:
+        receipt_a = w3.eth.get_transaction_receipt(hash_a)
+    except web3.exceptions.TransactionNotFound:
+        receipt_a = None
     assert receipt_a is None, f"original tx should be replaced, got: {receipt_a}"
