@@ -6,11 +6,11 @@ import (
 	"time"
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	clienttypes "github.com/cosmos/ibc-go/v10/modules/core/02-client/types"
-	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
-	"github.com/cosmos/ibc-go/v10/modules/core/exported"
+	transferTypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	clienttypes "github.com/cosmos/ibc-go/v11/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
+	porttypes "github.com/cosmos/ibc-go/v11/modules/core/05-port/types"
+	"github.com/cosmos/ibc-go/v11/modules/core/exported"
 	"github.com/crypto-org-chain/cronos/app"
 	cronosmiddleware "github.com/crypto-org-chain/cronos/x/cronos/middleware"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -18,8 +18,7 @@ import (
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/stretchr/testify/require"
 
-	storetypes "cosmossdk.io/store/types"
-
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -54,6 +53,8 @@ func (noopIBCModule) OnAcknowledgementPacket(sdk.Context, string, channeltypes.P
 func (noopIBCModule) OnTimeoutPacket(sdk.Context, string, channeltypes.Packet, sdk.AccAddress) error {
 	return nil
 }
+
+func (noopIBCModule) SetICS4Wrapper(porttypes.ICS4Wrapper) {}
 
 type markingIBCModule struct {
 	noopIBCModule

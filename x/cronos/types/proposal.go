@@ -70,14 +70,14 @@ func (tcp *TokenMappingChangeProposal) ValidateBasic() error {
 func (tcp TokenMappingChangeProposal) String() string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf(`Token Mapping Change Proposal:
+	fmt.Fprintf(&b, `Token Mapping Change Proposal:
   Title:       %s
   Description: %s
   Denom:       %s
   Contract:    %s
   Symbol:      %s
   Decimal:     %d
-`, tcp.Title, tcp.Description, tcp.Denom, tcp.Contract, tcp.Symbol, tcp.Decimal))
+`, tcp.Title, tcp.Description, tcp.Denom, tcp.Contract, tcp.Symbol, tcp.Decimal)
 
 	return b.String()
 }

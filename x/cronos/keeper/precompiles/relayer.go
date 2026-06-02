@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	channeltypes "github.com/cosmos/ibc-go/v10/modules/core/04-channel/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	channeltypes "github.com/cosmos/ibc-go/v11/modules/core/04-channel/types"
 	cronosevents "github.com/crypto-org-chain/cronos/x/cronos/events"
 	"github.com/crypto-org-chain/cronos/x/cronos/events/bindings/cosmos/precompile/relayer"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"

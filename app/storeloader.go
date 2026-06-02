@@ -1,10 +1,9 @@
 package app
 
 import (
-	storetypes "cosmossdk.io/store/types"
-	upgradetypes "cosmossdk.io/x/upgrade/types"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
+	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
 // MaxVersionStoreLoader will be used when there's versiondb to cap the loaded iavl version

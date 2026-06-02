@@ -78,11 +78,11 @@
         "homepage": "",
         "owner": "informalsystems",
         "repo": "hermes",
-        "rev": "9a071a9b1d3d5af92e62e5488e874e18aab56f3d",
-        "sha256": "0wh5hcybirpw2vilqpd10jyxd59wh70xwzhfzlrl196b6l02gckq",
+        "rev": "bab3b80df71f6a3c73af7c2602a3daf614a643fa",
+        "sha256": "0r6jgi7sdrxq6my3ba5llq1rn50ps8g7h14xn0sfxhbhx3gb18p4",
         "tag": "",
         "type": "tarball",
-        "url": "https://github.com/informalsystems/hermes/archive/9a071a9b1d3d5af92e62e5488e874e18aab56f3d.tar.gz",
+        "url": "https://github.com/informalsystems/hermes/archive/bab3b80df71f6a3c73af7c2602a3daf614a643fa.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

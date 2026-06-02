@@ -4,7 +4,7 @@ import (
 	"context"
 
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
-	"github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	"github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

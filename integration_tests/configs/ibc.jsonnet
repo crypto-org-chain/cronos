@@ -15,7 +15,10 @@ config {
       for i in std.range(1, 50)
     ],
     'app-config'+: {
-      'index-events': super['index-events'] + ['message.action'],
+      // index all events so hermes can query send_packet/recv_packet/ack
+      // (cosmos-sdk v0.54 + cometbft 0.39 require explicit IBC events
+      // for hermes packet clearing).
+      'index-events': [],
     },
     genesis+: {
       app_state+: {
@@ -147,6 +150,9 @@ config {
         id: 'cronos_777-1',
         max_gas: 2500000,
         gas_multiplier: 1.1,
+        // hermes 1.13.x doesn't recognize cometbft 0.39 version string yet;
+        // force 0.38 wire-compat mode (no protocol breaks between 0.38/0.39).
+        compat_mode: '0.38',
         address_type: {
           derivation: 'ethermint',
           proto_type: {

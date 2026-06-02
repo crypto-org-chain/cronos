@@ -9,7 +9,7 @@ import (
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/crypto-org-chain/cronos/app"
 
-	"cosmossdk.io/log"
+	"cosmossdk.io/log/v2"
 
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 )
@@ -19,7 +19,7 @@ func New(dir string) *app.App {
 	db := tmdb.NewMemDB()
 	logger := log.NewNopLogger()
 
-	a := app.New(logger, db, nil, true, simtestutil.EmptyAppOptions{})
+	a := app.New(logger, db, true, simtestutil.EmptyAppOptions{})
 	// InitChain updates deliverState which is required when app.NewContext is called
 	_, err := a.InitChain(&abci.RequestInitChain{
 		ConsensusParams: defaultConsensusParams,

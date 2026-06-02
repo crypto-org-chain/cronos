@@ -12,25 +12,25 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
-	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
+	ibctransfertypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
+	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 	cronosmoduletypes "github.com/crypto-org-chain/cronos/x/cronos/types"
 	"github.com/evmos/ethermint/ante/cache"
 	evmante "github.com/evmos/ethermint/evmd/ante"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/stretchr/testify/require"
 
-	"cosmossdk.io/log"
-	"cosmossdk.io/store"
-	storetypes "cosmossdk.io/store/types"
-	evidencetypes "cosmossdk.io/x/evidence/types"
+	"cosmossdk.io/log/v2"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/store/v2"
+	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	evidencetypes "github.com/cosmos/cosmos-sdk/x/evidence/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -65,7 +65,7 @@ func interBlockCacheOpt() func(*baseapp.BaseApp) {
 
 // NewSimApp disable feemarket on native tx, otherwise the cosmos-sdk simulation tests will fail.
 func NewSimApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*baseapp.BaseApp)) (*App, error) {
-	app := New(logger, db, nil, false, EmptyAppOptions{}, baseAppOptions...)
+	app := New(logger, db, false, EmptyAppOptions{}, baseAppOptions...)
 	// disable feemarket on native tx
 	anteHandler, err := evmante.NewAnteHandler(evmante.HandlerOptions{
 		AccountKeeper:   app.AccountKeeper,

@@ -11,65 +11,127 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type mockTxSelector struct {
+// stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
+type stubTx struct{ sdk.Tx }
+
+// gasOnlyTx is a minimal sdk.FeeTx whose only non-zero field is gas.
+type gasOnlyTx struct {
+	sdk.Tx
+	gas uint64
+}
+
+func (g gasOnlyTx) GetGas() uint64     { return g.gas }
+func (g gasOnlyTx) GetFee() sdk.Coins  { return nil }
+func (g gasOnlyTx) FeePayer() []byte   { return nil }
+func (g gasOnlyTx) FeeGranter() []byte { return nil }
+
+// stubTxSelector lets a test control the parent TxSelector return value.
+type stubTxSelector struct {
 	baseapp.TxSelector
+	parentReturn bool
+	calls        int
+	lastMemTx    sdk.Tx
+	lastTxBz     []byte
 }
 
-func (mts *mockTxSelector) SelectTxForProposalFast(ctx context.Context, txs [][]byte) [][]byte {
-	// For testing purposes, simply return the txs as is
-	return txs
+func (s *stubTxSelector) SelectTxForProposal(_ context.Context, _, _ uint64, memTx sdk.Tx, txBz []byte) bool {
+	s.calls++
+	s.lastMemTx = memTx
+	s.lastTxBz = txBz
+	return s.parentReturn
 }
 
-func TestSelectTxForProposalFast(t *testing.T) {
-	ctx := context.Background()
+// gasCapSelector simulates a parent that enforces maxBlockGas using the
+// forwarded memTx — identical to what baseapp.DefaultTxSelector does.
+type gasCapSelector struct {
+	baseapp.TxSelector
+	maxBlockGas uint64
+	totalGas    uint64
+}
 
-	txDecoder := func(txBytes []byte) (sdk.Tx, error) {
-		// Mock tx decoder; returns a dummy tx
-		return nil, nil
+func (s *gasCapSelector) SelectTxForProposal(_ context.Context, _, _ uint64, memTx sdk.Tx, _ []byte) bool {
+	feeTx, ok := memTx.(sdk.FeeTx)
+	if !ok {
+		return true
 	}
+	want := feeTx.GetGas()
+	if want > s.maxBlockGas-s.totalGas {
+		return false
+	}
+	s.totalGas += want
+	return true
+}
 
-	validateTx := func(tx sdk.Tx, txBz []byte) error {
-		// Mock validation logic: return error if txBz is "invalid"
+func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
+	txDecoder := func([]byte) (sdk.Tx, error) { return nil, nil }
+
+	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
 		if string(txBz) == "invalid" {
 			return errors.New("invalid tx")
 		}
 		return nil
 	}
 
-	mockSelector := &mockTxSelector{}
-
-	extTxSelector := NewExtTxSelector(mockSelector, txDecoder, validateTx)
-
-	t.Run("Empty transaction list", func(t *testing.T) {
-		txs := [][]byte{}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Empty(t, result)
+	t.Run("validation failure short-circuits and parent not called", func(t *testing.T) {
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("invalid"))
+		require.False(t, ok)
+		require.Equal(t, 0, parent.calls, "parent must not be invoked when ValidateTx errors")
 	})
 
-	t.Run("All valid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("valid1"), []byte("valid2"), []byte("valid3")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, txs, result)
+	t.Run("memTx forwarded to parent unmodified after validation passes", func(t *testing.T) {
+		// ExtTxSelector must validate with the received memTx and then forward
+		// the same value so the parent can enforce maxBlockGas via GetGas().
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		sentinel := gasOnlyTx{gas: 42}
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, sentinel, []byte("valid"))
+		require.True(t, ok)
+		require.Equal(t, 1, parent.calls)
+		require.Equal(t, sentinel, parent.lastMemTx, "parent must receive the original memTx so it can read GetGas()")
+		require.Equal(t, []byte("valid"), parent.lastTxBz)
 	})
 
-	t.Run("All invalid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("invalid"), []byte("invalid"), []byte("invalid")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Empty(t, result)
+	t.Run("parent gas cap blocks tx when memTx gas exceeds remaining budget", func(t *testing.T) {
+		// When memTx carries gas > remaining block budget, a gas-aware parent
+		// (like baseapp.DefaultTxSelector) returns false. ExtTxSelector must
+		// propagate that rejection — it requires forwarding the real memTx.
+		parent := &gasCapSelector{maxBlockGas: 100_000}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+
+		// First tx: 60_000 gas — fits.
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 100_000, gasOnlyTx{gas: 60_000}, []byte("tx1"))
+		require.True(t, ok)
+		require.Equal(t, uint64(60_000), parent.totalGas)
+
+		// Second tx: 60_000 gas — would exceed cap (60k+60k > 100k).
+		ok = ext.SelectTxForProposal(context.Background(), 1<<20, 100_000, gasOnlyTx{gas: 60_000}, []byte("tx2"))
+		require.False(t, ok, "parent gas cap must reject tx when block gas budget exhausted")
 	})
 
-	t.Run("Mixed valid and invalid transactions", func(t *testing.T) {
-		txs := [][]byte{[]byte("valid1"), []byte("invalid"), []byte("valid2"), []byte("invalid"), []byte("valid3")}
-		expected := [][]byte{[]byte("valid1"), []byte("valid2"), []byte("valid3")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, expected, result)
+	t.Run("validation success delegates to parent (false passthrough)", func(t *testing.T) {
+		parent := &stubTxSelector{parentReturn: false}
+		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("valid"))
+		require.False(t, ok)
+		require.Equal(t, 1, parent.calls)
 	})
 
-	t.Run("Edge cases in the filtering logic", func(t *testing.T) {
-		// Edge case: first and last transactions are invalid
-		txs := [][]byte{[]byte("invalid"), []byte("valid1"), []byte("valid2"), []byte("invalid")}
-		expected := [][]byte{[]byte("valid1"), []byte("valid2")}
-		result := extTxSelector.SelectTxForProposalFast(ctx, txs)
-		require.Equal(t, expected, result)
+	t.Run("validate receives original memTx", func(t *testing.T) {
+		origTx := &stubTx{}
+		var capturedValidateTx sdk.Tx
+		captureValidate := func(tx sdk.Tx, _ []byte) error {
+			capturedValidateTx = tx
+			return nil
+		}
+
+		parent := &stubTxSelector{parentReturn: true}
+		ext := NewExtTxSelector(parent, txDecoder, captureValidate)
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, origTx, []byte("valid"))
+
+		require.True(t, ok)
+		require.Same(t, origTx, capturedValidateTx, "ValidateTx must receive the original memTx")
+		require.Same(t, origTx, parent.lastMemTx.(*stubTx), "parent must also receive the original memTx")
 	})
 }

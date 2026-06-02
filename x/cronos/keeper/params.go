@@ -3,7 +3,7 @@ package keeper
 import (
 	"strings"
 
-	transferTypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+	transferTypes "github.com/cosmos/ibc-go/v11/modules/apps/transfer/types"
 	"github.com/crypto-org-chain/cronos/x/cronos/types"
 	evmTypes "github.com/evmos/ethermint/x/evm/types"
 
