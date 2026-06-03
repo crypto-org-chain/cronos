@@ -9,6 +9,7 @@ import (
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
@@ -17,6 +18,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
+
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 )
 
 type BlockList struct {
@@ -124,6 +127,88 @@ func fastNoOpPrepareProposal(
 			selected = append(selected, txBz)
 			totalBytes = nextBytes
 		}
+		return &abci.ResponsePrepareProposal{Txs: selected}, nil
+	}
+}
+
+// fastPrepareProposalAppMempool returns a PrepareProposal handler for the
+// mempool.type=app path. Iterates the SDK priority mempool directly, reads
+// raw tx bytes from encCache (populated by InsertTxHandler), applies the
+// blocklist filter, and respects MaxTxBytes / consensus MaxGas.
+//
+// Skips baseapp.PrepareProposalVerifyTx (which re-encodes + re-runs the full
+// AnteHandler per tx). InsertTxHandler already ran ante via RunTx(ExecModeCheck)
+// at admission, so the SDK mempool only contains txs that have passed ante for
+// the current state. The PrepareProposalVerifyTx defense is redundant for
+// cronos and dominates step_propose latency at high throughput.
+//
+// encCache MUST be non-nil; when it is nil the caller should wire the slower
+// `defaultHandler` path which still performs PrepareProposalVerifyTx. txEncoder
+// is the fallback for txs whose decoded pointer is not registered in the cache
+// (eviction race after Reap; expected to be rare).
+func fastPrepareProposalAppMempool(
+	mp mempool.Mempool,
+	encCache *cronosmempool.EncoderCache,
+	txEncoder sdk.TxEncoder,
+	validateTx func(sdk.Tx, []byte) error,
+) sdk.PrepareProposalHandler {
+	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		maxTxBytes := req.MaxTxBytes
+		if maxTxBytes <= 0 {
+			return &abci.ResponsePrepareProposal{}, nil
+		}
+
+		var maxBlockGas uint64
+		if b := ctx.ConsensusParams().Block; b != nil && b.MaxGas > 0 {
+			maxBlockGas = uint64(b.MaxGas)
+		}
+
+		var (
+			selected   [][]byte
+			totalBytes int64
+			totalGas   uint64
+			stop       bool
+		)
+		mempool.SelectBy(ctx, mp, nil, func(memTx sdk.Tx) bool {
+			bz, ok := encCache.Bytes(memTx)
+			if !ok {
+				var err error
+				bz, err = txEncoder(memTx)
+				if err != nil {
+					// skip and continue iteration
+					return true
+				}
+			}
+
+			// Use the same accounting baseapp.DefaultTxSelector uses so the
+			// resulting block respects cometbft's MaxBytes wire limit, not
+			// just the raw payload sum.
+			txSize := cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{bz})
+			if totalBytes+txSize > maxTxBytes {
+				stop = true
+				return false
+			}
+
+			if err := validateTx(memTx, bz); err != nil {
+				return true
+			}
+
+			if maxBlockGas > 0 {
+				if feeTx, ok := memTx.(sdk.FeeTx); ok {
+					gasWanted := feeTx.GetGas()
+					if totalGas+gasWanted > maxBlockGas {
+						stop = true
+						return false
+					}
+					totalGas += gasWanted
+				}
+			}
+
+			selected = append(selected, bz)
+			totalBytes += txSize
+			return true
+		})
+		_ = stop
 		return &abci.ResponsePrepareProposal{Txs: selected}, nil
 	}
 }

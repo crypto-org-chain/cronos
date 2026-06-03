@@ -13,6 +13,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
+
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 )
 
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
@@ -275,5 +277,165 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
+	})
+}
+
+// fakeIterator is a minimal mempool.Iterator over a fixed slice.
+type fakeIterator struct {
+	txs []sdk.Tx
+}
+
+func (f *fakeIterator) Next() mempool.Iterator {
+	if len(f.txs) <= 1 {
+		return nil
+	}
+	return &fakeIterator{txs: f.txs[1:]}
+}
+
+func (f *fakeIterator) Tx() sdk.Tx { return f.txs[0] }
+
+// fakeMempool satisfies mempool.Mempool with a fixed list of txs. It does NOT
+// implement ExtMempool, so mempool.SelectBy falls back to the Select iterator
+// path — exactly the path fastPrepareProposalAppMempool exercises.
+type fakeMempool struct {
+	txs []sdk.Tx
+}
+
+func (m *fakeMempool) Insert(context.Context, sdk.Tx) error { return nil }
+func (m *fakeMempool) Select(_ context.Context, _ [][]byte) mempool.Iterator {
+	if len(m.txs) == 0 {
+		return nil
+	}
+	return &fakeIterator{txs: m.txs}
+}
+func (m *fakeMempool) CountTx() int        { return len(m.txs) }
+func (m *fakeMempool) Remove(sdk.Tx) error { return nil }
+
+func TestFastPrepareProposalAppMempool(t *testing.T) {
+	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
+	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
+		if string(txBz) == "invalid" {
+			return errors.New("invalid tx")
+		}
+		return nil
+	}
+	mustNotEncode := func(_ sdk.Tx) ([]byte, error) {
+		t.Helper()
+		t.Fatal("txEncoder must not be called when encCache hits")
+		return nil, nil
+	}
+
+	t.Run("encCache hit emits raw bytes without encoder", func(t *testing.T) {
+		tx1, tx2 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(tx1, []byte("raw-1"))
+		enc.Register(tx2, []byte("raw-2"))
+
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
+	})
+
+	t.Run("encoder fallback when encCache miss", func(t *testing.T) {
+		tx := &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{tx}}
+		enc := new(cronosmempool.EncoderCache) // empty — forces fallback
+
+		var encCalls int
+		fallback := func(_ sdk.Tx) ([]byte, error) {
+			encCalls++
+			return []byte("encoded"), nil
+		}
+
+		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, 1, encCalls)
+		require.Equal(t, [][]byte{[]byte("encoded")}, got.Txs)
+	})
+
+	t.Run("encoder error skips tx, continues iteration", func(t *testing.T) {
+		txBad, txGood := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{txBad, txGood}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(txGood, []byte("good"))
+
+		fallback := func(tx sdk.Tx) ([]byte, error) {
+			if tx == txBad {
+				return nil, errors.New("encode err")
+			}
+			t.Fatal("encoder must not be called for cached tx")
+			return nil, nil
+		}
+
+		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("good")}, got.Txs)
+	})
+
+	t.Run("validateTx reject skips tx, continues iteration", func(t *testing.T) {
+		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(tx1, []byte("ok-1"))
+		enc.Register(tx2, []byte("invalid"))
+		enc.Register(tx3, []byte("ok-2"))
+
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
+	})
+
+	t.Run("MaxTxBytes cap stops iteration at boundary", func(t *testing.T) {
+		// Each "raw-X" is 5 bytes. ComputeProtoSizeForTxs computes the size of
+		// a proto-encoded Block.Data.Txs entry: field tag (1) + length varint
+		// (1) + data (5) = 7 bytes per tx. Budget = 18 → two fit (14), third
+		// (21) exceeds.
+		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(tx1, []byte("raw-1"))
+		enc.Register(tx2, []byte("raw-2"))
+		enc.Register(tx3, []byte("raw-3"))
+
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 18})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
+	})
+
+	t.Run("MaxBlockGas cap stops iteration when gas exceeded", func(t *testing.T) {
+		tx1 := &gasOnlyTx{gas: 60_000}
+		tx2 := &gasOnlyTx{gas: 60_000} // 60k+60k > 100k cap → reject + stop
+		tx3 := &gasOnlyTx{gas: 1}      // never reached
+		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(tx1, []byte("a"))
+		enc.Register(tx2, []byte("b"))
+		enc.Register(tx3, []byte("c"))
+
+		ctx := sdk.Context{}.WithConsensusParams(cmtproto.ConsensusParams{
+			Block: &cmtproto.BlockParams{MaxBytes: 1 << 20, MaxGas: 100_000},
+		})
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		got, err := h(ctx, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("a")}, got.Txs)
+	})
+
+	t.Run("MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {
+		tx := &gasOnlyTx{gas: 1}
+		mp := &fakeMempool{txs: []sdk.Tx{tx}}
+		enc := new(cronosmempool.EncoderCache)
+		enc.Register(tx, []byte("a"))
+
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 0})
+		require.NoError(t, err)
+		require.Empty(t, got.Txs)
 	})
 }

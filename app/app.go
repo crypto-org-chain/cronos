@@ -449,12 +449,43 @@ func New(
 			blockProposalHandler.ValidateTransaction,
 		))
 
-		app.SetPrepareProposal(fastNoOpPrepareProposal(
-			mpool,
-			defaultProposalHandler.PrepareProposalHandler(),
-			activeDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
+		// Shared encoder cache: InsertTxHandler registers rawBytes keyed by
+		// decoded-tx pointer; ReapTxsHandler and the fast PrepareProposal
+		// handler read it to skip proto.Marshal. Only wired when the decode
+		// cache is enabled (decodeCacheSize > 0) because we rely on the
+		// caching decoder returning the same pointer that mempool.Insert
+		// stores. Built before SetPrepareProposal so the handler can read it.
+		var encCache *cronosmempool.EncoderCache
+		var txGet cronosmempool.TxGetter
+		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
+			if _, isNoOp := mpool.(mempool.NoOpMempool); !isNoOp {
+				encCache = new(cronosmempool.EncoderCache)
+				dec := activeDecoder
+				txGet = func(bz []byte) (sdk.Tx, bool) {
+					tx, err := dec(bz)
+					return tx, err == nil
+				}
+			}
+		}
+
+		if encCache != nil {
+			// mempool.type=app fast path: skip baseapp.PrepareProposalVerifyTx
+			// (re-encode + ante re-run). InsertTxHandler already ran ante at
+			// admission, and encCache holds the raw bytes.
+			app.SetPrepareProposal(fastPrepareProposalAppMempool(
+				mpool,
+				encCache,
+				txConfig.TxEncoder(),
+				blockProposalHandler.ValidateTransaction,
+			))
+		} else {
+			app.SetPrepareProposal(fastNoOpPrepareProposal(
+				mpool,
+				defaultProposalHandler.PrepareProposalHandler(),
+				activeDecoder,
+				blockProposalHandler.ValidateTransaction,
+			))
+		}
 
 		// The default process proposal handler do nothing when the mempool is noop,
 		// so we just implement a new one.
@@ -470,22 +501,6 @@ func New(
 				panic("mempool.type=app requires mempool.max-txs >= 0 and mempool.fee-bump >= 0 (currently using NoOpMempool; ReapTxsHandler would produce empty blocks)")
 			}
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
-
-			// Shared encoder cache: InsertTxHandler registers rawBytes keyed by
-			// decoded-tx pointer; ReapTxsHandler reads it to skip proto.Marshal.
-			// Only wired when the decode cache is enabled (decodeCacheSize > 0)
-			// because we rely on the caching decoder returning the same pointer
-			// that mempool.Insert stores.
-			var encCache *cronosmempool.EncoderCache
-			var txGet cronosmempool.TxGetter
-			if decodeCacheSize > 0 {
-				encCache = new(cronosmempool.EncoderCache)
-				dec := activeDecoder
-				txGet = func(bz []byte) (sdk.Tx, bool) {
-					tx, err := dec(bz)
-					return tx, err == nil
-				}
-			}
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
 			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
