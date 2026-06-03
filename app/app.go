@@ -504,8 +504,10 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
 			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
-			if insertTxCacheSize <= 0 {
+			if insertTxCacheSize == 0 {
 				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
+			} else if insertTxCacheSize < 0 {
+				insertTxCacheSize = 0 // negative → disable seen-cache
 			}
 			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize, txGet, encCache, txConfig.TxEncoder()))
 		case "", "flood":
