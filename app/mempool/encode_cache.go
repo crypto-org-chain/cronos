@@ -12,7 +12,7 @@ import (
 // registered in the EncoderCache.
 type TxGetter func(bz []byte) (sdk.Tx, bool)
 
-// EncoderCache maps decoded-tx pointers to their original raw bytes.
+// EncoderCache maps decoded-tx pointers to their canonical proto bytes.
 // InsertTxHandler registers entries; ReapTxsHandler reads them to skip
 // proto.Marshal on the hot reap path.
 //
@@ -39,27 +39,32 @@ type TxGetter func(bz []byte) (sdk.Tx, bool)
 // causing the proposal to be rejected before commit. No safety violation
 // occurs; only a liveness hiccup for that proposer round.
 //
-// Non-canonical bytes: the stored bytes are the raw gossip bytes as received
-// by InsertTxHandler (req.Tx). A sender can submit a tx with non-minimal proto
-// encoding (e.g. extra unknown fields, non-minimal varints). These bytes are
-// used verbatim in proposals. All validating nodes receive and commit the same
-// raw bytes, so there is no immediate block-level mismatch. However, any
-// replay or re-execution path that decodes then re-encodes the tx (e.g.
-// debug_traceTransaction, state-sync, upgrade migration) may produce different
-// bytes, which would cause an AppHash divergence. Operators should ensure
-// tx bytes are canonical at the RPC ingress layer if this is a concern.
+// Canonical bytes: InsertTxHandler re-encodes the decoded tx with the app's
+// TxEncoder and registers those canonical proto bytes here. A peer that
+// gossips a tx with non-minimal proto encoding (extra unknown fields,
+// non-minimal varints) therefore cannot have its raw bytes land verbatim in a
+// proposal — every node decodes-then-re-encodes to the same canonical form, so
+// replay/re-execution paths (debug_traceTransaction, state-sync, upgrade
+// migration) reproduce identical bytes and no AppHash divergence arises from
+// the encoding. The sole exception is the fallback in InsertTxHandler: if
+// re-encoding errors, the raw req.Tx bytes are registered so reap can still
+// ship the tx. Those bytes are non-canonical and, if non-minimal, carry the
+// divergence risk on decode-re-encode paths — but a tx that already passed the
+// AnteHandler is not expected to fail re-encoding, so the fallback is
+// effectively unreachable in practice.
 type EncoderCache struct {
 	m sync.Map // key: uintptr (tx pointer), value: []byte
 }
 
-// Register stores the raw bytes for a decoded tx. Safe to call concurrently.
+// Register stores the canonical proto bytes for a decoded tx (raw req.Tx
+// bytes on the encoder-error fallback). Safe to call concurrently.
 func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
 	if ptr := txPointer(tx); ptr != 0 {
 		e.m.Store(ptr, bz)
 	}
 }
 
-// Bytes returns the raw bytes for tx if they were previously registered.
+// Bytes returns the registered bytes for tx if they were previously stored.
 // Safe to call on a nil *EncoderCache — returns (nil, false).
 func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
 	if e == nil {
@@ -81,7 +86,7 @@ func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
 // value types.
 func txPointer(tx sdk.Tx) uintptr {
 	v := reflect.ValueOf(tx)
-	if v.Kind() == reflect.Ptr && !v.IsNil() {
+	if v.Kind() == reflect.Pointer && !v.IsNil() {
 		return v.Pointer()
 	}
 	return 0
