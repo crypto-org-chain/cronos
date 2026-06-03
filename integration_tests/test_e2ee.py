@@ -256,9 +256,7 @@ def test_block_list_unblockable(cronos):
 
     # one of the hardcoded unblockable addresses; eth_to_bech32 is how it would
     # be expressed when submitted in a blocklist
-    unblockable_eth = to_checksum_address(
-        "0x007F588ca3FFe53F20cb03553Ca38bb13542FF89"
-    )
+    unblockable_eth = to_checksum_address("0x007F588ca3FFe53F20cb03553Ca38bb13542FF89")
     unblockable = eth_to_bech32(unblockable_eth)
 
     # control: a normal address that must stay blocked as a destination
@@ -284,9 +282,7 @@ def test_block_list_unblockable(cronos):
     # 2) a tx whose destination is the unblockable address IS included, even
     #    though that address is present in the submitted blocklist -> it was
     #    filtered out, and the filtering is selective (the control stays blocked).
-    receipt = send_transaction(
-        w3, {"to": unblockable_eth, "value": 1}, KEYS["signer2"]
-    )
+    receipt = send_transaction(w3, {"to": unblockable_eth, "value": 1}, KEYS["signer2"])
     assert receipt.status == 1
 
     # the control tx is still stuck: its sender nonce has not advanced
