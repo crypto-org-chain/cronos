@@ -27,9 +27,13 @@ const TypeApp = "app"
 // tx early in the snapshot can leave budget headroom unused even if
 // smaller txs further down would fit.
 //
+// If encCache is non-nil, it is consulted before calling txEncoder so
+// that txs inserted via InsertTxHandler skip proto.Marshal entirely on
+// the reap hot path.
+//
 // Encoder errors are logged but do not abort the reap; the offending tx
 // is skipped so the rest of the snapshot can still ship.
-func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, logger log.Logger) sdk.ReapTxsHandler {
+func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, logger log.Logger) sdk.ReapTxsHandler {
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
 		// Pre-size the snapshot to the current pool count to avoid
 		// repeated slice growth under the pool lock.
@@ -45,10 +49,17 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, logger lo
 			totalGas   uint64
 		)
 		for _, tx := range snapshot {
-			bz, err := txEncoder(tx)
-			if err != nil {
-				logger.Error("reap encode failed; skipping tx", "err", err)
-				continue
+			var bz []byte
+			if encCache != nil {
+				bz, _ = encCache.Bytes(tx)
+			}
+			if bz == nil {
+				var err error
+				bz, err = txEncoder(tx)
+				if err != nil {
+					logger.Error("reap encode failed; skipping tx", "err", err)
+					continue
+				}
 			}
 			size := uint64(len(bz))
 			if req.MaxBytes > 0 && totalBytes+size > req.MaxBytes {

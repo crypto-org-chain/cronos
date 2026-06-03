@@ -470,12 +470,29 @@ func New(
 				panic("mempool.type=app requires mempool.max-txs >= 0 and mempool.fee-bump >= 0 (currently using NoOpMempool; ReapTxsHandler would produce empty blocks)")
 			}
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
-			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), logger.With("module", "app-mempool")))
+
+			// Shared encoder cache: InsertTxHandler registers rawBytes keyed by
+			// decoded-tx pointer; ReapTxsHandler reads it to skip proto.Marshal.
+			// Only wired when the decode cache is enabled (decodeCacheSize > 0)
+			// because we rely on the caching decoder returning the same pointer
+			// that mempool.Insert stores.
+			var encCache *cronosmempool.EncoderCache
+			var txGet cronosmempool.TxGetter
+			if decodeCacheSize > 0 {
+				encCache = new(cronosmempool.EncoderCache)
+				dec := activeDecoder
+				txGet = func(bz []byte) (sdk.Tx, bool) {
+					tx, err := dec(bz)
+					return tx, err == nil
+				}
+			}
+
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
 			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
-			if insertTxCacheSize <= 0 {
+			if insertTxCacheSize == 0 {
 				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
 			}
-			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize))
+			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize, txGet, encCache))
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:

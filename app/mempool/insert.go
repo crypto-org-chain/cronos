@@ -39,12 +39,16 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // not interact with mempool eviction signals; the mempool itself still
 // rejects duplicates on Insert.
 //
+// If txGet and encCache are both non-nil, InsertTxHandler will register the
+// raw bytes for each successfully-admitted tx in encCache so that
+// ReapTxsHandler can skip proto.Marshal on the reap hot path.
+//
 // Must be registered with BaseApp.SetInsertTxHandler before Seal.
-func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int) sdk.InsertTxHandler {
-	return newInsertTxHandler(app, cacheSize)
+func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int, txGet TxGetter, encCache *EncoderCache) sdk.InsertTxHandler {
+	return newInsertTxHandler(app, cacheSize, txGet, encCache)
 }
 
-func newInsertTxHandler(runner txRunner, cacheSize int) sdk.InsertTxHandler {
+func newInsertTxHandler(runner txRunner, cacheSize int, txGet TxGetter, encCache *EncoderCache) sdk.InsertTxHandler {
 	var cache *insertSeenCache
 	if cacheSize > 0 {
 		cache = newInsertSeenCache(cacheSize)
@@ -70,6 +74,17 @@ func newInsertTxHandler(runner txRunner, cacheSize int) sdk.InsertTxHandler {
 		if cache != nil {
 			cache.Add(hash)
 		}
+
+		// Register raw bytes in the encoder cache so ReapTxsHandler can
+		// skip proto.Marshal. The decode cache populated by RunTx holds
+		// the same pointer that was inserted into the mempool, so the
+		// lookup here is a fast cache hit.
+		if txGet != nil && encCache != nil {
+			if tx, ok := txGet(req.Tx); ok {
+				encCache.Register(tx, req.Tx)
+			}
+		}
+
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
 }

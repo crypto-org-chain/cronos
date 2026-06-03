@@ -35,7 +35,7 @@ func (s *stubRunner) LastBlockHeight() int64 {
 
 func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 0)
+	h := newInsertTxHandler(runner, 0, nil, nil)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("good-tx")})
 	if err != nil {
@@ -52,7 +52,7 @@ func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
 func TestInsertTxHandler_RejectsInvalidTx(t *testing.T) {
 	anteErr := errorsmod.Register("test", 1, "bad sig")
 	runner := &stubRunner{runTx: func(_ []byte) error { return anteErr }}
-	h := newInsertTxHandler(runner, 0)
+	h := newInsertTxHandler(runner, 0, nil, nil)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("bad-tx")})
 	if err != nil {
@@ -67,7 +67,7 @@ func TestInsertTxHandler_RetryOnMempoolFull(t *testing.T) {
 	runner := &stubRunner{runTx: func(_ []byte) error {
 		return sdkmempool.ErrMempoolTxMaxCapacity
 	}}
-	h := newInsertTxHandler(runner, 0)
+	h := newInsertTxHandler(runner, 0, nil, nil)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("any-tx")})
 	if err != nil {
@@ -80,7 +80,7 @@ func TestInsertTxHandler_RetryOnMempoolFull(t *testing.T) {
 
 func TestInsertTxHandler_SeenCacheDeduplicates(t *testing.T) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 16)
+	h := newInsertTxHandler(runner, 16, nil, nil)
 
 	tx := []byte("dup-tx")
 	for i := range 3 {
@@ -100,7 +100,7 @@ func TestInsertTxHandler_SeenCacheDeduplicates(t *testing.T) {
 
 func TestInsertTxHandler_SeenCacheDisabledWhenZero(t *testing.T) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 0)
+	h := newInsertTxHandler(runner, 0, nil, nil)
 
 	tx := []byte("dup-tx")
 	for range 3 {
@@ -115,7 +115,7 @@ func TestInsertTxHandler_ExecModeIsCheck(t *testing.T) {
 	var capturedMode sdk.ExecMode
 	var captureRunner captureExecModeRunner
 	captureRunner.mode = &capturedMode
-	h := newInsertTxHandler(&captureRunner, 0)
+	h := newInsertTxHandler(&captureRunner, 0, nil, nil)
 
 	h(&abci.RequestInsertTx{Tx: []byte("tx")}) //nolint:errcheck
 
@@ -138,7 +138,7 @@ func (r *captureExecModeRunner) LastBlockHeight() int64 { return 0 }
 func TestInsertTxHandler_SeenCacheRingWrap(t *testing.T) {
 	const size = 4
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, size)
+	h := newInsertTxHandler(runner, size, nil, nil)
 
 	// Fill the ring with 4 distinct txs.
 	for i := range size {
@@ -165,7 +165,7 @@ func TestInsertTxHandler_RetryOnWrappedMempoolFull(t *testing.T) {
 	runner := &stubRunner{runTx: func(_ []byte) error {
 		return errors.Join(errors.New("outer"), sdkmempool.ErrMempoolTxMaxCapacity)
 	}}
-	h := newInsertTxHandler(runner, 0)
+	h := newInsertTxHandler(runner, 0, nil, nil)
 
 	resp, _ := h(&abci.RequestInsertTx{Tx: []byte("tx")})
 	if resp.Code != abci.CodeTypeRetry {
@@ -181,7 +181,7 @@ func TestInsertTxHandler_RetryOnWrappedMempoolFull(t *testing.T) {
 func TestInsertTxHandler_SeenCacheClearsOnHeightAdvance(t *testing.T) {
 	runner := &stubRunner{}
 	runner.height.Store(10)
-	h := newInsertTxHandler(runner, 16)
+	h := newInsertTxHandler(runner, 16, nil, nil)
 
 	tx := []byte("repeat-across-blocks")
 
@@ -218,7 +218,7 @@ func TestInsertTxHandler_SeenCacheClearsOnHeightAdvance(t *testing.T) {
 // returns immediately after SHA256 + mutex check.
 func BenchmarkInsertTxHandler_CacheHit(b *testing.B) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize)
+	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize, nil, nil)
 	tx := []byte("repeated-tx-bytes-for-benchmark")
 	// prime cache
 	h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
@@ -235,7 +235,7 @@ func BenchmarkInsertTxHandler_CacheHit(b *testing.B) {
 // iteration, triggers RunTx every call (stubbed to ~0ns to isolate handler overhead).
 func BenchmarkInsertTxHandler_CacheMiss(b *testing.B) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize)
+	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize, nil, nil)
 
 	b.ResetTimer()
 	b.ReportAllocs()

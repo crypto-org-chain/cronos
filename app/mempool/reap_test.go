@@ -92,7 +92,7 @@ func newPool(n int, gasPerTx uint64, sizePerTx int) *stubMempool {
 
 func TestReapTxs_GasCap(t *testing.T) {
 	pool := newPool(10_000, 50_000, 200) // 10K txs, 50K gas each
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, log.NewNopLogger())
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 80_000_000})
 	if err != nil {
@@ -106,7 +106,7 @@ func TestReapTxs_GasCap(t *testing.T) {
 
 func TestReapTxs_BytesCap(t *testing.T) {
 	pool := newPool(1_000, 50_000, 1_024) // 1024B per tx
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, log.NewNopLogger())
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 100 * 1_024, MaxGas: 0})
 	if err != nil {
@@ -119,7 +119,7 @@ func TestReapTxs_BytesCap(t *testing.T) {
 
 func TestReapTxs_NoCapReturnsAll(t *testing.T) {
 	pool := newPool(50, 1, 8)
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, log.NewNopLogger())
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
@@ -132,7 +132,7 @@ func TestReapTxs_NoCapReturnsAll(t *testing.T) {
 
 func TestReapTxs_EmptyPool(t *testing.T) {
 	pool := &stubMempool{}
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, log.NewNopLogger())
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
@@ -146,7 +146,7 @@ func TestReapTxs_EmptyPool(t *testing.T) {
 func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 	// one tx requiring more gas than the cap -> cap wins, return empty
 	pool := newPool(1, 100_000, 8)
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, log.NewNopLogger())
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 50_000})
 	if err != nil {
@@ -200,7 +200,7 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 		}
 	}
 
-	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, log.NewNopLogger())
+	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
 	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("reap: %v", err)
@@ -223,7 +223,7 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 		SignerExtractor: fixedSignerExtractor{},
 		MaxTx:           100,
 	})
-	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, log.NewNopLogger())
+	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
 
 	priorities := []int64{10, 100, 50, 200, 5}
 	for i, p := range priorities {
@@ -263,7 +263,7 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 
 	const writers = 4
 	const txsPerWriter = 500
-	handler := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, log.NewNopLogger())
+	handler := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
 	insertCtx := sdk.Context{}.WithPriority(0)
 
 	var wg sync.WaitGroup
