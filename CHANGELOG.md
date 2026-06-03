@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+
+* [#XXXX](https://github.com/crypto-org-chain/cronos/pull/XXXX) feat: add hardcoded unblockable address list that is filtered out of both the mempool and consensus blocklists.
+
 ## v1.7.5
 
 ### Improvements

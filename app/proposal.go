@@ -131,6 +131,9 @@ func (h *ProposalHandler) SetBlockList(blob []byte) error {
 		if err != nil {
 			return fmt.Errorf("invalid bech32 address: %s, err: %w", s, err)
 		}
+		if IsUnblockable(addr) {
+			continue
+		}
 		encoded, err := h.addressCodec.BytesToString(addr)
 		if err != nil {
 			return fmt.Errorf("invalid bech32 address: %s, err: %w", s, err)
