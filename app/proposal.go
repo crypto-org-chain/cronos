@@ -114,7 +114,11 @@ func fastNoOpPrepareProposal(
 			if maxBlockGas > 0 {
 				if feeTx, ok := tx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
-					if totalGas+gasWanted > maxBlockGas {
+					// Overflow-safe: gasWanted is attacker-controlled and can be
+					// near math.MaxUint64, so totalGas+gasWanted could wrap past
+					// the cap. totalGas <= maxBlockGas holds by induction, so
+					// maxBlockGas-totalGas never underflows.
+					if gasWanted > maxBlockGas-totalGas {
 						break
 					}
 					totalGas += gasWanted
@@ -199,7 +203,8 @@ func fastPrepareProposalAppMempool(
 			if maxBlockGas > 0 {
 				if feeTx, ok := memTx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
-					if totalGas+gasWanted > maxBlockGas {
+					// Overflow-safe: see fastNoOpPrepareProposal.
+					if gasWanted > maxBlockGas-totalGas {
 						return false
 					}
 					totalGas += gasWanted

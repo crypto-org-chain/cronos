@@ -30,14 +30,21 @@ type TxGetter func(bz []byte) (sdk.Tx, bool)
 // sync.Map entries when sizing node memory.
 //
 // GC pointer reuse edge case: if a tx is evicted, its object is collected by
-// the GC, and a new tx is allocated at the same address before
-// InsertTxHandler calls Register, Bytes() will return the evicted tx's bytes
-// as a false hit. The window is the few lines between RunTx and Register in
-// InsertTxHandler — very narrow and not practically exploitable. In the worst
-// case (a blocklisted tx's bytes slip into a proposal), ProcessProposalHandler
-// on every validating node decodes from the raw bytes and re-checks signers,
-// causing the proposal to be rejected before commit. No safety violation
-// occurs; only a liveness hiccup for that proposer round.
+// the GC, and a new tx is allocated at the same address before InsertTxHandler
+// calls Register, Bytes() returns the evicted tx's bytes as a false hit. The
+// window is the few lines between RunTx and Register in InsertTxHandler — very
+// narrow. The false-hit bytes are always those of a previously-admitted,
+// ante-valid tx (only successfully-admitted txs are Registered), so they are
+// well-formed and decodable — a stale hit cannot inject malformed or
+// unauthorized bytes. If such stale bytes land in a proposal, every validating
+// node still agrees on the identical block bytes (BFT consensus is over the
+// byte sequence) and runs FinalizeBlock on them deterministically, so no
+// AppHash divergence occurs. The stale tx (e.g. a consumed nonce) merely fails
+// at execution and wastes its slot — a liveness/efficiency hiccup, not a safety
+// violation. This guarantee does NOT depend on ProcessProposal re-validating
+// the bytes: ProcessProposalHandler short-circuits to ACCEPT when no blocklist
+// is configured (the default), so safety rests on deterministic execution of
+// the agreed-upon bytes, not on a proposal-time recheck.
 //
 // Canonical bytes: InsertTxHandler re-encodes the decoded tx with the app's
 // TxEncoder and registers those canonical proto bytes here. A peer that

@@ -39,6 +39,21 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // not interact with mempool eviction signals; the mempool itself still
 // rejects duplicates on Insert.
 //
+// The cache keys on the raw wire bytes (SHA256(req.Tx)) by design: it only
+// skips work for byte-identical re-delivery. A peer that re-encodes the same
+// logical tx with non-minimal proto bytes produces a distinct key and is
+// validated through the full AnteHandler exactly once — so non-minimal
+// re-encoding cannot bypass any check, it only forfeits a cache hit. Canonical
+// keying would require decoding before the cache lookup, defeating the purpose
+// (skipping decode+ante) for no security gain.
+//
+// DoS note: every gossiped tx not already in the seen-cache costs one
+// RunTx(ExecModeCheck), i.e. a full signature verification (secp256k1
+// ecrecover). The seen-cache and mempool capacity bound repeat work, but a
+// flood of distinct well-formed txs is bounded only by the p2p layer; operators
+// should rely on CometBFT peer limits / rate limiting, not this handler, for
+// gossip-flood protection.
+//
 // If encCache is non-nil, InsertTxHandler registers the canonical bytes for
 // each successfully-admitted tx so that ReapTxsHandler can skip proto.Marshal
 // on the reap hot path. txGet and txEncoder must both be non-nil when encCache
