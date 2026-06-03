@@ -1,9 +1,9 @@
 package app
 
 import (
-	"bytes"
 	"container/list"
 	cryptorand "crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"sync"
 
@@ -44,7 +44,7 @@ const (
 
 type lruItem struct {
 	h   uint64
-	key []byte
+	key [32]byte // SHA256 of raw tx bytes; disambiguates xxhash collisions
 	tx  sdk.Tx
 }
 
@@ -72,7 +72,7 @@ func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 		return nil, false
 	}
 	item := el.Value.(*lruItem)
-	if !bytes.Equal(item.key, bz) {
+	if item.key != sha256.Sum256(bz) {
 		return nil, false
 	}
 	s.lru.MoveToFront(el)
@@ -83,9 +83,10 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	fp := sha256.Sum256(bz)
 	if el, ok := s.items[h]; ok {
 		item := el.Value.(*lruItem)
-		if bytes.Equal(item.key, bz) {
+		if item.key == fp {
 			// Identical bytes already cached; promote to MRU.
 			s.lru.MoveToFront(el)
 			return
@@ -100,7 +101,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 		delete(s.items, back.Value.(*lruItem).h)
 		s.lru.Remove(back)
 	}
-	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: bytes.Clone(bz), tx: tx})
+	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: fp, tx: tx})
 }
 
 // decodeCache memoises decoded transactions. It is sharded for low lock
