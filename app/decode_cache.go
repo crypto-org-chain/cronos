@@ -3,7 +3,6 @@ package app
 import (
 	"container/list"
 	cryptorand "crypto/rand"
-	"crypto/sha256"
 	"encoding/binary"
 	"sync"
 
@@ -23,28 +22,31 @@ var xxhashSeed = func() uint64 {
 	return binary.LittleEndian.Uint64(b[:])
 }()
 
-const (
-	// maxCachedTxBytes commentary applies to the default value (cmdcfg.DefaultTxDecodeCacheMaxTxBytes).
-	// The raw-byte footprint ceiling is cache_size × max_tx_bytes (~640 MiB at
-	// defaults). The actual RSS impact is higher because each cached entry is a
-	// fully-decoded sdk.Tx (proto messages, interface values, slices) which
-	// typically occupies several times the raw bytes. Txs above max_tx_bytes are
-	// decoded normally but not cached, preventing an adversary submitting
-	// MaxTxBytes-sized txs from exhausting RAM via the cache.
-	// at defaults), but the cached value is a fully-decoded sdk.Tx whose
-	// heap footprint (proto messages, slices, interface values) is several
-	// times the raw bytes. Operators sizing memory should not rely on this
-	// constant as a hard upper bound on RSS impact. Txs above the threshold
-	// are decoded normally but not cached, preventing an adversary submitting
-	// MaxTxBytes-sized txs from exhausting RAM via the cache. Tunable via
-	// cronos.tx-decode-cache-max-tx-bytes; should not exceed mempool.max-tx-bytes.
+// xxhashSeed2 is a second independent seed used as the collision-disambiguation
+// key in lruItem. Using a fast secondary hash avoids the bytes.Clone allocation
+// of the old approach while being far cheaper than SHA256 on the get hot path.
+var xxhashSeed2 = func() uint64 {
+	var b [8]byte
+	if _, err := cryptorand.Read(b[:]); err != nil {
+		panic(err)
+	}
+	return binary.LittleEndian.Uint64(b[:])
+}()
 
+const (
+	// Txs larger than DefaultTxDecodeCacheMaxTxBytes are decoded normally but
+	// not cached, preventing an adversary from exhausting RAM by submitting
+	// max-size txs. The cached value is a fully-decoded sdk.Tx whose heap
+	// footprint (proto messages, slices, interface values) is several times the
+	// raw bytes; operators sizing memory should not rely on the max-tx-bytes
+	// value as a hard RSS bound. Tunable via cronos.tx-decode-cache-max-tx-bytes;
+	// should not exceed mempool.max-tx-bytes.
 	shardCount = 16
 )
 
 type lruItem struct {
 	h   uint64
-	key [32]byte // SHA256 of raw tx bytes; disambiguates xxhash collisions
+	key uint64 // xxhash(bz)^xxhashSeed2; disambiguates primary xxhash collisions
 	tx  sdk.Tx
 }
 
@@ -72,7 +74,7 @@ func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 		return nil, false
 	}
 	item := el.Value.(*lruItem)
-	if item.key != sha256.Sum256(bz) {
+	if item.key != xxhash.Sum64(bz)^xxhashSeed2 {
 		return nil, false
 	}
 	s.lru.MoveToFront(el)
@@ -83,7 +85,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	fp := sha256.Sum256(bz)
+	fp := xxhash.Sum64(bz) ^ xxhashSeed2
 	if el, ok := s.items[h]; ok {
 		item := el.Value.(*lruItem)
 		if item.key == fp {

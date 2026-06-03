@@ -25,6 +25,16 @@ type TxGetter func(bz []byte) (sdk.Tx, bool)
 // which point InsertTxHandler overwrites with fresh bytes. Memory is bounded
 // by the number of live unique txs (≤ mempool.max-txs) plus a short-lived
 // tail of recently-reaped entries awaiting GC.
+//
+// Non-canonical bytes: the stored bytes are the raw gossip bytes as received
+// by InsertTxHandler (req.Tx). A sender can submit a tx with non-minimal proto
+// encoding (e.g. extra unknown fields, non-minimal varints). These bytes are
+// used verbatim in proposals. All validating nodes receive and commit the same
+// raw bytes, so there is no immediate block-level mismatch. However, any
+// replay or re-execution path that decodes then re-encodes the tx (e.g.
+// debug_traceTransaction, state-sync, upgrade migration) may produce different
+// bytes, which would cause an AppHash divergence. Operators should ensure
+// tx bytes are canonical at the RPC ingress layer if this is a concern.
 type EncoderCache struct {
 	m sync.Map // key: uintptr (tx pointer), value: []byte
 }
@@ -38,12 +48,15 @@ func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
 
 // Bytes returns the raw bytes for tx if they were previously registered.
 func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
-	if ptr := txPointer(tx); ptr != 0 {
-		if v, ok := e.m.Load(ptr); ok {
-			return v.([]byte), true
-		}
+	ptr := txPointer(tx)
+	if ptr == 0 {
+		return nil, false
 	}
-	return nil, false
+	v, ok := e.m.Load(ptr)
+	if !ok {
+		return nil, false
+	}
+	return v.([]byte), true
 }
 
 // txPointer returns the underlying pointer value of a sdk.Tx interface.

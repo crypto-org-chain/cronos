@@ -167,7 +167,6 @@ func fastPrepareProposalAppMempool(
 			selected   [][]byte
 			totalBytes int64
 			totalGas   uint64
-			stop       bool
 		)
 		mempool.SelectBy(ctx, mp, nil, func(memTx sdk.Tx) bool {
 			bz, ok := encCache.Bytes(memTx)
@@ -185,7 +184,6 @@ func fastPrepareProposalAppMempool(
 			// just the raw payload sum.
 			txSize := cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{bz})
 			if totalBytes+txSize > maxTxBytes {
-				stop = true
 				return false
 			}
 
@@ -197,7 +195,6 @@ func fastPrepareProposalAppMempool(
 				if feeTx, ok := memTx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
 					if totalGas+gasWanted > maxBlockGas {
-						stop = true
 						return false
 					}
 					totalGas += gasWanted
@@ -208,7 +205,6 @@ func fastPrepareProposalAppMempool(
 			totalBytes += txSize
 			return true
 		})
-		_ = stop
 		return &abci.ResponsePrepareProposal{Txs: selected}, nil
 	}
 }

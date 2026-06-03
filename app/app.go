@@ -504,10 +504,10 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
 			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
-			if insertTxCacheSize == 0 {
+			if insertTxCacheSize <= 0 {
 				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
 			}
-			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize, txGet, encCache))
+			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize, txGet, encCache, txConfig.TxEncoder()))
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:
