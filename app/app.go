@@ -1116,7 +1116,7 @@ func New(
 		}
 		app.SetBlockSTMTxRunner(evmapp.NewPatchedTxRunner(
 			txnrunner.NewSTMRunner(
-				app.txConfig.TxDecoder(),
+				activeDecoder,
 				app.GetStoreKeys(),
 				workers,
 				preEstimate,

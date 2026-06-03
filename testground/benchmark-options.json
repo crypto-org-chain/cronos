@@ -38,7 +38,7 @@
         "max-txs": 10000
       },
       "evm": {
-        "block-stm-pre-estimate": false,
+        "block-stm-pre-estimate": true,
         "block-executor": "block-stm"
       },
       "memiavl": {

@@ -30,7 +30,7 @@ type CronosConfig struct {
 // cmd/cronosd/config is imported by app/, and the canonical defaults must
 // be reachable from both DefaultCronosConfig() and app's New().
 const (
-	DefaultTxDecodeCacheSize       = 10000
+	DefaultTxDecodeCacheSize       = 20000
 	DefaultTxDecodeCacheMaxTxBytes = 65536
 )
 
