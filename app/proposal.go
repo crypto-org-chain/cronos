@@ -138,9 +138,14 @@ func fastNoOpPrepareProposal(
 //
 // Skips baseapp.PrepareProposalVerifyTx (which re-encodes + re-runs the full
 // AnteHandler per tx). InsertTxHandler already ran ante via RunTx(ExecModeCheck)
-// at admission, so the SDK mempool only contains txs that have passed ante for
-// the current state. The PrepareProposalVerifyTx defense is redundant for
-// cronos and dominates step_propose latency at high throughput.
+// at admission, so re-running it here is redundant for static checks (signature,
+// nonce). Caveat: baseFee-based fee validation is not re-checked at proposal
+// time — a tx whose gasPrice < baseFee (because baseFee rose since admission)
+// will be included and fail at execution, wasting block space. This is an
+// accepted tradeoff: PrepareProposalVerifyTx dominates step_propose latency at
+// high throughput, and the wasted-space risk is bounded by the mempool's
+// fee-price ordering (lower-fee txs are proposed last and thus most likely to
+// be cut by MaxTxBytes before the fee check matters).
 //
 // encCache MUST be non-nil; when it is nil the caller should wire the slower
 // `defaultHandler` path which still performs PrepareProposalVerifyTx. txEncoder

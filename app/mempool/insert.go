@@ -39,13 +39,10 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // not interact with mempool eviction signals; the mempool itself still
 // rejects duplicates on Insert.
 //
-// If txGet and encCache are both non-nil, InsertTxHandler will register the
-// canonical bytes for each successfully-admitted tx in encCache so that
-// ReapTxsHandler can skip proto.Marshal on the reap hot path. txEncoder is
-// used to re-encode the decoded tx into canonical proto bytes before
-// registering; if txEncoder is nil, the raw gossip bytes (req.Tx) are stored
-// as-is (acceptable for non-adversarial deployments but risks non-canonical
-// bytes in proposals — see EncoderCache for details).
+// If encCache is non-nil, InsertTxHandler registers the canonical bytes for
+// each successfully-admitted tx so that ReapTxsHandler can skip proto.Marshal
+// on the reap hot path. txGet and txEncoder must both be non-nil when encCache
+// is non-nil; newInsertTxHandler panics at construction otherwise.
 //
 // Must be registered with BaseApp.SetInsertTxHandler before Seal.
 func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) sdk.InsertTxHandler {
@@ -53,6 +50,14 @@ func NewInsertTxHandler(app *baseapp.BaseApp, cacheSize int, txGet TxGetter, enc
 }
 
 func newInsertTxHandler(runner txRunner, cacheSize int, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) sdk.InsertTxHandler {
+	if encCache != nil {
+		if txGet == nil {
+			panic("mempool: encCache requires txGet != nil")
+		}
+		if txEncoder == nil {
+			panic("mempool: encCache requires txEncoder != nil: nil txEncoder risks non-canonical bytes in proposals")
+		}
+	}
 	var cache *insertSeenCache
 	if cacheSize > 0 {
 		cache = newInsertSeenCache(cacheSize)
@@ -82,13 +87,11 @@ func newInsertTxHandler(runner txRunner, cacheSize int, txGet TxGetter, encCache
 		// Register canonical bytes in the encoder cache so ReapTxsHandler can
 		// skip proto.Marshal. Re-encoding from the decoded tx ensures canonical
 		// proto bytes are stored even if req.Tx arrived with non-minimal encoding.
-		if txGet != nil && encCache != nil {
+		if encCache != nil {
 			if tx, ok := txGet(req.Tx); ok {
 				bz := req.Tx
-				if txEncoder != nil {
-					if canonical, err := txEncoder(tx); err == nil {
-						bz = canonical
-					}
+				if canonical, err := txEncoder(tx); err == nil {
+					bz = canonical
 				}
 				encCache.Register(tx, bz)
 			}

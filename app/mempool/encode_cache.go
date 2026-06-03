@@ -24,7 +24,20 @@ type TxGetter func(bz []byte) (sdk.Tx, bool)
 // the mempool) are harmless — their pointers are only reused after GC, at
 // which point InsertTxHandler overwrites with fresh bytes. Memory is bounded
 // by the number of live unique txs (≤ mempool.max-txs) plus a short-lived
-// tail of recently-reaped entries awaiting GC.
+// tail of recently-reaped entries awaiting GC. Note: because entry removal
+// depends on Go GC address reuse (not explicit eviction), the map is
+// append-only under load; operators should account for up to mempool.max-txs
+// sync.Map entries when sizing node memory.
+//
+// GC pointer reuse edge case: if a tx is evicted, its object is collected by
+// the GC, and a new tx is allocated at the same address before
+// InsertTxHandler calls Register, Bytes() will return the evicted tx's bytes
+// as a false hit. The window is the few lines between RunTx and Register in
+// InsertTxHandler — very narrow and not practically exploitable. In the worst
+// case (a blocklisted tx's bytes slip into a proposal), ProcessProposalHandler
+// on every validating node decodes from the raw bytes and re-checks signers,
+// causing the proposal to be rejected before commit. No safety violation
+// occurs; only a liveness hiccup for that proposer round.
 //
 // Non-canonical bytes: the stored bytes are the raw gossip bytes as received
 // by InsertTxHandler (req.Tx). A sender can submit a tx with non-minimal proto
@@ -47,7 +60,11 @@ func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
 }
 
 // Bytes returns the raw bytes for tx if they were previously registered.
+// Safe to call on a nil *EncoderCache — returns (nil, false).
 func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
+	if e == nil {
+		return nil, false
+	}
 	ptr := txPointer(tx)
 	if ptr == 0 {
 		return nil, false

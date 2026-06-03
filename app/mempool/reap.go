@@ -49,13 +49,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			totalGas   uint64
 		)
 		for _, tx := range snapshot {
-			var (
-				bz []byte
-				ok bool
-			)
-			if encCache != nil {
-				bz, ok = encCache.Bytes(tx)
-			}
+			bz, ok := encCache.Bytes(tx)
 			if !ok {
 				var err error
 				bz, err = txEncoder(tx)
