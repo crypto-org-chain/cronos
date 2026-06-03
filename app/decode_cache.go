@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"container/list"
 	cryptorand "crypto/rand"
 	"encoding/binary"
@@ -22,17 +23,6 @@ var xxhashSeed = func() uint64 {
 	return binary.LittleEndian.Uint64(b[:])
 }()
 
-// xxhashSeed2 is a second independent seed used as the collision-disambiguation
-// key in lruItem. Using a fast secondary hash avoids the bytes.Clone allocation
-// of the old approach while being far cheaper than SHA256 on the get hot path.
-var xxhashSeed2 = func() uint64 {
-	var b [8]byte
-	if _, err := cryptorand.Read(b[:]); err != nil {
-		panic(err)
-	}
-	return binary.LittleEndian.Uint64(b[:])
-}()
-
 const (
 	// Txs larger than DefaultTxDecodeCacheMaxTxBytes are decoded normally but
 	// not cached, preventing an adversary from exhausting RAM by submitting
@@ -46,7 +36,7 @@ const (
 
 type lruItem struct {
 	h   uint64
-	key uint64 // xxhash(bz)^xxhashSeed2; disambiguates primary xxhash collisions
+	key []byte // raw tx bytes; disambiguates xxhash collisions via bytes.Equal
 	tx  sdk.Tx
 }
 
@@ -74,7 +64,7 @@ func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 		return nil, false
 	}
 	item := el.Value.(*lruItem)
-	if item.key != xxhash.Sum64(bz)^xxhashSeed2 {
+	if !bytes.Equal(item.key, bz) {
 		return nil, false
 	}
 	s.lru.MoveToFront(el)
@@ -85,10 +75,9 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	fp := xxhash.Sum64(bz) ^ xxhashSeed2
 	if el, ok := s.items[h]; ok {
 		item := el.Value.(*lruItem)
-		if item.key == fp {
+		if bytes.Equal(item.key, bz) {
 			// Identical bytes already cached; promote to MRU.
 			s.lru.MoveToFront(el)
 			return
@@ -103,7 +92,7 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 		delete(s.items, back.Value.(*lruItem).h)
 		s.lru.Remove(back)
 	}
-	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: fp, tx: tx})
+	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: bytes.Clone(bz), tx: tx})
 }
 
 // decodeCache memoises decoded transactions. It is sharded for low lock
