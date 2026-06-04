@@ -91,8 +91,11 @@ func fastNoOpPrepareProposal(
 			totalGas   uint64
 		)
 		for _, txBz := range req.Txs {
-			nextBytes := totalBytes + int64(len(txBz))
-			if nextBytes > maxTxBytes {
+			// Use the same accounting baseapp.DefaultTxSelector uses so the
+			// resulting block respects cometbft's MaxBytes wire limit, not
+			// just the raw payload sum.
+			txSize := cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{txBz})
+			if totalBytes+txSize > maxTxBytes {
 				break
 			}
 
@@ -126,7 +129,7 @@ func fastNoOpPrepareProposal(
 			}
 
 			selected = append(selected, txBz)
-			totalBytes = nextBytes
+			totalBytes += txSize
 		}
 		return &abci.ResponsePrepareProposal{Txs: selected}, nil
 	}

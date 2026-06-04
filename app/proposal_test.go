@@ -200,9 +200,11 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 
 	t.Run("NoOp mempool respects MaxTxBytes and stops at boundary", func(t *testing.T) {
 		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), noopDecoder, acceptAll)
-		// Each tx is 4 bytes; budget for exactly two.
+		// Each "aaaa" payload is 4 bytes. ComputeProtoSizeForTxs computes the
+		// proto-framed size: field tag (1) + length varint (1) + data (4) = 6
+		// bytes per tx. Budget = 14 → two fit (12), third (18) exceeds.
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
-			MaxTxBytes: 8,
+			MaxTxBytes: 14,
 			Txs: [][]byte{
 				[]byte("aaaa"),
 				[]byte("bbbb"),
@@ -329,7 +331,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	t.Run("encCache hit emits raw bytes without encoder", func(t *testing.T) {
 		tx1, tx2 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(tx1, []byte("raw-1"))
 		enc.Register(tx2, []byte("raw-2"))
 
@@ -342,7 +344,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	t.Run("encoder fallback when encCache miss", func(t *testing.T) {
 		tx := &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx}}
-		enc := new(cronosmempool.EncoderCache) // empty — forces fallback
+		enc := cronosmempool.NewEncoderCache(0) // empty — forces fallback
 
 		var encCalls int
 		fallback := func(_ sdk.Tx) ([]byte, error) {
@@ -360,7 +362,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	t.Run("encoder error skips tx, continues iteration", func(t *testing.T) {
 		txBad, txGood := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{txBad, txGood}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(txGood, []byte("good"))
 
 		fallback := func(tx sdk.Tx) ([]byte, error) {
@@ -380,7 +382,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	t.Run("validateTx reject skips tx, continues iteration", func(t *testing.T) {
 		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(tx1, []byte("ok-1"))
 		enc.Register(tx2, []byte(invalidTx))
 		enc.Register(tx3, []byte("ok-2"))
@@ -398,7 +400,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		// (21) exceeds.
 		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(tx1, []byte("raw-1"))
 		enc.Register(tx2, []byte("raw-2"))
 		enc.Register(tx3, []byte("raw-3"))
@@ -414,7 +416,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx2 := &gasOnlyTx{gas: 60_000} // 60k+60k > 100k cap → reject + stop
 		tx3 := &gasOnlyTx{gas: 1}      // never reached
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(tx1, []byte("a"))
 		enc.Register(tx2, []byte("b"))
 		enc.Register(tx3, []byte("c"))
@@ -431,7 +433,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	t.Run("MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {
 		tx := &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx}}
-		enc := new(cronosmempool.EncoderCache)
+		enc := cronosmempool.NewEncoderCache(0)
 		enc.Register(tx, []byte("a"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)

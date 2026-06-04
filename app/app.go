@@ -358,7 +358,7 @@ func New(
 	if v := appOpts.Get(FlagTxDecodeCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
-			logger.Error("invalid cronos.tx-decode-cache-size; falling back to default", "value", v, "default", decodeCacheSize, "err", err)
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheSize, v, err))
 		} else {
 			decodeCacheSize = parsed
 		}
@@ -367,7 +367,7 @@ func New(
 	if v := appOpts.Get(FlagTxDecodeCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
-			logger.Error("invalid cronos.tx-decode-cache-max-tx-bytes; falling back to default", "value", v, "default", maxTxBytes, "err", err)
+			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheMaxTxBytes, v, err))
 		} else if parsed > 0 {
 			maxTxBytes = parsed
 		}
