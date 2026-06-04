@@ -30,6 +30,17 @@ let
           ckzg = super.ckzg.overridePythonAttrs (
             old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
           );
+          # eth-hash, eth-keys, web3: default overrides patch setup.py to remove
+          # setuptools-markdown, but setup.py doesn't exist in wheel distributions.
+          eth-hash = super.eth-hash.overridePythonAttrs (
+            old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
+          );
+          eth-keys = super.eth-keys.overridePythonAttrs (
+            old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
+          );
+          web3 = super.web3.overridePythonAttrs (
+            old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
+          );
         }
       );
     }
