@@ -5,7 +5,7 @@
   pkgs,
 }:
 let
-  # Override the default poetry2nix overrides to fix rpds-py
+  # Override the default poetry2nix overrides to fix rpds-py and ckzg wheel builds
   customPoetry2nix = poetry2nix.overrideScope (
     final: prev: {
       defaultPoetryOverrides = prev.defaultPoetryOverrides.extend (
@@ -23,6 +23,12 @@ let
                 pkgs.rustc
               ];
             }
+          );
+          # When preferWheels=true selects the ckzg wheel, the default poetry2nix
+          # override's postPatch tries to patch src/Makefile which doesn't exist
+          # in the wheel. Clear postPatch for wheel builds.
+          ckzg = super.ckzg.overridePythonAttrs (
+            old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
           );
         }
       );
@@ -73,9 +79,6 @@ customPoetry2nix.mkPoetryEnv {
             --replace-warn 'license = "Apache-2.0"' 'license = { text = "Apache-2.0" }'
         '';
       });
-      ckzg = super.ckzg.overridePythonAttrs (
-        old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
-      );
     }
   );
 }
