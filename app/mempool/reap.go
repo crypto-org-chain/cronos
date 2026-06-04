@@ -66,10 +66,8 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if feeTx, ok := tx.(sdk.FeeTx); ok {
 				gas = feeTx.GetGas()
 			}
-			// Overflow-safe: gas is attacker-controlled and can be near
-			// math.MaxUint64, so totalGas+gas could wrap past the cap.
-			// totalGas <= req.MaxGas holds by induction, so the subtraction
-			// never underflows.
+			// Overflow-safe: gas (attacker-controlled) may be near MaxUint64;
+			// totalGas <= req.MaxGas by induction, so the subtraction can't underflow.
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}

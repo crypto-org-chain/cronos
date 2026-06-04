@@ -114,18 +114,16 @@ func fastNoOpPrepareProposal(
 			if maxBlockGas > 0 {
 				if feeTx, ok := tx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
-					// Overflow-safe: gasWanted is attacker-controlled and can be
-					// near math.MaxUint64, so totalGas+gasWanted could wrap past
-					// the cap. totalGas <= maxBlockGas holds by induction, so
-					// maxBlockGas-totalGas never underflows.
+					// Overflow-safe: gasWanted (attacker-controlled) may be near
+					// MaxUint64; totalGas <= maxBlockGas by induction, so the
+					// subtraction can't underflow.
 					if gasWanted > maxBlockGas-totalGas {
 						break
 					}
 					totalGas += gasWanted
 				}
-				// Non-FeeTx: admitted without gas accounting. All cronos txs implement
-				// sdk.FeeTx (cosmos auth.Tx does), so this branch is unreachable in
-				// practice but safe — a non-FeeTx cannot inflate totalGas past the cap.
+				// Non-FeeTx: no gas accounting. All cronos txs implement sdk.FeeTx,
+				// so this is unreachable in practice but safe (can't inflate totalGas).
 			}
 
 			selected = append(selected, txBz)
