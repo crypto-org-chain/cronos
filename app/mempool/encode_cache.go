@@ -16,32 +16,13 @@ const defaultEncoderCacheSize = 10000
 // uses it after RunTx so the EncoderCache can be keyed on the tx pointer.
 type TxGetter func(bz []byte) (sdk.Tx, bool)
 
-// EncoderCache maps decoded-tx pointers to their canonical proto bytes.
-// InsertTxHandler registers entries; ReapTxsHandler and the fast
-// PrepareProposal handler read them to skip proto.Marshal on the hot path.
-//
-// Keys are sdk.Tx interface values; for pointer-typed Txs (all cosmos-sdk Tx
-// implementations) interface equality is pointer equality, so the same object
-// held by the priority mempool produces a cache hit with zero encoding work.
-//
-// Bounded LRU eviction: the map key (an sdk.Tx interface holding a pointer)
-// pins the tx on the heap, so an entry is never garbage-collected while it
-// lives in the cache. Without eviction the map would grow with every tx ever
-// admitted over the node's lifetime — not bounded by mempool.max-txs — and leak
-// indefinitely. The LRU caps live entries at cap; the least-recently-used entry
-// is dropped on overflow, releasing both the bytes and the last reference that
-// pinned the tx, so the tx can then be collected once the mempool also drops it.
-// A lookup that misses (because its entry was evicted) falls back to txEncoder
-// on the reap / PrepareProposal path, so eviction only costs a re-encode, never
-// correctness.
-//
-// Canonical bytes: Register stores the app-re-encoded tx, so a peer's
-// non-minimal proto encoding cannot land verbatim in a proposal — every node
-// decode-then-re-encodes to the same form, so replay paths
-// (debug_traceTransaction, state-sync, migration) reproduce identical bytes.
-// Exception: on a re-encode error the raw req.Tx bytes are registered instead;
-// a tx that passed the AnteHandler is not expected to fail re-encoding, so this
-// is effectively unreachable.
+// EncoderCache maps decoded-tx pointers to canonical proto bytes for the
+// reap and PrepareProposal hot paths, skipping proto.Marshal per reap cycle.
+// Keys are sdk.Tx interface values (pointer equality for pointer-typed Txs).
+// LRU eviction caps live entries at cap; each entry pins the tx on the heap
+// so without eviction the map grows unboundedly over the node's lifetime.
+// Register re-encodes to canonical form so non-minimal peer bytes are never
+// stored verbatim in a proposal.
 type EncoderCache struct {
 	mu    sync.Mutex
 	cap   int

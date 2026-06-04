@@ -16,24 +16,11 @@ import (
 // here to avoid pulling cometbft/config into app/app.go just for one string.
 const TypeApp = "app"
 
-// NewReapTxsHandler returns a sdk.ReapTxsHandler that drains the
-// priority-ordered mempool until the byte or gas hint passed by the
-// CometBFT AppReactor is reached. A hint value of 0 is treated as
-// "no cap" per CometBFT convention. Used when mempool.type=app.
-//
-// Caps are applied as a prefix scan: the loop breaks at the first tx
-// that exceeds either MaxBytes or MaxGas, not the best-fit later in
-// the snapshot. This matches the SDK's default proposal handler
-// behavior and avoids O(n^2) scanning, but means a large high-priority
-// tx early in the snapshot can leave budget headroom unused even if
-// smaller txs further down would fit.
-//
-// If encCache is non-nil, it is consulted before calling txEncoder so
-// that txs inserted via InsertTxHandler skip proto.Marshal entirely on
-// the reap hot path.
-//
-// Encoder errors are logged but do not abort the reap; the offending tx
-// is skipped so the rest of the snapshot can still ship.
+// NewReapTxsHandler drains the priority mempool for mempool.type=app, stopping
+// at MaxBytes/MaxGas hints (0 = no cap per CometBFT convention). Uses a prefix
+// scan: breaks at the first tx exceeding a cap (not best-fit), so a large
+// high-priority tx may leave unused budget. Encoder errors skip the offending
+// tx. If encCache is non-nil, admitted txs skip proto.Marshal on the hot path.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, logger log.Logger) sdk.ReapTxsHandler {
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
 		// Pre-size the snapshot to the current pool count to avoid

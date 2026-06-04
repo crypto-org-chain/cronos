@@ -441,30 +441,16 @@ func New(
 			blockProposalHandler.ValidateTransaction,
 		))
 
-		// Shared encoder cache: InsertTxHandler registers rawBytes keyed by
-		// decoded-tx pointer; ReapTxsHandler and the fast PrepareProposal
-		// handler read it to skip proto.Marshal. Only wired when the decode
-		// cache is enabled (decodeCacheSize > 0) because we rely on the
-		// caching decoder returning the same pointer that mempool.Insert
-		// stores. Built before SetPrepareProposal so the handler can read it.
+		// encCache skips proto.Marshal in reap and PrepareProposal. Requires
+		// decodeCacheSize > 0: the caching decoder must return the same pointer
+		// that InsertTxHandler stores as the cache key.
 		var encCache *cronosmempool.EncoderCache
 		var txGet cronosmempool.TxGetter
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
 			if _, isNoOp := mpool.(mempool.NoOpMempool); !isNoOp {
-				// Cap entries at decodeCacheSize: a tx evicted from the decode
-				// cache re-decodes to a new pointer, so its encoder-cache entry
-				// would never hit again — sizing them equal bounds memory and
-				// ages both caches out in lockstep.
-				//
-				// Hit-rate caveat: the reap / PrepareProposal fast path only skips
-				// proto.Marshal for txs still resident in this LRU. When the
-				// sustained mempool depth exceeds decodeCacheSize, the
-				// least-recently-used (lowest-priority) txs are evicted and reap
-				// falls back to txEncoder for them, so the encoder-cache win
-				// degrades gracefully toward the un-cached cost as pool depth grows
-				// past the cache size. Operators running pools deeper than
-				// decodeCacheSize (default 10000) should raise tx-decode-cache-size
-				// to keep the reap path allocation-free.
+				// Cap at decodeCacheSize: a tx evicted from the decode cache gets a new
+				// pointer on re-decode, so its encoder entry would never hit again.
+				// Raise tx-decode-cache-size if the reap fallback rate is high.
 				encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 				dec := activeDecoder
 				txGet = func(bz []byte) (sdk.Tx, bool) {

@@ -23,16 +23,8 @@ var xxhashSeed = func() uint64 {
 	return binary.LittleEndian.Uint64(b[:])
 }()
 
-const (
-	// Txs larger than DefaultTxDecodeCacheMaxTxBytes are decoded normally but
-	// not cached, preventing an adversary from exhausting RAM by submitting
-	// max-size txs. The cached value is a fully-decoded sdk.Tx whose heap
-	// footprint (proto messages, slices, interface values) is several times the
-	// raw bytes; operators sizing memory should not rely on the max-tx-bytes
-	// value as a hard RSS bound. Tunable via cronos.tx-decode-cache-max-tx-bytes;
-	// should not exceed mempool.max-tx-bytes.
-	shardCount = 16
-)
+// shardCount is the number of independent LRU stripes in decodeCache.
+const shardCount = 16
 
 type lruItem struct {
 	h   uint64
@@ -50,12 +42,8 @@ type cacheShard struct {
 	lru   list.List // front = MRU, back = LRU; zero value is empty list
 }
 
-// get returns the cached tx if h matches and the stored payload bytes equal
-// bz. On hash collision (same h, different bz) it returns (nil, false) — a
-// silent miss — without evicting the colliding entry. The caller re-decodes
-// and calls set, which then evicts the stale entry. With the seeded 64-bit
-// xxhash and 625 entries per shard, collisions are rare enough that this
-// "let set handle it" path is preferable to forward-eviction in get.
+// get returns the cached tx for (h, bz). On hash collision returns (nil, false)
+// without evicting; the subsequent set call evicts the stale entry.
 func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,14 +83,9 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: bytes.Clone(bz), tx: tx})
 }
 
-// decodeCache memoises decoded transactions. It is sharded for low lock
-// contention under parallel runTx (block-stm) and uses LRU eviction so
-// frequently-proposed txs stay warm across re-proposals.
-//
-// Returned sdk.Tx pointers are SHARED across consumers (PrepareProposal,
-// ProcessProposal, BaseApp.runTx, CheckTx). Consumers MUST treat the
-// returned tx as read-only; any mutation of the tx wrapper or its inner
-// messages will leak across phases.
+// decodeCache is a sharded LRU cache of decoded transactions. Returned
+// sdk.Tx pointers are SHARED across consumers (PrepareProposal, runTx,
+// CheckTx) — callers MUST NOT mutate the returned tx.
 type decodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
