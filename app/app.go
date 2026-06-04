@@ -179,7 +179,6 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
-	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
 )
 
 var Forks = []Fork{}
@@ -485,9 +484,10 @@ func New(
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 
 		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
-		// InsertTxHandler runs the AnteHandler chain via RunTx(execModeCheck) with
-		// a seen-cache to deduplicate gossip fan-out. ReapTxsHandler honors
-		// MaxBytes/MaxGas hints from the CometBFT AppReactor.
+		// InsertTxHandler runs the AnteHandler chain via RunTx(execModeCheck) at
+		// admission; Recheck re-validates resident txs after each commit via
+		// RunTx(execModeReCheck) and evicts the ones that turned invalid.
+		// ReapTxsHandler honors MaxBytes/MaxGas hints from the CometBFT AppReactor.
 		switch mempoolType {
 		case cronosmempool.TypeApp:
 			if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp {
@@ -496,13 +496,9 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
-			insertTxCacheSize := cast.ToInt(appOpts.Get(FlagMempoolInsertTxCacheSize))
-			if insertTxCacheSize == 0 {
-				insertTxCacheSize = cronosmempool.DefaultInsertTxCacheSize
-			} else if insertTxCacheSize < 0 {
-				insertTxCacheSize = 0 // negative → disable seen-cache
-			}
-			app.SetInsertTxHandler(cronosmempool.NewInsertTxHandler(app, insertTxCacheSize, txGet, encCache, txConfig.TxEncoder()))
+			admitter := cronosmempool.NewAdmitter(app, mpool, txGet, encCache, txConfig.TxEncoder(), logger.With("module", "app-mempool"))
+			app.SetInsertTxHandler(admitter.InsertTxHandler())
+			app.SetPrepareCheckStater(admitter.Recheck)
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:

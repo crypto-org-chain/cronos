@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"sync"
@@ -19,17 +20,64 @@ import (
 
 // ptrTx is a minimal pointer-typed sdk.Tx. EncoderCache keys on the sdk.Tx
 // interface value; for pointer types interface equality is pointer equality,
-// so a pointer receiver is required to exercise registration correctly.
-type ptrTx struct{}
+// so a pointer receiver is required to exercise registration correctly. The id
+// field gives it non-zero size so distinct &ptrTx{} allocations have distinct
+// addresses (zero-size structs all share runtime.zerobase).
+type ptrTx struct{ id int }
 
 func (*ptrTx) GetMsgs() []sdk.Msg                    { return nil }
 func (*ptrTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 
+// noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
+// NewAdmitter requires a non-nil encoder (recheck depends on it).
+var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }
+
+// stubMempool is a minimal sdkmempool.Mempool for exercising Recheck. Select
+// returns an iterator over the resident txs; Remove records and drops a tx.
+type stubMempool struct {
+	txs     []sdk.Tx
+	removed []sdk.Tx
+}
+
+func (m *stubMempool) Insert(context.Context, sdk.Tx) error { return nil }
+func (m *stubMempool) CountTx() int                         { return len(m.txs) }
+
+func (m *stubMempool) Remove(tx sdk.Tx) error {
+	m.removed = append(m.removed, tx)
+	for i, t := range m.txs {
+		if t == tx {
+			m.txs = append(m.txs[:i], m.txs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
+func (m *stubMempool) Select(context.Context, [][]byte) sdkmempool.Iterator {
+	if len(m.txs) == 0 {
+		return nil
+	}
+	return &sliceIter{txs: m.txs}
+}
+
+type sliceIter struct {
+	txs []sdk.Tx
+	i   int
+}
+
+func (it *sliceIter) Next() sdkmempool.Iterator {
+	if it.i+1 >= len(it.txs) {
+		return nil
+	}
+	return &sliceIter{txs: it.txs, i: it.i + 1}
+}
+
+func (it *sliceIter) Tx() sdk.Tx { return it.txs[it.i] }
+
 // stubRunner is a test double for txRunner.
 type stubRunner struct {
-	runTx  func([]byte) error
-	calls  atomic.Int64
-	height atomic.Int64
+	runTx func([]byte) error
+	calls atomic.Int64
 }
 
 func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex int, ms storetypes.MultiStore, cache map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
@@ -40,13 +88,15 @@ func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
-func (s *stubRunner) LastBlockHeight() int64 {
-	return s.height.Load()
+// insertHandler builds an InsertTxHandler with throwaway mempool/encoder for
+// tests that only exercise the admission path.
+func insertHandler(runner txRunner) sdk.InsertTxHandler {
+	return newAdmitter(runner, &stubMempool{}, nil, nil, noopEncoder, nil).InsertTxHandler()
 }
 
 func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+	h := insertHandler(runner)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("good-tx")})
 	if err != nil {
@@ -63,7 +113,7 @@ func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
 func TestInsertTxHandler_RejectsInvalidTx(t *testing.T) {
 	anteErr := errorsmod.Register("test", 1, "bad sig")
 	runner := &stubRunner{runTx: func(_ []byte) error { return anteErr }}
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+	h := insertHandler(runner)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("bad-tx")})
 	if err != nil {
@@ -78,7 +128,7 @@ func TestInsertTxHandler_RetryOnMempoolFull(t *testing.T) {
 	runner := &stubRunner{runTx: func(_ []byte) error {
 		return sdkmempool.ErrMempoolTxMaxCapacity
 	}}
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+	h := insertHandler(runner)
 
 	resp, err := h(&abci.RequestInsertTx{Tx: []byte("any-tx")})
 	if err != nil {
@@ -89,44 +139,11 @@ func TestInsertTxHandler_RetryOnMempoolFull(t *testing.T) {
 	}
 }
 
-func TestInsertTxHandler_SeenCacheDeduplicates(t *testing.T) {
-	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 16, nil, nil, nil)
-
-	tx := []byte("dup-tx")
-	for i := range 3 {
-		resp, err := h(&abci.RequestInsertTx{Tx: tx})
-		if err != nil {
-			t.Fatalf("call %d: unexpected error: %v", i, err)
-		}
-		if resp.Code != abci.CodeTypeOK {
-			t.Fatalf("call %d: expected OK, got %d", i, resp.Code)
-		}
-	}
-	// RunTx must be called exactly once; subsequent calls hit cache.
-	if runner.calls.Load() != 1 {
-		t.Fatalf("expected 1 RunTx call, got %d (cache not deduplicating)", runner.calls.Load())
-	}
-}
-
-func TestInsertTxHandler_SeenCacheDisabledWhenZero(t *testing.T) {
-	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
-
-	tx := []byte("dup-tx")
-	for range 3 {
-		h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
-	}
-	if runner.calls.Load() != 3 {
-		t.Fatalf("expected 3 RunTx calls with cache disabled, got %d", runner.calls.Load())
-	}
-}
-
 func TestInsertTxHandler_ExecModeIsCheck(t *testing.T) {
 	var capturedMode sdk.ExecMode
 	var captureRunner captureExecModeRunner
 	captureRunner.mode = &capturedMode
-	h := newInsertTxHandler(&captureRunner, 0, nil, nil, nil)
+	h := insertHandler(&captureRunner)
 
 	h(&abci.RequestInsertTx{Tx: []byte("tx")}) //nolint:errcheck
 
@@ -144,84 +161,16 @@ func (r *captureExecModeRunner) RunTx(mode sdk.ExecMode, _ []byte, _ sdk.Tx, _ i
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
-func (r *captureExecModeRunner) LastBlockHeight() int64 { return 0 }
-
-func TestInsertTxHandler_SeenCacheRingWrap(t *testing.T) {
-	const size = 4
-	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, size, nil, nil, nil)
-
-	// Fill the ring with 4 distinct txs.
-	for i := range size {
-		tx := []byte{byte(i)}
-		h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
-	}
-	if runner.calls.Load() != int64(size) {
-		t.Fatalf("expected %d RunTx calls, got %d", size, runner.calls.Load())
-	}
-
-	// Insert a 5th tx. This wraps pos back to 0, evicting tx[0].
-	h(&abci.RequestInsertTx{Tx: []byte{byte(size)}}) //nolint:errcheck
-
-	// tx[0] was evicted — must trigger a new RunTx (not a cache hit).
-	runner.calls.Store(0)
-	h(&abci.RequestInsertTx{Tx: []byte{0}}) //nolint:errcheck
-	if runner.calls.Load() != 1 {
-		t.Fatalf("evicted tx should re-run AnteHandler; got %d RunTx calls", runner.calls.Load())
-	}
-}
-
 // Ensure the error wrapping works for wrapped sentinel errors.
 func TestInsertTxHandler_RetryOnWrappedMempoolFull(t *testing.T) {
 	runner := &stubRunner{runTx: func(_ []byte) error {
 		return errors.Join(errors.New("outer"), sdkmempool.ErrMempoolTxMaxCapacity)
 	}}
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+	h := insertHandler(runner)
 
 	resp, _ := h(&abci.RequestInsertTx{Tx: []byte("tx")})
 	if resp.Code != abci.CodeTypeRetry {
 		t.Fatalf("expected CodeTypeRetry for wrapped ErrMempoolTxMaxCapacity, got %d", resp.Code)
-	}
-}
-
-// TestInsertTxHandler_SeenCacheClearsOnHeightAdvance verifies that a tx
-// admitted at height N is re-validated through the AnteHandler the first
-// time the handler is called at height > N. This is the guard against stale
-// cache hits when the underlying account state changes across a block
-// commit (nonce consumed, balance drained, signing key rotated).
-func TestInsertTxHandler_SeenCacheClearsOnHeightAdvance(t *testing.T) {
-	runner := &stubRunner{}
-	runner.height.Store(10)
-	h := newInsertTxHandler(runner, 16, nil, nil, nil)
-
-	tx := []byte("repeat-across-blocks")
-
-	// First admission at height 10: triggers RunTx, caches the hash.
-	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
-		t.Fatalf("first call: unexpected error: %v", err)
-	}
-	if got := runner.calls.Load(); got != 1 {
-		t.Fatalf("expected 1 RunTx call after first admission, got %d", got)
-	}
-
-	// Same height: cache hit, no RunTx.
-	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
-		t.Fatalf("second call: unexpected error: %v", err)
-	}
-	if got := runner.calls.Load(); got != 1 {
-		t.Fatalf("same-height re-delivery should hit cache; got %d RunTx calls", got)
-	}
-
-	// Block commits; height advances. Next handler call must clear the
-	// cache and re-run the AnteHandler so a tx that became invalid in the
-	// committed block (nonce consumed / balance drained / key rotated)
-	// cannot be admitted as a stale cache hit.
-	runner.height.Store(11)
-	if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
-		t.Fatalf("post-commit call: unexpected error: %v", err)
-	}
-	if got := runner.calls.Load(); got != 2 {
-		t.Fatalf("height advance must force AnteHandler re-run; got %d RunTx calls", got)
 	}
 }
 
@@ -236,20 +185,21 @@ func assertPanics(t *testing.T, name string, fn func()) {
 	fn()
 }
 
-// TestInsertTxHandler_EncCachePanicsWithoutDeps verifies construction panics
-// when encCache is wired without its txGet/txEncoder dependencies. A nil
-// txEncoder would silently store non-canonical proposal bytes, so it must fail
-// loudly at startup rather than degrade the canonical-bytes guarantee.
-func TestInsertTxHandler_EncCachePanicsWithoutDeps(t *testing.T) {
+// TestNewAdmitter_PanicsOnMissingDeps verifies construction fails loudly on
+// misconfiguration: a nil mempool or nil encoder breaks Recheck, and a nil
+// txGet with a non-nil encCache would skip canonical-bytes registration.
+func TestNewAdmitter_PanicsOnMissingDeps(t *testing.T) {
 	enc := new(EncoderCache)
 	txGet := func([]byte) (sdk.Tx, bool) { return &ptrTx{}, true }
-	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, nil }
 
-	assertPanics(t, "nil txGet", func() {
-		newInsertTxHandler(&stubRunner{}, 0, nil, enc, txEncoder)
+	assertPanics(t, "nil mpool", func() {
+		newAdmitter(&stubRunner{}, nil, nil, nil, noopEncoder, nil)
 	})
 	assertPanics(t, "nil txEncoder", func() {
-		newInsertTxHandler(&stubRunner{}, 0, txGet, enc, nil)
+		newAdmitter(&stubRunner{}, &stubMempool{}, txGet, enc, nil, nil)
+	})
+	assertPanics(t, "nil txGet with encCache", func() {
+		newAdmitter(&stubRunner{}, &stubMempool{}, nil, enc, noopEncoder, nil)
 	})
 }
 
@@ -276,7 +226,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		return canonical, nil
 	}
 	enc := new(EncoderCache)
-	h := newInsertTxHandler(runner, 0, txGet, enc, txEncoder)
+	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
 
 	resp, err := h(&abci.RequestInsertTx{Tx: raw})
 	if err != nil || resp.Code != abci.CodeTypeOK {
@@ -302,7 +252,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 	txGet := func([]byte) (sdk.Tx, bool) { return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode fail") }
 	enc := new(EncoderCache)
-	h := newInsertTxHandler(runner, 0, txGet, enc, txEncoder)
+	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -324,7 +274,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	txGet := func([]byte) (sdk.Tx, bool) { txGetCalled = true; return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
 	enc := new(EncoderCache)
-	h := newInsertTxHandler(runner, 0, txGet, enc, txEncoder)
+	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -337,32 +287,78 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 }
 
+// recheckRunner models baseapp's RunTx(ExecModeReCheck): on AnteHandler failure
+// it removes the tx from the mempool, exactly as baseapp does via
+// mempool.RemoveWithReason. It records every (mode, tx) so the test can assert
+// recheck visited each resident tx in the right mode.
+type recheckRunner struct {
+	mpool   *stubMempool
+	invalid map[sdk.Tx]struct{}
+	modes   []sdk.ExecMode
+	seen    []sdk.Tx
+}
+
+func (r *recheckRunner) RunTx(mode sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	r.modes = append(r.modes, mode)
+	r.seen = append(r.seen, tx)
+	if _, bad := r.invalid[tx]; bad {
+		_ = r.mpool.Remove(tx)
+		return sdk.GasInfo{}, nil, nil, errors.New("recheck ante failed")
+	}
+	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+// TestAdmitter_RecheckRevalidatesAndEvicts verifies the recheck invariant: every
+// resident tx is re-run in ExecModeReCheck after a commit, and a tx whose ante
+// now fails is dropped from the mempool (so it can't be proposed and waste a
+// block slot) while still-valid txs are retained.
+func TestAdmitter_RecheckRevalidatesAndEvicts(t *testing.T) {
+	good1, bad, good2 := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
+	mp := &stubMempool{txs: []sdk.Tx{good1, bad, good2}}
+	runner := &recheckRunner{mpool: mp, invalid: map[sdk.Tx]struct{}{bad: {}}}
+
+	a := newAdmitter(runner, mp, nil, nil, noopEncoder, nil)
+	a.Recheck(sdk.Context{})
+
+	if len(runner.seen) != 3 {
+		t.Fatalf("expected 3 recheck RunTx calls (one per resident tx), got %d", len(runner.seen))
+	}
+	for i, m := range runner.modes {
+		if m != sdk.ExecModeReCheck {
+			t.Fatalf("recheck call %d ran in mode %v, want ExecModeReCheck", i, m)
+		}
+	}
+	if len(mp.removed) != 1 || mp.removed[0] != sdk.Tx(bad) {
+		t.Fatalf("expected only the now-invalid tx evicted, got %v", mp.removed)
+	}
+	if mp.CountTx() != 2 {
+		t.Fatalf("expected 2 valid txs retained after recheck, got %d", mp.CountTx())
+	}
+}
+
 // raceRunner models the real txRunner: RunTx mutates shared, non-thread-safe
 // state (here a plain Go map, standing in for baseapp's checkState multistore).
-// It takes NO internal lock, so the handler MUST serialize admission for these
-// writes to be safe. Run under -race to expose a missing admitMu.
+// It takes NO internal lock, so the Admitter MUST serialize admission for these
+// writes to be safe. Run under -race to expose a missing mutex.
 type raceRunner struct {
 	state map[string]struct{} // intentionally lock-free
 }
 
 func (r *raceRunner) RunTx(_ sdk.ExecMode, txBytes []byte, _ sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
 	// Unsynchronized read+write, mirroring cacheTxContext + msCache.Write into
-	// the shared checkState. Safe only because the handler holds admitMu.
+	// the shared checkState. Safe only because the Admitter holds its mutex.
 	r.state[string(txBytes)] = struct{}{}
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
-func (r *raceRunner) LastBlockHeight() int64 { return 0 }
-
 // TestInsertTxHandler_ConcurrentAdmissionIsSerialized hammers the handler from
 // many goroutines, mirroring CometBFT's concurrent InsertTx delivery (per-peer
 // P2P reactor + per-tx RPC BroadcastTx goroutines). RunTx writes a lock-free
-// map; the handler's admitMu is the ONLY thing making those writes safe. Under
-// `go test -race` this fails if admitMu is removed.
+// map; the Admitter's mutex is the ONLY thing making those writes safe. Under
+// `go test -race` this fails if the mutex is removed.
 func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
 	runner := &raceRunner{state: make(map[string]struct{})}
-	// cacheSize 0 so every call reaches RunTx (no dedup short-circuit).
-	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+	h := insertHandler(runner)
 
 	const goroutines = 16
 	const perG = 64
@@ -387,28 +383,11 @@ func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
 	}
 }
 
-// BenchmarkInsertTxHandler_CacheHit measures the hot path: tx seen before,
-// returns immediately after SHA256 + mutex check.
-func BenchmarkInsertTxHandler_CacheHit(b *testing.B) {
+// BenchmarkInsertTxHandler_Admit measures the admission path: SHA256-free now,
+// one RunTx per call (stubbed to ~0ns to isolate handler + mutex overhead).
+func BenchmarkInsertTxHandler_Admit(b *testing.B) {
 	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize, nil, nil, nil)
-	tx := []byte("repeated-tx-bytes-for-benchmark")
-	// prime cache
-	h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
-	req := &abci.RequestInsertTx{Tx: tx}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for b.Loop() {
-		h(req) //nolint:errcheck
-	}
-}
-
-// BenchmarkInsertTxHandler_CacheMiss measures the cold path: distinct tx each
-// iteration, triggers RunTx every call (stubbed to ~0ns to isolate handler overhead).
-func BenchmarkInsertTxHandler_CacheMiss(b *testing.B) {
-	runner := &stubRunner{}
-	h := newInsertTxHandler(runner, DefaultInsertTxCacheSize, nil, nil, nil)
+	h := insertHandler(runner)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -417,19 +396,5 @@ func BenchmarkInsertTxHandler_CacheMiss(b *testing.B) {
 		tx[0] = byte(i)
 		tx[1] = byte(i >> 8)
 		h(&abci.RequestInsertTx{Tx: tx}) //nolint:errcheck
-	}
-}
-
-// BenchmarkInsertSeenCache_Has measures raw cache lookup under mutex.
-func BenchmarkInsertSeenCache_Has(b *testing.B) {
-	c := newInsertSeenCache(DefaultInsertTxCacheSize)
-	var h [32]byte
-	h[0] = 1
-	c.Add(h)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for b.Loop() {
-		c.HasAtHeight(h, 0)
 	}
 }
