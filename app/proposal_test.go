@@ -17,6 +17,8 @@ import (
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 )
 
+const invalidTx = "invalid"
+
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
 type stubTx struct{ sdk.Tx }
 
@@ -61,7 +63,7 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 	txDecoder := func([]byte) (sdk.Tx, error) { return nil, nil }
 
 	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
-		if string(txBz) == "invalid" {
+		if string(txBz) == invalidTx {
 			return errors.New("invalid tx")
 		}
 		return nil
@@ -70,7 +72,7 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 	t.Run("validation failure short-circuits and parent not called", func(t *testing.T) {
 		parent := &stubTxSelector{parentReturn: true}
 		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("invalid"))
+		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte(invalidTx))
 		require.False(t, ok)
 		require.Equal(t, 0, parent.calls, "parent must not be invoked when ValidateTx errors")
 	})
@@ -151,7 +153,7 @@ func (gasOnlyTx) FeeGranter() []byte                    { return nil }
 
 func TestFastNoOpPrepareProposal(t *testing.T) {
 	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
-		if string(txBz) == "invalid" {
+		if string(txBz) == invalidTx {
 			return errors.New("invalid tx")
 		}
 		return nil
@@ -189,7 +191,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 			MaxTxBytes: 1 << 20,
 			Txs: [][]byte{
 				[]byte("ok-1"),
-				[]byte("invalid"),
+				[]byte(invalidTx),
 				[]byte("ok-2"),
 			},
 		})
@@ -226,7 +228,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 		h := fastNoOpPrepareProposal(nil, mustNotInvoke(t), noopDecoder, rejectInvalid)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 1 << 20,
-			Txs:        [][]byte{[]byte("ok"), []byte("invalid")},
+			Txs:        [][]byte{[]byte("ok"), []byte(invalidTx)},
 		})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("ok")}, got.Txs)
@@ -314,7 +316,7 @@ func (m *fakeMempool) Remove(sdk.Tx) error { return nil }
 func TestFastPrepareProposalAppMempool(t *testing.T) {
 	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
 	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
-		if string(txBz) == "invalid" {
+		if string(txBz) == invalidTx {
 			return errors.New("invalid tx")
 		}
 		return nil
@@ -381,7 +383,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
 		enc := new(cronosmempool.EncoderCache)
 		enc.Register(tx1, []byte("ok-1"))
-		enc.Register(tx2, []byte("invalid"))
+		enc.Register(tx2, []byte(invalidTx))
 		enc.Register(tx3, []byte("ok-2"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid)
