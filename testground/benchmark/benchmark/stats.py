@@ -109,10 +109,10 @@ def _fetch_prometheus(telemetry_url=LOCAL_TELEMETRY):
         return ""
 
 
-def _parse_histogram_avg(lines, metric_name, label_filter=None):
-    """Compute average from a Prometheus histogram's _sum and _count lines.
+def _parse_histogram_sum_count(lines, metric_name, label_filter=None):
+    """Return (sum, count) from a Prometheus histogram's _sum/_count lines.
 
-    Returns (avg, count) or (None, 0) if not found.
+    Returns (sum_or_None, count). Sum is in the metric's native unit.
     """
     total = None
     count = 0
@@ -125,6 +125,15 @@ def _parse_histogram_avg(lines, metric_name, label_filter=None):
             total = float(line.split()[-1])
         elif f"{metric_name}_count" in line:
             count = int(float(line.split()[-1]))
+    return total, count
+
+
+def _parse_histogram_avg(lines, metric_name, label_filter=None):
+    """Compute average from a Prometheus histogram's _sum and _count lines.
+
+    Returns (avg, count) or (None, 0) if not found.
+    """
+    total, count = _parse_histogram_sum_count(lines, metric_name, label_filter)
     if total is not None and count > 0:
         return total / count, count
     return None, 0
@@ -143,54 +152,84 @@ def scrape_blockstm_metrics(prom_text):
     return result
 
 
-def scrape_consensus_metrics(prom_text):
+# (key, metric_name, label_filter) for every cumulative consensus histogram.
+# Cumulative _sum/_count grow over the whole node process lifetime, so to scope
+# an average to the load period we snapshot raw (sum, count) at load start and
+# subtract — see scrape_consensus_raw / the baseline arg of
+# scrape_consensus_metrics.
+_CONSENSUS_HISTOGRAMS = [
+    *[
+        (
+            f"step_{step}",
+            "cometbft_consensus_step_duration_seconds",
+            f'step="{step}"',
+        )
+        for step in (
+            "NewHeight",
+            "NewRound",
+            "Propose",
+            "Prevote",
+            "PrevoteWait",
+            "Precommit",
+            "PrecommitWait",
+            "Commit",
+        )
+    ],
+    ("finalize_block_ms", "cometbft_state_block_processing_time", None),
+    (
+        "abci_finalize_block",
+        "cometbft_abci_connection_method_timing_seconds",
+        'method="finalize_block"',
+    ),
+    (
+        "abci_commit",
+        "cometbft_abci_connection_method_timing_seconds",
+        'method="commit"',
+    ),
+    ("block_interval", "cometbft_consensus_block_interval_seconds", None),
+]
+
+
+def scrape_consensus_raw(prom_text):
+    """Snapshot raw cumulative (sum, count) for each consensus histogram.
+
+    Pass the result as the `baseline` arg of scrape_consensus_metrics after the
+    load finishes to get load-period averages instead of lifetime ones.
+    """
+    lines = prom_text.splitlines()
+    raw = {}
+    for key, metric, label in _CONSENSUS_HISTOGRAMS:
+        total, count = _parse_histogram_sum_count(lines, metric, label)
+        if total is not None:
+            raw[key] = (total, count)
+    return raw
+
+
+def scrape_consensus_metrics(prom_text, baseline=None):
     """Parse CometBFT consensus stage timings from Prometheus text.
 
     Returns dict mapping stage names to (avg_seconds, sample_count).
+
+    When `baseline` (a scrape_consensus_raw snapshot from load start) is given,
+    averages are computed over the delta so they reflect only the load period
+    rather than the node's whole lifetime.
     """
     lines = prom_text.splitlines()
     result = {}
 
-    # consensus step durations (Propose, Prevote, Precommit, Commit, etc.)
-    for step in (
-        "NewHeight",
-        "NewRound",
-        "Propose",
-        "Prevote",
-        "PrevoteWait",
-        "Precommit",
-        "PrecommitWait",
-        "Commit",
-    ):
-        avg, cnt = _parse_histogram_avg(
-            lines,
-            "cometbft_consensus_step_duration_seconds",
-            label_filter=f'step="{step}"',
-        )
-        if avg is not None:
-            result[f"step_{step}"] = (avg, cnt)
+    for key, metric, label in _CONSENSUS_HISTOGRAMS:
+        total, count = _parse_histogram_sum_count(lines, metric, label)
+        if total is None:
+            continue
+        if baseline and key in baseline:
+            base_total, base_count = baseline[key]
+            total -= base_total
+            count -= base_count
+        if count > 0:
+            result[key] = (total / count, count)
 
-    # FinalizeBlock processing time (histogram in ms)
-    avg, cnt = _parse_histogram_avg(lines, "cometbft_state_block_processing_time")
-    if avg is not None:
-        result["finalize_block_ms"] = (avg, cnt)
-
-    # ABCI method timings (seconds) – FinalizeBlock and Commit
-    for method in ("finalize_block", "commit"):
-        avg, cnt = _parse_histogram_avg(
-            lines,
-            "cometbft_abci_connection_method_timing_seconds",
-            label_filter=f'method="{method}"',
-        )
-        if avg is not None:
-            result[f"abci_{method}"] = (avg, cnt)
-
-    # block interval
-    avg, cnt = _parse_histogram_avg(lines, "cometbft_consensus_block_interval_seconds")
-    if avg is not None:
-        result["block_interval"] = (avg, cnt)
-
-    # quorum delays
+    # quorum delays are point-in-time gauges, not cumulative — report current
+    # value directly (no baseline delta applies).
     for line in lines:
         if line.startswith("#"):
             continue
@@ -211,6 +250,7 @@ def dump_block_stats(
     end: int = None,
     mempool_data: dict = None,
     stm_data: dict = None,
+    consensus_baseline: dict = None,
 ):
     """
     Dump per-block stats and summary metrics.
@@ -270,11 +310,15 @@ def dump_block_stats(
                 mp_txs, mp_bytes = -1, -1
         mempool_snapshots.append((mp_txs, mp_bytes))
 
-        tps = calculate_tps(blocks[-TPS_WINDOW:])
         mp_str = f" mempool={mp_txs}" if mp_txs >= 0 else ""
         if prev_timestamp is not None:
             bt = (timestamp - prev_timestamp).total_seconds()
             bt_ms = bt * 1000
+            # Instantaneous per-block TPS: this block's txs over its own block
+            # time. Avoids the sliding-window artifact where an early stall
+            # block distorts the rate of later blocks as it moves through the
+            # window. See dump_block_stats summary for windowed peak/median.
+            tps = txs / bt if bt > 0 else 0
             gas_str = f" gas={gas_used}" if gas_used > 0 else ""
             print(
                 f"block {i} txs={txs}{gas_str}"
@@ -283,7 +327,7 @@ def dump_block_stats(
             )
         else:
             print(
-                f"block {i} txs={txs} {timestamp} - tps={tps:.2f}{mp_str}",
+                f"block {i} txs={txs} {timestamp} - tps=0.00{mp_str}",
                 file=fp,
             )
         prev_timestamp = timestamp
@@ -359,10 +403,15 @@ def dump_block_stats(
     _, t_end = load_blocks[-1]
     load_duration = (t_end - t_start).total_seconds()
 
-    # overall TPS excluding stall time
+    # overall TPS excluding stalls. block_times[j] is the interval ending at
+    # load_blocks[j + 1], so that block's txs/gas are what get excluded along
+    # with its time — numerator and denominator stay consistent (steady-only).
     stall_time = sum(block_times[j] for j in stall_indices)
+    stall_txs = sum(load_blocks[j + 1][0] for j in stall_indices)
+    stall_gas = sum(load_gas[j + 1][0] for j in stall_indices)
     adjusted_duration = load_duration - stall_time
-    overall_tps = total_txs / adjusted_duration if adjusted_duration > 0 else 0
+    steady_txs = total_txs - stall_txs
+    overall_tps = steady_txs / adjusted_duration if adjusted_duration > 0 else 0
 
     peak_tps = max(steady_tps_values) if steady_tps_values else 0
     median_tps = median(steady_tps_values) if steady_tps_values else 0
@@ -377,7 +426,8 @@ def dump_block_stats(
     counted_gas = load_gas[1:] if anchor_is_separate else load_gas
     total_gas_used = sum(gu for gu, _ in counted_gas)
     gas_utilizations = [gu / gl for gu, gl in counted_gas if gl > 0 and gu > 0]
-    overall_gps = total_gas_used / adjusted_duration if adjusted_duration > 0 else 0
+    steady_gas_used = total_gas_used - stall_gas
+    overall_gps = steady_gas_used / adjusted_duration if adjusted_duration > 0 else 0
     peak_gps = max(steady_gps_values) if steady_gps_values else 0
     median_gps = median(steady_gps_values) if steady_gps_values else 0
 
@@ -513,10 +563,11 @@ def dump_block_stats(
                 file=fp,
             )
 
-    cons = scrape_consensus_metrics(prom_text)
+    cons = scrape_consensus_metrics(prom_text, baseline=consensus_baseline)
     if cons:
         print(file=fp)
-        print("=== Consensus Stage Timing ===", file=fp)
+        scope = "load period" if consensus_baseline else "node lifetime"
+        print(f"=== Consensus Stage Timing ({scope}) ===", file=fp)
 
         for key, label in [
             ("abci_finalize_block", "FinalizeBlock (ABCI)"),

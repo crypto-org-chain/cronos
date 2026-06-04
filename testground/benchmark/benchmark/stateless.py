@@ -27,7 +27,12 @@ from .peer import (
     init_node,
     patch_configs,
 )
-from .stats import _fetch_prometheus, dump_block_stats, scrape_blockstm_metrics
+from .stats import (
+    _fetch_prometheus,
+    dump_block_stats,
+    scrape_blockstm_metrics,
+    scrape_consensus_raw,
+)
 from .topology import connect_all, connect_all_libp2p
 from .types import PeerPacket
 from .utils import (
@@ -552,6 +557,9 @@ def do_run(
     monitor.start()
     stm_monitor = BlockSTMMonitor()
     stm_monitor.start()
+    # Snapshot cumulative consensus histograms so dump_block_stats can report
+    # load-period averages (delta) instead of node-lifetime averages.
+    consensus_baseline = scrape_consensus_raw(_fetch_prometheus())
 
     if txs:
         # Send in a background thread so blocks are produced concurrently.
@@ -586,6 +594,7 @@ def do_run(
             Tee(logfile, sys.stdout),
             mempool_data=monitor.data,
             stm_data=stm_monitor.data,
+            consensus_baseline=consensus_baseline,
         )
 
     if cfg.get("node_overrides", {}).get(str(global_seq)):
