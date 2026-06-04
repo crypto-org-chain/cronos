@@ -15,8 +15,9 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// ptrTx is a minimal pointer-typed sdk.Tx. EncoderCache keys on the tx
-// pointer, so a pointer receiver is required to exercise registration.
+// ptrTx is a minimal pointer-typed sdk.Tx. EncoderCache keys on the sdk.Tx
+// interface value; for pointer types interface equality is pointer equality,
+// so a pointer receiver is required to exercise registration correctly.
 type ptrTx struct{}
 
 func (*ptrTx) GetMsgs() []sdk.Msg                    { return nil }
