@@ -7,6 +7,7 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
@@ -441,4 +442,18 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, got.Txs)
 	})
+}
+
+// TestProtoSizeForTx asserts the inlined wire-size helper stays bit-identical to
+// cometbft's ComputeProtoSizeForTxs for a single tx. This is the invariant that
+// lets fastNoOpPrepareProposal / fastPrepareProposalAppMempool drop the per-tx
+// []Tx{}+ToProto allocation: if the two ever diverge, proposals would mis-account
+// the MaxBytes wire budget. Covers varint length boundaries (1/2/3-byte lengths).
+func TestProtoSizeForTx(t *testing.T) {
+	for _, n := range []int{0, 1, 2, 127, 128, 129, 300, 16383, 16384, 16385, 70000} {
+		bz := make([]byte, n)
+		want := cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{bz})
+		got := protoSizeForTx(bz)
+		require.Equalf(t, want, got, "protoSizeForTx mismatch at len=%d", n)
+	}
 }
