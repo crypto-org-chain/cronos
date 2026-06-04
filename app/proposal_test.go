@@ -7,14 +7,13 @@ import (
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
-
-	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 )
 
 const invalidTx = "invalid"
