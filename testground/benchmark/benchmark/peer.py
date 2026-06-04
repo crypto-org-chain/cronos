@@ -4,7 +4,7 @@ import itertools
 import json
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import jsonmerge
 from pydantic.json import pydantic_encoder

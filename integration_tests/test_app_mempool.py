@@ -123,8 +123,6 @@ def test_bad_signature_rejected_at_admission(cronos_app_mempool):
     # layer. Accept any of the common phrasings — the assertion is just
     # that it failed *at submit time*, not later.
     assert any(
-        s in msg for s in ("invalid", "unauthorized", "signature", "sender")
-    assert any(
         s in msg
         for s in ("invalid", "unauthorized", "signature", "sender", "insufficient funds", "sequence")
     ), msg

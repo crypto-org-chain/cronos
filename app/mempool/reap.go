@@ -64,7 +64,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			} else {
 				cacheHits++
 			}
-			size := uint64(protoSizeForTx(bz))
+			size := uint64(len(bz))
 			if req.MaxBytes > 0 && totalBytes+size > req.MaxBytes {
 				break
 			}
