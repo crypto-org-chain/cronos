@@ -105,15 +105,20 @@ func TestReapTxs_GasCap(t *testing.T) {
 }
 
 func TestReapTxs_BytesCap(t *testing.T) {
-	pool := newPool(1_000, 50_000, 1_024) // 1024B per tx
+	const txPayload = 1_024
+	pool := newPool(1_000, 50_000, txPayload)
 	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
 
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 100 * 1_024, MaxGas: 0})
+	// Use proto-framed size so MaxBytes is an exact multiple of the per-tx
+	// wire cost — identical to how PrepareProposal accounts bytes.
+	protoSize := uint64(cronosmempool.ProtoSizeForTx(make([]byte, txPayload)))
+	const wantTxs = 100
+	resp, err := h(&abci.RequestReapTxs{MaxBytes: wantTxs * protoSize, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if got, want := len(resp.Txs), 100; got != want {
-		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
+	if got := len(resp.Txs); got != wantTxs {
+		t.Fatalf("len(resp.Txs) = %d, want %d", got, wantTxs)
 	}
 }
 
