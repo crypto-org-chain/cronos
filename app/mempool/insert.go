@@ -73,7 +73,24 @@ func newInsertTxHandler(runner txRunner, cacheSize int, txGet TxGetter, encCache
 	if cacheSize > 0 {
 		cache = newInsertSeenCache(cacheSize)
 	}
+
+	// admitMu serializes the admission path. CometBFT's AppMempool calls
+	// InsertTx concurrently (P2P AppReactor.Receive runs per-peer; the RPC
+	// BroadcastTx path launches one goroutine per tx) and the local ABCI
+	// client does NOT take the connection lock for InsertTx/CheckTx — it
+	// assumes the handler is thread-safe. RunTx(ExecModeCheck) branches and
+	// writes the shared checkState multistore (cacheTxContext + msCache.Write),
+	// a Go map that is not safe for concurrent writes, so without this lock
+	// concurrent ingestion races and can panic with "concurrent map writes".
+	// Holding the lock across the seen-cache lookup and RunTx also makes
+	// admission atomic, so a tx that slips past CometBFT's dedup is validated
+	// at most once per height.
+	var admitMu sync.Mutex
+
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
+		admitMu.Lock()
+		defer admitMu.Unlock()
+
 		var hash [32]byte
 		if cache != nil {
 			hash = sha256.Sum256(req.Tx)

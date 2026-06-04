@@ -2,6 +2,8 @@ package mempool
 
 import (
 	"errors"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -332,6 +334,56 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 	if _, ok := enc.Bytes(tx); ok {
 		t.Fatal("rejected tx must not be registered in encCache")
+	}
+}
+
+// raceRunner models the real txRunner: RunTx mutates shared, non-thread-safe
+// state (here a plain Go map, standing in for baseapp's checkState multistore).
+// It takes NO internal lock, so the handler MUST serialize admission for these
+// writes to be safe. Run under -race to expose a missing admitMu.
+type raceRunner struct {
+	state map[string]struct{} // intentionally lock-free
+}
+
+func (r *raceRunner) RunTx(_ sdk.ExecMode, txBytes []byte, _ sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+	// Unsynchronized read+write, mirroring cacheTxContext + msCache.Write into
+	// the shared checkState. Safe only because the handler holds admitMu.
+	r.state[string(txBytes)] = struct{}{}
+	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+}
+
+func (r *raceRunner) LastBlockHeight() int64 { return 0 }
+
+// TestInsertTxHandler_ConcurrentAdmissionIsSerialized hammers the handler from
+// many goroutines, mirroring CometBFT's concurrent InsertTx delivery (per-peer
+// P2P reactor + per-tx RPC BroadcastTx goroutines). RunTx writes a lock-free
+// map; the handler's admitMu is the ONLY thing making those writes safe. Under
+// `go test -race` this fails if admitMu is removed.
+func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
+	runner := &raceRunner{state: make(map[string]struct{})}
+	// cacheSize 0 so every call reaches RunTx (no dedup short-circuit).
+	h := newInsertTxHandler(runner, 0, nil, nil, nil)
+
+	const goroutines = 16
+	const perG = 64
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := range goroutines {
+		go func(g int) {
+			defer wg.Done()
+			for i := range perG {
+				tx := []byte(strconv.Itoa(g) + ":" + strconv.Itoa(i))
+				if _, err := h(&abci.RequestInsertTx{Tx: tx}); err != nil {
+					t.Errorf("g%d i%d: unexpected error: %v", g, i, err)
+					return
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	if got := len(runner.state); got != goroutines*perG {
+		t.Fatalf("expected %d distinct txs admitted, got %d", goroutines*perG, got)
 	}
 }
 
