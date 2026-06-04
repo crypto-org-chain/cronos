@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/bits"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -52,24 +51,6 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
 }
 
-// protoSizeForTx returns the wire size a single tx contributes to a CometBFT
-// block's Data message. It is identical to
-// cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{bz}) but without the per-call
-// []Tx slice + Data{}.ToProto allocation (~4 allocs/tx) that call makes in the
-// proposal hot loop. Data.Txs is `repeated bytes txs = 1`; each element encodes
-// as a 1-byte field tag (field 1, wire type 2) + a varint length + the payload,
-// matching gogoproto's generated Size().
-func protoSizeForTx(bz []byte) int64 {
-	l := len(bz)
-	return int64(1 + sovLen(uint64(l)) + l)
-}
-
-// sovLen returns the number of bytes gogoproto uses to encode x as a varint,
-// matching the generated sov* helpers (7 bits per byte).
-func sovLen(x uint64) int {
-	return (bits.Len64(x|1) + 6) / 7
-}
-
 // fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
 // mempool is nil or NoOp, skips the per-tx TxDecode that cosmos-sdk v0.54's
 // NewDefaultProposalHandler performs (and that aborts the proposal on a single
@@ -113,7 +94,7 @@ func fastNoOpPrepareProposal(
 			// Use the same accounting baseapp.DefaultTxSelector uses so the
 			// resulting block respects cometbft's MaxBytes wire limit, not
 			// just the raw payload sum.
-			txSize := protoSizeForTx(txBz)
+			txSize := cronosmempool.ProtoSizeForTx(txBz)
 			if totalBytes+txSize > maxTxBytes {
 				break
 			}
@@ -228,7 +209,7 @@ func fastPrepareProposalAppMempool(
 			// Use the same accounting baseapp.DefaultTxSelector uses so the
 			// resulting block respects cometbft's MaxBytes wire limit, not
 			// just the raw payload sum.
-			txSize := protoSizeForTx(bz)
+			txSize := cronosmempool.ProtoSizeForTx(bz)
 			if totalBytes+txSize > maxTxBytes {
 				break
 			}

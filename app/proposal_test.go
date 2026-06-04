@@ -453,7 +453,7 @@ func TestProtoSizeForTx(t *testing.T) {
 	for _, n := range []int{0, 1, 2, 127, 128, 129, 300, 16383, 16384, 16385, 70000} {
 		bz := make([]byte, n)
 		want := cmttypes.ComputeProtoSizeForTxs([]cmttypes.Tx{bz})
-		got := protoSizeForTx(bz)
+		got := cronosmempool.ProtoSizeForTx(bz)
 		require.Equalf(t, want, got, "protoSizeForTx mismatch at len=%d", n)
 	}
 }
