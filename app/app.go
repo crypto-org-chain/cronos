@@ -455,6 +455,16 @@ func New(
 				// cache re-decodes to a new pointer, so its encoder-cache entry
 				// would never hit again — sizing them equal bounds memory and
 				// ages both caches out in lockstep.
+				//
+				// Hit-rate caveat: the reap / PrepareProposal fast path only skips
+				// proto.Marshal for txs still resident in this LRU. When the
+				// sustained mempool depth exceeds decodeCacheSize, the
+				// least-recently-used (lowest-priority) txs are evicted and reap
+				// falls back to txEncoder for them, so the encoder-cache win
+				// degrades gracefully toward the un-cached cost as pool depth grows
+				// past the cache size. Operators running pools deeper than
+				// decodeCacheSize (default 10000) should raise tx-decode-cache-size
+				// to keep the reap path allocation-free.
 				encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 				dec := activeDecoder
 				txGet = func(bz []byte) (sdk.Tx, bool) {

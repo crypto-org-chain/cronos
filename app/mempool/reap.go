@@ -7,6 +7,7 @@ import (
 
 	"cosmossdk.io/log/v2"
 
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -47,16 +48,21 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			txs        = make([][]byte, 0, len(snapshot))
 			totalBytes uint64
 			totalGas   uint64
+			cacheHits  float32
+			cacheMiss  float32
 		)
 		for _, tx := range snapshot {
 			bz, ok := encCache.Bytes(tx)
 			if !ok {
+				cacheMiss++
 				var err error
 				bz, err = txEncoder(tx)
 				if err != nil {
 					logger.Error("reap encode failed; skipping tx", "err", err)
 					continue
 				}
+			} else {
+				cacheHits++
 			}
 			size := uint64(len(bz))
 			if req.MaxBytes > 0 && totalBytes+size > req.MaxBytes {
@@ -74,6 +80,15 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			txs = append(txs, bz)
 			totalBytes += size
 			totalGas += gas
+		}
+		// Emit encoder-cache hit/miss once per reap (not per tx) so operators can
+		// watch the fallback-to-proto.Marshal rate climb when sustained pool depth
+		// exceeds the encoder-cache size. No-op unless telemetry is enabled.
+		if cacheHits > 0 {
+			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "reap", "encode_cache", "hit") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		}
+		if cacheMiss > 0 {
+			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "reap", "encode_cache", "miss") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 		}
 		return &abci.ResponseReapTxs{Txs: txs}, nil
 	}

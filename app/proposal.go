@@ -16,6 +16,7 @@ import (
 	"cosmossdk.io/core/address"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -194,6 +195,8 @@ func fastPrepareProposalAppMempool(
 			selected   [][]byte
 			totalBytes int64
 			totalGas   uint64
+			cacheHits  float32
+			cacheMiss  float32
 		)
 		// Snapshot tx refs under the pool lock, then encode / validate / size
 		// after releasing it. PriorityNonceMempool.SelectBy holds the mempool
@@ -211,12 +214,15 @@ func fastPrepareProposalAppMempool(
 		for _, memTx := range snapshot {
 			bz, ok := encCache.Bytes(memTx)
 			if !ok {
+				cacheMiss++
 				var err error
 				bz, err = txEncoder(memTx)
 				if err != nil {
 					// skip and continue iteration
 					continue
 				}
+			} else {
+				cacheHits++
 			}
 
 			// Use the same accounting baseapp.DefaultTxSelector uses so the
@@ -244,6 +250,15 @@ func fastPrepareProposalAppMempool(
 
 			selected = append(selected, bz)
 			totalBytes += txSize
+		}
+		// Emit encoder-cache hit/miss once per proposal build (not per tx) so the
+		// fallback-to-proto.Marshal rate is observable when pool depth exceeds the
+		// encoder-cache size. No-op unless telemetry is enabled.
+		if cacheHits > 0 {
+			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "prepare", "encode_cache", "hit") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		}
+		if cacheMiss > 0 {
+			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "prepare", "encode_cache", "miss") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 		}
 		return &abci.ResponsePrepareProposal{Txs: selected}, nil
 	}
