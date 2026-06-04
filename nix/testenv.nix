@@ -73,6 +73,9 @@ customPoetry2nix.mkPoetryEnv {
             --replace-warn 'license = "Apache-2.0"' 'license = { text = "Apache-2.0" }'
         '';
       });
+      ckzg = super.ckzg.overridePythonAttrs (
+        old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
+      );
     }
   );
 }
