@@ -1283,10 +1283,7 @@ func formatKeyPrefix(key []byte, maxLen int) string {
 			return "0x"
 		}
 		// Truncate to maxLen-2 to account for "0x" prefix
-		truncLen := maxLen - 2
-		if truncLen > len(hexStr) {
-			truncLen = len(hexStr)
-		}
+		truncLen := min(maxLen-2, len(hexStr))
 		return "0x" + hexStr[:truncLen]
 	}
 	return "0x" + hexStr[:halfLen] + "..." + hexStr[len(hexStr)-halfLen:]

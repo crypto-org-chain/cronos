@@ -725,11 +725,3 @@ func TestPatchDryRunDoesNotModify(t *testing.T) {
 		require.Nil(t, hValue, "Height %d should NOT be in target (dry-run)", height)
 	}
 }
-
-// Helper function min for integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
