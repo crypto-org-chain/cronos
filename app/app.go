@@ -179,11 +179,7 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
-	// flagDisableTxDecodeCacheLegacy is the deprecated v1.x knob; only
-	// retained to surface a startup warning when an operator's app.toml
-	// still sets it. Replace with tx-decode-cache-size = 0.
-	flagDisableTxDecodeCacheLegacy = "cronos.disable-tx-decode-cache"
-	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
+	FlagMempoolInsertTxCacheSize = "mempool.insert-tx-cache-size"
 )
 
 var Forks = []Fork{}
@@ -359,9 +355,6 @@ func New(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txDecoder := txConfig.TxDecoder()
 	var activeDecoder sdk.TxDecoder
-	if appOpts.Get(flagDisableTxDecodeCacheLegacy) != nil {
-		logger.Error("ignoring deprecated cronos.disable-tx-decode-cache; set cronos.tx-decode-cache-size = 0 to disable the cache")
-	}
 	decodeCacheSize := cmdcfg.DefaultTxDecodeCacheSize
 	if v := appOpts.Get(FlagTxDecodeCacheSize); v != nil {
 		parsed, err := cast.ToIntE(v)
