@@ -187,7 +187,7 @@ def patch_configs(
     peers: str,
     config_patch: dict,
     app_patch: dict,
-    libp2p_peers: List[dict] = None,
+    libp2p_peers: Optional[List[dict]] = None,
 ):
     default_config_patch = {
         "db_backend": "rocksdb",
