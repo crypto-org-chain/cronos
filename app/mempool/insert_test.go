@@ -1,7 +1,6 @@
 package mempool
 
 import (
-	"context"
 	"errors"
 	"strconv"
 	"sync"
@@ -29,50 +28,7 @@ func (*ptrTx) GetMsgs() []sdk.Msg                    { return nil }
 func (*ptrTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 
 // noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
-// NewAdmitter requires a non-nil encoder (recheck depends on it).
 var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }
-
-// stubMempool is a minimal sdkmempool.Mempool for exercising Recheck. Select
-// returns an iterator over the resident txs; Remove records and drops a tx.
-type stubMempool struct {
-	txs     []sdk.Tx
-	removed []sdk.Tx
-}
-
-func (m *stubMempool) Insert(context.Context, sdk.Tx) error { return nil }
-func (m *stubMempool) CountTx() int                         { return len(m.txs) }
-
-func (m *stubMempool) Remove(tx sdk.Tx) error {
-	m.removed = append(m.removed, tx)
-	for i, t := range m.txs {
-		if t == tx {
-			m.txs = append(m.txs[:i], m.txs[i+1:]...)
-			break
-		}
-	}
-	return nil
-}
-
-func (m *stubMempool) Select(context.Context, [][]byte) sdkmempool.Iterator {
-	if len(m.txs) == 0 {
-		return nil
-	}
-	return &sliceIter{txs: m.txs}
-}
-
-type sliceIter struct {
-	txs []sdk.Tx
-	i   int
-}
-
-func (it *sliceIter) Next() sdkmempool.Iterator {
-	if it.i+1 >= len(it.txs) {
-		return nil
-	}
-	return &sliceIter{txs: it.txs, i: it.i + 1}
-}
-
-func (it *sliceIter) Tx() sdk.Tx { return it.txs[it.i] }
 
 // stubRunner is a test double for txRunner.
 type stubRunner struct {
@@ -88,10 +44,10 @@ func (s *stubRunner) RunTx(mode sdk.ExecMode, txBytes []byte, tx sdk.Tx, txIndex
 	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
 }
 
-// insertHandler builds an InsertTxHandler with throwaway mempool/encoder for
-// tests that only exercise the admission path.
+// insertHandler builds an InsertTxHandler with no encCache for tests that only
+// exercise the admission path.
 func insertHandler(runner txRunner) sdk.InsertTxHandler {
-	return newAdmitter(runner, &stubMempool{}, nil, nil, noopEncoder, nil).InsertTxHandler()
+	return newAdmitter(runner, nil, nil, noopEncoder).InsertTxHandler()
 }
 
 func TestInsertTxHandler_AcceptsValidTx(t *testing.T) {
@@ -186,20 +142,17 @@ func assertPanics(t *testing.T, name string, fn func()) {
 }
 
 // TestNewAdmitter_PanicsOnMissingDeps verifies construction fails loudly on
-// misconfiguration: a nil mempool or nil encoder breaks Recheck, and a nil
-// txGet with a non-nil encCache would skip canonical-bytes registration.
+// misconfiguration: a non-nil encCache without a txGet or txEncoder would skip
+// canonical-bytes registration on the reap fast path.
 func TestNewAdmitter_PanicsOnMissingDeps(t *testing.T) {
 	enc := new(EncoderCache)
 	txGet := func([]byte) (sdk.Tx, bool) { return &ptrTx{}, true }
 
-	assertPanics(t, "nil mpool", func() {
-		newAdmitter(&stubRunner{}, nil, nil, nil, noopEncoder, nil)
-	})
-	assertPanics(t, "nil txEncoder", func() {
-		newAdmitter(&stubRunner{}, &stubMempool{}, txGet, enc, nil, nil)
+	assertPanics(t, "nil txEncoder with encCache", func() {
+		newAdmitter(&stubRunner{}, txGet, enc, nil)
 	})
 	assertPanics(t, "nil txGet with encCache", func() {
-		newAdmitter(&stubRunner{}, &stubMempool{}, nil, enc, noopEncoder, nil)
+		newAdmitter(&stubRunner{}, nil, enc, noopEncoder)
 	})
 }
 
@@ -226,7 +179,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		return canonical, nil
 	}
 	enc := new(EncoderCache)
-	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
+	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	resp, err := h(&abci.RequestInsertTx{Tx: raw})
 	if err != nil || resp.Code != abci.CodeTypeOK {
@@ -252,7 +205,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 	txGet := func([]byte) (sdk.Tx, bool) { return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode fail") }
 	enc := new(EncoderCache)
-	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
+	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -274,7 +227,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	txGet := func([]byte) (sdk.Tx, bool) { txGetCalled = true; return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
 	enc := new(EncoderCache)
-	h := newAdmitter(runner, &stubMempool{}, txGet, enc, txEncoder, nil).InsertTxHandler()
+	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -284,55 +237,6 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	}
 	if _, ok := enc.Bytes(tx); ok {
 		t.Fatal("rejected tx must not be registered in encCache")
-	}
-}
-
-// recheckRunner models baseapp's RunTx(ExecModeReCheck): on AnteHandler failure
-// it removes the tx from the mempool, exactly as baseapp does via
-// mempool.RemoveWithReason. It records every (mode, tx) so the test can assert
-// recheck visited each resident tx in the right mode.
-type recheckRunner struct {
-	mpool   *stubMempool
-	invalid map[sdk.Tx]struct{}
-	modes   []sdk.ExecMode
-	seen    []sdk.Tx
-}
-
-func (r *recheckRunner) RunTx(mode sdk.ExecMode, _ []byte, tx sdk.Tx, _ int, _ storetypes.MultiStore, _ map[string]any) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
-	r.modes = append(r.modes, mode)
-	r.seen = append(r.seen, tx)
-	if _, bad := r.invalid[tx]; bad {
-		_ = r.mpool.Remove(tx)
-		return sdk.GasInfo{}, nil, nil, errors.New("recheck ante failed")
-	}
-	return sdk.GasInfo{}, &sdk.Result{}, nil, nil
-}
-
-// TestAdmitter_RecheckRevalidatesAndEvicts verifies the recheck invariant: every
-// resident tx is re-run in ExecModeReCheck after a commit, and a tx whose ante
-// now fails is dropped from the mempool (so it can't be proposed and waste a
-// block slot) while still-valid txs are retained.
-func TestAdmitter_RecheckRevalidatesAndEvicts(t *testing.T) {
-	good1, bad, good2 := &ptrTx{id: 1}, &ptrTx{id: 2}, &ptrTx{id: 3}
-	mp := &stubMempool{txs: []sdk.Tx{good1, bad, good2}}
-	runner := &recheckRunner{mpool: mp, invalid: map[sdk.Tx]struct{}{bad: {}}}
-
-	a := newAdmitter(runner, mp, nil, nil, noopEncoder, nil)
-	a.Recheck(sdk.Context{})
-
-	if len(runner.seen) != 3 {
-		t.Fatalf("expected 3 recheck RunTx calls (one per resident tx), got %d", len(runner.seen))
-	}
-	for i, m := range runner.modes {
-		if m != sdk.ExecModeReCheck {
-			t.Fatalf("recheck call %d ran in mode %v, want ExecModeReCheck", i, m)
-		}
-	}
-	if len(mp.removed) != 1 || mp.removed[0] != sdk.Tx(bad) {
-		t.Fatalf("expected only the now-invalid tx evicted, got %v", mp.removed)
-	}
-	if mp.CountTx() != 2 {
-		t.Fatalf("expected 2 valid txs retained after recheck, got %d", mp.CountTx())
 	}
 }
 

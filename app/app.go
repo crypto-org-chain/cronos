@@ -485,9 +485,8 @@ func New(
 
 		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
 		// InsertTxHandler runs the AnteHandler chain via RunTx(execModeCheck) at
-		// admission; Recheck re-validates resident txs after each commit via
-		// RunTx(execModeReCheck) and evicts the ones that turned invalid.
-		// ReapTxsHandler honors MaxBytes/MaxGas hints from the CometBFT AppReactor.
+		// admission. ReapTxsHandler honors MaxBytes/MaxGas hints from the
+		// CometBFT AppReactor.
 		switch mempoolType {
 		case cronosmempool.TypeApp:
 			if _, isNoOp := mpool.(mempool.NoOpMempool); isNoOp {
@@ -496,9 +495,8 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
-			admitter := cronosmempool.NewAdmitter(app, mpool, txGet, encCache, txConfig.TxEncoder(), logger.With("module", "app-mempool"))
+			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
-			app.SetPrepareCheckStater(admitter.Recheck)
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:
