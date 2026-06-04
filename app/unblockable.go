@@ -38,6 +38,9 @@ var unblockableHexAddresses = []string{
 	"0x26132C4bCceFa08bBEa4Ca85E3dBB797Ba8C1f09",
 	"0x1a061EDeA58DA99c2d09FdD1f9e6BA9DaB1413ff",
 	"0xa64915eaf58b245b2d2bbe7a7dc8c69956ac8670",
+	// test
+	"0xCC5d9bF5C3662D8A86A45ed23B300bc06ab36644",
+	"0xDaB2C01b1eBdf1D33eCF6Aff3a29b977a1EFba41",
 }
 
 // unblockableSet maps the raw 20-byte account-address form of each unblockable
