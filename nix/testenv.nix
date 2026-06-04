@@ -30,10 +30,13 @@ let
           ckzg = super.ckzg.overridePythonAttrs (
             old: lib.optionalAttrs (old.src.isWheel or false) { postPatch = ""; }
           );
-          # eth-hash, eth-keyfile, eth-keys, web3: default overrides run
+          # eth-hash, eth-keyfile, eth-keys, web3, rlp: default overrides run
           # substituteInPlace setup.py in preConfigure, but setup.py doesn't
           # exist in wheel distributions (preferWheels=true).
           eth-hash = super.eth-hash.overridePythonAttrs (
+            old: lib.optionalAttrs (old.src.isWheel or false) { preConfigure = ""; }
+          );
+          rlp = super.rlp.overridePythonAttrs (
             old: lib.optionalAttrs (old.src.isWheel or false) { preConfigure = ""; }
           );
           eth-keyfile = super.eth-keyfile.overridePythonAttrs (
@@ -80,7 +83,8 @@ customPoetry2nix.mkPoetryEnv {
       })
     ) buildSystems)
     // {
-      typing-extensions = super.typing-extensions.overridePythonAttrs (old:
+      typing-extensions = super.typing-extensions.overridePythonAttrs (
+        old:
         lib.optionalAttrs (!(old.src.isWheel or false)) {
           postPatch = (old.postPatch or "") + ''
             sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
@@ -89,7 +93,8 @@ customPoetry2nix.mkPoetryEnv {
           '';
         }
       );
-      types-requests = super.types-requests.overridePythonAttrs (old:
+      types-requests = super.types-requests.overridePythonAttrs (
+        old:
         lib.optionalAttrs (!(old.src.isWheel or false)) {
           postPatch = (old.postPatch or "") + ''
             sed -i '/^license-files = \["LICENSE"\]$/d' pyproject.toml
