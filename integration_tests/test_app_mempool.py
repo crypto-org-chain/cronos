@@ -124,7 +124,14 @@ def test_bad_signature_rejected_at_admission(cronos_app_mempool):
     # that it failed *at submit time*, not later.
     assert any(
         s in msg
-        for s in ("invalid", "unauthorized", "signature", "sender", "insufficient funds", "sequence")
+        for s in (
+            "invalid",
+            "unauthorized",
+            "signature",
+            "sender",
+            "insufficient funds",
+            "sequence",
+        )
     ), msg
 
 
