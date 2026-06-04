@@ -32,6 +32,7 @@ in
 customPoetry2nix.mkPoetryEnv {
   projectDir = ../integration_tests;
   python = python311;
+  preferWheels = true;
   overrides = customPoetry2nix.overrides.withDefaults (
     self: super:
     let
