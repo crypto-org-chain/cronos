@@ -145,7 +145,7 @@ func assertPanics(t *testing.T, name string, fn func()) {
 // misconfiguration: a non-nil encCache without a txGet or txEncoder would skip
 // canonical-bytes registration on the reap fast path.
 func TestNewAdmitter_PanicsOnMissingDeps(t *testing.T) {
-	enc := new(EncoderCache)
+	enc := NewEncoderCache(0)
 	txGet := func([]byte) (sdk.Tx, bool) { return &ptrTx{}, true }
 
 	assertPanics(t, "nil txEncoder with encCache", func() {
@@ -178,7 +178,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 		}
 		return canonical, nil
 	}
-	enc := new(EncoderCache)
+	enc := NewEncoderCache(0)
 	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	resp, err := h(&abci.RequestInsertTx{Tx: raw})
@@ -204,7 +204,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 
 	txGet := func([]byte) (sdk.Tx, bool) { return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return nil, errors.New("encode fail") }
-	enc := new(EncoderCache)
+	enc := NewEncoderCache(0)
 	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
@@ -226,7 +226,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	var txGetCalled bool
 	txGet := func([]byte) (sdk.Tx, bool) { txGetCalled = true; return tx, true }
 	txEncoder := func(sdk.Tx) ([]byte, error) { return []byte("x"), nil }
-	enc := new(EncoderCache)
+	enc := NewEncoderCache(0)
 	h := newAdmitter(runner, txGet, enc, txEncoder).InsertTxHandler()
 
 	if _, err := h(&abci.RequestInsertTx{Tx: []byte("bad")}); err != nil {

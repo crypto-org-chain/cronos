@@ -451,7 +451,11 @@ func New(
 		var txGet cronosmempool.TxGetter
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
 			if _, isNoOp := mpool.(mempool.NoOpMempool); !isNoOp {
-				encCache = new(cronosmempool.EncoderCache)
+				// Cap entries at decodeCacheSize: a tx evicted from the decode
+				// cache re-decodes to a new pointer, so its encoder-cache entry
+				// would never hit again — sizing them equal bounds memory and
+				// ages both caches out in lockstep.
+				encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 				dec := activeDecoder
 				txGet = func(bz []byte) (sdk.Tx, bool) {
 					tx, err := dec(bz)
