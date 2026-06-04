@@ -179,7 +179,7 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
-	FlagMempoolInsertTxCacheSize = "mempool.insert-tx-cache-size"
+	FlagMempoolInsertTxCacheSize   = "mempool.insert-tx-cache-size"
 )
 
 var Forks = []Fork{}
