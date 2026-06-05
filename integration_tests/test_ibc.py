@@ -208,10 +208,9 @@ def test_cro_bridge_contract(ibc):
 
     # Verify the param was stored correctly
     stored_params = cli.query_params()
-    assert stored_params["cro_bridge_contract_address"].lower() == contract.address.lower(), (
-        f"cro_bridge_contract_address mismatch: "
-        f"stored={stored_params['cro_bridge_contract_address']}, expected={contract.address}"
-    )
+    got = stored_params["cro_bridge_contract_address"].lower()
+    want = contract.address.lower()
+    assert got == want, f"cro_bridge_contract_address: {got} != {want}"
 
     tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
         {
