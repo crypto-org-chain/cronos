@@ -192,7 +192,7 @@ def test_cro_bridge_contract(ibc):
     # the bridge call. Without this, SendCroToIbcHandler rejects all callers.
     cli = ibc.cronos.cosmos_cli()
     gov_params = cli.query_params()
-    gov_params["cro_bridge_contract_address"] = contract.address
+    gov_params["cro_bridge_contract_addresses"] = [contract.address]
     update_msg = "/cronos.MsgUpdateParams"
     submit_gov_proposal(
         ibc.cronos,
@@ -208,9 +208,10 @@ def test_cro_bridge_contract(ibc):
 
     # Verify the param was stored correctly
     stored_params = cli.query_params()
-    got = stored_params["cro_bridge_contract_address"].lower()
-    want = contract.address.lower()
-    assert got == want, f"cro_bridge_contract_address: {got} != {want}"
+    stored_addresses = [a.lower() for a in stored_params.get("cro_bridge_contract_addresses", [])]
+    assert contract.address.lower() in stored_addresses, (
+        f"cro_bridge_contract_addresses does not contain {contract.address}: {stored_params}"
+    )
 
     tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
         {
