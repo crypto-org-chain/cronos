@@ -8,9 +8,14 @@ from pystarport import ports
 from .network import Cronos
 from .utils import (
     ADDRS,
+    KEYS,
     bech32_to_eth,
     derive_new_account,
+    eth_to_bech32,
     fund_acc,
+    get_account_nonce,
+    send_transaction,
+    sign_transaction,
     wait_for_new_blocks,
     wait_for_port,
 )
@@ -240,3 +245,51 @@ def test_block_list_contract(cronos):
     wait_for_new_blocks(cli, 1)
     assert nonce + 1 == get_nonce(cli, user)
     assert w3.eth.get_filter_changes(flt.filter_id) == []
+
+
+def test_block_list_unblockable(cronos):
+    """Addresses in the hardcoded unblockable list (app/unblockable.go) are
+    filtered out of any submitted blocklist, so they can never be blocked."""
+    gen_validator_identity(cronos)
+    cli = cronos.cosmos_cli()
+    w3 = cronos.w3
+
+    # one of the hardcoded unblockable addresses; eth_to_bech32 is how it would
+    # be expressed when submitted in a blocklist
+    unblockable_eth = to_checksum_address("0x007F588ca3FFe53F20cb03553Ca38bb13542FF89")
+    unblockable = eth_to_bech32(unblockable_eth)
+
+    # control: a normal address that must stay blocked as a destination
+    control = cli.address("signer1")
+
+    # block both the control and the unblockable address at the same time
+    encrypt_to_validators(cli, {"addresses": [control, unblockable]})
+
+    base_port = cronos.base_port(0)
+    wait_for_port(ports.evmrpc_ws_port(base_port))
+
+    # 1) a tx whose destination is the control address must be filtered out of
+    #    blocks: send it without waiting for a receipt, then confirm below that
+    #    the sender's nonce does not advance while the blocklist is active.
+    blocked_nonce = get_account_nonce(w3, KEYS["community"])
+    signed = sign_transaction(
+        w3,
+        {"to": to_checksum_address(bech32_to_eth(control)), "value": 1},
+        KEYS["community"],
+    )
+    w3.eth.send_raw_transaction(signed.raw_transaction)
+
+    # 2) a tx whose destination is the unblockable address IS included, even
+    #    though that address is present in the submitted blocklist -> it was
+    #    filtered out, and the filtering is selective (the control stays blocked).
+    receipt = send_transaction(w3, {"to": unblockable_eth, "value": 1}, KEYS["signer2"])
+    assert receipt.status == 1
+
+    # the control tx is still stuck: its sender nonce has not advanced
+    wait_for_new_blocks(cli, 1)
+    assert get_account_nonce(w3, KEYS["community"]) == blocked_nonce
+
+    # clearing the blocklist lets the previously blocked tx through
+    encrypt_to_validators(cli, {})
+    wait_for_new_blocks(cli, 2)
+    assert get_account_nonce(w3, KEYS["community"]) == blocked_nonce + 1

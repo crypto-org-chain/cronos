@@ -3,6 +3,7 @@
 ## UNRELEASED
 
 * [#1910](https://github.com/crypto-org-chain/cronos/pull/1910) fix: Optimize staking endblocker with an in-memory KV store and standardize gas consumption for staking related messages. Temporary patch to not allow staking messages.
+* [#2095](https://github.com/crypto-org-chain/cronos/pull/2095) feat: add hardcoded unblockable address list that is filtered out of both the mempool and consensus blocklists.
 
 *Jan 13, 2026*
 
