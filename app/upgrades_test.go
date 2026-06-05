@@ -14,6 +14,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/v2/dbadapter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
 func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
 	db := dbm.NewMemDB()
 	store := dbadapter.Store{DB: db}
