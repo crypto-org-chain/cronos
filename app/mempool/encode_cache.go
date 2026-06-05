@@ -5,12 +5,9 @@ import (
 	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-)
 
-// defaultEncoderCacheSize is the NewEncoderCache fallback when a non-positive
-// size is passed. Mirrors cmdcfg.DefaultTxDecodeCacheSize; kept as a local
-// literal to avoid importing cmd/cronosd/config into the mempool package.
-const defaultEncoderCacheSize = 10000
+	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+)
 
 // TxGetter recovers the decoded tx for its raw proto bytes. InsertTxHandler
 // uses it after RunTx so the EncoderCache can be keyed on the tx pointer.
@@ -37,10 +34,10 @@ type encoderItem struct {
 }
 
 // NewEncoderCache returns an LRU-bounded cache holding at most size entries.
-// Pass <=0 to fall back to defaultEncoderCacheSize.
+// Pass <=0 to fall back to cmdcfg.DefaultTxEncodeCacheSize.
 func NewEncoderCache(size int) *EncoderCache {
 	if size <= 0 {
-		size = defaultEncoderCacheSize
+		size = cmdcfg.DefaultTxEncodeCacheSize
 	}
 	return &EncoderCache{
 		cap:   size,

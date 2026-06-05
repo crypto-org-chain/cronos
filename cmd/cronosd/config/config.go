@@ -32,6 +32,7 @@ type CronosConfig struct {
 const (
 	DefaultTxDecodeCacheSize       = 10000
 	DefaultTxDecodeCacheMaxTxBytes = 65536
+	DefaultTxEncodeCacheSize       = 10000
 )
 
 const (
