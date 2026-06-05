@@ -497,6 +497,10 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
 			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
+			// RPC BroadcastTx* drives CheckTx LOCK-FREE (no ABCI client lock);
+			// serialize it on the same mutex as InsertTx so RPC and p2p admission
+			// never write the shared checkState multistore concurrently.
+			app.SetCheckTxHandler(admitter.CheckTxHandler())
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:

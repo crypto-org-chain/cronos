@@ -287,6 +287,96 @@ func TestInsertTxHandler_ConcurrentAdmissionIsSerialized(t *testing.T) {
 	}
 }
 
+// TestCheckTxHandler_MapsSuccess verifies a passing tx maps gas/log/data into
+// the ResponseCheckTx with CodeTypeOK.
+func TestCheckTxHandler_MapsSuccess(t *testing.T) {
+	a := newAdmitter(&stubRunner{}, nil, nil, noopEncoder)
+	check := a.CheckTxHandler()
+
+	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{GasWanted: 100, GasUsed: 42}, &sdk.Result{Log: "ok", Data: []byte("d")}, nil, nil
+	}
+	resp, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("tx")})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Code != abci.CodeTypeOK {
+		t.Fatalf("expected CodeTypeOK, got %d", resp.Code)
+	}
+	if resp.GasWanted != 100 || resp.GasUsed != 42 {
+		t.Fatalf("gas mismatch: wanted=%d used=%d", resp.GasWanted, resp.GasUsed)
+	}
+	if resp.Log != "ok" || string(resp.Data) != "d" {
+		t.Fatalf("log/data mismatch: log=%q data=%q", resp.Log, resp.Data)
+	}
+}
+
+// TestCheckTxHandler_MapsError verifies an AnteHandler rejection maps to a
+// non-OK code in the response (not a transport error).
+func TestCheckTxHandler_MapsError(t *testing.T) {
+	a := newAdmitter(&stubRunner{}, nil, nil, noopEncoder)
+	check := a.CheckTxHandler()
+
+	anteErr := errorsmod.Register("test-check", 1, "bad sig")
+	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{}, nil, nil, anteErr
+	}
+	resp, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("bad")})
+	if err != nil {
+		t.Fatalf("handler must not surface a transport error, got %v", err)
+	}
+	if resp.Code == abci.CodeTypeOK {
+		t.Fatal("expected non-OK code for rejected tx")
+	}
+}
+
+// TestAdmitter_InsertAndCheckShareMutex is the regression test for the race the
+// reviewer flagged: RPC CheckTx runs LOCK-FREE while p2p InsertTx is serialized.
+// Both write the same lock-free state (standing in for checkState). They MUST
+// share one mutex. Half the goroutines drive InsertTx, half drive CheckTx
+// against the SAME Admitter and the SAME backing map. Under `go test -race`
+// this fails if CheckTxHandler omits a.mu or uses a different lock.
+func TestAdmitter_InsertAndCheckShareMutex(t *testing.T) {
+	runner := &raceRunner{state: make(map[string]struct{})}
+	a := newAdmitter(runner, nil, nil, noopEncoder)
+	insert := a.InsertTxHandler()
+	check := a.CheckTxHandler()
+
+	// CheckTx's runTx closure mirrors BaseApp: it drives the SAME lock-free
+	// runner/state that InsertTx writes through a.runner.
+	runTx := func(txBytes []byte, _ sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return runner.RunTx(sdk.ExecModeCheck, txBytes, nil, -1, nil, nil)
+	}
+
+	const goroutines = 16
+	const perG = 64
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := range goroutines {
+		go func(g int) {
+			defer wg.Done()
+			for i := range perG {
+				tx := []byte(strconv.Itoa(g) + ":" + strconv.Itoa(i))
+				var err error
+				if g%2 == 0 {
+					_, err = insert(&abci.RequestInsertTx{Tx: tx})
+				} else {
+					_, err = check(runTx, &abci.RequestCheckTx{Tx: tx})
+				}
+				if err != nil {
+					t.Errorf("g%d i%d: unexpected error: %v", g, i, err)
+					return
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	if got := len(runner.state); got != goroutines*perG {
+		t.Fatalf("expected %d distinct txs, got %d", goroutines*perG, got)
+	}
+}
+
 // BenchmarkInsertTxHandler_Admit measures the admission path: SHA256-free now,
 // one RunTx per call (stubbed to ~0ns to isolate handler + mutex overhead).
 func BenchmarkInsertTxHandler_Admit(b *testing.B) {

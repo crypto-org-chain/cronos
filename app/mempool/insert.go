@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
@@ -35,6 +36,9 @@ type Admitter struct {
 	encCache  *EncoderCache
 	txGet     TxGetter
 	txEncoder sdk.TxEncoder
+	// trace mirrors BaseApp.Trace(); controls whether CheckTx errors include
+	// the full stack trace in the response log.
+	trace bool
 }
 
 // NewAdmitter builds the Admitter for mempool.type=app. It must be registered
@@ -43,7 +47,9 @@ type Admitter struct {
 // If encCache is non-nil, txGet and txEncoder must also be non-nil so InsertTx
 // can register canonical bytes for the reap fast path.
 func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
-	return newAdmitter(app, txGet, encCache, txEncoder)
+	a := newAdmitter(app, txGet, encCache, txEncoder)
+	a.trace = app.Trace()
+	return a
 }
 
 func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
@@ -81,15 +87,53 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 		}
 
 		if a.encCache != nil {
-			if tx, ok := a.txGet(req.Tx); ok {
-				bz := req.Tx
-				if canonical, err := a.txEncoder(tx); err == nil {
-					bz = canonical
-				}
-				a.encCache.Register(tx, bz)
-			}
+			a.registerCanonical(req.Tx)
 		}
 
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
+	}
+}
+
+// registerCanonical re-encodes an admitted tx to its canonical bytes and stores
+// them in the EncoderCache so ReapTxsHandler can skip proto.Marshal. Re-encoding
+// (rather than caching raw) keeps a peer's non-minimal proto bytes out of the
+// cache. Falls back to raw bytes if re-encoding errors so reap can still ship
+// the tx. Caller holds a.mu and must have checked encCache != nil.
+func (a *Admitter) registerCanonical(raw []byte) {
+	tx, ok := a.txGet(raw)
+	if !ok {
+		return
+	}
+	bz := raw
+	if canonical, err := a.txEncoder(tx); err == nil {
+		bz = canonical
+	}
+	a.encCache.Register(tx, bz)
+}
+
+// CheckTxHandler serializes RPC-driven CheckTx against InsertTxHandler on the
+// same mutex. CometBFT's AppMempool calls CheckTx LOCK-FREE (no ABCI client
+// lock) for BroadcastTx* RPC, while peer-relayed txs arrive via InsertTx. Both
+// run RunTx(ExecModeCheck) against the shared checkState multistore (a Go map
+// unsafe for concurrent writes), so without a shared lock an RPC CheckTx racing
+// a p2p InsertTx corrupts checkState and panics. The runTx closure is supplied
+// by BaseApp already bound to the correct exec mode.
+func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+
+		gasInfo, result, anteEvents, err := runTx(req.Tx, nil)
+		if err != nil {
+			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
+		}
+
+		return &abci.ResponseCheckTx{
+			GasWanted: int64(gasInfo.GasWanted),
+			GasUsed:   int64(gasInfo.GasUsed),
+			Log:       result.Log,
+			Data:      result.Data,
+			Events:    result.Events,
+		}, nil
 	}
 }
