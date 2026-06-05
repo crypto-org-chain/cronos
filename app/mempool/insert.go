@@ -27,10 +27,20 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 // Admission runs RunTx against the shared checkState multistore (a Go map that
 // is unsafe for concurrent writes), so it is serialized by a single mutex.
 type Admitter struct {
-	// mu serializes admission. CometBFT calls InsertTx concurrently
-	// (per-peer P2P AppReactor + per-tx RPC BroadcastTx goroutines) and the
-	// ABCI client holds no connection lock. RunTx writes the shared checkState
-	// multistore, so concurrent admission races and panics without this mutex.
+	// mu serializes the two ADMISSION paths against each other. CometBFT calls
+	// InsertTx (per-peer P2P AppReactor) and CheckTx (per-tx RPC BroadcastTx)
+	// concurrently, and AppMempool.CheckTx runs LOCK-FREE (skips the ABCI
+	// client lock). Both call RunTx(ExecModeCheck) on the shared checkState, so
+	// without this mutex an RPC CheckTx racing a p2p InsertTx panics on the
+	// concurrent map write.
+	//
+	// NOTE: mu does NOT serialize admission against consensus-side checkState
+	// mutation (Commit resets checkState; see baseapp Commit). Those calls go
+	// through CometBFT's localClient.mtx and never through the Admitter, so mu
+	// cannot exclude them. For the CList mempool that gap is closed by
+	// mempool.Lock() around Commit, but AppMempool.Lock() is a no-op — so the
+	// admission-vs-Commit race is a known, pre-existing limitation of
+	// mempool.type=app, not addressed here.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -116,10 +126,14 @@ func (a *Admitter) registerCanonical(raw []byte) {
 // lock) for BroadcastTx* RPC, while peer-relayed txs arrive via InsertTx. Both
 // run RunTx(ExecModeCheck) against the shared checkState multistore (a Go map
 // unsafe for concurrent writes), so without a shared lock an RPC CheckTx racing
-// a p2p InsertTx corrupts checkState and panics. The runTx closure is supplied
-// by BaseApp already bound to the correct exec mode. On success it also
-// registers the tx's canonical bytes in the EncoderCache so RPC-submitted txs
-// (which never traverse InsertTx) still hit the reap fast path.
+// a p2p InsertTx corrupts checkState and panics. This handler closes only that
+// admission-vs-admission race; see the Admitter.mu doc for the residual
+// admission-vs-Commit limitation. The runTx closure is supplied by BaseApp
+// already bound to the correct exec mode (panics inside it are converted to
+// errors by BaseApp.RunTx's own recover, so they never escape past the deferred
+// Unlock). On success it also registers the tx's canonical bytes in the
+// EncoderCache so RPC-submitted txs (which never traverse InsertTx) still hit
+// the reap fast path.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		a.mu.Lock()
@@ -134,6 +148,10 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 			a.registerCanonical(req.Tx)
 		}
 
+		// Events are passed through without sdk.MarkEventsToIndex (which the
+		// default BaseApp.CheckTx applies): that flag only feeds the tx indexer,
+		// which operates on FinalizeBlock results, not CheckTx — and indexEvents
+		// has no public accessor here. No observable effect for RPC callers.
 		return &abci.ResponseCheckTx{
 			GasWanted: int64(gasInfo.GasWanted),
 			GasUsed:   int64(gasInfo.GasUsed),
