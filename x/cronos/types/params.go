@@ -51,12 +51,11 @@ func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enable
 // DefaultParams is the default parameter configuration for the cronos module
 func DefaultParams() Params {
 	return Params{
-		IbcCroDenom:              IbcCroDenomDefaultValue,
-		IbcTimeout:               IbcTimeoutDefaultValue,
-		CronosAdmin:              "",
-		EnableAutoDeployment:     false,
-		MaxCallbackGas:           MaxCallbackGasDefaultValue,
-		CroBridgeContractAddresses: []string{},
+		IbcCroDenom:          IbcCroDenomDefaultValue,
+		IbcTimeout:           IbcTimeoutDefaultValue,
+		CronosAdmin:          "",
+		EnableAutoDeployment: false,
+		MaxCallbackGas:       MaxCallbackGasDefaultValue,
 	}
 }
 
