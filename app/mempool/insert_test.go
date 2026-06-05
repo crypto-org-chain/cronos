@@ -330,6 +330,65 @@ func TestCheckTxHandler_MapsError(t *testing.T) {
 	}
 }
 
+// TestCheckTxHandler_RegistersCanonicalBytes verifies Q1 fix: an RPC-submitted
+// tx (which never traverses InsertTx) still has its canonical bytes registered
+// in the EncoderCache, so it hits the reap fast path.
+func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
+	tx := &ptrTx{}
+	raw := []byte("rpc-gossip-bytes")
+	canonical := []byte("canonical")
+
+	txGet := func(bz []byte) (sdk.Tx, bool) {
+		if string(bz) != string(raw) {
+			t.Fatalf("txGet got %q, want %q", bz, raw)
+		}
+		return tx, true
+	}
+	txEncoder := func(sdk.Tx) ([]byte, error) { return canonical, nil }
+	enc := NewEncoderCache(0)
+	a := newAdmitter(&stubRunner{}, txGet, enc, txEncoder)
+	check := a.CheckTxHandler()
+
+	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{}, &sdk.Result{}, nil, nil
+	}
+	if _, err := check(runTx, &abci.RequestCheckTx{Tx: raw}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, ok := enc.Bytes(tx)
+	if !ok {
+		t.Fatal("RPC-admitted tx was not registered in encCache")
+	}
+	if string(got) != string(canonical) {
+		t.Fatalf("registered %q, want canonical %q", got, canonical)
+	}
+}
+
+// TestCheckTxHandler_NoRegisterOnReject verifies a rejected RPC tx is never
+// looked up or registered.
+func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
+	tx := &ptrTx{}
+	var txGetCalled bool
+	txGet := func([]byte) (sdk.Tx, bool) { txGetCalled = true; return tx, true }
+	enc := NewEncoderCache(0)
+	a := newAdmitter(&stubRunner{}, txGet, enc, noopEncoder)
+	check := a.CheckTxHandler()
+
+	anteErr := errorsmod.Register("test-check-rej", 1, "bad")
+	runTx := func([]byte, sdk.Tx) (sdk.GasInfo, *sdk.Result, []abci.Event, error) {
+		return sdk.GasInfo{}, nil, nil, anteErr
+	}
+	if _, err := check(runTx, &abci.RequestCheckTx{Tx: []byte("bad")}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if txGetCalled {
+		t.Fatal("txGet must not run for a rejected tx")
+	}
+	if _, ok := enc.Bytes(tx); ok {
+		t.Fatal("rejected tx must not be registered")
+	}
+}
+
 // TestAdmitter_InsertAndCheckShareMutex is the regression test for the race the
 // reviewer flagged: RPC CheckTx runs LOCK-FREE while p2p InsertTx is serialized.
 // Both write the same lock-free state (standing in for checkState). They MUST

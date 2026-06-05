@@ -117,7 +117,9 @@ func (a *Admitter) registerCanonical(raw []byte) {
 // run RunTx(ExecModeCheck) against the shared checkState multistore (a Go map
 // unsafe for concurrent writes), so without a shared lock an RPC CheckTx racing
 // a p2p InsertTx corrupts checkState and panics. The runTx closure is supplied
-// by BaseApp already bound to the correct exec mode.
+// by BaseApp already bound to the correct exec mode. On success it also
+// registers the tx's canonical bytes in the EncoderCache so RPC-submitted txs
+// (which never traverse InsertTx) still hit the reap fast path.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		a.mu.Lock()
@@ -126,6 +128,10 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 		gasInfo, result, anteEvents, err := runTx(req.Tx, nil)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
+		}
+
+		if a.encCache != nil {
+			a.registerCanonical(req.Tx)
 		}
 
 		return &abci.ResponseCheckTx{
