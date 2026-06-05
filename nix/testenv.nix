@@ -5,6 +5,24 @@
   pkgs,
 }:
 let
+  # crates.io rejects the default "python-requests" User-Agent with HTTP 403
+  # (see https://crates.io/data-access), which makes fetchCargoVendor's crate
+  # downloads fail. Patch the `requests` used by the vendoring tool to send a
+  # descriptive User-Agent. This is scoped to fetchCargoVendor's downloader, so
+  # no other Python packages rebuild, and the vendored output hash is unchanged.
+  fetchCargoVendor = pkgs.rustPlatform.fetchCargoVendor.override {
+    python3Packages = pkgs.python3Packages.overrideScope (
+      _: prev: {
+        requests = prev.requests.overridePythonAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            substituteInPlace src/requests/utils.py \
+              --replace-fail 'name="python-requests"' 'name="cronos-cargo-vendor"'
+          '';
+        });
+      }
+    );
+  };
+
   # Override the default poetry2nix overrides to fix rpds-py
   customPoetry2nix = poetry2nix.overrideScope (
     final: prev: {
@@ -13,7 +31,7 @@ let
           rpds-py = super.rpds-py.overridePythonAttrs (
             old:
             lib.optionalAttrs (!(old.src.isWheel or false)) {
-              cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+              cargoDeps = fetchCargoVendor {
                 inherit (old) src pname version;
                 hash = "sha256-npvJz6PMHWzPkI0LVNeiMsZVxmwR6uzjlhBPMCCrFfw=";
               };

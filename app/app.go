@@ -1081,6 +1081,9 @@ func (app *App) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64, me
 		if err != nil {
 			return fmt.Errorf("invalid bech32 address: %s, err: %w", str, err)
 		}
+		if IsUnblockable(addr) {
+			continue
+		}
 
 		blockedMap[addr.String()] = struct{}{}
 	}
