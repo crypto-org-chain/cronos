@@ -34,6 +34,7 @@
 * [#2038](https://github.com/crypto-org-chain/cronos/pull/2038) chore(ci): improve ci running
 * [#2048](https://github.com/crypto-org-chain/cronos/pull/2048) refactor: use slices.Contains and strings.ContainsRune to simplify code
 * [#2044](https://github.com/crypto-org-chain/cronos/pull/2044) ci: fix dependabot workflows and drain PR backlog
+* [#2098](https://github.com/crypto-org-chain/cronos/pull/2098) chore(dep): pin ibc-go to upstream v11.1.0
 
 
 
