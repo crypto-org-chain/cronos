@@ -70,6 +70,9 @@ func TestUpgradeV18CroBridgeContractAddresses(t *testing.T) {
 		require.True(t, common.IsHexAddress(addr),
 			"mainnetCroBridgeContractAddresses entry must be a valid EVM hex address, got: %s",
 			addr)
+		require.NotEqual(t, common.Address{}, common.HexToAddress(addr),
+			"mainnetCroBridgeContractAddresses entry must not be the zero address, got: %s",
+			addr)
 	}
 
 	// Verify the migration code path: GetParams → mutate → SetParams → GetParams round-trips correctly.

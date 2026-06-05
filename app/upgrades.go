@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
 
@@ -29,6 +31,11 @@ var mainnetCroBridgeContractAddresses = []string{}
 // MaxVersionStoreLoader (set by the caller when this returns false)
 // covers both regular and upgrade-height boots.
 func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64) bool {
+	for _, addr := range mainnetCroBridgeContractAddresses {
+		if !common.IsHexAddress(addr) || (common.HexToAddress(addr) == common.Address{}) {
+			panic(fmt.Sprintf("invalid mainnetCroBridgeContractAddresses entry %q: must be a non-zero EVM hex address", addr))
+		}
+	}
 	app.UpgradeKeeper.SetUpgradeHandler(planName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			toVM, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
