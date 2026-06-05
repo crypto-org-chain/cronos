@@ -278,9 +278,8 @@ schema = 3
     hash = "sha256-9kLtVepU5b3m2Sne8pBQNvF9LxM374LEmvuLWeYBfFU="
     replaced = "github.com/cosmos/iavl"
   [mod."github.com/cosmos/ibc-go/v11"]
-    version = "v11.0.0-20260601161416-2254d21b6dfe"
-    hash = "sha256-pmH5/+nDVpBBAg7Q+Ha7bkz0w/ai1Vy/h7FK//17Qvw="
-    replaced = "github.com/crypto-org-chain/ibc-go/v11"
+    version = "v11.1.0"
+    hash = "sha256-wNqlnX3OXFspJlRTmIKd+SjbpU+lCzI5pmv+6sEBiJc="
   [mod."github.com/cosmos/ics23/go"]
     version = "v0.11.0"
     hash = "sha256-mgU/pqp4kASmW/bP0z6PzssfjRp7GU9ioyvNlDdGC+E="

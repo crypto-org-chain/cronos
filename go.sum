@@ -294,8 +294,8 @@ github.com/cosmos/gogoproto v1.7.2 h1:5G25McIraOC0mRFv9TVO139Uh3OklV2hczr13KKVHC
 github.com/cosmos/gogoproto v1.7.2/go.mod h1:8S7w53P1Y1cHwND64o0BnArT6RmdgIvsBuco6uTllsk=
 github.com/cosmos/iavl v1.2.6 h1:Hs3LndJbkIB+rEvToKJFXZvKo6Vy0Ex1SJ54hhtioIs=
 github.com/cosmos/iavl v1.2.6/go.mod h1:GiM43q0pB+uG53mLxLDzimxM9l/5N9UuSY3/D0huuVw=
-github.com/cosmos/ibc-go/v11 v11.0.0 h1:9EIehi88hNP1cCU83NC+J8UXNn+05YZt9eqmnzCQLSg=
-github.com/cosmos/ibc-go/v11 v11.0.0/go.mod h1:iWlzLuCu+ctVbQwoVf5z51HE5e/NE8/pwnLVVDmP++4=
+github.com/cosmos/ibc-go/v11 v11.1.0 h1:77RzkIOSZFL1alC7odQG3zZ7wAQkfsiWLV479ase8Dg=
+github.com/cosmos/ibc-go/v11 v11.1.0/go.mod h1:iWlzLuCu+ctVbQwoVf5z51HE5e/NE8/pwnLVVDmP++4=
 github.com/cosmos/ics23/go v0.11.0 h1:jk5skjT0TqX5e5QJbEnwXIS2yI2vnmLOgpQPeM5RtnU=
 github.com/cosmos/ics23/go v0.11.0/go.mod h1:A8OjxPE67hHST4Icw94hOxxFEJMBG031xIGF/JHNIY0=
 github.com/cosmos/keyring v1.2.0 h1:8C1lBP9xhImmIabyXW4c3vFjjLiBdGCmfLUfeZlV1Yo=
@@ -329,8 +329,6 @@ github.com/crypto-org-chain/ethermint v0.22.1-0.20260528204018-f6683e1e255b h1:3
 github.com/crypto-org-chain/ethermint v0.22.1-0.20260528204018-f6683e1e255b/go.mod h1:+KYccHfFJQ6J2gsINufYi4+ZqiTjbjOBYnnsdu6FeLs=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e h1:ftyRRWDiXKWsnp3PxLNbfVLzrqkx+aDNZdkPconawWk=
 github.com/crypto-org-chain/go-ethereum v1.10.20-0.20260521015249-663dca6c618e/go.mod h1:Fs6QebQbavneQTYcA39PEKv2+zIjX7rPUZ14DER46wk=
-github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe h1:fAMN/waUc5ktvpAaUtOsekTzAKwdP1boM71ONmya/ZQ=
-github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe/go.mod h1:iWlzLuCu+ctVbQwoVf5z51HE5e/NE8/pwnLVVDmP++4=
 github.com/danieljoos/wincred v1.2.3 h1:v7dZC2x32Ut3nEfRH+vhoZGvN72+dQ/snVXo/vMFLdQ=
 github.com/danieljoos/wincred v1.2.3/go.mod h1:6qqX0WNrS4RzPZ1tnroDzq9kY3fu1KwE7MRLQK4X0bs=
 github.com/davecgh/go-spew v0.0.0-20171005155431-ecdeabc65495/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
