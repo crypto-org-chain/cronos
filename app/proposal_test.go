@@ -201,9 +201,8 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 
 	t.Run("NoOp mempool respects MaxTxBytes and stops at boundary", func(t *testing.T) {
 		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), noopDecoder, acceptAll)
-		// Each "aaaa" payload is 4 bytes. ComputeProtoSizeForTxs computes the
-		// proto-framed size: field tag (1) + length varint (1) + data (4) = 6
-		// bytes per tx. Budget = 14 → two fit (12), third (18) exceeds.
+		// Each "aaaa" payload is 4 bytes → proto-framed size is tag(1) +
+		// length(1) + data(4) = 6 bytes. Budget 14 → two fit (12), third (18) exceeds.
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
 			MaxTxBytes: 14,
 			Txs: [][]byte{
@@ -300,7 +299,7 @@ func (f *fakeIterator) Tx() sdk.Tx { return f.txs[0] }
 
 // fakeMempool satisfies mempool.Mempool with a fixed list of txs. It does NOT
 // implement ExtMempool, so mempool.SelectBy falls back to the Select iterator
-// path — exactly the path fastPrepareProposalAppMempool exercises.
+// path — the path fastPrepareProposalAppMempool exercises.
 type fakeMempool struct {
 	txs []sdk.Tx
 }
@@ -395,10 +394,8 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	})
 
 	t.Run("MaxTxBytes cap stops iteration at boundary", func(t *testing.T) {
-		// Each "raw-X" is 5 bytes. ComputeProtoSizeForTxs computes the size of
-		// a proto-encoded Block.Data.Txs entry: field tag (1) + length varint
-		// (1) + data (5) = 7 bytes per tx. Budget = 18 → two fit (14), third
-		// (21) exceeds.
+		// Each "raw-X" is 5 bytes → proto-framed size is tag(1) + length(1) +
+		// data(5) = 7 bytes. Budget 18 → two fit (14), third (21) exceeds.
 		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
 		enc := cronosmempool.NewEncoderCache(0)
@@ -444,11 +441,6 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 	})
 }
 
-// TestProtoSizeForTx asserts the inlined wire-size helper stays bit-identical to
-// cometbft's ComputeProtoSizeForTxs for a single tx. This is the invariant that
-// lets fastNoOpPrepareProposal / fastPrepareProposalAppMempool drop the per-tx
-// []Tx{}+ToProto allocation: if the two ever diverge, proposals would mis-account
-// the MaxBytes wire budget. Covers varint length boundaries (1/2/3-byte lengths).
 func TestProtoSizeForTx(t *testing.T) {
 	for _, n := range []int{0, 1, 2, 127, 128, 129, 300, 16383, 16384, 16385, 70000} {
 		bz := make([]byte, n)

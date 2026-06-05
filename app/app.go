@@ -436,8 +436,8 @@ func New(
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
 	_, mpoolIsNoOp := mpool.(mempool.NoOpMempool)
-	// Validate the mempool.type up front so misconfiguration fails before
-	// baseapp construction instead of deep inside the SetMempool closure.
+	// Validate mempool.type up front so misconfiguration fails before baseapp
+	// construction instead of deep inside the SetMempool closure.
 	switch mempoolType {
 	case cronosmempool.TypeApp:
 		if mpoolIsNoOp {
@@ -448,7 +448,7 @@ func New(
 	default:
 		panic(fmt.Sprintf("unrecognized mempool.type %q; valid values: app, flood, \"\"", mempoolType))
 	}
-	// Captured from the closure below, assigned onto the App after construction;
+	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolAdmissionMu *sync.Mutex
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
@@ -463,14 +463,14 @@ func New(
 		))
 
 		// encCache skips proto.Marshal in reap and PrepareProposal. Requires
-		// decodeCacheSize > 0: the caching decoder must return the same pointer
-		// that InsertTxHandler stores as the cache key.
+		// decodeCacheSize > 0 so the caching decoder returns the same pointer
+		// InsertTxHandler stores as the cache key.
 		var encCache *cronosmempool.EncoderCache
 		var txGet cronosmempool.TxGetter
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
-			// Cap at decodeCacheSize: a tx evicted from the decode cache gets a new
-			// pointer on re-decode, so its encoder entry would never hit again.
-			// Raise tx-decode-cache-size if the reap fallback rate is high.
+			// Cap at decodeCacheSize: an evicted tx re-decodes to a new pointer,
+			// so its encoder entry could never hit again. Raise
+			// tx-decode-cache-size if the reap fallback rate is high.
 			encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 			dec := activeDecoder
 			txGet = func(bz []byte) (sdk.Tx, bool) {
@@ -502,10 +502,9 @@ func New(
 		// so we just implement a new one.
 		app.SetProcessProposal(blockProposalHandler.ProcessProposalHandler())
 
-		// Wire CometBFT v0.39 app-side mempool ABCI hooks when mempool.type=app.
-		// InsertTxHandler runs the AnteHandler chain via RunTx(execModeCheck) at
-		// admission. ReapTxsHandler honors MaxBytes/MaxGas hints from the
-		// CometBFT AppReactor.
+		// Wire app-side mempool ABCI hooks for mempool.type=app.
+		// InsertTxHandler runs ante via RunTx(execModeCheck) at admission;
+		// ReapTxsHandler honors MaxBytes/MaxGas hints from the CometBFT AppReactor.
 		if mempoolType == cronosmempool.TypeApp {
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
@@ -1568,9 +1567,8 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 // Commit holds the admission mutex around BaseApp.Commit so its checkState
 // reset can't race lock-free app-mempool admission (AppMempool.Lock() is a
-// no-op). No-op for other mempool types. Lock order: localClient.mtx (held by
-// the consensus connection) then mempoolAdmissionMu; admission takes only the
-// latter, so no cycle.
+// no-op). No-op for other mempool types. Lock order: localClient.mtx then
+// mempoolAdmissionMu; admission takes only the latter, so no cycle.
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	if app.mempoolAdmissionMu != nil {
 		app.mempoolAdmissionMu.Lock()

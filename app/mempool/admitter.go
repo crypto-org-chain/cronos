@@ -25,10 +25,9 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // Admitter owns the app-side mempool admission path for mempool.type=app.
 type Admitter struct {
-	// mu serializes admission. AppMempool delivers InsertTx (p2p) and CheckTx
-	// (RPC) concurrently, and CheckTx runs lock-free, yet both call
-	// RunTx(ExecModeCheck) on the shared checkState — unsafe for concurrent
-	// access. App.Commit also takes this mutex (via AdmissionMutex) so the
+	// mu serializes admission. InsertTx (p2p) and CheckTx (RPC) both call
+	// RunTx(ExecModeCheck) on the shared checkState, which is not
+	// concurrency-safe. App.Commit also takes mu (via AdmissionMutex) so its
 	// checkState reset can't race in-flight admission, since AppMempool.Lock()
 	// is a no-op.
 	mu        sync.Mutex
@@ -40,11 +39,11 @@ type Admitter struct {
 	trace bool
 }
 
-// NewAdmitter builds the Admitter for mempool.type=app. It must be registered
-// with BaseApp.SetInsertTxHandler (via InsertTxHandler) before Seal.
+// NewAdmitter builds the Admitter for mempool.type=app; register it via
+// BaseApp.SetInsertTxHandler before Seal.
 //
-// If encCache is non-nil, txGet and txEncoder must also be non-nil so InsertTx
-// can register canonical bytes for the reap fast path.
+// If encCache is non-nil, txGet and txEncoder must be too, so InsertTx can
+// register canonical bytes for the reap fast path.
 func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
 	a := newAdmitter(app, txGet, encCache, txEncoder)
 	a.trace = app.Trace()
@@ -66,18 +65,16 @@ func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEnco
 	}
 }
 
-// AdmissionMutex exposes the admission mutex so App.Commit can serialize the
-// checkState reset against lock-free admission. Pointer is stable (Admitter is
-// heap-allocated).
+// AdmissionMutex exposes mu so App.Commit can serialize its checkState reset
+// against lock-free admission. The pointer is stable (Admitter is heap-allocated).
 func (a *Admitter) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
 
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
-// admitting them to the mempool. Flood protection relies on CometBFT peer
-// limits, not this handler. If encCache is non-nil, admitted txs have their
-// canonical bytes registered so ReapTxsHandler can skip proto.Marshal;
-// re-encoding avoids storing non-minimal peer bytes in the cache.
+// admitting them. Flood protection relies on CometBFT peer limits, not this
+// handler. Admitted txs register canonical bytes so ReapTxsHandler can skip
+// proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
 		a.mu.Lock()
@@ -97,10 +94,9 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// registerCanonical caches an admitted tx's canonical (re-encoded) bytes so
-// ReapTxsHandler can skip proto.Marshal; re-encoding keeps non-minimal peer
-// bytes out of the cache. Falls back to raw on encode error. No-op when the
-// cache is disabled. Caller holds mu.
+// registerCanonical caches a tx's canonical (re-encoded) bytes so ReapTxsHandler
+// can skip proto.Marshal, keeping non-minimal peer bytes out of the cache. Falls
+// back to raw on encode error; no-op when the cache is disabled. Caller holds mu.
 func (a *Admitter) registerCanonical(raw []byte) {
 	if a.encCache == nil {
 		return
@@ -116,11 +112,10 @@ func (a *Admitter) registerCanonical(raw []byte) {
 	a.encCache.Register(tx, bz)
 }
 
-// CheckTxHandler runs RPC CheckTx under the admission mutex (see mu): without it
-// a lock-free RPC CheckTx races a p2p InsertTx on checkState. The runTx closure
-// comes from BaseApp bound to the exec mode; its panics are recovered inside
-// BaseApp.RunTx. On success it registers canonical bytes so RPC txs (which skip
-// InsertTx) still hit the reap fast path.
+// CheckTxHandler runs RPC CheckTx under mu so it can't race a p2p InsertTx on
+// checkState. The runTx closure comes from BaseApp bound to the exec mode; its
+// panics are recovered inside BaseApp.RunTx. On success it registers canonical
+// bytes so RPC txs (which skip InsertTx) still hit the reap fast path.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		a.mu.Lock()

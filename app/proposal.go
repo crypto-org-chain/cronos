@@ -51,18 +51,15 @@ func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, ma
 	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
 }
 
-// fastNoOpPrepareProposal returns a PrepareProposal handler that, when the
-// mempool is nil or NoOp, skips the per-tx TxDecode that cosmos-sdk v0.54's
-// NewDefaultProposalHandler performs (and that aborts the proposal on a single
-// malformed tx). It applies the cronos `validateTx` block-list filter and
-// respects req.MaxTxBytes. When the consensus param MaxGas is set, it also
-// caps total selected gas — required so proposals do not exceed the
-// consensus gas budget under NoOp.
+// fastNoOpPrepareProposal returns a PrepareProposal handler for the nil/NoOp
+// mempool. It skips the per-tx TxDecode that v0.54's NewDefaultProposalHandler
+// does (which aborts the whole proposal on one malformed tx), applies the cronos
+// validateTx blocklist, and respects req.MaxTxBytes. When consensus MaxGas > 0
+// it also caps total selected gas, so proposals stay within the gas budget.
 //
-// When MaxGas > 0 the handler must decode each tx to read its gas; the "fast
-// path" then matters only for fault tolerance (a decode failure skips the
-// offending tx instead of aborting). Real (priority) mempools delegate to the
-// upstream default to preserve ordering semantics.
+// With MaxGas > 0 each tx must be decoded to read its gas; the fast path then
+// only buys fault tolerance (a decode failure skips that tx instead of aborting).
+// Real (priority) mempools delegate to the upstream default to keep ordering.
 func fastNoOpPrepareProposal(
 	mp mempool.Mempool,
 	defaultHandler sdk.PrepareProposalHandler,
@@ -91,16 +88,15 @@ func fastNoOpPrepareProposal(
 			totalGas   uint64
 		)
 		for _, txBz := range req.Txs {
-			// Use the same accounting baseapp.DefaultTxSelector uses so the
-			// resulting block respects cometbft's MaxBytes wire limit, not
-			// just the raw payload sum.
+			// Match baseapp.DefaultTxSelector's accounting so the block
+			// respects cometbft's MaxBytes wire limit, not just raw payload sum.
 			txSize := cronosmempool.ProtoSizeForTx(txBz)
 			if totalBytes+txSize > maxTxBytes {
 				break
 			}
 
-			// Decode only when we need gas accounting; otherwise let
-			// validateTx lazily decode if its blocklist demands it.
+			// Decode only when gas accounting needs it; otherwise validateTx
+			// decodes lazily if its blocklist demands it.
 			var tx sdk.Tx
 			if maxBlockGas > 0 {
 				var err error
@@ -116,16 +112,15 @@ func fastNoOpPrepareProposal(
 			if maxBlockGas > 0 {
 				if feeTx, ok := tx.(sdk.FeeTx); ok {
 					gasWanted := feeTx.GetGas()
-					// Overflow-safe: gasWanted (attacker-controlled) may be near
-					// MaxUint64; totalGas <= maxBlockGas by induction, so the
-					// subtraction can't underflow.
+					// Overflow-safe: totalGas <= maxBlockGas by induction, so
+					// maxBlockGas-totalGas can't underflow even for attacker-set gas.
 					if gasWanted > maxBlockGas-totalGas {
 						break
 					}
 					totalGas += gasWanted
 				}
-				// Non-FeeTx: no gas accounting. All cronos txs implement sdk.FeeTx,
-				// so this is unreachable in practice but safe (can't inflate totalGas).
+				// Non-FeeTx: no gas accounting. All cronos txs are FeeTx, so
+				// unreachable in practice but safe (can't inflate totalGas).
 			}
 
 			selected = append(selected, txBz)
@@ -135,26 +130,23 @@ func fastNoOpPrepareProposal(
 	}
 }
 
-// fastPrepareProposalAppMempool returns a PrepareProposal handler for the
-// mempool.type=app path. Iterates the SDK priority mempool directly, reads
-// raw tx bytes from encCache (populated by InsertTxHandler), applies the
-// blocklist filter, and respects MaxTxBytes / consensus MaxGas.
+// fastPrepareProposalAppMempool returns a PrepareProposal handler for
+// mempool.type=app. It iterates the priority mempool directly, reads raw tx
+// bytes from encCache (populated by InsertTxHandler), applies the blocklist,
+// and respects MaxTxBytes / consensus MaxGas.
 //
-// Skips baseapp.PrepareProposalVerifyTx (which re-encodes + re-runs the full
-// AnteHandler per tx). InsertTxHandler already ran ante via RunTx(ExecModeCheck)
-// at admission, so re-running it here is redundant for static checks (signature,
-// nonce). Caveat: baseFee-based fee validation is not re-checked at proposal
-// time — a tx whose gasPrice < baseFee (because baseFee rose since admission)
-// will be included and fail at execution, wasting block space. This is an
-// accepted tradeoff: PrepareProposalVerifyTx dominates step_propose latency at
-// high throughput, and the wasted-space risk is bounded by the mempool's
-// fee-price ordering (lower-fee txs are proposed last and thus most likely to
-// be cut by MaxTxBytes before the fee check matters).
+// It skips baseapp.PrepareProposalVerifyTx (re-encode + full ante re-run):
+// InsertTxHandler already ran ante via RunTx(ExecModeCheck) at admission, so
+// static checks (signature, nonce) are redundant here. Tradeoff: baseFee fee
+// validation is not re-checked, so a tx whose gasPrice fell below a risen
+// baseFee is included and fails at execution, wasting block space. This is
+// bounded by fee-price ordering (lower-fee txs are proposed last, so most
+// likely cut by MaxTxBytes first) and accepted because PrepareProposalVerifyTx
+// dominates step_propose latency at high throughput.
 //
-// encCache MUST be non-nil; when it is nil the caller should wire the slower
-// `defaultHandler` path which still performs PrepareProposalVerifyTx. txEncoder
-// is the fallback for txs whose decoded pointer is not registered in the cache
-// (eviction race after Reap; expected to be rare).
+// encCache MUST be non-nil; otherwise wire the slower defaultHandler path
+// (which still runs PrepareProposalVerifyTx). txEncoder is the fallback for txs
+// whose decoded pointer isn't in the cache (eviction race after Reap; rare).
 func fastPrepareProposalAppMempool(
 	mp mempool.Mempool,
 	encCache *cronosmempool.EncoderCache,
@@ -179,13 +171,12 @@ func fastPrepareProposalAppMempool(
 			cacheHits  float32
 			cacheMiss  float32
 		)
-		// Snapshot tx refs under the pool lock, then encode / validate / size
-		// after releasing it. PriorityNonceMempool.SelectBy holds the mempool
-		// mutex for the entire callback; doing per-tx proto.Marshal + validateTx
-		// + size accounting inside the callback would pin that lock for the whole
-		// proposal build, blocking gossip admission (mp.Insert) and the 500ms
-		// CometBFT reap ticker. The callback now only appends pointers (cheap),
-		// matching ReapTxsHandler's snapshot-then-process pattern.
+		// Snapshot tx pointers under the pool lock, then encode/validate/size
+		// after releasing it. SelectBy holds the mempool mutex for the whole
+		// callback; doing proto.Marshal + validateTx + sizing there would pin
+		// the lock for the entire proposal build, blocking gossip admission
+		// (mp.Insert) and the 500ms CometBFT reap ticker. Matches
+		// ReapTxsHandler's snapshot-then-process pattern.
 		snapshot := make([]sdk.Tx, 0, mp.CountTx())
 		mempool.SelectBy(ctx, mp, nil, func(memTx sdk.Tx) bool {
 			snapshot = append(snapshot, memTx)
@@ -199,16 +190,14 @@ func fastPrepareProposalAppMempool(
 				var err error
 				bz, err = txEncoder(memTx)
 				if err != nil {
-					// skip and continue iteration
 					continue
 				}
 			} else {
 				cacheHits++
 			}
 
-			// Use the same accounting baseapp.DefaultTxSelector uses so the
-			// resulting block respects cometbft's MaxBytes wire limit, not
-			// just the raw payload sum.
+			// Match baseapp.DefaultTxSelector's accounting so the block
+			// respects cometbft's MaxBytes wire limit, not just raw payload sum.
 			txSize := cronosmempool.ProtoSizeForTx(bz)
 			if totalBytes+txSize > maxTxBytes {
 				break
@@ -232,9 +221,9 @@ func fastPrepareProposalAppMempool(
 			selected = append(selected, bz)
 			totalBytes += txSize
 		}
-		// Emit encoder-cache hit/miss once per proposal build (not per tx) so the
-		// fallback-to-proto.Marshal rate is observable when pool depth exceeds the
-		// encoder-cache size. No-op unless telemetry is enabled.
+		// Emit cache hit/miss once per proposal (not per tx) so the proto.Marshal
+		// fallback rate is observable when pool depth exceeds the encoder-cache
+		// size. No-op unless telemetry is enabled.
 		if cacheHits > 0 {
 			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "prepare", "encode_cache", "hit") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 		}

@@ -27,8 +27,6 @@ func makeRaw(id uint64) []byte {
 	return b
 }
 
-// makeDecoder returns a TxDecoder that counts calls and returns a cacheTx.
-// Payloads shorter than 8 bytes return an error (never cached).
 func makeDecoder(t *testing.T) (sdk.TxDecoder, *atomic.Int64) {
 	t.Helper()
 	var calls atomic.Int64
@@ -117,8 +115,6 @@ func TestDecodeCache_DifferentPayloads(t *testing.T) {
 	}
 }
 
-// TestDecodeCache_LRUEviction tests LRU ordering directly against a single
-// cacheShard, sidestepping hash distribution across shards.
 func TestDecodeCache_LRUEviction(t *testing.T) {
 	const shardCacheSize = cmdcfg.DefaultTxDecodeCacheSize / shardCount
 	s := &cacheShard{cap: shardCacheSize, items: make(map[uint64]*list.Element, shardCacheSize)}
@@ -149,8 +145,6 @@ func TestDecodeCache_LRUEviction(t *testing.T) {
 	}
 }
 
-// countEntries returns the total number of entries across all shards.
-// Test helper only — not needed in production code.
 func countEntries(c *decodeCache) int {
 	total := 0
 	for i := range c.shards {
@@ -161,8 +155,6 @@ func countEntries(c *decodeCache) int {
 	return total
 }
 
-// TestDecodeCache_EvictionBounded verifies that after inserting 2× capacity
-// the cache retains at most cmdcfg.DefaultTxDecodeCacheSize entries (eviction is working).
 func TestDecodeCache_EvictionBounded(t *testing.T) {
 	base, _ := makeDecoder(t)
 	c := newDecodeCache(cmdcfg.DefaultTxDecodeCacheSize, cmdcfg.DefaultTxDecodeCacheMaxTxBytes)
@@ -210,19 +202,14 @@ func TestDecodeCache_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Each goroutine decodes a unique key twice; first call misses, second hits.
-	// Keys are disjoint across goroutines (id*itersPerG + i) and total 3200 < 10000
-	// so no eviction. Expected calls == goroutines*itersPerG (exactly one miss
-	// per unique key).
+	// Keys are disjoint across goroutines and total 3200 < 10000, so no
+	// eviction: exactly one miss per unique key.
 	want := int64(goroutines * itersPerG)
 	if got := calls.Load(); got != want {
 		t.Fatalf("cache hit rate wrong: calls=%d, want %d (one miss per unique key)", got, want)
 	}
 }
 
-// TestDecodeCache_SkipLargePayloads verifies that payloads exceeding
-// the configured maxTxBytes are decoded successfully but never cached —
-// protects against memory DoS via adversarial large transactions.
 func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 	calls := atomic.Int64{}
 	base := func(bz []byte) (sdk.Tx, error) {
@@ -256,9 +243,6 @@ func TestDecodeCache_SkipLargePayloads(t *testing.T) {
 	}
 }
 
-// TestDecodeCache_CustomMaxTxBytes locks the contract that newDecodeCache
-// honors a non-default per-entry payload cap. Caps tx size at 32 bytes;
-// payloads above that bypass the cache, payloads at or below are cached.
 func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	const customMax = 32
 	calls := atomic.Int64{}
@@ -280,9 +264,8 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 		t.Fatalf("above-cap was cached: calls=%d, want 3", got)
 	}
 
-	// Default const would have cached this (32 << defaultMax). With custom
-	// cap of 32, even 33-byte payloads bypass — proves the field, not the
-	// const, governs the gate.
+	// Default const would cache this; with a custom cap of 32 even 33-byte
+	// payloads bypass — proves the field, not the const, governs the gate.
 	calls.Store(0)
 	atCap := make([]byte, customMax)
 	if _, err := dec(atCap); err != nil {
@@ -296,8 +279,6 @@ func TestDecodeCache_CustomMaxTxBytes(t *testing.T) {
 	}
 }
 
-// TestDecodeCache_DefaultsOnNonPositive locks the fallback contract: passing
-// 0 or negative for either size or maxTxBytes uses the canonical defaults.
 func TestDecodeCache_DefaultsOnNonPositive(t *testing.T) {
 	c := newDecodeCache(0, 0)
 	if c.maxTxBytes != cmdcfg.DefaultTxDecodeCacheMaxTxBytes {

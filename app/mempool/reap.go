@@ -12,19 +12,17 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// TypeApp matches CometBFT's MempoolTypeApp ("app") config value. Mirrored
-// here to avoid pulling cometbft/config into app/app.go just for one string.
+// TypeApp mirrors CometBFT's MempoolTypeApp ("app") config value, avoiding a
+// cometbft/config import for one string.
 const TypeApp = "app"
 
 // NewReapTxsHandler drains the priority mempool for mempool.type=app, stopping
-// at MaxBytes/MaxGas hints (0 = no cap per CometBFT convention). Uses a prefix
-// scan: breaks at the first tx exceeding a cap (not best-fit), so a large
-// high-priority tx may leave unused budget. Encoder errors skip the offending
-// tx. If encCache is non-nil, admitted txs skip proto.Marshal on the hot path.
+// at MaxBytes/MaxGas (0 = no cap, per CometBFT convention). Prefix scan: breaks
+// at the first tx over a cap (not best-fit), so a large high-priority tx may
+// leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, logger log.Logger) sdk.ReapTxsHandler {
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
-		// Pre-size the snapshot to the current pool count to avoid
-		// repeated slice growth under the pool lock.
+		// Pre-size to pool count to avoid slice growth under the pool lock.
 		snapshot := make([]sdk.Tx, 0, mpool.CountTx())
 		mempool.SelectBy(context.Background(), mpool, nil, func(tx sdk.Tx) bool {
 			snapshot = append(snapshot, tx)
@@ -59,8 +57,8 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if feeTx, ok := tx.(sdk.FeeTx); ok {
 				gas = feeTx.GetGas()
 			}
-			// Overflow-safe: gas (attacker-controlled) may be near MaxUint64;
-			// totalGas <= req.MaxGas by induction, so the subtraction can't underflow.
+			// Overflow-safe: totalGas <= req.MaxGas by induction, so
+			// MaxGas-totalGas can't underflow even for attacker-set gas.
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
@@ -68,9 +66,9 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			totalBytes += size
 			totalGas += gas
 		}
-		// Emit encoder-cache hit/miss once per reap (not per tx) so operators can
-		// watch the fallback-to-proto.Marshal rate climb when sustained pool depth
-		// exceeds the encoder-cache size. No-op unless telemetry is enabled.
+		// Emit cache hit/miss once per reap (not per tx) so operators can watch
+		// the proto.Marshal fallback rate climb when pool depth exceeds the
+		// encoder-cache size. No-op unless telemetry is enabled.
 		if cacheHits > 0 {
 			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "reap", "encode_cache", "hit") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 		}

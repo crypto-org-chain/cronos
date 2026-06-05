@@ -11,16 +11,13 @@ import (
 )
 
 func init() {
-	// Pin sdk.GetConfig()'s scope key so getConfigKey() skips
-	// os.Executable() + os.Hostname() syscalls on every call. GetConfig is
-	// hot during bech32 address coding.
+	// Pin sdk.GetConfig()'s scope key so getConfigKey() skips the
+	// os.Executable() + os.Hostname() syscalls on every call (hot during
+	// bech32 address coding).
 	//
-	// NOTE: this mutation is process-global and runs before any Cobra/SDK
-	// flag parsing, so operators cannot suppress it via a runtime flag —
-	// they must export COSMOS_SDK_CONFIG_SCOPE explicitly before launch.
-	// Test or integration harnesses that share the process binary will
-	// inherit this value for all goroutines; the LookupEnv guard below
-	// only avoids overwriting an existing setting.
+	// NOTE: process-global and runs before flag parsing, so operators must
+	// export COSMOS_SDK_CONFIG_SCOPE before launch to override. The LookupEnv
+	// guard only avoids overwriting an existing value.
 	if _, ok := os.LookupEnv(sdk.EnvConfigScope); !ok {
 		_ = os.Setenv(sdk.EnvConfigScope, "cronos")
 	}

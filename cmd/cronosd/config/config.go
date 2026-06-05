@@ -26,9 +26,8 @@ type CronosConfig struct {
 	TxDecodeCacheMaxTxBytes int `mapstructure:"tx-decode-cache-max-tx-bytes"`
 }
 
-// Tx-decode cache defaults are kept here (and not in app/) because
-// cmd/cronosd/config is imported by app/, and the canonical defaults must
-// be reachable from both DefaultCronosConfig() and app's New().
+// Defaults live here (not app/) because app/ imports this package and both
+// DefaultCronosConfig() and app's New() need them.
 const (
 	DefaultTxDecodeCacheSize       = 10000
 	DefaultTxDecodeCacheMaxTxBytes = 65536

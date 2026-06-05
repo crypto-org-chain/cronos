@@ -2,9 +2,6 @@ package mempool
 
 import "testing"
 
-// TestEncoderCache_EvictsAtCapacity locks the invariant the reviewer flagged:
-// the cache must NOT grow without bound. Inserting more than cap entries keeps
-// the live set pinned at cap (the rest are evicted and GC-eligible).
 func TestEncoderCache_EvictsAtCapacity(t *testing.T) {
 	const cap = 4
 	c := NewEncoderCache(cap)
@@ -39,9 +36,6 @@ func TestEncoderCache_EvictsAtCapacity(t *testing.T) {
 	}
 }
 
-// TestEncoderCache_LRUPromotesOnRead verifies a Bytes() hit promotes an entry
-// to most-recently-used, so an actively-reaped tx survives eviction even as
-// newer txs arrive.
 func TestEncoderCache_LRUPromotesOnRead(t *testing.T) {
 	const cap = 2
 	c := NewEncoderCache(cap)
@@ -69,9 +63,6 @@ func TestEncoderCache_LRUPromotesOnRead(t *testing.T) {
 	}
 }
 
-// TestEncoderCache_NilReceiverMisses guards the prod path where reap.go is
-// wired with a nil encCache (mempool.type=app but decode cache disabled):
-// Bytes must report a miss, not panic.
 func TestEncoderCache_NilReceiverMisses(t *testing.T) {
 	var nilCache *EncoderCache
 	if _, ok := nilCache.Bytes(&ptrTx{id: 1}); ok {
@@ -79,8 +70,6 @@ func TestEncoderCache_NilReceiverMisses(t *testing.T) {
 	}
 }
 
-// TestEncoderCache_ReRegisterUpdatesBytes confirms re-registering the same tx
-// pointer overwrites its bytes without growing the cache.
 func TestEncoderCache_ReRegisterUpdatesBytes(t *testing.T) {
 	c := NewEncoderCache(4)
 	tx := &ptrTx{id: 1}

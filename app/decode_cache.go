@@ -13,8 +13,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// xxhashSeed randomizes shard assignment at startup so an attacker cannot
-// precompute which tx bytes land in which shard and flood a single shard.
+// xxhashSeed randomizes shard assignment so an attacker can't target one shard.
 var xxhashSeed = func() uint64 {
 	var b [8]byte
 	if _, err := cryptorand.Read(b[:]); err != nil {
@@ -28,13 +27,12 @@ const shardCount = 16
 
 type lruItem struct {
 	h   uint64
-	key []byte // raw tx bytes; disambiguates xxhash collisions via bytes.Equal
+	key []byte // raw tx bytes; resolves xxhash collisions
 	tx  sdk.Tx
 }
 
-// cacheShard is one stripe of the decodeCache. Each shard has its own
-// mutex, so concurrent access to different tx hashes is contention-free.
-// Eviction is LRU: the front of the list is most-recently-used.
+// cacheShard is one LRU stripe of decodeCache with its own mutex, so access to
+// different tx hashes is contention-free.
 type cacheShard struct {
 	mu    sync.Mutex
 	cap   int
@@ -42,8 +40,8 @@ type cacheShard struct {
 	lru   list.List // front = MRU, back = LRU; zero value is empty list
 }
 
-// get returns the cached tx for (h, bz). On hash collision returns (nil, false)
-// without evicting; the subsequent set call evicts the stale entry.
+// get returns the cached tx for (h, bz). On hash collision returns (nil, false);
+// the next set evicts the stale entry.
 func (s *cacheShard) get(h uint64, bz []byte) (sdk.Tx, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -83,17 +81,16 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 	s.items[h] = s.lru.PushFront(&lruItem{h: h, key: bytes.Clone(bz), tx: tx})
 }
 
-// decodeCache is a sharded LRU cache of decoded transactions. Returned
-// sdk.Tx pointers are SHARED across consumers (PrepareProposal, runTx,
-// CheckTx) — callers MUST NOT mutate the returned tx.
+// decodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
+// are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
+// NOT mutate them.
 type decodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
 }
 
-// newDecodeCache returns a sharded LRU cache with total capacity ~size
-// (rounded up so each shard holds at least 1 entry) and per-entry payload
-// cap of maxTxBytes. Pass <=0 for either to fall back to defaults.
+// newDecodeCache returns a cache with total capacity ~size and per-entry
+// payload cap maxTxBytes. Pass <=0 for either to use defaults.
 func newDecodeCache(size, maxTxBytes int) *decodeCache {
 	if size <= 0 {
 		size = cmdcfg.DefaultTxDecodeCacheSize
@@ -123,9 +120,8 @@ func (c *decodeCache) set(bz []byte, tx sdk.Tx) {
 	c.shards[h%shardCount].set(h, bz, tx)
 }
 
-// newCachingDecoder wraps base and returns a decoder that memoises results
-// for the lifetime of the cache. Callers share the same cache instance so
-// PrepareProposal and BaseApp.runTx benefit from each other's work.
+// newCachingDecoder wraps base with the shared cache, so PrepareProposal and
+// BaseApp.runTx reuse each other's decodes.
 func newCachingDecoder(base sdk.TxDecoder, cache *decodeCache) sdk.TxDecoder {
 	return func(bz []byte) (sdk.Tx, error) {
 		if tx, ok := cache.get(bz); ok {

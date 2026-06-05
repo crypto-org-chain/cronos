@@ -163,8 +163,8 @@ func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 }
 
 // signerTx wraps stubFeeTx with explicit sender/nonce so a fixed
-// SignerExtractor can route it into PriorityNonceMempool without needing
-// a full SigVerifiableTx implementation.
+// SignerExtractor can route it into PriorityNonceMempool without a full
+// SigVerifiableTx implementation.
 type signerTx struct {
 	*stubFeeTx
 	sender sdk.AccAddress
@@ -178,13 +178,6 @@ func (fixedSignerExtractor) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, erro
 	return []sdkmempool.SignerData{{Signer: s.sender, Sequence: s.nonce}}, nil
 }
 
-// TestReapTxs_NonceOrderingPerSender verifies that for a single sender,
-// txs inserted into the priority mempool in shuffled nonce order are
-// returned by NewReapTxsHandler in ascending nonce order — the per-sender
-// invariant that downstream block proposers rely on.
-//
-// Insertion bypasses NewInsertTxHandler (which now goes through BaseApp.CheckTx
-// and would require a real app to run). This exercises only the reap path.
 func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
@@ -220,8 +213,6 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 	}
 }
 
-// TestReapTxs_PriorityDescending verifies that txs inserted with varying
-// ctx.Priority() values are reaped highest-priority-first.
 func TestReapTxs_PriorityDescending(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
@@ -259,12 +250,6 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 	}
 }
 
-// TestReapTxs_UsesEncoderCacheForRegisteredTx is the end-to-end Q1 proof:
-// a tx whose canonical bytes were registered in the EncoderCache (as
-// CheckTxHandler now does for RPC-submitted txs) is reaped straight from the
-// cache — the fallback txEncoder is never called for it. An unregistered tx in
-// the same pool falls back to the encoder. This closes the loop from
-// registration to the reap fast path.
 func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
 	cached := &stubFeeTx{gas: 21_000, wire: []byte("ENCODER-FALLBACK-cached")}
 	uncached := &stubFeeTx{gas: 21_000, wire: []byte("ENCODER-FALLBACK-uncached")}
@@ -364,12 +349,11 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 		t.Fatalf("CountTx = %d, want %d", got, want)
 	}
 
-	// Snapshot stability: after writers stop, two consecutive reaps with the
-	// same caps must return the same number of txs. This catches gross
-	// iterator drift caused by SelectBy mutating internal state. We don't
-	// assert per-tx uniqueness — the upstream priority mempool iterator can
-	// emit a tx more than once when many entries share the same priority;
-	// that's tracked in cosmos/cosmos-sdk#1751 and out of scope here.
+	// Snapshot stability: after writers stop, two reaps with the same caps
+	// must return the same tx count. Catches gross iterator drift from SelectBy
+	// mutating internal state. We don't assert per-tx uniqueness — the upstream
+	// priority mempool iterator can emit a tx more than once when entries share
+	// a priority (cosmos/cosmos-sdk#1751), out of scope here.
 	resp1, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("final reap 1: %v", err)
