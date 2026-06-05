@@ -19,6 +19,11 @@ import (
 
 const planName = "v1.8"
 
+// mainnetCroBridgeContractAddress is the EVM address of the canonical CroBridge
+// contract deployed on Cronos mainnet. Must be set to the actual deployed address
+// before this binary is released; an empty string disables the SendCroToIbc hook.
+const mainnetCroBridgeContractAddress = ""
+
 // RegisterUpgradeHandlers returns if store loader is overridden.
 // No store-key churn from v0.53→v0.54 in this app, so the default
 // MaxVersionStoreLoader (set by the caller when this returns false)
@@ -49,6 +54,14 @@ func (app *App) RegisterUpgradeHandlers(cdc codec.BinaryCodec, maxVersion int64)
 				runtime.NewKVStoreService(app.keys[ibcexported.StoreKey]).OpenKVStore(sdkCtx),
 			)); err != nil {
 				return toVM, fmt.Errorf("prune stale ibc consensus state subkeys: %w", err)
+			}
+			// Set CroBridgeContractAddress to authorize the canonical CroBridge contract
+			// for the SendCroToIbc hook. This closes the unauthenticated-drain vulnerability
+			// where any contract emitting __CronosSendCroToIbc could drain CRO balances.
+			cronosParams := app.CronosKeeper.GetParams(sdkCtx)
+			cronosParams.CroBridgeContractAddress = mainnetCroBridgeContractAddress
+			if err := app.CronosKeeper.SetParams(sdkCtx, cronosParams); err != nil {
+				return toVM, fmt.Errorf("set cro bridge contract address: %w", err)
 			}
 			return toVM, nil
 		},

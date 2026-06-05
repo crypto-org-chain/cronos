@@ -14,6 +14,8 @@ message Params {
   string cronos_admin           = 3;
   bool   enable_auto_deployment = 4;
   uint64 max_callback_gas       = 5;
+  // the authorized contract address for the SendCroToIbc hook; empty disables the hook
+  string cro_bridge_contract_address = 6;
 }
 
 // TokenMappingChangeProposal defines a proposal to change one token mapping.

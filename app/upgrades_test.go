@@ -6,6 +6,7 @@ import (
 
 	dbm "github.com/cosmos/cosmos-db"
 	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/log/v2"
@@ -13,7 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/v2/dbadapter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
 func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
 	db := dbm.NewMemDB()
 	store := dbadapter.Store{DB: db}
@@ -59,4 +59,29 @@ func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
 	for _, k := range canonical {
 		require.NotNil(t, store.Get([]byte(k)), "canonical key %s must survive second run", k)
 	}
+}
+
+// TestUpgradeV18CroBridgeContractAddress verifies that:
+//  1. mainnetCroBridgeContractAddress is either empty (safe default) or a valid EVM address.
+//  2. The upgrade handler param migration correctly persists the value via SetParams/GetParams.
+func TestUpgradeV18CroBridgeContractAddress(t *testing.T) {
+	// Validate the constant itself — catches malformed values before they reach a live network.
+	if mainnetCroBridgeContractAddress != "" {
+		require.True(t, common.IsHexAddress(mainnetCroBridgeContractAddress),
+			"mainnetCroBridgeContractAddress must be a valid EVM hex address, got: %s",
+			mainnetCroBridgeContractAddress)
+	}
+
+	// Verify the migration code path: GetParams → mutate → SetParams → GetParams round-trips correctly.
+	a := Setup(t, "")
+	ctx := a.NewContext(false)
+
+	// Apply the same mutation the upgrade handler performs.
+	params := a.CronosKeeper.GetParams(ctx)
+	params.CroBridgeContractAddress = mainnetCroBridgeContractAddress
+	require.NoError(t, a.CronosKeeper.SetParams(ctx, params))
+
+	stored := a.CronosKeeper.GetParams(ctx)
+	require.Equal(t, mainnetCroBridgeContractAddress, stored.CroBridgeContractAddress,
+		"CroBridgeContractAddress not persisted by SetParams")
 }

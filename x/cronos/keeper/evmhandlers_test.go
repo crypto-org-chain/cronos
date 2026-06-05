@@ -357,8 +357,56 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 		error     error
 	}{
 		{
+			"unauthorized contract (param not set), expect fail",
+			func() {
+				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000500))
+				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+				topics = []common.Hash{
+					evmhandlers.SendCroToIbcEvent.ID,
+				}
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+					sender,
+					"recipient",
+					coin.Amount.BigInt(),
+				)
+				data = input
+			},
+			func() {},
+			fmt.Errorf("contract %s is not authorized to use SendCroToIbc hook", contract),
+		},
+		{
+			"unauthorized contract (different address in param), expect fail",
+			func() {
+				params := suite.app.CronosKeeper.GetParams(suite.ctx)
+				params.CroBridgeContractAddress = common.BigToAddress(big.NewInt(0x999)).Hex()
+				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
+				suite.Require().NoError(err)
+
+				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000500))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
+				suite.Require().NoError(err)
+				topics = []common.Hash{
+					evmhandlers.SendCroToIbcEvent.ID,
+				}
+				input, _ := evmhandlers.SendToIbcEvent.Inputs.NonIndexed().Pack(
+					sender,
+					"recipient",
+					coin.Amount.BigInt(),
+				)
+				data = input
+			},
+			func() {},
+			fmt.Errorf("contract %s is not authorized to use SendCroToIbc hook", contract),
+		},
+		{
 			"not enough balance, fail",
 			func() {
+				params := suite.app.CronosKeeper.GetParams(suite.ctx)
+				params.CroBridgeContractAddress = contract.Hex()
+				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
+				suite.Require().NoError(err)
+
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(10000000000000))
 				topics = []common.Hash{
 					evmhandlers.SendCroToIbcEvent.ID,
@@ -377,8 +425,13 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 		{
 			"success send cro to ibc",
 			func() {
+				params := suite.app.CronosKeeper.GetParams(suite.ctx)
+				params.CroBridgeContractAddress = contract.Hex()
+				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
+				suite.Require().NoError(err)
+
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000500))
-				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 
 				balance := suite.app.BankKeeper.GetBalance(suite.ctx, contract.Bytes(), suite.evmParam.EvmDenom)

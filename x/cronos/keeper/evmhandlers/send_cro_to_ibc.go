@@ -1,6 +1,7 @@
 package evmhandler
 
 import (
+	"fmt"
 	"math/big"
 
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
@@ -70,6 +71,11 @@ func (h SendCroToIbcHandler) Handle(
 	data []byte,
 	_ func(contractAddress common.Address, logSig common.Hash, logData []byte),
 ) error {
+	authorizedBridge := h.cronosKeeper.GetParams(ctx).CroBridgeContractAddress
+	if authorizedBridge == "" || common.HexToAddress(authorizedBridge) != contract {
+		return fmt.Errorf("contract %s is not authorized to use SendCroToIbc hook", contract)
+	}
+
 	unpacked, err := SendCroToIbcEvent.Inputs.Unpack(data)
 	if err != nil {
 		// log and ignore

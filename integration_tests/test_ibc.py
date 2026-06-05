@@ -20,6 +20,7 @@ from .utils import (
     deploy_contract,
     parse_events_rpc,
     send_transaction,
+    submit_gov_proposal,
     wait_for_fn,
 )
 
@@ -186,6 +187,25 @@ def test_cro_bridge_contract(ibc):
     # case 2: use CroBridge contract
     w3 = ibc.cronos.w3
     contract = deploy_contract(w3, CONTRACTS["CroBridge"])
+
+    # Authorize the deployed CroBridge contract via governance before making
+    # the bridge call. Without this, SendCroToIbcHandler rejects all callers.
+    cli = ibc.cronos.cosmos_cli()
+    gov_params = cli.query_params()
+    gov_params["cro_bridge_contract_address"] = contract.address
+    update_msg = "/cronos.MsgUpdateParams"
+    submit_gov_proposal(
+        ibc.cronos,
+        update_msg,
+        messages=[
+            {
+                "@type": update_msg,
+                "authority": module_address("gov"),
+                "params": gov_params,
+            }
+        ],
+    )
+
     tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
         {
             "from": ADDRS["signer2"],

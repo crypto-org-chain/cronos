@@ -5,6 +5,8 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -20,6 +22,8 @@ var (
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
 	// KeyMaxCallbackGas is store's key for the MaxCallbackGas
 	KeyMaxCallbackGas = []byte("MaxCallbackGas")
+	// KeyCroBridgeContractAddress is store's key for the authorized CroBridge contract address
+	KeyCroBridgeContractAddress = []byte("CroBridgeContractAddress")
 )
 
 const (
@@ -34,24 +38,26 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64, croBridgeContractAddress string) Params {
 	return Params{
-		IbcCroDenom:          ibcCroDenom,
-		IbcTimeout:           ibcTimeout,
-		CronosAdmin:          cronosAdmin,
-		EnableAutoDeployment: enableAutoDeployment,
-		MaxCallbackGas:       maxCallbackGas,
+		IbcCroDenom:              ibcCroDenom,
+		IbcTimeout:               ibcTimeout,
+		CronosAdmin:              cronosAdmin,
+		EnableAutoDeployment:     enableAutoDeployment,
+		MaxCallbackGas:           maxCallbackGas,
+		CroBridgeContractAddress: croBridgeContractAddress,
 	}
 }
 
 // DefaultParams is the default parameter configuration for the cronos module
 func DefaultParams() Params {
 	return Params{
-		IbcCroDenom:          IbcCroDenomDefaultValue,
-		IbcTimeout:           IbcTimeoutDefaultValue,
-		CronosAdmin:          "",
-		EnableAutoDeployment: false,
-		MaxCallbackGas:       MaxCallbackGasDefaultValue,
+		IbcCroDenom:              IbcCroDenomDefaultValue,
+		IbcTimeout:               IbcTimeoutDefaultValue,
+		CronosAdmin:              "",
+		EnableAutoDeployment:     false,
+		MaxCallbackGas:           MaxCallbackGasDefaultValue,
+		CroBridgeContractAddress: "",
 	}
 }
 
@@ -71,6 +77,9 @@ func (p Params) Validate() error {
 	if err := validateIsUint64(p.MaxCallbackGas); err != nil {
 		return err
 	}
+	if err := validateIsEvmAddress(p.CroBridgeContractAddress); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -88,6 +97,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
 		paramtypes.NewParamSetPair(KeyMaxCallbackGas, &p.MaxCallbackGas, validateIsUint64),
+		paramtypes.NewParamSetPair(KeyCroBridgeContractAddress, &p.CroBridgeContractAddress, validateIsEvmAddress),
 	}
 }
 
@@ -127,6 +137,23 @@ func validateIsBool(i interface{}) error {
 	_, ok := i.(bool)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	return nil
+}
+
+func validateIsEvmAddress(i interface{}) error {
+	s, ok := i.(string)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	if len(s) == 0 {
+		return nil
+	}
+	if !common.IsHexAddress(s) {
+		return fmt.Errorf("invalid evm address: %s", s)
+	}
+	if (common.HexToAddress(s) == common.Address{}) {
+		return fmt.Errorf("cro_bridge_contract_address must not be the zero address")
 	}
 	return nil
 }
