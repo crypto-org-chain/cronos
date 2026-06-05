@@ -77,6 +77,15 @@ func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEnco
 	}
 }
 
+// AdmissionMutex returns the mutex that serializes admission (CheckTx +
+// InsertTx). The App must also acquire it around BaseApp.Commit so the
+// consensus-side checkState reset cannot run concurrently with a lock-free
+// admission RunTx — the admission-vs-Commit gap that AppMempool.Lock()'s no-op
+// leaves open. Returns a stable pointer (Admitter is always heap-allocated).
+func (a *Admitter) AdmissionMutex() *sync.Mutex {
+	return &a.mu
+}
+
 // InsertTxHandler validates peer-relayed txs via RunTx(ExecModeCheck) before
 // admitting them to the mempool. Flood protection relies on CometBFT peer
 // limits, not this handler. If encCache is non-nil, admitted txs have their

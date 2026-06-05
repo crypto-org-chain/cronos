@@ -15,6 +15,7 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
+	"sync"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -333,6 +334,12 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
+	// mempoolAdmissionMu serializes BaseApp.Commit against app-side mempool
+	// admission (CheckTx + InsertTx) when mempool.type=app. AppMempool runs
+	// admission lock-free, so without sharing this mutex Commit's checkState
+	// reset would race a concurrent admission RunTx. nil for other mempool types.
+	mempoolAdmissionMu *sync.Mutex
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -430,6 +437,10 @@ func New(
 	}
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
+	// Captured from the closure below and assigned onto the App after
+	// construction; non-nil only for mempool.type=app. App.Commit acquires it to
+	// serialize the checkState reset against lock-free admission.
+	var mempoolAdmissionMu *sync.Mutex
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -501,6 +512,10 @@ func New(
 			// serialize it on the same mutex as InsertTx so RPC and p2p admission
 			// never write the shared checkState multistore concurrently.
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
+			// Share the admission mutex with App.Commit: AppMempool.Lock() is a
+			// no-op, so without this the consensus-side checkState reset in
+			// Commit races a concurrent lock-free admission RunTx.
+			mempoolAdmissionMu = admitter.AdmissionMutex()
 		case "", "flood":
 			// default flood path; no app-side hooks.
 		default:
@@ -549,6 +564,7 @@ func New(
 		tkeys:                tkeys,
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
+		mempoolAdmissionMu:   mempoolAdmissionMu,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1552,4 +1568,23 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	return app.BaseApp.CheckTx(req)
+}
+
+// Commit serializes the BaseApp checkState reset against app-side mempool
+// admission when mempool.type=app. AppMempool runs CheckTx/InsertTx lock-free
+// (its Lock() is a no-op), so BaseApp.Commit's app.cms.Commit() + checkState
+// reset would otherwise race a concurrent admission RunTx that reads/writes the
+// same checkState. Holding the admission mutex here excludes in-flight
+// admission for the duration of Commit. No-op overhead for other mempool types
+// (mempoolAdmissionMu is nil).
+//
+// Lock order: CometBFT's localClient.mtx (held by the consensus connection for
+// Commit) then mempoolAdmissionMu. Admission acquires only mempoolAdmissionMu,
+// so there is no cycle.
+func (app *App) Commit() (*abci.ResponseCommit, error) {
+	if app.mempoolAdmissionMu != nil {
+		app.mempoolAdmissionMu.Lock()
+		defer app.mempoolAdmissionMu.Unlock()
+	}
+	return app.BaseApp.Commit()
 }
