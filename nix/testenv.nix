@@ -13,7 +13,7 @@ let
           rpds-py = super.rpds-py.overridePythonAttrs (
             old:
             lib.optionalAttrs (!(old.src.isWheel or false)) {
-              cargoDeps = fetchCargoVendor {
+              cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
                 inherit (old) src pname version;
                 hash = "sha256-npvJz6PMHWzPkI0LVNeiMsZVxmwR6uzjlhBPMCCrFfw=";
               };
