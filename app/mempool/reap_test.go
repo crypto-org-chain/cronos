@@ -259,6 +259,49 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 	}
 }
 
+// TestReapTxs_UsesEncoderCacheForRegisteredTx is the end-to-end Q1 proof:
+// a tx whose canonical bytes were registered in the EncoderCache (as
+// CheckTxHandler now does for RPC-submitted txs) is reaped straight from the
+// cache — the fallback txEncoder is never called for it. An unregistered tx in
+// the same pool falls back to the encoder. This closes the loop from
+// registration to the reap fast path.
+func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
+	cached := &stubFeeTx{gas: 21_000, wire: []byte("ENCODER-FALLBACK-cached")}
+	uncached := &stubFeeTx{gas: 21_000, wire: []byte("ENCODER-FALLBACK-uncached")}
+	pool := &stubMempool{txs: []sdk.Tx{cached, uncached}}
+
+	enc := cronosmempool.NewEncoderCache(0)
+	canonical := []byte("CANONICAL-from-cache")
+	enc.Register(cached, canonical)
+
+	var encoderCalls []sdk.Tx
+	countingEncoder := func(tx sdk.Tx) ([]byte, error) {
+		encoderCalls = append(encoderCalls, tx)
+		return encoderFixedWire(tx)
+	}
+
+	h := cronosmempool.NewReapTxsHandler(pool, countingEncoder, enc, log.NewNopLogger())
+	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got := len(resp.Txs); got != 2 {
+		t.Fatalf("len(resp.Txs) = %d, want 2", got)
+	}
+	// Cached tx ships canonical cache bytes, not its raw wire.
+	if string(resp.Txs[0]) != string(canonical) {
+		t.Fatalf("cached tx reaped %q, want canonical %q", resp.Txs[0], canonical)
+	}
+	// Uncached tx falls back to the encoder.
+	if string(resp.Txs[1]) != string(uncached.wire) {
+		t.Fatalf("uncached tx reaped %q, want encoder wire %q", resp.Txs[1], uncached.wire)
+	}
+	// Fast path: encoder called exactly once, only for the uncached tx.
+	if len(encoderCalls) != 1 || encoderCalls[0] != sdk.Tx(uncached) {
+		t.Fatalf("encoder calls = %v, want exactly [uncached] (cached tx must skip proto.Marshal)", encoderCalls)
+	}
+}
+
 func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 	mp := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[int64]{
 		TxPriority:      sdkmempool.NewDefaultTxPriority(),
