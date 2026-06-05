@@ -2,11 +2,13 @@ package mempool_test
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
@@ -72,6 +74,14 @@ func (m *stubMempool) Remove(_ sdk.Tx) error { return nil }
 
 // minimal pool helpers below
 
+// newReapHandler builds a reap handler with the gossip throttle effectively
+// disabled (ttl far exceeds a test's duration so a fresh handler's first reap
+// returns everything; no count cap), isolating the pre-existing cap/ordering
+// tests from gossip dedup. Throttle behavior is covered separately.
+func newReapHandler(mp sdkmempool.Mempool, enc sdk.TxEncoder, cache *cronosmempool.EncoderCache) sdk.ReapTxsHandler {
+	return cronosmempool.NewReapTxsHandler(mp, enc, cache, time.Hour, 0, log.NewNopLogger())
+}
+
 func encoderFixedWire(tx sdk.Tx) ([]byte, error) {
 	switch s := tx.(type) {
 	case *stubFeeTx:
@@ -85,14 +95,18 @@ func encoderFixedWire(tx sdk.Tx) ([]byte, error) {
 func newPool(n int, gasPerTx uint64, sizePerTx int) *stubMempool {
 	pool := &stubMempool{}
 	for i := 0; i < n; i++ {
-		pool.txs = append(pool.txs, &stubFeeTx{gas: gasPerTx, wire: make([]byte, sizePerTx)})
+		wire := make([]byte, sizePerTx)
+		// Unique payload (length unchanged) so the gossip dedup, which hashes
+		// wire bytes, doesn't collapse otherwise-identical stub txs.
+		binary.PutUvarint(wire, uint64(i+1))
+		pool.txs = append(pool.txs, &stubFeeTx{gas: gasPerTx, wire: wire})
 	}
 	return pool
 }
 
 func TestReapTxs_GasCap(t *testing.T) {
 	pool := newPool(10_000, 50_000, 200) // 10K txs, 50K gas each
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
+	h := newReapHandler(pool, encoderFixedWire, nil)
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 80_000_000})
 	if err != nil {
@@ -107,7 +121,7 @@ func TestReapTxs_GasCap(t *testing.T) {
 func TestReapTxs_BytesCap(t *testing.T) {
 	const txPayload = 1_024
 	pool := newPool(1_000, 50_000, txPayload)
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
+	h := newReapHandler(pool, encoderFixedWire, nil)
 
 	// Use proto-framed size so MaxBytes is an exact multiple of the per-tx
 	// wire cost — identical to how PrepareProposal accounts bytes.
@@ -124,7 +138,7 @@ func TestReapTxs_BytesCap(t *testing.T) {
 
 func TestReapTxs_NoCapReturnsAll(t *testing.T) {
 	pool := newPool(50, 1, 8)
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
+	h := newReapHandler(pool, encoderFixedWire, nil)
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
@@ -137,7 +151,7 @@ func TestReapTxs_NoCapReturnsAll(t *testing.T) {
 
 func TestReapTxs_EmptyPool(t *testing.T) {
 	pool := &stubMempool{}
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
+	h := newReapHandler(pool, encoderFixedWire, nil)
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
@@ -151,7 +165,7 @@ func TestReapTxs_EmptyPool(t *testing.T) {
 func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 	// one tx requiring more gas than the cap -> cap wins, return empty
 	pool := newPool(1, 100_000, 8)
-	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, log.NewNopLogger())
+	h := newReapHandler(pool, encoderFixedWire, nil)
 
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 50_000})
 	if err != nil {
@@ -198,7 +212,7 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 		}
 	}
 
-	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
+	reap := newReapHandler(mp, encoderFixedWire, nil)
 	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("reap: %v", err)
@@ -219,7 +233,7 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 		SignerExtractor: fixedSignerExtractor{},
 		MaxTx:           100,
 	})
-	reap := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
+	reap := newReapHandler(mp, encoderFixedWire, nil)
 
 	priorities := []int64{10, 100, 50, 200, 5}
 	for i, p := range priorities {
@@ -265,7 +279,7 @@ func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
 		return encoderFixedWire(tx)
 	}
 
-	h := cronosmempool.NewReapTxsHandler(pool, countingEncoder, enc, log.NewNopLogger())
+	h := newReapHandler(pool, countingEncoder, enc)
 	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -296,7 +310,7 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 
 	const writers = 4
 	const txsPerWriter = 500
-	handler := cronosmempool.NewReapTxsHandler(mp, encoderFixedWire, nil, log.NewNopLogger())
+	handler := newReapHandler(mp, encoderFixedWire, nil)
 	insertCtx := sdk.Context{}.WithPriority(0)
 
 	var wg sync.WaitGroup
@@ -309,7 +323,10 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 			sender := sdk.AccAddress(fmt.Sprintf("sender%02d-padding-bytes", id))
 			for n := uint64(0); n < txsPerWriter; n++ {
 				tx := &signerTx{
-					stubFeeTx: &stubFeeTx{gas: 1, wire: []byte{byte(id), byte(n)}},
+					// 3-byte wire keeps every (id, nonce) distinct so the gossip
+					// dedup (hashes wire bytes) doesn't collapse nonces that alias
+					// mod 256; nonce reaches 499 > 255.
+					stubFeeTx: &stubFeeTx{gas: 1, wire: []byte{byte(id), byte(n), byte(n >> 8)}},
 					sender:    sender,
 					nonce:     n,
 				}
@@ -349,20 +366,82 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 		t.Fatalf("CountTx = %d, want %d", got, want)
 	}
 
-	// Snapshot stability: after writers stop, two reaps with the same caps
-	// must return the same tx count. Catches gross iterator drift from SelectBy
-	// mutating internal state. We don't assert per-tx uniqueness — the upstream
-	// priority mempool iterator can emit a tx more than once when entries share
-	// a priority (cosmos/cosmos-sdk#1751), out of scope here.
-	resp1, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	// Snapshot completeness on a stable pool, via a fresh handler so gossip
+	// dedup state is empty. Every distinct tx (unique wire bytes) must be
+	// reaped exactly once: dedup also collapses the upstream iterator's
+	// same-priority double-emit (cosmos/cosmos-sdk#1751), so the unique-tx
+	// count equals CountTx. A second reap on the same handler is fully deduped.
+	fresh := newReapHandler(mp, encoderFixedWire, nil)
+	resp1, err := fresh(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("final reap 1: %v", err)
 	}
-	resp2, err := handler(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if got, want := len(resp1.Txs), writers*txsPerWriter; got != want {
+		t.Fatalf("fresh reap returned %d txs, want %d (all distinct txs once)", got, want)
+	}
+	resp2, err := fresh(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {
 		t.Fatalf("final reap 2: %v", err)
 	}
-	if len(resp1.Txs) != len(resp2.Txs) {
-		t.Fatalf("reap result count drifted: %d vs %d on stable pool", len(resp1.Txs), len(resp2.Txs))
+	if got := len(resp2.Txs); got != 0 {
+		t.Fatalf("second reap returned %d txs, want 0 (all deduped within ttl)", got)
+	}
+}
+
+func TestReapTxs_GossipDedupAcrossReaps(t *testing.T) {
+	pool := newPool(50, 1, 8)
+	// ttl far exceeds the test; second reap of the same resident pool must be
+	// fully suppressed (this is the steady-state flood the throttle kills).
+	h := newReapHandler(pool, encoderFixedWire, nil)
+
+	resp1, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("reap 1: %v", err)
+	}
+	if got := len(resp1.Txs); got != 50 {
+		t.Fatalf("reap 1 returned %d, want 50", got)
+	}
+	resp2, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("reap 2: %v", err)
+	}
+	if got := len(resp2.Txs); got != 0 {
+		t.Fatalf("reap 2 returned %d, want 0 (deduped)", got)
+	}
+}
+
+func TestReapTxs_GossipCountCap(t *testing.T) {
+	pool := newPool(50, 1, 8)
+	// cap 20/reap, ttl huge: the pool drains over successive reaps (20, 20, 10),
+	// spreading a burst across ticks instead of one libp2p batch.
+	h := cronosmempool.NewReapTxsHandler(pool, encoderFixedWire, nil, time.Hour, 20, log.NewNopLogger())
+
+	seen := map[byte]struct{}{}
+	wantPerReap := []int{20, 20, 10}
+	for i, want := range wantPerReap {
+		resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+		if err != nil {
+			t.Fatalf("reap %d: %v", i, err)
+		}
+		if got := len(resp.Txs); got != want {
+			t.Fatalf("reap %d returned %d txs, want %d", i, got, want)
+		}
+		for _, tx := range resp.Txs {
+			if _, dup := seen[tx[0]]; dup {
+				t.Fatalf("tx id %d reaped twice across capped reaps", tx[0])
+			}
+			seen[tx[0]] = struct{}{}
+		}
+	}
+	if len(seen) != 50 {
+		t.Fatalf("union of capped reaps = %d distinct txs, want 50", len(seen))
+	}
+	// Pool fully gossiped; next reap is empty until ttl elapses.
+	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
+	if err != nil {
+		t.Fatalf("final reap: %v", err)
+	}
+	if got := len(resp.Txs); got != 0 {
+		t.Fatalf("post-drain reap returned %d, want 0", got)
 	}
 }

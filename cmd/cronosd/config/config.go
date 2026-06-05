@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -24,6 +25,14 @@ type CronosConfig struct {
 	// Per-entry raw payload byte cap. Txs larger than this are decoded but
 	// not cached, bounding heap impact. Should not exceed mempool.max-tx-bytes.
 	TxDecodeCacheMaxTxBytes int `mapstructure:"tx-decode-cache-max-tx-bytes"`
+	// MempoolGossipTTL is the re-gossip suppression window for mempool.type=app:
+	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
+	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
+	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
+	// MempoolGossipMaxPerReap caps txs returned per gossip reap (mempool.type=app),
+	// spreading a large pool across reap ticks instead of one libp2p batch.
+	// <=0 disables the count cap (only reap_max_bytes/reap_max_gas apply).
+	MempoolGossipMaxPerReap int `mapstructure:"mempool-gossip-max-per-reap"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -32,6 +41,14 @@ const (
 	DefaultTxDecodeCacheSize       = 10000
 	DefaultTxDecodeCacheMaxTxBytes = 65536
 	DefaultTxEncodeCacheSize       = 10000
+	// DefaultMempoolGossipTTL re-gossips a resident tx at most ~once per window;
+	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
+	DefaultMempoolGossipTTL = 15 * time.Second
+	// DefaultMempoolGossipMaxPerReap sized for ~10k tps: it must be
+	// >= tps * reap_interval_seconds (10000 * 0.5 = 5000) or new txs backlog
+	// each tick. 5000 also equals a max block, so one tick gossips at most one
+	// block's worth of new txs.
+	DefaultMempoolGossipMaxPerReap = 5000
 )
 
 const (
@@ -65,6 +82,8 @@ func DefaultCronosConfig() CronosConfig {
 		DisableOptimisticExecution: false,
 		TxDecodeCacheSize:          DefaultTxDecodeCacheSize,
 		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
+		MempoolGossipTTL:           DefaultMempoolGossipTTL,
+		MempoolGossipMaxPerReap:    DefaultMempoolGossipMaxPerReap,
 	}
 }
 

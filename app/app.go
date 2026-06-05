@@ -180,6 +180,8 @@ const (
 	FlagDisableOptimisticExecution = "cronos.disable-optimistic-execution"
 	FlagTxDecodeCacheSize          = "cronos.tx-decode-cache-size"
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
+	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
+	FlagMempoolGossipMaxPerReap    = "cronos.mempool-gossip-max-per-reap"
 )
 
 var Forks = []Fork{}
@@ -421,6 +423,16 @@ func New(
 	var signerExtractor mempool.SignerExtractionAdapter
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
+	// Gossip throttle for mempool.type=app (read here; consumed in the closure
+	// below). Defaults mirror cmdcfg so zero-config still throttles.
+	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
+	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
+		gossipTTL = cast.ToDuration(v)
+	}
+	gossipMaxPerReap := cmdcfg.DefaultMempoolGossipMaxPerReap
+	if v := appOpts.Get(FlagMempoolGossipMaxPerReap); v != nil {
+		gossipMaxPerReap = cast.ToInt(v)
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -519,7 +531,7 @@ func New(
 		if mempoolType == cronosmempool.TypeApp {
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
-			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, logger.With("module", "app-mempool")))
+			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, gossipMaxPerReap, logger.With("module", "app-mempool")))
 			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			// CheckTx (RPC) runs lock-free; share the admission mutex across

@@ -2,6 +2,8 @@ package mempool
 
 import (
 	"context"
+	"crypto/sha256"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
@@ -20,7 +22,14 @@ const TypeApp = "app"
 // at MaxBytes/MaxGas (0 = no cap, per CometBFT convention). Prefix scan: breaks
 // at the first tx over a cap (not best-fit), so a large high-priority tx may
 // leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
-func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, logger log.Logger) sdk.ReapTxsHandler {
+//
+// ReapTxs is gossip-only here (block building reads the pool directly), and the
+// CometBFT reap loop calls it every ReapInterval. A gossipTracker suppresses
+// re-broadcasting a tx within ttl and caps txs per reap (maxPerReap) so a large
+// pool spreads across ticks instead of flooding libp2p in one batch. The tracker
+// is allocated once and closed over, so its state persists across reap calls.
+func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
+	tracker := newGossipTracker(ttl, nil)
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
 		// Pre-size to pool count to avoid slice growth under the pool lock.
 		snapshot := make([]sdk.Tx, 0, mpool.CountTx())
@@ -29,12 +38,14 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			return true
 		})
 
+		now := tracker.now()
 		var (
 			txs        = make([][]byte, 0, len(snapshot))
 			totalBytes uint64
 			totalGas   uint64
 			cacheHits  float32
 			cacheMiss  float32
+			deduped    float32
 		)
 		for _, tx := range snapshot {
 			bz, ok := encCache.Bytes(tx)
@@ -62,10 +73,24 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
+			// Skip txs gossiped within ttl. Hash matches CometBFT types.Tx.Key()
+			// (sha256 of the wire bytes) so send/receive dedup agree on identity.
+			// Only included txs are marked; a tx dropped below by the count cap
+			// stays eligible next tick.
+			if !tracker.markAndAllow(sha256.Sum256(bz), now) {
+				deduped++
+				continue
+			}
 			txs = append(txs, bz)
 			totalBytes += size
 			totalGas += gas
+			// Count cap spreads a large pool across reap ticks. byte/gas caps
+			// above still bound the batch; this bounds the count.
+			if maxPerReap > 0 && len(txs) >= maxPerReap {
+				break
+			}
 		}
+		tracker.prune(now)
 		// Emit cache hit/miss once per reap (not per tx) so operators can watch
 		// the proto.Marshal fallback rate climb when pool depth exceeds the
 		// encoder-cache size. No-op unless telemetry is enabled.
@@ -74,6 +99,14 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 		}
 		if cacheMiss > 0 {
 			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "reap", "encode_cache", "miss") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		}
+		// gossip.sent vs gossip.deduped: steady-state deduped should dominate
+		// once the pool is resident (re-gossip only after ttl).
+		if len(txs) > 0 {
+			telemetry.IncrCounter(float32(len(txs)), "cronos", "mempool", "reap", "gossip", "sent") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		}
+		if deduped > 0 {
+			telemetry.IncrCounter(deduped, "cronos", "mempool", "reap", "gossip", "deduped") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 		}
 		return &abci.ResponseReapTxs{Txs: txs}, nil
 	}

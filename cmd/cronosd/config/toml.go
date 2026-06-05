@@ -24,6 +24,18 @@ tx-decode-cache-size = {{ .Cronos.TxDecodeCacheSize }}
 # Should not exceed mempool.max-tx-bytes. Default 65536 (64 KiB) covers >p99 of
 # EVM tx sizes.
 tx-decode-cache-max-tx-bytes = {{ .Cronos.TxDecodeCacheMaxTxBytes }}
+
+# Re-gossip suppression window for mempool.type=app. A tx reaped for gossip is
+# not re-broadcast until this elapses, stopping the AppReactor from flooding the
+# whole pool to peers every reap_interval (~500ms). Default "15s".
+mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
+
+# Max txs returned per gossip reap for mempool.type=app, spreading a large pool
+# across reap ticks instead of one libp2p batch. Size it >= target tps *
+# mempool.reap_interval (seconds), e.g. 10000 tps * 0.5s = 5000, or new txs
+# backlog each tick. 0 disables the count cap (only mempool.reap_max_bytes /
+# reap_max_gas apply). Default 5000.
+mempool-gossip-max-per-reap = {{ .Cronos.MempoolGossipMaxPerReap }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration
