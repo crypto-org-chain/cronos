@@ -217,3 +217,87 @@ func TestRecheckLocked_MultiSignerMatchesAnySigner(t *testing.T) {
 		t.Fatal("stale multi-signer tx must be removed")
 	}
 }
+
+// lockTrackingMempool flags inSelect while its SelectBy callback runs, so a test
+// can detect whether RecheckLocked extracts signers under the pool lock.
+type lockTrackingMempool struct {
+	txs      []sdk.Tx
+	inSelect bool
+}
+
+func (m *lockTrackingMempool) Insert(_ context.Context, tx sdk.Tx) error {
+	m.txs = append(m.txs, tx)
+	return nil
+}
+func (m *lockTrackingMempool) Select(context.Context, [][]byte) sdkmempool.Iterator { return nil }
+func (m *lockTrackingMempool) CountTx() int                                         { return len(m.txs) }
+func (m *lockTrackingMempool) Remove(tx sdk.Tx) error {
+	for i, t := range m.txs {
+		if t == tx {
+			m.txs = append(m.txs[:i], m.txs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+func (m *lockTrackingMempool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
+	m.inSelect = true
+	defer func() { m.inSelect = false }()
+	for _, tx := range m.txs {
+		if !cb(tx) {
+			return
+		}
+	}
+}
+
+// RemoveWithReason makes the fake satisfy ExtMempool so sdkmempool.SelectBy
+// dispatches to the method above instead of falling back to Select.
+func (m *lockTrackingMempool) RemoveWithReason(_ context.Context, tx sdk.Tx, _ sdkmempool.RemoveReason) error {
+	return m.Remove(tx)
+}
+
+// lockObservingSigner records whether GetSigners was ever called while the pool
+// was mid-SelectBy (i.e. under mp.mtx).
+type lockObservingSigner struct {
+	m         map[sdk.Tx][]sdkmempool.SignerData
+	pool      *lockTrackingMempool
+	sawLocked bool
+}
+
+func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
+	if s.pool.inSelect {
+		s.sawLocked = true
+	}
+	sd, ok := s.m[tx]
+	if !ok {
+		return nil, errors.New("no signer for tx")
+	}
+	return sd, nil
+}
+
+// RecheckLocked must extract signers AFTER SelectBy releases the pool lock.
+// Doing it inside the callback would pin mp.mtx (and run RunTx's Remove under
+// it) across the whole scan, blocking admission/reap on the commit path.
+func TestRecheckLocked_SignerExtractionOutsidePoolLock(t *testing.T) {
+	pool := &lockTrackingMempool{}
+	signer := &lockObservingSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}, pool: pool}
+	enc := NewEncoderCache(0)
+	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
+	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
+	a := newAdmitter(runner, func([]byte) (sdk.Tx, bool) { return nil, false }, enc, txEncoder)
+	a.EnableRecheck(pool, signer, nil)
+
+	tx := &ptrTx{id: 1}
+	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}
+	_ = pool.Insert(context.Background(), tx)
+	a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	a.RecheckLocked()
+
+	if signer.sawLocked {
+		t.Fatal("signer extraction ran inside SelectBy (under the pool lock)")
+	}
+	if !runner.seen["enc-1"] {
+		t.Fatal("candidate from a touched sender must still be rechecked")
+	}
+}

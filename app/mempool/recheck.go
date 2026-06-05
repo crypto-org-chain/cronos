@@ -51,8 +51,8 @@ func (a *Admitter) StageRecheckSenders(txs [][]byte) {
 // ExecModeReCheck skips signature verification (the dominant CheckTx cost) and
 // validate-basic, and BaseApp.RunTx auto-removes a tx from the mempool when its
 // ante fails — so this only runs ante and evicts our encCache for the casualties.
-// The ante (recheck) work scales with touched senders, but the candidate scan
-// below is O(pool depth): SelectBy holds the pool lock for the full iteration.
+// The ante (recheck) work scales with touched senders; the candidate scan is
+// O(pool depth).
 func (a *Admitter) RecheckLocked() {
 	if a.mpool == nil || a.signer == nil {
 		return
@@ -65,18 +65,24 @@ func (a *Admitter) RecheckLocked() {
 		return
 	}
 
-	// Collect candidates under the pool lock, then recheck after iteration:
-	// RunTx removes failures via mpool.Remove, which must not run inside SelectBy.
-	var candidates []sdk.Tx
+	// Snapshot pointers under the pool lock; match senders after release.
+	// signerKeys allocs per tx and RunTx's Remove can't run inside SelectBy,
+	// which holds mp.mtx and blocks admission/reap. Matches reap.go.
+	snapshot := make([]sdk.Tx, 0, a.mpool.CountTx())
 	sdkmempool.SelectBy(context.Background(), a.mpool, nil, func(tx sdk.Tx) bool {
+		snapshot = append(snapshot, tx)
+		return true
+	})
+
+	var candidates []sdk.Tx
+	for _, tx := range snapshot {
 		for _, s := range a.signerKeys(tx) {
 			if _, ok := pending[s]; ok {
 				candidates = append(candidates, tx)
 				break
 			}
 		}
-		return true
-	})
+	}
 
 	var evicted float32
 	for _, tx := range candidates {
