@@ -153,7 +153,7 @@ func validateIsEvmAddress(i interface{}) error {
 		return fmt.Errorf("invalid evm address: %s", s)
 	}
 	if (common.HexToAddress(s) == common.Address{}) {
-		return fmt.Errorf("cro_bridge_contract_address must not be the zero address")
+		return fmt.Errorf("evm address must not be the zero address")
 	}
 	return nil
 }

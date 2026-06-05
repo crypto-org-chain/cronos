@@ -359,8 +359,13 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 		{
 			"unauthorized contract (param not set), expect fail",
 			func() {
+				params := suite.app.CronosKeeper.GetParams(suite.ctx)
+				params.CroBridgeContractAddress = ""
+				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
+				suite.Require().NoError(err)
+
 				coin := sdk.NewCoin(suite.evmParam.EvmDenom, sdkmath.NewInt(1230000000500))
-				err := suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
+				err = suite.MintCoins(contract.Bytes(), sdk.NewCoins(coin))
 				suite.Require().NoError(err)
 				topics = []common.Hash{
 					evmhandlers.SendCroToIbcEvent.ID,
