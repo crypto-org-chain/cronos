@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v11/modules/core/exported"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/runtime"
