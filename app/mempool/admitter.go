@@ -37,6 +37,15 @@ type Admitter struct {
 	txEncoder sdk.TxEncoder
 	// trace mirrors BaseApp.Trace(): include stack traces in CheckTx error logs.
 	trace bool
+
+	// Recheck deps, set by EnableRecheck (nil until then; recheck no-ops).
+	mpool     sdkmempool.Mempool
+	signer    sdkmempool.SignerExtractionAdapter
+	decoder   sdk.TxDecoder
+	pendingMu sync.Mutex
+	// pending holds senders touched by the last committed block, staged by
+	// StageRecheckSenders and drained by RecheckLocked.
+	pending map[string]struct{}
 }
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via

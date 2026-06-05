@@ -338,6 +338,10 @@ type App struct {
 	// admission (mempool.type=app); nil for other mempool types.
 	mempoolAdmissionMu *sync.Mutex
 
+	// recheckAdmitter drives post-commit recheck of stale txs for
+	// mempool.type=app (CometBFT's app-mempool Update() is a no-op); nil otherwise.
+	recheckAdmitter *cronosmempool.Admitter
+
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
 }
@@ -412,15 +416,21 @@ func New(
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
 	var mpool mempool.Mempool
+	// Captured by the SetMempool closure below to wire app-mempool recheck;
+	// non-nil only when the priority mempool is enabled.
+	var signerExtractor mempool.SignerExtractionAdapter
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
+		// Hoisted so the app-mempool admitter reuses the exact adapter the pool
+		// keys senders by, keeping recheck sender-matching consistent.
+		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
-			SignerExtractor: evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter()),
+			SignerExtractor: signerExtractor,
 			MaxTx:           mempoolMaxTxs,
 			TxReplacement: func(op, np int64, oTx, nTx sdk.Tx) bool {
 				// we set a rule which the priority of the new Tx must be {feebump}% more than the priority of the old Tx
@@ -451,6 +461,7 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolAdmissionMu *sync.Mutex
+	var recheckAdmitter *cronosmempool.Admitter
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -515,6 +526,11 @@ func New(
 			// CheckTx, InsertTx, and App.Commit so none race checkState.
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			mempoolAdmissionMu = admitter.AdmissionMutex()
+			// CometBFT's app-mempool Update() is a no-op, so the app rechecks
+			// stale txs itself after each commit. activeDecoder hits the decode
+			// cache when staging committed-tx senders.
+			admitter.EnableRecheck(mpool, signerExtractor, activeDecoder)
+			recheckAdmitter = admitter
 		}
 	})
 
@@ -560,6 +576,7 @@ func New(
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
 		mempoolAdmissionMu:   mempoolAdmissionMu,
+		recheckAdmitter:      recheckAdmitter,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -1574,5 +1591,22 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 		app.mempoolAdmissionMu.Lock()
 		defer app.mempoolAdmissionMu.Unlock()
 	}
-	return app.BaseApp.Commit()
+	resp, err := app.BaseApp.Commit()
+	// Recheck under the held mutex: checkState is now reset to the committed
+	// state, and admission can't race the ReCheck RunTx calls.
+	if err == nil && app.recheckAdmitter != nil {
+		app.recheckAdmitter.RecheckLocked()
+	}
+	return resp, err
+}
+
+// FinalizeBlock stages the committed block's senders for post-commit recheck
+// (mempool.type=app only). Senders are known regardless of execution outcome;
+// Commit re-validates their remaining pending txs against the new state.
+func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	resp, err := app.BaseApp.FinalizeBlock(req)
+	if err == nil && app.recheckAdmitter != nil {
+		app.recheckAdmitter.StageRecheckSenders(req.Txs)
+	}
+	return resp, err
 }

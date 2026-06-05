@@ -66,6 +66,20 @@ func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
 	e.items[tx] = e.lru.PushFront(&encoderItem{tx: tx, bz: bz})
 }
 
+// Evict drops tx's entry so a stale/removed tx stops pinning the heap. No-op on
+// a nil receiver or a tx that was never registered (e.g. already LRU-evicted).
+func (e *EncoderCache) Evict(tx sdk.Tx) {
+	if e == nil || tx == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if el, ok := e.items[tx]; ok {
+		delete(e.items, tx)
+		e.lru.Remove(el)
+	}
+}
+
 // Bytes returns the registered bytes for tx, promoting it to MRU. Safe to call
 // on a nil *EncoderCache (returns nil, false).
 func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {

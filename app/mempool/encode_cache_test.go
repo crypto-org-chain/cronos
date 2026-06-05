@@ -84,3 +84,28 @@ func TestEncoderCache_ReRegisterUpdatesBytes(t *testing.T) {
 		t.Fatalf("re-register did not overwrite bytes: got=%v ok=%v", got, ok)
 	}
 }
+
+func TestEncoderCache_Evict(t *testing.T) {
+	c := NewEncoderCache(1)
+	a, b := &ptrTx{id: 1}, &ptrTx{id: 2}
+	c.Register(a, []byte{1})
+	c.Register(b, []byte{2}) // evicts a (cap 1)
+
+	// Evict on an entry already LRU-evicted is a safe no-op, leaving b intact.
+	c.Evict(a)
+	if _, ok := c.Bytes(b); !ok {
+		t.Fatal("Evict of an absent tx must not disturb live entries")
+	}
+
+	// Evict a live entry removes it from both the map and the LRU list.
+	c.Evict(b)
+	if _, ok := c.Bytes(b); ok {
+		t.Fatal("evicted tx must miss")
+	}
+	if len(c.items) != 0 || c.lru.Len() != 0 {
+		t.Fatalf("after Evict items=%d lru=%d, want 0/0", len(c.items), c.lru.Len())
+	}
+
+	var nilCache *EncoderCache
+	nilCache.Evict(a) // nil receiver: no panic
+}
