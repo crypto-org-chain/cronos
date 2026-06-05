@@ -1,8 +1,8 @@
 """Integration tests for mempool.type=app + InsertTx AnteHandler validation.
 
-Cronos overrides ReapTxs only; InsertTx falls through to BaseApp's default
-which runs RunTx(execModeCheck). Peer-relayed and RPC-submitted txs both
-pass AnteHandler before mempool admission. These tests verify:
+Cronos overrides both ReapTxs and InsertTx. The InsertTx handler (Admitter)
+runs RunTx(execModeCheck), so peer-relayed and RPC-submitted txs both pass
+AnteHandler before mempool admission. These tests verify:
 
   - chain boots and produces blocks under mempool.type=app
   - RPC eth tx flows end-to-end (CheckTx -> reap -> block -> finalize)

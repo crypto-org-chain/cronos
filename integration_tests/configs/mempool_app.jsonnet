@@ -1,9 +1,8 @@
 // Exercises CometBFT v0.39 app-side mempool (mempool.type=app) on cronos.
 //
-// Cronos overrides ReapTxs (MaxBytes/MaxGas cap) and uses cosmos-sdk's
-// default InsertTx, which runs the AnteHandler chain via RunTx(execModeCheck)
-// before mempool admission. Peer-relayed txs are validated equivalently to
-// RPC CheckTx.
+// Cronos overrides ReapTxs (MaxBytes/MaxGas cap) and InsertTx (Admitter),
+// which runs the AnteHandler chain via RunTx(execModeCheck) before mempool
+// admission. Peer-relayed txs are validated equivalently to RPC CheckTx.
 local default = import 'default.jsonnet';
 
 default {
