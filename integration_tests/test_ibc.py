@@ -208,9 +208,12 @@ def test_cro_bridge_contract(ibc):
 
     # Verify the param was stored correctly
     stored_params = cli.query_params()
-    stored_addresses = [a.lower() for a in stored_params.get("cro_bridge_contract_addresses", [])]
+    stored_addresses = [
+        a.lower() for a in stored_params.get("cro_bridge_contract_addresses", [])
+    ]
     assert contract.address.lower() in stored_addresses, (
-        f"cro_bridge_contract_addresses does not contain {contract.address}: {stored_params}"
+        f"cro_bridge_contract_addresses does not contain "
+        f"{contract.address}: {stored_params}"
     )
 
     tx = contract.functions.send_cro_to_crypto_org(dst_addr).build_transaction(
