@@ -4,9 +4,9 @@ import (
 	"container/list"
 	"sync"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // TxGetter recovers the decoded tx for its raw proto bytes, so the EncoderCache
