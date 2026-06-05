@@ -62,15 +62,14 @@ func TestPruneStaleIBCConsensusStateSubkeys(t *testing.T) {
 	}
 }
 
-// TestUpgradeV18CroBridgeContractAddress verifies that:
-//  1. mainnetCroBridgeContractAddress is either empty (safe default) or a valid EVM address.
-//  2. The upgrade handler param migration correctly persists the value via SetParams/GetParams.
-func TestUpgradeV18CroBridgeContractAddress(t *testing.T) {
-	// Validate the constant itself — catches malformed values before they reach a live network.
-	if mainnetCroBridgeContractAddress != "" {
-		require.True(t, common.IsHexAddress(mainnetCroBridgeContractAddress),
-			"mainnetCroBridgeContractAddress must be a valid EVM hex address, got: %s",
-			mainnetCroBridgeContractAddress)
+// TestUpgradeV18CroBridgeContractAddresses verifies that:
+//  1. mainnetCroBridgeContractAddresses are all valid EVM addresses.
+//  2. The upgrade handler param migration correctly persists the values via SetParams/GetParams.
+func TestUpgradeV18CroBridgeContractAddresses(t *testing.T) {
+	for _, addr := range mainnetCroBridgeContractAddresses {
+		require.True(t, common.IsHexAddress(addr),
+			"mainnetCroBridgeContractAddresses entry must be a valid EVM hex address, got: %s",
+			addr)
 	}
 
 	// Verify the migration code path: GetParams → mutate → SetParams → GetParams round-trips correctly.
@@ -79,10 +78,10 @@ func TestUpgradeV18CroBridgeContractAddress(t *testing.T) {
 
 	// Apply the same mutation the upgrade handler performs.
 	params := a.CronosKeeper.GetParams(ctx)
-	params.CroBridgeContractAddress = mainnetCroBridgeContractAddress
+	params.CroBridgeContractAddresses = mainnetCroBridgeContractAddresses
 	require.NoError(t, a.CronosKeeper.SetParams(ctx, params))
 
 	stored := a.CronosKeeper.GetParams(ctx)
-	require.Equal(t, mainnetCroBridgeContractAddress, stored.CroBridgeContractAddress,
-		"CroBridgeContractAddress not persisted by SetParams")
+	require.ElementsMatch(t, mainnetCroBridgeContractAddresses, stored.CroBridgeContractAddresses,
+		"CroBridgeContractAddresses not persisted by SetParams")
 }

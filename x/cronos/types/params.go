@@ -21,8 +21,8 @@ var (
 	KeyEnableAutoDeployment = []byte("EnableAutoDeployment")
 	// KeyMaxCallbackGas is store's key for the MaxCallbackGas
 	KeyMaxCallbackGas = []byte("MaxCallbackGas")
-	// KeyCroBridgeContractAddress is store's key for the authorized CroBridge contract address
-	KeyCroBridgeContractAddress = []byte("CroBridgeContractAddress")
+	// KeyCroBridgeContractAddresses is store's key for the authorized CroBridge contract addresses
+	KeyCroBridgeContractAddresses = []byte("CroBridgeContractAddresses")
 )
 
 const (
@@ -37,14 +37,14 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new parameter configuration for the cronos module
-func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64, croBridgeContractAddress string) Params {
+func NewParams(ibcCroDenom string, ibcTimeout uint64, cronosAdmin string, enableAutoDeployment bool, maxCallbackGas uint64, croBridgeContractAddresses []string) Params {
 	return Params{
-		IbcCroDenom:              ibcCroDenom,
-		IbcTimeout:               ibcTimeout,
-		CronosAdmin:              cronosAdmin,
-		EnableAutoDeployment:     enableAutoDeployment,
-		MaxCallbackGas:           maxCallbackGas,
-		CroBridgeContractAddress: croBridgeContractAddress,
+		IbcCroDenom:                ibcCroDenom,
+		IbcTimeout:                 ibcTimeout,
+		CronosAdmin:                cronosAdmin,
+		EnableAutoDeployment:       enableAutoDeployment,
+		MaxCallbackGas:             maxCallbackGas,
+		CroBridgeContractAddresses: croBridgeContractAddresses,
 	}
 }
 
@@ -56,7 +56,7 @@ func DefaultParams() Params {
 		CronosAdmin:              "",
 		EnableAutoDeployment:     false,
 		MaxCallbackGas:           MaxCallbackGasDefaultValue,
-		CroBridgeContractAddress: "",
+		CroBridgeContractAddresses: []string{},
 	}
 }
 
@@ -76,7 +76,7 @@ func (p Params) Validate() error {
 	if err := validateIsUint64(p.MaxCallbackGas); err != nil {
 		return err
 	}
-	if err := validateIsEvmAddress(p.CroBridgeContractAddress); err != nil {
+	if err := validateIsEvmAddresses(p.CroBridgeContractAddresses); err != nil {
 		return err
 	}
 	return nil
@@ -96,7 +96,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyCronosAdmin, &p.CronosAdmin, validateIsAddress),
 		paramtypes.NewParamSetPair(KeyEnableAutoDeployment, &p.EnableAutoDeployment, validateIsBool),
 		paramtypes.NewParamSetPair(KeyMaxCallbackGas, &p.MaxCallbackGas, validateIsUint64),
-		paramtypes.NewParamSetPair(KeyCroBridgeContractAddress, &p.CroBridgeContractAddress, validateIsEvmAddress),
+		paramtypes.NewParamSetPair(KeyCroBridgeContractAddresses, &p.CroBridgeContractAddresses, validateIsEvmAddresses),
 	}
 }
 
@@ -136,6 +136,19 @@ func validateIsBool(i interface{}) error {
 	_, ok := i.(bool)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	return nil
+}
+
+func validateIsEvmAddresses(i interface{}) error {
+	addrs, ok := i.([]string)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", i)
+	}
+	for _, addr := range addrs {
+		if err := validateIsEvmAddress(addr); err != nil {
+			return err
+		}
 	}
 	return nil
 }

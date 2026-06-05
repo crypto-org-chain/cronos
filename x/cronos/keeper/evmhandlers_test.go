@@ -360,7 +360,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"unauthorized contract (param not set), expect fail",
 			func() {
 				params := suite.app.CronosKeeper.GetParams(suite.ctx)
-				params.CroBridgeContractAddress = ""
+				params.CroBridgeContractAddresses = []string{}
 				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
 				suite.Require().NoError(err)
 
@@ -384,7 +384,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"unauthorized contract (different address in param), expect fail",
 			func() {
 				params := suite.app.CronosKeeper.GetParams(suite.ctx)
-				params.CroBridgeContractAddress = common.BigToAddress(big.NewInt(0x999)).Hex()
+				params.CroBridgeContractAddresses = []string{common.BigToAddress(big.NewInt(0x999)).Hex()}
 				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
 				suite.Require().NoError(err)
 
@@ -408,7 +408,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"not enough balance, fail",
 			func() {
 				params := suite.app.CronosKeeper.GetParams(suite.ctx)
-				params.CroBridgeContractAddress = contract.Hex()
+				params.CroBridgeContractAddresses = []string{contract.Hex()}
 				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
 				suite.Require().NoError(err)
 
@@ -431,7 +431,7 @@ func (suite *KeeperTestSuite) TestSendCroToIbcHandler() {
 			"success send cro to ibc",
 			func() {
 				params := suite.app.CronosKeeper.GetParams(suite.ctx)
-				params.CroBridgeContractAddress = contract.Hex()
+				params.CroBridgeContractAddresses = []string{contract.Hex()}
 				err := suite.app.CronosKeeper.SetParams(suite.ctx, params)
 				suite.Require().NoError(err)
 
