@@ -51,11 +51,13 @@ func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, t
 }
 
 func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
-	if encCache != nil && txGet == nil {
-		panic("mempool: encCache requires txGet != nil")
-	}
-	if encCache != nil && txEncoder == nil {
-		panic("mempool: encCache requires txEncoder != nil for canonical bytes")
+	if encCache != nil {
+		if txGet == nil {
+			panic("mempool: encCache requires txGet != nil")
+		}
+		if txEncoder == nil {
+			panic("mempool: encCache requires txEncoder != nil for canonical bytes")
+		}
 	}
 	return &Admitter{
 		runner:    runner,
