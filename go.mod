@@ -218,7 +218,7 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/iavl v1.2.8 // indirect
-	github.com/cosmos/ibc-go/v11 v11.0.0
+	github.com/cosmos/ibc-go/v11 v11.1.0
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v1.0.0 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.4.0 // indirect
@@ -388,7 +388,6 @@ replace (
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
 
-	github.com/cosmos/ibc-go/v11 => github.com/crypto-org-chain/ibc-go/v11 v11.0.0-20260601161416-2254d21b6dfe
 	github.com/crypto-org-chain/cronos-store/memiavl => github.com/crypto-org-chain/cronos-store/memiavl v0.0.0-20260529153812-1f2f45ec5a3c
 
 	github.com/crypto-org-chain/cronos-store/store => github.com/crypto-org-chain/cronos-store/store v0.0.0-20260529153812-1f2f45ec5a3c
