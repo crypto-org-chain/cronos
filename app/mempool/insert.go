@@ -24,30 +24,19 @@ type txRunner interface {
 var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // Admitter owns the app-side mempool admission path for mempool.type=app.
-// Admission runs RunTx against the shared checkState multistore (a Go map that
-// is unsafe for concurrent writes), so it is serialized by a single mutex.
 type Admitter struct {
-	// mu serializes the two ADMISSION paths against each other. CometBFT calls
-	// InsertTx (per-peer P2P AppReactor) and CheckTx (per-tx RPC BroadcastTx)
-	// concurrently, and AppMempool.CheckTx runs LOCK-FREE (skips the ABCI
-	// client lock). Both call RunTx(ExecModeCheck) on the shared checkState, so
-	// without this mutex an RPC CheckTx racing a p2p InsertTx panics on the
-	// concurrent map write.
-	//
-	// NOTE: mu does NOT serialize admission against consensus-side checkState
-	// mutation (Commit resets checkState; see baseapp Commit). Those calls go
-	// through CometBFT's localClient.mtx and never through the Admitter, so mu
-	// cannot exclude them. For the CList mempool that gap is closed by
-	// mempool.Lock() around Commit, but AppMempool.Lock() is a no-op — so the
-	// admission-vs-Commit race is a known, pre-existing limitation of
-	// mempool.type=app, not addressed here.
+	// mu serializes admission. AppMempool delivers InsertTx (p2p) and CheckTx
+	// (RPC) concurrently, and CheckTx runs lock-free, yet both call
+	// RunTx(ExecModeCheck) on the shared checkState — unsafe for concurrent
+	// access. App.Commit also takes this mutex (via AdmissionMutex) so the
+	// checkState reset can't race in-flight admission, since AppMempool.Lock()
+	// is a no-op.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
 	txGet     TxGetter
 	txEncoder sdk.TxEncoder
-	// trace mirrors BaseApp.Trace(); controls whether CheckTx errors include
-	// the full stack trace in the response log.
+	// trace mirrors BaseApp.Trace(): include stack traces in CheckTx error logs.
 	trace bool
 }
 
@@ -77,11 +66,9 @@ func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEnco
 	}
 }
 
-// AdmissionMutex returns the mutex that serializes admission (CheckTx +
-// InsertTx). The App must also acquire it around BaseApp.Commit so the
-// consensus-side checkState reset cannot run concurrently with a lock-free
-// admission RunTx — the admission-vs-Commit gap that AppMempool.Lock()'s no-op
-// leaves open. Returns a stable pointer (Admitter is always heap-allocated).
+// AdmissionMutex exposes the admission mutex so App.Commit can serialize the
+// checkState reset against lock-free admission. Pointer is stable (Admitter is
+// heap-allocated).
 func (a *Admitter) AdmissionMutex() *sync.Mutex {
 	return &a.mu
 }
@@ -105,20 +92,19 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			return &abci.ResponseInsertTx{Code: code}, nil
 		}
 
-		if a.encCache != nil {
-			a.registerCanonical(req.Tx)
-		}
-
+		a.registerCanonical(req.Tx)
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
 }
 
-// registerCanonical re-encodes an admitted tx to its canonical bytes and stores
-// them in the EncoderCache so ReapTxsHandler can skip proto.Marshal. Re-encoding
-// (rather than caching raw) keeps a peer's non-minimal proto bytes out of the
-// cache. Falls back to raw bytes if re-encoding errors so reap can still ship
-// the tx. Caller holds a.mu and must have checked encCache != nil.
+// registerCanonical caches an admitted tx's canonical (re-encoded) bytes so
+// ReapTxsHandler can skip proto.Marshal; re-encoding keeps non-minimal peer
+// bytes out of the cache. Falls back to raw on encode error. No-op when the
+// cache is disabled. Caller holds mu.
 func (a *Admitter) registerCanonical(raw []byte) {
+	if a.encCache == nil {
+		return
+	}
 	tx, ok := a.txGet(raw)
 	if !ok {
 		return
@@ -130,19 +116,11 @@ func (a *Admitter) registerCanonical(raw []byte) {
 	a.encCache.Register(tx, bz)
 }
 
-// CheckTxHandler serializes RPC-driven CheckTx against InsertTxHandler on the
-// same mutex. CometBFT's AppMempool calls CheckTx LOCK-FREE (no ABCI client
-// lock) for BroadcastTx* RPC, while peer-relayed txs arrive via InsertTx. Both
-// run RunTx(ExecModeCheck) against the shared checkState multistore (a Go map
-// unsafe for concurrent writes), so without a shared lock an RPC CheckTx racing
-// a p2p InsertTx corrupts checkState and panics. This handler closes only that
-// admission-vs-admission race; see the Admitter.mu doc for the residual
-// admission-vs-Commit limitation. The runTx closure is supplied by BaseApp
-// already bound to the correct exec mode (panics inside it are converted to
-// errors by BaseApp.RunTx's own recover, so they never escape past the deferred
-// Unlock). On success it also registers the tx's canonical bytes in the
-// EncoderCache so RPC-submitted txs (which never traverse InsertTx) still hit
-// the reap fast path.
+// CheckTxHandler runs RPC CheckTx under the admission mutex (see mu): without it
+// a lock-free RPC CheckTx races a p2p InsertTx on checkState. The runTx closure
+// comes from BaseApp bound to the exec mode; its panics are recovered inside
+// BaseApp.RunTx. On success it registers canonical bytes so RPC txs (which skip
+// InsertTx) still hit the reap fast path.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		a.mu.Lock()
@@ -153,14 +131,10 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		if a.encCache != nil {
-			a.registerCanonical(req.Tx)
-		}
+		a.registerCanonical(req.Tx)
 
-		// Events are passed through without sdk.MarkEventsToIndex (which the
-		// default BaseApp.CheckTx applies): that flag only feeds the tx indexer,
-		// which operates on FinalizeBlock results, not CheckTx — and indexEvents
-		// has no public accessor here. No observable effect for RPC callers.
+		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
+		// the tx indexer on FinalizeBlock results, not CheckTx.
 		return &abci.ResponseCheckTx{
 			GasWanted: int64(gasInfo.GasWanted),
 			GasUsed:   int64(gasInfo.GasUsed),
