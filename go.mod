@@ -11,7 +11,7 @@ require (
 	cosmossdk.io/tools/confix v0.1.2
 	filippo.io/age v1.2.1
 	github.com/99designs/keyring v1.2.2
-	github.com/cometbft/cometbft v0.39.3
+	github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/cosmos-sdk v0.54.3
@@ -384,8 +384,6 @@ require (
 replace (
 	// Use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-	github.com/cometbft/cometbft => github.com/cometbft/cometbft v0.39.4-0.20260526181141-22d5a9f76540
-
 	github.com/cosmos/cosmos-sdk => github.com/crypto-org-chain/cosmos-sdk v0.50.6-0.20260601063535-2cd50b219979
 	// solves bug on pruning "version does not exist"
 	github.com/cosmos/iavl => github.com/cosmos/iavl v1.2.6
