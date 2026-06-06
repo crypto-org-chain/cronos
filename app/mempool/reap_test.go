@@ -81,6 +81,16 @@ func newReapHandler(mp sdkmempool.Mempool, enc sdk.TxEncoder, cache *cronosmempo
 	return cronosmempool.NewReapTxsHandler(mp, enc, cache, time.Hour, 0, log.NewNopLogger())
 }
 
+// mustReap runs the handler and fails the test on error, returning the response.
+func mustReap(t *testing.T, h sdk.ReapTxsHandler, req *abci.RequestReapTxs) *abci.ResponseReapTxs {
+	t.Helper()
+	resp, err := h(req)
+	if err != nil {
+		t.Fatalf("reap: %v", err)
+	}
+	return resp
+}
+
 func encoderFixedWire(tx sdk.Tx) ([]byte, error) {
 	switch s := tx.(type) {
 	case *stubFeeTx:
@@ -107,10 +117,7 @@ func TestReapTxs_GasCap(t *testing.T) {
 	pool := newPool(10_000, 50_000, 200) // 10K txs, 50K gas each
 	h := newReapHandler(pool, encoderFixedWire, nil)
 
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 80_000_000})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 80_000_000})
 	// 80M / 50K = 1600 txs
 	if got, want := len(resp.Txs), 1600; got != want {
 		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
@@ -126,10 +133,7 @@ func TestReapTxs_BytesCap(t *testing.T) {
 	// wire cost — identical to how PrepareProposal accounts bytes.
 	protoSize := uint64(cronosmempool.ProtoSizeForTx(make([]byte, txPayload)))
 	const wantTxs = 100
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: wantTxs * protoSize, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: wantTxs * protoSize, MaxGas: 0})
 	if got := len(resp.Txs); got != wantTxs {
 		t.Fatalf("len(resp.Txs) = %d, want %d", got, wantTxs)
 	}
@@ -139,10 +143,7 @@ func TestReapTxs_NoCapReturnsAll(t *testing.T) {
 	pool := newPool(50, 1, 8)
 	h := newReapHandler(pool, encoderFixedWire, nil)
 
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got, want := len(resp.Txs), 50; got != want {
 		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
 	}
@@ -152,10 +153,7 @@ func TestReapTxs_EmptyPool(t *testing.T) {
 	pool := &stubMempool{}
 	h := newReapHandler(pool, encoderFixedWire, nil)
 
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if len(resp.Txs) != 0 {
 		t.Fatalf("expected empty txs, got %d", len(resp.Txs))
 	}
@@ -166,10 +164,7 @@ func TestReapTxs_SingleTxExceedsGasCap(t *testing.T) {
 	pool := newPool(1, 100_000, 8)
 	h := newReapHandler(pool, encoderFixedWire, nil)
 
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 50_000})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 50_000})
 	if got := len(resp.Txs); got != 0 {
 		t.Fatalf("expected 0 txs, got %d", got)
 	}
@@ -212,10 +207,7 @@ func TestReapTxs_NonceOrderingPerSender(t *testing.T) {
 	}
 
 	reap := newReapHandler(mp, encoderFixedWire, nil)
-	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("reap: %v", err)
-	}
+	resp := mustReap(t, reap, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got, want := len(resp.Txs), 5; got != want {
 		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
 	}
@@ -248,10 +240,7 @@ func TestReapTxs_PriorityDescending(t *testing.T) {
 		}
 	}
 
-	resp, err := reap(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("reap: %v", err)
-	}
+	resp := mustReap(t, reap, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got, want := len(resp.Txs), len(priorities); got != want {
 		t.Fatalf("len(resp.Txs) = %d, want %d", got, want)
 	}
@@ -279,10 +268,7 @@ func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
 	}
 
 	h := newReapHandler(pool, countingEncoder, enc)
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("unexpected err: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp.Txs); got != 2 {
 		t.Fatalf("len(resp.Txs) = %d, want 2", got)
 	}
@@ -370,17 +356,11 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 	// the upstream iterator's same-priority double-emit (cosmos/cosmos-sdk#1751),
 	// so the unique-tx count equals CountTx. Second reap is fully deduped.
 	fresh := newReapHandler(mp, encoderFixedWire, nil)
-	resp1, err := fresh(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("final reap 1: %v", err)
-	}
+	resp1 := mustReap(t, fresh, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got, want := len(resp1.Txs), writers*txsPerWriter; got != want {
 		t.Fatalf("fresh reap returned %d txs, want %d (all distinct txs once)", got, want)
 	}
-	resp2, err := fresh(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("final reap 2: %v", err)
-	}
+	resp2 := mustReap(t, fresh, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp2.Txs); got != 0 {
 		t.Fatalf("second reap returned %d txs, want 0 (all deduped within ttl)", got)
 	}
@@ -392,17 +372,11 @@ func TestReapTxs_GossipDedupAcrossReaps(t *testing.T) {
 	// fully suppressed (this is the steady-state flood the throttle kills).
 	h := newReapHandler(pool, encoderFixedWire, nil)
 
-	resp1, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("reap 1: %v", err)
-	}
+	resp1 := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp1.Txs); got != 50 {
 		t.Fatalf("reap 1 returned %d, want 50", got)
 	}
-	resp2, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("reap 2: %v", err)
-	}
+	resp2 := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp2.Txs); got != 0 {
 		t.Fatalf("reap 2 returned %d, want 0 (deduped)", got)
 	}
@@ -417,10 +391,7 @@ func TestReapTxs_GossipCountCap(t *testing.T) {
 	seen := map[byte]struct{}{}
 	wantPerReap := []int{20, 20, 10}
 	for i, want := range wantPerReap {
-		resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-		if err != nil {
-			t.Fatalf("reap %d: %v", i, err)
-		}
+		resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 		if got := len(resp.Txs); got != want {
 			t.Fatalf("reap %d returned %d txs, want %d", i, got, want)
 		}
@@ -435,10 +406,7 @@ func TestReapTxs_GossipCountCap(t *testing.T) {
 		t.Fatalf("union of capped reaps = %d distinct txs, want 50", len(seen))
 	}
 	// Pool fully gossiped; next reap is empty until ttl elapses.
-	resp, err := h(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
-	if err != nil {
-		t.Fatalf("final reap: %v", err)
-	}
+	resp := mustReap(t, h, &abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if got := len(resp.Txs); got != 0 {
 		t.Fatalf("post-drain reap returned %d, want 0", got)
 	}
