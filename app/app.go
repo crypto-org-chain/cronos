@@ -1625,7 +1625,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	resp, err := app.BaseApp.FinalizeBlock(req)
 	if err == nil && app.recheckAdmitter != nil {
-		app.recheckAdmitter.StageRecheckSenders(req.Txs)
+		app.recheckAdmitter.StageRecheckSenders(req.Height, req.Txs)
 	}
 	return resp, err
 }

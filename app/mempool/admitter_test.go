@@ -22,10 +22,14 @@ import (
 // interface value, which for pointer types is pointer equality, so a pointer
 // receiver is needed. The id field gives it non-zero size so distinct
 // allocations get distinct addresses (zero-size structs share runtime.zerobase).
-type ptrTx struct{ id int }
+type ptrTx struct {
+	id      int
+	timeout uint64 // GetTimeoutHeight; 0 = no timeout
+}
 
 func (*ptrTx) GetMsgs() []sdk.Msg                    { return nil }
 func (*ptrTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (t *ptrTx) GetTimeoutHeight() uint64            { return t.timeout }
 
 // noopEncoder is a non-nil txEncoder for tests that don't assert on bytes.
 var noopEncoder sdk.TxEncoder = func(sdk.Tx) ([]byte, error) { return nil, nil }

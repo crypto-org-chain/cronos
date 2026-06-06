@@ -18,13 +18,20 @@ func (a *Admitter) EnableRecheck(mpool sdkmempool.Mempool, signer sdkmempool.Sig
 }
 
 // StageRecheckSenders records the senders of the just-committed block's txs so
-// RecheckLocked can re-validate only their remaining pending txs. CometBFT's
-// app-mempool Update() is a no-op, so the app drives recheck itself.
+// RecheckLocked can re-validate only their remaining pending txs, and stages the
+// committed height for TimeoutHeight eviction. CometBFT's app-mempool Update()
+// is a no-op, so the app drives recheck itself.
 //
 // Called from App.FinalizeBlock after BaseApp.FinalizeBlock. Decoding hits the
 // tx-decode cache (these txs were just executed). FinalizeBlock and Commit are
 // serialized by ABCI; pendingMu only guards against stray RPC concurrency.
-func (a *Admitter) StageRecheckSenders(txs [][]byte) {
+func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
+	// Stage height before the dep guard so the timeout sweep runs even if the
+	// recheck deps (signer/decoder) aren't wired.
+	a.pendingMu.Lock()
+	a.committedHeight = height
+	a.pendingMu.Unlock()
+
 	if a.signer == nil || a.decoder == nil {
 		return
 	}
@@ -43,25 +50,29 @@ func (a *Admitter) StageRecheckSenders(txs [][]byte) {
 	a.pendingMu.Unlock()
 }
 
-// RecheckLocked re-runs the AnteHandler in ReCheck mode against pending txs from
-// senders touched by the last block, evicting any now-invalid (stale sequence,
-// drained balance). The caller MUST hold a.mu (App.Commit does): recheck mutates
+// RecheckLocked evicts pool txs invalidated by the last block: those whose
+// TimeoutHeight has passed (any sender), and those of senders touched by the
+// block that now fail the AnteHandler in ReCheck mode (stale sequence, drained
+// balance). The caller MUST hold a.mu (App.Commit does): recheck mutates
 // checkState, which is reset to the committed state post-Commit.
 //
-// ExecModeReCheck skips signature verification (the dominant CheckTx cost) and
-// validate-basic, and BaseApp.RunTx auto-removes a tx from the mempool when its
-// ante fails — so this only runs ante and evicts our encCache for the casualties.
-// The ante (recheck) work scales with touched senders; the candidate scan is
-// O(pool depth).
+// The timeout sweep runs every commit (it needs no touched sender); ante recheck
+// runs only for pending senders. ExecModeReCheck skips signature verification
+// (the dominant CheckTx cost) and validate-basic, and BaseApp.RunTx auto-removes
+// a tx from the mempool when its ante fails — so this only runs ante and evicts
+// our encCache for the casualties. The candidate scan is O(pool depth).
 func (a *Admitter) RecheckLocked() {
-	if a.mpool == nil || a.signer == nil {
+	if a.mpool == nil {
 		return
 	}
 	a.pendingMu.Lock()
 	pending := a.pending
+	height := a.committedHeight
 	a.pending = nil
 	a.pendingMu.Unlock()
-	if len(pending) == 0 {
+	// Nothing to do before the first committed block (height 0) with no pending
+	// senders. In steady state height > 0, so the sweep always scans.
+	if len(pending) == 0 && height == 0 {
 		return
 	}
 
@@ -74,14 +85,33 @@ func (a *Admitter) RecheckLocked() {
 		return true
 	})
 
-	var candidates []sdk.Tx
+	var (
+		candidates     []sdk.Tx
+		expiredEvicted float32
+	)
 	for _, tx := range snapshot {
+		if txExpired(tx, height) {
+			// Evict directly (no RunTx): the next block's height already exceeds
+			// TimeoutHeight, so the ante would reject it forever. Safe here because
+			// the snapshot is materialized — Remove takes the pool lock, which the
+			// SelectBy above has released.
+			_ = a.mpool.Remove(tx)
+			a.encCache.Evict(tx)
+			expiredEvicted++
+			continue
+		}
+		if len(pending) == 0 {
+			continue
+		}
 		for _, s := range a.signerKeys(tx) {
 			if _, ok := pending[s]; ok {
 				candidates = append(candidates, tx)
 				break
 			}
 		}
+	}
+	if expiredEvicted > 0 {
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 	}
 
 	var evicted float32
@@ -103,6 +133,20 @@ func (a *Admitter) RecheckLocked() {
 	if evicted > 0 {
 		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 	}
+}
+
+// txExpired reports whether tx's TimeoutHeight has passed relative to the last
+// committed height. A tx is valid in block H iff H <= TimeoutHeight (the ante
+// rejects H > TimeoutHeight). The next block is committedHeight+1, so once
+// committedHeight >= TimeoutHeight the tx can never be valid again. A zero
+// TimeoutHeight means no timeout; non-timeout txs (EVM) skip via the assertion.
+func txExpired(tx sdk.Tx, committedHeight int64) bool {
+	t, ok := tx.(sdk.TxWithTimeoutHeight)
+	if !ok {
+		return false
+	}
+	th := t.GetTimeoutHeight()
+	return th > 0 && uint64(committedHeight) >= th
 }
 
 // signerKeys returns the sender address strings for tx, or nil if extraction

@@ -104,6 +104,18 @@ func (f *recheckFixture) insert(id int, first sdk.AccAddress, seq uint64, rest .
 	return tx
 }
 
+// addTimeout inserts a tx carrying a TimeoutHeight, keyed by sender, with its
+// recheck bytes registered in encCache.
+func (f *recheckFixture) addTimeout(id int, sender string, seq uint64, bz string, timeout uint64) *ptrTx {
+	tx := &ptrTx{id: id, timeout: timeout}
+	f.signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress(sender), seq)}
+	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
+		panic(err)
+	}
+	f.enc.Register(tx, []byte(bz))
+	return tx
+}
+
 func poolHas(pool *sdkmempool.PriorityNonceMempool[int64], target sdk.Tx) bool {
 	found := false
 	sdkmempool.SelectBy(context.Background(), pool, nil, func(tx sdk.Tx) bool {
@@ -175,10 +187,95 @@ func TestRecheckLocked_DrainsPending(t *testing.T) {
 	}
 }
 
+// Timeout sweep evicts an expired tx even when its sender wasn't touched by the
+// last block (no pending entry, so the ante-recheck path never sees it).
+func TestRecheckLocked_EvictsExpiredUntouchedSender(t *testing.T) {
+	f := newRecheckFixture()
+	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
+
+	f.a.committedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
+	f.a.RecheckLocked()     // pending nil: only the timeout sweep runs
+
+	if poolHas(f.pool, expired) {
+		t.Fatal("expired tx must be evicted regardless of touched senders")
+	}
+	if _, ok := f.enc.Bytes(expired); ok {
+		t.Fatal("expired tx must be evicted from encCache")
+	}
+	if len(f.runner.modes) != 0 {
+		t.Fatal("expired txs must be removed without a RunTx recheck")
+	}
+}
+
+// committedHeight == timeoutHeight evicts (next block exceeds it); one above
+// survives (still valid in the next block); 0 never expires.
+func TestRecheckLocked_TimeoutBoundary(t *testing.T) {
+	f := newRecheckFixture()
+	atLimit := f.addTimeout(1, "carol", 0, "carol-0", 5)
+	survivor := f.addTimeout(2, "dave", 0, "dave-0", 6)
+	noTimeout := f.addTimeout(3, "erin", 0, "erin-0", 0)
+
+	f.a.committedHeight = 5
+	f.a.RecheckLocked()
+
+	if poolHas(f.pool, atLimit) {
+		t.Fatal("tx with timeoutHeight == committedHeight must be evicted")
+	}
+	if !poolHas(f.pool, survivor) {
+		t.Fatal("tx with timeoutHeight > committedHeight must survive")
+	}
+	if !poolHas(f.pool, noTimeout) {
+		t.Fatal("tx with timeoutHeight 0 must never be evicted")
+	}
+}
+
+// A single scan both evicts expired txs and rechecks touched-sender candidates.
+func TestRecheckLocked_SweepAndRecheckTogether(t *testing.T) {
+	f := newRecheckFixture("alice-0") // alice's seq-0 fails recheck
+	stale := f.add(1, "alice", 0, "alice-0")
+	expired := f.addTimeout(2, "carol", 0, "carol-0", 5)
+	survivor := f.add(3, "alice", 1, "alice-1")
+
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+	f.a.committedHeight = 5
+	f.a.RecheckLocked()
+
+	if poolHas(f.pool, expired) {
+		t.Fatal("expired tx must be swept")
+	}
+	if poolHas(f.pool, stale) {
+		t.Fatal("stale touched-sender tx must be rechecked out")
+	}
+	if !poolHas(f.pool, survivor) {
+		t.Fatal("valid touched-sender tx must stay")
+	}
+	if f.runner.seen["carol-0"] {
+		t.Fatal("expired tx must be evicted without a RunTx recheck")
+	}
+}
+
+// StageRecheckSenders must stage the committed height (not just senders) so the
+// timeout sweep fires on the next RecheckLocked. The fixture's decoder is nil, so
+// staging returns after recording height — exercising height independently.
+func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
+	f := newRecheckFixture()
+	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
+
+	f.a.StageRecheckSenders(5, nil) // decoder nil: stages height, leaves pending nil
+	f.a.RecheckLocked()
+
+	if poolHas(f.pool, expired) {
+		t.Fatal("StageRecheckSenders must stage height so the sweep evicts the expired tx")
+	}
+	if len(f.runner.modes) != 0 {
+		t.Fatal("sweep-only path must not RunTx")
+	}
+}
+
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a := newAdmitter(&stubRunner{}, nil, nil, noopEncoder)
-	a.StageRecheckSenders([][]byte{[]byte("x")}) // decoder/signer nil → no-op
-	a.RecheckLocked()                            // mpool nil → no-op
+	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
+	a.RecheckLocked()                               // mpool nil → no-op
 }
 
 // A tx with no encCache entry must still be rechecked via the txEncoder fallback.

@@ -51,6 +51,10 @@ type Admitter struct {
 	// pending holds senders touched by the last committed block, staged by
 	// StageRecheckSenders and drained by RecheckLocked.
 	pending map[string]struct{}
+	// committedHeight is the height of the last committed block, staged by
+	// StageRecheckSenders. RecheckLocked evicts txs whose TimeoutHeight has
+	// passed relative to it. Guarded by pendingMu.
+	committedHeight int64
 }
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
