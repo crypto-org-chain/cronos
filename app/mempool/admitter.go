@@ -38,6 +38,11 @@ type Admitter struct {
 	// trace mirrors BaseApp.Trace(): include stack traces in CheckTx error logs.
 	trace bool
 
+	// preVerify runs the stateless EVM signature check lock-free before the
+	// admission mutex (ecrecover dominates admission cost and touches no store).
+	// Set by EnablePreVerify; nil until then (admission stays fully locked).
+	preVerify func([]byte) error
+
 	// Recheck deps, set by EnableRecheck (nil until then; recheck no-ops).
 	mpool     sdkmempool.Mempool
 	signer    sdkmempool.SignerExtractionAdapter
@@ -88,6 +93,18 @@ func (a *Admitter) AdmissionMutex() *sync.Mutex {
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
+		// Pre-verify the stateless EVM signature lock-free: ecrecover dominates
+		// admission cost and touches no store, so hoisting it out of a.mu is the
+		// throughput win. Non-EVM txs and signer-build failures return nil and
+		// are fully verified under the lock below. (The in-lock re-verify is
+		// skipped via the incarnationCache signal once the ethermint fork lands;
+		// until then this double-verifies — correct, just not yet faster.)
+		if a.preVerify != nil {
+			if err := a.preVerify(req.Tx); err != nil {
+				return insertReject(err), nil
+			}
+		}
+
 		a.mu.Lock()
 		defer a.mu.Unlock()
 
@@ -96,13 +113,19 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 				return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
 			}
-			_, code, _ := errorsmod.ABCIInfo(err, false)
-			return &abci.ResponseInsertTx{Code: code}, nil
+			return insertReject(err), nil
 		}
 
 		a.registerCanonical(req.Tx)
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
+}
+
+// insertReject maps a RunTx/pre-verify error to its ABCI code for an InsertTx
+// rejection. The ErrMempoolTxMaxCapacity retry case is handled at the call site.
+func insertReject(err error) *abci.ResponseInsertTx {
+	_, code, _ := errorsmod.ABCIInfo(err, false)
+	return &abci.ResponseInsertTx{Code: code}
 }
 
 // registerCanonical caches a tx's canonical (re-encoded) bytes so ReapTxsHandler

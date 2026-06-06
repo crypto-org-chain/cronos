@@ -833,6 +833,13 @@ func New(
 		evmhandlers.NewSendToIbcV2Handler(app.BankKeeper, app.CronosKeeper),
 	))
 
+	// Hoist EVM signature verification (ecrecover) out of the app-mempool
+	// admission mutex. Wired here, not in the SetMempool closure above, because
+	// the hook needs EvmKeeper, which is only constructed now.
+	if app.recheckAdmitter != nil {
+		app.recheckAdmitter.EnablePreVerify(newEVMSigPreVerifier(app, app.txDecoder))
+	}
+
 	var icaControllerStack porttypes.IBCModule
 	icaControllerStack = icacontroller.NewIBCMiddleware(app.ICAControllerKeeper) // we don't limit gas usage here, because the cronos keeper will use network parameter to control it.
 	icaCallbacks := ibccallbacks.NewIBCMiddleware(app.CronosKeeper, math.MaxUint64)
