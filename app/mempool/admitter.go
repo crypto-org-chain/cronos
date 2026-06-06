@@ -25,11 +25,10 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // Admitter owns the app-side mempool admission path for mempool.type=app.
 type Admitter struct {
-	// mu serializes admission. InsertTx (p2p) and CheckTx (RPC) both call
-	// RunTx(ExecModeCheck) on the shared checkState, which is not
-	// concurrency-safe. App.Commit also takes mu (via AdmissionMutex) so its
-	// checkState reset can't race in-flight admission, since AppMempool.Lock()
-	// is a no-op.
+	// mu serializes admission: InsertTx (p2p) and CheckTx (RPC) both run
+	// RunTx(ExecModeCheck) on the non-concurrency-safe checkState. App.Commit
+	// also takes mu (via AdmissionMutex) so its checkState reset can't race
+	// in-flight admission (AppMempool.Lock() is a no-op).
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -97,12 +96,10 @@ func (a *Admitter) AdmissionMutex() *sync.Mutex {
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		// Pre-verify the stateless EVM signature lock-free: ecrecover dominates
-		// admission cost and touches no store, so hoisting it out of a.mu is the
-		// throughput win. Non-EVM txs and signer-build failures return nil and
-		// are fully verified under the lock below. (The in-lock re-verify is
-		// skipped via the incarnationCache signal once the ethermint fork lands;
-		// until then this double-verifies — correct, just not yet faster.)
+		// Pre-verify the EVM signature lock-free: ecrecover dominates admission
+		// cost and touches no store. Non-EVM txs and signer-build failures return
+		// nil and fall through to the locked RunTx below. (The in-lock re-verify
+		// skip lands with the ethermint fork; until then this double-verifies.)
 		if a.preVerify != nil {
 			if err := a.preVerify(req.Tx); err != nil {
 				return insertReject(err), nil

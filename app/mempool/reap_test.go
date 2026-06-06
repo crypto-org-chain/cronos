@@ -75,9 +75,8 @@ func (m *stubMempool) Remove(_ sdk.Tx) error { return nil }
 // minimal pool helpers below
 
 // newReapHandler builds a reap handler with the gossip throttle effectively
-// disabled (ttl far exceeds a test's duration so a fresh handler's first reap
-// returns everything; no count cap), isolating the pre-existing cap/ordering
-// tests from gossip dedup. Throttle behavior is covered separately.
+// disabled (ttl far exceeds the test so the first reap returns everything; no
+// count cap), isolating the cap/ordering tests from gossip dedup.
 func newReapHandler(mp sdkmempool.Mempool, enc sdk.TxEncoder, cache *cronosmempool.EncoderCache) sdk.ReapTxsHandler {
 	return cronosmempool.NewReapTxsHandler(mp, enc, cache, time.Hour, 0, log.NewNopLogger())
 }
@@ -366,11 +365,10 @@ func TestReapTxs_ConcurrentInsertRace(t *testing.T) {
 		t.Fatalf("CountTx = %d, want %d", got, want)
 	}
 
-	// Snapshot completeness on a stable pool, via a fresh handler so gossip
-	// dedup state is empty. Every distinct tx (unique wire bytes) must be
-	// reaped exactly once: dedup also collapses the upstream iterator's
-	// same-priority double-emit (cosmos/cosmos-sdk#1751), so the unique-tx
-	// count equals CountTx. A second reap on the same handler is fully deduped.
+	// Snapshot completeness on a stable pool, via a fresh handler (empty dedup
+	// state). Every distinct tx must be reaped exactly once: dedup also collapses
+	// the upstream iterator's same-priority double-emit (cosmos/cosmos-sdk#1751),
+	// so the unique-tx count equals CountTx. Second reap is fully deduped.
 	fresh := newReapHandler(mp, encoderFixedWire, nil)
 	resp1, err := fresh(&abci.RequestReapTxs{MaxBytes: 0, MaxGas: 0})
 	if err != nil {

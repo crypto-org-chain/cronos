@@ -135,11 +135,10 @@ func (a *Admitter) RecheckLocked() {
 	}
 }
 
-// txExpired reports whether tx's TimeoutHeight has passed relative to the last
-// committed height. A tx is valid in block H iff H <= TimeoutHeight (the ante
-// rejects H > TimeoutHeight). The next block is committedHeight+1, so once
-// committedHeight >= TimeoutHeight the tx can never be valid again. A zero
-// TimeoutHeight means no timeout; non-timeout txs (EVM) skip via the assertion.
+// txExpired reports whether tx's TimeoutHeight has passed. A tx is valid only
+// in blocks H <= TimeoutHeight, and the next block is committedHeight+1, so
+// committedHeight >= TimeoutHeight means it can never be valid again. Zero
+// TimeoutHeight (e.g. EVM txs) means no timeout.
 func txExpired(tx sdk.Tx, committedHeight int64) bool {
 	t, ok := tx.(sdk.TxWithTimeoutHeight)
 	if !ok {

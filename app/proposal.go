@@ -131,22 +131,19 @@ func fastNoOpPrepareProposal(
 }
 
 // fastPrepareProposalAppMempool returns a PrepareProposal handler for
-// mempool.type=app. It iterates the priority mempool directly, reads raw tx
-// bytes from encCache (populated by InsertTxHandler), applies the blocklist,
-// and respects MaxTxBytes / consensus MaxGas.
+// mempool.type=app: it iterates the priority mempool directly, reads raw bytes
+// from encCache (populated by InsertTxHandler), and respects MaxTxBytes /
+// consensus MaxGas.
 //
-// It skips baseapp.PrepareProposalVerifyTx (re-encode + full ante re-run):
-// InsertTxHandler already ran ante via RunTx(ExecModeCheck) at admission, so
-// static checks (signature, nonce) are redundant here. Tradeoff: baseFee fee
-// validation is not re-checked, so a tx whose gasPrice fell below a risen
-// baseFee is included and fails at execution, wasting block space. This is
-// bounded by fee-price ordering (lower-fee txs are proposed last, so most
-// likely cut by MaxTxBytes first) and accepted because PrepareProposalVerifyTx
+// It skips baseapp.PrepareProposalVerifyTx (re-encode + ante re-run) since
+// InsertTxHandler already ran ante at admission. Tradeoff: baseFee is not
+// re-checked, so a tx whose gasPrice fell below a risen baseFee is included and
+// fails at execution, wasting block space — bounded by fee ordering (low-fee txs
+// proposed last, cut by MaxTxBytes first) and worth it because VerifyTx
 // dominates step_propose latency at high throughput.
 //
-// encCache MUST be non-nil; otherwise wire the slower defaultHandler path
-// (which still runs PrepareProposalVerifyTx). txEncoder is the fallback for txs
-// whose decoded pointer isn't in the cache (eviction race after Reap; rare).
+// encCache MUST be non-nil (else wire the slower defaultHandler). txEncoder is
+// the fallback for txs whose pointer isn't cached (post-Reap eviction race; rare).
 func fastPrepareProposalAppMempool(
 	mp mempool.Mempool,
 	encCache *cronosmempool.EncoderCache,

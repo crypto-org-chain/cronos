@@ -158,12 +158,11 @@ func TestPreVerifyEVMSig(t *testing.T) {
 	require.NoError(t, pv([]byte("not-a-tx")), "undecodable bytes pass through to locked verify")
 }
 
-// TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls (each
-// running pre-verify lock-free, then RunTx under the admission mutex). Run with
-// -race to prove the Option B pre-verify path is concurrency-safe: the signer is
-// pure and the decode cache is mutex-guarded, so concurrent admissions don't
-// race. No concurrent FinalizeBlock here — see TestAdmissionVsFinalizeBlockRace
-// for the separate, pre-existing keeper race that is not introduced by Option B.
+// TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
+// (pre-verify lock-free, then RunTx under the admission mutex). Run with -race
+// to prove the path is concurrency-safe: the signer is pure and the decode cache
+// is mutex-guarded. FinalizeBlock isn't run concurrently here — see
+// TestAdmissionVsFinalizeBlockRace for the separate pre-existing keeper race.
 func TestInsertTxConcurrentAdmission(t *testing.T) {
 	const goroutines = 16
 	const perG = 32
@@ -196,14 +195,12 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 }
 
 // TestAdmissionVsFinalizeBlockRace documents a PRE-EXISTING data race on the
-// mempool.type=app path, independent of Option B: lock-free admission runs the
-// EVM ante (RunTx → EVMBlockConfig), which reads EvmKeeper.eip155ChainID, while
-// FinalizeBlock → BeginBlock → (*Keeper).WithChainIDString rewrites that field
-// every block. Admission is lock-free vs consensus (LockFreeContext bypasses
-// CometBFT's localClient mutex), so the two truly overlap. The write is a
-// redundant same-value rewrite, cheaply eliminated in the ethermint fork
-// (skip the write when the chain ID is unchanged). Skipped so CI stays green;
-// unskip with -race to reproduce.
+// mempool.type=app path: lock-free admission runs the EVM ante (→ EVMBlockConfig
+// → reads EvmKeeper.eip155ChainID) while FinalizeBlock → BeginBlock →
+// WithChainIDString rewrites that field every block. Admission is lock-free vs
+// consensus (LockFreeContext bypasses CometBFT's localClient mutex), so they
+// overlap. The write is a redundant same-value rewrite, fixed in the ethermint
+// fork (skip when unchanged). Skipped to keep CI green; unskip with -race.
 func TestAdmissionVsFinalizeBlockRace(t *testing.T) {
 	t.Skip("documents a pre-existing keeper race on the app-mempool path; fix lives in the ethermint fork (WithChainIDString)")
 }

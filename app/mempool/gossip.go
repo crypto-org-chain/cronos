@@ -8,13 +8,13 @@ import (
 )
 
 // gossipTracker throttles the gossip reap so the AppReactor stops re-broadcasting
-// the whole pool every ReapInterval. It records when each tx (by canonical-bytes
-// hash) was last reaped for gossip and suppresses re-reap until ttl elapses.
+// the whole pool every ReapInterval. It records each tx's last gossip time (by
+// canonical-bytes hash) and suppresses re-reap until ttl elapses.
 //
-// CometBFT's seen cache only dedups on the receive path, so without this the
-// reap loop hands the entire pool to BroadcastAsync every ~500ms, flooding
-// libp2p. Epidemic spread means one broadcast per node propagates network-wide;
-// the ttl re-gossip only covers peers that connected late or dropped the packet.
+// CometBFT's seen cache only dedups on receive, so without this the reap loop
+// hands the whole pool to BroadcastAsync every ~500ms, flooding libp2p. Epidemic
+// spread means one broadcast propagates network-wide; ttl re-gossip only covers
+// peers that connected late or dropped the packet.
 type gossipTracker struct {
 	mu       sync.Mutex
 	seen     map[[32]byte]int64 // canonical-bytes hash -> last gossip (unix nanos)

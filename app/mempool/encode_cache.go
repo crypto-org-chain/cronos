@@ -14,10 +14,10 @@ import (
 type TxGetter func(bz []byte) (sdk.Tx, bool)
 
 // EncoderCache maps decoded-tx pointers to canonical proto bytes, skipping
-// proto.Marshal in the reap and PrepareProposal hot paths. Keys are tx pointers.
-// LRU-bounded at cap: each entry pins the tx on the heap, so without eviction
-// the map would grow unbounded over the node's lifetime. Register stores the
-// canonical form so non-minimal peer bytes never end up in a proposal.
+// proto.Marshal in the reap and PrepareProposal hot paths. LRU-bounded at cap:
+// each entry pins the tx on the heap, so without eviction the map would grow
+// unbounded. Register stores the canonical form so non-minimal peer bytes never
+// reach a proposal.
 type EncoderCache struct {
 	mu    sync.Mutex
 	cap   int
