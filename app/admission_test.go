@@ -43,8 +43,8 @@ type admissionFixture struct {
 // signTransfer builds and signs a plain EVM value-transfer tx from acc (to a
 // fixed EOA), incrementing acc.Nonce. The signature is valid; tamperFrom swaps
 // the From field to a different address post-sign so VerifyEthSig must reject.
-func (f *admissionFixture) signTransfer(t testing.TB, acc *TestAccount, tamperFrom *common.Address) []byte {
-	t.Helper()
+func (f *admissionFixture) signTransfer(tb testing.TB, acc *TestAccount, tamperFrom *common.Address) []byte {
+	tb.Helper()
 	tx := evmtypes.NewTx(
 		TestEthChainID,
 		acc.Nonce,
@@ -61,35 +61,35 @@ func (f *admissionFixture) signTransfer(t testing.TB, acc *TestAccount, tamperFr
 
 	msg := tx
 	msg.From = acc.Address.Bytes()
-	require.NoError(t, msg.Sign(f.ethSigner, tests.NewSigner(acc.Priv)))
+	require.NoError(tb, msg.Sign(f.ethSigner, tests.NewSigner(acc.Priv)))
 	if tamperFrom != nil {
 		msg.From = tamperFrom.Bytes() // recovered sender != From → verify fails
 	}
 	built, err := msg.BuildTx(f.app.TxConfig().NewTxBuilder(), evmtypes.DefaultEVMDenom)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	bz, err := f.app.TxConfig().TxEncoder()(built)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	return bz
 }
 
 // setupAdmissionApp builds a mempool.type=app App funded with `accounts` EVM
 // accounts and runs one empty block so checkState is populated.
-func setupAdmissionApp(t testing.TB, accounts int) *admissionFixture {
-	t.Helper()
+func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
+	tb.Helper()
 
 	appOpts := MinimalOptionsMap{
-		flags.FlagHome:                t.TempDir(),
+		flags.FlagHome:                tb.TempDir(),
 		"mempool.type":                "app",
 		"mempool.max-txs":             100000,
 		"cronos.tx-decode-cache-size": 200000,
 	}
 	app := New(log.NewNopLogger(), dbm.NewMemDB(), true, appOpts, baseapp.SetChainID(TestAppChainID))
-	t.Cleanup(func() { _ = app.Close() })
+	tb.Cleanup(func() { _ = app.Close() })
 
 	testAccounts := make([]TestAccount, accounts)
 	for i := range testAccounts {
 		priv, err := ethsecp256k1.GenerateKey()
-		require.NoError(t, err)
+		require.NoError(tb, err)
 		testAccounts[i] = TestAccount{
 			Address: common.BytesToAddress(priv.PubKey().Address().Bytes()),
 			Priv:    priv,
@@ -98,7 +98,7 @@ func setupAdmissionApp(t testing.TB, accounts int) *admissionFixture {
 
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	consAddress := sdk.ConsAddress(pubKey.Address())
 	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{tmtypes.NewValidator(pubKey, 1)})
 
@@ -113,9 +113,9 @@ func setupAdmissionApp(t testing.TB, accounts int) *admissionFixture {
 		})
 	}
 	genesisState, err := simtestutil.GenesisStateWithValSet(app.AppCodec(), app.DefaultGenesis(), valSet, accs, balances...)
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	appState, err := json.MarshalIndent(genesisState, "", " ")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	consensusParams := *DefaultConsensusParams
 	blockParams := cmtproto.BlockParams{MaxBytes: math.MaxInt64, MaxGas: math.MaxInt64}
@@ -125,13 +125,13 @@ func setupAdmissionApp(t testing.TB, accounts int) *admissionFixture {
 		AppStateBytes:   appState,
 		ConsensusParams: &consensusParams,
 	})
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	// Flush an empty block so checkState reflects committed genesis state.
 	_, err = app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1, ProposerAddress: consAddress})
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	_, err = app.Commit()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return &admissionFixture{
 		app:         app,
