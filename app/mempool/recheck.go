@@ -76,14 +76,9 @@ func (a *Admitter) RecheckLocked() {
 		return
 	}
 
-	// Snapshot pointers under the pool lock; match senders after release.
 	// signerKeys allocs per tx and RunTx's Remove can't run inside SelectBy,
 	// which holds mp.mtx and blocks admission/reap. Matches reap.go.
-	snapshot := make([]sdk.Tx, 0, a.mpool.CountTx())
-	sdkmempool.SelectBy(context.Background(), a.mpool, nil, func(tx sdk.Tx) bool {
-		snapshot = append(snapshot, tx)
-		return true
-	})
+	snapshot := SnapshotPool(context.Background(), a.mpool)
 
 	var (
 		candidates     []sdk.Tx
@@ -116,12 +111,9 @@ func (a *Admitter) RecheckLocked() {
 
 	var evicted float32
 	for _, tx := range candidates {
-		bz, ok := a.encCache.Bytes(tx)
-		if !ok {
-			var err error
-			if bz, err = a.txEncoder(tx); err != nil {
-				continue
-			}
+		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
+		if err != nil {
+			continue
 		}
 		if _, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil); err != nil {
 			// BaseApp.RunTx attempts mpool.Remove on ante failure; drop our cache

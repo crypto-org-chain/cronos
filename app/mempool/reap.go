@@ -30,12 +30,7 @@ const TypeApp = "app"
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl, nil)
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
-		// Pre-size to pool count to avoid slice growth under the pool lock.
-		snapshot := make([]sdk.Tx, 0, mpool.CountTx())
-		mempool.SelectBy(context.Background(), mpool, nil, func(tx sdk.Tx) bool {
-			snapshot = append(snapshot, tx)
-			return true
-		})
+		snapshot := SnapshotPool(context.Background(), mpool)
 
 		now := tracker.now()
 		var (
@@ -47,17 +42,15 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			deduped    float32
 		)
 		for _, tx := range snapshot {
-			bz, ok := encCache.Bytes(tx)
-			if !ok {
-				cacheMiss++
-				var err error
-				bz, err = txEncoder(tx)
-				if err != nil {
-					logger.Error("reap encode failed; skipping tx", "err", err)
-					continue
-				}
-			} else {
+			bz, hit, err := EncodeTx(encCache, txEncoder, tx)
+			if hit {
 				cacheHits++
+			} else {
+				cacheMiss++
+			}
+			if err != nil {
+				logger.Error("reap encode failed; skipping tx", "err", err)
+				continue
 			}
 			size := uint64(ProtoSizeForTx(bz))
 			if req.MaxBytes > 0 && totalBytes+size > req.MaxBytes {

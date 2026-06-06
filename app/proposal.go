@@ -168,29 +168,19 @@ func fastPrepareProposalAppMempool(
 			cacheHits  float32
 			cacheMiss  float32
 		)
-		// Snapshot tx pointers under the pool lock, then encode/validate/size
-		// after releasing it. SelectBy holds the mempool mutex for the whole
-		// callback; doing proto.Marshal + validateTx + sizing there would pin
-		// the lock for the entire proposal build, blocking gossip admission
-		// (mp.Insert) and the 500ms CometBFT reap ticker. Matches
-		// ReapTxsHandler's snapshot-then-process pattern.
-		snapshot := make([]sdk.Tx, 0, mp.CountTx())
-		mempool.SelectBy(ctx, mp, nil, func(memTx sdk.Tx) bool {
-			snapshot = append(snapshot, memTx)
-			return true
-		})
+		// Snapshot under the pool lock, then encode/validate/size after release;
+		// see cronosmempool.SnapshotPool. Matches ReapTxsHandler's pattern.
+		snapshot := cronosmempool.SnapshotPool(ctx, mp)
 
 		for _, memTx := range snapshot {
-			bz, ok := encCache.Bytes(memTx)
-			if !ok {
-				cacheMiss++
-				var err error
-				bz, err = txEncoder(memTx)
-				if err != nil {
-					continue
-				}
-			} else {
+			bz, hit, err := cronosmempool.EncodeTx(encCache, txEncoder, memTx)
+			if hit {
 				cacheHits++
+			} else {
+				cacheMiss++
+			}
+			if err != nil {
+				continue
 			}
 
 			// Match baseapp.DefaultTxSelector's accounting so the block
