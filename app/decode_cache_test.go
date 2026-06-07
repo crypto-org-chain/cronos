@@ -202,8 +202,8 @@ func TestDecodeCache_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Keys are disjoint across goroutines and total 3200 < 10000, so no
-	// eviction: exactly one miss per unique key.
+	// Keys are disjoint across goroutines: ~200 per shard (3200/16), well below
+	// each shard's ~625-entry cap, so no eviction. Exactly one miss per unique key.
 	want := int64(goroutines * itersPerG)
 	if got := calls.Load(); got != want {
 		t.Fatalf("cache hit rate wrong: calls=%d, want %d (one miss per unique key)", got, want)

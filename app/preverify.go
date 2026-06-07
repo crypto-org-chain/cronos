@@ -23,6 +23,12 @@ import (
 // LatestSignerForChainID is pure and, past all signer-relevant forks, recovers
 // the same sender the in-lock ante's MakeSigner would. decoder is the caching
 // decoder, whose cache is mutex-guarded.
+//
+// Pre-existing race (tracked, not fixed here): lock-free admission reads
+// EvmKeeper.eip155ChainID while FinalizeBlock → BeginBlock → WithChainIDString
+// rewrites it (same value, but a data race under -race). The ethermint fork
+// guards the write with "skip when unchanged". Until that lands, running with
+// -race on the app-mempool path will surface this as a false positive.
 func newEVMSigPreVerifier(app *App, decoder sdk.TxDecoder) func([]byte) error {
 	chainID, err := ethermint.ParseChainID(app.ChainID())
 	if err != nil {

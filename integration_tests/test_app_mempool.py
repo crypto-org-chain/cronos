@@ -129,8 +129,6 @@ def test_bad_signature_rejected_at_admission(cronos_app_mempool):
             "unauthorized",
             "signature",
             "sender",
-            "insufficient funds",
-            "sequence",
         )
     ), msg
 
@@ -168,6 +166,10 @@ def test_tx_replacement_rfc(cronos_app_mempool):
 
     Config: default.jsonnet feebump=10 requires newGasPrice >= oldGasPrice*110/100
     (Go integer arithmetic). base*12//10 satisfies this for all integer base >= 0.
+
+    Marked flaky because A can be reaped into a block before A' arrives if the
+    500ms reap_interval fires in the window between the two send_raw calls. This
+    is a timing race inherent to the test topology, not a logic bug.
     """
     w3: Web3 = cronos_app_mempool.w3
     key = KEYS["validator"]

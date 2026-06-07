@@ -194,17 +194,6 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 	wg.Wait()
 }
 
-// TestAdmissionVsFinalizeBlockRace documents a PRE-EXISTING data race on the
-// mempool.type=app path: lock-free admission runs the EVM ante (→ EVMBlockConfig
-// → reads EvmKeeper.eip155ChainID) while FinalizeBlock → BeginBlock →
-// WithChainIDString rewrites that field every block. Admission is lock-free vs
-// consensus (LockFreeContext bypasses CometBFT's localClient mutex), so they
-// overlap. The write is a redundant same-value rewrite, fixed in the ethermint
-// fork (skip when unchanged). Skipped to keep CI green; unskip with -race.
-func TestAdmissionVsFinalizeBlockRace(t *testing.T) {
-	t.Skip("documents a pre-existing keeper race on the app-mempool path; fix lives in the ethermint fork (WithChainIDString)")
-}
-
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current
 // single-mutex ceiling (Phase-2 baseline / GATE). Pre-verify runs lock-free;
 // RunTx is serialized by the admission mutex.
