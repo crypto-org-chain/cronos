@@ -1,11 +1,12 @@
 package app
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	ethante "github.com/evmos/ethermint/ante"
 	ethermint "github.com/evmos/ethermint/types"
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // newEVMSigPreVerifier builds the lock-free pre-verification hook for the

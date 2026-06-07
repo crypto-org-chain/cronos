@@ -337,6 +337,7 @@ func (m *lockTrackingMempool) Remove(tx sdk.Tx) error {
 	}
 	return nil
 }
+
 func (m *lockTrackingMempool) SelectBy(_ context.Context, _ [][]byte, cb func(sdk.Tx) bool) {
 	m.inSelect = true
 	defer func() { m.inSelect = false }()
