@@ -14,19 +14,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// TypeApp mirrors CometBFT's MempoolTypeApp ("app") config value, avoiding a
-// cometbft/config import for one string.
 const TypeApp = "app"
 
 // NewReapTxsHandler drains the priority mempool for mempool.type=app, stopping
 // at MaxBytes/MaxGas (0 = no cap, per CometBFT convention). Prefix scan: breaks
 // at the first tx over a cap (not best-fit), so a large high-priority tx may
 // leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
-//
-// ReapTxs is gossip-only here (block building reads the pool directly) and runs
-// every ReapInterval. A gossipTracker (allocated once, closed over) suppresses
-// re-broadcasting a tx within ttl and caps txs per reap (maxPerReap), so a large
-// pool spreads across ticks instead of flooding libp2p in one batch.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl, nil)
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
@@ -60,8 +53,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if feeTx, ok := tx.(sdk.FeeTx); ok {
 				gas = feeTx.GetGas()
 			}
-			// Overflow-safe: totalGas <= req.MaxGas by induction, so
-			// MaxGas-totalGas can't underflow even for attacker-set gas.
+
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}

@@ -21,10 +21,6 @@ func (a *Admitter) EnableRecheck(mpool sdkmempool.Mempool, signer sdkmempool.Sig
 // RecheckLocked can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction. CometBFT's app-mempool Update()
 // is a no-op, so the app drives recheck itself.
-//
-// Called from App.FinalizeBlock after BaseApp.FinalizeBlock. Decoding hits the
-// tx-decode cache (these txs were just executed). FinalizeBlock and Commit are
-// serialized by ABCI; pendingMu only guards against stray RPC concurrency.
 func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 	// Stage height before the dep guard so the timeout sweep runs even if the
 	// recheck deps (signer/decoder) aren't wired.
@@ -55,12 +51,6 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 // block that now fail the AnteHandler in ReCheck mode (stale sequence, drained
 // balance). The caller MUST hold a.mu (App.Commit does): recheck mutates
 // checkState, which is reset to the committed state post-Commit.
-//
-// The timeout sweep runs every commit (it needs no touched sender); ante recheck
-// runs only for pending senders. ExecModeReCheck skips signature verification
-// (the dominant CheckTx cost) and validate-basic, and BaseApp.RunTx auto-removes
-// a tx from the mempool when its ante fails — so this only runs ante and evicts
-// our encCache for the casualties. The candidate scan is O(pool depth).
 func (a *Admitter) RecheckLocked() {
 	if a.mpool == nil {
 		return
