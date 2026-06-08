@@ -9,8 +9,8 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/telemetry"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -38,7 +38,7 @@ type Admitter struct {
 	decoder   sdk.TxDecoder
 	pendingMu sync.Mutex
 	// pending holds leftover transactions in the mempool after a last committed block
-	pending map[string]struct{}
+	pending             map[string]struct{}
 	lastCommittedHeight int64
 }
 
@@ -157,11 +157,6 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 }
 
 // EnablePreVerify wires the lock-free pre-verification hook for mempool.type=app.
-// fn runs the stateless EVM signature check before the admission mutex and must
-// return nil for non-EVM txs (and on signer-build failure) so they fall through
-// to the locked RunTx. An injected closure keeps this package decoupled from the
-// EVM ante/keeper types. Wired after EvmKeeper construction; until called,
-// InsertTxHandler stays fully locked.
 func (a *Admitter) EnablePreVerify(fn func([]byte) error) {
 	a.preVerify = fn
 }
