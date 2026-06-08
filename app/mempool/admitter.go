@@ -27,7 +27,6 @@ type Admitter struct {
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
-	txGet     TxGetter
 	txEncoder sdk.TxEncoder
 	trace     bool
 
@@ -45,25 +44,17 @@ type Admitter struct {
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
 func NewAdmitter(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) *Admitter {
-	var txGet TxGetter
-	if decoder != nil {
-		txGet = func(bz []byte) (sdk.Tx, bool) {
-			tx, err := decoder(bz)
-			return tx, err == nil
-		}
-	}
-	a := newAdmitter(app, txGet, encCache, txEncoder)
+	a := newAdmitter(app, encCache, txEncoder, decoder)
 	a.trace = app.Trace()
 	a.mpool = mpool
 	a.signer = signer
-	a.decoder = decoder
 	return a
 }
 
-func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
+func newAdmitter(runner txRunner, encCache *EncoderCache, txEncoder sdk.TxEncoder, decoder sdk.TxDecoder) *Admitter {
 	if encCache != nil {
-		if txGet == nil {
-			panic("mempool: encCache requires txGet != nil")
+		if decoder == nil {
+			panic("mempool: encCache requires decoder != nil")
 		}
 		if txEncoder == nil {
 			panic("mempool: encCache requires txEncoder != nil for canonical bytes")
@@ -72,8 +63,8 @@ func newAdmitter(runner txRunner, txGet TxGetter, encCache *EncoderCache, txEnco
 	return &Admitter{
 		runner:    runner,
 		encCache:  encCache,
-		txGet:     txGet,
 		txEncoder: txEncoder,
+		decoder:   decoder,
 	}
 }
 
@@ -127,8 +118,8 @@ func (a *Admitter) cacheTx(raw []byte) {
 	if a.encCache == nil {
 		return
 	}
-	tx, ok := a.txGet(raw)
-	if !ok {
+	tx, err := a.decoder(raw)
+	if err != nil {
 		return
 	}
 	bz := raw

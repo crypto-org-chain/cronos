@@ -9,10 +9,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// TxGetter recovers the decoded tx for its raw proto bytes, so the EncoderCache
-// can be keyed on the tx pointer. InsertTxHandler uses it after RunTx.
-type TxGetter func(bz []byte) (sdk.Tx, bool)
-
 // EncoderCache caches tx encoding
 type EncoderCache struct {
 	mu    sync.Mutex

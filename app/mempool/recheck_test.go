@@ -72,11 +72,10 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 		fail[b] = true
 	}
 	runner := &recheckRunner{pool: pool, failBytes: fail, seen: map[string]bool{}}
-	// txGet unused by recheck, but newAdmitter requires it non-nil with encCache.
-	txGet := func([]byte) (sdk.Tx, bool) { return nil, false }
 	// Per-tx encoder so the encCache-miss fallback yields deterministic bytes.
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
-	a := newAdmitter(runner, txGet, enc, txEncoder)
+	decoder := func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") }
+	a := newAdmitter(runner, enc, txEncoder, decoder)
 	a.mpool = pool
 	a.signer = signer
 	return &recheckFixture{a: a, pool: pool, enc: enc, signer: signer, runner: runner}
@@ -274,7 +273,7 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 }
 
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
-	a := newAdmitter(&stubRunner{}, nil, nil, noopEncoder)
+	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
 	a.RecheckTxs()                               // mpool nil → no-op
 }
@@ -383,7 +382,7 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	enc := NewEncoderCache(0)
 	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
-	a := newAdmitter(runner, func([]byte) (sdk.Tx, bool) { return nil, false }, enc, txEncoder)
+	a := newAdmitter(runner, enc, txEncoder, func([]byte) (sdk.Tx, error) { return nil, errors.New("unused") })
 	a.mpool = pool
 	a.signer = signer
 
