@@ -1,6 +1,9 @@
 package mempool
 
-import "testing"
+import (
+	"crypto/sha256"
+	"testing"
+)
 
 func TestEncoderCache_EvictsAtCapacity(t *testing.T) {
 	const cap = 4
@@ -108,4 +111,65 @@ func TestEncoderCache_Evict(t *testing.T) {
 
 	var nilCache *EncoderCache
 	nilCache.Evict(a) // nil receiver: no panic
+}
+
+func TestEncoderCache_HashTx(t *testing.T) {
+	c := NewEncoderCache(4)
+	tx := &ptrTx{id: 1}
+	bz := []byte("canonical")
+	want := sha256.Sum256(bz)
+
+	c.Set(tx, bz)
+	if got := c.HashTx(tx, bz); got != want {
+		t.Fatalf("HashTx=%x, want %x", got, want)
+	}
+	// Cached after first call.
+	if it := c.items[tx].Value.(*item); !it.hashed || it.hash != want {
+		t.Fatalf("hash not cached: hashed=%v hash=%x", it.hashed, it.hash)
+	}
+
+	// Re-Set with new bytes must invalidate the cached hash.
+	bz2 := []byte("different")
+	want2 := sha256.Sum256(bz2)
+	c.Set(tx, bz2)
+	if it := c.items[tx].Value.(*item); it.hashed {
+		t.Fatal("Set must clear cached hash when bytes change")
+	}
+	if got := c.HashTx(tx, bz2); got != want2 {
+		t.Fatalf("HashTx after re-Set=%x, want %x", got, want2)
+	}
+
+	// Uncached tx (and nil receiver) hash directly without caching.
+	uncached := &ptrTx{id: 2}
+	if got := c.HashTx(uncached, bz); got != want {
+		t.Fatalf("uncached HashTx=%x, want %x", got, want)
+	}
+	if _, ok := c.items[uncached]; ok {
+		t.Fatal("HashTx must not insert entries for uncached txs")
+	}
+	var nilCache *EncoderCache
+	if got := nilCache.HashTx(tx, bz); got != want {
+		t.Fatalf("nil HashTx=%x, want %x", got, want)
+	}
+}
+
+// Cached-hit HashTx (repeat reaps) vs recomputing sha256 every reap.
+func BenchmarkHashTx_Cached(b *testing.B) {
+	c := NewEncoderCache(1)
+	tx := &ptrTx{id: 1}
+	bz := make([]byte, 512) // representative tx wire size
+	c.Set(tx, bz)
+	c.HashTx(tx, bz) // prime
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = c.HashTx(tx, bz)
+	}
+}
+
+func BenchmarkHashTx_Recompute(b *testing.B) {
+	bz := make([]byte, 512)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = sha256.Sum256(bz)
+	}
 }

@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"container/list"
+	"crypto/sha256"
 	"sync"
 
 	cmdcfg "github.com/crypto-org-chain/cronos/cmd/cronosd/config"
@@ -18,8 +19,10 @@ type EncoderCache struct {
 }
 
 type item struct {
-	tx sdk.Tx
-	bz []byte
+	tx     sdk.Tx
+	bz     []byte
+	hash   [32]byte
+	hashed bool // hash computed lazily on first HashTx call
 }
 
 // NewEncoderCache returns an LRU-bounded cache holding at most size entries.
@@ -44,7 +47,9 @@ func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
 	defer e.mu.Unlock()
 
 	if el, ok := e.items[tx]; ok {
-		el.Value.(*item).bz = bz
+		it := el.Value.(*item)
+		it.bz = bz
+		it.hashed = false // bytes changed; force re-hash
 		e.lru.MoveToFront(el)
 		return
 	}
@@ -84,4 +89,35 @@ func (e *EncoderCache) Get(tx sdk.Tx) ([]byte, bool) {
 	}
 	e.lru.MoveToFront(el)
 	return el.Value.(*item).bz, true
+}
+
+// HashTx returns sha256(bz), caching it on tx's entry so repeated reaps don't
+// re-hash the same canonical bytes. bz must be the canonical bytes EncodeTx
+// returned for tx. Safe on a nil receiver (hashes without caching). The hash is
+// computed outside the lock so a slow hash never blocks admission's Set.
+func (e *EncoderCache) HashTx(tx sdk.Tx, bz []byte) [32]byte {
+	if e == nil || tx == nil {
+		return sha256.Sum256(bz)
+	}
+	e.mu.Lock()
+	if el, ok := e.items[tx]; ok {
+		if it := el.Value.(*item); it.hashed {
+			h := it.hash
+			e.mu.Unlock()
+			return h
+		}
+	}
+	e.mu.Unlock()
+
+	h := sha256.Sum256(bz)
+	// Re-check: the entry may have been evicted while unlocked. The canonical
+	// bytes are deterministic, so h stays valid for any re-added entry.
+	e.mu.Lock()
+	if el, ok := e.items[tx]; ok {
+		it := el.Value.(*item)
+		it.hash = h
+		it.hashed = true
+	}
+	e.mu.Unlock()
+	return h
 }

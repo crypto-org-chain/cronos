@@ -2,7 +2,6 @@ package mempool
 
 import (
 	"context"
-	"crypto/sha256"
 	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -57,7 +56,7 @@ func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache 
 			if req.MaxGas > 0 && gas > req.MaxGas-totalGas {
 				break
 			}
-			if !tracker.gossip(sha256.Sum256(bz), now) {
+			if !tracker.gossip(encCache.HashTx(tx, bz), now) {
 				deduped++
 				continue
 			}
