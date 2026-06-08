@@ -47,14 +47,12 @@ const (
 	// DefaultMempoolGossipTTL re-gossips a resident tx at most ~once per window;
 	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
 	DefaultMempoolGossipTTL = 15 * time.Second
-	// DefaultMempoolGossipMaxPerReap sized for ~10k tps: it must be
-	// >= tps * reap_interval_seconds (10000 * 0.5 = 5000) or new txs backlog
-	// each tick. 5000 also equals a max block, so one tick gossips at most one
-	// block's worth of new txs.
-	DefaultMempoolGossipMaxPerReap = 5000
-	// DefaultMempoolRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle.
-	// Sized to one block's worth of senders (matches DefaultMempoolGossipMaxPerReap).
-	DefaultMempoolRecheckBatchSize = 5000
+	// DefaultMempoolTxsPerBlock is one block's tx budget (~2900 = cronos mainnet
+	// empirical block size). Used as both the gossip-reap cap (one tick ≈ one block
+	// interval) and the recheck-batch cap (one commit ≈ one block of senders).
+	DefaultMempoolTxsPerBlock      = 2900
+	DefaultMempoolGossipMaxPerReap = DefaultMempoolTxsPerBlock
+	DefaultMempoolRecheckBatchSize = DefaultMempoolTxsPerBlock
 )
 
 const (
