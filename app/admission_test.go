@@ -141,23 +141,6 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 	}
 }
 
-// TestPreVerifyEVMSig covers the Phase-3 pre-verify hook: valid EVM sig passes,
-// a tampered From is rejected, and non-EVM / undecodable input passes through
-// (nil) to the locked RunTx.
-func TestPreVerifyEVMSig(t *testing.T) {
-	f := setupAdmissionApp(t, 2)
-	pv := newEVMSigPreVerifier(f.app.ChainID(), f.app.txDecoder)
-
-	good := f.signTransfer(t, &f.accounts[0], nil)
-	require.NoError(t, pv(good), "valid EVM signature must pass pre-verify")
-
-	other := f.accounts[1].Address
-	bad := f.signTransfer(t, &f.accounts[0], &other)
-	require.Error(t, pv(bad), "tampered From must fail pre-verify")
-
-	require.NoError(t, pv([]byte("not-a-tx")), "undecodable bytes pass through to locked verify")
-}
-
 // TestInsertTxConcurrentAdmission drives many concurrent InsertTx calls
 // (pre-verify lock-free, then RunTx under the admission mutex). Run with -race
 // to prove the path is concurrency-safe: the signer is pure and the decode cache

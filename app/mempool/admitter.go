@@ -30,8 +30,6 @@ type Admitter struct {
 	txEncoder sdk.TxEncoder
 	trace     bool
 
-	preVerify func([]byte) error
-
 	mpool     sdkmempool.Mempool
 	signer    sdkmempool.SignerExtractionAdapter
 	decoder   sdk.TxDecoder
@@ -82,16 +80,6 @@ func (a *Admitter) AdmissionMutex() *sync.Mutex {
 // proto.Marshal; re-encoding keeps non-minimal peer bytes out of the cache.
 func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
-		// Pre-verify the EVM signature lock-free: ecrecover dominates admission
-		// cost and touches no store. Non-EVM txs and signer-build failures return
-		// nil and fall through to the locked RunTx below. (The in-lock re-verify
-		// skip lands with the ethermint fork; until then this double-verifies.)
-		if a.preVerify != nil {
-			if err := a.preVerify(req.Tx); err != nil {
-				return reject(err), nil
-			}
-		}
-
 		a.mu.Lock()
 		defer a.mu.Unlock()
 
@@ -157,11 +145,6 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 			Events:    result.Events,
 		}, nil
 	}
-}
-
-// EnablePreVerify wires the lock-free pre-verification hook for mempool.type=app.
-func (a *Admitter) EnablePreVerify(fn func([]byte) error) {
-	a.preVerify = fn
 }
 
 // SetRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle. 0 = unlimited.
