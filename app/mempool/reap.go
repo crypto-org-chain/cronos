@@ -21,11 +21,11 @@ const TypeApp = "app"
 // at the first tx over a cap (not best-fit), so a large high-priority tx may
 // leave budget unused. Encoder errors skip the tx; encCache hits skip proto.Marshal.
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
-	tracker := newGossipTracker(ttl, nil)
+	tracker := newGossipTracker(ttl)
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
 		snapshot := PoolSnapshot(context.Background(), mpool)
 
-		now := tracker.now()
+		now := time.Now().UnixNano()
 		var (
 			txs        = make([][]byte, 0, len(snapshot))
 			totalBytes uint64

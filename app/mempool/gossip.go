@@ -14,23 +14,18 @@ type gossipTracker struct {
 	mu       sync.Mutex
 	seen     map[[32]byte]int64 // canonical-bytes hash -> last gossip (unix nanos)
 	ttlNanos int64
-	now      func() int64
 }
 
 // newGossipTracker builds a tracker. ttl <= 0 falls back to the default (mirrors
 // NewEncoderCache): a zero TTL would re-gossip the whole pool every tick, the
-// exact flood this guards against. now may be nil (defaults to time.Now).
-func newGossipTracker(ttl time.Duration, now func() int64) *gossipTracker {
+// exact flood this guards against.
+func newGossipTracker(ttl time.Duration) *gossipTracker {
 	if ttl <= 0 {
 		ttl = cmdcfg.DefaultMempoolGossipTTL
-	}
-	if now == nil {
-		now = func() int64 { return time.Now().UnixNano() }
 	}
 	return &gossipTracker{
 		seen:     make(map[[32]byte]int64),
 		ttlNanos: ttl.Nanoseconds(),
-		now:      now,
 	}
 }
 

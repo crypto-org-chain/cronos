@@ -8,7 +8,7 @@ import (
 )
 
 func TestGossipTracker_DedupWithinTTL(t *testing.T) {
-	g := newGossipTracker(time.Second, nil)
+	g := newGossipTracker(time.Second)
 	h := [32]byte{1}
 	now := int64(1_000)
 	if !g.gossip(h, now) {
@@ -20,7 +20,7 @@ func TestGossipTracker_DedupWithinTTL(t *testing.T) {
 }
 
 func TestGossipTracker_RegossipAfterTTL(t *testing.T) {
-	g := newGossipTracker(time.Second, nil)
+	g := newGossipTracker(time.Second)
 	h := [32]byte{2}
 	base := int64(1_000_000_000)
 	if !g.gossip(h, base) {
@@ -35,7 +35,7 @@ func TestGossipTracker_RegossipAfterTTL(t *testing.T) {
 }
 
 func TestGossipTracker_Prune(t *testing.T) {
-	g := newGossipTracker(time.Second, nil)
+	g := newGossipTracker(time.Second)
 	fresh, stale := [32]byte{1}, [32]byte{2}
 	now := 10 * int64(time.Second)
 	g.gossip(stale, now-2*int64(time.Second)) // older than ttl
@@ -50,7 +50,7 @@ func TestGossipTracker_Prune(t *testing.T) {
 }
 
 func TestGossipTracker_TTLDefaultsWhenNonPositive(t *testing.T) {
-	g := newGossipTracker(0, nil)
+	g := newGossipTracker(0)
 	if want := cmdcfg.DefaultMempoolGossipTTL.Nanoseconds(); g.ttlNanos != want {
 		t.Fatalf("ttlNanos = %d, want default %d", g.ttlNanos, want)
 	}
