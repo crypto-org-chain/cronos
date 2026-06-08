@@ -119,10 +119,8 @@ func (a *Admitter) cacheTx(raw []byte) {
 	a.encCache.Set(tx, bz)
 }
 
-// CheckTxHandler runs RPC CheckTx under mu so it can't race a p2p InsertTx on
-// checkState. The runTx closure comes from BaseApp bound to the exec mode; its
-// panics are recovered inside BaseApp.RunTx. On success it registers canonical
-// bytes so RPC txs (which skip InsertTx) still hit the reap fast path.
+// CheckTxHandler runs RPC CheckTx.The runTx closure comes from BaseApp bound to
+// the exec mode; its panics are recovered inside BaseApp.RunTx.
 func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		a.mu.Lock()
@@ -154,11 +152,8 @@ func (a *Admitter) SetRecheckBatchSize(n int) {
 
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
-// committed height for TimeoutHeight eviction. CometBFT's app-mempool Update()
-// is a no-op, so the app drives recheck itself.
+// committed height for TimeoutHeight eviction.
 func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
-	// Stage height before the dep guard so the timeout sweep runs even if the
-	// recheck deps (signer/decoder) aren't wired.
 	a.pendingMu.Lock()
 	a.lastCommittedHeight = height
 	a.pendingMu.Unlock()
