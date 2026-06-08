@@ -336,9 +336,7 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
-	// recheckAdmitter drives post-commit recheck of stale txs for
-	// mempool.type=app (CometBFT's app-mempool Update() is a no-op); nil otherwise.
-	recheckAdmitter *cronosmempool.Admitter
+	mempoolAdmitter *cronosmempool.Admitter
 
 	// unsafe to set for validator, used for testing
 	dummyCheckTx bool
@@ -460,7 +458,7 @@ func New(
 	}
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
-	var recheckAdmitter *cronosmempool.Admitter
+	var mempoolAdmitter *cronosmempool.Admitter
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -507,7 +505,7 @@ func New(
 			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
-			recheckAdmitter = admitter
+			mempoolAdmitter = admitter
 		}
 	})
 
@@ -552,7 +550,7 @@ func New(
 		tkeys:                tkeys,
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
-		recheckAdmitter:      recheckAdmitter,
+		mempoolAdmitter:      mempoolAdmitter,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
 
@@ -800,9 +798,9 @@ func New(
 	// Hoist EVM signature verification (ecrecover) out of the app-mempool
 	// admission mutex. Wired here, not in the SetMempool closure above, because
 	// the hook needs EvmKeeper, which is only constructed now.
-	if app.recheckAdmitter != nil {
+	if app.mempoolAdmitter != nil {
 		// commented out for now, because the ethermint fork is not ready for this
-		// app.recheckAdmitter.EnablePreVerify(newEVMSigPreVerifier(app, app.txDecoder))
+		// app.mempoolAdmitter.EnablePreVerify(newEVMSigPreVerifier(app, app.txDecoder))
 	}
 
 	var icaControllerStack porttypes.IBCModule
@@ -1567,14 +1565,14 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 func (app *App) Commit() (*abci.ResponseCommit, error) {
-	if app.recheckAdmitter != nil {
-		app.recheckAdmitter.AdmissionMutex().Lock()
-		defer app.recheckAdmitter.AdmissionMutex().Unlock()
+	if app.mempoolAdmitter != nil {
+		app.mempoolAdmitter.AdmissionMutex().Lock()
+		defer app.mempoolAdmitter.AdmissionMutex().Unlock()
 	}
 	resp, err := app.BaseApp.Commit()
 
-	if err == nil && app.recheckAdmitter != nil {
-		app.recheckAdmitter.RecheckTxs()
+	if err == nil && app.mempoolAdmitter != nil {
+		app.mempoolAdmitter.RecheckTxs()
 	}
 	return resp, err
 }
@@ -1584,8 +1582,8 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 // Commit re-validates their remaining pending txs against the new state.
 func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
 	resp, err := app.BaseApp.FinalizeBlock(req)
-	if err == nil && app.recheckAdmitter != nil {
-		app.recheckAdmitter.StageRecheckSenders(req.Height, req.Txs)
+	if err == nil && app.mempoolAdmitter != nil {
+		app.mempoolAdmitter.StageRecheckSenders(req.Height, req.Txs)
 	}
 	return resp, err
 }
