@@ -48,6 +48,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -807,7 +808,8 @@ func New(
 	// admission mutex. Wired here, not in the SetMempool closure above, because
 	// the hook needs EvmKeeper, which is only constructed now.
 	if app.recheckAdmitter != nil {
-		app.recheckAdmitter.EnablePreVerify(newEVMSigPreVerifier(app, app.txDecoder))
+		// commented out for now, because the ethermint fork is not ready for this
+		// app.recheckAdmitter.EnablePreVerify(newEVMSigPreVerifier(app, app.txDecoder))
 	}
 
 	var icaControllerStack porttypes.IBCModule
