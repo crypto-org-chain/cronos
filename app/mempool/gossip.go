@@ -34,10 +34,10 @@ func newGossipTracker(ttl time.Duration, now func() int64) *gossipTracker {
 	}
 }
 
-// markAndAllow reports whether tx h may be gossiped now, recording the time when
+// gossip reports whether tx h may be gossiped now, recording the time when
 // it may. Returns false if h was gossiped within the last ttl. Caller passes a
 // single now per reap so all txs in one scan share a timestamp.
-func (g *gossipTracker) markAndAllow(h [32]byte, now int64) bool {
+func (g *gossipTracker) gossip(h [32]byte, now int64) bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if last, ok := g.seen[h]; ok && now-last < g.ttlNanos {

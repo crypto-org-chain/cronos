@@ -24,7 +24,7 @@ func SnapshotPool(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 // reports whether the cache served it so callers can tally the fallback rate; err
 // is non-nil only on a real encode failure (caller skips the tx).
 func EncodeTx(encCache *EncoderCache, enc sdk.TxEncoder, tx sdk.Tx) (bz []byte, hit bool, err error) {
-	if b, ok := encCache.Bytes(tx); ok {
+	if b, ok := encCache.Get(tx); ok {
 		return b, true, nil
 	}
 	bz, err = enc(tx)

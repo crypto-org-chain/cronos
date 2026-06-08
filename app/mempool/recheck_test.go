@@ -85,7 +85,7 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 // bytes in encCache (so RecheckLocked hits the cache, not the encoder).
 func (f *recheckFixture) add(id int, sender string, seq uint64, bz string) *ptrTx {
 	tx := f.insert(id, sdk.AccAddress(sender), seq)
-	f.enc.Register(tx, []byte(bz))
+	f.enc.Set(tx, []byte(bz))
 	return tx
 }
 
@@ -112,7 +112,7 @@ func (f *recheckFixture) addTimeout(id int, sender string, seq uint64, bz string
 	if err := f.pool.Insert(sdk.Context{}, tx); err != nil {
 		panic(err)
 	}
-	f.enc.Register(tx, []byte(bz))
+	f.enc.Set(tx, []byte(bz))
 	return tx
 }
 
@@ -140,7 +140,7 @@ func TestRecheckLocked_EvictsStaleKeepsValid(t *testing.T) {
 	if poolHas(f.pool, stale) {
 		t.Fatal("stale tx should have been removed from the pool")
 	}
-	if _, ok := f.enc.Bytes(stale); ok {
+	if _, ok := f.enc.Get(stale); ok {
 		t.Fatal("stale tx should have been evicted from encCache")
 	}
 	if !poolHas(f.pool, survivor) {
@@ -199,7 +199,7 @@ func TestRecheckLocked_EvictsExpiredUntouchedSender(t *testing.T) {
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be evicted regardless of touched senders")
 	}
-	if _, ok := f.enc.Bytes(expired); ok {
+	if _, ok := f.enc.Get(expired); ok {
 		t.Fatal("expired tx must be evicted from encCache")
 	}
 	if len(f.runner.modes) != 0 {
@@ -282,7 +282,7 @@ func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 func TestRecheckLocked_EncoderFallbackOnCacheMiss(t *testing.T) {
 	f := newRecheckFixture("enc-1") // encoder yields "enc-<id>"; fail id 1
 	stale := f.insert(1, sdk.AccAddress("alice"), 0)
-	if _, ok := f.enc.Bytes(stale); ok {
+	if _, ok := f.enc.Get(stale); ok {
 		t.Fatal("precondition: tx must not be in encCache")
 	}
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}

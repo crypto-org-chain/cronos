@@ -13,11 +13,7 @@ import (
 // can be keyed on the tx pointer. InsertTxHandler uses it after RunTx.
 type TxGetter func(bz []byte) (sdk.Tx, bool)
 
-// EncoderCache maps decoded-tx pointers to canonical proto bytes, skipping
-// proto.Marshal in the reap and PrepareProposal hot paths. LRU-bounded at cap:
-// each entry pins the tx on the heap, so without eviction the map would grow
-// unbounded. Register stores the canonical form so non-minimal peer bytes never
-// reach a proposal.
+// EncoderCache caches tx encoding
 type EncoderCache struct {
 	mu    sync.Mutex
 	cap   int
@@ -25,8 +21,7 @@ type EncoderCache struct {
 	lru   list.List // front = MRU, back = LRU; zero value is an empty list
 }
 
-// encoderItem is one LRU node: the tx pointer and its canonical bytes.
-type encoderItem struct {
+type item struct {
 	tx sdk.Tx
 	bz []byte
 }
@@ -43,9 +38,9 @@ func NewEncoderCache(size int) *EncoderCache {
 	}
 }
 
-// Register stores canonical proto bytes for a tx (raw req.Tx bytes on encode
+// Set stores canonical proto bytes for a tx (raw req.Tx bytes on encode
 // error). Concurrency-safe. Evicts the LRU entry when at capacity.
-func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
+func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
 	if tx == nil {
 		return
 	}
@@ -53,17 +48,17 @@ func (e *EncoderCache) Register(tx sdk.Tx, bz []byte) {
 	defer e.mu.Unlock()
 
 	if el, ok := e.items[tx]; ok {
-		el.Value.(*encoderItem).bz = bz
+		el.Value.(*item).bz = bz
 		e.lru.MoveToFront(el)
 		return
 	}
 	if e.lru.Len() >= e.cap {
 		if back := e.lru.Back(); back != nil {
-			delete(e.items, back.Value.(*encoderItem).tx)
+			delete(e.items, back.Value.(*item).tx)
 			e.lru.Remove(back)
 		}
 	}
-	e.items[tx] = e.lru.PushFront(&encoderItem{tx: tx, bz: bz})
+	e.items[tx] = e.lru.PushFront(&item{tx: tx, bz: bz})
 }
 
 // Evict drops tx's entry so a stale/removed tx stops pinning the heap. No-op on
@@ -80,9 +75,9 @@ func (e *EncoderCache) Evict(tx sdk.Tx) {
 	}
 }
 
-// Bytes returns the registered bytes for tx, promoting it to MRU. Safe to call
+// Get returns the registered bytes for tx, promoting it to MRU. Safe to call
 // on a nil *EncoderCache (returns nil, false).
-func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
+func (e *EncoderCache) Get(tx sdk.Tx) ([]byte, bool) {
 	if e == nil || tx == nil {
 		return nil, false
 	}
@@ -93,5 +88,5 @@ func (e *EncoderCache) Bytes(tx sdk.Tx) ([]byte, bool) {
 		return nil, false
 	}
 	e.lru.MoveToFront(el)
-	return el.Value.(*encoderItem).bz, true
+	return el.Value.(*item).bz, true
 }

@@ -418,13 +418,9 @@ func New(
 	addressCodec := authcodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())
 
 	var mpool mempool.Mempool
-	// Captured by the SetMempool closure below to wire app-mempool recheck;
-	// non-nil only when the priority mempool is enabled.
 	var signerExtractor mempool.SignerExtractionAdapter
 	mempoolMaxTxs := cast.ToInt(appOpts.Get(server.FlagMempoolMaxTxs))
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
-	// Gossip throttle for mempool.type=app (read here; consumed in the closure
-	// below). Defaults mirror cmdcfg so zero-config still throttles.
 	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
 	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
 		gossipTTL = cast.ToDuration(v)
@@ -437,8 +433,6 @@ func New(
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
 		logger.Info("NewPriorityMempool is enabled", "feebump", feeBump)
-		// Hoisted so the app-mempool admitter reuses the exact adapter the pool
-		// keys senders by, keeping recheck sender-matching consistent.
 		signerExtractor = evmapp.NewEthSignerExtractionAdapter(mempool.NewDefaultSignerExtractionAdapter())
 		mpool = mempool.NewPriorityMempool(mempool.PriorityNonceMempoolConfig[int64]{
 			TxPriority:      mempool.NewDefaultTxPriority(),
@@ -458,8 +452,6 @@ func New(
 	blockProposalHandler := NewProposalHandler(activeDecoder, identity, addressCodec)
 	mempoolType := cast.ToString(appOpts.Get(FlagMempoolType))
 	_, mpoolIsNoOp := mpool.(mempool.NoOpMempool)
-	// Validate mempool.type up front so misconfiguration fails before baseapp
-	// construction instead of deep inside the SetMempool closure.
 	switch mempoolType {
 	case cronosmempool.TypeApp:
 		if mpoolIsNoOp {
@@ -485,15 +477,9 @@ func New(
 			blockProposalHandler.ValidateTransaction,
 		))
 
-		// encCache skips proto.Marshal in reap and PrepareProposal. Requires
-		// decodeCacheSize > 0 so the caching decoder returns the same pointer
-		// InsertTxHandler stores as the cache key.
 		var encCache *cronosmempool.EncoderCache
 		var txGet cronosmempool.TxGetter
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
-			// Cap at decodeCacheSize: an evicted tx re-decodes to a new pointer,
-			// so its encoder entry could never hit again. Raise
-			// tx-decode-cache-size if the reap fallback rate is high.
 			encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 			dec := activeDecoder
 			txGet = func(bz []byte) (sdk.Tx, bool) {
@@ -503,9 +489,6 @@ func New(
 		}
 
 		if encCache != nil {
-			// mempool.type=app fast path: skip baseapp.PrepareProposalVerifyTx
-			// (re-encode + ante re-run). InsertTxHandler already ran ante at
-			// admission, and encCache holds the raw bytes.
 			app.SetPrepareProposal(fastPrepareProposalAppMempool(
 				mpool,
 				encCache,
@@ -534,13 +517,8 @@ func New(
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, gossipMaxPerReap, logger.With("module", "app-mempool")))
 			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
-			// CheckTx (RPC) runs lock-free; share the admission mutex across
-			// CheckTx, InsertTx, and App.Commit so none race checkState.
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			mempoolAdmissionMu = admitter.AdmissionMutex()
-			// CometBFT's app-mempool Update() is a no-op, so the app rechecks
-			// stale txs itself after each commit. activeDecoder hits the decode
-			// cache when staging committed-tx senders.
 			admitter.EnableRecheck(mpool, signerExtractor, activeDecoder)
 			recheckAdmitter = admitter
 		}

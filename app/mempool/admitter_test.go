@@ -178,7 +178,7 @@ func TestInsertTxHandler_RegistersCanonicalBytes(t *testing.T) {
 	if err != nil || resp.Code != abci.CodeTypeOK {
 		t.Fatalf("admit failed: code=%d err=%v", resp.Code, err)
 	}
-	got, ok := enc.Bytes(tx)
+	got, ok := enc.Get(tx)
 	if !ok {
 		t.Fatal("admitted tx was not registered in encCache")
 	}
@@ -200,7 +200,7 @@ func TestInsertTxHandler_RegistersRawBytesOnEncoderError(t *testing.T) {
 	if _, err := h(&abci.RequestInsertTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got, ok := enc.Bytes(tx)
+	got, ok := enc.Get(tx)
 	if !ok || string(got) != string(raw) {
 		t.Fatalf("expected raw fallback %q, got %q (ok=%v)", raw, got, ok)
 	}
@@ -223,7 +223,7 @@ func TestInsertTxHandler_NoRegisterOnReject(t *testing.T) {
 	if txGetCalled {
 		t.Fatal("txGet must not run for a rejected tx")
 	}
-	if _, ok := enc.Bytes(tx); ok {
+	if _, ok := enc.Get(tx); ok {
 		t.Fatal("rejected tx must not be registered in encCache")
 	}
 }
@@ -331,7 +331,7 @@ func TestCheckTxHandler_RegistersCanonicalBytes(t *testing.T) {
 	if _, err := check(runTx, &abci.RequestCheckTx{Tx: raw}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got, ok := enc.Bytes(tx)
+	got, ok := enc.Get(tx)
 	if !ok {
 		t.Fatal("RPC-admitted tx was not registered in encCache")
 	}
@@ -358,7 +358,7 @@ func TestCheckTxHandler_NoRegisterOnReject(t *testing.T) {
 	if txGetCalled {
 		t.Fatal("txGet must not run for a rejected tx")
 	}
-	if _, ok := enc.Bytes(tx); ok {
+	if _, ok := enc.Get(tx); ok {
 		t.Fatal("rejected tx must not be registered")
 	}
 }

@@ -87,7 +87,7 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 		// skip lands with the ethermint fork; until then this double-verifies.)
 		if a.preVerify != nil {
 			if err := a.preVerify(req.Tx); err != nil {
-				return insertReject(err), nil
+				return reject(err), nil
 			}
 		}
 
@@ -99,7 +99,7 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			if errorsmod.IsOf(err, sdkmempool.ErrMempoolTxMaxCapacity) {
 				return &abci.ResponseInsertTx{Code: abci.CodeTypeRetry}, nil
 			}
-			return insertReject(err), nil
+			return reject(err), nil
 		}
 
 		a.registerCanonical(req.Tx)
@@ -107,9 +107,9 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 	}
 }
 
-// insertReject maps a RunTx/pre-verify error to its ABCI code for an InsertTx
+// reject maps a RunTx/pre-verify error to its ABCI code for an InsertTx
 // rejection. The ErrMempoolTxMaxCapacity retry case is handled at the call site.
-func insertReject(err error) *abci.ResponseInsertTx {
+func reject(err error) *abci.ResponseInsertTx {
 	_, code, _ := errorsmod.ABCIInfo(err, false)
 	return &abci.ResponseInsertTx{Code: code}
 }
@@ -129,7 +129,7 @@ func (a *Admitter) registerCanonical(raw []byte) {
 	if canonical, err := a.txEncoder(tx); err == nil {
 		bz = canonical
 	}
-	a.encCache.Register(tx, bz)
+	a.encCache.Set(tx, bz)
 }
 
 // CheckTxHandler runs RPC CheckTx under mu so it can't race a p2p InsertTx on

@@ -9,26 +9,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// newEVMSigPreVerifier builds the lock-free pre-verification hook for the
-// app-mempool Admitter (mempool.type=app): a stateless ecrecover run outside
-// the admission mutex, where it dominates cost yet touches no store.
-//
-// It returns nil — deferring to the locked RunTx — for anything it can't cheaply
-// pre-verify: non-EVM (or mixed) txs, undecodable bytes, or an unparseable chain
-// ID. Only a genuine signature failure on a pure-EVM tx rejects early.
-//
-// The signer is parsed once from the immutable BaseApp chain-id string. We avoid
-// EvmKeeper / EVMBlockConfig: those read keeper state BeginBlock rewrites every
-// block (k.eip155ChainID) and write a per-block cache, neither lock-free-safe.
-// LatestSignerForChainID is pure and, past all signer-relevant forks, recovers
-// the same sender the in-lock ante's MakeSigner would. decoder is the caching
-// decoder, whose cache is mutex-guarded.
-//
-// Pre-existing race (tracked, not fixed here): lock-free admission reads
-// EvmKeeper.eip155ChainID while FinalizeBlock → BeginBlock → WithChainIDString
-// rewrites it (same value, but a data race under -race). The ethermint fork
-// guards the write with "skip when unchanged". Until that lands, running with
-// -race on the app-mempool path will surface this as a false positive.
+// newEVMSigPreVerifier returns a lock-free EVM sig checker for the Admitter: runs ecrecover
+// outside the admission mutex. Returns nil for non-EVM txs, undecodable bytes, or unparseable chain ID.
 func newEVMSigPreVerifier(app *App, decoder sdk.TxDecoder) func([]byte) error {
 	chainID, err := ethermint.ParseChainID(app.ChainID())
 	if err != nil {

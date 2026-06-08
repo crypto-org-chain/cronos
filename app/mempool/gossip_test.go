@@ -11,10 +11,10 @@ func TestGossipTracker_DedupWithinTTL(t *testing.T) {
 	g := newGossipTracker(time.Second, nil)
 	h := [32]byte{1}
 	now := int64(1_000)
-	if !g.markAndAllow(h, now) {
+	if !g.gossip(h, now) {
 		t.Fatal("first gossip should be allowed")
 	}
-	if g.markAndAllow(h, now) {
+	if g.gossip(h, now) {
 		t.Fatal("repeat within ttl should be suppressed")
 	}
 }
@@ -23,13 +23,13 @@ func TestGossipTracker_RegossipAfterTTL(t *testing.T) {
 	g := newGossipTracker(time.Second, nil)
 	h := [32]byte{2}
 	base := int64(1_000_000_000)
-	if !g.markAndAllow(h, base) {
+	if !g.gossip(h, base) {
 		t.Fatal("first allowed")
 	}
-	if g.markAndAllow(h, base+int64(time.Second)-1) {
+	if g.gossip(h, base+int64(time.Second)-1) {
 		t.Fatal("just under ttl should still suppress")
 	}
-	if !g.markAndAllow(h, base+int64(time.Second)) {
+	if !g.gossip(h, base+int64(time.Second)) {
 		t.Fatal("at/after ttl should re-allow re-gossip")
 	}
 }
@@ -38,8 +38,8 @@ func TestGossipTracker_Prune(t *testing.T) {
 	g := newGossipTracker(time.Second, nil)
 	fresh, stale := [32]byte{1}, [32]byte{2}
 	now := 10 * int64(time.Second)
-	g.markAndAllow(stale, now-2*int64(time.Second)) // older than ttl
-	g.markAndAllow(fresh, now)
+	g.gossip(stale, now-2*int64(time.Second)) // older than ttl
+	g.gossip(fresh, now)
 	g.prune(now)
 	if _, ok := g.seen[stale]; ok {
 		t.Fatal("stale entry should be pruned")

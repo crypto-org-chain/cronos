@@ -259,7 +259,7 @@ func TestReapTxs_UsesEncoderCacheForRegisteredTx(t *testing.T) {
 
 	enc := cronosmempool.NewEncoderCache(0)
 	canonical := []byte("CANONICAL-from-cache")
-	enc.Register(cached, canonical)
+	enc.Set(cached, canonical)
 
 	var encoderCalls []sdk.Tx
 	countingEncoder := func(tx sdk.Tx) ([]byte, error) {

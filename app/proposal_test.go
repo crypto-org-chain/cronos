@@ -332,8 +332,8 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx1, tx2 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(tx1, []byte("raw-1"))
-		enc.Register(tx2, []byte("raw-2"))
+		enc.Set(tx1, []byte("raw-1"))
+		enc.Set(tx2, []byte("raw-2"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
@@ -363,7 +363,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		txBad, txGood := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{txBad, txGood}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(txGood, []byte("good"))
+		enc.Set(txGood, []byte("good"))
 
 		fallback := func(tx sdk.Tx) ([]byte, error) {
 			if tx == txBad {
@@ -383,9 +383,9 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(tx1, []byte("ok-1"))
-		enc.Register(tx2, []byte(invalidTx))
-		enc.Register(tx3, []byte("ok-2"))
+		enc.Set(tx1, []byte("ok-1"))
+		enc.Set(tx2, []byte(invalidTx))
+		enc.Set(tx3, []byte("ok-2"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
@@ -399,9 +399,9 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(tx1, []byte("raw-1"))
-		enc.Register(tx2, []byte("raw-2"))
-		enc.Register(tx3, []byte("raw-3"))
+		enc.Set(tx1, []byte("raw-1"))
+		enc.Set(tx2, []byte("raw-2"))
+		enc.Set(tx3, []byte("raw-3"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 18})
@@ -415,9 +415,9 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx3 := &gasOnlyTx{gas: 1}      // never reached
 		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(tx1, []byte("a"))
-		enc.Register(tx2, []byte("b"))
-		enc.Register(tx3, []byte("c"))
+		enc.Set(tx1, []byte("a"))
+		enc.Set(tx2, []byte("b"))
+		enc.Set(tx3, []byte("c"))
 
 		ctx := sdk.Context{}.WithConsensusParams(cmtproto.ConsensusParams{
 			Block: &cmtproto.BlockParams{MaxBytes: 1 << 20, MaxGas: 100_000},
@@ -432,7 +432,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		tx := &gasOnlyTx{gas: 1}
 		mp := &fakeMempool{txs: []sdk.Tx{tx}}
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Register(tx, []byte("a"))
+		enc.Set(tx, []byte("a"))
 
 		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 0})
