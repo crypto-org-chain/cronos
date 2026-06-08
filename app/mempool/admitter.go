@@ -44,9 +44,12 @@ type Admitter struct {
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
-func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder) *Admitter {
+func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) *Admitter {
 	a := newAdmitter(app, txGet, encCache, txEncoder)
 	a.trace = app.Trace()
+	a.mpool = mpool
+	a.signer = signer
+	a.decoder = decoder
 	return a
 }
 
@@ -159,12 +162,6 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 // EnablePreVerify wires the lock-free pre-verification hook for mempool.type=app.
 func (a *Admitter) EnablePreVerify(fn func([]byte) error) {
 	a.preVerify = fn
-}
-
-func (a *Admitter) EnableRecheck(mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) {
-	a.mpool = mpool
-	a.signer = signer
-	a.decoder = decoder
 }
 
 // StageRecheckSenders records the senders of the just-committed block's txs so

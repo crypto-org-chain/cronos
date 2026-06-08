@@ -77,7 +77,8 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 	// Per-tx encoder so the encCache-miss fallback yields deterministic bytes.
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	a := newAdmitter(runner, txGet, enc, txEncoder)
-	a.EnableRecheck(pool, signer, nil)
+	a.mpool = pool
+	a.signer = signer
 	return &recheckFixture{a: a, pool: pool, enc: enc, signer: signer, runner: runner}
 }
 
@@ -383,7 +384,8 @@ func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	runner := &recheckRunner{pool: pool, failBytes: map[string]bool{}, seen: map[string]bool{}}
 	txEncoder := func(tx sdk.Tx) ([]byte, error) { return []byte("enc-" + strconv.Itoa(tx.(*ptrTx).id)), nil }
 	a := newAdmitter(runner, func([]byte) (sdk.Tx, bool) { return nil, false }, enc, txEncoder)
-	a.EnableRecheck(pool, signer, nil)
+	a.mpool = pool
+	a.signer = signer
 
 	tx := &ptrTx{id: 1}
 	signer.m[tx] = []sdkmempool.SignerData{sdkmempool.NewSignerData(sdk.AccAddress("alice"), 0)}

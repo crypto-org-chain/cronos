@@ -510,10 +510,9 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, gossipMaxPerReap, logger.With("module", "app-mempool")))
-			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
+			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
-			admitter.EnableRecheck(mpool, signerExtractor, activeDecoder)
 			recheckAdmitter = admitter
 		}
 	})
