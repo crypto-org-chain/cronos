@@ -15,7 +15,6 @@ import (
 	stdruntime "runtime"
 	"slices"
 	"sort"
-	"sync"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -336,10 +335,6 @@ type App struct {
 
 	blockProposalHandler *ProposalHandler
 
-	// mempoolAdmissionMu lets App.Commit serialize against lock-free app-mempool
-	// admission (mempool.type=app); nil for other mempool types.
-	mempoolAdmissionMu *sync.Mutex
-
 	// recheckAdmitter drives post-commit recheck of stale txs for
 	// mempool.type=app (CometBFT's app-mempool Update() is a no-op); nil otherwise.
 	recheckAdmitter *cronosmempool.Admitter
@@ -464,7 +459,6 @@ func New(
 	}
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
-	var mempoolAdmissionMu *sync.Mutex
 	var recheckAdmitter *cronosmempool.Admitter
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
@@ -518,7 +512,6 @@ func New(
 			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder())
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
-			mempoolAdmissionMu = admitter.AdmissionMutex()
 			admitter.EnableRecheck(mpool, signerExtractor, activeDecoder)
 			recheckAdmitter = admitter
 		}
@@ -565,7 +558,6 @@ func New(
 		tkeys:                tkeys,
 		okeys:                okeys,
 		blockProposalHandler: blockProposalHandler,
-		mempoolAdmissionMu:   mempoolAdmissionMu,
 		recheckAdmitter:      recheckAdmitter,
 		dummyCheckTx:         cast.ToBool(appOpts.Get(FlagUnsafeDummyCheckTx)),
 	}
@@ -1580,9 +1572,9 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 func (app *App) Commit() (*abci.ResponseCommit, error) {
-	if app.mempoolAdmissionMu != nil {
-		app.mempoolAdmissionMu.Lock()
-		defer app.mempoolAdmissionMu.Unlock()
+	if app.recheckAdmitter != nil {
+		app.recheckAdmitter.AdmissionMutex().Lock()
+		defer app.recheckAdmitter.AdmissionMutex().Unlock()
 	}
 	resp, err := app.BaseApp.Commit()
 	// Recheck under the held mutex: checkState is now reset to the committed
