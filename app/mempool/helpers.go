@@ -18,7 +18,7 @@ func PoolSnapshot(ctx context.Context, mp sdkmempool.Mempool) []sdk.Tx {
 	return snap
 }
 
-// EncodeTx returns the raw bytes of a transaction, prioritising the cache if available.
+// EncodeTx returns the raw bytes of a transaction, prioritizing the cache if available.
 func EncodeTx(encCache *EncoderCache, enc sdk.TxEncoder, tx sdk.Tx) (bz []byte, hit bool, err error) {
 	if b, ok := encCache.Get(tx); ok {
 		return b, true, nil

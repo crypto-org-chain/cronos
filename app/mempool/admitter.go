@@ -30,12 +30,12 @@ type Admitter struct {
 	txEncoder sdk.TxEncoder
 	trace     bool
 
-	mpool     sdkmempool.Mempool
-	signer    sdkmempool.SignerExtractionAdapter
-	decoder   sdk.TxDecoder
+	mpool   sdkmempool.Mempool
+	signer  sdkmempool.SignerExtractionAdapter
+	decoder sdk.TxDecoder
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
-	pendingMu sync.Mutex
+	pendingMu       sync.Mutex
 	// pending holds leftover transactions in the mempool after a last committed block
 	pending             map[string]struct{}
 	lastCommittedHeight int64

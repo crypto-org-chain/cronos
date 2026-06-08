@@ -194,7 +194,7 @@ func TestRecheckTxs_EvictsExpiredUntouchedSender(t *testing.T) {
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
-	f.a.RecheckTxs()     // pending nil: only the timeout sweep runs
+	f.a.RecheckTxs()            // pending nil: only the timeout sweep runs
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be evicted regardless of touched senders")
@@ -275,7 +275,7 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a := newAdmitter(&stubRunner{}, nil, noopEncoder, nil)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
-	a.RecheckTxs()                               // mpool nil → no-op
+	a.RecheckTxs()                                  // mpool nil → no-op
 }
 
 // A tx with no encCache entry must still be rechecked via the txEncoder fallback.
@@ -407,6 +407,7 @@ func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
 		t.Fatalf("expected %d RunTx calls with no cap, got %d", total, got)
 	}
 }
+
 // Doing it inside the callback would pin mp.mtx (and run RunTx's Remove under
 // it) across the whole scan, blocking admission/reap on the commit path.
 func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
