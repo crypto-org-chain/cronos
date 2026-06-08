@@ -1,6 +1,7 @@
 package mempool
 
 import (
+	"context"
 	"sync"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -8,6 +9,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -152,4 +154,135 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 			Events:    result.Events,
 		}, nil
 	}
+}
+
+// EnablePreVerify wires the lock-free pre-verification hook for mempool.type=app.
+// fn runs the stateless EVM signature check before the admission mutex and must
+// return nil for non-EVM txs (and on signer-build failure) so they fall through
+// to the locked RunTx. An injected closure keeps this package decoupled from the
+// EVM ante/keeper types. Wired after EvmKeeper construction; until called,
+// InsertTxHandler stays fully locked.
+func (a *Admitter) EnablePreVerify(fn func([]byte) error) {
+	a.preVerify = fn
+}
+
+func (a *Admitter) EnableRecheck(mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) {
+	a.mpool = mpool
+	a.signer = signer
+	a.decoder = decoder
+}
+
+// StageRecheckSenders records the senders of the just-committed block's txs so
+// RecheckTxs can re-validate only their remaining pending txs, and stages the
+// committed height for TimeoutHeight eviction. CometBFT's app-mempool Update()
+// is a no-op, so the app drives recheck itself.
+func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
+	// Stage height before the dep guard so the timeout sweep runs even if the
+	// recheck deps (signer/decoder) aren't wired.
+	a.pendingMu.Lock()
+	a.lastCommittedHeight = height
+	a.pendingMu.Unlock()
+
+	if a.signer == nil || a.decoder == nil {
+		return
+	}
+	senders := make(map[string]struct{}, len(txs))
+	for _, bz := range txs {
+		tx, err := a.decoder(bz)
+		if err != nil {
+			continue // non-sdk txs (e.g. vote extensions) have no mempool entry
+		}
+		for _, s := range a.signerKeys(tx) {
+			senders[s] = struct{}{}
+		}
+	}
+	a.pendingMu.Lock()
+	a.pending = senders
+	a.pendingMu.Unlock()
+}
+
+// RecheckTxs evicts pool txs invalidated by the last block: those whose
+// TimeoutHeight has passed (any sender), and those of senders touched by the
+// block that now fail the AnteHandler in ReCheck mode (stale sequence, drained
+// balance). The caller MUST hold a.mu (App.Commit does): recheck mutates
+// checkState, which is reset to the committed state post-Commit.
+func (a *Admitter) RecheckTxs() {
+	if a.mpool == nil {
+		return
+	}
+	a.pendingMu.Lock()
+	pending := a.pending
+	height := a.lastCommittedHeight
+	a.pending = nil
+	a.pendingMu.Unlock()
+	// Nothing to do before the first committed block (height 0) with no pending
+	// senders. In steady state height > 0, so the sweep always scans.
+	if len(pending) == 0 && height == 0 {
+		return
+	}
+
+	snapshot := PoolSnapshot(context.Background(), a.mpool)
+
+	var (
+		candidates     []sdk.Tx
+		expiredEvicted float32
+	)
+	for _, tx := range snapshot {
+		if txExpired(tx, height) {
+			_ = a.mpool.Remove(tx)
+			a.encCache.Evict(tx)
+			expiredEvicted++
+			continue
+		}
+		if len(pending) == 0 {
+			continue
+		}
+		for _, s := range a.signerKeys(tx) {
+			if _, ok := pending[s]; ok {
+				candidates = append(candidates, tx)
+				break
+			}
+		}
+	}
+	if expiredEvicted > 0 {
+		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+	}
+
+	var evicted float32
+	for _, tx := range candidates {
+		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
+		if err != nil {
+			continue
+		}
+		if _, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil); err != nil {
+			a.encCache.Evict(tx)
+			evicted++
+		}
+	}
+	if evicted > 0 {
+		telemetry.IncrCounter(evicted, "cronos", "mempool", "recheck", "evicted") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+	}
+}
+
+func txExpired(tx sdk.Tx, committedHeight int64) bool {
+	t, ok := tx.(sdk.TxWithTimeoutHeight)
+	if !ok {
+		return false
+	}
+	th := t.GetTimeoutHeight()
+	return th > 0 && uint64(committedHeight) >= th
+}
+
+// signerKeys returns the sender address strings for tx, or nil if extraction
+// fails. The same adapter keys both staging and the pool scan, so keys match.
+func (a *Admitter) signerKeys(tx sdk.Tx) []string {
+	sigs, err := a.signer.GetSigners(tx)
+	if err != nil {
+		return nil
+	}
+	keys := make([]string, len(sigs))
+	for i, s := range sigs {
+		keys[i] = s.Signer.String()
+	}
+	return keys
 }

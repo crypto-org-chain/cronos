@@ -30,7 +30,7 @@ func (f fakeSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 
 // recheckRunner records the ExecMode and bytes of each RunTx call. It mirrors
 // BaseApp.RunTx(ExecModeReCheck): on ante failure it removes the tx from the
-// pool, which is what RecheckLocked relies on (it only evicts encCache itself).
+// pool, which is what RecheckTxs relies on (it only evicts encCache itself).
 type recheckRunner struct {
 	mu        sync.Mutex
 	pool      sdkmempool.Mempool
@@ -82,14 +82,14 @@ func newRecheckFixture(failBytes ...string) *recheckFixture {
 }
 
 // add inserts a tx with the given sender/sequence and registers its recheck
-// bytes in encCache (so RecheckLocked hits the cache, not the encoder).
+// bytes in encCache (so RecheckTxs hits the cache, not the encoder).
 func (f *recheckFixture) add(id int, sender string, seq uint64, bz string) *ptrTx {
 	tx := f.insert(id, sdk.AccAddress(sender), seq)
 	f.enc.Set(tx, []byte(bz))
 	return tx
 }
 
-// insert adds a tx with the given signers but no encCache entry, so RecheckLocked
+// insert adds a tx with the given signers but no encCache entry, so RecheckTxs
 // falls back to the encoder. The first signer keys the pool.
 func (f *recheckFixture) insert(id int, first sdk.AccAddress, seq uint64, rest ...sdk.AccAddress) *ptrTx {
 	tx := &ptrTx{id: id}
@@ -128,14 +128,14 @@ func poolHas(pool *sdkmempool.PriorityNonceMempool[int64], target sdk.Tx) bool {
 	return found
 }
 
-func TestRecheckLocked_EvictsStaleKeepsValid(t *testing.T) {
+func TestRecheckTxs_EvictsStaleKeepsValid(t *testing.T) {
 	f := newRecheckFixture("alice-0") // alice's seq-0 tx now fails recheck
 	stale := f.add(1, "alice", 0, "alice-0")
 	survivor := f.add(2, "alice", 1, "alice-1")
 	untouched := f.add(3, "bob", 0, "bob-0")
 
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if poolHas(f.pool, stale) {
 		t.Fatal("stale tx should have been removed from the pool")
@@ -162,39 +162,39 @@ func TestRecheckLocked_EvictsStaleKeepsValid(t *testing.T) {
 	}
 }
 
-func TestRecheckLocked_EmptyPendingNoOp(t *testing.T) {
+func TestRecheckTxs_EmptyPendingNoOp(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
 
-	f.a.RecheckLocked() // pending nil
+	f.a.RecheckTxs() // pending nil
 
 	if len(f.runner.modes) != 0 {
 		t.Fatalf("no RunTx expected with empty pending, got %d calls", len(f.runner.modes))
 	}
 }
 
-func TestRecheckLocked_DrainsPending(t *testing.T) {
+func TestRecheckTxs_DrainsPending(t *testing.T) {
 	f := newRecheckFixture()
 	f.add(1, "alice", 0, "alice-0")
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 	first := len(f.runner.modes)
-	f.a.RecheckLocked() // pending consumed; second run is a no-op
+	f.a.RecheckTxs() // pending consumed; second run is a no-op
 
 	if len(f.runner.modes) != first {
-		t.Fatal("pending must be drained after one RecheckLocked")
+		t.Fatal("pending must be drained after one RecheckTxs")
 	}
 }
 
 // Timeout sweep evicts an expired tx even when its sender wasn't touched by the
 // last block (no pending entry, so the ante-recheck path never sees it).
-func TestRecheckLocked_EvictsExpiredUntouchedSender(t *testing.T) {
+func TestRecheckTxs_EvictsExpiredUntouchedSender(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
-	f.a.RecheckLocked()     // pending nil: only the timeout sweep runs
+	f.a.RecheckTxs()     // pending nil: only the timeout sweep runs
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be evicted regardless of touched senders")
@@ -209,14 +209,14 @@ func TestRecheckLocked_EvictsExpiredUntouchedSender(t *testing.T) {
 
 // committedHeight == timeoutHeight evicts (next block exceeds it); one above
 // survives (still valid in the next block); 0 never expires.
-func TestRecheckLocked_TimeoutBoundary(t *testing.T) {
+func TestRecheckTxs_TimeoutBoundary(t *testing.T) {
 	f := newRecheckFixture()
 	atLimit := f.addTimeout(1, "carol", 0, "carol-0", 5)
 	survivor := f.addTimeout(2, "dave", 0, "dave-0", 6)
 	noTimeout := f.addTimeout(3, "erin", 0, "erin-0", 0)
 
 	f.a.lastCommittedHeight = 5
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if poolHas(f.pool, atLimit) {
 		t.Fatal("tx with timeoutHeight == committedHeight must be evicted")
@@ -230,7 +230,7 @@ func TestRecheckLocked_TimeoutBoundary(t *testing.T) {
 }
 
 // A single scan both evicts expired txs and rechecks touched-sender candidates.
-func TestRecheckLocked_SweepAndRecheckTogether(t *testing.T) {
+func TestRecheckTxs_SweepAndRecheckTogether(t *testing.T) {
 	f := newRecheckFixture("alice-0") // alice's seq-0 fails recheck
 	stale := f.add(1, "alice", 0, "alice-0")
 	expired := f.addTimeout(2, "carol", 0, "carol-0", 5)
@@ -238,7 +238,7 @@ func TestRecheckLocked_SweepAndRecheckTogether(t *testing.T) {
 
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 	f.a.lastCommittedHeight = 5
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("expired tx must be swept")
@@ -255,14 +255,14 @@ func TestRecheckLocked_SweepAndRecheckTogether(t *testing.T) {
 }
 
 // StageRecheckSenders must stage the committed height (not just senders) so the
-// timeout sweep fires on the next RecheckLocked. The fixture's decoder is nil, so
+// timeout sweep fires on the next RecheckTxs. The fixture's decoder is nil, so
 // staging returns after recording height — exercising height independently.
 func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
 	f.a.StageRecheckSenders(5, nil) // decoder nil: stages height, leaves pending nil
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if poolHas(f.pool, expired) {
 		t.Fatal("StageRecheckSenders must stage height so the sweep evicts the expired tx")
@@ -275,11 +275,11 @@ func TestStageRecheckSenders_StagesHeightForSweep(t *testing.T) {
 func TestStageRecheckSenders_NoDepsNoPanic(t *testing.T) {
 	a := newAdmitter(&stubRunner{}, nil, nil, noopEncoder)
 	a.StageRecheckSenders(0, [][]byte{[]byte("x")}) // decoder/signer nil → no-op
-	a.RecheckLocked()                               // mpool nil → no-op
+	a.RecheckTxs()                               // mpool nil → no-op
 }
 
 // A tx with no encCache entry must still be rechecked via the txEncoder fallback.
-func TestRecheckLocked_EncoderFallbackOnCacheMiss(t *testing.T) {
+func TestRecheckTxs_EncoderFallbackOnCacheMiss(t *testing.T) {
 	f := newRecheckFixture("enc-1") // encoder yields "enc-<id>"; fail id 1
 	stale := f.insert(1, sdk.AccAddress("alice"), 0)
 	if _, ok := f.enc.Get(stale); ok {
@@ -287,7 +287,7 @@ func TestRecheckLocked_EncoderFallbackOnCacheMiss(t *testing.T) {
 	}
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if !f.runner.seen["enc-1"] {
 		t.Fatal("cache-miss tx must be rechecked using encoder-produced bytes")
@@ -299,13 +299,13 @@ func TestRecheckLocked_EncoderFallbackOnCacheMiss(t *testing.T) {
 
 // A multi-signer tx must be rechecked when ANY of its signers is in pending,
 // even though the pool keys it by the first signer only.
-func TestRecheckLocked_MultiSignerMatchesAnySigner(t *testing.T) {
+func TestRecheckTxs_MultiSignerMatchesAnySigner(t *testing.T) {
 	f := newRecheckFixture("enc-1")
 	// pool key = alice (first signer); pending names only the second signer, bob.
 	stale := f.insert(1, sdk.AccAddress("alice"), 0, sdk.AccAddress("bob"))
 	f.a.pending = map[string]struct{}{sdk.AccAddress("bob").String(): {}}
 
-	f.a.RecheckLocked()
+	f.a.RecheckTxs()
 
 	if !f.runner.seen["enc-1"] {
 		t.Fatal("tx must be rechecked when a non-primary signer is touched")
@@ -316,7 +316,7 @@ func TestRecheckLocked_MultiSignerMatchesAnySigner(t *testing.T) {
 }
 
 // lockTrackingMempool flags inSelect while its SelectBy callback runs, so a test
-// can detect whether RecheckLocked extracts signers under the pool lock.
+// can detect whether RecheckTxs extracts signers under the pool lock.
 type lockTrackingMempool struct {
 	txs      []sdk.Tx
 	inSelect bool
@@ -373,10 +373,10 @@ func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, er
 	return sd, nil
 }
 
-// RecheckLocked must extract signers AFTER SelectBy releases the pool lock.
+// RecheckTxs must extract signers AFTER SelectBy releases the pool lock.
 // Doing it inside the callback would pin mp.mtx (and run RunTx's Remove under
 // it) across the whole scan, blocking admission/reap on the commit path.
-func TestRecheckLocked_SignerExtractionOutsidePoolLock(t *testing.T) {
+func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
 	pool := &lockTrackingMempool{}
 	signer := &lockObservingSigner{m: map[sdk.Tx][]sdkmempool.SignerData{}, pool: pool}
 	enc := NewEncoderCache(0)
@@ -390,7 +390,7 @@ func TestRecheckLocked_SignerExtractionOutsidePoolLock(t *testing.T) {
 	_ = pool.Insert(context.Background(), tx)
 	a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
 
-	a.RecheckLocked()
+	a.RecheckTxs()
 
 	if signer.sawLocked {
 		t.Fatal("signer extraction ran inside SelectBy (under the pool lock)")

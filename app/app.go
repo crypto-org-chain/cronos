@@ -1582,7 +1582,7 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	// Recheck under the held mutex: checkState is now reset to the committed
 	// state, and admission can't race the ReCheck RunTx calls.
 	if err == nil && app.recheckAdmitter != nil {
-		app.recheckAdmitter.RecheckLocked()
+		app.recheckAdmitter.RecheckTxs()
 	}
 	return resp, err
 }
