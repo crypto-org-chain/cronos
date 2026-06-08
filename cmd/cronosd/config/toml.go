@@ -36,6 +36,13 @@ mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 # backlog each tick. 0 disables the count cap (only mempool.reap_max_bytes /
 # reap_max_gas apply). Default 5000.
 mempool-gossip-max-per-reap = {{ .Cronos.MempoolGossipMaxPerReap }}
+
+# Max candidate txs re-validated per Commit cycle for mempool.type=app. Bounds
+# RunTx(ReCheck) time under deep pools; the O(pool) scan that selects candidates
+# runs outside the admission mutex, so this only caps the ante re-runs. Size it to
+# one block's tx count or stale (balance-drained / replaced) txs linger and get
+# re-proposed as failures. 0 = unlimited. Default 5000.
+mempool-recheck-batch-size = {{ .Cronos.MempoolRecheckBatchSize }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration

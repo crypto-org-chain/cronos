@@ -48,6 +48,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -1563,13 +1564,18 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 }
 
 func (app *App) Commit() (*abci.ResponseCommit, error) {
-	if app.mempoolAdmitter != nil {
-		app.mempoolAdmitter.AdmissionMutex().Lock()
-		defer app.mempoolAdmitter.AdmissionMutex().Unlock()
+	if app.mempoolAdmitter == nil {
+		return app.BaseApp.Commit()
 	}
-	resp, err := app.BaseApp.Commit()
 
-	if err == nil && app.mempoolAdmitter != nil {
+	resp, err := func() (*abci.ResponseCommit, error) {
+		mu := app.mempoolAdmitter.AdmissionMutex()
+		mu.Lock()
+		defer mu.Unlock()
+		return app.BaseApp.Commit()
+	}()
+
+	if err == nil {
 		app.mempoolAdmitter.RecheckTxs()
 	}
 	return resp, err

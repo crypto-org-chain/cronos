@@ -53,8 +53,8 @@ const (
 	// block's worth of new txs.
 	DefaultMempoolGossipMaxPerReap = 5000
 	// DefaultMempoolRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle.
-	// 200 balances eviction coverage vs. Commit latency under deep pools.
-	DefaultMempoolRecheckBatchSize = 200
+	// Sized to one block's worth of senders (matches DefaultMempoolGossipMaxPerReap).
+	DefaultMempoolRecheckBatchSize = 5000
 )
 
 const (

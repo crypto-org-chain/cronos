@@ -183,9 +183,7 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 
 // RecheckTxs evicts pool txs invalidated by the last block: those whose
 // TimeoutHeight has passed (any sender), and those of senders touched by the
-// block that now fail the AnteHandler in ReCheck mode (stale sequence, drained
-// balance). The caller MUST hold a.mu (App.Commit does): recheck mutates
-// checkState, which is reset to the committed state post-Commit.
+// block that now fail the AnteHandler in ReCheck mode.
 func (a *Admitter) RecheckTxs() {
 	if a.mpool == nil {
 		return
@@ -230,7 +228,14 @@ func (a *Admitter) RecheckTxs() {
 	if expiredEvicted > 0 {
 		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 	}
+	if len(candidates) == 0 {
+		return
+	}
 
+	// RunTx(ReCheck) mutates checkState; serialize against admission and the
+	// post-Commit reset for the batch only.
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	var evicted float32
 	for _, tx := range candidates {
 		bz, _, err := EncodeTx(a.encCache, a.txEncoder, tx)
