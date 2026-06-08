@@ -33,6 +33,9 @@ type CronosConfig struct {
 	// spreading a large pool across reap ticks instead of one libp2p batch.
 	// <=0 disables the count cap (only reap_max_bytes/reap_max_gas apply).
 	MempoolGossipMaxPerReap int `mapstructure:"mempool-gossip-max-per-reap"`
+	// MempoolRecheckBatchSize caps the number of candidate txs re-validated per
+	// Commit cycle, bounding RunTx(ReCheck) time under deep pools. <=0 = unlimited.
+	MempoolRecheckBatchSize int `mapstructure:"mempool-recheck-batch-size"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -49,6 +52,9 @@ const (
 	// each tick. 5000 also equals a max block, so one tick gossips at most one
 	// block's worth of new txs.
 	DefaultMempoolGossipMaxPerReap = 5000
+	// DefaultMempoolRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle.
+	// 200 balances eviction coverage vs. Commit latency under deep pools.
+	DefaultMempoolRecheckBatchSize = 200
 )
 
 const (
@@ -84,6 +90,7 @@ func DefaultCronosConfig() CronosConfig {
 		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
 		MempoolGossipMaxPerReap:    DefaultMempoolGossipMaxPerReap,
+		MempoolRecheckBatchSize:    DefaultMempoolRecheckBatchSize,
 	}
 }
 

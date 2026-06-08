@@ -373,7 +373,40 @@ func (s *lockObservingSigner) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, er
 	return sd, nil
 }
 
-// RecheckTxs must extract signers AFTER SelectBy releases the pool lock.
+// RecheckTxs must not run more than maxRecheckBatch RunTx calls in one cycle.
+func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
+	const total = 5
+	const batch = 2
+	f := newRecheckFixture()
+	for i := 0; i < total; i++ {
+		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+	f.a.maxRecheckBatch = batch
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	f.a.RecheckTxs()
+
+	if got := len(f.runner.modes); got != batch {
+		t.Fatalf("expected %d RunTx calls with batch cap, got %d", batch, got)
+	}
+}
+
+// maxRecheckBatch == 0 must leave the limit disabled (all candidates rechecked).
+func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
+	const total = 5
+	f := newRecheckFixture()
+	for i := 0; i < total; i++ {
+		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+	// maxRecheckBatch left at zero default
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	f.a.RecheckTxs()
+
+	if got := len(f.runner.modes); got != total {
+		t.Fatalf("expected %d RunTx calls with no cap, got %d", total, got)
+	}
+}
 // Doing it inside the callback would pin mp.mtx (and run RunTx's Remove under
 // it) across the whole scan, blocking admission/reap on the commit path.
 func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {

@@ -182,6 +182,7 @@ const (
 	FlagTxDecodeCacheMaxTxBytes    = "cronos.tx-decode-cache-max-tx-bytes"
 	FlagMempoolGossipTTL           = "cronos.mempool-gossip-ttl"
 	FlagMempoolGossipMaxPerReap    = "cronos.mempool-gossip-max-per-reap"
+	FlagMempoolRecheckBatchSize    = "cronos.mempool-recheck-batch-size"
 )
 
 var Forks = []Fork{}
@@ -423,6 +424,10 @@ func New(
 	if v := appOpts.Get(FlagMempoolGossipMaxPerReap); v != nil {
 		gossipMaxPerReap = cast.ToInt(v)
 	}
+	recheckBatchSize := cmdcfg.DefaultMempoolRecheckBatchSize
+	if v := appOpts.Get(FlagMempoolRecheckBatchSize); v != nil {
+		recheckBatchSize = cast.ToInt(v)
+	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx
 		// Setup Mempool and Proposal Handlers
@@ -503,6 +508,7 @@ func New(
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, gossipMaxPerReap, logger.With("module", "app-mempool")))
 			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
+			admitter.SetRecheckBatchSize(recheckBatchSize)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			mempoolAdmitter = admitter

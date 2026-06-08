@@ -35,6 +35,8 @@ type Admitter struct {
 	mpool     sdkmempool.Mempool
 	signer    sdkmempool.SignerExtractionAdapter
 	decoder   sdk.TxDecoder
+	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
+	maxRecheckBatch int
 	pendingMu sync.Mutex
 	// pending holds leftover transactions in the mempool after a last committed block
 	pending             map[string]struct{}
@@ -162,6 +164,11 @@ func (a *Admitter) EnablePreVerify(fn func([]byte) error) {
 	a.preVerify = fn
 }
 
+// SetRecheckBatchSize caps RunTx(ReCheck) calls per Commit cycle. 0 = unlimited.
+func (a *Admitter) SetRecheckBatchSize(n int) {
+	a.maxRecheckBatch = n
+}
+
 // StageRecheckSenders records the senders of the just-committed block's txs so
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction. CometBFT's app-mempool Update()
@@ -232,6 +239,9 @@ func (a *Admitter) RecheckTxs() {
 				candidates = append(candidates, tx)
 				break
 			}
+		}
+		if a.maxRecheckBatch > 0 && len(candidates) >= a.maxRecheckBatch {
+			break
 		}
 	}
 	if expiredEvicted > 0 {
