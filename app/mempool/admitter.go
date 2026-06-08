@@ -184,7 +184,7 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 		if err != nil {
 			continue // non-sdk txs (e.g. vote extensions) have no mempool entry
 		}
-		for _, s := range a.signerKeys(tx) {
+		for _, s := range a.signers(tx) {
 			senders[s] = struct{}{}
 		}
 	}
@@ -229,7 +229,7 @@ func (a *Admitter) RecheckTxs() {
 		if len(pending) == 0 {
 			continue
 		}
-		for _, s := range a.signerKeys(tx) {
+		for _, s := range a.signers(tx) {
 			if _, ok := pending[s]; ok {
 				candidates = append(candidates, tx)
 				break
@@ -265,9 +265,7 @@ func txExpired(tx sdk.Tx, committedHeight int64) bool {
 	return th > 0 && uint64(committedHeight) >= th
 }
 
-// signerKeys returns the sender address strings for tx, or nil if extraction
-// fails. The same adapter keys both staging and the pool scan, so keys match.
-func (a *Admitter) signerKeys(tx sdk.Tx) []string {
+func (a *Admitter) signers(tx sdk.Tx) []string {
 	sigs, err := a.signer.GetSigners(tx)
 	if err != nil {
 		return nil
