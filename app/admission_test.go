@@ -146,7 +146,7 @@ func setupAdmissionApp(tb testing.TB, accounts int) *admissionFixture {
 // (nil) to the locked RunTx.
 func TestPreVerifyEVMSig(t *testing.T) {
 	f := setupAdmissionApp(t, 2)
-	pv := newEVMSigPreVerifier(f.app, f.app.txDecoder)
+	pv := newEVMSigPreVerifier(f.app.ChainID(), f.app.txDecoder)
 
 	good := f.signTransfer(t, &f.accounts[0], nil)
 	require.NoError(t, pv(good), "valid EVM signature must pass pre-verify")

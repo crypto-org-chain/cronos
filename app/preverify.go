@@ -11,8 +11,8 @@ import (
 
 // newEVMSigPreVerifier returns a lock-free EVM sig checker for the Admitter: runs ecrecover
 // outside the admission mutex. Returns nil for non-EVM txs, undecodable bytes, or unparseable chain ID.
-func newEVMSigPreVerifier(app *App, decoder sdk.TxDecoder) func([]byte) error {
-	chainID, err := ethermint.ParseChainID(app.ChainID())
+func newEVMSigPreVerifier(chainIDStr string, decoder sdk.TxDecoder) func([]byte) error {
+	chainID, err := ethermint.ParseChainID(chainIDStr)
 	if err != nil {
 		return nil // not an EVM chain ID; leave admission fully locked
 	}
