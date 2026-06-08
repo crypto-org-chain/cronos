@@ -44,7 +44,14 @@ type Admitter struct {
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
 // BaseApp.SetInsertTxHandler before Seal.
-func NewAdmitter(app *baseapp.BaseApp, txGet TxGetter, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) *Admitter {
+func NewAdmitter(app *baseapp.BaseApp, encCache *EncoderCache, txEncoder sdk.TxEncoder, mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) *Admitter {
+	var txGet TxGetter
+	if decoder != nil {
+		txGet = func(bz []byte) (sdk.Tx, bool) {
+			tx, err := decoder(bz)
+			return tx, err == nil
+		}
+	}
 	a := newAdmitter(app, txGet, encCache, txEncoder)
 	a.trace = app.Trace()
 	a.mpool = mpool

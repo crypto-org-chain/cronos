@@ -473,14 +473,8 @@ func New(
 		))
 
 		var encCache *cronosmempool.EncoderCache
-		var txGet cronosmempool.TxGetter
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
 			encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
-			dec := activeDecoder
-			txGet = func(bz []byte) (sdk.Tx, bool) {
-				tx, err := dec(bz)
-				return tx, err == nil
-			}
 		}
 
 		if encCache != nil {
@@ -510,7 +504,7 @@ func New(
 			logger.Info("AppMempool ABCI hooks enabled", "type", mempoolType)
 
 			app.SetReapTxsHandler(cronosmempool.NewReapTxsHandler(mpool, txConfig.TxEncoder(), encCache, gossipTTL, gossipMaxPerReap, logger.With("module", "app-mempool")))
-			admitter := cronosmempool.NewAdmitter(app, txGet, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
+			admitter := cronosmempool.NewAdmitter(app, encCache, txConfig.TxEncoder(), mpool, signerExtractor, activeDecoder)
 			app.SetInsertTxHandler(admitter.InsertTxHandler())
 			app.SetCheckTxHandler(admitter.CheckTxHandler())
 			recheckAdmitter = admitter
