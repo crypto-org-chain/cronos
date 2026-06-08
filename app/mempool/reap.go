@@ -23,7 +23,7 @@ const TypeApp = "app"
 func NewReapTxsHandler(mpool mempool.Mempool, txEncoder sdk.TxEncoder, encCache *EncoderCache, ttl time.Duration, maxPerReap int, logger log.Logger) sdk.ReapTxsHandler {
 	tracker := newGossipTracker(ttl, nil)
 	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
-		snapshot := SnapshotPool(context.Background(), mpool)
+		snapshot := PoolSnapshot(context.Background(), mpool)
 
 		now := tracker.now()
 		var (

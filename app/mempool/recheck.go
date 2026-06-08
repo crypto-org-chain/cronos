@@ -8,9 +8,6 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-// EnableRecheck wires the deps RecheckLocked/StageRecheckSenders need for
-// mempool.type=app. decoder must hit the tx-decode cache so staging committed
-// txs is cheap. Until called, both recheck methods no-op.
 func (a *Admitter) EnableRecheck(mpool sdkmempool.Mempool, signer sdkmempool.SignerExtractionAdapter, decoder sdk.TxDecoder) {
 	a.mpool = mpool
 	a.signer = signer
@@ -25,7 +22,7 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 	// Stage height before the dep guard so the timeout sweep runs even if the
 	// recheck deps (signer/decoder) aren't wired.
 	a.pendingMu.Lock()
-	a.committedHeight = height
+	a.lastCommittedHeight = height
 	a.pendingMu.Unlock()
 
 	if a.signer == nil || a.decoder == nil {
@@ -57,7 +54,7 @@ func (a *Admitter) RecheckLocked() {
 	}
 	a.pendingMu.Lock()
 	pending := a.pending
-	height := a.committedHeight
+	height := a.lastCommittedHeight
 	a.pending = nil
 	a.pendingMu.Unlock()
 	// Nothing to do before the first committed block (height 0) with no pending
@@ -66,9 +63,7 @@ func (a *Admitter) RecheckLocked() {
 		return
 	}
 
-	// signerKeys allocs per tx and RunTx's Remove can't run inside SelectBy,
-	// which holds mp.mtx and blocks admission/reap. Matches reap.go.
-	snapshot := SnapshotPool(context.Background(), a.mpool)
+	snapshot := PoolSnapshot(context.Background(), a.mpool)
 
 	var (
 		candidates     []sdk.Tx
@@ -76,10 +71,6 @@ func (a *Admitter) RecheckLocked() {
 	)
 	for _, tx := range snapshot {
 		if txExpired(tx, height) {
-			// Evict directly (no RunTx): the next block's height already exceeds
-			// TimeoutHeight, so the ante would reject it forever. Safe here because
-			// the snapshot is materialized — Remove takes the pool lock, which the
-			// SelectBy above has released.
 			_ = a.mpool.Remove(tx)
 			a.encCache.Evict(tx)
 			expiredEvicted++
@@ -106,8 +97,6 @@ func (a *Admitter) RecheckLocked() {
 			continue
 		}
 		if _, _, _, err := a.runner.RunTx(sdk.ExecModeReCheck, bz, tx, -1, nil, nil); err != nil {
-			// BaseApp.RunTx attempts mpool.Remove on ante failure; drop our cache
-			// entry regardless (Evict is a no-op if tx was never/already gone).
 			a.encCache.Evict(tx)
 			evicted++
 		}
@@ -117,10 +106,6 @@ func (a *Admitter) RecheckLocked() {
 	}
 }
 
-// txExpired reports whether tx's TimeoutHeight has passed. A tx is valid only
-// in blocks H <= TimeoutHeight, and the next block is committedHeight+1, so
-// committedHeight >= TimeoutHeight means it can never be valid again. Zero
-// TimeoutHeight (e.g. EVM txs) means no timeout.
 func txExpired(tx sdk.Tx, committedHeight int64) bool {
 	t, ok := tx.(sdk.TxWithTimeoutHeight)
 	if !ok {

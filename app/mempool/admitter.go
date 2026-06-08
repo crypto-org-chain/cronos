@@ -35,13 +35,9 @@ type Admitter struct {
 	signer    sdkmempool.SignerExtractionAdapter
 	decoder   sdk.TxDecoder
 	pendingMu sync.Mutex
-	// pending holds senders touched by the last committed block, staged by
-	// StageRecheckSenders and drained by RecheckLocked.
+	// pending holds leftover transactions in the mempool after a last committed block
 	pending map[string]struct{}
-	// committedHeight is the height of the last committed block, staged by
-	// StageRecheckSenders. RecheckLocked evicts txs whose TimeoutHeight has
-	// passed relative to it. Guarded by pendingMu.
-	committedHeight int64
+	lastCommittedHeight int64
 }
 
 // NewAdmitter builds the Admitter for mempool.type=app; register it via
@@ -102,7 +98,7 @@ func (a *Admitter) InsertTxHandler() sdk.InsertTxHandler {
 			return reject(err), nil
 		}
 
-		a.registerCanonical(req.Tx)
+		a.cacheTx(req.Tx)
 		return &abci.ResponseInsertTx{Code: abci.CodeTypeOK}, nil
 	}
 }
@@ -114,10 +110,8 @@ func reject(err error) *abci.ResponseInsertTx {
 	return &abci.ResponseInsertTx{Code: code}
 }
 
-// registerCanonical caches a tx's canonical (re-encoded) bytes so ReapTxsHandler
-// can skip proto.Marshal, keeping non-minimal peer bytes out of the cache. Falls
-// back to raw on encode error; no-op when the cache is disabled. Caller holds mu.
-func (a *Admitter) registerCanonical(raw []byte) {
+// cacheTx registers tx in the encoder cache.
+func (a *Admitter) cacheTx(raw []byte) {
 	if a.encCache == nil {
 		return
 	}
@@ -146,7 +140,7 @@ func (a *Admitter) CheckTxHandler() sdk.CheckTxHandler {
 			return sdkerrors.ResponseCheckTxWithEvents(err, gasInfo.GasWanted, gasInfo.GasUsed, anteEvents, a.trace), nil
 		}
 
-		a.registerCanonical(req.Tx)
+		a.cacheTx(req.Tx)
 
 		// No MarkEventsToIndex (unlike default CheckTx): that flag only feeds
 		// the tx indexer on FinalizeBlock results, not CheckTx.

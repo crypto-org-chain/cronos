@@ -61,8 +61,7 @@ func (e *EncoderCache) Set(tx sdk.Tx, bz []byte) {
 	e.items[tx] = e.lru.PushFront(&item{tx: tx, bz: bz})
 }
 
-// Evict drops tx's entry so a stale/removed tx stops pinning the heap. No-op on
-// a nil receiver or a tx that was never registered (e.g. already LRU-evicted).
+// Evict drops tx's entry so a stale/removed tx stops pinning the heap. No op if tx is absent.
 func (e *EncoderCache) Evict(tx sdk.Tx) {
 	if e == nil || tx == nil {
 		return

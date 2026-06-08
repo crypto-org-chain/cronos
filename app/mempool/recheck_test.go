@@ -193,7 +193,7 @@ func TestRecheckLocked_EvictsExpiredUntouchedSender(t *testing.T) {
 	f := newRecheckFixture()
 	expired := f.addTimeout(1, "carol", 0, "carol-0", 5)
 
-	f.a.committedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
+	f.a.lastCommittedHeight = 5 // next block = 6 > timeoutHeight 5 → never valid again
 	f.a.RecheckLocked()     // pending nil: only the timeout sweep runs
 
 	if poolHas(f.pool, expired) {
@@ -215,7 +215,7 @@ func TestRecheckLocked_TimeoutBoundary(t *testing.T) {
 	survivor := f.addTimeout(2, "dave", 0, "dave-0", 6)
 	noTimeout := f.addTimeout(3, "erin", 0, "erin-0", 0)
 
-	f.a.committedHeight = 5
+	f.a.lastCommittedHeight = 5
 	f.a.RecheckLocked()
 
 	if poolHas(f.pool, atLimit) {
@@ -237,7 +237,7 @@ func TestRecheckLocked_SweepAndRecheckTogether(t *testing.T) {
 	survivor := f.add(3, "alice", 1, "alice-1")
 
 	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
-	f.a.committedHeight = 5
+	f.a.lastCommittedHeight = 5
 	f.a.RecheckLocked()
 
 	if poolHas(f.pool, expired) {

@@ -1579,10 +1579,6 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	return app.BaseApp.CheckTx(req)
 }
 
-// Commit holds the admission mutex around BaseApp.Commit so its checkState
-// reset can't race lock-free app-mempool admission (AppMempool.Lock() is a
-// no-op). No-op for other mempool types. Lock order: localClient.mtx then
-// mempoolAdmissionMu; admission takes only the latter, so no cycle.
 func (app *App) Commit() (*abci.ResponseCommit, error) {
 	if app.mempoolAdmissionMu != nil {
 		app.mempoolAdmissionMu.Lock()

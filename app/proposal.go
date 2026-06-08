@@ -168,9 +168,7 @@ func fastPrepareProposalAppMempool(
 			cacheHits  float32
 			cacheMiss  float32
 		)
-		// Snapshot under the pool lock, then encode/validate/size after release;
-		// see cronosmempool.SnapshotPool. Matches ReapTxsHandler's pattern.
-		snapshot := cronosmempool.SnapshotPool(ctx, mp)
+		snapshot := cronosmempool.PoolSnapshot(ctx, mp)
 
 		for _, memTx := range snapshot {
 			bz, hit, err := cronosmempool.EncodeTx(encCache, txEncoder, memTx)
