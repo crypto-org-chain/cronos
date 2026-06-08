@@ -29,13 +29,10 @@ type CronosConfig struct {
 	// a tx reaped for gossip is not re-broadcast until this elapses. Bounds the
 	// AppReactor's per-tick re-broadcast of the whole pool. <=0 uses the default.
 	MempoolGossipTTL time.Duration `mapstructure:"mempool-gossip-ttl"`
-	// MempoolGossipMaxPerReap caps txs returned per gossip reap (mempool.type=app),
-	// spreading a large pool across reap ticks instead of one libp2p batch.
-	// <=0 disables the count cap (only reap_max_bytes/reap_max_gas apply).
-	MempoolGossipMaxPerReap int `mapstructure:"mempool-gossip-max-per-reap"`
-	// MempoolRecheckBatchSize caps the number of candidate txs re-validated per
-	// Commit cycle, bounding RunTx(ReCheck) time under deep pools. <=0 = unlimited.
-	MempoolRecheckBatchSize int `mapstructure:"mempool-recheck-batch-size"`
+	// MempoolTxsPerBlock is the shared budget used as both the gossip-reap cap
+	// (txs per 500ms tick ≈ one block) and the recheck-batch cap (candidates per
+	// Commit cycle ≈ one block of senders). <=0 uses the default.
+	MempoolTxsPerBlock int `mapstructure:"mempool-txs-per-block"`
 }
 
 // Defaults live here (not app/) because app/ imports this package and both
@@ -48,11 +45,9 @@ const (
 	// far above CometBFT's 500ms ReapInterval so steady state suppresses re-reap.
 	DefaultMempoolGossipTTL = 15 * time.Second
 	// DefaultMempoolTxsPerBlock is one block's tx budget (~2900 = cronos mainnet
-	// empirical block size). Used as both the gossip-reap cap (one tick ≈ one block
-	// interval) and the recheck-batch cap (one commit ≈ one block of senders).
-	DefaultMempoolTxsPerBlock      = 2900
-	DefaultMempoolGossipMaxPerReap = DefaultMempoolTxsPerBlock
-	DefaultMempoolRecheckBatchSize = DefaultMempoolTxsPerBlock
+	// empirical block size). Governs both the gossip-reap cap (one tick ≈ one
+	// block interval) and the recheck-batch cap (one commit ≈ one block of senders).
+	DefaultMempoolTxsPerBlock = 2900
 )
 
 const (
@@ -87,8 +82,7 @@ func DefaultCronosConfig() CronosConfig {
 		TxDecodeCacheSize:          DefaultTxDecodeCacheSize,
 		TxDecodeCacheMaxTxBytes:    DefaultTxDecodeCacheMaxTxBytes,
 		MempoolGossipTTL:           DefaultMempoolGossipTTL,
-		MempoolGossipMaxPerReap:    DefaultMempoolGossipMaxPerReap,
-		MempoolRecheckBatchSize:    DefaultMempoolRecheckBatchSize,
+		MempoolTxsPerBlock:         DefaultMempoolTxsPerBlock,
 	}
 }
 

@@ -30,19 +30,11 @@ tx-decode-cache-max-tx-bytes = {{ .Cronos.TxDecodeCacheMaxTxBytes }}
 # whole pool to peers every reap_interval (~500ms). Default "15s".
 mempool-gossip-ttl = "{{ .Cronos.MempoolGossipTTL }}"
 
-# Max txs returned per gossip reap for mempool.type=app, spreading a large pool
-# across reap ticks instead of one libp2p batch. Size it >= target tps *
-# mempool.reap_interval (seconds), e.g. 10000 tps * 0.5s = 5000, or new txs
-# backlog each tick. 0 disables the count cap (only mempool.reap_max_bytes /
-# reap_max_gas apply). Default 5000.
-mempool-gossip-max-per-reap = {{ .Cronos.MempoolGossipMaxPerReap }}
-
-# Max candidate txs re-validated per Commit cycle for mempool.type=app. Bounds
-# RunTx(ReCheck) time under deep pools; the O(pool) scan that selects candidates
-# runs outside the admission mutex, so this only caps the ante re-runs. Size it to
-# one block's tx count or stale (balance-drained / replaced) txs linger and get
-# re-proposed as failures. 0 = unlimited. Default 5000.
-mempool-recheck-batch-size = {{ .Cronos.MempoolRecheckBatchSize }}
+# Tx budget per block for mempool.type=app (cronos mainnet empirical: ~2900).
+# Controls both the gossip-reap cap (txs per 500ms reap tick ≈ one block) and
+# the recheck-batch cap (candidates re-validated per Commit cycle ≈ one block of
+# senders). 0 = unlimited. Default 2900.
+mempool-txs-per-block = {{ .Cronos.MempoolTxsPerBlock }}
 `
 
 // DefaultRocksDBConfigTemplate defines the configuration template for rocksdb configuration
