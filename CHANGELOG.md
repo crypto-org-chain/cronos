@@ -4,6 +4,7 @@
 
 ### Improvements
 
+* [#2100](https://github.com/crypto-org-chain/cronos/pull/2100) feat: support unblockable addresses
 * [#1977](https://github.com/crypto-org-chain/cronos/pull/1977) Upgrade rocksdb to v10.9.1 and add tuning profiles.
 * [#1970](https://github.com/crypto-org-chain/cronos/pull/1970) feat(testground): refine testground test process in local
 * [#1971](https://github.com/crypto-org-chain/cronos/pull/1971) Upgrade cosmos-sdk to v0.53.4.
