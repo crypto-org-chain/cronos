@@ -419,7 +419,11 @@ func New(
 	feeBump := cast.ToInt64(appOpts.Get(FlagMempoolFeeBump))
 	gossipTTL := cmdcfg.DefaultMempoolGossipTTL
 	if v := appOpts.Get(FlagMempoolGossipTTL); v != nil {
-		gossipTTL = cast.ToDuration(v)
+		parsed, err := cast.ToDurationE(v)
+		if err != nil {
+			panic(fmt.Errorf("invalid %s %q: %w", FlagMempoolGossipTTL, v, err))
+		}
+		gossipTTL = parsed
 	}
 	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
 	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
@@ -495,6 +499,12 @@ func New(
 				},
 			))
 		} else {
+			// mempool.type=app with no encoder cache (tx-decode-cache-size=0): the
+			// fast path needs decode-cache pointer identity, so proposals fall back
+			// to the upstream default handler (full PrepareProposalVerifyTx per tx).
+			if mempoolType == cronosmempool.TypeApp {
+				logger.Warn("mempool.type=app: tx-decode-cache-size=0 disables fast PrepareProposal; using slow default handler")
+			}
 			app.SetPrepareProposal(fastNoOpPrepareProposal(
 				mpool,
 				defaultProposalHandler.PrepareProposalHandler(),
@@ -1584,6 +1594,9 @@ func (app *App) Commit() (*abci.ResponseCommit, error) {
 	}
 
 	resp, err := func() (*abci.ResponseCommit, error) {
+		// BaseApp.Commit resets checkState; upstream assumes CometBFT's mempool
+		// lock guards it, but AppMempool.Lock() is a no-op. This mutex serializes
+		// the reset against concurrent peer admission (InsertTx/CheckTx RunTx).
 		mu := app.mempoolAdmitter.AdmissionMutex()
 		mu.Lock()
 		defer mu.Unlock()
