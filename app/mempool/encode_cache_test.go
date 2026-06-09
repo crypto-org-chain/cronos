@@ -152,24 +152,3 @@ func TestEncoderCache_HashTx(t *testing.T) {
 		t.Fatalf("nil HashTx=%x, want %x", got, want)
 	}
 }
-
-// Cached-hit HashTx (repeat reaps) vs recomputing sha256 every reap.
-func BenchmarkHashTx_Cached(b *testing.B) {
-	c := NewEncoderCache(1)
-	tx := &ptrTx{id: 1}
-	bz := make([]byte, 512) // representative tx wire size
-	c.Set(tx, bz)
-	c.HashTx(tx, bz) // prime
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = c.HashTx(tx, bz)
-	}
-}
-
-func BenchmarkHashTx_Recompute(b *testing.B) {
-	bz := make([]byte, 512)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = sha256.Sum256(bz)
-	}
-}
