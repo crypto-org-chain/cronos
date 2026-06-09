@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"math/big"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -150,6 +151,20 @@ func (t gasOnlyTx) GetGas() uint64                      { return t.gas }
 func (gasOnlyTx) GetFee() sdk.Coins                     { return nil }
 func (gasOnlyTx) FeePayer() []byte                      { return nil }
 func (gasOnlyTx) FeeGranter() []byte                    { return nil }
+
+// feeCapTx is an sdk.FeeTx with a real fee + gas, used to drive the baseFee gate
+// (feeCap = fee/gas).
+type feeCapTx struct {
+	gas uint64
+	fee sdk.Coins
+}
+
+func (feeCapTx) GetMsgs() []sdk.Msg                    { return nil }
+func (feeCapTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+func (t feeCapTx) GetGas() uint64                      { return t.gas }
+func (t feeCapTx) GetFee() sdk.Coins                   { return t.fee }
+func (feeCapTx) FeePayer() []byte                      { return nil }
+func (feeCapTx) FeeGranter() []byte                    { return nil }
 
 func TestFastNoOpPrepareProposal(t *testing.T) {
 	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
@@ -335,7 +350,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		enc.Set(tx1, []byte("raw-1"))
 		enc.Set(tx2, []byte("raw-2"))
 
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
@@ -352,7 +367,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 			return []byte("encoded"), nil
 		}
 
-		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
 		require.NoError(t, err)
 		require.Equal(t, 1, encCalls)
@@ -373,7 +388,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 			return nil, nil
 		}
 
-		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("good")}, got.Txs)
@@ -387,7 +402,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		enc.Set(tx2, []byte(invalidTx))
 		enc.Set(tx3, []byte("ok-2"))
 
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid)
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
@@ -403,7 +418,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		enc.Set(tx2, []byte("raw-2"))
 		enc.Set(tx3, []byte("raw-3"))
 
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 18})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
@@ -422,7 +437,7 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		ctx := sdk.Context{}.WithConsensusParams(cmtproto.ConsensusParams{
 			Block: &cmtproto.BlockParams{MaxBytes: 1 << 20, MaxGas: 100_000},
 		})
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
 		got, err := h(ctx, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("a")}, got.Txs)
@@ -434,10 +449,41 @@ func TestFastPrepareProposalAppMempool(t *testing.T) {
 		enc := cronosmempool.NewEncoderCache(0)
 		enc.Set(tx, []byte("a"))
 
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll)
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
 		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 0})
 		require.NoError(t, err)
 		require.Empty(t, got.Txs)
+	})
+
+	t.Run("baseFee gate excludes tx whose feeCap is below baseFee", func(t *testing.T) {
+		const denom = "basecro"
+		// feeCap = fee/gas. tx1: 100/10 = 10 < 20 → excluded. tx2: 400/10 = 40 >= 20 → kept.
+		txLow := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
+		txOK := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}
+		mp := &fakeMempool{txs: []sdk.Tx{txLow, txOK}}
+		enc := cronosmempool.NewEncoderCache(0)
+		enc.Set(txLow, []byte("low"))
+		enc.Set(txOK, []byte("ok"))
+
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, feeFn)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("ok")}, got.Txs)
+	})
+
+	t.Run("nil baseFee disables the gate", func(t *testing.T) {
+		// Pre-london / NoBaseFee: gate off, low-feeCap tx still included.
+		txLow := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin("basecro", 1))}
+		mp := &fakeMempool{txs: []sdk.Tx{txLow}}
+		enc := cronosmempool.NewEncoderCache(0)
+		enc.Set(txLow, []byte("low"))
+
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return nil, "basecro" }
+		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, feeFn)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("low")}, got.Txs)
 	})
 }
 

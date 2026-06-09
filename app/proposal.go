@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 
 	"filippo.io/age"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -13,6 +14,7 @@ import (
 	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	"cosmossdk.io/core/address"
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -131,24 +133,24 @@ func fastNoOpPrepareProposal(
 }
 
 // fastPrepareProposalAppMempool returns a PrepareProposal handler for
-// mempool.type=app: it iterates the priority mempool directly, reads raw bytes
-// from encCache (populated by InsertTxHandler), and respects MaxTxBytes /
-// consensus MaxGas.
+// mempool.type=app: iterates the priority mempool directly, reads raw bytes from
+// encCache (populated by InsertTxHandler), respects MaxTxBytes / consensus MaxGas.
 //
-// It skips baseapp.PrepareProposalVerifyTx (re-encode + ante re-run) since
-// InsertTxHandler already ran ante at admission. Tradeoff: baseFee is not
-// re-checked, so a tx whose gasPrice fell below a risen baseFee is included and
-// fails at execution, wasting block space — bounded by fee ordering (low-fee txs
-// proposed last, cut by MaxTxBytes first) and worth it because VerifyTx
-// dominates step_propose latency at high throughput.
+// Skips baseapp.PrepareProposalVerifyTx (full ante re-run): InsertTxHandler ran
+// ante at admission and RecheckTxs evicts stale nonce/balance after each block.
+// The gap both miss — a risen baseFee for an idle (never-rechecked) sender — is
+// closed by the inline feeCap<baseFee gate below, far cheaper than a full ante.
+// Tradeoff: ante decorators that differ between Check and PrepareProposal modes
+// aren't re-evaluated, so such a tx is caught only at FinalizeBlock.
 //
-// encCache MUST be non-nil (else wire the slower defaultHandler). txEncoder is
-// the fallback for txs whose pointer isn't cached (post-Reap eviction race; rare).
+// proposalFee returns (baseFee, evmDenom); nil baseFee disables the gate.
+// encCache MUST be non-nil. txEncoder is the fallback for uncached txs (rare).
 func fastPrepareProposalAppMempool(
 	mp mempool.Mempool,
 	encCache *cronosmempool.EncoderCache,
 	txEncoder sdk.TxEncoder,
 	validateTx func(sdk.Tx, []byte) error,
+	proposalFee func(sdk.Context) (baseFee *big.Int, evmDenom string),
 ) sdk.PrepareProposalHandler {
 	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 		maxTxBytes := req.MaxTxBytes
@@ -159,6 +161,15 @@ func fastPrepareProposalAppMempool(
 		var maxBlockGas uint64
 		if b := ctx.ConsensusParams().Block; b != nil && b.MaxGas > 0 {
 			maxBlockGas = uint64(b.MaxGas)
+		}
+
+		// baseFee is constant within a block; read once. nil => gate disabled.
+		var (
+			baseFee  *big.Int
+			evmDenom string
+		)
+		if proposalFee != nil {
+			baseFee, evmDenom = proposalFee(ctx)
 		}
 
 		var (
@@ -192,15 +203,29 @@ func fastPrepareProposalAppMempool(
 				continue
 			}
 
-			if maxBlockGas > 0 {
-				if feeTx, ok := memTx.(sdk.FeeTx); ok {
-					gasWanted := feeTx.GetGas()
-					// Overflow-safe: see fastNoOpPrepareProposal.
-					if gasWanted > maxBlockGas-totalGas {
-						break
+			feeTx, isFeeTx := memTx.(sdk.FeeTx)
+
+			// baseFee gate: drop txs whose feeCap fell below a risen baseFee
+			// (the case InsertTx ante + RecheckTxs miss for idle senders), else
+			// they'd fail ante at FinalizeBlock with ErrInsufficientFee. Mirrors the
+			// fatal check in ethermint NewDynamicFeeChecker (feeCap < baseFee). continue,
+			// not break: snapshot priority order isn't strictly feeCap order.
+			if isFeeTx && baseFee != nil && evmDenom != "" {
+				if gas := feeTx.GetGas(); gas > 0 {
+					feeCap := feeTx.GetFee().AmountOf(evmDenom).Quo(sdkmath.NewIntFromUint64(gas))
+					if feeCap.LT(sdkmath.NewIntFromBigInt(baseFee)) {
+						continue
 					}
-					totalGas += gasWanted
 				}
+			}
+
+			if maxBlockGas > 0 && isFeeTx {
+				gasWanted := feeTx.GetGas()
+				// Overflow-safe: see fastNoOpPrepareProposal.
+				if gasWanted > maxBlockGas-totalGas {
+					break
+				}
+				totalGas += gasWanted
 			}
 
 			selected = append(selected, bz)

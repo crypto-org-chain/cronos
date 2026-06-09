@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,6 +49,7 @@ import (
 	cronoskeeper "github.com/crypto-org-chain/cronos/x/cronos/keeper"
 	evmhandlers "github.com/crypto-org-chain/cronos/x/cronos/keeper/evmhandlers"
 	"github.com/crypto-org-chain/cronos/x/cronos/middleware"
+
 	// force register the extension json-rpc.
 	_ "github.com/crypto-org-chain/cronos/x/cronos/rpc"
 	cronostypes "github.com/crypto-org-chain/cronos/x/cronos/types"
@@ -101,6 +103,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
+	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
@@ -458,6 +461,10 @@ func New(
 	// Set inside the closure below, assigned to the App after construction;
 	// non-nil only for mempool.type=app.
 	var mempoolAdmitter *cronosmempool.Admitter
+	// proposalFee feeds the PrepareProposal baseFee gate. Captured by reference
+	// now, assigned once EVM keepers exist (below); the handler only runs
+	// post-startup, so the nil window during construction is never hit.
+	var proposalFee func(sdk.Context) (*big.Int, string)
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
@@ -480,6 +487,12 @@ func New(
 				encCache,
 				txConfig.TxEncoder(),
 				blockProposalHandler.ValidateTransaction,
+				func(ctx sdk.Context) (*big.Int, string) {
+					if proposalFee == nil {
+						return nil, ""
+					}
+					return proposalFee(ctx)
+				},
 			))
 		} else {
 			app.SetPrepareProposal(fastNoOpPrepareProposal(
@@ -737,6 +750,11 @@ func New(
 		[]evmkeeper.CustomContractFn{},
 		cast.ToUint64(appOpts.Get(server.FlagQueryGasLimit)),
 	)
+
+	// Assign now that the EVM keepers exist (handler captured proposalFee above).
+	proposalFee = func(ctx sdk.Context) (*big.Int, string) {
+		return app.FeeMarketKeeper.GetBaseFee(ctx), app.EvmKeeper.GetParams(ctx).EvmDenom
+	}
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
@@ -1585,6 +1603,20 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	resp, err := app.BaseApp.FinalizeBlock(req)
 	if err == nil && app.mempoolAdmitter != nil {
 		app.mempoolAdmitter.StageRecheckSenders(req.Height, req.Txs)
+
+		// Residual waste from skipping PrepareProposalVerifyTx: txs that passed
+		// proposal but fail ante here (non-zero code; EVM reverts stay code 0).
+		// Watch to validate the baseFee gate + no-ante tradeoff; a rising value
+		// flags a stale-tx mode the gate + RecheckTxs miss.
+		var failed float32
+		for _, r := range resp.TxResults {
+			if r.Code != abci.CodeTypeOK {
+				failed++
+			}
+		}
+		if failed > 0 {
+			telemetry.IncrCounter(failed, "cronos", "finalize", "tx", "failed") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+		}
 	}
 	return resp, err
 }
