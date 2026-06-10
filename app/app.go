@@ -471,38 +471,41 @@ func New(
 	baseAppOptions = append(baseAppOptions, func(app *baseapp.BaseApp) {
 		app.SetMempool(mpool)
 
-		// Re-use the default prepare proposal handler, extend the transaction validation logic
-		defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
-		defaultProposalHandler.SetTxSelector(NewExtTxSelector(
-			baseapp.NewDefaultTxSelector(),
-			activeDecoder,
-			blockProposalHandler.ValidateTransaction,
-		))
-
 		var encCache *cronosmempool.EncoderCache
 		if mempoolType == cronosmempool.TypeApp && decodeCacheSize > 0 {
 			encCache = cronosmempool.NewEncoderCache(decodeCacheSize)
 		}
 
+		// baseFee gate source for the app-path selector; proposalFee is assigned
+		// once EVM keepers exist (the handler only runs post-startup).
+		feeGate := func(ctx sdk.Context) (*big.Int, string) {
+			if proposalFee == nil {
+				return nil, ""
+			}
+			return proposalFee(ctx)
+		}
+
 		if encCache != nil {
-			app.SetPrepareProposal(fastPrepareProposalAppMempool(
-				mpool,
-				encCache,
-				txConfig.TxEncoder(),
-				blockProposalHandler.ValidateTransaction,
-				func(ctx sdk.Context) (*big.Int, string) {
-					if proposalFee == nil {
-						return nil, ""
-					}
-					return proposalFee(ctx)
-				},
-			))
+			// mempool.type=app: reuse the SDK default handler. NoCheck verifier
+			// supplies cached bytes + skips the ante re-run; ExtTxSelector applies
+			// blocklist + baseFee gate.
+			h := baseapp.NewDefaultProposalHandler(mpool, NewNoCheckProposalTxVerifier(app, encCache))
+			h.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, feeGate))
+			if signerExtractor != nil {
+				h.SetSignerExtractionAdapter(signerExtractor)
+			}
+			app.SetPrepareProposal(h.PrepareProposalHandler())
 		} else {
-			// mempool.type=app with no encoder cache (tx-decode-cache-size=0): the
-			// fast path needs decode-cache pointer identity, so proposals fall back
-			// to the upstream default handler (full PrepareProposalVerifyTx per tx).
+			// flood mempool, or mempool.type=app with cache disabled: full-ante
+			// default handler. fastNoOpPrepareProposal adds malformed-tx fault
+			// tolerance for the NoOp mempool case.
 			if mempoolType == cronosmempool.TypeApp {
 				logger.Warn("mempool.type=app: tx-decode-cache-size=0 disables fast PrepareProposal; using slow default handler")
+			}
+			defaultProposalHandler := baseapp.NewDefaultProposalHandler(mpool, app)
+			defaultProposalHandler.SetTxSelector(NewExtTxSelector(blockProposalHandler.ValidateTransaction, nil))
+			if signerExtractor != nil {
+				defaultProposalHandler.SetSignerExtractionAdapter(signerExtractor)
 			}
 			app.SetPrepareProposal(fastNoOpPrepareProposal(
 				mpool,

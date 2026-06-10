@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	protov2 "google.golang.org/protobuf/proto"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/mempool"
 )
@@ -23,46 +22,10 @@ const invalidTx = "invalid"
 // stubTx is a minimal sdk.Tx used to verify memTx identity across call boundaries.
 type stubTx struct{ sdk.Tx }
 
-// stubTxSelector lets a test control the parent TxSelector return value.
-type stubTxSelector struct {
-	baseapp.TxSelector
-	parentReturn bool
-	calls        int
-	lastMemTx    sdk.Tx
-	lastTxBz     []byte
-}
-
-func (s *stubTxSelector) SelectTxForProposal(_ context.Context, _, _ uint64, memTx sdk.Tx, txBz []byte) bool {
-	s.calls++
-	s.lastMemTx = memTx
-	s.lastTxBz = txBz
-	return s.parentReturn
-}
-
-// gasCapSelector simulates a parent that enforces maxBlockGas using the
-// forwarded memTx — identical to what baseapp.DefaultTxSelector does.
-type gasCapSelector struct {
-	baseapp.TxSelector
-	maxBlockGas uint64
-	totalGas    uint64
-}
-
-func (s *gasCapSelector) SelectTxForProposal(_ context.Context, _, _ uint64, memTx sdk.Tx, _ []byte) bool {
-	feeTx, ok := memTx.(sdk.FeeTx)
-	if !ok {
-		return true
-	}
-	want := feeTx.GetGas()
-	if want > s.maxBlockGas-s.totalGas {
-		return false
-	}
-	s.totalGas += want
-	return true
-}
-
-func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
-	txDecoder := func([]byte) (sdk.Tx, error) { return nil, nil }
-
+func TestExtTxSelector(t *testing.T) {
+	const maxB = 1 << 20
+	bg := context.Background()
+	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
 	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
 		if string(txBz) == invalidTx {
 			return errors.New("invalid tx")
@@ -70,67 +33,63 @@ func TestExtTxSelector_SelectTxForProposal(t *testing.T) {
 		return nil
 	}
 
-	t.Run("validation failure short-circuits and parent not called", func(t *testing.T) {
-		parent := &stubTxSelector{parentReturn: true}
-		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte(invalidTx))
-		require.False(t, ok)
-		require.Equal(t, 0, parent.calls, "parent must not be invoked when ValidateTx errors")
-	})
-
-	t.Run("memTx forwarded to parent unmodified after validation passes", func(t *testing.T) {
-		// ExtTxSelector must validate with the received memTx and then forward
-		// the same value so the parent can enforce maxBlockGas via GetGas().
-		parent := &stubTxSelector{parentReturn: true}
-		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
-		sentinel := gasOnlyTx{gas: 42}
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, sentinel, []byte("valid"))
-		require.True(t, ok)
-		require.Equal(t, 1, parent.calls)
-		require.Equal(t, sentinel, parent.lastMemTx, "parent must receive the original memTx so it can read GetGas()")
-		require.Equal(t, []byte("valid"), parent.lastTxBz)
-	})
-
-	t.Run("parent gas cap blocks tx when memTx gas exceeds remaining budget", func(t *testing.T) {
-		// When memTx carries gas > remaining block budget, a gas-aware parent
-		// (like baseapp.DefaultTxSelector) returns false. ExtTxSelector must
-		// propagate that rejection — it requires forwarding the real memTx.
-		parent := &gasCapSelector{maxBlockGas: 100_000}
-		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
-
-		// First tx: 60_000 gas — fits.
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 100_000, gasOnlyTx{gas: 60_000}, []byte("tx1"))
-		require.True(t, ok)
-		require.Equal(t, uint64(60_000), parent.totalGas)
-
-		// Second tx: 60_000 gas — would exceed cap (60k+60k > 100k).
-		ok = ext.SelectTxForProposal(context.Background(), 1<<20, 100_000, gasOnlyTx{gas: 60_000}, []byte("tx2"))
-		require.False(t, ok, "parent gas cap must reject tx when block gas budget exhausted")
-	})
-
-	t.Run("validation success delegates to parent (false passthrough)", func(t *testing.T) {
-		parent := &stubTxSelector{parentReturn: false}
-		ext := NewExtTxSelector(parent, txDecoder, rejectInvalid)
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, nil, []byte("valid"))
-		require.False(t, ok)
-		require.Equal(t, 1, parent.calls)
+	t.Run("blocklist reject skips tx, keeps scanning", func(t *testing.T) {
+		ts := NewExtTxSelector(rejectInvalid, nil)
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte(invalidTx))
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("ok"))
+		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
 	})
 
 	t.Run("validate receives original memTx", func(t *testing.T) {
-		origTx := &stubTx{}
-		var capturedValidateTx sdk.Tx
-		captureValidate := func(tx sdk.Tx, _ []byte) error {
-			capturedValidateTx = tx
-			return nil
-		}
+		orig := &stubTx{}
+		var captured sdk.Tx
+		ts := NewExtTxSelector(func(tx sdk.Tx, _ []byte) error { captured = tx; return nil }, nil)
+		ts.SelectTxForProposal(bg, maxB, maxB, orig, []byte("ok"))
+		require.Same(t, orig, captured)
+	})
 
-		parent := &stubTxSelector{parentReturn: true}
-		ext := NewExtTxSelector(parent, txDecoder, captureValidate)
-		ok := ext.SelectTxForProposal(context.Background(), 1<<20, 1<<20, origTx, []byte("valid"))
+	t.Run("MaxTxBytes: too-large tx skipped, block fills to budget", func(t *testing.T) {
+		// "raw-X" framed = tag(1)+len(1)+5 = 7 bytes. Budget 14 → two fit.
+		ts := NewExtTxSelector(acceptAll, nil)
+		require.False(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-1")))
+		require.True(t, ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-2")), "full at 14 bytes")
+		ts.SelectTxForProposal(bg, 14, maxB, nil, []byte("raw-3")) // would overflow → skipped
+		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, ts.SelectedTxs(bg))
+	})
 
-		require.True(t, ok)
-		require.Same(t, origTx, capturedValidateTx, "ValidateTx must receive the original memTx")
-		require.Same(t, origTx, parent.lastMemTx.(*stubTx), "parent must also receive the original memTx")
+	t.Run("MaxBlockGas: over-budget tx skipped, smaller still fits", func(t *testing.T) {
+		ts := NewExtTxSelector(acceptAll, nil)
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("a"))
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 60_000}, []byte("b")) // 60k+60k>100k → skip
+		ts.SelectTxForProposal(bg, maxB, 100_000, gasOnlyTx{gas: 40_000}, []byte("c")) // 60k+40k=100k → fits
+		require.Equal(t, [][]byte{[]byte("a"), []byte("c")}, ts.SelectedTxs(bg))
+	})
+
+	t.Run("baseFee gate excludes feeCap below baseFee", func(t *testing.T) {
+		const denom = "basecro"
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
+		ts := NewExtTxSelector(acceptAll, feeFn)
+		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))} // 10 < 20 → excluded
+		txOK := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}  // 40 >= 20 → kept
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txOK, []byte("ok"))
+		require.Equal(t, [][]byte{[]byte("ok")}, ts.SelectedTxs(bg))
+	})
+
+	t.Run("nil baseFee disables the gate", func(t *testing.T) {
+		feeFn := func(_ sdk.Context) (*big.Int, string) { return nil, "basecro" }
+		ts := NewExtTxSelector(acceptAll, feeFn)
+		txLow := feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin("basecro", 1))}
+		ts.SelectTxForProposal(sdk.Context{}, maxB, maxB, txLow, []byte("low"))
+		require.Equal(t, [][]byte{[]byte("low")}, ts.SelectedTxs(bg))
+	})
+
+	t.Run("Clear resets selection and baseFee cache", func(t *testing.T) {
+		ts := NewExtTxSelector(acceptAll, nil)
+		ts.SelectTxForProposal(bg, maxB, maxB, nil, []byte("a"))
+		ts.Clear()
+		require.Empty(t, ts.SelectedTxs(bg))
+		require.False(t, ts.feeReady)
 	})
 }
 
@@ -298,192 +257,17 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 	})
 }
 
-// fakeIterator is a minimal mempool.Iterator over a fixed slice.
-type fakeIterator struct {
-	txs []sdk.Tx
-}
-
-func (f *fakeIterator) Next() mempool.Iterator {
-	if len(f.txs) <= 1 {
-		return nil
-	}
-	return &fakeIterator{txs: f.txs[1:]}
-}
-
-func (f *fakeIterator) Tx() sdk.Tx { return f.txs[0] }
-
-// fakeMempool satisfies mempool.Mempool with a fixed list of txs. It does NOT
-// implement ExtMempool, so mempool.SelectBy falls back to the Select iterator
-// path — the path fastPrepareProposalAppMempool exercises.
-type fakeMempool struct {
-	txs []sdk.Tx
-}
-
-func (m *fakeMempool) Insert(context.Context, sdk.Tx) error { return nil }
-func (m *fakeMempool) Select(_ context.Context, _ [][]byte) mempool.Iterator {
-	if len(m.txs) == 0 {
-		return nil
-	}
-	return &fakeIterator{txs: m.txs}
-}
-func (m *fakeMempool) CountTx() int        { return len(m.txs) }
-func (m *fakeMempool) Remove(sdk.Tx) error { return nil }
-
-func TestFastPrepareProposalAppMempool(t *testing.T) {
-	acceptAll := func(_ sdk.Tx, _ []byte) error { return nil }
-	rejectInvalid := func(_ sdk.Tx, txBz []byte) error {
-		if string(txBz) == invalidTx {
-			return errors.New("invalid tx")
-		}
-		return nil
-	}
-	mustNotEncode := func(_ sdk.Tx) ([]byte, error) {
-		t.Helper()
-		t.Fatal("txEncoder must not be called when encCache hits")
-		return nil, nil
-	}
-
-	t.Run("encCache hit emits raw bytes without encoder", func(t *testing.T) {
-		tx1, tx2 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2}}
+func TestNoCheckProposalTxVerifier(t *testing.T) {
+	// Hit path only: encCache.Get returns cached bytes without touching BaseApp
+	// (nil here). The miss path is a trivial txv.TxEncode delegation.
+	t.Run("encCache hit returns cached bytes without encoding", func(t *testing.T) {
 		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(tx1, []byte("raw-1"))
-		enc.Set(tx2, []byte("raw-2"))
-
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
-	})
-
-	t.Run("encoder fallback when encCache miss", func(t *testing.T) {
 		tx := &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{tx}}
-		enc := cronosmempool.NewEncoderCache(0) // empty — forces fallback
-
-		var encCalls int
-		fallback := func(_ sdk.Tx) ([]byte, error) {
-			encCalls++
-			return []byte("encoded"), nil
-		}
-
-		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
+		enc.Set(tx, []byte("raw"))
+		v := &NoCheckProposalTxVerifier{encCache: enc}
+		bz, err := v.PrepareProposalVerifyTx(tx)
 		require.NoError(t, err)
-		require.Equal(t, 1, encCalls)
-		require.Equal(t, [][]byte{[]byte("encoded")}, got.Txs)
-	})
-
-	t.Run("encoder error skips tx, continues iteration", func(t *testing.T) {
-		txBad, txGood := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{txBad, txGood}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(txGood, []byte("good"))
-
-		fallback := func(tx sdk.Tx) ([]byte, error) {
-			if tx == txBad {
-				return nil, errors.New("encode err")
-			}
-			t.Fatal("encoder must not be called for cached tx")
-			return nil, nil
-		}
-
-		h := fastPrepareProposalAppMempool(mp, enc, fallback, acceptAll, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("good")}, got.Txs)
-	})
-
-	t.Run("validateTx reject skips tx, continues iteration", func(t *testing.T) {
-		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(tx1, []byte("ok-1"))
-		enc.Set(tx2, []byte(invalidTx))
-		enc.Set(tx3, []byte("ok-2"))
-
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, rejectInvalid, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
-	})
-
-	t.Run("MaxTxBytes cap stops iteration at boundary", func(t *testing.T) {
-		// Each "raw-X" is 5 bytes → proto-framed size is tag(1) + length(1) +
-		// data(5) = 7 bytes. Budget 18 → two fit (14), third (21) exceeds.
-		tx1, tx2, tx3 := &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}, &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(tx1, []byte("raw-1"))
-		enc.Set(tx2, []byte("raw-2"))
-		enc.Set(tx3, []byte("raw-3"))
-
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 18})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("raw-1"), []byte("raw-2")}, got.Txs)
-	})
-
-	t.Run("MaxBlockGas cap stops iteration when gas exceeded", func(t *testing.T) {
-		tx1 := &gasOnlyTx{gas: 60_000}
-		tx2 := &gasOnlyTx{gas: 60_000} // 60k+60k > 100k cap → reject + stop
-		tx3 := &gasOnlyTx{gas: 1}      // never reached
-		mp := &fakeMempool{txs: []sdk.Tx{tx1, tx2, tx3}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(tx1, []byte("a"))
-		enc.Set(tx2, []byte("b"))
-		enc.Set(tx3, []byte("c"))
-
-		ctx := sdk.Context{}.WithConsensusParams(cmtproto.ConsensusParams{
-			Block: &cmtproto.BlockParams{MaxBytes: 1 << 20, MaxGas: 100_000},
-		})
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
-		got, err := h(ctx, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("a")}, got.Txs)
-	})
-
-	t.Run("MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {
-		tx := &gasOnlyTx{gas: 1}
-		mp := &fakeMempool{txs: []sdk.Tx{tx}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(tx, []byte("a"))
-
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, nil)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 0})
-		require.NoError(t, err)
-		require.Empty(t, got.Txs)
-	})
-
-	t.Run("baseFee gate excludes tx whose feeCap is below baseFee", func(t *testing.T) {
-		const denom = "basecro"
-		// feeCap = fee/gas. tx1: 100/10 = 10 < 20 → excluded. tx2: 400/10 = 40 >= 20 → kept.
-		txLow := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 100))}
-		txOK := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin(denom, 400))}
-		mp := &fakeMempool{txs: []sdk.Tx{txLow, txOK}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(txLow, []byte("low"))
-		enc.Set(txOK, []byte("ok"))
-
-		feeFn := func(_ sdk.Context) (*big.Int, string) { return big.NewInt(20), denom }
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, feeFn)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("ok")}, got.Txs)
-	})
-
-	t.Run("nil baseFee disables the gate", func(t *testing.T) {
-		// Pre-london / NoBaseFee: gate off, low-feeCap tx still included.
-		txLow := &feeCapTx{gas: 10, fee: sdk.NewCoins(sdk.NewInt64Coin("basecro", 1))}
-		mp := &fakeMempool{txs: []sdk.Tx{txLow}}
-		enc := cronosmempool.NewEncoderCache(0)
-		enc.Set(txLow, []byte("low"))
-
-		feeFn := func(_ sdk.Context) (*big.Int, string) { return nil, "basecro" }
-		h := fastPrepareProposalAppMempool(mp, enc, mustNotEncode, acceptAll, feeFn)
-		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{MaxTxBytes: 1 << 20})
-		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("low")}, got.Txs)
+		require.Equal(t, []byte("raw"), bz)
 	})
 }
 

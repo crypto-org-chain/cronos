@@ -29,28 +29,94 @@ type BlockList struct {
 
 var _ baseapp.TxSelector = &ExtTxSelector{}
 
-// ExtTxSelector extends a baseapp.TxSelector with extra tx validation method
+// ExtTxSelector is a self-contained baseapp.TxSelector: blocklist + baseFee gate,
+// then DefaultTxSelector-style byte/gas accounting using ProtoSizeForTx (no per-tx
+// alloc) and overflow-safe gas math.
 type ExtTxSelector struct {
-	baseapp.TxSelector
-	TxDecoder  sdk.TxDecoder
-	ValidateTx func(sdk.Tx, []byte) error
+	validateTx  func(sdk.Tx, []byte) error
+	proposalFee func(sdk.Context) (*big.Int, string) // baseFee gate source; nil disables
+
+	selectedTxs [][]byte
+	totalBytes  int64
+	totalGas    uint64
+
+	// baseFee is constant within a proposal; cached on first Select, reset by Clear.
+	feeReady bool
+	baseFee  *big.Int
+	evmDenom string
 }
 
-func NewExtTxSelector(parent baseapp.TxSelector, txDecoder sdk.TxDecoder, validateTx func(sdk.Tx, []byte) error) *ExtTxSelector {
-	return &ExtTxSelector{
-		TxSelector: parent,
-		TxDecoder:  txDecoder,
-		ValidateTx: validateTx,
-	}
+func NewExtTxSelector(validateTx func(sdk.Tx, []byte) error, proposalFee func(sdk.Context) (*big.Int, string)) *ExtTxSelector {
+	return &ExtTxSelector{validateTx: validateTx, proposalFee: proposalFee}
 }
 
-func (ts *ExtTxSelector) SelectTxForProposal(ctx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
-	if err := ts.ValidateTx(memTx, txBz); err != nil {
-		return false
+func (ts *ExtTxSelector) SelectedTxs(_ context.Context) [][]byte {
+	return ts.selectedTxs
+}
+
+func (ts *ExtTxSelector) Clear() {
+	ts.selectedTxs = nil
+	ts.totalBytes = 0
+	ts.totalGas = 0
+	ts.feeReady = false
+	ts.baseFee = nil
+	ts.evmDenom = ""
+}
+
+func (ts *ExtTxSelector) SelectTxForProposal(goCtx context.Context, maxTxBytes, maxBlockGas uint64, memTx sdk.Tx, txBz []byte) bool {
+	// returned bool = stop iterating; true once the block is full.
+	full := func() bool {
+		return uint64(ts.totalBytes) >= maxTxBytes || (maxBlockGas > 0 && ts.totalGas >= maxBlockGas)
 	}
 
-	// Pass memTx so the parent selector can read tx gas wanted and stop at maxBlockGas.
-	return ts.TxSelector.SelectTxForProposal(ctx, maxTxBytes, maxBlockGas, memTx, txBz)
+	if err := ts.validateTx(memTx, txBz); err != nil {
+		return full() // blocked/invalid: skip, keep scanning
+	}
+
+	txSize := cronosmempool.ProtoSizeForTx(txBz)
+	if uint64(ts.totalBytes)+uint64(txSize) > maxTxBytes {
+		return full() // too large: try smaller txs unless already full
+	}
+
+	feeTx, isFeeTx := memTx.(sdk.FeeTx)
+
+	// baseFee gate: drop txs whose feeCap fell below a risen baseFee (idle senders
+	// InsertTx ante + recheck miss); else they'd fail ante at FinalizeBlock. Skip,
+	// don't evict: feeCap may clear next block.
+	if isFeeTx {
+		if bf, denom := ts.gateBaseFee(goCtx); bf != nil && denom != "" {
+			if gas := feeTx.GetGas(); gas > 0 {
+				feeCap := feeTx.GetFee().AmountOf(denom).Quo(sdkmath.NewIntFromUint64(gas))
+				if feeCap.LT(sdkmath.NewIntFromBigInt(bf)) {
+					return full()
+				}
+			}
+		}
+	}
+
+	if maxBlockGas > 0 && isFeeTx {
+		gasWanted := feeTx.GetGas()
+		// Overflow-safe: totalGas <= maxBlockGas by induction.
+		if gasWanted > maxBlockGas-ts.totalGas {
+			return full()
+		}
+		ts.totalGas += gasWanted
+	}
+
+	ts.selectedTxs = append(ts.selectedTxs, txBz)
+	ts.totalBytes += txSize
+	return full()
+}
+
+// gateBaseFee reads (baseFee, evmDenom) once per proposal; nil baseFee disables the gate.
+func (ts *ExtTxSelector) gateBaseFee(goCtx context.Context) (*big.Int, string) {
+	if !ts.feeReady {
+		ts.feeReady = true
+		if ts.proposalFee != nil {
+			ts.baseFee, ts.evmDenom = ts.proposalFee(sdk.UnwrapSDKContext(goCtx))
+		}
+	}
+	return ts.baseFee, ts.evmDenom
 }
 
 // fastNoOpPrepareProposal returns a PrepareProposal handler for the nil/NoOp
@@ -132,116 +198,30 @@ func fastNoOpPrepareProposal(
 	}
 }
 
-// fastPrepareProposalAppMempool returns a PrepareProposal handler for
-// mempool.type=app: iterates the priority mempool directly, reads raw bytes from
-// encCache (populated by InsertTxHandler), respects MaxTxBytes / consensus MaxGas.
-//
-// Skips baseapp.PrepareProposalVerifyTx (full ante re-run): InsertTxHandler ran
-// ante at admission and RecheckTxs evicts stale nonce/balance after each block.
-// The gap both miss — a risen baseFee for an idle (never-rechecked) sender — is
-// closed by the inline feeCap<baseFee gate below, far cheaper than a full ante.
-// Tradeoff: ante decorators that differ between Check and PrepareProposal modes
-// aren't re-evaluated, so such a tx is caught only at FinalizeBlock.
-//
-// proposalFee returns (baseFee, evmDenom); nil baseFee disables the gate.
-// encCache MUST be non-nil. txEncoder is the fallback for uncached txs (rare).
-func fastPrepareProposalAppMempool(
-	mp mempool.Mempool,
-	encCache *cronosmempool.EncoderCache,
-	txEncoder sdk.TxEncoder,
-	validateTx func(sdk.Tx, []byte) error,
-	proposalFee func(sdk.Context) (baseFee *big.Int, evmDenom string),
-) sdk.PrepareProposalHandler {
-	return func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
-		maxTxBytes := req.MaxTxBytes
-		if maxTxBytes <= 0 {
-			return &abci.ResponsePrepareProposal{}, nil
-		}
+var _ baseapp.ProposalTxVerifier = &NoCheckProposalTxVerifier{}
 
-		var maxBlockGas uint64
-		if b := ctx.ConsensusParams().Block; b != nil && b.MaxGas > 0 {
-			maxBlockGas = uint64(b.MaxGas)
-		}
+// NoCheckProposalTxVerifier replaces BaseApp.PrepareProposalVerifyTx (which runs
+// a full ante) with a cache lookup: ante already ran at admission and recheck
+// evicts stale txs, so PrepareProposal only needs canonical bytes. Cache hit ->
+// cached bytes; miss -> encode. Mirrors cosmos/evm. The skipped baseFee check for
+// idle senders is reapplied by ExtTxSelector's gate.
+type NoCheckProposalTxVerifier struct {
+	*baseapp.BaseApp
+	encCache *cronosmempool.EncoderCache
+}
 
-		// baseFee is constant within a block; read once. nil => gate disabled.
-		var (
-			baseFee  *big.Int
-			evmDenom string
-		)
-		if proposalFee != nil {
-			baseFee, evmDenom = proposalFee(ctx)
-		}
+func NewNoCheckProposalTxVerifier(app *baseapp.BaseApp, encCache *cronosmempool.EncoderCache) *NoCheckProposalTxVerifier {
+	return &NoCheckProposalTxVerifier{BaseApp: app, encCache: encCache}
+}
 
-		var (
-			selected   [][]byte
-			totalBytes int64
-			totalGas   uint64
-			cacheHits  float32
-			cacheMiss  float32
-		)
-		snapshot := cronosmempool.PoolSnapshot(ctx, mp)
-
-		for _, memTx := range snapshot {
-			bz, hit, err := cronosmempool.EncodeTx(encCache, txEncoder, memTx)
-			if hit {
-				cacheHits++
-			} else {
-				cacheMiss++
-			}
-			if err != nil {
-				continue
-			}
-
-			// Match baseapp.DefaultTxSelector's accounting so the block
-			// respects cometbft's MaxBytes wire limit, not just raw payload sum.
-			txSize := cronosmempool.ProtoSizeForTx(bz)
-			if totalBytes+txSize > maxTxBytes {
-				break
-			}
-
-			if err := validateTx(memTx, bz); err != nil {
-				continue
-			}
-
-			feeTx, isFeeTx := memTx.(sdk.FeeTx)
-
-			// baseFee gate: drop txs whose feeCap fell below a risen baseFee
-			// (the case InsertTx ante + RecheckTxs miss for idle senders), else
-			// they'd fail ante at FinalizeBlock with ErrInsufficientFee. Mirrors the
-			// fatal check in ethermint NewDynamicFeeChecker (feeCap < baseFee). continue,
-			// not break: snapshot priority order isn't strictly feeCap order.
-			if isFeeTx && baseFee != nil && evmDenom != "" {
-				if gas := feeTx.GetGas(); gas > 0 {
-					feeCap := feeTx.GetFee().AmountOf(evmDenom).Quo(sdkmath.NewIntFromUint64(gas))
-					if feeCap.LT(sdkmath.NewIntFromBigInt(baseFee)) {
-						continue
-					}
-				}
-			}
-
-			if maxBlockGas > 0 && isFeeTx {
-				gasWanted := feeTx.GetGas()
-				// Overflow-safe: see fastNoOpPrepareProposal.
-				if gasWanted > maxBlockGas-totalGas {
-					break
-				}
-				totalGas += gasWanted
-			}
-
-			selected = append(selected, bz)
-			totalBytes += txSize
-		}
-		// Emit cache hit/miss once per proposal (not per tx) so the proto.Marshal
-		// fallback rate is observable when pool depth exceeds the encoder-cache
-		// size. No-op unless telemetry is enabled.
-		if cacheHits > 0 {
-			telemetry.IncrCounter(cacheHits, "cronos", "mempool", "prepare", "encode_cache", "hit") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
-		}
-		if cacheMiss > 0 {
-			telemetry.IncrCounter(cacheMiss, "cronos", "mempool", "prepare", "encode_cache", "miss") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
-		}
-		return &abci.ResponsePrepareProposal{Txs: selected}, nil
+func (txv *NoCheckProposalTxVerifier) PrepareProposalVerifyTx(tx sdk.Tx) ([]byte, error) {
+	bz, hit, err := cronosmempool.EncodeTx(txv.encCache, txv.TxEncode, tx)
+	result := "miss"
+	if hit {
+		result = "hit"
 	}
+	telemetry.IncrCounter(1, "cronos", "mempool", "prepare", "encode_cache", result) //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
+	return bz, err
 }
 
 type ProposalHandler struct {
