@@ -103,6 +103,7 @@ func (e *EncoderCache) HashTx(tx sdk.Tx, bz []byte) [32]byte {
 	if el, ok := e.items[tx]; ok {
 		if it := el.Value.(*item); it.hashed {
 			h := it.hash
+			e.lru.MoveToFront(el) // accessed: keep hot, match Get/Set
 			e.mu.Unlock()
 			return h
 		}
@@ -117,6 +118,7 @@ func (e *EncoderCache) HashTx(tx sdk.Tx, bz []byte) [32]byte {
 		it := el.Value.(*item)
 		it.hash = h
 		it.hashed = true
+		e.lru.MoveToFront(el)
 	}
 	e.mu.Unlock()
 	return h
