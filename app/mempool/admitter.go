@@ -37,7 +37,10 @@ type Admitter struct {
 	maxRecheckBatch int
 	pendingMu       sync.Mutex
 	// pending holds leftover transactions in the mempool after a last committed block
-	pending             map[string]struct{}
+	pending map[string]struct{}
+	// deferred carries candidates past maxRecheckBatch to the next cycle, so a
+	// deep per-sender queue eventually drains instead of being silently dropped.
+	deferred            []sdk.Tx
 	lastCommittedHeight int64
 }
 
@@ -178,7 +181,9 @@ func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
 
 // RecheckTxs evicts pool txs invalidated by the last block: those whose
 // TimeoutHeight has passed (any sender), and those of senders touched by the
-// block that now fail the AnteHandler in ReCheck mode.
+// block that now fail the AnteHandler in ReCheck mode. RunTx(ReCheck) work is
+// capped per cycle; overflow is carried (front-loaded) to the next cycle rather
+// than dropped, so a deep per-sender queue still drains over time.
 func (a *Admitter) RecheckTxs() {
 	if a.mpool == nil {
 		return
@@ -186,15 +191,26 @@ func (a *Admitter) RecheckTxs() {
 	a.pendingMu.Lock()
 	pending := a.pending
 	height := a.lastCommittedHeight
+	deferred := a.deferred
 	a.pending = nil
+	a.deferred = nil
 	a.pendingMu.Unlock()
 	// Nothing to do before the first committed block (height 0) with no pending
-	// senders. In steady state height > 0, so the sweep always scans.
-	if len(pending) == 0 && height == 0 {
+	// senders and no carryover. In steady state height > 0, so the sweep always scans.
+	if len(pending) == 0 && len(deferred) == 0 && height == 0 {
 		return
 	}
 
 	snapshot := PoolSnapshot(context.Background(), a.mpool)
+	// deferredLive maps each carried-over tx to whether it's still in the pool.
+	// Sized to the (small) carryover, not the whole snapshot; nil with no carryover.
+	var deferredLive map[sdk.Tx]bool
+	if len(deferred) > 0 {
+		deferredLive = make(map[sdk.Tx]bool, len(deferred))
+		for _, tx := range deferred {
+			deferredLive[tx] = false
+		}
+	}
 
 	var (
 		candidates     []sdk.Tx
@@ -207,6 +223,11 @@ func (a *Admitter) RecheckTxs() {
 			expiredEvicted++
 			continue
 		}
+		if deferredLive != nil {
+			if _, isDeferred := deferredLive[tx]; isDeferred {
+				deferredLive[tx] = true
+			}
+		}
 		if len(pending) == 0 {
 			continue
 		}
@@ -216,13 +237,40 @@ func (a *Admitter) RecheckTxs() {
 				break
 			}
 		}
-		if a.maxRecheckBatch > 0 && len(candidates) >= a.maxRecheckBatch {
-			break
-		}
 	}
 	if expiredEvicted > 0 {
 		telemetry.IncrCounter(expiredEvicted, "cronos", "mempool", "recheck", "expired") //nolint:staticcheck // telemetry wrapper deprecated upstream but is the canonical metrics API
 	}
+
+	// Front-load last cycle's overflow (still in the pool) ahead of fresh
+	// candidates: the snapshot is priority-ordered, so without this the cap would
+	// re-take the same prefix every cycle and the tail would starve.
+	if len(deferred) > 0 {
+		ordered := make([]sdk.Tx, 0, len(deferred)+len(candidates))
+		for _, tx := range deferred {
+			if deferredLive[tx] {
+				ordered = append(ordered, tx) // skip txs included/evicted since carry
+			}
+		}
+		for _, tx := range candidates {
+			if _, isDeferred := deferredLive[tx]; isDeferred {
+				continue // sender re-touched this cycle; avoid double recheck
+			}
+			ordered = append(ordered, tx)
+		}
+		candidates = ordered
+	}
+
+	// Bound RunTx(ReCheck) per cycle; carry the overflow forward.
+	if a.maxRecheckBatch > 0 && len(candidates) > a.maxRecheckBatch {
+		carried := make([]sdk.Tx, len(candidates)-a.maxRecheckBatch)
+		copy(carried, candidates[a.maxRecheckBatch:])
+		candidates = candidates[:a.maxRecheckBatch]
+		a.pendingMu.Lock()
+		a.deferred = carried
+		a.pendingMu.Unlock()
+	}
+
 	if len(candidates) == 0 {
 		return
 	}

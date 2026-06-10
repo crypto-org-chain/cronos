@@ -391,6 +391,38 @@ func TestRecheckTxs_BatchCapLimitsCandidates(t *testing.T) {
 	}
 }
 
+// Overflow past the batch cap must carry forward and drain over later cycles —
+// front-loaded so the priority-ordered tail isn't re-deferred forever — with
+// every tx rechecked exactly once.
+func TestRecheckTxs_BatchCapCarriesOverflow(t *testing.T) {
+	const total = 5
+	const batch = 2
+	f := newRecheckFixture()
+	for i := 0; i < total; i++ {
+		f.add(i+1, "alice", uint64(i), "alice-"+strconv.Itoa(i))
+	}
+	f.a.maxRecheckBatch = batch
+	f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+
+	// Cycle 1 touches alice; cycles 2-3 have empty pending but must still drain
+	// the carried overflow.
+	f.a.RecheckTxs()
+	f.a.RecheckTxs()
+	f.a.RecheckTxs()
+
+	if got := len(f.runner.modes); got != total {
+		t.Fatalf("expected all %d txs rechecked across cycles, got %d", total, got)
+	}
+	for i := 0; i < total; i++ {
+		if !f.runner.seen["alice-"+strconv.Itoa(i)] {
+			t.Fatalf("alice-%d was never rechecked (starved past the cap)", i)
+		}
+	}
+	if f.a.deferred != nil {
+		t.Fatalf("deferred queue must be drained, still holds %d", len(f.a.deferred))
+	}
+}
+
 // maxRecheckBatch == 0 must leave the limit disabled (all candidates rechecked).
 func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
 	const total = 5
