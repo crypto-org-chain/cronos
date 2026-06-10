@@ -365,16 +365,16 @@ func New(
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
 			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheSize, v, err))
-		} else {
-			decodeCacheSize = parsed
 		}
+		decodeCacheSize = parsed
 	}
 	maxTxBytes := cmdcfg.DefaultTxDecodeCacheMaxTxBytes
 	if v := appOpts.Get(FlagTxDecodeCacheMaxTxBytes); v != nil {
 		parsed, err := cast.ToIntE(v)
 		if err != nil {
 			panic(fmt.Errorf("invalid %s %q: %w", FlagTxDecodeCacheMaxTxBytes, v, err))
-		} else if parsed > 0 {
+		}
+		if parsed > 0 {
 			maxTxBytes = parsed
 		}
 	}
