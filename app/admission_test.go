@@ -7,11 +7,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
+	cronosmempool "github.com/crypto-org-chain/cronos/app/mempool"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
@@ -175,6 +177,68 @@ func TestInsertTxConcurrentAdmission(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+// TestReapVsRecheckConcurrentRealTxs races the reap path (EncodeTx marshal +
+// HashTx) against the recheck path (signers() + RunTx(ExecModeReCheck)) on the
+// SAME pooled tx pointers, with real ethermint wrappers. reap_test.go races
+// insert-vs-reap but with stubs; TestInsertTxConcurrentAdmission uses real
+// wrappers but distinct pointers per goroutine. Run with -race.
+func TestReapVsRecheckConcurrentRealTxs(t *testing.T) {
+	const accounts = 64
+	const reapIters = 400
+	const reapers = 4
+	f := setupAdmissionApp(t, accounts)
+
+	// One nonce-0 tx per account. Admitting populates the pool with real wrappers;
+	// the decode cache reuses one pointer per tx (pool key == encCache key).
+	txBytes := make([][]byte, accounts)
+	for g := range accounts {
+		txBytes[g] = f.signTransfer(t, &f.accounts[g], nil)
+		resp, err := f.app.InsertTx(&abci.RequestInsertTx{Tx: txBytes[g]})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, "tx %d not admitted", g)
+	}
+	require.Equal(t, accounts, f.app.Mempool().CountTx())
+
+	// Admission bumped each sender's checkState nonce; an empty block resets it to
+	// committed (nonce 0) so recheck of these nonce-0 txs passes instead of
+	// failing stale.
+	_, err := f.app.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 2, ProposerAddress: f.consAddress})
+	require.NoError(t, err)
+	_, err = f.app.Commit()
+	require.NoError(t, err)
+	require.Equal(t, accounts, f.app.Mempool().CountTx(), "empty block must not evict")
+
+	// nil encCache forces EncodeTx through the real marshal path, not a cache hit.
+	reap := cronosmempool.NewReapTxsHandler(
+		f.app.Mempool(), f.app.TxConfig().TxEncoder(), nil,
+		time.Second, 0, log.NewNopLogger(),
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(reapers + 1)
+
+	go func() {
+		defer wg.Done()
+		f.app.mempoolAdmitter.StageRecheckSenders(2, txBytes)
+		f.app.mempoolAdmitter.RecheckTxs()
+	}()
+	for r := range reapers {
+		go func(r int) {
+			defer wg.Done()
+			for range reapIters {
+				if _, err := reap(&abci.RequestReapTxs{}); err != nil {
+					t.Errorf("reaper %d: %v", r, err)
+					return
+				}
+			}
+		}(r)
+	}
+	wg.Wait()
+
+	// Survival confirms recheck passed and the shared pointers stayed live.
+	require.Equal(t, accounts, f.app.Mempool().CountTx(), "no tx should be evicted")
 }
 
 // BenchmarkAdmission measures admitted tx/s through InsertTx at the current
