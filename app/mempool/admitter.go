@@ -24,6 +24,10 @@ var _ txRunner = (*baseapp.BaseApp)(nil)
 
 // Admitter owns the app-side mempool admission path for mempool.type=app.
 type Admitter struct {
+	// mu guards BaseApp.checkState: every RunTx (admission Check, RPC CheckTx,
+	// the ReCheck batch) plus Commit's checkState reset (via AdmissionMutex).
+	// AppMempool.Lock() is a no-op, so mu replaces the mempool lock BaseApp
+	// normally relies on. Held only around RunTx, never the lock-free pool scan.
 	mu        sync.Mutex
 	runner    txRunner
 	encCache  *EncoderCache
@@ -35,7 +39,9 @@ type Admitter struct {
 	decoder sdk.TxDecoder
 	// maxRecheckBatch caps RunTx(ReCheck) calls per Commit cycle; 0 = unlimited.
 	maxRecheckBatch int
-	pendingMu       sync.Mutex
+	// pendingMu guards the staging fields (pending, deferred, lastCommittedHeight).
+	// Separate from mu so FinalizeBlock staging never blocks behind mu's RunTx batches.
+	pendingMu sync.Mutex
 	// pending accumulates senders of committed blocks awaiting recheck; merged
 	// (not overwritten) across blocks so an un-drained block's senders aren't lost.
 	pending map[string]struct{}
