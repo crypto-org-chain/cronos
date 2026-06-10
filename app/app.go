@@ -497,8 +497,8 @@ func New(
 			app.SetPrepareProposal(h.PrepareProposalHandler())
 		} else {
 			// flood mempool, or mempool.type=app with cache disabled: full-ante
-			// default handler. fastNoOpPrepareProposal adds malformed-tx fault
-			// tolerance for the NoOp mempool case.
+			// default handler. ExtTxSelector still applies the blocklist + gas/byte
+			// caps; the NoOp-mempool branch echoes req.Txs (already CheckTx-decoded).
 			if mempoolType == cronosmempool.TypeApp {
 				logger.Warn("mempool.type=app: tx-decode-cache-size=0 disables fast PrepareProposal; using slow default handler")
 			}
@@ -507,12 +507,7 @@ func New(
 			if signerExtractor != nil {
 				defaultProposalHandler.SetSignerExtractionAdapter(signerExtractor)
 			}
-			app.SetPrepareProposal(fastNoOpPrepareProposal(
-				mpool,
-				defaultProposalHandler.PrepareProposalHandler(),
-				activeDecoder,
-				blockProposalHandler.ValidateTransaction,
-			))
+			app.SetPrepareProposal(defaultProposalHandler.PrepareProposalHandler())
 		}
 
 		// The default process proposal handler do nothing when the mempool is noop,
