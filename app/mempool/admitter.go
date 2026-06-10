@@ -164,24 +164,24 @@ func (a *Admitter) SetRecheckBatchSize(n int) {
 // RecheckTxs can re-validate only their remaining pending txs, and stages the
 // committed height for TimeoutHeight eviction.
 func (a *Admitter) StageRecheckSenders(height int64, txs [][]byte) {
+	// Decode + extract signers unlocked (the expensive part), then publish height
+	// and pending in one critical section so a reader never sees a torn update.
+	var senders map[string]struct{}
+	if a.signer != nil && a.decoder != nil {
+		senders = make(map[string]struct{}, len(txs))
+		for _, bz := range txs {
+			tx, err := a.decoder(bz)
+			if err != nil {
+				continue // non-sdk txs (e.g. vote extensions) have no mempool entry
+			}
+			for _, s := range a.signers(tx) {
+				senders[s] = struct{}{}
+			}
+		}
+	}
+
 	a.pendingMu.Lock()
 	a.lastCommittedHeight = height
-	a.pendingMu.Unlock()
-
-	if a.signer == nil || a.decoder == nil {
-		return
-	}
-	senders := make(map[string]struct{}, len(txs))
-	for _, bz := range txs {
-		tx, err := a.decoder(bz)
-		if err != nil {
-			continue // non-sdk txs (e.g. vote extensions) have no mempool entry
-		}
-		for _, s := range a.signers(tx) {
-			senders[s] = struct{}{}
-		}
-	}
-	a.pendingMu.Lock()
 	if a.pending == nil {
 		a.pending = senders
 	} else {
