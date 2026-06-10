@@ -426,7 +426,13 @@ func New(
 	}
 	txsPerBlock := cmdcfg.DefaultMempoolTxsPerBlock
 	if v := appOpts.Get(FlagMempoolTxsPerBlock); v != nil {
-		txsPerBlock = cast.ToInt(v)
+		// Parse strictly: a silent 0/negative would disable the gossip-reap and
+		// recheck-batch caps (both treat <=0 as unlimited), removing the DoS bound.
+		parsed, err := cast.ToIntE(v)
+		if err != nil || parsed < 0 {
+			panic(fmt.Errorf("invalid %s %q: must be a non-negative integer", FlagMempoolTxsPerBlock, v))
+		}
+		txsPerBlock = parsed
 	}
 	if mempoolMaxTxs >= 0 && feeBump >= 0 {
 		// NOTE we use custom transaction decoder that supports the sdk.Tx interface instead of sdk.StdTx

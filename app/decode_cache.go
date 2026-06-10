@@ -91,7 +91,9 @@ func (s *cacheShard) set(h uint64, bz []byte, tx sdk.Tx) {
 
 // decodeCache is a sharded LRU cache of decoded txs. Returned sdk.Tx pointers
 // are shared across consumers (PrepareProposal, runTx, CheckTx) — callers MUST
-// NOT mutate them.
+// NOT mutate them. Safe today because decode is the only writer: the EVM ante's
+// VerifySender only compares against MsgEthereumTx.From (set at proto-decode),
+// never writes it. A future ante that mutates a decoded msg would break sharing.
 type decodeCache struct {
 	shards     [shardCount]cacheShard
 	maxTxBytes int
