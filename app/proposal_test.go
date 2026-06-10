@@ -173,7 +173,7 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 		require.Equal(t, [][]byte{[]byte("ok-1"), []byte("ok-2")}, got.Txs)
 	})
 
-	t.Run("NoOp mempool respects MaxTxBytes and stops at boundary", func(t *testing.T) {
+	t.Run("NoOp mempool skips over-budget tx, keeps scanning", func(t *testing.T) {
 		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), noopDecoder, acceptAll)
 		// Each "aaaa" payload is 4 bytes → proto-framed size is tag(1) +
 		// length(1) + data(4) = 6 bytes. Budget 14 → two fit (12), third (18) exceeds.
@@ -187,6 +187,19 @@ func TestFastNoOpPrepareProposal(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, [][]byte{[]byte("aaaa"), []byte("bbbb")}, got.Txs)
+	})
+
+	t.Run("NoOp mempool: small tx after over-budget tx still included", func(t *testing.T) {
+		h := fastNoOpPrepareProposal(mempool.NoOpMempool{}, mustNotInvoke(t), noopDecoder, acceptAll)
+		// big is 14 framed bytes (tag+len+12) > budget 12 → skipped, not a break;
+		// small (tag+len+4 = 6) then fits. Confirms continue, not break.
+		big := make([]byte, 12)
+		got, err := h(sdk.Context{}, &abci.RequestPrepareProposal{
+			MaxTxBytes: 12,
+			Txs:        [][]byte{big, []byte("aaaa")},
+		})
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("aaaa")}, got.Txs)
 	})
 
 	t.Run("NoOp mempool with MaxTxBytes <= 0 returns empty proposal", func(t *testing.T) {

@@ -160,7 +160,7 @@ func fastNoOpPrepareProposal(
 			// respects cometbft's MaxBytes wire limit, not just raw payload sum.
 			txSize := cronosmempool.ProtoSizeForTx(txBz)
 			if totalBytes+txSize > maxTxBytes {
-				break
+				continue // skip an over-budget tx; a smaller later one may still fit
 			}
 
 			// Decode only when gas accounting needs it; otherwise validateTx
@@ -183,7 +183,7 @@ func fastNoOpPrepareProposal(
 					// Overflow-safe: totalGas <= maxBlockGas by induction, so
 					// maxBlockGas-totalGas can't underflow even for attacker-set gas.
 					if gasWanted > maxBlockGas-totalGas {
-						break
+						continue // skip; a smaller-gas later tx may still fit (matches ExtTxSelector)
 					}
 					totalGas += gasWanted
 				}

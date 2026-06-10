@@ -473,6 +473,53 @@ func TestRecheckTxs_BatchCapZeroIsUnlimited(t *testing.T) {
 	}
 }
 
+// Known blind spot: a sender whose txs sit in the pool for many blocks without
+// being committed is never rechecked while other senders are touched, so its
+// txs are only revalidated when its own sender lands in a committed block (or a
+// timeout sweep fires). This documents that intended behavior — the recheck is
+// committed-sender-scoped, not a full-pool sweep.
+func TestRecheckTxs_UntouchedSenderNeverRechecked(t *testing.T) {
+	f := newRecheckFixture()
+	idle := f.add(1, "carol", 0, "carol-0") // carol never lands in a committed block
+
+	// Three blocks each touch alice only; carol is never in pending.
+	for i := 0; i < 3; i++ {
+		f.a.pending = map[string]struct{}{sdk.AccAddress("alice").String(): {}}
+		f.a.RecheckTxs()
+	}
+
+	if !poolHas(f.pool, idle) {
+		t.Fatal("untouched sender's tx must remain in the pool")
+	}
+	if f.runner.seen["carol-0"] {
+		t.Fatal("untouched sender's tx must never be rechecked")
+	}
+}
+
+// Known limitation: the timeout sweep evicts an expired middle nonce, but the
+// surviving higher nonce of the same (untouched) sender is left in the pool with
+// a nonce gap. Recheck won't catch it — the sender isn't in pending — so the
+// higher-nonce tx can still be reaped into a proposal and fail the AnteHandler at
+// FinalizeBlock. This test pins that behavior so a future fix is a deliberate change.
+func TestRecheckTxs_NonceGapAfterTimeoutEvictionSurvives(t *testing.T) {
+	f := newRecheckFixture()
+	expired := f.addTimeout(1, "carol", 0, "carol-0", 5) // nonce 0, times out at height 5
+	gapped := f.addTimeout(2, "carol", 1, "carol-1", 0)  // nonce 1, no timeout
+
+	f.a.lastCommittedHeight = 5 // sweep evicts nonce 0; carol not in pending
+	f.a.RecheckTxs()
+
+	if poolHas(f.pool, expired) {
+		t.Fatal("expired middle nonce must be swept")
+	}
+	if !poolHas(f.pool, gapped) {
+		t.Fatal("higher nonce survives the sweep, leaving a nonce gap recheck won't catch")
+	}
+	if f.runner.seen["carol-1"] {
+		t.Fatal("untouched sender's surviving tx must not be rechecked")
+	}
+}
+
 // Doing it inside the callback would pin mp.mtx (and run RunTx's Remove under
 // it) across the whole scan, blocking admission/reap on the commit path.
 func TestRecheckTxs_SignerExtractionOutsidePoolLock(t *testing.T) {
